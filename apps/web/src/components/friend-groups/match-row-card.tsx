@@ -113,8 +113,10 @@ function MatchRowTradeAction({
         </div>
       );
     }
-    // Your own pending request awaiting them, or a reserved trade.
-    return <TradeStatusBadge status={liveTrade.status} counterpartyName={match.counterpartyName} />;
+    // Your own pending request awaiting them, or a reserved trade. The member is
+    // named by the counterparty header above the row (or by the member page this
+    // list is on), so the badge stays anonymous: "Waiting for them".
+    return <TradeStatusBadge status={liveTrade.status} />;
   }
 
   const incoming = match.direction === "incoming";
@@ -396,11 +398,6 @@ function MatchRow({
               name={match.counterpartyName}
               image={match.counterpartyImage}
               gravatarHash={match.counterpartyGravatarHash}
-              // The action slot shows "Waiting for {name}" for a sent-and-pending
-              // trade, so the chip drops its name to avoid repeating it.
-              hideName={
-                liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
-              }
             />
           ) : null}
         </div>
@@ -618,18 +615,11 @@ function MatchTradeRowGroup({
                 name={group.counterpartyName}
                 image={group.counterpartyImage}
                 gravatarHash={group.counterpartyGravatarHash}
-                // A pending header status renders "Waiting for {name}", so drop the
-                // chip's name to avoid showing it twice.
-                hideName={headerStatus === "pending"}
               />
             ) : null}
 
             {headerStatus ? (
-              <TradeStatusBadge
-                status={headerStatus}
-                counterpartyName={group.counterpartyName}
-                className="min-w-0 shrink"
-              />
+              <TradeStatusBadge status={headerStatus} className="min-w-0 shrink" />
             ) : null}
           </div>
         ) : null}

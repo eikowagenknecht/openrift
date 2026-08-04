@@ -1,5 +1,12 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { BellIcon, CheckIcon, ChevronRightIcon, ClockIcon } from "lucide-react";
+import {
+  BellIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  EllipsisVerticalIcon,
+  XIcon,
+} from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
@@ -7,6 +14,12 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,7 +54,6 @@ import { TradeCardmarketExportDialog } from "./trade-cardmarket-export-dialog";
 import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 import {
   CardMetaLine,
-  CounterpartyChip,
   TradeDirectionIcon,
   TradeEstimatedPrice,
   TradeExpiry,
@@ -76,10 +88,8 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
 
   const incoming = trade.role === "receiver";
   // A pending trade awaiting the viewer's accept/decline is "Your decision", not
-  // "Waiting for them". Only the "Waiting for {name}" badge names the member, so
-  // the chip drops its name there to avoid printing it twice in a row.
+  // "Waiting for them".
   const awaitingViewer = trade.actionNeeded === "accept-or-decline";
-  const badgeNamesCounterparty = trade.status === "pending" && !awaitingViewer;
 
   function run<TVariables>(
     mutation: { mutate: (variables: TVariables, options?: { onSettled?: () => void }) => void },
@@ -92,10 +102,9 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug };
 
   return (
-    // On phones the row stacks: the card identity (with the member chip) sits on
-    // top, and an action bar below carries the status badge on the left and the
-    // buttons on the right. From sm up both groups dissolve (sm:contents) back
-    // into one horizontal row.
+    // On phones the row stacks: the card identity sits on top, and an action bar
+    // below carries the status badge on the left and the buttons on the right.
+    // From sm up both groups dissolve (sm:contents) back into one horizontal row.
     <Card className="gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="flex min-w-0 items-center gap-3 sm:contents">
         <TradeDirectionIcon incoming={incoming} />
@@ -119,21 +128,14 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
             />
           ) : null}
         </div>
-
-        <CounterpartyChip
-          groupSlug={trade.groupSlug}
-          userId={trade.counterparty.userId}
-          name={trade.counterparty.name}
-          image={trade.counterparty.image}
-          gravatarHash={trade.counterparty.gravatarHash}
-          hideName={badgeNamesCounterparty}
-        />
       </div>
 
       <div className="flex items-center gap-2 sm:contents">
+        {/* Every row sits under a counterparty header that already carries the
+            member's avatar and name, so the row itself never names them: no
+            member chip, and the pending badge reads "Waiting for them". */}
         <TradeStatusBadge
           status={trade.status}
-          counterpartyName={trade.counterparty.name}
           awaitingViewer={awaitingViewer}
           className="min-w-0 shrink"
         />
@@ -176,18 +178,33 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
           ) : null}
 
           {trade.actionNeeded === "complete" ? (
+            // Cancelling a trade both sides already agreed to is the rare exit,
+            // so it steps back into the overflow menu and leaves "Mark traded"
+            // as the one button on the row.
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={acting}
-                onClick={() => run(cancel, actionArgs)}
-              >
-                Cancel
-              </Button>
               <Button size="sm" disabled={acting} onClick={() => run(complete, actionArgs)}>
                 Mark traded
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      disabled={acting}
+                      aria-label="More trade actions"
+                    />
+                  }
+                >
+                  <EllipsisVerticalIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem variant="destructive" onClick={() => run(cancel, actionArgs)}>
+                    <XIcon className="size-4" />
+                    Cancel trade
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : null}
 

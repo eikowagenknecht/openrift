@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ActionBand } from "@/components/ui/action-band";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
@@ -379,9 +380,13 @@ function MemberListsSection({ slug, data }: { slug: string; data: FriendGroupDet
 
 /**
  * One member's card in the Wishlists & tradelists grid: avatar and name up
- * top, their contact chips, then their shared lists as rows. Only the viewer's
- * own card can be list-less (other members without shares are filtered out
- * upstream), so the empty text speaks to the viewer.
+ * top, their contact chips, then their shared lists as rows behind a fold. The
+ * lists start closed so a group of a dozen members reads as a scannable grid of
+ * people rather than a wall of list rows; the fold's label carries the count so
+ * the closed card still says how much is there. The name links to the member's
+ * page, so it stays out of the fold trigger. Only the viewer's own card can be
+ * list-less (other members without shares are filtered out upstream), so the
+ * empty text speaks to the viewer.
  * @returns The member card.
  */
 function MemberListsCard({
@@ -405,7 +410,13 @@ function MemberListsCard({
           gravatarHash={member.gravatarHash}
           size="sm"
         />
-        <span className="min-w-0 flex-1 truncate font-medium">{member.userName ?? "Member"}</span>
+        <Link
+          to="/groups/$slug/members/$userId"
+          params={{ slug, userId: member.userId }}
+          className="hover:text-primary min-w-0 flex-1 truncate font-medium transition-colors"
+        >
+          {member.userName ?? "Member"}
+        </Link>
         {shareButton}
       </div>
       <ContactMethodChips methods={member.contactMethods} />
@@ -414,13 +425,23 @@ function MemberListsCard({
           You haven&apos;t shared a wishlist or tradelist with this group yet.
         </p>
       ) : (
-        <ul className="-mx-2 flex flex-col">
-          {lists.map((share) => (
-            <li key={share.listId}>
-              <MemberListRow slug={slug} share={share} />
-            </li>
-          ))}
-        </ul>
+        <Collapsible className="-mx-2">
+          <CollapsibleTrigger className="group hover:bg-muted/50 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left">
+            <span className="min-w-0 flex-1 truncate text-sm">
+              {lists.length} shared {lists.length === 1 ? "list" : "lists"}
+            </span>
+            <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="flex flex-col">
+              {lists.map((share) => (
+                <li key={share.listId}>
+                  <MemberListRow slug={slug} share={share} />
+                </li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </Card>
   );
