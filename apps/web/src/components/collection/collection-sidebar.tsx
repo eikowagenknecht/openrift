@@ -12,7 +12,6 @@ import {
   InboxIcon,
   LayersIcon,
   PlusIcon,
-  Share2Icon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -21,7 +20,6 @@ import { useEffect, useState } from "react";
 import { CreateListDialog, listKindIcon } from "@/components/list/create-list-dialog";
 import { DroppableSidebarList } from "@/components/list/droppable-sidebar-list";
 import { ListRowMenu } from "@/components/list/list-row-menu";
-import { UserShareDialog } from "@/components/list/user-share-dialog";
 import {
   SectionHeader,
   SectionHeaderActions,
@@ -234,7 +232,6 @@ function ListsSidebarGroups({
 }) {
   const { data: lists } = useLists();
   const [createIntent, setCreateIntent] = useState<ListIntent | null>(null);
-  const [shareOpen, setShareOpen] = useState(false);
 
   const byIntent = Map.groupBy(lists, (list) => list.intent);
 
@@ -250,16 +247,6 @@ function ListsSidebarGroups({
           onCreate={() => setCreateIntent(group.intent)}
         />
       ))}
-      <SidebarGroup>
-        <SidebarMenu className="gap-1">
-          <SidebarMenuItem>
-            <SidebarMenuButton className="text-muted-foreground" onClick={() => setShareOpen(true)}>
-              <Share2Icon className="size-4" />
-              <span>Share all my lists</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
       {createIntent !== null && (
         <CreateListDialog
           intent={createIntent}
@@ -271,7 +258,6 @@ function ListsSidebarGroups({
           }}
         />
       )}
-      <UserShareDialog open={shareOpen} onOpenChange={setShareOpen} />
     </>
   );
 }

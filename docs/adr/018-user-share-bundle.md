@@ -113,8 +113,7 @@ The page header shows the sharer's display name, avatar (via Gravatar), and a on
 
 ### UI affordances
 
-- **Lists overview page** carries a "Share all my lists" button that opens a `UserShareDialog` (mirrors the existing `ListShareDialog` shape: enabled-state shows copy + revoke, disabled-state shows a single "Create link" button). Rotate lives behind a small "Reset link" affordance inside the dialog when sharing is enabled.
-- **`/profile`** gains a "Public sharing" section housing the same controls, so the user can find and revoke the link from settings without going via the lists page.
+- **`/profile`** carries a "Public sharing" section, the single entry point for the bundle: enabled-state shows the link plus copy, the chat image and the binder QR sheet, disabled-state shows a single "Create link" button. Rotate lives behind a "Reset link" affordance when sharing is enabled. (A "Share all my lists" entry in the collection sidebar opened an equivalent dialog until 2026-08-04, when the two were folded into this section.)
 - **Per-list passive badge.** Lists already show a "shared with N friend groups" badge and a separate per-list public-link affordance. We do not add a parallel "in your bundle" badge: a list is in the bundle exactly when it has its own public share token or at least one friend-group share, both of which already render their own indicators on the list page.
 
 ### Routes summary

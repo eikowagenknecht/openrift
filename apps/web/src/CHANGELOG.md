@@ -10,6 +10,7 @@
 ### Other
 
 - feat(Trades): **Trades in set order** — possible trades and your open and completed trades now list by set and card number, the way the same cards read in the card browser and in a binder.
+- feat(Account): **Sharing all your lists lives in your profile** — the one link covering every wishlist and tradelist, its chat image and its binder QR sheet now sit at the top of your profile settings, and the sidebar entry is gone.
 - fix(Trades): **Clearer trade status on cards** — a card in a trade now reads the same whichever side you are on (Requested, Offered, Reserved, Traded), with an arrow showing whether it is coming in or going out.
 - fix(Trades): **Group trades fit on a phone** — member names and their trade values now stack onto two lines instead of squeezing each other, and a long trade row no longer pushes the page sideways.
 - fix(Collection): **Sidebar reordering works on touch again** — dragging a collection or list by its grip opened the row's right-click menu instead of moving the row.

@@ -6,6 +6,7 @@ import type {
   TradePreference,
 } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   CheckIcon,
   CopyIcon,
@@ -185,13 +186,30 @@ export function ListShareDialog({
             </div>
           ) : null}
 
-          <p className="text-muted-foreground border-t pt-4 text-sm">
-            Prefer to keep it inside your circle? Set which of your groups can see it in{" "}
-            <Button variant="link" className="h-auto p-0" onClick={onManageGroups}>
-              Group visibility
-            </Button>
-            .
-          </p>
+          <div className="text-muted-foreground flex flex-col gap-1 border-t pt-4 text-sm">
+            <p>
+              Prefer to keep it inside your circle? Set which of your groups can see it in{" "}
+              <Button variant="link" className="h-auto p-0" onClick={onManageGroups}>
+                Group visibility
+              </Button>
+              .
+            </p>
+            {intent === "organize" ? null : (
+              <p>
+                Sharing more than this one list? One link covers every wishlist and tradelist you
+                have, under{" "}
+                <Button
+                  variant="link"
+                  className="h-auto p-0"
+                  onClick={() => onOpenChange(false)}
+                  render={<Link to="/profile" hash="sharing" />}
+                >
+                  Public sharing
+                </Button>
+                .
+              </p>
+            )}
+          </div>
 
           <DialogFooter>
             {sharing ? (

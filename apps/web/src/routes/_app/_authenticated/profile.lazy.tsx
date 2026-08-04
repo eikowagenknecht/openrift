@@ -27,13 +27,13 @@ export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
 });
 
 const NAV_SECTIONS: PageTocItem[] = [
+  { id: "sharing", label: "Public sharing" },
   { id: "preferences", label: "Preferences" },
   { id: "display", label: "Display", level: 1 },
   { id: "marketplaces", label: "Marketplaces", level: 1 },
   { id: "languages", label: "Languages", level: 1 },
   { id: "trading", label: "Trading", level: 1 },
   { id: "contacts", label: "Trade contacts", level: 1 },
-  { id: "sharing", label: "Public sharing" },
   { id: "integrations", label: "Integrations" },
   { id: "account", label: "Account" },
   { id: "security", label: "Security" },
@@ -74,6 +74,10 @@ function ProfilePage() {
           </CardHeader>
         </Card>
 
+        <SettingsGroup id="sharing" title="Public sharing">
+          <PublicSharingSection />
+        </SettingsGroup>
+
         <SettingsGroup id="preferences" title="Preferences">
           <div id="display" className="scroll-mt-16">
             <DisplaySection />
@@ -90,10 +94,6 @@ function ProfilePage() {
           <div id="contacts" className="scroll-mt-16">
             <ContactMethodsSection />
           </div>
-        </SettingsGroup>
-
-        <SettingsGroup id="sharing" title="Public sharing">
-          <PublicSharingSection />
         </SettingsGroup>
 
         <SettingsGroup id="integrations" title="Integrations">
