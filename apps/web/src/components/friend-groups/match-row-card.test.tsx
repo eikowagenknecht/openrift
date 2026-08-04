@@ -27,9 +27,10 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-const { groupTradeMatches } = await import("./match-row-card");
+const { compareMatchTradeGroups, groupTradeMatches } = await import("./match-row-card");
 type DirectedMatch = Parameters<typeof groupTradeMatches>[0][number];
 type AggregatedMatch = Omit<DirectedMatch, "direction">;
+type MatchTradeGroup = ReturnType<typeof groupTradeMatches>[number];
 
 function makeMatch(): AggregatedMatch {
   return {
@@ -72,6 +73,7 @@ function makeMatch(): AggregatedMatch {
     },
     cardSlug: "fury-rune",
     shortCode: "OGN-001",
+    setIndex: 3,
     setName: "Origins",
     rarityLabel: "Common",
     finishLabel: "Foil",
@@ -122,5 +124,58 @@ describe("groupTradeMatches", () => {
       makeDirected({ direction: "outgoing", printingId: "printing-a" }),
     ]);
     expect(groups).toHaveLength(2);
+  });
+
+  it("orders a group's variants by set, then card number", () => {
+    const groups = groupTradeMatches([
+      makeDirected({ printingId: "printing-a", setIndex: 3, shortCode: "OGN-010" }),
+      makeDirected({ printingId: "printing-b", setIndex: 1, shortCode: "FND-249" }),
+      makeDirected({ printingId: "printing-c", setIndex: 3, shortCode: "OGN-002" }),
+    ]);
+    expect(groups[0].variants.map((variant) => variant.shortCode)).toEqual([
+      "FND-249",
+      "OGN-002",
+      "OGN-010",
+    ]);
+  });
+
+  it("gives a group the catalog position of its earliest variant", () => {
+    const groups = groupTradeMatches([
+      makeDirected({ printingId: "printing-a", setIndex: 3, shortCode: "OGN-010" }),
+      makeDirected({ printingId: "printing-b", setIndex: 1, shortCode: "FND-249" }),
+    ]);
+    expect(groups[0].setIndex).toBe(1);
+    expect(groups[0].shortCode).toBe("FND-249");
+  });
+});
+
+describe("compareMatchTradeGroups", () => {
+  function makeGroup(overrides: Partial<MatchTradeGroup> = {}): MatchTradeGroup {
+    return { ...groupTradeMatches([makeDirected()])[0], ...overrides };
+  }
+
+  it("sorts incoming before outgoing regardless of catalog position", () => {
+    const sorted = [
+      makeGroup({ direction: "outgoing", setIndex: 1, shortCode: "FND-249" }),
+      makeGroup({ direction: "incoming", setIndex: 9, shortCode: "UNL-100" }),
+    ].toSorted(compareMatchTradeGroups);
+    expect(sorted.map((group) => group.direction)).toEqual(["incoming", "outgoing"]);
+  });
+
+  it("sorts by set order, then card number, within a direction", () => {
+    const sorted = [
+      makeGroup({ setIndex: 3, shortCode: "OGN-010" }),
+      makeGroup({ setIndex: 3, shortCode: "OGN-002" }),
+      makeGroup({ setIndex: 1, shortCode: "FND-249" }),
+    ].toSorted(compareMatchTradeGroups);
+    expect(sorted.map((group) => group.shortCode)).toEqual(["FND-249", "OGN-002", "OGN-010"]);
+  });
+
+  it("falls back to the card name when two groups share a catalog position", () => {
+    const sorted = [
+      makeGroup({ setIndex: Number.MAX_SAFE_INTEGER, shortCode: "", cardName: "Zed" }),
+      makeGroup({ setIndex: Number.MAX_SAFE_INTEGER, shortCode: "", cardName: "Ahri" }),
+    ].toSorted(compareMatchTradeGroups);
+    expect(sorted.map((group) => group.cardName)).toEqual(["Ahri", "Zed"]);
   });
 });

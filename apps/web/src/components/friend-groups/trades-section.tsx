@@ -38,6 +38,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { frontImageId } from "@/lib/card-meta";
+import { comparePrintingIdsByCatalog } from "@/lib/catalog-position";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
 import {
@@ -417,9 +418,18 @@ function CounterpartyTradeGroup({
   group: TradeCounterpartyGroup;
   bulk: BulkMode;
 }) {
-  const { counterparty, trades } = group;
+  const { counterparty } = group;
   const prices = usePrices();
+  const { printingsById, sets } = useCards();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+
+  // Rows read in catalog order (set, then card number), the same order the
+  // suggestions above and the card browsers use, rather than in the order the
+  // trades happened to be opened. Everything below — the value summary, the
+  // bulk actions, the Cardmarket export — works off the sorted list, so the
+  // export file comes out in that order too.
+  const byCatalogPosition = comparePrintingIdsByCatalog(printingsById, sets);
+  const trades = group.trades.toSorted((a, b) => byCatalogPosition(a.printingId, b.printingId));
   const split = sumTradeValues(trades, (printingId) => prices.get(printingId, marketplace));
   // The header count, the value summary and the shared status stay over *all*
   // their trades — the fold is a display cap, not a filter.

@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Trades): **Trades in set order** — possible trades and your open and completed trades now list by set and card number, the way the same cards read in the card browser and in a binder.
 - fix(Trades): **Group trades fit on a phone** — member names and their trade values now stack onto two lines instead of squeezing each other, and a long trade row no longer pushes the page sideways.
 - fix(Collection): **Sidebar reordering works on touch again** — dragging a collection or list by its grip opened the row's right-click menu instead of moving the row.
 - fix(App): **Selected option in a button row** — the active choice (stats grouping, chart time range, price source) had its bottom-right corner clipped off, and now looks like the toggles used everywhere else.

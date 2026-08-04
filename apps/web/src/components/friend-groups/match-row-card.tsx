@@ -24,6 +24,8 @@ import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { usePrices } from "@/hooks/use-prices";
+import type { CatalogPosition } from "@/lib/catalog-position";
+import { compareCatalogPosition, setIndexById, UNKNOWN_SET_INDEX } from "@/lib/catalog-position";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { MatchCopyDetail, MatchDirection, TradeValueSplit } from "@/lib/trade-derivation";
 import {
@@ -50,7 +52,7 @@ import {
 } from "./trade-row-parts";
 
 // Receive-first, give-second: incoming rows sort ahead of outgoing ones, then
-// each direction is ordered by card name.
+// each direction is ordered by catalog position (set, then card number).
 const DIRECTION_ORDER: Record<MatchDirection, number> = { incoming: 0, outgoing: 1 };
 
 /**
@@ -165,6 +167,8 @@ function MatchRowTradeAction({
 interface ResolvedMatchRow extends FriendGroupMatchRow {
   cardSlug: string;
   shortCode: string;
+  /** The set's position in catalog order; {@link UNKNOWN_SET_INDEX} when unknown. */
+  setIndex: number;
   setName: string;
   rarityLabel: string;
   finishLabel: string;
@@ -203,6 +207,7 @@ function resolveMatchRows(
   labels: ReturnType<typeof useEnumOrders>["labels"],
 ): ResolvedMatchRow[] {
   const setsById = new Map(sets.map((set) => [set.id, set]));
+  const setIndexes = setIndexById(sets);
   return rows.map((row) => {
     const card = cardsById[row.cardId];
     const set = setsById.get(row.setId);
@@ -212,6 +217,7 @@ function resolveMatchRows(
       cardName: card ? legendDisplayName(card) : row.cardName,
       cardSlug: card?.slug ?? row.cardId,
       shortCode: printing?.shortCode ?? "",
+      setIndex: setIndexes.get(row.setId) ?? UNKNOWN_SET_INDEX,
       setName: set?.name ?? row.setId,
       rarityLabel: labels.rarities[row.rarity],
       finishLabel: labels.finishes[row.finish],
@@ -441,7 +447,7 @@ function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
   return [...aggregated.values()];
 }
 
-interface MatchTradeGroup {
+export interface MatchTradeGroup extends CatalogPosition {
   /** Stable, per-counterparty key used both as the React key and the fold-store id. */
   foldId: string;
   direction: MatchDirection;
@@ -468,6 +474,11 @@ interface MatchTradeGroup {
  * group of four variants instead of four sibling rows. Printing-level wishes
  * target one specific printing, so they stay one group per
  * (direction, counterparty, list, printing) and keep their existing one-row look.
+ *
+ * Variants are ordered by catalog position, and each group takes the position of
+ * its earliest one, so a card-level wish sorts with the first printing it can be
+ * filled from rather than with whichever one the match query happened to find
+ * first.
  * @returns One group per row in the list, in first-seen order.
  */
 export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
@@ -492,12 +503,35 @@ export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
         counterpartyName: row.counterpartyName,
         counterpartyImage: row.counterpartyImage,
         counterpartyGravatarHash: row.counterpartyGravatarHash,
+        // Provisional: rewritten from the earliest variant once they're sorted.
+        setIndex: row.setIndex,
+        shortCode: row.shortCode,
         totalAvailable: row.availableCount,
         variants: [row],
       });
     }
   }
+  for (const group of groups.values()) {
+    group.variants.sort(compareCatalogPosition);
+    group.setIndex = group.variants[0].setIndex;
+    group.shortCode = group.variants[0].shortCode;
+  }
   return [...groups.values()];
+}
+
+/**
+ * Suggestion order: everything the viewer would receive first, then everything
+ * they'd give, each direction in catalog order (set, then card number). Two
+ * printings that share a position — a card with no catalog printing, so no short
+ * code — fall back to the card name.
+ * @returns Negative when `a` comes first, positive when `b` does, 0 when equal.
+ */
+export function compareMatchTradeGroups(a: MatchTradeGroup, b: MatchTradeGroup): number {
+  return (
+    DIRECTION_ORDER[a.direction] - DIRECTION_ORDER[b.direction] ||
+    compareCatalogPosition(a, b) ||
+    a.cardName.localeCompare(b.cardName)
+  );
 }
 
 /**
@@ -888,12 +922,11 @@ export function MatchTradeList({
     resolveMatchRows(outgoing, cardsById, printingsById, sets, labels),
   ).map((match): DirectedMatch => ({ ...match, direction: "outgoing" }));
   // Keep the "everything you'd receive, then everything you'd give" split, but
-  // order each direction by card name so the list reads alphabetically instead
-  // of in match-discovery order.
+  // order each direction the way the catalog does — set first, then card number
+  // — so the list matches how the same cards read in the browsers and in a
+  // binder, instead of following match-discovery order.
   const groups = groupTradeMatches([...incomingRows, ...outgoingRows]).toSorted(
-    (a, b) =>
-      DIRECTION_ORDER[a.direction] - DIRECTION_ORDER[b.direction] ||
-      a.cardName.localeCompare(b.cardName),
+    compareMatchTradeGroups,
   );
   const infosByPrinting = marketplaceInfo?.infos ?? {};
 
