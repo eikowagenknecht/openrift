@@ -1,5 +1,4 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useEffect } from "react";
 
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
@@ -16,6 +15,11 @@ interface SidebarShowMoreRowProps {
 /**
  * The "Show N more" / "Show less" row at the foot of a sidebar group that has
  * rows hidden behind it.
+ *
+ * Deliberately slimmer than a list row (h-6, no icon): it is chrome, not a
+ * destination, and one of these can sit under every group. Its label is
+ * indented to `pl-8` so it starts where the rows' labels start, keeping the
+ * column edge clean without an icon of its own.
  *
  * It is also a drop target, but only to reveal: a hidden row can't receive a
  * card while it isn't rendered, so hovering a dragged card here opens the
@@ -43,8 +47,10 @@ export function SidebarShowMoreRow({ foldKey, hiddenCount, shown }: SidebarShowM
 
   return (
     <SidebarMenuItem ref={setNodeRef}>
-      <SidebarMenuButton className="text-muted-foreground" onClick={() => toggleMoreShown(foldKey)}>
-        {shown ? <ChevronUpIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+      <SidebarMenuButton
+        className="text-muted-foreground h-6 py-0 pl-8 text-xs"
+        onClick={() => toggleMoreShown(foldKey)}
+      >
         <span>{shown ? "Show less" : `Show ${hiddenCount} more`}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>

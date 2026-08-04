@@ -32,6 +32,7 @@ import {
   NestedSidebar,
   SidebarContent,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -100,35 +101,75 @@ const INTENT_GROUPS: IntentGroup[] = [
  * Sidebar group whose header is a click-to-fold trigger. The open state is
  * persisted per-user via the sidebar-fold store, so refreshing the page
  * keeps the user's collapse choices.
+ *
+ * The group's create action lives in the header rather than as a row at the
+ * foot of the group: a labelled "New …" row costs a full row per group, and
+ * with three list groups plus one per friend group that adds up to more
+ * vertical space than the lists themselves. The fold chevron moves to the left
+ * as a disclosure triangle so the two controls sit at opposite ends of the row
+ * instead of competing for the right edge.
  * @returns A collapsible sidebar group with a chevron-bearing label.
  */
 function CollapsibleSidebarGroup({
   label,
   foldKey,
+  createLabel,
+  onCreate,
   children,
 }: {
   label: string;
   foldKey: SidebarGroupKey;
+  createLabel: string;
+  onCreate: () => void;
   children: ReactNode;
 }) {
   const open = useSidebarFoldStore((state) => state.byKey[foldKey] ?? true);
   const setOpen = useSidebarFoldStore((state) => state.setOpen);
 
+  // The action is reachable while the group is folded, where a new row would
+  // land out of sight — so creating always opens the group first.
+  function handleCreate() {
+    setOpen(foldKey, true);
+    onCreate();
+  }
+
   return (
     <Collapsible open={open} onOpenChange={(next) => setOpen(foldKey, next)}>
       <SidebarGroup>
         <SidebarGroupLabel
-          className="group hover:bg-sidebar-accent cursor-pointer transition-colors"
+          className="group hover:bg-sidebar-accent cursor-pointer gap-1.5 pr-8 transition-colors"
           render={<CollapsibleTrigger />}
         >
-          <span className="flex-1 text-left">{label}</span>
-          <ChevronRightIcon className="size-3 transition-transform group-data-[panel-open]:rotate-90" />
+          {/* size-3! beats SidebarGroupLabel's own [&>svg]:size-4, which would otherwise win on specificity and leave an oversized triangle leading the row. */}
+          <ChevronRightIcon className="size-3! transition-transform group-data-[panel-open]:rotate-90" />
+          <span className="min-w-0 flex-1 truncate text-left">{label}</span>
         </SidebarGroupLabel>
+        <SidebarGroupAction title={createLabel} onClick={handleCreate}>
+          <PlusIcon />
+          <span className="sr-only">{createLabel}</span>
+        </SidebarGroupAction>
         <CollapsibleContent className="overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
           <SidebarMenu className="gap-1">{children}</SidebarMenu>
         </CollapsibleContent>
       </SidebarGroup>
     </Collapsible>
+  );
+}
+
+/**
+ * The labelled "New …" row, kept only for a group with no rows at all: an
+ * empty group would otherwise render as a bare header, leaving the header's
+ * icon-only `+` as the sole (and easily missed) way in.
+ * @returns The create row.
+ */
+function SidebarCreateRow({ label, onCreate }: { label: string; onCreate: () => void }) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton className="text-muted-foreground" onClick={onCreate}>
+        <PlusIcon className="size-4" />
+        <span>{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
@@ -159,7 +200,12 @@ function ListIntentGroup({
   const sortableIds = rows.map((row) => `${SORTABLE_LIST_PREFIX}${row.id}`);
 
   return (
-    <CollapsibleSidebarGroup label={group.groupLabel} foldKey={group.foldKey}>
+    <CollapsibleSidebarGroup
+      label={group.groupLabel}
+      foldKey={group.foldKey}
+      createLabel={group.newButtonLabel}
+      onCreate={onCreate}
+    >
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
         {rows.map((list) => {
           const KindIcon = listKindIcon(list.kind);
@@ -213,12 +259,7 @@ function ListIntentGroup({
       {(hiddenCount > 0 || (moreShown && hasHidden)) && (
         <SidebarShowMoreRow foldKey={group.foldKey} hiddenCount={hiddenCount} shown={moreShown} />
       )}
-      <SidebarMenuItem>
-        <SidebarMenuButton className="text-muted-foreground" onClick={onCreate}>
-          <PlusIcon className="size-4" />
-          <span>{group.newButtonLabel}</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+      {lists.length === 0 && <SidebarCreateRow label={group.newButtonLabel} onCreate={onCreate} />}
     </CollapsibleSidebarGroup>
   );
 }
@@ -330,7 +371,12 @@ function PersonalCollectionsGroup({
   });
 
   return (
-    <CollapsibleSidebarGroup label="Collections" foldKey="collections">
+    <CollapsibleSidebarGroup
+      label="Collections"
+      foldKey="collections"
+      createLabel="New collection"
+      onCreate={onCreate}
+    >
       {inbox && (
         <CollectionRowMenu collection={inbox} isActive={activeId === inbox.id}>
           <DroppableCollection
@@ -409,12 +455,9 @@ function PersonalCollectionsGroup({
       {(hiddenCount > 0 || (moreShown && hasHidden)) && (
         <SidebarShowMoreRow foldKey="collections" hiddenCount={hiddenCount} shown={moreShown} />
       )}
-      <SidebarMenuItem>
-        <SidebarMenuButton className="text-muted-foreground" onClick={onCreate}>
-          <PlusIcon className="size-4" />
-          <span>New collection</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+      {!inbox && collections.length === 0 && (
+        <SidebarCreateRow label="New collection" onCreate={onCreate} />
+      )}
     </CollapsibleSidebarGroup>
   );
 }
@@ -445,7 +488,12 @@ function SharedCollectionsGroup({
   });
 
   return (
-    <CollapsibleSidebarGroup label={section.groupName} foldKey={foldKey}>
+    <CollapsibleSidebarGroup
+      label={section.groupName}
+      foldKey={foldKey}
+      createLabel="New shared collection"
+      onCreate={onCreate}
+    >
       {rows.map((col) => (
         <CollectionRowMenu key={col.id} collection={col} isActive={activeId === col.id}>
           <DroppableCollection
@@ -478,12 +526,9 @@ function SharedCollectionsGroup({
       {(hiddenCount > 0 || (moreShown && hasHidden)) && (
         <SidebarShowMoreRow foldKey={foldKey} hiddenCount={hiddenCount} shown={moreShown} />
       )}
-      <SidebarMenuItem>
-        <SidebarMenuButton className="text-muted-foreground" onClick={onCreate}>
-          <PlusIcon className="size-4" />
-          <span>New shared collection</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+      {section.collections.length === 0 && (
+        <SidebarCreateRow label="New shared collection" onCreate={onCreate} />
+      )}
     </CollapsibleSidebarGroup>
   );
 }
