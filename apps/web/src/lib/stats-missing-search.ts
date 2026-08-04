@@ -53,6 +53,60 @@ export function buildMissingSearch({
   if (scope.artVariants && scope.artVariants.length > 0) {
     search.artVariants = scope.artVariants;
   }
+  if (scope.keywords && scope.keywords.length > 0) {
+    search.keywords = scope.keywords;
+  }
+  if (scope.tags && scope.tags.length > 0) {
+    search.tags = scope.tags;
+  }
+  if (scope.customTags && scope.customTags.length > 0) {
+    search.customTags = scope.customTags;
+  }
+  if (scope.cardSizes && scope.cardSizes.length > 0) {
+    search.cardSizes = scope.cardSizes;
+  }
+  if (scope.standard !== undefined) {
+    search.standard = scope.standard;
+  }
+  if (scope.keywordsPresence) {
+    search.keywordsPresence = scope.keywordsPresence;
+  }
+  if (scope.tagsPresence) {
+    search.tagsPresence = scope.tagsPresence;
+  }
+  if (scope.customTagsPresence) {
+    search.customTagsPresence = scope.customTagsPresence;
+  }
+  if (scope.keywordsExclude && scope.keywordsExclude.length > 0) {
+    search.keywordsEx = scope.keywordsExclude;
+  }
+  if (scope.tagsExclude && scope.tagsExclude.length > 0) {
+    search.tagsEx = scope.tagsExclude;
+  }
+  if (scope.customTagsExclude && scope.customTagsExclude.length > 0) {
+    search.customTagsEx = scope.customTagsExclude;
+  }
+  if (scope.setsExclude && scope.setsExclude.length > 0) {
+    search.setsEx = scope.setsExclude;
+  }
+  if (scope.languagesExclude && scope.languagesExclude.length > 0) {
+    search.languagesEx = scope.languagesExclude;
+  }
+  if (scope.domainsExclude && scope.domainsExclude.length > 0) {
+    search.domainsEx = scope.domainsExclude;
+  }
+  if (scope.typesExclude && scope.typesExclude.length > 0) {
+    search.typesEx = scope.typesExclude;
+  }
+  if (scope.raritiesExclude && scope.raritiesExclude.length > 0) {
+    search.raritiesEx = scope.raritiesExclude;
+  }
+  if (scope.finishesExclude && scope.finishesExclude.length > 0) {
+    search.finishesEx = scope.finishesExclude;
+  }
+  if (scope.artVariantsExclude && scope.artVariantsExclude.length > 0) {
+    search.artVariantsEx = scope.artVariantsExclude;
+  }
   if (scope.promos === "only") {
     search.markersPresence = "any";
   } else if (scope.promos === "exclude") {

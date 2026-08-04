@@ -398,6 +398,57 @@ describe("computeCompletion", () => {
     expect(unitEntry?.owned).toBe(1);
   });
 
+  it("leaves runes and Other out of copies mode", () => {
+    // Runes are a shared basic supply and "Other" never enters a deck, so
+    // neither has a playset to chase. Counting them charged a target of 3 each
+    // and sank the completion percentage against a goal nobody plays towards.
+    const rune = stubStack({ copyCount: 1, card: { slug: "fury-rune", type: "rune" } });
+    const other = stubStack({ copyCount: 1, card: { slug: "oddity", type: "other" } });
+    const unit = stubStack({ copyCount: 2, card: { slug: "soldier", type: "unit" } });
+    const input = {
+      stacks: [rune, other, unit],
+      scopedPrintings: [rune.printing, other.printing, unit.printing],
+      scope: {},
+      sets: [stubSet({ id: "set-1" })],
+      groupBy: "type" as const,
+      orders: ORDERS,
+    };
+
+    const copies = computeCompletion({ ...input, countMode: "copies" });
+    expect(copies.find((entry) => entry.key === "rune")).toBeUndefined();
+    expect(copies.find((entry) => entry.key === "other")).toBeUndefined();
+    expect(copies.find((entry) => entry.key === "unit")?.total).toBe(3);
+
+    // Only the playset mode drops them — cards mode still counts every card.
+    const cards = computeCompletion({ ...input, countMode: "cards" });
+    expect(cards.find((entry) => entry.key === "rune")?.total).toBe(1);
+    expect(cards.find((entry) => entry.key === "other")?.total).toBe(1);
+  });
+
+  it("keeps runes out of a mixed group's copies totals", () => {
+    // Grouped by set, the rune shares a row with the unit, so it has to drop
+    // out of the sum rather than the whole row.
+    const rune = stubStack({
+      copyCount: 3,
+      card: { slug: "fury-rune", type: "rune" },
+      setId: "s1",
+    });
+    const unit = stubStack({ copyCount: 1, card: { slug: "soldier", type: "unit" }, setId: "s1" });
+
+    const entries = computeCompletion({
+      stacks: [rune, unit],
+      scopedPrintings: [rune.printing, unit.printing],
+      scope: {},
+      sets: [stubSet({ id: "s1" })],
+      groupBy: "set",
+      countMode: "copies",
+      orders: ORDERS,
+    });
+
+    expect(entries[0].total).toBe(3); // the unit's playset alone
+    expect(entries[0].owned).toBe(1); // the rune's 3 copies don't count
+  });
+
   it("caps owned copies at target in copies mode", () => {
     const unit = stubStack({
       copyCount: 5,
@@ -526,6 +577,25 @@ describe("filterByScope", () => {
     const result = filterByScope([normal, alt], { artVariants: ["normal"] });
     expect(result).toHaveLength(1);
     expect(result[0].artVariant).toBe("normal");
+  });
+
+  it("applies an exclude-only scope", () => {
+    // Regression: `scopeHasFilters` looked at the include arrays alone, so an
+    // exclude-only scope short-circuited to "no filters" and returned the
+    // input untouched.
+    const en = stubPrinting({ language: "EN" });
+    const ja = stubPrinting({ language: "JA" });
+    const result = filterByScope([en, ja], { languagesExclude: ["JA"] });
+    expect(result).toHaveLength(1);
+    expect(result[0].language).toBe("EN");
+  });
+
+  it("resolves custom tags through the assignment map", () => {
+    const staple = stubPrinting({ cardId: "card-staple" });
+    const other = stubPrinting({ cardId: "card-other" });
+    const assignments = { "card-staple": ["staple"] };
+    const result = filterByScope([staple, other], { customTags: ["staple"] }, assignments);
+    expect(result).toEqual([staple]);
   });
 
   it("combines multiple scope filters", () => {
@@ -679,5 +749,93 @@ describe("matchesScope", () => {
     const printing = stubPrinting({ setSlug: "RB1", rarity: "common" });
     expect(matchesScope(printing, { sets: ["RB1"], rarities: ["common"] })).toBe(true);
     expect(matchesScope(printing, { sets: ["RB1"], rarities: ["rare"] })).toBe(false);
+  });
+
+  it("rejects a printing on any single-valued exclude axis", () => {
+    // Regression: the scope carried no exclude arrays at all, so a filter chip
+    // cycled into exclude-mode left every stats figure untouched.
+    const printing = stubPrinting({
+      setSlug: "RB1",
+      language: "EN",
+      rarity: "common",
+      finish: "normal",
+      artVariant: "normal",
+    });
+    expect(matchesScope(printing, { setsExclude: ["RB1"] })).toBe(false);
+    expect(matchesScope(printing, { setsExclude: ["RB2"] })).toBe(true);
+    expect(matchesScope(printing, { languagesExclude: ["EN"] })).toBe(false);
+    expect(matchesScope(printing, { raritiesExclude: ["common"] })).toBe(false);
+    expect(matchesScope(printing, { finishesExclude: ["normal"] })).toBe(false);
+    expect(matchesScope(printing, { artVariantsExclude: ["normal"] })).toBe(false);
+  });
+
+  it("rejects a card when any of its domains or types is excluded", () => {
+    const printing = stubPrinting({
+      card: { domains: ["fury", "calm"] as Domain[], type: "unit" },
+    });
+    expect(matchesScope(printing, { domainsExclude: ["calm"] })).toBe(false);
+    expect(matchesScope(printing, { domainsExclude: ["mind"] })).toBe(true);
+    expect(matchesScope(printing, { typesExclude: ["unit"] })).toBe(false);
+    expect(matchesScope(printing, { typesExclude: ["spell"] })).toBe(true);
+  });
+
+  it("filters by keywords, tags, custom tags and size", () => {
+    // Regression: these chips render on the stats page but the scope ignored
+    // them, so setting one narrowed nothing.
+    const printing = stubPrinting({
+      size: "standard",
+      card: { keywords: ["Unique"], tags: ["champion-spell"] },
+    });
+    expect(matchesScope(printing, { keywords: ["Unique"] })).toBe(true);
+    expect(matchesScope(printing, { keywords: ["Deflect"] })).toBe(false);
+    expect(matchesScope(printing, { keywordsExclude: ["Unique"] })).toBe(false);
+    expect(matchesScope(printing, { tags: ["champion-spell"] })).toBe(true);
+    expect(matchesScope(printing, { tagsExclude: ["champion-spell"] })).toBe(false);
+    expect(matchesScope(printing, { cardSizes: ["standard"] })).toBe(true);
+    expect(matchesScope(printing, { cardSizes: ["oversized"] })).toBe(false);
+    // Custom tags come from the assignment map, not the printing.
+    expect(matchesScope(printing, { customTags: ["staple"] }, ["staple"])).toBe(true);
+    expect(matchesScope(printing, { customTags: ["staple"] }, ["budget"])).toBe(false);
+    expect(matchesScope(printing, { customTags: ["staple"] })).toBe(false);
+    expect(matchesScope(printing, { customTagsExclude: ["staple"] }, ["staple"])).toBe(false);
+  });
+
+  it("applies presence constraints per dimension", () => {
+    const withKeywords = stubPrinting({ card: { keywords: ["Unique"], tags: [] } });
+    expect(matchesScope(withKeywords, { keywordsPresence: "any" })).toBe(true);
+    expect(matchesScope(withKeywords, { keywordsPresence: "none" })).toBe(false);
+    expect(matchesScope(withKeywords, { tagsPresence: "any" })).toBe(false);
+    expect(matchesScope(withKeywords, { tagsPresence: "none" })).toBe(true);
+    expect(matchesScope(withKeywords, { customTagsPresence: "any" }, ["staple"])).toBe(true);
+    expect(matchesScope(withKeywords, { customTagsPresence: "any" })).toBe(false);
+    expect(matchesScope(withKeywords, { customTagsPresence: "none" })).toBe(true);
+  });
+
+  it("filters by the standard-printing flag", () => {
+    const plain = stubPrinting({
+      artVariant: "normal",
+      isSigned: false,
+      markers: [],
+      finish: "normal",
+      rarity: "common",
+    });
+    const foilCommon = stubPrinting({
+      artVariant: "normal",
+      isSigned: false,
+      markers: [],
+      finish: "foil",
+      rarity: "common",
+    });
+    expect(matchesScope(plain, { standard: true })).toBe(true);
+    expect(matchesScope(plain, { standard: false })).toBe(false);
+    // A foil common is premium, not the plain version of its card.
+    expect(matchesScope(foilCommon, { standard: true })).toBe(false);
+    expect(matchesScope(foilCommon, { standard: false })).toBe(true);
+  });
+
+  it("combines an include and an exclude across axes", () => {
+    const printing = stubPrinting({ setSlug: "RB1", rarity: "common" });
+    expect(matchesScope(printing, { sets: ["RB1"], raritiesExclude: ["rare"] })).toBe(true);
+    expect(matchesScope(printing, { sets: ["RB1"], raritiesExclude: ["common"] })).toBe(false);
   });
 });

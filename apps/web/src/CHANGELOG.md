@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-04
+
+### Highlights
+
+- fix(Collection): **Statistics filters all work now** — chips set to exclude did nothing, and keywords, tags, custom tags, size and standard-printing were ignored outright; all of them now narrow completion, cost to complete and the value chart.
+
+### Other
+
+- fix(Collection): **Playset totals skip Runes and Other** — those cards have no playset to chase, so counting three of each pushed the completion percentage down for nothing.
+
 ## 2026-08-03
 
 ### Highlights

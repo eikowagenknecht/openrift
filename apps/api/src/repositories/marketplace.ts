@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { LOW_RARITIES, WellKnown } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -18,11 +18,60 @@ interface ScopeFilter {
   rarities?: string[];
   finishes?: string[];
   artVariants?: string[];
+  setsExclude?: string[];
+  languagesExclude?: string[];
+  domainsExclude?: string[];
+  typesExclude?: string[];
+  raritiesExclude?: string[];
+  finishesExclude?: string[];
+  artVariantsExclude?: string[];
+  keywords?: string[];
+  tags?: string[];
+  customTags?: string[];
+  cardSizes?: string[];
+  keywordsExclude?: string[];
+  tagsExclude?: string[];
+  customTagsExclude?: string[];
+  keywordsPresence?: "any" | "none";
+  tagsPresence?: "any" | "none";
+  customTagsPresence?: "any" | "none";
   promos?: "only" | "exclude";
   signed?: boolean;
   banned?: boolean;
   errata?: boolean;
+  standard?: boolean;
 }
+
+/**
+ * Card has at least one of the given custom-tag slugs. Custom tags are joined
+ * through `card_custom_tags`, so they can't be tested on the printing row the
+ * way keywords and tags can.
+ * @returns An EXISTS fragment for the slugs.
+ */
+function customTagExists(slugs: string[]) {
+  const vals = sql.join(slugs.map((slug) => sql`${slug}`));
+  return sql`EXISTS (
+    SELECT 1 FROM card_custom_tags cct
+    JOIN custom_tags ct ON ct.id = cct.custom_tag_id
+    WHERE cct.card_id = c.id AND ct.slug IN (${vals})
+  )`;
+}
+
+// The "standard printing" rule as SQL. Restates `isStandardPrinting` from
+// @openrift/shared (normal art, unsigned, no markers, and a finish that counts
+// as plain for the rarity) — the two must be changed together, since the web
+// app filters the same axis with the TypeScript version.
+const STANDARD_LOW_RARITIES = sql.join([...LOW_RARITIES].map((rarity) => sql`${rarity}`));
+
+const STANDARD = sql`(
+  COALESCE(NULLIF(p.art_variant, ''), ${WellKnown.artVariant.NORMAL}) = ${WellKnown.artVariant.NORMAL}
+  AND p.is_signed = false
+  AND cardinality(p.marker_slugs) = 0
+  AND CASE
+    WHEN p.rarity IN (${STANDARD_LOW_RARITIES}) THEN p.finish = ${WellKnown.finish.NORMAL}
+    ELSE p.finish IN (${WellKnown.finish.NORMAL}, ${WellKnown.finish.FOIL})
+  END
+)`;
 
 export interface CollectionValue {
   collectionId: string;
@@ -359,6 +408,91 @@ export function marketplaceRepo(db: Kysely<Database>) {
         scopeClauses.push(
           sql`AND EXISTS (SELECT 1 FROM card_domains cd WHERE cd.card_id = c.id AND cd.domain_slug IN (${vals}))`,
         );
+      }
+      // Negation companions (ADR-034). `types` is a single column here, so its
+      // exclude is a plain NOT IN; `domains` is a join table, so one excluded
+      // domain on the card rejects it (matching `noneExcluded` in the web
+      // filters and `matchesScope` on the stats page).
+      if (scope.setsExclude?.length) {
+        const vals = sql.join(scope.setsExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND s.slug NOT IN (${vals})`);
+      }
+      if (scope.languagesExclude?.length) {
+        const vals = sql.join(scope.languagesExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND p.language NOT IN (${vals})`);
+      }
+      if (scope.typesExclude?.length) {
+        const vals = sql.join(scope.typesExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND c.type NOT IN (${vals})`);
+      }
+      if (scope.raritiesExclude?.length) {
+        const vals = sql.join(scope.raritiesExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND p.rarity NOT IN (${vals})`);
+      }
+      if (scope.finishesExclude?.length) {
+        const vals = sql.join(scope.finishesExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND p.finish NOT IN (${vals})`);
+      }
+      if (scope.artVariantsExclude?.length) {
+        const vals = sql.join(scope.artVariantsExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND p.art_variant NOT IN (${vals})`);
+      }
+      if (scope.domainsExclude?.length) {
+        const vals = sql.join(scope.domainsExclude.map((val) => sql`${val}`));
+        scopeClauses.push(
+          sql`AND NOT EXISTS (SELECT 1 FROM card_domains cd WHERE cd.card_id = c.id AND cd.domain_slug IN (${vals}))`,
+        );
+      }
+      // Keywords and tags are text[] columns on the card, so include/exclude
+      // are array-overlap tests.
+      if (scope.keywords?.length) {
+        const vals = sql.join(scope.keywords.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND c.keywords && ARRAY[${vals}]::text[]`);
+      }
+      if (scope.keywordsExclude?.length) {
+        const vals = sql.join(scope.keywordsExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND NOT (c.keywords && ARRAY[${vals}]::text[])`);
+      }
+      if (scope.tags?.length) {
+        const vals = sql.join(scope.tags.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND c.tags && ARRAY[${vals}]::text[]`);
+      }
+      if (scope.tagsExclude?.length) {
+        const vals = sql.join(scope.tagsExclude.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND NOT (c.tags && ARRAY[${vals}]::text[])`);
+      }
+      if (scope.customTags?.length) {
+        scopeClauses.push(sql`AND ${customTagExists(scope.customTags)}`);
+      }
+      if (scope.customTagsExclude?.length) {
+        scopeClauses.push(sql`AND NOT ${customTagExists(scope.customTagsExclude)}`);
+      }
+      if (scope.cardSizes?.length) {
+        const vals = sql.join(scope.cardSizes.map((val) => sql`${val}`));
+        scopeClauses.push(sql`AND p.size IN (${vals})`);
+      }
+      if (scope.keywordsPresence) {
+        scopeClauses.push(
+          scope.keywordsPresence === "any"
+            ? sql`AND cardinality(c.keywords) > 0`
+            : sql`AND cardinality(c.keywords) = 0`,
+        );
+      }
+      if (scope.tagsPresence) {
+        scopeClauses.push(
+          scope.tagsPresence === "any"
+            ? sql`AND cardinality(c.tags) > 0`
+            : sql`AND cardinality(c.tags) = 0`,
+        );
+      }
+      if (scope.customTagsPresence) {
+        const hasAny = sql`EXISTS (SELECT 1 FROM card_custom_tags cct WHERE cct.card_id = c.id)`;
+        scopeClauses.push(
+          scope.customTagsPresence === "any" ? sql`AND ${hasAny}` : sql`AND NOT ${hasAny}`,
+        );
+      }
+      if (scope.standard !== undefined) {
+        scopeClauses.push(scope.standard ? sql`AND ${STANDARD}` : sql`AND NOT ${STANDARD}`);
       }
       if (scope.promos === "only") {
         scopeClauses.push(sql`AND cardinality(p.marker_slugs) > 0`);

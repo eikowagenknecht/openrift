@@ -29,6 +29,8 @@ export const emailNotificationPreferenceSchema = z
 // object feeds both the write-side schema and the read-side (OpenAPI-named)
 // schema below, so the two directions cannot drift — a prior separate write
 // copy was once absent entirely, silently stripping the completionScope PATCH.
+const presenceStateEnum = z.enum(["any", "none"]);
+
 const completionScopeFields = {
   sets: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
@@ -37,6 +39,31 @@ const completionScopeFields = {
   rarities: z.array(z.string()).optional(),
   finishes: z.array(z.string()).optional(),
   artVariants: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  customTags: z.array(z.string()).optional(),
+  cardSizes: z.array(z.string()).optional(),
+  // Tri-state "standard printing" constraint (ADR-034), matching
+  // `isStandardPrinting`.
+  standard: z.boolean().optional(),
+  // Presence (has any / has none) per dimension that carries one. Markers have
+  // their own `promos` field, kept as-is so stored scopes still read.
+  keywordsPresence: presenceStateEnum.optional(),
+  tagsPresence: presenceStateEnum.optional(),
+  customTagsPresence: presenceStateEnum.optional(),
+  // Negation companions (ADR-034), one per multi-select axis. An axis is never
+  // include AND exclude at once, so these carry the "all but these" case the
+  // filter chips produce on their second click.
+  setsExclude: z.array(z.string()).optional(),
+  languagesExclude: z.array(z.string()).optional(),
+  domainsExclude: z.array(z.string()).optional(),
+  typesExclude: z.array(z.string()).optional(),
+  raritiesExclude: z.array(z.string()).optional(),
+  finishesExclude: z.array(z.string()).optional(),
+  artVariantsExclude: z.array(z.string()).optional(),
+  keywordsExclude: z.array(z.string()).optional(),
+  tagsExclude: z.array(z.string()).optional(),
+  customTagsExclude: z.array(z.string()).optional(),
   promos: z.enum(["only", "exclude"]).optional(),
   signed: z.boolean().optional(),
   banned: z.boolean().optional(),

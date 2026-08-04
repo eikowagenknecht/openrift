@@ -12,8 +12,12 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { trackMarketplaceClick } from "@/components/marketplace-link";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import type { CompletionCountMode } from "@/hooks/use-collection-stats";
-import { filterByScope, filterStacksByScope } from "@/hooks/use-collection-stats";
+import type { CompletionCountMode, CustomTagAssignments } from "@/hooks/use-collection-stats";
+import {
+  countsInPlaysetMode,
+  filterByScope,
+  filterStacksByScope,
+} from "@/hooks/use-collection-stats";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
@@ -59,6 +63,7 @@ interface ComputeInput {
   allPrintings: Printing[];
   stacks: StackedEntry[];
   scope: CompletionScopePreference;
+  customTagAssignments: CustomTagAssignments;
   countMode: CompletionCountMode;
   prices: PriceLookup;
   marketplace: Marketplace;
@@ -72,8 +77,8 @@ function computeCostToComplete(input: ComputeInput): CostToCompleteData {
   "use memo";
   const { allPrintings, stacks, scope, countMode, prices, marketplace } = input;
 
-  const scopedPrintings = filterByScope(allPrintings, scope);
-  const scopedStacks = filterStacksByScope(stacks, scope);
+  const scopedPrintings = filterByScope(allPrintings, scope, input.customTagAssignments);
+  const scopedStacks = filterStacksByScope(stacks, scope, input.customTagAssignments);
 
   if (countMode === "printings") {
     return computeForPrintings(scopedPrintings, scopedStacks, prices, marketplace);
@@ -211,6 +216,9 @@ function computeForCopies(
   let ownedItems = 0;
 
   for (const [slug, card] of allCardSlugs) {
+    if (!countsInPlaysetMode(card)) {
+      continue;
+    }
     const target = getPlaysetSize(card.types, card.keywords);
     const owned = Math.min(ownedCopiesBySlug.get(slug) ?? 0, target);
     const missing = target - owned;
@@ -427,6 +435,7 @@ interface CostToCompleteChartProps {
   allPrintings: Printing[];
   stacks: StackedEntry[];
   scope: CompletionScopePreference;
+  customTagAssignments: CustomTagAssignments;
   countMode: CompletionCountMode;
   prices: PriceLookup;
   marketplace: Marketplace;
@@ -436,6 +445,7 @@ export function CostToCompleteChart({
   allPrintings,
   stacks,
   scope,
+  customTagAssignments,
   countMode,
   prices,
   marketplace,
@@ -446,6 +456,7 @@ export function CostToCompleteChart({
     allPrintings,
     stacks,
     scope,
+    customTagAssignments,
     countMode,
     prices,
     marketplace,

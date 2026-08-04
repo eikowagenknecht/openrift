@@ -7,10 +7,11 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
-import { WellKnown, getPlaysetSize, imageUrl } from "@openrift/shared";
+import { WellKnown, getPlaysetSize, imageUrl, isStandardPrinting } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
+import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
@@ -93,12 +94,30 @@ function copiesTarget(card?: { types: CardType[]; keywords: readonly string[] })
   return card ? getPlaysetSize(card.types, card.keywords) : 3;
 }
 
+// Card types that have no playset to chase: runes are a shared basic supply
+// rather than deck slots, and "other" is the catch-all for cards that never
+// enter a deck. Counting them would charge every one a target of 3 and sink
+// the completion percentage against a goal nobody is playing towards. The
+// "other" slug isn't in WellKnown — it isn't a well-known reference row.
+const PLAYSET_EXEMPT_TYPES = new Set<string>([WellKnown.cardType.RUNE, "other"]);
+
+/**
+ * Whether a card counts in "Playset" mode. A card with any exempt type is
+ * left out whole, matching how one excluded value rejects a card in the
+ * negation filters.
+ * @returns True when the card should count towards playset totals.
+ */
+export function countsInPlaysetMode(card?: { types: CardType[] }): boolean {
+  return !card?.types.some((type) => PLAYSET_EXEMPT_TYPES.has(type));
+}
+
 // ── Completion computation ─────────────────────────────────────────────────
 
 interface CompletionInput {
   stacks: StackedEntry[];
   scopedPrintings: Printing[];
   scope: CompletionScopePreference;
+  customTagAssignments?: CustomTagAssignments;
   sets: SetListEntry[];
   groupBy: CompletionGroupBy;
   countMode: CompletionCountMode;
@@ -122,7 +141,7 @@ export function computeCompletion(input: CompletionInput): CompletionEntry[] {
   const { stacks, scopedPrintings, scope, sets, groupBy, countMode, orders, labels } = input;
 
   // Filter owned stacks to only those matching the scope
-  const scopedStacks = filterStacksByScope(stacks, scope);
+  const scopedStacks = filterStacksByScope(stacks, scope, input.customTagAssignments);
 
   // Determine key order and label function
   const { keyOrder, labelFn, extraFn } = getGroupConfig(groupBy, sets, orders, labels);
@@ -248,14 +267,20 @@ function buildTotals(
     return mapSetSize(cardsByKey);
   }
 
-  // copies mode: sum targets per unique card
+  // copies mode: sum targets per unique card, skipping the playset-exempt ones
   const result = new Map<string, number>();
   for (const [key, slugs] of cardsByKey) {
     let total = 0;
     for (const slug of slugs) {
-      total += copiesTarget(cardInfo.get(slug));
+      const card = cardInfo.get(slug);
+      if (!countsInPlaysetMode(card)) {
+        continue;
+      }
+      total += copiesTarget(card);
     }
-    result.set(key, total);
+    if (total > 0) {
+      result.set(key, total);
+    }
   }
   return result;
 }
@@ -301,8 +326,11 @@ function buildOwned(
   for (const [key, slugMap] of copiesByKeyAndSlug) {
     let owned = 0;
     for (const [slug, copies] of slugMap) {
-      const target = copiesTarget(stackCard(stacks, slug));
-      owned += Math.min(copies, target);
+      const card = stackCard(stacks, slug);
+      if (!countsInPlaysetMode(card)) {
+        continue;
+      }
+      owned += Math.min(copies, copiesTarget(card));
     }
     result.set(key, owned);
   }
@@ -606,21 +634,101 @@ export function excludeUnreleasedSets(input: {
  * the stable array reference that downstream memoization relies on.
  * @returns True if at least one scope dimension is set.
  */
+// Every array-valued scope dimension, include and exclude alike. Listed once
+// so `scopeHasFilters` can't fall behind `matchesScope` as dimensions are
+// added — an axis missing here short-circuits filtering to "nothing is set"
+// and silently returns the unfiltered input.
+const SCOPE_ARRAY_KEYS = [
+  "sets",
+  "languages",
+  "domains",
+  "types",
+  "rarities",
+  "finishes",
+  "artVariants",
+  "keywords",
+  "tags",
+  "customTags",
+  "cardSizes",
+  "setsExclude",
+  "languagesExclude",
+  "domainsExclude",
+  "typesExclude",
+  "raritiesExclude",
+  "finishesExclude",
+  "artVariantsExclude",
+  "keywordsExclude",
+  "tagsExclude",
+  "customTagsExclude",
+] as const satisfies readonly (keyof CompletionScopePreference)[];
+
+// The scalar dimensions: tri-state flags and presence states.
+const SCOPE_SCALAR_KEYS = [
+  "promos",
+  "signed",
+  "banned",
+  "errata",
+  "standard",
+  "keywordsPresence",
+  "tagsPresence",
+  "customTagsPresence",
+] as const satisfies readonly (keyof CompletionScopePreference)[];
+
 function scopeHasFilters(scope: CompletionScopePreference): boolean {
-  const { sets, languages, domains, types, rarities, finishes, artVariants } = scope;
-  return Boolean(
-    (sets && sets.length > 0) ||
-    (languages && languages.length > 0) ||
-    (domains && domains.length > 0) ||
-    (types && types.length > 0) ||
-    (rarities && rarities.length > 0) ||
-    (finishes && finishes.length > 0) ||
-    (artVariants && artVariants.length > 0) ||
-    scope.promos !== undefined ||
-    scope.signed !== undefined ||
-    scope.banned !== undefined ||
-    scope.errata !== undefined,
+  return (
+    SCOPE_ARRAY_KEYS.some((key) => (scope[key] as string[] | undefined)?.length) ||
+    SCOPE_SCALAR_KEYS.some((key) => scope[key] !== undefined)
   );
+}
+
+/**
+ * Include filter for a single-valued axis (set, language, rarity, …).
+ * @returns True when the axis is unset or holds the printing's value.
+ */
+function includesValue(allowed: string[] | undefined, value: string): boolean {
+  return !allowed || allowed.length === 0 || allowed.includes(value);
+}
+
+/**
+ * Include filter for a multi-valued axis (domains, types, keywords, …): any
+ * overlap passes, matching `overlaps` in the shared card filters.
+ * @returns True when the axis is unset or overlaps the card's values.
+ */
+function overlapsValues(allowed: string[] | undefined, values: readonly string[]): boolean {
+  return !allowed || allowed.length === 0 || values.some((value) => allowed.includes(value));
+}
+
+/**
+ * Negation for a single-valued axis (set, language, rarity, …).
+ * @returns True when the printing's value is not excluded.
+ */
+function notExcluded(excluded: string[] | undefined, value: string): boolean {
+  return !excluded || excluded.length === 0 || !excluded.includes(value);
+}
+
+/**
+ * Negation for a multi-valued axis (domains, types): one excluded value on the
+ * card rejects it, matching `noneExcluded` in the shared card filters.
+ * @returns True when none of the card's values are excluded.
+ */
+function noneExcluded(excluded: string[] | undefined, values: readonly string[]): boolean {
+  return !excluded || excluded.length === 0 || !values.some((value) => excluded.includes(value));
+}
+
+/**
+ * Tri-state flag: unset passes, otherwise the printing must match.
+ * @returns True when the flag is unset or agrees with the printing.
+ */
+function matchesFlag(filter: boolean | undefined, actual: boolean): boolean {
+  return filter === undefined || filter === actual;
+}
+
+/**
+ * Presence constraint: "any" needs at least one value, "none" needs zero.
+ * @returns True when the constraint is unset or satisfied.
+ */
+function matchesPresence(state: "any" | "none" | undefined, has: boolean): boolean {
+  return state === undefined || (state === "any" ? has : !has);
 }
 
 /**
@@ -628,81 +736,67 @@ function scopeHasFilters(scope: CompletionScopePreference): boolean {
  * skipped, so an empty scope matches everything.
  * @returns True when the printing matches the scope.
  */
-export function matchesScope(printing: Printing, scope: CompletionScopePreference): boolean {
-  const {
-    sets,
-    languages,
-    domains,
-    types,
-    rarities,
-    finishes,
-    artVariants,
-    promos,
-    signed,
-    banned,
-    errata,
-  } = scope;
-  if (sets && sets.length > 0 && !sets.includes(printing.setSlug)) {
-    return false;
-  }
-  if (languages && languages.length > 0 && !languages.includes(printing.language)) {
-    return false;
-  }
-  if (
-    domains &&
-    domains.length > 0 &&
-    !printing.card.domains.some((domain) => domains.includes(domain))
-  ) {
-    return false;
-  }
-  if (types && types.length > 0 && !printing.card.types.some((t) => types.includes(t))) {
-    return false;
-  }
-  if (rarities && rarities.length > 0 && !rarities.includes(printing.rarity)) {
-    return false;
-  }
-  if (finishes && finishes.length > 0 && !finishes.includes(printing.finish)) {
-    return false;
-  }
-  if (artVariants && artVariants.length > 0 && !artVariants.includes(printing.artVariant)) {
-    return false;
-  }
-  if (promos === "exclude" && printing.markers.length > 0) {
-    return false;
-  }
-  if (promos === "only" && printing.markers.length === 0) {
-    return false;
-  }
-  if (signed === true && !printing.isSigned) {
-    return false;
-  }
-  if (signed === false && printing.isSigned) {
-    return false;
-  }
-  if (banned === true && printing.card.bans.length === 0) {
-    return false;
-  }
-  if (banned === false && printing.card.bans.length > 0) {
-    return false;
-  }
-  if (errata === true && printing.card.errata === null) {
-    return false;
-  }
-  if (errata === false && printing.card.errata !== null) {
-    return false;
-  }
-  return true;
+export function matchesScope(
+  printing: Printing,
+  scope: CompletionScopePreference,
+  customTagSlugs: readonly string[] = [],
+): boolean {
+  const { card } = printing;
+  const markerPresence = scope.promos && (scope.promos === "only" ? "any" : "none");
+  return (
+    includesValue(scope.sets, printing.setSlug) &&
+    includesValue(scope.languages, printing.language) &&
+    includesValue(scope.rarities, printing.rarity) &&
+    includesValue(scope.finishes, printing.finish) &&
+    includesValue(scope.artVariants, printing.artVariant) &&
+    includesValue(scope.cardSizes, printing.size) &&
+    overlapsValues(scope.domains, card.domains) &&
+    overlapsValues(scope.types, card.types) &&
+    overlapsValues(scope.keywords, card.keywords) &&
+    overlapsValues(scope.tags, card.tags) &&
+    overlapsValues(scope.customTags, customTagSlugs) &&
+    notExcluded(scope.setsExclude, printing.setSlug) &&
+    notExcluded(scope.languagesExclude, printing.language) &&
+    notExcluded(scope.raritiesExclude, printing.rarity) &&
+    notExcluded(scope.finishesExclude, printing.finish) &&
+    notExcluded(scope.artVariantsExclude, printing.artVariant) &&
+    noneExcluded(scope.domainsExclude, card.domains) &&
+    noneExcluded(scope.typesExclude, card.types) &&
+    noneExcluded(scope.keywordsExclude, card.keywords) &&
+    noneExcluded(scope.tagsExclude, card.tags) &&
+    noneExcluded(scope.customTagsExclude, customTagSlugs) &&
+    matchesFlag(scope.standard, isStandardPrinting(printing)) &&
+    matchesFlag(scope.signed, printing.isSigned) &&
+    matchesFlag(scope.banned, card.bans.length > 0) &&
+    matchesFlag(scope.errata, card.errata !== null) &&
+    matchesPresence(markerPresence, printing.markers.length > 0) &&
+    matchesPresence(scope.keywordsPresence, card.keywords.length > 0) &&
+    matchesPresence(scope.tagsPresence, card.tags.length > 0) &&
+    matchesPresence(scope.customTagsPresence, customTagSlugs.length > 0)
+  );
 }
+
+/**
+ * Card id → custom-tag slugs, as the catalog serves it. Only read when the
+ * scope constrains custom tags; every other axis lives on the printing.
+ */
+export type CustomTagAssignments = Record<string, readonly string[]>;
 
 /**
  * Filters printings by scope criteria.
  * @returns Only the printings matching all active scope filters.
  */
-export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
+export function filterByScope(
+  printings: Printing[],
+  scope: CompletionScopePreference,
+  customTagAssignments?: CustomTagAssignments,
+): Printing[] {
   if (!scopeHasFilters(scope)) {
     return printings;
   }
-  return printings.filter((printing) => matchesScope(printing, scope));
+  return printings.filter((printing) =>
+    matchesScope(printing, scope, customTagAssignments?.[printing.cardId]),
+  );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -710,11 +804,14 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
 export function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
+  customTagAssignments?: CustomTagAssignments,
 ): StackedEntry[] {
   if (!scopeHasFilters(scope)) {
     return stacks;
   }
-  return stacks.filter((stack) => matchesScope(stack.printing, scope));
+  return stacks.filter((stack) =>
+    matchesScope(stack.printing, scope, customTagAssignments?.[stack.printing.cardId]),
+  );
 }
 
 function getOrCreate<V>(map: Map<string, Set<V>>, key: string): Set<V> {
@@ -749,6 +846,8 @@ export interface CollectionStatsResult extends CollectionStats {
   allPrintings: Printing[];
   stacks: StackedEntry[];
   sets: SetListEntry[];
+  /** Passed back so the page's other scoped sections resolve custom tags the same way. */
+  customTagAssignments: CustomTagAssignments;
   orders: { domains: readonly string[]; rarities: readonly string[]; cardTypes: readonly string[] };
   isReady: boolean;
 }
@@ -781,8 +880,11 @@ export function useCollectionStats(
   const { orders } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  // Custom tags are assigned per card in the admin UI rather than derived from
+  // the printing, so the scope's custom-tag axes need this lookup.
+  const customTagAssignments = useCustomTagAssignments();
 
-  const stacks = scope ? filterStacksByScope(allStacks, scope) : allStacks;
+  const stacks = scope ? filterStacksByScope(allStacks, scope, customTagAssignments) : allStacks;
   // Recomputed rather than taken from useStackedCopies, which counts every
   // copy in the collection regardless of scope.
   const totalCopies = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
@@ -809,6 +911,7 @@ export function useCollectionStats(
     stacks,
     sets,
     orders,
+    customTagAssignments,
     isReady,
   };
 }

@@ -138,6 +138,70 @@ describe("buildMissingSearch", () => {
     });
   });
 
+  it("forwards the scope's exclude arrays to the /cards exclude params", () => {
+    // Regression: the excludes were dropped here, so a "View missing" link
+    // opened a wider card list than the stats row it came from.
+    const scope: CompletionScopePreference = {
+      setsExclude: ["PRX"],
+      languagesExclude: ["ja"],
+      domainsExclude: ["mind"],
+      typesExclude: ["rune"],
+      raritiesExclude: ["common"],
+      finishesExclude: ["foil"],
+      artVariantsExclude: ["full-art"],
+    };
+    const search = buildMissingSearch({
+      countMode: "cards",
+      groupBy: "domain",
+      key: "fury",
+      scope,
+      setIdToSlug,
+    });
+    expect(search).toEqual({
+      owned: ["none", "partial"],
+      setsEx: ["PRX"],
+      languagesEx: ["ja"],
+      domainsEx: ["mind"],
+      typesEx: ["rune"],
+      raritiesEx: ["common"],
+      finishesEx: ["foil"],
+      artVariantsEx: ["full-art"],
+      domains: ["fury"],
+    });
+  });
+
+  it("forwards keywords, tags, custom tags, size, standard and presence states", () => {
+    const scope: CompletionScopePreference = {
+      keywords: ["Unique"],
+      tags: ["champion-spell"],
+      customTags: ["staple"],
+      cardSizes: ["oversized"],
+      standard: true,
+      keywordsPresence: "any",
+      tagsPresence: "none",
+      customTagsPresence: "any",
+    };
+    const search = buildMissingSearch({
+      countMode: "cards",
+      groupBy: "domain",
+      key: "fury",
+      scope,
+      setIdToSlug,
+    });
+    expect(search).toEqual({
+      owned: ["none", "partial"],
+      keywords: ["Unique"],
+      tags: ["champion-spell"],
+      customTags: ["staple"],
+      cardSizes: ["oversized"],
+      standard: true,
+      keywordsPresence: "any",
+      tagsPresence: "none",
+      customTagsPresence: "any",
+      domains: ["fury"],
+    });
+  });
+
   it("maps promos='only' to markersPresence='any'", () => {
     const search = buildMissingSearch({
       countMode: "cards",

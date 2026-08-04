@@ -158,7 +158,9 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
 
 // Dimensions the completion scope doesn't use: collection state, supertypes,
 // markers/channels values, and the range sliders (stats, price) the old scope
-// editor never offered.
+// editor never offered. Every section left visible must be mapped in
+// `useScopeFromFilters` below — a chip the scope ignores looks live and does
+// nothing.
 const HIDDEN_FILTER_SECTIONS = new Set([
   "owned",
   "superTypes",
@@ -198,6 +200,63 @@ function useScopeFromFilters(): CompletionScopePreference {
   if (filters.artVariants.length > 0) {
     scope.artVariants = filters.artVariants;
   }
+  if (filters.keywords.length > 0) {
+    scope.keywords = filters.keywords;
+  }
+  if (filters.tags.length > 0) {
+    scope.tags = filters.tags;
+  }
+  if (filters.customTagSlugs.length > 0) {
+    scope.customTags = filters.customTagSlugs;
+  }
+  if (filters.cardSizes.length > 0) {
+    scope.cardSizes = filters.cardSizes;
+  }
+  if (filters.isStandard !== null) {
+    scope.standard = filters.isStandard;
+  }
+  if (filters.presence.keywords) {
+    scope.keywordsPresence = filters.presence.keywords;
+  }
+  if (filters.presence.tags) {
+    scope.tagsPresence = filters.presence.tags;
+  }
+  if (filters.presence.customTags) {
+    scope.customTagsPresence = filters.presence.customTags;
+  }
+  // Negation companions (ADR-034). Without these a chip cycled into
+  // exclude-mode changed the URL and the chip but left every figure on the
+  // page untouched.
+  if (filters.setsExclude.length > 0) {
+    scope.setsExclude = filters.setsExclude;
+  }
+  if (filters.languagesExclude.length > 0) {
+    scope.languagesExclude = filters.languagesExclude;
+  }
+  if (filters.domainsExclude.length > 0) {
+    scope.domainsExclude = filters.domainsExclude;
+  }
+  if (filters.typesExclude.length > 0) {
+    scope.typesExclude = filters.typesExclude;
+  }
+  if (filters.raritiesExclude.length > 0) {
+    scope.raritiesExclude = filters.raritiesExclude;
+  }
+  if (filters.finishesExclude.length > 0) {
+    scope.finishesExclude = filters.finishesExclude;
+  }
+  if (filters.artVariantsExclude.length > 0) {
+    scope.artVariantsExclude = filters.artVariantsExclude;
+  }
+  if (filters.keywordsExclude.length > 0) {
+    scope.keywordsExclude = filters.keywordsExclude;
+  }
+  if (filters.tagsExclude.length > 0) {
+    scope.tagsExclude = filters.tagsExclude;
+  }
+  if (filters.customTagSlugsExclude.length > 0) {
+    scope.customTagsExclude = filters.customTagSlugsExclude;
+  }
   if (filters.presence.markers === "any") {
     scope.promos = "only";
   } else if (filters.presence.markers === "none") {
@@ -230,7 +289,7 @@ const COUNT_MODE_OPTIONS: { value: CompletionCountMode; label: string; tooltip: 
   {
     value: "copies",
     label: "Playset",
-    tooltip: "Playset quantities (3x, 1x for Legends/Battlefields)",
+    tooltip: "Playset quantities (3x, 1x for Legends/Battlefields). Runes and Other are left out.",
   },
 ];
 
@@ -345,12 +404,13 @@ function CompletionSection({
   const domainColors = useDomainColors();
   const { rarityColors, labels } = useEnumOrders();
 
-  const scopedPrintings = filterByScope(stats.allPrintings, scope);
+  const scopedPrintings = filterByScope(stats.allPrintings, scope, stats.customTagAssignments);
 
   const entries = computeCompletion({
     stacks: stats.stacks,
     scopedPrintings,
     scope,
+    customTagAssignments: stats.customTagAssignments,
     sets: stats.sets,
     groupBy,
     countMode,
@@ -822,6 +882,7 @@ export function CollectionStatsPage() {
                 allPrintings={stats.allPrintings}
                 stacks={stats.stacks}
                 scope={scope}
+                customTagAssignments={stats.customTagAssignments}
                 countMode={countMode}
                 prices={prices}
                 marketplace={stats.marketplace}

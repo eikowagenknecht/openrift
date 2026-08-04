@@ -25,6 +25,44 @@ interface ValueHistoryInput {
   scope: string;
 }
 
+// Scope axes carried as comma-separated lists. The query param and the scope
+// field share a name, so this one list drives both ends of the mapping.
+const CSV_SCOPE_KEYS = [
+  "sets",
+  "languages",
+  "domains",
+  "types",
+  "rarities",
+  "finishes",
+  "artVariants",
+  "keywords",
+  "tags",
+  "customTags",
+  "cardSizes",
+  "setsExclude",
+  "languagesExclude",
+  "domainsExclude",
+  "typesExclude",
+  "raritiesExclude",
+  "finishesExclude",
+  "artVariantsExclude",
+  "keywordsExclude",
+  "tagsExclude",
+  "customTagsExclude",
+] as const satisfies readonly (keyof CompletionScopePreference)[];
+
+// Scope axes carried as a single value (tri-state flags and presence states).
+const SCALAR_SCOPE_KEYS = [
+  "promos",
+  "signed",
+  "banned",
+  "errata",
+  "standard",
+  "keywordsPresence",
+  "tagsPresence",
+  "customTagsPresence",
+] as const satisfies readonly (keyof CompletionScopePreference)[];
+
 const fetchCollectionValueHistory = createServerFn({ method: "GET" })
   .validator((input: ValueHistoryInput) => input)
   .middleware([withCookies])
@@ -37,40 +75,20 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       query.collectionIds = data.collectionIds;
     }
 
-    // Parse scope JSON and add individual params
+    // Every scope axis travels under its own field name, so one list per
+    // shape drives the whole mapping instead of an if per dimension.
     const scope = JSON.parse(data.scope) as CompletionScopePreference;
-    if (scope.sets?.length) {
-      query.sets = scope.sets.join(",");
+    for (const key of CSV_SCOPE_KEYS) {
+      const values = scope[key] as string[] | undefined;
+      if (values?.length) {
+        query[key] = values.join(",");
+      }
     }
-    if (scope.languages?.length) {
-      query.languages = scope.languages.join(",");
-    }
-    if (scope.domains?.length) {
-      query.domains = scope.domains.join(",");
-    }
-    if (scope.types?.length) {
-      query.types = scope.types.join(",");
-    }
-    if (scope.rarities?.length) {
-      query.rarities = scope.rarities.join(",");
-    }
-    if (scope.finishes?.length) {
-      query.finishes = scope.finishes.join(",");
-    }
-    if (scope.artVariants?.length) {
-      query.artVariants = scope.artVariants.join(",");
-    }
-    if (scope.promos) {
-      query.promos = scope.promos;
-    }
-    if (scope.signed !== undefined) {
-      query.signed = String(scope.signed);
-    }
-    if (scope.banned !== undefined) {
-      query.banned = String(scope.banned);
-    }
-    if (scope.errata !== undefined) {
-      query.errata = String(scope.errata);
+    for (const key of SCALAR_SCOPE_KEYS) {
+      const value = scope[key];
+      if (value !== undefined) {
+        query[key] = String(value);
+      }
     }
 
     return apiOrpcClient(collectionValueHistoryContract, context.cookie).get(

@@ -102,6 +102,43 @@ describe("GET /api/v1/collection-value-history", () => {
     );
   });
 
+  it("splits the exclude CSV filters into arrays", async () => {
+    // Regression: the exclude params never reached the repo, so the chart drew
+    // a wider collection than the rest of the stats page reported.
+    mockMarketplaceRepo.collectionValueTimeSeries.mockResolvedValue([]);
+    await app.request(
+      "/api/v1/collection-value-history?setsExclude=OGS,OGN&domainsExclude=mind&typesExclude=rune&raritiesExclude=common",
+    );
+    expect(mockMarketplaceRepo.collectionValueTimeSeries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: expect.objectContaining({
+          setsExclude: ["OGS", "OGN"],
+          domainsExclude: ["mind"],
+          typesExclude: ["rune"],
+          raritiesExclude: ["common"],
+        }),
+      }),
+    );
+  });
+
+  it("passes keyword, tag, size, presence and standard filters through", async () => {
+    mockMarketplaceRepo.collectionValueTimeSeries.mockResolvedValue([]);
+    await app.request(
+      "/api/v1/collection-value-history?keywords=Unique&customTags=staple&cardSizes=oversized&tagsPresence=none&standard=true",
+    );
+    expect(mockMarketplaceRepo.collectionValueTimeSeries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: expect.objectContaining({
+          keywords: ["Unique"],
+          customTags: ["staple"],
+          cardSizes: ["oversized"],
+          tagsPresence: "none",
+          standard: true,
+        }),
+      }),
+    );
+  });
+
   it("returns 400 for an invalid range value", async () => {
     const res = await app.request("/api/v1/collection-value-history?range=bogus");
     expect(res.status).toBe(400);
