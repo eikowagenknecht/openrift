@@ -15,7 +15,8 @@
 - fix(Trades): **Clearer trade status on cards** — a card in a trade now reads the same whichever side you are on (Requested, Offered, Reserved, Traded), with an arrow showing whether it is coming in or going out.
 - fix(Trades): **Group trades fit on a phone** — member names and their trade values now stack onto two lines instead of squeezing each other, and a long trade row no longer pushes the page sideways.
 - fix(Collection): **Sidebar reordering works on touch again** — dragging a collection or list by its grip opened the row's right-click menu instead of moving the row.
-- fix(App): **Selected option in a button row** — the active choice (stats grouping, chart time range, price source) had its bottom-right corner clipped off, and now looks like the toggles used everywhere else.
+- fix(App): **Date headings on What's new** — each day's heading sat on a flat opaque strip that cut a rectangle out of the page background, and now blends in like the other sticky headers.
+- fix(App): **Selected option in a button row** — the active choice (stats grouping, chart time range, price source, activity action and time filters) had its bottom-right corner clipped off, and now looks like the toggles used everywhere else.
 - fix(Trades): **Shared lists start folded** — each member in Wishlists & tradelists is one line showing how many lists they share, opened when you want them, with their name linking to their page.
 - fix(Trades): **Calmer trade rows** — rows no longer repeat the member's name or the status the heading above them already carries (only the odd one out is labelled), and cancelling an agreed trade moved into the row's three-dot menu so "Mark traded" stands alone.
 - fix(Collection): **Playset totals skip Runes and Other** — those cards have no playset to chase, so counting three of each pushed the completion percentage down for nothing.

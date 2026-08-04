@@ -78,7 +78,7 @@ export function ChangelogPage() {
           {changelogGroups.map((group) => (
             <div key={group.date}>
               <div
-                className="border-border bg-background sticky z-10 flex items-baseline justify-between border-b py-2 pb-2"
+                className="border-border bg-background/80 sticky z-10 flex items-baseline justify-between border-b py-2 pb-2 backdrop-blur-lg"
                 style={{ top: dateHeaderTop }}
               >
                 <span className="text-foreground text-sm font-semibold">

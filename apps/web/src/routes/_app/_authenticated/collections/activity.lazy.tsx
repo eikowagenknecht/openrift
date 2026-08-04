@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSidebar } from "@/components/ui/sidebar";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCollectionEvents } from "@/hooks/use-collection-events";
 import { useCollections } from "@/hooks/use-collections";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -180,32 +181,45 @@ function Toolbar({
       </Select>
 
       {/* Action filter */}
-      <div className="flex gap-0.5">
+      <ToggleGroup
+        variant="outline"
+        spacing={0}
+        value={[actionFilter]}
+        onValueChange={([next]) => {
+          const option = actionOptions.find((entry) => entry.value === next);
+          if (option) {
+            onActionChange(option.value);
+          }
+        }}
+        aria-label="Action"
+      >
         {actionOptions.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={actionFilter === opt.value ? "default" : "ghost"}
-            className="px-2"
-            onClick={() => onActionChange(opt.value)}
-          >
+          <ToggleGroupItem key={opt.value} value={opt.value}>
             {opt.label}
-          </Button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
       {/* Date filter */}
-      <div className="ml-auto flex gap-0.5">
+      <ToggleGroup
+        variant="outline"
+        spacing={0}
+        value={[datePreset]}
+        onValueChange={([next]) => {
+          const option = dateOptions.find((entry) => entry.value === next);
+          if (option) {
+            onDateChange(option.value);
+          }
+        }}
+        aria-label="Time range"
+        className="ml-auto"
+      >
         {dateOptions.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={datePreset === opt.value ? "default" : "ghost"}
-            className="px-2"
-            onClick={() => onDateChange(opt.value)}
-          >
+          <ToggleGroupItem key={opt.value} value={opt.value}>
             {opt.label}
-          </Button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
     </div>
   );
 }
