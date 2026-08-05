@@ -80,7 +80,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
   const scopeLabels = searchScope.map((field) => SEARCH_FIELD_LABELS[field].label.toLowerCase());
-  const placeholder = `Search ${unitLabel}...`;
+  // The unit is already on the trailing count ("142 copies"), so the
+  // placeholder doesn't repeat it — that just crowds the field on a phone.
+  const placeholder = "Search...";
 
   // The scope persists across searches and sessions, so a forgotten
   // "keywords only" scope reads as broken search. Keep it visible as an
@@ -92,17 +94,17 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     scopeLabels.length > 2
       ? `${scopeLabels.slice(0, 2).join(", ")} +${scopeLabels.length - 2}`
       : scopeLabels.join(", ");
-  const scopeChip =
-    !allSelected && !hasPrefixes ? (
-      <Badge variant="secondary" className="min-w-0 text-xs font-normal">
-        <span className="min-w-0 truncate">in: {scopeSummary}</span>
-        <ChipRemoveButton
-          aria-label="Search in all fields"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={selectAllSearchFields}
-        />
-      </Badge>
-    ) : undefined;
+  const scopeNarrowed = !allSelected && !hasPrefixes;
+  const scopeChip = scopeNarrowed ? (
+    <Badge variant="secondary" className="min-w-0 text-xs font-normal">
+      <span className="min-w-0 truncate">in: {scopeSummary}</span>
+      <ChipRemoveButton
+        aria-label="Search in all fields"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={selectAllSearchFields}
+      />
+    </Badge>
+  ) : undefined;
 
   const cardCountLabel =
     hasActiveFilters && filteredCount !== totalCards
@@ -123,6 +125,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
         trailing={`${cardCountLabel} ${unitLabel}`}
         onFocus={() => setSearchFocused(true)}
         onBlur={() => setSearchFocused(false)}
+        // Backspace on an empty field drops the scope chip, the way a chip
+        // input deletes the token left of the caret.
+        onBackspaceEmpty={scopeNarrowed ? selectAllSearchFields : undefined}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.currentTarget.blur();

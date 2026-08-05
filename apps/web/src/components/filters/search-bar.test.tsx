@@ -85,6 +85,26 @@ describe("SearchBar scope chip", () => {
     expect(actions.setSearch).not.toHaveBeenCalled();
   });
 
+  it("drops the scope when Backspace is pressed in the empty field", async () => {
+    const user = userEvent.setup();
+    const actions = setup({ scope: ["cardText"] });
+
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("{Backspace}");
+
+    expect(actions.selectAllSearchFields).toHaveBeenCalled();
+  });
+
+  it("leaves the scope alone when Backspace edits typed text", async () => {
+    const user = userEvent.setup();
+    const actions = setup({ search: "teemo", scope: ["cardText"] });
+
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("{Backspace}");
+
+    expect(actions.selectAllSearchFields).not.toHaveBeenCalled();
+  });
+
   it("clears only the text via the input's clear button, keeping the scope", async () => {
     const user = userEvent.setup();
     const actions = setup({ search: "teemo", scope: ["cardText"] });

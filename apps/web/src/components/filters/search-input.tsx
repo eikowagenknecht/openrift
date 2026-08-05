@@ -1,5 +1,6 @@
 import { SearchIcon, XIcon } from "lucide-react";
 import type { KeyboardEvent, ReactNode, Ref } from "react";
+import { useEffect, useRef } from "react";
 
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -28,6 +29,13 @@ interface SearchInputProps {
   onFocus?: () => void;
   onBlur?: () => void;
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
+  /**
+   * Backspace pressed while the field is empty — the chip-input idiom for
+   * "delete the adornment left of the caret" (e.g. drop the search scope shown
+   * in `leading`). Soft keyboards can send the delete as an input event with no
+   * matching key event, so both signals are watched.
+   */
+  onBackspaceEmpty?: () => void;
 }
 
 /**
@@ -53,9 +61,44 @@ export function SearchInput({
   onFocus,
   onBlur,
   onKeyDown,
+  onBackspaceEmpty,
 }: SearchInputProps) {
   const clear = onClear ?? (() => onValueChange(""));
   const hasLeading = leading !== undefined && leading !== null;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (onBackspaceEmpty && value === "" && event.key === "Backspace") {
+      onBackspaceEmpty();
+    }
+    onKeyDown?.(event);
+  };
+
+  // Soft keyboards (Android) can report the delete key as `Unidentified`, so
+  // the key handler above never sees it; `beforeinput` carries the intent
+  // instead. The listener is native because React's synthetic `onBeforeInput`
+  // is synthesized from text insertion and never fires for a deletion. On an
+  // empty field there is nothing to delete, so the event is the press itself.
+  // Firing twice (a browser that sends both signals) is harmless: the callers
+  // clear a filter, which is idempotent.
+  const node = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const input = node.current;
+    if (!input || !onBackspaceEmpty) {
+      return;
+    }
+    const onBeforeInput = (event: Event) => {
+      if (input.value === "" && (event as InputEvent).inputType === "deleteContentBackward") {
+        onBackspaceEmpty();
+      }
+    };
+    input.addEventListener("beforeinput", onBeforeInput);
+    return () => input.removeEventListener("beforeinput", onBeforeInput);
+  }, [onBackspaceEmpty]);
+
+  const setInputRef = (input: HTMLInputElement | null) => {
+    node.current = input;
+    assignRef(inputRef, input);
+  };
 
   return (
     <InputGroup className={className}>
@@ -64,14 +107,14 @@ export function SearchInput({
         {hasLeading && <span className="flex min-w-0 items-center">{leading}</span>}
       </InputGroupAddon>
       <InputGroupInput
-        ref={inputRef}
+        ref={setInputRef}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         onFocus={onFocus}
         onBlur={onBlur}
-        onKeyDown={onKeyDown}
+        onKeyDown={handleKeyDown}
       />
       {(trailing !== undefined || value) && (
         // has-[>button]:mr-0 cancels the addon's negative pull (meant for padded ghost
@@ -89,4 +132,18 @@ export function SearchInput({
       )}
     </InputGroup>
   );
+}
+
+/**
+ * Writes a node into a caller-supplied ref of either shape. Lives at module
+ * scope because assigning `ref.current` inside the component reads as mutating
+ * a prop to the React Compiler.
+ * @returns Nothing.
+ */
+function assignRef(ref: Ref<HTMLInputElement> | undefined, node: HTMLInputElement | null) {
+  if (typeof ref === "function") {
+    ref(node);
+  } else if (ref) {
+    ref.current = node;
+  }
 }

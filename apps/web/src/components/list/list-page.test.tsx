@@ -22,7 +22,7 @@ const cardKindListDetail = {
     name: "My wishlist",
     kind: "card",
     intent: "wish",
-    rules: [],
+    rules: [] as { id: string }[],
     tradeDefaults: EMPTY_TRADE_PREFERENCE,
     currency: null,
     shareToken: null,
@@ -57,6 +57,16 @@ const printingKindListDetail = {
     },
   ],
 };
+
+// The same list with a rule behind it, so the empty state can pitch editing
+// the rules rather than setting them up.
+const ruleDrivenListDetail = {
+  ...cardKindListDetail,
+  list: { ...cardKindListDetail.list, rules: [{ id: "rule-1" }] },
+};
+
+// Nothing on the list at all — ListPage renders the empty-state branch.
+const emptyListDetail = { ...cardKindListDetail, entries: [] };
 
 // A copy-kind organize list whose single entry came from a dynamic rule
 // (id: null, source: "rule"). Rule entries can't be selected, so "Move all to
@@ -255,19 +265,23 @@ vi.mock("@/components/cards/card-browser-filter-scaffold", () => ({
   BrowserActiveFilters: () => null,
 }));
 
-// The header just needs to host the actions cluster so the visibility button
-// is clickable; its real layout is irrelevant here.
+// The header just needs to host the actions cluster so the top-bar buttons are
+// clickable; its real layout is irrelevant here.
 vi.mock("@/components/list/list-header", () => ({
   ListHeader: ({ actions }: { actions?: unknown }) => <div>{actions as never}</div>,
 }));
 
-vi.mock("@/components/list/list-visibility-button", () => ({
-  ListVisibilityButton: ({ onManageVisibility }: { onManageVisibility?: () => void }) => (
-    <button type="button" onClick={onManageVisibility}>
-      Group visibility
-    </button>
-  ),
-}));
+// Stubbed down to a plain menu item — the real one's group queries are covered
+// by list-visibility-menu-item.test.tsx. It stays a DropdownMenuItem so the
+// menu still closes itself on click the way the real entry does.
+vi.mock("@/components/list/list-visibility-menu-item", async () => {
+  const { DropdownMenuItem } = await import("@/components/ui/dropdown-menu");
+  return {
+    ListVisibilityMenuItem: ({ onManageVisibility }: { onManageVisibility?: () => void }) => (
+      <DropdownMenuItem onClick={onManageVisibility}>Group visibility</DropdownMenuItem>
+    ),
+  };
+});
 
 // The dialog's own behavior is covered by list-group-visibility-dialog.test.tsx;
 // here we only care that ListPage mounts it and wires `open` up.
@@ -336,13 +350,43 @@ describe("ListPage", () => {
     document.body.innerHTML = "";
   });
 
-  it("opens the group-visibility dialog from the top-bar people icon on a list with entries", async () => {
+  it("opens the group-visibility dialog from the actions menu on a list with entries", async () => {
     const user = userEvent.setup();
     renderListPage();
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Group visibility" }));
-    expect(screen.getByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Group visibility" }));
+    expect(await screen.findByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
+    // The item's own click closes the menu; let the portal detach before
+    // teardown wipes the body (see closeOpenMenu).
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("keeps the rule editor out of the top bar and offers it in the menu", async () => {
+    const user = userEvent.setup();
+    renderListPage();
+
+    expect(screen.queryByRole("button", { name: /dynamic rules/iu })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Dynamic rules" })).toBeInTheDocument();
+    await closeOpenMenu(user);
+  });
+
+  it("leads the empty state with the dynamic-rules pitch", () => {
+    listDetail = emptyListDetail;
+    renderListPage();
+
+    expect(screen.getByRole("button", { name: "Set up dynamic rules" })).toBeInTheDocument();
+    expect(screen.getByText(/a dynamic list fills itself/iu)).toBeInTheDocument();
+  });
+
+  it("offers to edit the rules instead when a dynamic list matches nothing", () => {
+    listDetail = { ...ruleDrivenListDetail, entries: [] };
+    renderListPage();
+
+    expect(screen.getByRole("button", { name: "Edit dynamic rules" })).toBeInTheDocument();
+    expect(screen.getByText(/nothing matches this list's rules yet/iu)).toBeInTheDocument();
   });
 
   it("offers 'Move all to collection' on a rule-driven copy list", async () => {
@@ -385,7 +429,6 @@ describe("ListPage", () => {
     // Select mode: select-all and done take over, browse-only actions step aside.
     expect(screen.getAllByRole("button", { name: "Done" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage cards" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Group visibility" })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Select all" })[0]);
     expect(toggleSelectAll).toHaveBeenCalledWith(["entry-1"]);

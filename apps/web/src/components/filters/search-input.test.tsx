@@ -1,8 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { SearchInput } from "./search-input";
+
+/**
+ * The component listens for the native `beforeinput` (React's synthetic one
+ * never fires for deletions), so the test dispatches the real event.
+ * @returns A bubbling `beforeinput` event carrying the given input type.
+ */
+function beforeInputEvent(inputType: string) {
+  return new InputEvent("beforeinput", { inputType, bubbles: true, cancelable: true });
+}
 
 describe("SearchInput", () => {
   it("reports each keystroke through onValueChange", async () => {
@@ -80,5 +89,47 @@ describe("SearchInput", () => {
     await user.click(screen.getByText("in: name"));
 
     expect(screen.getByRole("textbox", { name: "Search cards..." })).toHaveFocus();
+  });
+
+  it("reports Backspace on an empty field", async () => {
+    const user = userEvent.setup();
+    const onBackspaceEmpty = vi.fn();
+    render(<SearchInput value="" onValueChange={() => {}} onBackspaceEmpty={onBackspaceEmpty} />);
+
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("{Backspace}");
+
+    expect(onBackspaceEmpty).toHaveBeenCalled();
+  });
+
+  it("stays quiet when Backspace deletes a character", async () => {
+    const user = userEvent.setup();
+    const onBackspaceEmpty = vi.fn();
+    render(
+      <SearchInput value="dragon" onValueChange={() => {}} onBackspaceEmpty={onBackspaceEmpty} />,
+    );
+
+    await user.click(screen.getByRole("textbox"));
+    await user.keyboard("{Backspace}");
+
+    expect(onBackspaceEmpty).not.toHaveBeenCalled();
+  });
+
+  it("reports a soft keyboard's delete, which arrives without a key event", () => {
+    const onBackspaceEmpty = vi.fn();
+    render(<SearchInput value="" onValueChange={() => {}} onBackspaceEmpty={onBackspaceEmpty} />);
+
+    fireEvent(screen.getByRole("textbox"), beforeInputEvent("deleteContentBackward"));
+
+    expect(onBackspaceEmpty).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores other input types on an empty field", () => {
+    const onBackspaceEmpty = vi.fn();
+    render(<SearchInput value="" onValueChange={() => {}} onBackspaceEmpty={onBackspaceEmpty} />);
+
+    fireEvent(screen.getByRole("textbox"), beforeInputEvent("insertText"));
+
+    expect(onBackspaceEmpty).not.toHaveBeenCalled();
   });
 });

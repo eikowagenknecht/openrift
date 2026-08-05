@@ -8,6 +8,10 @@
 
 ### Other
 
+- feat(Collection): **List header fits a phone** — a list now shows its value next to the title like a collection does, with group visibility and dynamic rules moved into the three-dot menu.
+- feat(Collection): **Empty list points at dynamic rules** — a list with nothing on it now leads with setting up a rule that fills it for you, instead of only offering the catalog.
+- feat(Collection): **Roomier collection header** — Scan and Quick add moved into the three-dot menu on a single collection (they stay in the bar on All cards and the inbox), and an empty collection now offers Scan alongside Browse & add.
+- feat(Cards): **Backspace clears the search scope** — with the search narrowed to a field, one press in the empty box puts it back to searching everything.
 - fix(Collection): **Rule hints readable on a phone** — the small (i) next to Standard and Price in the rule builder needed a mouse hover, and now opens on tap.
 
 ## 2026-08-04

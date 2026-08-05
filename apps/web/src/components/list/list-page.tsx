@@ -17,7 +17,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
-import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
+import { PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
@@ -28,7 +28,7 @@ import { ListGroupVisibilityDialog } from "@/components/list/list-group-visibili
 import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
-import { ListVisibilityButton } from "@/components/list/list-visibility-button";
+import { ListVisibilityMenuItem } from "@/components/list/list-visibility-menu-item";
 import { MoveCopiesToCollectionDialog } from "@/components/list/move-copies-to-collection-dialog";
 import { RuleEditorDialog } from "@/components/list/rule-editor-dialog";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,6 @@ import {
   useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
-import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 
@@ -136,10 +135,10 @@ export function ListPage({ listId }: ListPageProps) {
   const allCopyIds = listCopyIds(data.entries);
 
   // The bar is assembled here (it belongs to the page) but rendered by the
-  // browser, which owns select mode — hence the callback. While selecting, the
-  // browse-only actions step aside so the bar keeps room for Select all / Done
-  // on a phone; the ⋮ menu stays reachable throughout.
-  const renderTopBar = (selectActions: ReactNode = null, mode: "browse" | "select" = "browse") => {
+  // browser, which owns select mode — hence the callback. Everything else the
+  // list can do lives in the ⋮ menu, so the bar has room for Select all / Done
+  // on a phone without anything stepping aside.
+  const renderTopBar = (selectActions: ReactNode = null) => {
     const topBar = (
       <ListHeader
         list={data.list}
@@ -148,23 +147,6 @@ export function ListPage({ listId }: ListPageProps) {
         onToggleSidebar={toggleSidebar}
         actions={
           <>
-            {mode === "browse" && (
-              <>
-                <PageTopBarButton
-                  onClick={() => setRuleOpen(true)}
-                  className={cn(activeRuleCount > 0 && "text-primary")}
-                >
-                  <SparklesIcon className="size-4" />
-                  Dynamic rules
-                  {activeRuleCount > 0 ? ` · ${activeRuleCount}` : null}
-                </PageTopBarButton>
-                <ListVisibilityButton
-                  listId={data.list.id}
-                  intent={data.list.intent}
-                  onManageVisibility={() => setVisibilityOpen(true)}
-                />
-              </>
-            )}
             {selectActions}
             <DropdownMenu>
               <DropdownMenuTrigger render={<PageTopBarIconButton />}>
@@ -176,10 +158,22 @@ export function ListPage({ listId }: ListPageProps) {
                   <PencilIcon className="size-4" />
                   Edit
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRuleOpen(true)}>
+                  <SparklesIcon className="size-4" />
+                  Dynamic rules
+                  {activeRuleCount > 0 ? (
+                    <span className="text-primary ml-auto pl-3 text-xs">{activeRuleCount}</span>
+                  ) : null}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShareOpen(true)}>
                   <Share2Icon className="size-4" />
                   Share
                 </DropdownMenuItem>
+                <ListVisibilityMenuItem
+                  listId={data.list.id}
+                  intent={data.list.intent}
+                  onManageVisibility={() => setVisibilityOpen(true)}
+                />
                 {(data.list.kind === "card" || data.list.kind === "printing") && (
                   <DropdownMenuItem onClick={() => setImportOpen(true)}>
                     <UploadIcon className="size-4" />
@@ -328,6 +322,9 @@ export function ListPage({ listId }: ListPageProps) {
           title={empty.title}
           description={
             <>
+              {activeRuleCount > 0
+                ? "Nothing matches this list's rules yet."
+                : "A dynamic list fills itself: set a rule once, and every card that matches joins on its own."}{" "}
               {empty.description}{" "}
               <Link
                 to="/help/$slug"
@@ -339,8 +336,15 @@ export function ListPage({ listId }: ListPageProps) {
             </>
           }
         >
+          {/* The rule editor leads: a dynamic list is the answer most people
+              want here and the least discoverable one, since the alternatives
+              (library, drag from a collection) are visible on the page already. */}
+          <Button onClick={() => setRuleOpen(true)}>
+            <SparklesIcon />
+            {activeRuleCount > 0 ? "Edit dynamic rules" : "Set up dynamic rules"}
+          </Button>
           {canShowLibrary && (
-            <Button onClick={() => setShowLibrary(true)}>
+            <Button variant="outline" onClick={() => setShowLibrary(true)}>
               <LibraryBigIcon />
               Show library
             </Button>

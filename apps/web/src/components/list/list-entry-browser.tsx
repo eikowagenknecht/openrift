@@ -64,10 +64,9 @@ export interface ListEntryBrowserProps {
   /**
    * Renders the page top bar. Select mode lives in this component but its
    * buttons belong in the bar the page owns, so the page hands the assembly
-   * back as a callback: it gets the select cluster plus the current mode (to
-   * drop its browse-only actions while selecting) and returns the finished bar.
+   * back as a callback: it gets the select cluster and returns the finished bar.
    */
-  renderTopBar: (selectActions: ReactNode, mode: "browse" | "select") => ReactNode;
+  renderTopBar: (selectActions: ReactNode) => ReactNode;
   /** True when the library toggle is on (catalog mode). Never true for copy-kind lists. */
   showLibrary: boolean;
   onToggleShowLibrary: () => void;
@@ -329,14 +328,14 @@ export function ListEntryBrowser({
     />
   );
 
-  // Override the filter-search `view` so the SearchBar's "Search X..." label
-  // and unit count match the locked view. Without this it falls back to the
-  // URL/default ("cards") on printing- and copy-kind lists.
+  // Override the filter-search `view` so the SearchBar's unit count matches the
+  // locked view. Without this it falls back to the URL/default ("cards") on
+  // printing- and copy-kind lists.
   const filterSearch = useFilterSearch();
 
   return (
     <FilterSearchProvider value={{ ...filterSearch, view }}>
-      {renderTopBar(selectActions, mode)}
+      {renderTopBar(selectActions)}
       <CardBrowserFilterProvider
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}

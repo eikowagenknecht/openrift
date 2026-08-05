@@ -1,0 +1,113 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { AnchorHTMLAttributes } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+// Keep the props the bar puts on its links (aria-label, className) so the
+// rendered anchors still carry their accessible names.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to: _to,
+    params: _params,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { to?: string; params?: unknown }) => (
+    <a href="#link" {...rest}>
+      {children}
+    </a>
+  ),
+  createLink: (component: unknown) => component,
+}));
+
+// Select mode has its own tests; here it would only add buttons to look past.
+vi.mock("@/components/cards/select-mode-actions", () => ({
+  SelectModeActions: () => null,
+}));
+
+const { CollectionTopBar } = await import("./collection-top-bar");
+
+/**
+ * Renders the bar for a collection the viewer administers, so the ⋮ menu is
+ * present in every case and only the placement of the add actions varies.
+ * @returns Nothing; assertions read from the screen.
+ */
+function renderTopBar(overrides: {
+  addActionsInBar: boolean;
+  hasCards?: boolean;
+  showAddActions?: boolean;
+}) {
+  render(
+    <CollectionTopBar
+      title="Binder"
+      onToggleSidebar={() => {}}
+      mode="browse"
+      valueCents={1234}
+      unpricedCount={0}
+      formatValue={(value) => `${value} €`}
+      addTarget="collection-1"
+      showAddActions
+      onQuickAdd={() => {}}
+      onSelectAll={() => {}}
+      onEnterSelect={() => {}}
+      onExitSelect={() => {}}
+      hasCards
+      isAllSelected={false}
+      view="cards"
+      canEdit
+      canDelete
+      canClearInbox={false}
+      canShare
+      canToggleDeckbuilding
+      deckbuildingAvailable
+      onEdit={() => {}}
+      onDelete={() => {}}
+      onClearInbox={() => {}}
+      onShare={() => {}}
+      onToggleDeckbuilding={() => {}}
+      {...overrides}
+    />,
+  );
+}
+
+describe("CollectionTopBar", () => {
+  // Both breakpoint variants of each action are in the DOM (CSS picks one), so
+  // these count matches rather than expecting a single node.
+  it("keeps Scan and Quick add in the bar where adding is the point", () => {
+    renderTopBar({ addActionsInBar: true });
+
+    expect(screen.getAllByRole("button", { name: /scan/iu }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Quick add" }).length).toBeGreaterThan(0);
+  });
+
+  it("folds them into the actions menu on a single collection", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ addActionsInBar: false });
+
+    expect(screen.queryByRole("button", { name: /scan/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Scan cards" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Quick add" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  // A collection with no copies auto-opens in library mode, so the empty state
+  // (and its own pair of buttons) never renders — the bar has to carry them.
+  it("still offers both actions on a collection holding no cards", () => {
+    renderTopBar({ addActionsInBar: true, hasCards: false });
+
+    expect(screen.getAllByRole("button", { name: /scan/iu }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Quick add" }).length).toBeGreaterThan(0);
+  });
+
+  it("drops both while the empty state carries its own", () => {
+    renderTopBar({ addActionsInBar: true, showAddActions: false });
+
+    expect(screen.queryByRole("button", { name: /scan/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
+  });
+});

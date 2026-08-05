@@ -33,6 +33,17 @@ interface CollectionTopBarProps {
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
+  /**
+   * Whether Scan and Quick add ride in the bar. True on the surfaces where
+   * adding is the point (All cards, the inbox); on a single collection they
+   * move into the ⋮ menu so the bar has room for the title and its value.
+   */
+  addActionsInBar: boolean;
+  /**
+   * False while the page shows its empty state, which carries its own Scan and
+   * Quick add buttons.
+   */
+  showAddActions: boolean;
   onQuickAdd: () => void;
   onSelectAll: () => void;
   onEnterSelect: () => void;
@@ -61,6 +72,8 @@ export function CollectionTopBar({
   unpricedCount,
   formatValue,
   addTarget,
+  addActionsInBar,
+  showAddActions,
   onQuickAdd,
   onSelectAll,
   onEnterSelect,
@@ -80,6 +93,13 @@ export function CollectionTopBar({
   onShare,
   onToggleDeckbuilding,
 }: CollectionTopBarProps) {
+  // Scan and Quick add are one gesture — put cards into this collection — so
+  // they come and go together rather than on separate conditions: only with a
+  // target to add to, only while browsing (select mode needs the room), and
+  // never over the empty state, which offers its own pair.
+  const canAdd = Boolean(addTarget) && mode === "browse" && showAddActions;
+  const showAddMenuItems = canAdd && !addActionsInBar;
+
   return (
     <PageTopBar>
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
@@ -94,7 +114,7 @@ export function CollectionTopBar({
 
       <PageTopBarActions>
         <div className="flex items-center gap-2">
-          {addTarget && mode === "browse" && (
+          {addActionsInBar && canAdd && (
             <>
               <PageTopBarIconButton
                 render={<Link to="/collections/scan" />}
@@ -109,7 +129,7 @@ export function CollectionTopBar({
               </PageTopBarButton>
             </>
           )}
-          {addTarget && hasCards && (
+          {addActionsInBar && canAdd && (
             <>
               <PageTopBarIconButton
                 onClick={onQuickAdd}
@@ -133,13 +153,30 @@ export function CollectionTopBar({
             onExitSelect={onExitSelect}
             onSelectAll={onSelectAll}
           />
-          {(canEdit || canDelete || canClearInbox || canShare || canToggleDeckbuilding) && (
+          {(showAddMenuItems ||
+            canEdit ||
+            canDelete ||
+            canClearInbox ||
+            canShare ||
+            canToggleDeckbuilding) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                 <EllipsisVerticalIcon className="size-4" />
                 <span className="sr-only">Collection actions</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {showAddMenuItems && (
+                  <>
+                    <DropdownMenuItem render={<Link to="/collections/scan" />}>
+                      <CameraIcon className="size-4" />
+                      Scan cards
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onQuickAdd}>
+                      <SquarePlusIcon className="size-4" />
+                      Quick add
+                    </DropdownMenuItem>
+                  </>
+                )}
                 {canEdit && (
                   <DropdownMenuItem onClick={onEdit}>
                     <PencilIcon className="size-4" />

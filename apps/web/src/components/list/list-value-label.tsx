@@ -41,7 +41,7 @@ export function ListValueLabel({ kind, entries }: ListValueLabelProps) {
   const format = formatterForMarketplace(display.favoriteMarketplace);
 
   return (
-    <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
+    <span className="text-muted-foreground shrink-0 text-xs">
       {format(value)}
       {unpriced > 0 ? (
         <span className="text-muted-foreground/60 ml-1">({unpriced} unpriced)</span>

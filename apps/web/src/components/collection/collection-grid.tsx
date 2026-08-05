@@ -3,6 +3,7 @@ import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  CameraIcon,
   DownloadIcon,
   LibraryBigIcon,
   ListPlusIcon,
@@ -672,6 +673,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // the selection).
   const selectableRealCount = selectableCopyIds.filter((id) => !isTempCopyId(id)).length;
 
+  // The empty check uses the unfiltered stack count, so an empty collection
+  // shows the prompt even when filters (including auto-seeded language prefs)
+  // are active. Gated on `copiesReady` so the empty state doesn't flash while
+  // the first copies fetch is still in flight.
+  const isEmpty = !showLibrary && copiesReady && stacks.length === 0;
+
   const collectionTopBar = (
     <CollectionTopBar
       title={title}
@@ -681,6 +688,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
+      // "All cards" and the inbox are where cards get put in, so Scan and Quick
+      // add stay in reach there. A named collection is a place you organize into
+      // from elsewhere, so they fold into the ⋮ menu and the bar keeps its room.
+      addActionsInBar={!currentCollection || currentCollection.isInbox}
+      // Only the empty state hides them, because that screen offers its own
+      // Scan and Quick add. An empty collection that auto-opened into library
+      // mode is not the empty state, and it still needs both.
+      showAddActions={!isEmpty}
       onQuickAdd={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
       onSelectAll={() => toggleSelectAll(selectableCopyIds)}
       onEnterSelect={enterSelectMode}
@@ -793,12 +808,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   );
 
   // ── Content branch ──────────────────────────────────────────────────
-  // The empty check uses the unfiltered stack count, so an empty collection
-  // shows the prompt even when filters (including auto-seeded language prefs)
-  // are active. Gated on `copiesReady` so the empty state doesn't flash while
-  // the first copies fetch is still in flight.
-  const isEmpty = !showLibrary && copiesReady && stacks.length === 0;
-
   return (
     <>
       {isEmpty ? (
@@ -830,6 +839,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                     <LibraryBigIcon />
                     Browse & add
                   </Button>
+                  {/* An empty collection is exactly when a stack of physical
+                      cards is waiting to be entered, so the scanner belongs
+                      here even though the bar only carries it on the inbox. */}
+                  <Link to="/collections/scan" className={buttonVariants({ variant: "ghost" })}>
+                    <CameraIcon />
+                    Scan cards
+                  </Link>
                   <Button
                     variant="ghost"
                     onClick={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
