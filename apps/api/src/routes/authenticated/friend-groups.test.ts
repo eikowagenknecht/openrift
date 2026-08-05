@@ -557,9 +557,7 @@ describe("friend-groups route", () => {
       entryCount: 4,
       hasRule: false,
     };
-    const entriesWithDetailsAnon = vi.fn(() =>
-      Promise.resolve([{ id: "e1" }, { id: "e2" }, { id: "e3" }]),
-    );
+    const expandedCounts = vi.fn(() => Promise.resolve(new Map([[LIST_ID, 3]])));
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -568,7 +566,7 @@ describe("friend-groups route", () => {
         listMembers: vi.fn(() => Promise.resolve([enrichedOwner])),
         listSharesForGroup: vi.fn(() => Promise.resolve([ruledShare, manualShare])),
       },
-      lists: { entriesWithDetailsAnon },
+      lists: { expandedCounts },
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");
     expect(res.status).toBe(200);
@@ -578,8 +576,9 @@ describe("friend-groups route", () => {
     expect(byId.get(LIST_ID)).toBe(3);
     // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manualShare.listId)).toBe(4);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledWith(LIST_ID, "copy");
+    // One batched call, carrying only the rule-based list.
+    expect(expandedCounts).toHaveBeenCalledTimes(1);
+    expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
 
   it("GET /{slug}/members/{userId} expands rule-based shares so their entryCount is the real size", async () => {
@@ -612,9 +611,7 @@ describe("friend-groups route", () => {
       entryCount: 4,
       hasRule: false,
     };
-    const entriesWithDetailsAnon = vi.fn(() =>
-      Promise.resolve([{ id: "e1" }, { id: "e2" }, { id: "e3" }]),
-    );
+    const expandedCounts = vi.fn(() => Promise.resolve(new Map([[LIST_ID, 3]])));
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -622,7 +619,7 @@ describe("friend-groups route", () => {
         listMembers: vi.fn(() => Promise.resolve([enrichedOwner, enrichedMember])),
         listSharesForGroup: vi.fn(() => Promise.resolve([ruledShare, manualShare])),
       },
-      lists: { entriesWithDetailsAnon },
+      lists: { expandedCounts },
     });
     const res = await app.request(`/api/v1/friend-groups/playgroup/members/${OTHER_ID}`);
     expect(res.status).toBe(200);
@@ -632,8 +629,9 @@ describe("friend-groups route", () => {
     expect(byId.get(LIST_ID)).toBe(3);
     // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manualShare.listId)).toBe(4);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledWith(LIST_ID, "copy");
+    // One batched call, carrying only the rule-based list.
+    expect(expandedCounts).toHaveBeenCalledTimes(1);
+    expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
 
   it("GET /{slug}/shareable-lists expands rule-based lists so their entryCount is the real size", async () => {
@@ -658,14 +656,14 @@ describe("friend-groups route", () => {
       entryCount: 4,
       hasRule: false,
     };
-    const entriesWithDetailsAnon = vi.fn(() => Promise.resolve([{ id: "e1" }, { id: "e2" }]));
+    const expandedCounts = vi.fn(() => Promise.resolve(new Map([[LIST_ID, 2]])));
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
         getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
         listShareableForUserInGroup: vi.fn(() => Promise.resolve([ruled, manual])),
       },
-      lists: { entriesWithDetailsAnon },
+      lists: { expandedCounts },
     });
     const res = await app.request("/api/v1/friend-groups/playgroup/shareable-lists");
     expect(res.status).toBe(200);
@@ -675,8 +673,9 @@ describe("friend-groups route", () => {
     expect(byId.get(LIST_ID)).toBe(2);
     // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manual.listId)).toBe(4);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
-    expect(entriesWithDetailsAnon).toHaveBeenCalledWith(LIST_ID, "copy");
+    // One batched call, carrying only the rule-based list.
+    expect(expandedCounts).toHaveBeenCalledTimes(1);
+    expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
 
   // ── Authz ───────────────────────────────────────────────────────────────

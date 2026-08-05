@@ -1,14 +1,11 @@
-import type { ListKind } from "@openrift/shared";
-
 /** The slice of the lists repo the count expansion needs. */
-interface EntryExpander {
-  entriesWithDetailsAnon: (listId: string, kind: ListKind) => Promise<unknown[]>;
+interface CountExpander {
+  expandedCounts: (listIds: readonly string[]) => Promise<Map<string, number>>;
 }
 
 /** A share/summary row carrying the cheap materialized count plus the rule flag. */
 interface CountableListRow {
   listId: string;
-  listKind: string;
   hasRule: boolean;
 }
 
@@ -21,22 +18,23 @@ interface CountableListRow {
  * exact — so callers can override the count only where it's wrong. Returns a
  * `listId → count` map; a list absent from the map keeps its materialized count.
  *
- * @param lists The lists repo (only `entriesWithDetailsAnon` is used).
+ * The expansion itself is batched inside `lists.expandedCounts`, so this stays a
+ * `hasRule` filter: a page of purely manual lists never reaches the repo, and a
+ * page with rule lists costs a constant handful of queries rather than a few per
+ * list. `expandedCounts` re-reads the rules itself, so a stale flag on a row can
+ * only cost a wasted call, never a wrong count.
+ *
+ * @param lists The lists repo (only `expandedCounts` is used).
  * @param rows The share/summary rows to inspect for rule-based lists.
  * @returns A map from list id to its rule-expanded entry count.
  */
-export async function expandRuleListCounts(
-  lists: EntryExpander,
+export function expandRuleListCounts(
+  lists: CountExpander,
   rows: readonly CountableListRow[],
 ): Promise<Map<string, number>> {
-  const counts = new Map<string, number>();
-  await Promise.all(
-    rows
-      .filter((row) => row.hasRule)
-      .map(async (row) => {
-        const entries = await lists.entriesWithDetailsAnon(row.listId, row.listKind as ListKind);
-        counts.set(row.listId, entries.length);
-      }),
-  );
-  return counts;
+  const ruleListIds = rows.filter((row) => row.hasRule).map((row) => row.listId);
+  if (ruleListIds.length === 0) {
+    return Promise.resolve(new Map<string, number>());
+  }
+  return lists.expandedCounts(ruleListIds);
 }

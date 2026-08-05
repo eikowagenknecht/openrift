@@ -1,7 +1,12 @@
+import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
+import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
+import type { Database } from "../db/index.js";
 import { createMockDb } from "../test/mock-db.js";
 import { listsRepo } from "./lists.js";
+import type { ListRuleProviders } from "./lists.js";
 
 const LIST = {
   id: "lst-1",
@@ -276,5 +281,263 @@ describe("listsRepo", () => {
     const db = createMockDb({ numDeletedRows: 1n });
     const repo = listsRepo(db);
     expect(await repo.deleteEntry("le-1", "lst-1", "u1")).toEqual({ numDeletedRows: 1n });
+  });
+});
+
+// ── expandedCounts (ADR-034 batched count-only expansion) ────────────────────
+
+/**
+ * Fake `db` that answers by table, so the two queries `expandedCounts` makes
+ * (`lists`, then `listEntries`) get their own canned rows. WHERE clauses are
+ * ignored — the canned rows already stand for the filtered result.
+ * @returns A Kysely-shaped stub serving `rowsByTable`.
+ */
+function tableDb(rowsByTable: Record<string, Record<string, unknown>[]>): Kysely<Database> {
+  function chain(table: string): unknown {
+    const handler: ProxyHandler<() => unknown> = {
+      get(_target, prop) {
+        if (prop === "execute") {
+          return () => Promise.resolve(rowsByTable[table] ?? []);
+        }
+        if (prop === "then" || prop === "catch" || prop === "finally" || typeof prop === "symbol") {
+          return undefined;
+        }
+        return () => chain(table);
+      },
+      apply() {
+        return chain(table);
+      },
+    };
+    return new Proxy(() => chain(table), handler);
+  }
+  return {
+    selectFrom: (arg: string) => chain(arg.split(" ")[0]),
+  } as unknown as Kysely<Database>;
+}
+
+/**
+ * Minimal catalog {@link Printing} for `filterCards`; the empty filter matches
+ * every one of these.
+ * @returns A printing on a normal `unit` card.
+ */
+function catalogPrinting(id: string, cardId: string): Printing {
+  return {
+    id,
+    cardId,
+    shortCode: id,
+    setId: "set-1",
+    setSlug: "set-alpha",
+    setReleased: true,
+    rarity: "common",
+    artVariant: "normal",
+    isSigned: false,
+    markers: [],
+    distributionChannels: [],
+    finish: "normal",
+    size: "standard",
+    images: [],
+    artist: "Artist",
+    publicCode: "PUB",
+    printedRulesText: null,
+    printedEffectText: null,
+    flavorText: null,
+    printedName: null,
+    printedYear: null,
+    comment: null,
+    language: "EN",
+    canonicalRank: 0,
+    card: {
+      slug: cardId,
+      name: `Card ${cardId}`,
+      type: "unit",
+      types: ["unit"],
+      superTypes: [],
+      domains: ["fury"],
+      energy: 1,
+      might: 1,
+      power: 1,
+      keywords: [],
+      tags: [],
+      mightBonus: 0,
+      maxCopiesOverride: null,
+      errata: null,
+      bans: [],
+    },
+  } as Printing;
+}
+
+/** A card-kind wish rule that takes the whole catalog, one copy of each. */
+const CATCH_ALL_WISH_RULE = {
+  kind: "wish" as const,
+  filter: EMPTY_CARD_FILTERS,
+  quantity: { mode: "fixed" as const, n: 1 },
+  excludeIds: [],
+  netOwned: false,
+};
+
+const CATALOG = [
+  catalogPrinting("prt-1", "crd-1"),
+  catalogPrinting("prt-2", "crd-2"),
+  catalogPrinting("prt-3", "crd-3"),
+];
+
+function ruleListRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "lst-rule",
+    kind: "card",
+    rules: JSON.stringify([CATCH_ALL_WISH_RULE]),
+    ruleCombine: null,
+    userId: "u1",
+    ...overrides,
+  };
+}
+
+function manualEntryRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "le-1",
+    listId: "lst-rule",
+    kind: "card",
+    cardId: "crd-1",
+    printingId: null,
+    copyId: null,
+    quantity: 1,
+    pricePref: null,
+    priceAbsoluteCents: null,
+    tradeType: null,
+    ...overrides,
+  };
+}
+
+function countingProviders(catalog: Printing[] = CATALOG) {
+  const ownedCopyCalls: string[] = [];
+  let catalogCalls = 0;
+  let priceCalls = 0;
+  let enumCalls = 0;
+  const providers: ListRuleProviders = {
+    assembleCatalog: () => {
+      catalogCalls++;
+      return Promise.resolve({ printings: catalog, customTagAssignments: {} });
+    },
+    ownedCopies: (ownerId) => {
+      ownedCopyCalls.push(ownerId);
+      return Promise.resolve([]);
+    },
+    enumOrders: () => {
+      enumCalls++;
+      return Promise.resolve({ finishes: [], rarities: [], artVariants: [] });
+    },
+    priceLookup: () => {
+      priceCalls++;
+      return Promise.resolve(EMPTY_PRICE_LOOKUP);
+    },
+  };
+  return {
+    providers,
+    ownedCopyCalls,
+    counts: () => ({ catalogCalls, priceCalls, enumCalls }),
+  };
+}
+
+describe("listsRepo.expandedCounts", () => {
+  it("counts a rule list's expansion without enriching entries", async () => {
+    const { providers } = countingProviders();
+    const db = tableDb({ lists: [ruleListRow()], listEntries: [] });
+    const counts = await listsRepo(db, providers).expandedCounts(["lst-rule"]);
+
+    // The catch-all rule takes all three catalog cards.
+    expect(counts.get("lst-rule")).toBe(3);
+  });
+
+  it("merges manual entries with rule output instead of adding them", async () => {
+    const { providers } = countingProviders();
+    const db = tableDb({
+      lists: [ruleListRow()],
+      // crd-1 is also produced by the rule (so it must not double-count);
+      // crd-9 is outside the catalog, so it only exists manually.
+      listEntries: [
+        manualEntryRow({ id: "le-1", cardId: "crd-1" }),
+        manualEntryRow({ id: "le-2", cardId: "crd-9" }),
+      ],
+    });
+    const counts = await listsRepo(db, providers).expandedCounts(["lst-rule"]);
+
+    // 3 from the rule + the manual-only crd-9; crd-1 is one entry, not two.
+    expect(counts.get("lst-rule")).toBe(4);
+  });
+
+  it("skips lists that carry no rules, so callers keep the materialized count", async () => {
+    const { providers } = countingProviders();
+    const db = tableDb({
+      lists: [ruleListRow(), ruleListRow({ id: "lst-manual", rules: JSON.stringify([]) })],
+      listEntries: [],
+    });
+    const counts = await listsRepo(db, providers).expandedCounts(["lst-rule", "lst-manual"]);
+
+    expect(counts.has("lst-rule")).toBe(true);
+    expect(counts.has("lst-manual")).toBe(false);
+  });
+
+  it("loads owned copies once per owner, not once per list", async () => {
+    const tradeRule = {
+      kind: "trade" as const,
+      filter: EMPTY_CARD_FILTERS,
+      keepPerCard: { mode: "fixed" as const, n: 0 },
+      collectionIds: null,
+      excludeCopyIds: [],
+    };
+    const { providers, ownedCopyCalls } = countingProviders();
+    const db = tableDb({
+      lists: [
+        ruleListRow({ id: "a", kind: "copy", userId: "u1", rules: JSON.stringify([tradeRule]) }),
+        ruleListRow({ id: "b", kind: "copy", userId: "u1", rules: JSON.stringify([tradeRule]) }),
+        ruleListRow({ id: "c", kind: "copy", userId: "u2", rules: JSON.stringify([tradeRule]) }),
+      ],
+      listEntries: [],
+    });
+    await listsRepo(db, providers).expandedCounts(["a", "b", "c"]);
+
+    // Three lists, two owners, two inventory reads.
+    expect(ownedCopyCalls.toSorted()).toEqual(["u1", "u2"]);
+  });
+
+  it("assembles the catalog once for the whole batch", async () => {
+    const { providers, counts: callCounts } = countingProviders();
+    const db = tableDb({
+      lists: [ruleListRow({ id: "a" }), ruleListRow({ id: "b" }), ruleListRow({ id: "c" })],
+      listEntries: [],
+    });
+    await listsRepo(db, providers).expandedCounts(["a", "b", "c"]);
+
+    expect(callCounts().catalogCalls).toBe(1);
+  });
+
+  it("skips the price and keep-order loads when no rule needs them", async () => {
+    const { providers, counts: callCounts, ownedCopyCalls } = countingProviders();
+    const db = tableDb({ lists: [ruleListRow()], listEntries: [] });
+    await listsRepo(db, providers).expandedCounts(["lst-rule"]);
+
+    // A plain wish rule reads neither prices, keep orders, nor the inventory.
+    expect(callCounts().priceCalls).toBe(0);
+    expect(callCounts().enumCalls).toBe(0);
+    expect(ownedCopyCalls).toEqual([]);
+  });
+
+  it("returns an empty map for no ids, and without providers", async () => {
+    const { providers } = countingProviders();
+    const db = tableDb({ lists: [ruleListRow()], listEntries: [] });
+
+    const noIds = await listsRepo(db, providers).expandedCounts([]);
+    expect(noIds.size).toBe(0);
+    // No providers wired (a repo built for a manual-only path) must not throw.
+    const noProviders = await listsRepo(db).expandedCounts(["lst-rule"]);
+    expect(noProviders.size).toBe(0);
+  });
+
+  it("returns an empty map when the ids match no list", async () => {
+    const { providers } = countingProviders();
+    const db = tableDb({ lists: [], listEntries: [] });
+
+    const counts = await listsRepo(db, providers).expandedCounts(["ghost"]);
+    expect(counts.size).toBe(0);
   });
 });

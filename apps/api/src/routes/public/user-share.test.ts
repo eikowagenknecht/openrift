@@ -21,7 +21,9 @@ const mockFriendGroupsRepo = {
 };
 
 const mockListsRepo = {
+  // The list-detail route still enriches; only the bundle's counts are batched.
   entriesWithDetailsAnon: vi.fn(),
+  expandedCounts: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -140,7 +142,7 @@ describe("GET /api/v1/users/share/:token", () => {
       { list: dbList, entryCount: 3, viaGroups: [] },
       { list: ruledList, entryCount: 0, viaGroups: [] },
     ]);
-    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([dbEntry, dbEntry, dbEntry, dbEntry]);
+    mockListsRepo.expandedCounts.mockResolvedValue(new Map([[ruledList.id, 4]]));
 
     const res = await app.request("/api/v1/users/share/tok-abc");
     expect(res.status).toBe(200);
@@ -152,8 +154,11 @@ describe("GET /api/v1/users/share/:token", () => {
     expect(byId.get(dbList.id)).toBe(3);
     // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(ruledList.id)).toBe(4);
-    expect(mockListsRepo.entriesWithDetailsAnon).toHaveBeenCalledTimes(1);
-    expect(mockListsRepo.entriesWithDetailsAnon).toHaveBeenCalledWith(ruledList.id, "card");
+    // One batched call, carrying only the rule-based list.
+    expect(mockListsRepo.expandedCounts).toHaveBeenCalledTimes(1);
+    expect(mockListsRepo.expandedCounts).toHaveBeenCalledWith([ruledList.id]);
+    // The bundle never falls back to the enriching detail path for a count.
+    expect(mockListsRepo.entriesWithDetailsAnon).not.toHaveBeenCalled();
   });
 
   it("includes group-shared collections for an authenticated viewer", async () => {

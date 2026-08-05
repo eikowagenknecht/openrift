@@ -41,7 +41,6 @@ export const publicUserShareRouter = {
         listsRepo,
         lists.map(({ list }) => ({
           listId: list.id,
-          listKind: list.kind,
           hasRule: parseListRules(list.rules).length > 0,
         })),
       );

@@ -547,6 +547,116 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return expandAndEnrich(db, providers, kind, { listId });
     },
 
+    /**
+     * Rule-expanded entry *counts* for several lists at once (ADR-034).
+     *
+     * The materialized `entryCount` on a summary row counts manual
+     * `list_entries` only, so a rule-based list reports 0 until its rules run.
+     * This is the count-only counterpart of `entriesWithDetailsAnon`: it stops
+     * at `expandList` and returns sizes, never loading card/printing/copy
+     * details or sorting — a caller that wants a number should not pay for a
+     * fully enriched list page.
+     *
+     * Batched across `listIds` rather than looped per list: one query for the
+     * lists, one for every list's manual entries, and one owned-copy load per
+     * distinct *owner* (several of a user's lists share one inventory). The
+     * catalog comes from the process-wide memo, so query count is
+     * `2 + distinct owners` instead of ~4 per rule list.
+     *
+     * Owned copies load unscoped here, unlike the per-list path's
+     * `ownedCopyPrintingScope` narrowing: the scope is a per-rule filter pass
+     * and so cannot be shared between lists, and one whole-collection read beats
+     * N narrowed ones at the collection sizes this runs on.
+     *
+     * @param listIds The lists to expand. Ids without rules are skipped.
+     * @returns A map from list id to its expanded entry count; lists that carry
+     *   no rules (or don't exist) are absent, so callers keep their
+     *   materialized count for those.
+     */
+    async expandedCounts(listIds: readonly string[]): Promise<Map<string, number>> {
+      const counts = new Map<string, number>();
+      if (listIds.length === 0 || !providers) {
+        return counts;
+      }
+
+      const listRows = await db
+        .selectFrom("lists")
+        .select(["id", "kind", "rules", "ruleCombine", "userId"])
+        .where("id", "in", [...listIds])
+        .execute();
+      const ruleLists = listRows
+        .map((row) => ({ ...row, rules: parseRules(row.rules) }))
+        .filter((row) => row.rules.length > 0);
+      if (ruleLists.length === 0) {
+        return counts;
+      }
+
+      // One inventory read per owner, not per list. `needsOwnedCopies` mirrors
+      // the per-list path: trade rules take copies as their supply, and a
+      // netOwned wish rule subtracts what the owner already has.
+      const owners = [
+        ...new Set(ruleLists.filter((row) => needsOwnedCopies(row.rules)).map((row) => row.userId)),
+      ];
+
+      // Everything below depends only on `ruleLists`, so it all overlaps. The
+      // per-list path deliberately loads prices *before* copies (its
+      // `ownedCopyPrintingScope` narrowing has to see the same prices the
+      // evaluation will), but this path loads copies unscoped, so no such
+      // ordering applies and the round trips can go out together.
+      const [manualRows, catalogData, ownedByOwner, priceLookup, enumOrders] = await Promise.all([
+        db
+          .selectFrom("listEntries")
+          .select([
+            "id",
+            "listId",
+            "kind",
+            "cardId",
+            "printingId",
+            "copyId",
+            "quantity",
+            "pricePref",
+            "priceAbsoluteCents",
+            "tradeType",
+          ])
+          .where(
+            "listId",
+            "in",
+            ruleLists.map((row) => row.id),
+          )
+          .execute(),
+        providers.assembleCatalog(),
+        Promise.all(
+          owners.map(async (owner) => [owner, await providers.ownedCopies(owner)] as const),
+        ).then((entries) => new Map(entries)),
+        ruleLists.some((row) => row.rules.some(ruleFiltersOnPrice))
+          ? providers.priceLookup()
+          : undefined,
+        ruleLists.some((row) => row.rules.some((rule) => rule.kind === "trade"))
+          ? providers.enumOrders()
+          : undefined,
+      ]);
+      const manualByList = Map.groupBy(manualRows, (row) => row.listId);
+      const { printings: catalog, customTagAssignments } = catalogData;
+
+      for (const list of ruleLists) {
+        const manual = (manualByList.get(list.id) ?? []).map((row) => toRawManualEntryRow(row));
+        const ruleEntries = evaluateListRules(
+          list.rules,
+          list.kind,
+          {
+            catalog,
+            ownedCopies: ownedByOwner.get(list.userId) ?? [],
+            customTagAssignments,
+            enumOrders,
+            priceLookup,
+          },
+          list.ruleCombine,
+        );
+        counts.set(list.id, expandList(list.kind, manual, ruleEntries).length);
+      }
+      return counts;
+    },
+
     /** @returns The newly created entry row. */
     createEntry(values: NewEntryValues): Promise<Selectable<ListEntriesTable>> {
       return db.insertInto("listEntries").values(values).returningAll().executeTakeFirstOrThrow();
@@ -985,6 +1095,56 @@ function expandedTargetKey(
 }
 
 /** @returns The lightweight manual-entry shape `expandList` consumes. */
+/**
+ * Whether a rule set consults the owner's copies: a trade rule takes them as its
+ * supply, and a `netOwned` wish rule subtracts what the owner already has
+ * (ADR-034). Kept as one predicate so the per-list and batched-count paths can't
+ * drift on which rules trigger the inventory load.
+ * @returns True when the rules need owned copies.
+ */
+function needsOwnedCopies(rules: ListRules): boolean {
+  return rules.some((rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned));
+}
+
+/**
+ * Maps a raw `list_entries` row to the shape `expandList` merges rule output
+ * against, skipping the enrichment joins.
+ *
+ * Safe for counting because the table's constraints already guarantee what those
+ * joins would have checked: FKs to `cards` / `printings` / `copies` mean the
+ * target row exists, `fk_list_entries_list_kind` means the entry's kind matches
+ * its list's, and `chk_list_entries_kind_shape` means exactly the one id column
+ * for that kind is set. So no row an INNER join would have dropped reaches here,
+ * and the merged key set is the same one the enriched path produces.
+ *
+ * @param row The raw entry row.
+ * @returns The manual entry row.
+ */
+function toRawManualEntryRow(
+  row: Pick<
+    Selectable<ListEntriesTable>,
+    | "id"
+    | "kind"
+    | "cardId"
+    | "printingId"
+    | "copyId"
+    | "quantity"
+    | "pricePref"
+    | "priceAbsoluteCents"
+    | "tradeType"
+  >,
+): ManualEntryRow {
+  return {
+    id: row.id,
+    kind: row.kind,
+    cardId: row.cardId,
+    printingId: row.printingId,
+    copyId: row.copyId,
+    quantity: row.quantity,
+    tradeOverride: tradeOverrideFromRow(row),
+  };
+}
+
 function toManualEntryRow(row: ListEntryRow): ManualEntryRow {
   return {
     id: row.id ?? "",
@@ -1037,9 +1197,7 @@ async function expandAndEnrich(
     : undefined;
   // Trade rules need the owner's copies for supply; wish rules need them too when
   // netting against what's owned ("only what I'm missing", ADR-034).
-  const needsCopies = rules.some(
-    (rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned),
-  );
+  const needsCopies = needsOwnedCopies(rules);
   // Only load the copies the rules can actually consult. Computed from the
   // catalog alone (no rule's match depends on what is owned), so this is a pure
   // narrowing of the same result set — see `ownedCopyPrintingScope`.

@@ -12,6 +12,7 @@ import {
   InboxIcon,
   LayersIcon,
   PlusIcon,
+  SparklesIcon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -174,6 +175,27 @@ function SidebarCreateRow({ label, onCreate }: { label: string; onCreate: () => 
 }
 
 /**
+ * Marks a list whose contents come from a rule (ADR-034). The sidebar shows no
+ * count for these: `entryCount` counts manual entries only, so a rule-filled
+ * list reports 0 and the count badge stays hidden. Expanding the rules to get a
+ * real count means a full-catalog filter pass per list on every sidebar load,
+ * which is why the marker stands in for the number rather than beside it.
+ *
+ * Uses the same sparkle as the `RuleSourceBadge` on the list page, so one symbol
+ * means "a rule did this" everywhere.
+ *
+ * @returns The sparkle marker.
+ */
+function DynamicListMarker() {
+  return (
+    <span title="Kept up to date by a rule" className="flex shrink-0 items-center">
+      <SparklesIcon className="text-primary size-3.5" aria-hidden />
+      <span className="sr-only">Dynamic list</span>
+    </span>
+  );
+}
+
+/**
  * One intent bucket (wishlists / tradelists / organize lists) of the sidebar.
  * Owns its own "Show more" state, which is why it's a component rather than
  * inline JSX in a `.map()` — the reveal state is a hook read per group.
@@ -241,6 +263,7 @@ function ListIntentGroup({
                       >
                         <KindIcon className={SIDEBAR_ROW_ICON_CLASS} />
                         <span className="flex-1 truncate">{list.name}</span>
+                        {list.hasRule && <DynamicListMarker />}
                         {list.entryCount > 0 && (
                           <Badge variant="ghost" className="text-2xs ml-auto">
                             {list.entryCount}
