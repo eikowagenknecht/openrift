@@ -257,62 +257,17 @@ function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
 }
 
-function matchesMarkers(markerSlugs: string[], actualSlugs: string[]): boolean {
+function matchesMarkers(markerSlugs: string[], actualSlugs: readonly string[]): boolean {
   if (markerSlugs.length === 0) {
     return true;
   }
   return markerSlugs.some((slug) => actualSlugs.includes(slug));
 }
 
-/**
- * The values a printing/card carries for each presence dimension, extracted once
- * so `matchesPresence` and the presence facet counts share one definition:
- * markers/channels/custom-tags by slug, supertypes minus the `basic` placeholder
- * (matching the filterable supertype list), and keywords verbatim.
- * @returns The value list keyed by presence dimension.
- */
-function presenceValues(
-  printing: Printing,
-  markerSlugs: string[],
+function matchesDistributionChannels(
   channelSlugs: string[],
-  customTagSlugs: readonly string[],
-): Record<PresenceDimension, readonly string[]> {
-  return {
-    markers: markerSlugs,
-    superTypes: printing.card.superTypes.filter(
-      (superType) => superType !== WellKnown.superType.BASIC,
-    ),
-    customTags: customTagSlugs,
-    distributionChannels: channelSlugs,
-    keywords: printing.card.keywords,
-    tags: printing.card.tags,
-  };
-}
-
-/**
- * Applies the generic presence predicate: for each constrained dimension, "any"
- * requires at least one value and "none" requires zero. Dimensions with no
- * constraint (absent key) always pass.
- * @returns Whether the printing satisfies every presence constraint.
- */
-function matchesPresence(
-  presence: CardFilters["presence"],
-  values: Record<PresenceDimension, readonly string[]>,
+  actualSlugs: readonly string[],
 ): boolean {
-  for (const dimension of PRESENCE_DIMENSIONS) {
-    const state = presence[dimension];
-    if (!state) {
-      continue;
-    }
-    const has = values[dimension].length > 0;
-    if (state === "any" ? !has : has) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function matchesDistributionChannels(channelSlugs: string[], actualSlugs: string[]): boolean {
   if (channelSlugs.length === 0) {
     return true;
   }
@@ -420,52 +375,117 @@ export function filterCards(
   const terms = filters.search ? parseSearchTerms(filters.search) : [];
   const hasPrefixes = terms.some((t) => t.field !== null);
   const getPrice = options.getPrice;
+  const presence = filters.presence;
+
+  // Per-printing slug projections allocate; decide once whether any active
+  // filter actually reads them. The presence checks below need only lengths,
+  // never the slug arrays, so they don't force a projection.
+  const needMarkerSlugs = filters.markerSlugs.length > 0 || filters.markerSlugsExclude.length > 0;
+  const needChannelSlugs =
+    filters.distributionChannelSlugs.length > 0 ||
+    filters.distributionChannelSlugsExclude.length > 0;
+  const needCustomTags =
+    filters.customTagSlugs.length > 0 ||
+    filters.customTagSlugsExclude.length > 0 ||
+    presence.customTags !== undefined;
 
   return printings.filter((printing) => {
     const { card } = printing;
-    const markerSlugs = printing.markers.map((m) => m.slug);
-    const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
-    const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
     const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
-    const presenceVals = presenceValues(printing, markerSlugs, channelSlugs, customTagSlugs);
-    return (
-      matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
-      includes(filters.sets, printing.setSlug) &&
-      includes(filters.languages, printing.language) &&
-      matchesDomains(filters.domains, card.domains) &&
-      overlaps(filters.types, card.types) &&
-      overlaps(filters.superTypes, card.superTypes) &&
-      includes(filters.rarities, printing.rarity) &&
-      includes(filters.artVariants, artVariant) &&
-      includes(filters.finishes, printing.finish) &&
-      includes(filters.cardSizes, printing.size) &&
-      notExcluded(filters.setsExclude, printing.setSlug) &&
-      notExcluded(filters.languagesExclude, printing.language) &&
-      notExcluded(filters.raritiesExclude, printing.rarity) &&
-      noneExcluded(filters.typesExclude, card.types) &&
-      notExcluded(filters.artVariantsExclude, artVariant) &&
-      notExcluded(filters.finishesExclude, printing.finish) &&
-      noneExcluded(filters.superTypesExclude, card.superTypes) &&
-      noneExcluded(filters.domainsExclude, card.domains) &&
-      noneExcluded(filters.markerSlugsExclude, markerSlugs) &&
-      noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs) &&
-      noneExcluded(filters.customTagSlugsExclude, customTagSlugs) &&
-      noneExcluded(filters.keywordsExclude, card.keywords) &&
-      noneExcluded(filters.tagsExclude, card.tags) &&
-      matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
-      matchesFlag(filters.isSigned, printing.isSigned) &&
-      matchesMarkers(filters.markerSlugs, markerSlugs) &&
-      matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) &&
-      matchesCustomTags(filters.customTagSlugs, customTagSlugs) &&
-      overlaps(filters.keywords, card.keywords) &&
-      overlaps(filters.tags, card.tags) &&
-      matchesPresence(filters.presence, presenceVals) &&
-      matchesRange(card.energy, filters.energy) &&
-      matchesRange(card.might, filters.might) &&
-      matchesRange(card.power, filters.power) &&
-      matchesRange(getPrice?.(printing) ?? null, filters.price) &&
-      matchesFlag(filters.isBanned, card.bans.length > 0) &&
-      matchesFlag(filters.hasErrata, card.errata !== null)
+    if (
+      !(
+        includes(filters.sets, printing.setSlug) &&
+        includes(filters.languages, printing.language) &&
+        matchesDomains(filters.domains, card.domains) &&
+        overlaps(filters.types, card.types) &&
+        overlaps(filters.superTypes, card.superTypes) &&
+        includes(filters.rarities, printing.rarity) &&
+        includes(filters.artVariants, artVariant) &&
+        includes(filters.finishes, printing.finish) &&
+        includes(filters.cardSizes, printing.size) &&
+        notExcluded(filters.setsExclude, printing.setSlug) &&
+        notExcluded(filters.languagesExclude, printing.language) &&
+        notExcluded(filters.raritiesExclude, printing.rarity) &&
+        noneExcluded(filters.typesExclude, card.types) &&
+        notExcluded(filters.artVariantsExclude, artVariant) &&
+        notExcluded(filters.finishesExclude, printing.finish) &&
+        noneExcluded(filters.superTypesExclude, card.superTypes) &&
+        noneExcluded(filters.domainsExclude, card.domains) &&
+        noneExcluded(filters.keywordsExclude, card.keywords) &&
+        noneExcluded(filters.tagsExclude, card.tags) &&
+        overlaps(filters.keywords, card.keywords) &&
+        overlaps(filters.tags, card.tags) &&
+        matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
+        matchesFlag(filters.isSigned, printing.isSigned) &&
+        matchesRange(card.energy, filters.energy) &&
+        matchesRange(card.might, filters.might) &&
+        matchesRange(card.power, filters.power) &&
+        matchesRange(getPrice?.(printing) ?? null, filters.price) &&
+        matchesFlag(filters.isBanned, card.bans.length > 0) &&
+        matchesFlag(filters.hasErrata, card.errata !== null)
+      )
+    ) {
+      return false;
+    }
+    if (needMarkerSlugs) {
+      const markerSlugs = printing.markers.map((m) => m.slug);
+      if (
+        !matchesMarkers(filters.markerSlugs, markerSlugs) ||
+        !noneExcluded(filters.markerSlugsExclude, markerSlugs)
+      ) {
+        return false;
+      }
+    }
+    if (needChannelSlugs) {
+      const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
+      if (
+        !matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) ||
+        !noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs)
+      ) {
+        return false;
+      }
+    }
+    if (needCustomTags) {
+      const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? EMPTY_STRINGS;
+      if (
+        !matchesCustomTags(filters.customTagSlugs, customTagSlugs) ||
+        !noneExcluded(filters.customTagSlugsExclude, customTagSlugs)
+      ) {
+        return false;
+      }
+      if (presence.customTags && (presence.customTags === "any") !== customTagSlugs.length > 0) {
+        return false;
+      }
+    }
+    // Remaining presence checks read only lengths — no slug projections.
+    if (presence.markers && (presence.markers === "any") !== printing.markers.length > 0) {
+      return false;
+    }
+    if (
+      presence.superTypes &&
+      (presence.superTypes === "any") !==
+        card.superTypes.some((superType) => superType !== WellKnown.superType.BASIC)
+    ) {
+      return false;
+    }
+    if (
+      presence.distributionChannels &&
+      (presence.distributionChannels === "any") !== printing.distributionChannels.length > 0
+    ) {
+      return false;
+    }
+    if (presence.keywords && (presence.keywords === "any") !== card.keywords.length > 0) {
+      return false;
+    }
+    if (presence.tags && (presence.tags === "any") !== card.tags.length > 0) {
+      return false;
+    }
+    return matchesSearch(
+      printing,
+      terms,
+      hasPrefixes,
+      filters.searchScope,
+      options.keywordReverseMap,
     );
   });
 }
@@ -792,30 +812,127 @@ const FLAG_DIMENSIONS: readonly FlagDimension[] = [
 ];
 
 /**
- * The include/exclude value fields tied to each presence dimension, cleared
- * alongside the dimension's presence when faceting its any/none counts so the
- * facet widens as the user toggles (keywords has no value filter).
+ * One bit per independent filter group ("atom") for the single-pass faceted
+ * counter below. A printing's failure mask has an atom's bit set when the
+ * printing does not satisfy that group's active filter (an include and its
+ * exclude companion form ONE atom — every facet that ignores one ignores
+ * both). Search has no bit: no facet clears it, so a search miss just drops
+ * the printing from the scan entirely.
  */
-const PRESENCE_VALUE_FIELDS: Record<
-  PresenceDimension,
-  { include?: keyof CardFilters; exclude?: keyof CardFilters }
-> = {
-  markers: { include: "markerSlugs", exclude: "markerSlugsExclude" },
-  superTypes: { include: "superTypes", exclude: "superTypesExclude" },
-  customTags: { include: "customTagSlugs", exclude: "customTagSlugsExclude" },
-  distributionChannels: {
-    include: "distributionChannelSlugs",
-    exclude: "distributionChannelSlugsExclude",
-  },
-  keywords: {},
-  tags: { include: "tags", exclude: "tagsExclude" },
+const ATOM = {
+  sets: 1,
+  languages: 1 << 1,
+  domains: 1 << 2,
+  types: 1 << 3,
+  superTypes: 1 << 4,
+  rarities: 1 << 5,
+  artVariants: 1 << 6,
+  finishes: 1 << 7,
+  cardSizes: 1 << 8,
+  markers: 1 << 9,
+  channels: 1 << 10,
+  keywords: 1 << 11,
+  tags: 1 << 12,
+  customTags: 1 << 13,
+  presenceMarkers: 1 << 14,
+  presenceSuperTypes: 1 << 15,
+  presenceCustomTags: 1 << 16,
+  presenceChannels: 1 << 17,
+  presenceKeywords: 1 << 18,
+  presenceTags: 1 << 19,
+  isStandard: 1 << 20,
+  isSigned: 1 << 21,
+  isBanned: 1 << 22,
+  hasErrata: 1 << 23,
+  energy: 1 << 24,
+  might: 1 << 25,
+  power: 1 << 26,
+  price: 1 << 27,
+} as const;
+
+const DIMENSION_CLEARS: Record<CountableDimension["key"], number> = {
+  sets: ATOM.sets,
+  languages: ATOM.languages,
+  domains: ATOM.domains,
+  types: ATOM.types,
+  superTypes: ATOM.superTypes,
+  rarities: ATOM.rarities,
+  artVariants: ATOM.artVariants,
+  finishes: ATOM.finishes,
+  cardSizes: ATOM.cardSizes,
+  markers: ATOM.markers,
+  channels: ATOM.channels,
+  keywords: ATOM.keywords,
+  tags: ATOM.tags,
 };
 
-function countMatches(matched: Printing[], countBy: "printing" | "card"): number {
-  if (countBy === "card") {
-    return new Set(matched.map((p) => p.cardId)).size;
+/**
+ * Which atoms each presence facet ignores: the dimension's own presence
+ * constraint plus its include/exclude value filters, so the facet widens as
+ * the user toggles (keywords has no value filter).
+ */
+const PRESENCE_CLEARS: Record<PresenceDimension, number> = {
+  markers: ATOM.presenceMarkers | ATOM.markers,
+  superTypes: ATOM.presenceSuperTypes | ATOM.superTypes,
+  customTags: ATOM.presenceCustomTags | ATOM.customTags,
+  distributionChannels: ATOM.presenceChannels | ATOM.channels,
+  keywords: ATOM.presenceKeywords,
+  tags: ATOM.presenceTags | ATOM.tags,
+};
+
+const FLAG_CLEARS: Record<FlagDimension["key"], number> = {
+  standard: ATOM.isStandard,
+  signed: ATOM.isSigned,
+  banned: ATOM.isBanned,
+  errata: ATOM.hasErrata,
+};
+
+const EMPTY_STRINGS: readonly string[] = [];
+
+/**
+ * A printing/card tally that counts each printing once, or each distinct
+ * cardId once in card mode.
+ */
+interface MatchCounter {
+  n: number;
+  cardIds: Set<string> | null;
+}
+
+function makeCounter(byCard: boolean): MatchCounter {
+  return { n: 0, cardIds: byCard ? new Set<string>() : null };
+}
+
+function bumpCounter(counter: MatchCounter, cardId: string): void {
+  if (counter.cardIds) {
+    counter.cardIds.add(cardId);
+  } else {
+    counter.n += 1;
   }
-  return matched.length;
+}
+
+function readCounter(counter: MatchCounter): number {
+  return counter.cardIds ? counter.cardIds.size : counter.n;
+}
+
+/** Running min/max in `boundsOf` semantics (floor/ceil, empty → 0/0). */
+interface BoundsAcc {
+  min: number;
+  max: number;
+  any: boolean;
+}
+
+function bumpBounds(acc: BoundsAcc, value: number): void {
+  acc.any = true;
+  if (value < acc.min) {
+    acc.min = value;
+  }
+  if (value > acc.max) {
+    acc.max = value;
+  }
+}
+
+function readBounds(acc: BoundsAcc): { min: number; max: number } {
+  return acc.any ? { min: Math.floor(acc.min), max: Math.ceil(acc.max) } : { min: 0, max: 0 };
 }
 
 /**
@@ -837,126 +954,320 @@ function countMatches(matched: Printing[], countBy: "printing" | "card"): number
  * counts.rarities.get("Common"); // => 42
  * ```
  */
-const EMPTY_RANGE: FilterRange = { min: null, max: null };
-
 export function computeFilterCounts(
   printings: Printing[],
-  filters: CardFilters,
+  rawFilters: CardFilters,
   options: ComputeFilterCountsOptions,
 ): FilterCounts {
-  const result = {
-    flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
-    presence: {
-      markers: { any: 0, none: 0 },
-      superTypes: { any: 0, none: 0 },
-      customTags: { any: 0, none: 0 },
-      distributionChannels: { any: 0, none: 0 },
-      keywords: { any: 0, none: 0 },
-      tags: { any: 0, none: 0 },
-    },
-    ranges: {
-      energy: { min: 0, max: 0, hasNullStat: false },
-      might: { min: 0, max: 0, hasNullStat: false },
-      power: { min: 0, max: 0, hasNullStat: false },
-      price: { min: 0, max: 0 },
-    },
-  } as FilterCounts;
-  for (const dim of COUNTABLE_DIMENSIONS) {
-    // Ignore both the include and exclude selections for this dimension so the
-    // facet counts widen as the user toggles options (same rule as include-only).
-    const filtersWithoutDim = {
-      ...filters,
-      [dim.filterField]: [],
-      ...(dim.excludeField ? { [dim.excludeField]: [] } : {}),
-    };
-    const matched = filterCards(printings, filtersWithoutDim, options);
-    const counts = new Map<string, number>();
-    if (options.countBy === "card") {
-      const seen = new Set<string>();
-      for (const printing of matched) {
-        for (const value of dim.values(printing)) {
-          const seenKey = `${printing.cardId}|${value}`;
-          if (seen.has(seenKey)) {
-            continue;
-          }
-          seen.add(seenKey);
-          counts.set(value, (counts.get(value) ?? 0) + 1);
-        }
-      }
-    } else {
-      for (const printing of matched) {
-        for (const value of dim.values(printing)) {
-          counts.set(value, (counts.get(value) ?? 0) + 1);
-        }
-      }
-    }
-    result[dim.key] = counts;
-  }
+  // Same backfill as filterCards: persisted list rules re-hydrate without a
+  // schema pass, so older saved filters may lack newer dimensions.
+  const filters: CardFilters = { ...EMPTY_CARD_FILTERS, ...rawFilters };
+  const terms = filters.search ? parseSearchTerms(filters.search) : [];
+  const hasPrefixes = terms.some((t) => t.field !== null);
+  const getPrice = options.getPrice;
+  const byCard = options.countBy === "card";
+  const presence = filters.presence;
+
+  // Per-facet tally state. Each countable dimension gets a value→count map in
+  // printing mode, or a value→cardIds set-map in card mode (a card counts once
+  // per value; sets dedup without allocating a string key per printing×value);
+  // flags and presence get printing/card counters; ranges get running bounds.
+  const dimCounts: Map<string, number>[] = COUNTABLE_DIMENSIONS.map(() => new Map());
+  const dimCardIds: (Map<string, Set<string>> | null)[] = COUNTABLE_DIMENSIONS.map(() =>
+    byCard ? new Map() : null,
+  );
+  const flagCounters = {
+    signed: makeCounter(byCard),
+    banned: makeCounter(byCard),
+    errata: makeCounter(byCard),
+    standard: makeCounter(byCard),
+  };
   // Each flag chip cycles null → true → false → null. The displayed label
   // reads "Signed" for null/true and "Not Signed" for false; the count
   // reflects whichever state the label currently advertises.
-  for (const { key, filterField } of FLAG_DIMENSIONS) {
-    const targetValue = filters[filterField] !== false;
-    const matched = filterCards(printings, { ...filters, [filterField]: targetValue }, options);
-    result.flags[key] = countMatches(matched, options.countBy);
-  }
-  // Presence any/none counts: clear this dimension's presence AND its value
-  // selection, then partition the survivors by whether they carry any value in
-  // the dimension. So toggling "has any markers" (or specific markers) never
-  // makes the presence options collapse to zero.
-  for (const dimension of PRESENCE_DIMENSIONS) {
-    const valueFields = PRESENCE_VALUE_FIELDS[dimension];
-    const cleared: CardFilters = {
-      ...filters,
-      presence: { ...filters.presence, [dimension]: undefined },
-      ...(valueFields.include ? { [valueFields.include]: [] } : {}),
-      ...(valueFields.exclude ? { [valueFields.exclude]: [] } : {}),
-    };
-    const matched = filterCards(printings, cleared, options);
-    const withValue: Printing[] = [];
-    const withoutValue: Printing[] = [];
-    for (const printing of matched) {
-      const markerSlugs = printing.markers.map((m) => m.slug);
-      const channelSlugs = printing.distributionChannels.map((dc) => dc.channel.slug);
-      const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? [];
-      const values = presenceValues(printing, markerSlugs, channelSlugs, customTagSlugs)[dimension];
-      (values.length > 0 ? withValue : withoutValue).push(printing);
+  const flagTargets = {
+    standard: filters.isStandard !== false,
+    signed: filters.isSigned !== false,
+    banned: filters.isBanned !== false,
+    errata: filters.hasErrata !== false,
+  };
+  const presenceCounters = Object.fromEntries(
+    PRESENCE_DIMENSIONS.map((d) => [d, { any: makeCounter(byCard), none: makeCounter(byCard) }]),
+  ) as Record<PresenceDimension, { any: MatchCounter; none: MatchCounter }>;
+  const statBounds = {
+    energy: { min: Infinity, max: -Infinity, any: false } as BoundsAcc,
+    might: { min: Infinity, max: -Infinity, any: false } as BoundsAcc,
+    power: { min: Infinity, max: -Infinity, any: false } as BoundsAcc,
+  };
+  const statNulls = { energy: false, might: false, power: false };
+  const priceBounds: BoundsAcc = { min: Infinity, max: -Infinity, any: false };
+
+  for (const printing of printings) {
+    const { card } = printing;
+    // No facet clears the search, so a miss can't count anywhere.
+    if (
+      terms.length > 0 &&
+      !matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap)
+    ) {
+      continue;
     }
-    result.presence[dimension] = {
-      any: countMatches(withValue, options.countBy),
-      none: countMatches(withoutValue, options.countBy),
+
+    const markerSlugs =
+      printing.markers.length > 0 ? printing.markers.map((m) => m.slug) : EMPTY_STRINGS;
+    const channelSlugs =
+      printing.distributionChannels.length > 0
+        ? printing.distributionChannels.map((dc) => dc.channel.slug)
+        : EMPTY_STRINGS;
+    const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? EMPTY_STRINGS;
+    const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
+    // The `basic` placeholder supertype is not filterable (see presenceValues).
+    const hasSuperTypes = card.superTypes.some((st) => st !== WellKnown.superType.BASIC);
+    const isStandard = isStandardPrinting(printing);
+    const isBanned = card.bans.length > 0;
+    const hasErrata = card.errata !== null;
+
+    // Evaluate every atom against the printing. Inactive filters pass at the
+    // cost of a length/null check, so this stays cheap with few filters set.
+    let fail = 0;
+    if (
+      !includes(filters.sets, printing.setSlug) ||
+      !notExcluded(filters.setsExclude, printing.setSlug)
+    ) {
+      fail |= ATOM.sets;
+    }
+    if (
+      !includes(filters.languages, printing.language) ||
+      !notExcluded(filters.languagesExclude, printing.language)
+    ) {
+      fail |= ATOM.languages;
+    }
+    if (
+      !matchesDomains(filters.domains, card.domains) ||
+      !noneExcluded(filters.domainsExclude, card.domains)
+    ) {
+      fail |= ATOM.domains;
+    }
+    if (!overlaps(filters.types, card.types) || !noneExcluded(filters.typesExclude, card.types)) {
+      fail |= ATOM.types;
+    }
+    if (
+      !overlaps(filters.superTypes, card.superTypes) ||
+      !noneExcluded(filters.superTypesExclude, card.superTypes)
+    ) {
+      fail |= ATOM.superTypes;
+    }
+    if (
+      !includes(filters.rarities, printing.rarity) ||
+      !notExcluded(filters.raritiesExclude, printing.rarity)
+    ) {
+      fail |= ATOM.rarities;
+    }
+    if (
+      !includes(filters.artVariants, artVariant) ||
+      !notExcluded(filters.artVariantsExclude, artVariant)
+    ) {
+      fail |= ATOM.artVariants;
+    }
+    if (
+      !includes(filters.finishes, printing.finish) ||
+      !notExcluded(filters.finishesExclude, printing.finish)
+    ) {
+      fail |= ATOM.finishes;
+    }
+    if (!includes(filters.cardSizes, printing.size)) {
+      fail |= ATOM.cardSizes;
+    }
+    if (
+      !matchesMarkers(filters.markerSlugs, markerSlugs) ||
+      !noneExcluded(filters.markerSlugsExclude, markerSlugs)
+    ) {
+      fail |= ATOM.markers;
+    }
+    if (
+      !matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) ||
+      !noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs)
+    ) {
+      fail |= ATOM.channels;
+    }
+    if (
+      !overlaps(filters.keywords, card.keywords) ||
+      !noneExcluded(filters.keywordsExclude, card.keywords)
+    ) {
+      fail |= ATOM.keywords;
+    }
+    if (!overlaps(filters.tags, card.tags) || !noneExcluded(filters.tagsExclude, card.tags)) {
+      fail |= ATOM.tags;
+    }
+    if (
+      !matchesCustomTags(filters.customTagSlugs, customTagSlugs) ||
+      !noneExcluded(filters.customTagSlugsExclude, customTagSlugs)
+    ) {
+      fail |= ATOM.customTags;
+    }
+    if (presence.markers && (presence.markers === "any") !== markerSlugs.length > 0) {
+      fail |= ATOM.presenceMarkers;
+    }
+    if (presence.superTypes && (presence.superTypes === "any") !== hasSuperTypes) {
+      fail |= ATOM.presenceSuperTypes;
+    }
+    if (presence.customTags && (presence.customTags === "any") !== customTagSlugs.length > 0) {
+      fail |= ATOM.presenceCustomTags;
+    }
+    if (
+      presence.distributionChannels &&
+      (presence.distributionChannels === "any") !== channelSlugs.length > 0
+    ) {
+      fail |= ATOM.presenceChannels;
+    }
+    if (presence.keywords && (presence.keywords === "any") !== card.keywords.length > 0) {
+      fail |= ATOM.presenceKeywords;
+    }
+    if (presence.tags && (presence.tags === "any") !== card.tags.length > 0) {
+      fail |= ATOM.presenceTags;
+    }
+    if (!matchesFlag(filters.isStandard, isStandard)) {
+      fail |= ATOM.isStandard;
+    }
+    if (!matchesFlag(filters.isSigned, printing.isSigned)) {
+      fail |= ATOM.isSigned;
+    }
+    if (!matchesFlag(filters.isBanned, isBanned)) {
+      fail |= ATOM.isBanned;
+    }
+    if (!matchesFlag(filters.hasErrata, hasErrata)) {
+      fail |= ATOM.hasErrata;
+    }
+    if (!matchesRange(card.energy, filters.energy)) {
+      fail |= ATOM.energy;
+    }
+    if (!matchesRange(card.might, filters.might)) {
+      fail |= ATOM.might;
+    }
+    if (!matchesRange(card.power, filters.power)) {
+      fail |= ATOM.power;
+    }
+    const price = getPrice?.(printing);
+    if (!matchesRange(price ?? null, filters.price)) {
+      fail |= ATOM.price;
+    }
+
+    // A printing counts toward a facet iff everything it fails is cleared by
+    // that facet. Precomputed per-printing value arrays double as the tally
+    // sources, so markers/channels aren't re-projected per dimension.
+    for (const [i, dim] of COUNTABLE_DIMENSIONS.entries()) {
+      if ((fail & ~DIMENSION_CLEARS[dim.key]) !== 0) {
+        continue;
+      }
+      let values: readonly string[];
+      if (dim.key === "markers") {
+        values = markerSlugs;
+      } else if (dim.key === "channels") {
+        values = channelSlugs;
+      } else {
+        values = dim.values(printing);
+      }
+      const cardIds = dimCardIds[i];
+      if (cardIds) {
+        for (const value of values) {
+          let ids = cardIds.get(value);
+          if (!ids) {
+            ids = new Set();
+            cardIds.set(value, ids);
+          }
+          ids.add(printing.cardId);
+        }
+      } else {
+        const counts = dimCounts[i] as Map<string, number>;
+        for (const value of values) {
+          counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+      }
+    }
+    const flagActuals = {
+      standard: isStandard,
+      signed: printing.isSigned,
+      banned: isBanned,
+      errata: hasErrata,
     };
-  }
-  // Per-dimension faceted slider bounds: filter with this dim's range
-  // cleared, then derive bounds from what's left. The user's selected range
-  // stays in URL state; if it falls outside the new bounds, the slider
-  // visually clamps to the new bounds and a subsequent drag rewrites the
-  // value within range — same tradeoff as a faceted-search range slider
-  // anywhere else.
-  const statDims: { key: "energy" | "might" | "power"; pick: (p: Printing) => number | null }[] = [
-    { key: "energy", pick: (p) => p.card.energy },
-    { key: "might", pick: (p) => p.card.might },
-    { key: "power", pick: (p) => p.card.power },
-  ];
-  for (const { key, pick } of statDims) {
-    const matched = filterCards(printings, { ...filters, [key]: EMPTY_RANGE }, options);
-    const values = matched.flatMap((p) => {
-      const v = pick(p);
-      return v === null ? [] : [v];
-    });
-    result.ranges[key] = {
-      ...boundsOf(values),
-      hasNullStat: matched.some((p) => pick(p) === null),
+    for (const { key } of FLAG_DIMENSIONS) {
+      if ((fail & ~FLAG_CLEARS[key]) !== 0) {
+        continue;
+      }
+      if (flagActuals[key] === flagTargets[key]) {
+        bumpCounter(flagCounters[key], printing.cardId);
+      }
+    }
+    const presenceHas: Record<PresenceDimension, boolean> = {
+      markers: markerSlugs.length > 0,
+      superTypes: hasSuperTypes,
+      customTags: customTagSlugs.length > 0,
+      distributionChannels: channelSlugs.length > 0,
+      keywords: card.keywords.length > 0,
+      tags: card.tags.length > 0,
     };
+    for (const dimension of PRESENCE_DIMENSIONS) {
+      if ((fail & ~PRESENCE_CLEARS[dimension]) !== 0) {
+        continue;
+      }
+      const target = presenceCounters[dimension];
+      bumpCounter(presenceHas[dimension] ? target.any : target.none, printing.cardId);
+    }
+    // Faceted slider bounds: this dim's range cleared, everything else active.
+    if ((fail & ~ATOM.energy) === 0) {
+      if (card.energy === null) {
+        statNulls.energy = true;
+      } else {
+        bumpBounds(statBounds.energy, card.energy);
+      }
+    }
+    if ((fail & ~ATOM.might) === 0) {
+      if (card.might === null) {
+        statNulls.might = true;
+      } else {
+        bumpBounds(statBounds.might, card.might);
+      }
+    }
+    if ((fail & ~ATOM.power) === 0) {
+      if (card.power === null) {
+        statNulls.power = true;
+      } else {
+        bumpBounds(statBounds.power, card.power);
+      }
+    }
+    if (getPrice && (fail & ~ATOM.price) === 0 && price !== undefined) {
+      bumpBounds(priceBounds, price);
+    }
   }
-  if (options.getPrice) {
-    const matchedForPrice = filterCards(printings, { ...filters, price: EMPTY_RANGE }, options);
-    const priceGetter = options.getPrice;
-    const prices = matchedForPrice.flatMap((p) => {
-      const price = priceGetter(p);
-      return price === undefined ? [] : [price];
-    });
-    result.ranges.price = boundsOf(prices);
+
+  const result = {
+    flags: {
+      signed: readCounter(flagCounters.signed),
+      banned: readCounter(flagCounters.banned),
+      errata: readCounter(flagCounters.errata),
+      standard: readCounter(flagCounters.standard),
+    },
+    presence: Object.fromEntries(
+      PRESENCE_DIMENSIONS.map((d) => [
+        d,
+        { any: readCounter(presenceCounters[d].any), none: readCounter(presenceCounters[d].none) },
+      ]),
+    ) as FilterCounts["presence"],
+    ranges: {
+      energy: { ...readBounds(statBounds.energy), hasNullStat: statNulls.energy },
+      might: { ...readBounds(statBounds.might), hasNullStat: statNulls.might },
+      power: { ...readBounds(statBounds.power), hasNullStat: statNulls.power },
+      price: readBounds(priceBounds),
+    },
+  } as FilterCounts;
+  for (const [i, dim] of COUNTABLE_DIMENSIONS.entries()) {
+    const cardIds = dimCardIds[i];
+    if (cardIds) {
+      const counts = dimCounts[i] as Map<string, number>;
+      for (const [value, ids] of cardIds) {
+        counts.set(value, ids.size);
+      }
+    }
+    result[dim.key] = dimCounts[i] as Map<string, number>;
   }
   return result;
 }

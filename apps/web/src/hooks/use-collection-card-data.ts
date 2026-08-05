@@ -16,6 +16,7 @@ import {
   sortByLanguageAndCanonicalRank,
   sortCards,
 } from "@openrift/shared";
+import { useDeferredValue } from "react";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
@@ -101,6 +102,14 @@ export function useCollectionCardData({
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
   const { orders } = useEnumOrders();
   const defaultEffectiveLanguageOrder = useEffectiveLanguageOrder();
+
+  // Deferred inputs for the facet counts only — same rationale as
+  // useCatalogFilterMeta: chip badges may lag one frame, the grid must not
+  // wait for the counts pass. Deferred together because they share URL state.
+  const deferredFilters = useDeferredValue(filters);
+  const deferredOwnedFilter = useDeferredValue(ownedFilter);
+  const deferredOwnedCountMin = useDeferredValue(ownedCountMin);
+  const deferredOwnedCountMax = useDeferredValue(ownedCountMax);
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
   const setSlugToName = new Map(sets.map((set) => [set.slug, set.name]));
@@ -217,24 +226,24 @@ export function useCollectionCardData({
   // useCatalogFilterMeta so the collection grid's chips narrow as the user
   // filters. Custom tags are hidden on this surface, so none are threaded.
   let universeForCounts = collectionPrintings;
-  if (ownedFilter && ownedFilter.length > 0) {
+  if (deferredOwnedFilter && deferredOwnedFilter.length > 0) {
     universeForCounts = applyOwnedBucketFilter(
       universeForCounts,
-      ownedFilter,
+      deferredOwnedFilter,
       ownedFilterCounts,
       ownedFilterBucketBy,
     );
   }
-  if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+  if ((deferredOwnedCountMin ?? null) !== null || (deferredOwnedCountMax ?? null) !== null) {
     universeForCounts = applyOwnedCountFilter(
       universeForCounts,
-      ownedCountMin ?? null,
-      ownedCountMax ?? null,
+      deferredOwnedCountMin ?? null,
+      deferredOwnedCountMax ?? null,
       ownedFilterCounts,
       ownedFilterBucketBy,
     );
   }
-  const filterCounts = computeFilterCounts(universeForCounts, filters, {
+  const filterCounts = computeFilterCounts(universeForCounts, deferredFilters, {
     countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
     getPrice,

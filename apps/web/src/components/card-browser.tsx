@@ -163,6 +163,10 @@ export function CardBrowser() {
       ownedCountByPrinting: ownedCountForCardData,
       favoriteMarketplace: display.favoriteMarketplace,
       prices: display.prices,
+      // Meta (availableFilters + faceted counts) comes from the direct
+      // useCatalogFilterMeta call below — computing it here too would run
+      // the whole computeFilterCounts pass twice per filter change.
+      metaEnabled: false,
       keywordReverseMap,
       channels,
     });

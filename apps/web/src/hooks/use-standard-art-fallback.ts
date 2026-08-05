@@ -6,6 +6,29 @@ import { catalogQueryOptions } from "@/lib/catalog-query";
 
 export type GetStandardArtFallback = (printing: Printing) => StandardArtFallback | null;
 
+// findStandardArtFallback filters + sorts the card's sibling printings — pure
+// in its inputs, but re-run for every visible cell on every grid render.
+// Cache per candidates-array identity (stable per catalog fetch; a new
+// catalog produces new arrays, so entries age out with their key).
+const fallbackCache = new WeakMap<readonly Printing[], Map<string, StandardArtFallback | null>>();
+
+function cachedFallback(printing: Printing, candidates: Printing[]): StandardArtFallback | null {
+  let byPrinting = fallbackCache.get(candidates);
+  if (!byPrinting) {
+    byPrinting = new Map();
+    fallbackCache.set(candidates, byPrinting);
+  }
+  // Stored values are StandardArtFallback | null, never undefined, so a
+  // plain get() distinguishes "cached null" from "not cached yet".
+  const cached = byPrinting.get(printing.id);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const result = findStandardArtFallback(printing, candidates);
+  byPrinting.set(printing.id, result);
+  return result;
+}
+
 /**
  * Resolves substitute artwork for imageless printings (same-language standard
  * printing, else the EN one) from the client-cached catalog.
@@ -26,6 +49,6 @@ export function useStandardArtFallback(): GetStandardArtFallback {
   const printingsByCardId = data?.printingsByCardId;
   return function getStandardArtFallback(printing: Printing): StandardArtFallback | null {
     const candidates = printingsByCardId?.get(printing.cardId);
-    return candidates ? findStandardArtFallback(printing, candidates) : null;
+    return candidates ? cachedFallback(printing, candidates) : null;
   };
 }

@@ -208,6 +208,8 @@ function useClusterLabelsFit() {
   const barRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [labelsFit, setLabelsFit] = useState(false);
+  const rafRef = useRef(0);
+  const mountedComputeRan = useRef(false);
 
   useLayoutEffect(() => {
     const bar = barRef.current;
@@ -246,8 +248,28 @@ function useClusterLabelsFit() {
         }),
       );
     };
-    compute();
-    const observer = new ResizeObserver(compute);
+    // Measuring synchronously here forces document layout while the commit
+    // (often the whole card grid) has just dirtied it, and the bar renders
+    // more than once per filter change (urgent pass + deferred counts pass),
+    // so the layout ran up to three times per toggle. Batching every trigger
+    // of a frame into one rAF'd measure dedups that to a single read whose
+    // layout the frame was about to compute for paint anyway. (Measured
+    // effect on interaction latency is small — the frame still lays out
+    // once — but it removes the redundant passes and the mid-commit forced
+    // reflow.) Only the mount measure stays synchronous: the verdict starts
+    // as `false` (collapsed labels), and deferring it would flash the
+    // collapsed state for a frame on every page load.
+    const schedule = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(compute);
+    };
+    if (mountedComputeRan.current) {
+      schedule();
+    } else {
+      mountedComputeRan.current = true;
+      compute();
+    }
+    const observer = new ResizeObserver(schedule);
     observer.observe(bar);
     observer.observe(strip);
     // Individual children too: a chip's count text can change width (filter
@@ -255,7 +277,10 @@ function useClusterLabelsFit() {
     for (const child of bar.children) {
       observer.observe(child);
     }
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(rafRef.current);
+    };
   });
 
   return { barRef, measureRef, labelsFit };

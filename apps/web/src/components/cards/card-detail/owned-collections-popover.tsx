@@ -49,7 +49,12 @@ export function OwnedCollectionsPopover({
 }: OwnedCollectionsPopoverProps) {
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
-  const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated);
+  // The map-wide owned query is only a fallback for callers that don't pass
+  // `count` (the detail-pane printing picker). Grid cells always pass it, and
+  // every enabled instance subscribes to the ENTIRE copies collection — so an
+  // ungated call here would add one full-collection live query per visible
+  // cell, torn down and rebuilt on each cell remount.
+  const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated && count === undefined);
   const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
   const showTotal = totalCount !== undefined && totalCount !== totalOwned;
   const groupByVariant = Boolean(siblings && siblings.length > 1);

@@ -186,6 +186,11 @@ export function useCollectionGridData({
     ownedCountMax: filters.ownedCountMax,
     favoriteMarketplace,
     prices,
+    // The catalog meta (availableFilters + faceted counts over ALL printings)
+    // only feeds the filter chrome when the library view is shown — in
+    // browse/select mode the collection hook's meta wins the ternaries below,
+    // so don't pay the full-catalog counts pass on every filter change there.
+    metaEnabled: showLibrary,
     keywordReverseMap,
     channels,
   });

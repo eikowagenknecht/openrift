@@ -93,6 +93,9 @@ export function useListEntryBrowserData({
     ownedCountByPrinting: undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
+    // Meta feeds the filter chrome only for the active mode (see the
+    // showLibrary ternaries below) — skip the counts pass for the other one.
+    metaEnabled: !showLibrary,
     keywordReverseMap,
     channels,
   });
@@ -125,6 +128,9 @@ export function useListEntryBrowserData({
     ownedCountByPrinting: filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
+    // Same gating as the browse pipeline above, inverted: full-catalog meta
+    // is only rendered in library (add) mode.
+    metaEnabled: showLibrary,
     keywordReverseMap,
     channels,
   });

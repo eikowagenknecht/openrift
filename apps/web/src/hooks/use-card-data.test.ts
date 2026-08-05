@@ -69,6 +69,26 @@ describe("useCardData", () => {
     expect(result.current.filterCounts.rarities.get("rare")).toBeUndefined();
   });
 
+  it("skips the meta computation when metaEnabled is false, keeping grid outputs", () => {
+    const a = stubPrinting({ rarity: "common" });
+    const b = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [a, b],
+      metaEnabled: false,
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    // Grid pipeline still runs...
+    expect(result.current.sortedCards).toHaveLength(2);
+    expect(result.current.filteredCount).toBe(2);
+    // ...but the facet meta is the empty fallback.
+    expect(result.current.filterCounts.rarities.size).toBe(0);
+    expect(result.current.availableFilters.rarities).toHaveLength(0);
+  });
+
   it("leaves facet counts unchanged when the owned filter is empty", () => {
     const a = stubPrinting({ rarity: "common" });
     const b = stubPrinting({ rarity: "rare" });

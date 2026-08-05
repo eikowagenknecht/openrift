@@ -16,6 +16,7 @@ import {
   getAvailableFilters,
   sortCards,
 } from "@openrift/shared";
+import { useDeferredValue } from "react";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -46,6 +47,16 @@ interface UseCardDataParams {
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
   enabled?: boolean;
+  /**
+   * Whether the composed {@link useCatalogFilterMeta} (availableFilters,
+   * faceted filterCounts, languages, set labels) is computed. Pass `false`
+   * when the caller gets meta from its own `useCatalogFilterMeta` call
+   * (/cards) or only consumes this hook's grid outputs in the current mode
+   * (the inactive pipeline behind a library/browse toggle). The counts are
+   * by far the most expensive part of a filter change, so never compute
+   * them twice or for a hidden filter panel. Defaults to `true`.
+   */
+  metaEnabled?: boolean;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   /**
@@ -211,6 +222,17 @@ export function useCatalogFilterMeta({
 
   const { orders } = useEnumOrders();
 
+  // Facet counts render chip badges, not the grid — they can lag one frame.
+  // Deferring the filter inputs keeps the urgent render (grid + chrome
+  // structure) free of the counts pass; React then re-renders at deferred
+  // priority with the new values and the badges catch up. All four inputs
+  // come from the same URL state, so they must defer together or the counts
+  // would transiently mix old and new filter state.
+  const deferredFilters = useDeferredValue(filters);
+  const deferredOwnedFilter = useDeferredValue(ownedFilter);
+  const deferredOwnedCountMin = useDeferredValue(ownedCountMin);
+  const deferredOwnedCountMax = useDeferredValue(ownedCountMax);
+
   if (!enabled) {
     return {
       availableFilters: getAvailableFilters([], { orders }),
@@ -234,29 +256,30 @@ export function useCatalogFilterMeta({
   });
   // Narrow the universe by owned BEFORE computing facet counts so the other
   // chips (sets, rarities, colors, etc.) reflect the active owned selection —
-  // both the coarse buckets and the copies-owned range slider.
+  // both the coarse buckets and the copies-owned range slider. Uses the
+  // deferred inputs (see above): the counts belong to the deferred render.
   const bucketBy = view === "printings" ? "printing" : "card";
   let universeForCounts = allPrintings;
   if (ownedCountByPrinting) {
-    if (ownedFilter && ownedFilter.length > 0) {
+    if (deferredOwnedFilter && deferredOwnedFilter.length > 0) {
       universeForCounts = applyOwnedBucketFilter(
         universeForCounts,
-        ownedFilter,
+        deferredOwnedFilter,
         ownedCountByPrinting,
         bucketBy,
       );
     }
-    if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+    if ((deferredOwnedCountMin ?? null) !== null || (deferredOwnedCountMax ?? null) !== null) {
       universeForCounts = applyOwnedCountFilter(
         universeForCounts,
-        ownedCountMin ?? null,
-        ownedCountMax ?? null,
+        deferredOwnedCountMin ?? null,
+        deferredOwnedCountMax ?? null,
         ownedCountByPrinting,
         bucketBy,
       );
     }
   }
-  const filterCounts = computeFilterCounts(universeForCounts, filters, {
+  const filterCounts = computeFilterCounts(universeForCounts, deferredFilters, {
     countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
     getPrice,
@@ -282,6 +305,7 @@ export function useCardData({
   favoriteMarketplace,
   prices,
   enabled = true,
+  metaEnabled = true,
   keywordReverseMap,
   channels,
   customTagAssignments,
@@ -306,7 +330,7 @@ export function useCardData({
     ownedCountByPrinting,
     favoriteMarketplace,
     prices,
-    enabled,
+    enabled: enabled && metaEnabled,
     keywordReverseMap,
     channels,
     customTagAssignments,
