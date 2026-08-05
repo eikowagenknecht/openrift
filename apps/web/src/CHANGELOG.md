@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-05
+
+### Other
+
+- fix(Collection): **Rule hints readable on a phone** — the small (i) next to Standard and Price in the rule builder needed a mouse hover, and now opens on tap.
+
 ## 2026-08-04
 
 ### Highlights

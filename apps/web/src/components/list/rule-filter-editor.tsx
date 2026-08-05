@@ -6,7 +6,7 @@ import type {
   PresenceState,
 } from "@openrift/shared";
 import { filterCards, getAvailableFilters } from "@openrift/shared";
-import { InfoIcon, PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -30,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
@@ -65,8 +65,9 @@ const PRICE_MARKETPLACE_OPTIONS: { value: Marketplace; label: string }[] = [
  * One form row: title on the left, control on the right (mirrors the Enable-rule
  * row). The title is a plain span, not a `<label>`, since the control to its
  * right (a dropdown or switch) carries its own accessible name. An optional
- * `hint` adds an info tooltip next to the title for derived/non-obvious fields;
- * an optional `onRemove` adds a trailing button to take the row back out.
+ * `hint` adds an {@link InfoHint} next to the title for derived/non-obvious
+ * fields (hover on desktop, tap on touch); an optional `onRemove` adds a
+ * trailing button to take the row back out.
  * @returns The row node.
  */
 export function FilterRow({
@@ -84,17 +85,7 @@ export function FilterRow({
     <div className="flex items-center justify-between gap-3">
       <span className="flex items-center gap-1 text-sm font-medium">
         {label}
-        {hint && (
-          <Tooltip>
-            <TooltipTrigger
-              className="text-muted-foreground hover:text-foreground cursor-default"
-              aria-label={`${label} — what's this?`}
-            >
-              <InfoIcon className="size-3.5" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">{hint}</TooltipContent>
-          </Tooltip>
-        )}
+        {hint && <InfoHint label={label}>{hint}</InfoHint>}
       </span>
       {onRemove ? (
         <div className="flex items-center gap-1">

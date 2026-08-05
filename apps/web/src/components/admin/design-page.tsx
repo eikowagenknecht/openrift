@@ -147,6 +147,7 @@ import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { IconChip } from "@/components/ui/icon-chip";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -1722,7 +1723,7 @@ function OverlaysSection() {
       </DemoRow>
       <DemoRow
         label="Menus & popovers"
-        hint="DropdownMenu for actions, Popover for rich content, Tooltip for icon labels, HoverCard for link previews, ContextMenu on right-click."
+        hint="DropdownMenu for actions, Popover for rich content, Tooltip for icon labels, InfoHint for field explanations (tooltip on desktop, tap-open popover on touch), HoverCard for link previews, ContextMenu on right-click."
       >
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -1749,6 +1750,12 @@ function OverlaysSection() {
           <TooltipTrigger render={<Button variant="outline">Tooltip</Button>} />
           <TooltipContent>Exact copies owned, including foils.</TooltipContent>
         </Tooltip>
+        <span className="flex items-center gap-1 text-sm font-medium">
+          Info hint
+          <InfoHint label="Info hint">
+            Compares each printing&apos;s latest market price on the marketplace you pick.
+          </InfoHint>
+        </span>
         <HoverCard>
           <HoverCardTrigger render={<Button variant="link">Hover card</Button>} />
           <HoverCardContent className="text-sm">
