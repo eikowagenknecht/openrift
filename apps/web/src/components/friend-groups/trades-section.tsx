@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
   EllipsisVerticalIcon,
+  FolderPlusIcon,
   XIcon,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
@@ -37,9 +38,11 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
+import { useTradeAddTarget } from "@/hooks/use-trade-add-target";
 import { frontImageId } from "@/lib/card-meta";
 import { comparePrintingIdsByCatalog } from "@/lib/catalog-position";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
+import type { ResolvedTradeAddTarget } from "@/lib/trade-add-target";
 import type { TradeCounterpartyGroup } from "@/lib/trade-derivation";
 import {
   bucketMemberTrades,
@@ -67,6 +70,97 @@ import {
 } from "./trade-row-parts";
 
 /**
+ * The apply-sync mutation variables for one trade. The target collection is only
+ * named when there is one to name — omitting it is what tells the server to file
+ * the copies in the inbox.
+ * @param trade The completed trade whose copies are being filed.
+ * @param target The viewer's resolved add target.
+ * @returns The mutation variables.
+ */
+function syncVariables(
+  trade: CardTradeResponse,
+  target: ResolvedTradeAddTarget,
+): { tradeId: string; groupSlug: string; targetCollectionId?: string } {
+  const base = { tradeId: trade.id, groupSlug: trade.groupSlug };
+  if (target.collectionId === undefined) {
+    return base;
+  }
+  return { ...base, targetCollectionId: target.collectionId };
+}
+
+/**
+ * The receiver's side of a completed trade: one press files the copies into the
+ * remembered target (the inbox until the viewer picks otherwise), with an
+ * overflow menu to send them somewhere else. Picking somewhere else is
+ * remembered, so the button then reads "Add to <that collection>" everywhere.
+ *
+ * Mounted only for the rows that can actually add, since it is what pulls the
+ * viewer's collections in to label itself.
+ * @returns The add button, its overflow menu and the picker dialog.
+ */
+function AddIncomingTradeButtons({
+  trade,
+  cardName,
+}: {
+  trade: CardTradeResponse;
+  cardName: string;
+}) {
+  const acting = useTradeActionStore((state) => state.pending.has(trade.id));
+  const begin = useTradeActionStore((state) => state.begin);
+  const settle = useTradeActionStore((state) => state.settle);
+  const applySync = useApplyTradeSync();
+  const target = useTradeAddTarget();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  function addToTarget(): void {
+    begin(trade.id);
+    applySync.mutate(syncVariables(trade, target), { onSettled: () => settle(trade.id) });
+  }
+
+  return (
+    <>
+      {/* A collection name can be any length, so the label truncates rather
+          than pushing the row wider than the card. */}
+      <Button size="sm" className="max-w-44 min-w-0" disabled={acting} onClick={addToTarget}>
+        <span className="truncate">Add to {target.label}</span>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            // On phones the action bar is already carrying Skip and the primary
+            // button, so the menu lifts out of it to the card's top-right
+            // corner; from sm up it rejoins the button row.
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              disabled={acting}
+              aria-label="More add options"
+              className="absolute top-2 right-2 sm:static"
+            />
+          }
+        >
+          <EllipsisVerticalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setPickerOpen(true)}>
+            <FolderPlusIcon className="size-4" />
+            Add to another collection…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AddToCollectionDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        tradeId={trade.id}
+        groupSlug={trade.groupSlug}
+        cardName={cardName}
+        quantity={trade.quantity}
+      />
+    </>
+  );
+}
+
+/**
  * One trade as a wide row with a contextual action set. `hideBadge` is set by
  * the counterparty group when this row's status is the one its header already
  * carries, so a block of seven reserved trades doesn't print "Ready to swap"
@@ -79,7 +173,6 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
   const settle = useTradeActionStore((state) => state.settle);
-  const [addOpen, setAddOpen] = useState(false);
 
   const acceptFlow = useTradeAcceptFlow({ onSettled: () => settle(trade.id) });
   const decline = useDeclineTrade();
@@ -235,9 +328,7 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
                 Skip
               </Button>
               {incoming ? (
-                <Button size="sm" disabled={acting} onClick={() => setAddOpen(true)}>
-                  Add to my collection
-                </Button>
+                <AddIncomingTradeButtons trade={trade} cardName={cardName} />
               ) : (
                 <Button size="sm" disabled={acting} onClick={() => run(applySync, actionArgs)}>
                   Remove from my collection
@@ -251,17 +342,6 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
       {trade.actionNeeded === "accept-or-decline" ? (
         <TradeCopyPickerDialog flow={acceptFlow} />
       ) : null}
-
-      {incoming && trade.actionNeeded === "apply-sync" ? (
-        <AddToCollectionDialog
-          open={addOpen}
-          onOpenChange={setAddOpen}
-          tradeId={trade.id}
-          groupSlug={trade.groupSlug}
-          cardName={cardName}
-          quantity={trade.quantity}
-        />
-      ) : null}
     </Card>
   );
 }
@@ -272,12 +352,49 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
 type BulkMode = "accept-decline" | "cancel" | "none";
 
 /**
+ * The bulk form of the row's "Add to <collection>" button: files every completed
+ * trade in this group whose incoming copies the viewer hasn't dealt with yet,
+ * all into the same remembered target. Split out from {@link BulkTradeActions}
+ * so the collections query behind the label only mounts on the headers that
+ * actually offer it.
+ * @returns The bulk add button.
+ */
+function BulkAddButton({ trades }: { trades: CardTradeResponse[] }) {
+  const applySync = useApplyTradeSync();
+  const target = useTradeAddTarget();
+  const begin = useTradeActionStore((state) => state.begin);
+  const settle = useTradeActionStore((state) => state.settle);
+  const acting = useTradeActionStore((state) =>
+    trades.some((trade) => state.pending.has(trade.id)),
+  );
+
+  function addAll(): void {
+    for (const trade of trades) {
+      begin(trade.id);
+      applySync.mutate(syncVariables(trade, target), { onSettled: () => settle(trade.id) });
+    }
+  }
+
+  return (
+    <Button size="sm" className="max-w-56 min-w-0 shrink-0" disabled={acting} onClick={addAll}>
+      <span className="truncate">
+        Add all ({trades.length}) to {target.label}
+      </span>
+    </Button>
+  );
+}
+
+/**
  * The bulk action buttons on a counterparty group header. Acts on the trades in
  * this group whose contextual action matches the mode — accept/decline for
  * "Your move" requests, cancel for the viewer's own pending ones — firing one
  * mutation per trade and driving the shared action store so every affected row
  * shows its in-flight state. Renders nothing until there are at least two to act
  * on, since a lone trade is served fine by its own row button.
+ *
+ * Completed trades awaiting the receiver's "add to my collection" get their own
+ * button alongside, since they sit in the same bucket as the requests awaiting a
+ * decision and a header can end up offering both.
  *
  * Bulk accept deliberately does not offer the copy picker the row buttons do.
  * Choosing copies needs one options read per trade, and that read re-derives
@@ -296,15 +413,17 @@ function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode:
   const settle = useTradeActionStore((state) => state.settle);
 
   const needle = mode === "accept-decline" ? "accept-or-decline" : "cancel";
-  const targets = trades.filter((trade) => trade.actionNeeded === needle);
+  const targets = mode === "none" ? [] : trades.filter((trade) => trade.actionNeeded === needle);
+  const addTargets =
+    mode === "none"
+      ? []
+      : trades.filter((trade) => trade.actionNeeded === "apply-sync" && trade.role === "receiver");
   const acting = useTradeActionStore((state) =>
     targets.some((trade) => state.pending.has(trade.id)),
   );
 
-  if (mode === "none" || targets.length < 2) {
-    return null;
-  }
-
+  // Declared ahead of the early returns below: the React Compiler bails on a
+  // function declaration it reaches only after a `return`.
   function runAll(mutation: {
     mutate: (
       variables: { tradeId: string; groupSlug?: string },
@@ -320,21 +439,29 @@ function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode:
     }
   }
 
+  if (targets.length < 2 && addTargets.length < 2) {
+    return null;
+  }
+
+  const addAll = addTargets.length < 2 ? null : <BulkAddButton trades={addTargets} />;
+
+  if (targets.length < 2) {
+    return addAll;
+  }
+
   if (mode === "cancel") {
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        className="shrink-0"
-        disabled={acting}
-        onClick={() => runAll(cancel)}
-      >
-        Cancel all ({targets.length})
-      </Button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {addAll}
+        <Button size="sm" variant="outline" disabled={acting} onClick={() => runAll(cancel)}>
+          Cancel all ({targets.length})
+        </Button>
+      </div>
     );
   }
   return (
     <div className="flex shrink-0 items-center gap-1.5">
+      {addAll}
       <Button size="sm" variant="outline" disabled={acting} onClick={() => runAll(decline)}>
         Decline all
       </Button>

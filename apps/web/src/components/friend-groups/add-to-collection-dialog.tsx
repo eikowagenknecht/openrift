@@ -18,6 +18,7 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useApplyTradeSync } from "@/hooks/use-card-trades";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
+import { useTradeAddTargetStore } from "@/stores/trade-add-target-store";
 
 interface AddToCollectionDialogProps {
   open: boolean;
@@ -33,8 +34,10 @@ interface AddToCollectionDialogProps {
 
 /**
  * Lets the receiver of a completed trade choose which collection the incoming
- * copies land in (defaulting to the inbox), or create a new collection on the
- * spot. Picking nothing else is needed — the quantity is fixed by the trade.
+ * copies land in, or create a new collection on the spot. Nothing else is picked
+ * here — the quantity is fixed by the trade. The choice becomes the remembered
+ * target, so the row buttons that opened this dialog then add there in one press
+ * until it is changed again.
  * @returns The dialog element.
  */
 export function AddToCollectionDialog({
@@ -84,16 +87,26 @@ function AddToCollectionBody({
   const { data: collections } = useCollections();
   const createCollection = useCreateCollection();
   const applySync = useApplyTradeSync();
+  const setTarget = useTradeAddTargetStore((state) => state.setTarget);
   const pending = createCollection.isPending || applySync.isPending;
 
+  // Opens on whatever the row button would have added to, so the dialog and the
+  // button never disagree about where the copies are headed. A remembered
+  // collection that has since been deleted falls back to the inbox.
+  const remembered = useTradeAddTargetStore((state) => state.target);
   const inbox = collections.find((collection) => collection.isInbox);
+  const rememberedId = collections.find((collection) => collection.id === remembered?.id)?.id;
   const [selectedId, setSelectedId] = useState<string>(
-    () => inbox?.id ?? collections[0]?.id ?? NEW_COLLECTION_OPTION,
+    () => rememberedId ?? inbox?.id ?? collections[0]?.id ?? NEW_COLLECTION_OPTION,
   );
   const [newName, setNewName] = useState("Collection");
 
   const confirm = async () => {
     const newCollectionName = newName.trim() || "Collection";
+    // Resolved up front: reading it inside the try would put an optional chain
+    // in a try body, which the React Compiler bails on.
+    const picked = collections.find((collection) => collection.id === selectedId);
+    const pickedName = picked ? picked.name : newCollectionName;
     try {
       let targetCollectionId: string;
       if (selectedId === NEW_COLLECTION_OPTION) {
@@ -105,7 +118,8 @@ function AddToCollectionBody({
         targetCollectionId = selectedId;
       }
       await applySync.mutateAsync({ tradeId, targetCollectionId, groupSlug });
-      toast.success(`Added ${cardName} to your collection`);
+      setTarget({ id: targetCollectionId, name: pickedName });
+      toast.success(`Added ${cardName} to ${pickedName}`);
       onClose();
     } catch {
       // Reported by the global mutation error toast (see reportMutationError).
@@ -115,7 +129,7 @@ function AddToCollectionBody({
   return (
     <DialogForm onSubmit={confirm}>
       <DialogHeader>
-        <DialogTitle>Add to my collection</DialogTitle>
+        <DialogTitle>Add to collection</DialogTitle>
         <DialogDescription>
           Choose where the {quantity}× {cardName} you received should go.
         </DialogDescription>

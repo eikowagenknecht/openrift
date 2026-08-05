@@ -2,6 +2,10 @@
 
 ## 2026-08-05
 
+### Highlights
+
+- feat(Trades): **File traded cards in one press** — a card you received now goes straight to your inbox, with a three-dot menu to send it elsewhere (the button then remembers that collection) and an Add all button per member.
+
 ### Other
 
 - fix(Collection): **Rule hints readable on a phone** — the small (i) next to Standard and Price in the rule builder needed a mouse hover, and now opens on tap.
