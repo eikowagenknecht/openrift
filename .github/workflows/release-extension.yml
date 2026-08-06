@@ -1,0 +1,139 @@
+# Signs and publishes the self-distributed Firefox build of the browser
+# extension. Chrome is not handled here — it goes through the Chrome Web Store,
+# which reviews every version, so it releases on a different cadence.
+#
+# Manual trigger: bump the version in apps/extension/package.json first, since
+# AMO rejects a version it has already signed. See docs/extension.md.
+name: Release Extension
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-extension
+  cancel-in-progress: false
+
+env:
+  DO_NOT_TRACK: 1
+  # Fixed tag carrying the update manifest Firefox polls. Updated in place on
+  # every release; never point this at `latest`, which semantic-release owns.
+  MANIFEST_TAG: extension-updates
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun install store
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # AMO signs a given version exactly once, so a forgotten version bump
+      # fails deep inside `web-ext sign` with an opaque error. Catch it here.
+      - name: Resolve version
+        id: version
+        run: |
+          version=$(bun --print "require('./apps/extension/package.json').version")
+          tag="ext-v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::${tag} already exists. Bump the version in apps/extension/package.json."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Releasing extension ${version} as ${tag}" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test
+        run: bunx turbo test --filter=extension
+
+      - name: Build Firefox
+        run: bun run --cwd apps/extension build:firefox
+
+      # Unlisted (self-distributed) signing is automated on AMO's side and
+      # normally returns within a couple of minutes — no human review, unlike
+      # the listed channel.
+      - name: Sign via AMO
+        run: |
+          bunx web-ext sign \
+            --source-dir apps/extension/.output/firefox-mv2 \
+            --artifacts-dir apps/extension/.output/signed \
+            --channel unlisted \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+
+      # AMO decides the signed file's name, so find it rather than assume it.
+      - name: Locate signed build
+        id: xpi
+        run: |
+          xpi=$(find apps/extension/.output/signed -name '*.xpi' -print -quit)
+          if [ -z "$xpi" ]; then
+            echo "::error::web-ext produced no .xpi"
+            exit 1
+          fi
+          echo "path=${xpi}" >> "$GITHUB_OUTPUT"
+
+      - name: Build update manifest
+        run: |
+          bun apps/extension/scripts/write-update-manifest.ts \
+            "${{ steps.xpi.outputs.path }}" \
+            firefox-updates.json
+
+      # `--latest=false` so app releases from semantic-release keep the repo's
+      # "latest release" pointer. Nothing should resolve the extension through it.
+      - name: Publish signed build
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.xpi.outputs.path }}" \
+            --title "Extension ${{ steps.version.outputs.version }}" \
+            --notes "Self-distributed Firefox build, signed by AMO. Installs and updates via the \`${MANIFEST_TAG}\` manifest." \
+            --latest=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publishing the manifest last means a failure above leaves testers on the
+      # previous version rather than pointing them at an asset that never shipped.
+      - name: Publish update manifest
+        run: |
+          if ! gh release view "$MANIFEST_TAG" >/dev/null 2>&1; then
+            gh release create "$MANIFEST_TAG" \
+              --title "Firefox update manifest" \
+              --notes "Permanent home of the Firefox update manifest. Updated in place on every extension release — do not delete, every installed copy polls this tag." \
+              --latest=false
+          fi
+          gh release upload "$MANIFEST_TAG" firefox-updates.json --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          {
+            echo "## Extension ${{ steps.version.outputs.version }} published"
+            echo
+            echo "Testers update within ~24h, or immediately via about:addons → Check for Updates."
+          } >> "$GITHUB_STEP_SUMMARY"
