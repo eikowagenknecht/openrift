@@ -6,6 +6,10 @@
       "project": ["scripts/**/*.ts"]
     },
     "apps/discord-bot": {},
+    "apps/extension": {
+      "entry": ["src/entrypoints/*.ts"],
+      "ignoreDependencies": ["@piltoverarchive/riftbound-deck-codes"]
+    },
     "apps/api": {
       "entry": ["src/app.ts"],
       "ignore": ["src/test/**", "src/db/migrations/*.ts"]

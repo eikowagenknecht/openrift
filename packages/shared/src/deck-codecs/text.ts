@@ -50,11 +50,18 @@ const HEADER_TO_ZONE: Record<string, DeckZone> = Object.fromEntries(
 );
 
 /**
+ * The subset of a deck card the text format actually writes. Callers that
+ * only have names (e.g. the browser extension extracting a decklist from a
+ * page) can encode without inventing the resolved-card fields.
+ */
+export type TextEncodableCard = Pick<DeckCodecCard, "cardName" | "quantity" | "zone">;
+
+/**
  * Encodes deck cards into a human-readable text format grouped by zone.
  *
  * @returns The encoded text and any warnings.
  */
-export function encodeText(cards: DeckCodecCard[]): EncodeResult {
+export function encodeText(cards: TextEncodableCard[]): EncodeResult {
   const warnings: string[] = [];
   const grouped = Map.groupBy(cards, (card) => card.zone);
   const lines: string[] = [];

@@ -1,6 +1,7 @@
 import type { DeckImportEntry, PublicDeckCardResponse } from "@openrift/shared";
 import { isDeckCode, sourceSlotForZone, ZONE_LABELS } from "@openrift/shared";
 import type { DeckCodeFormat } from "@openrift/shared/deck-codecs";
+import { parseDeckImportData } from "@openrift/shared/deck-codecs";
 
 export type { DeckImportEntry } from "@openrift/shared";
 export { parseDeckImportData } from "@openrift/shared/deck-codecs";
@@ -115,6 +116,20 @@ export function sniffDeckImportFormat(text: string): DeckImportFormat {
     return "piltover";
   }
   return "text";
+}
+
+/**
+ * Sniffs the format of deck text and parses it in one step. Used by the
+ * `?code=` deep link on /decks/import, which accepts compact deck codes and
+ * URL-encoded text lists alike (e.g. from the Discord bot or the browser
+ * extension).
+ * @returns The detected format alongside the parsed entries and warnings.
+ */
+export function parseDeckImportAuto(
+  text: string,
+): { format: DeckImportFormat } & ReturnType<typeof parseDeckImportData> {
+  const format = sniffDeckImportFormat(text);
+  return { format, ...parseDeckImportData(text, format) };
 }
 
 // ---------------------------------------------------------------------------

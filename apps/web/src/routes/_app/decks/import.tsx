@@ -9,8 +9,10 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckImportSearch {
   replaceDeckId?: string;
-  /** A deck code to prefill and auto-parse, for deep links (e.g. the Discord bot). */
+  /** Deck data to prefill and auto-parse, for deep links (e.g. the Discord bot or the browser extension). Any format the import box accepts. */
   code?: string;
+  /** A deck name to prefill alongside `code` (e.g. the source page's deck title). */
+  name?: string;
 }
 
 export const Route = createFileRoute("/_app/decks/import")({
@@ -24,6 +26,15 @@ export const Route = createFileRoute("/_app/decks/import")({
     const code = search.code;
     if (typeof code === "string" && code.length > 0) {
       result.code = code;
+    }
+    const name = search.name;
+    if (typeof name === "string") {
+      // Clamp to the deck contract's name limit so a hostile link can't
+      // produce an unsaveable prefill.
+      const trimmed = name.trim().slice(0, 200);
+      if (trimmed.length > 0) {
+        result.name = trimmed;
+      }
     }
     return result;
   },

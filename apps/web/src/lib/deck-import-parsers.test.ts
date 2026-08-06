@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   entriesFromSharedDeck,
   extractDeckFromUrl,
+  parseDeckImportAuto,
   parseDeckImportData,
   sniffDeckImportFormat,
 } from "./deck-import-parsers";
@@ -125,6 +126,57 @@ describe("sniffDeckImportFormat", () => {
   it("treats a mix of short codes and names as text", () => {
     mockValidCode(VALID_CODE);
     expect(sniffDeckImportFormat("OGN-001 Iron Ballista")).toBe("text");
+  });
+});
+
+// The ?code= deep link on /decks/import goes through parseDeckImportAuto, so a
+// URL-encoded text list works there exactly like a compact deck code.
+describe("parseDeckImportAuto", () => {
+  it("parses a zone-headered text list, as exported by external deck sites", () => {
+    mockValidCode(VALID_CODE);
+    const list = [
+      "Legend:",
+      "1 Diana, Scorn of the Moon",
+      "",
+      "Champion:",
+      "1 Diana, Lunari",
+      "",
+      "MainDeck:",
+      "3 Ravenbloom Student",
+      "",
+      "Battlefields:",
+      "1 Targon's Peak",
+      "",
+      "Rune Pool:",
+      "7 Chaos Rune",
+      "",
+      "Sideboard:",
+      "2 Singularity",
+    ].join("\n");
+
+    const { format, entries, warnings } = parseDeckImportAuto(list);
+
+    expect(format).toBe("text");
+    expect(warnings).toHaveLength(0);
+    expect(entries).toHaveLength(6);
+    expect(entries.map((entry) => [entry.cardName, entry.quantity, entry.explicitZone])).toEqual([
+      ["Diana, Scorn of the Moon", 1, "legend"],
+      ["Diana, Lunari", 1, "champion"],
+      ["Ravenbloom Student", 3, "main"],
+      ["Targon's Peak", 1, "battlefield"],
+      ["Chaos Rune", 7, "runes"],
+      ["Singularity", 2, "sideboard"],
+    ]);
+  });
+
+  it("parses a lone deck code as piltover", () => {
+    mockValidCode(VALID_CODE);
+    const { format, entries, warnings } = parseDeckImportAuto(VALID_CODE);
+
+    expect(format).toBe("piltover");
+    expect(warnings).toHaveLength(0);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ shortCode: "OGN-001", quantity: 3 });
   });
 });
 

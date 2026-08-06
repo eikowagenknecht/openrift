@@ -79,6 +79,7 @@ import type { DeckImportEntry, DeckImportFormat } from "@/lib/deck-import-parser
 import {
   entriesFromSharedDeck,
   extractDeckFromUrl,
+  parseDeckImportAuto,
   parseDeckImportData,
   sniffDeckImportFormat,
 } from "@/lib/deck-import-parsers";
@@ -209,7 +210,7 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportMode, React.ReactNode> = {
 function DeckImportPage() {
   // Auth-optional (ADR-035): logged out, an import creates a browser-local deck.
   const userId = useUserId();
-  const { replaceDeckId, code: prefillCode } = Route.useSearch();
+  const { replaceDeckId, code: prefillCode, name: prefillName } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const { formats: deckFormats, labels: deckFormatLabels } = useDeckFormatList();
@@ -363,11 +364,12 @@ function DeckImportPage() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
     handleImportFileUpload(event, fileRef, setRawText, handleParse);
 
-  // Deep links (e.g. the Discord bot's "Open in OpenRift" button) land with
-  // ?code=<deck code>. Parse it as a deck code right away so the preview is
-  // ready without a manual Parse click; an invalid code stays on the input
-  // step with the code prefilled and the warning shown. The catalog behind
-  // finishParse is suspense-loaded, so it is ready on first render.
+  // Deep links (e.g. the Discord bot's "Open in OpenRift" button or the
+  // browser extension) land with ?code=<deck code or URL-encoded text list>.
+  // Sniff the format like the manual paste path and parse right away so the
+  // preview is ready without a manual Parse click; invalid input stays on the
+  // input step with the text prefilled and the warning shown. The catalog
+  // behind finishParse is suspense-loaded, so it is ready on first render.
   const autoParsedRef = useRef(false);
   useEffect(() => {
     if (!prefillCode || autoParsedRef.current) {
@@ -375,8 +377,11 @@ function DeckImportPage() {
     }
     autoParsedRef.current = true;
     setRawText(prefillCode);
-    setSourceNote("deck code from the link");
-    const { entries, warnings } = parseDeckImportData(prefillCode, "piltover");
+    if (prefillName) {
+      setDeckName(prefillName);
+    }
+    const { format, entries, warnings } = parseDeckImportAuto(prefillCode);
+    setSourceNote(`${DETECTED_FORMAT_LABELS[format]} from the link`);
     finishParse(entries, warnings);
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount; the ref guard keeps re-runs out
   }, [prefillCode]);

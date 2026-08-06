@@ -1,0 +1,9 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    // @openrift/shared is consumed as raw source (its exports point at
+    // src/*.ts) and the repo does not use noUncheckedIndexedAccess, so the
+    // WXT default would fail on shared's files. Match the repo's strictness.
+    "noUncheckedIndexedAccess": false
+  }
+}

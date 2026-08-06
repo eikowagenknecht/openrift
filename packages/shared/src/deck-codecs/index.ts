@@ -13,5 +13,6 @@ export type { DeckCodec, DeckCodecCard, DeckCodeFormat, EncodeResult } from "./t
 
 export { parseDeckImportData } from "./parse.js";
 export { isPiltoverEncodable, piltoverCodec } from "./piltover.js";
+export type { TextEncodableCard } from "./text.js";
 export { encodeText, parseTextFormat } from "./text.js";
 export { encodeTTS, parseTTSFormat } from "./tts.js";

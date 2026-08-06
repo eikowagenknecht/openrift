@@ -9,6 +9,9 @@ out/
 .wrangler/
 .sonda/
 
+# WXT (browser extension) generated dir
+.wxt/
+
 # Turbo
 .turbo
 .cache
