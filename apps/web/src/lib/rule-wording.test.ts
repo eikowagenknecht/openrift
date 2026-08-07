@@ -2,7 +2,7 @@ import type { ListIntent, ListKind } from "@openrift/shared";
 import { defaultRuleCombine, ruleCombineMatchesKind } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { matchLabel, ruleCountLabel, ruleWording } from "./rule-wording";
+import { matchLabel, netOwnedHint, ruleCountLabel, ruleWording } from "./rule-wording";
 
 const COMBOS: [ListIntent, ListKind][] = [
   ["wish", "card"],
@@ -108,6 +108,21 @@ describe("ruleWording", () => {
     // Card/printing lists never render the grouping select.
     expect(ruleWording("wish", "card").groupLabel).toBe("");
     expect(ruleWording("organize", "card").groupLabel).toBe("");
+  });
+
+  it("mentions the price range in the net-owned hint only while one is set", () => {
+    const plain = netOwnedHint({ min: null, max: null });
+    expect(plain).not.toContain("price");
+
+    for (const range of [
+      { min: null, max: 1.75 },
+      { min: 2, max: null },
+      { min: 1, max: 3.55 },
+    ]) {
+      const bounded = netOwnedHint(range);
+      expect(bounded).toContain(plain);
+      expect(bounded).toContain("not which of your copies count");
+    }
   });
 
   it("never offers a trade list's wording to an organize list", () => {

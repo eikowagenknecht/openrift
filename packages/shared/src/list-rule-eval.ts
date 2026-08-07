@@ -17,6 +17,7 @@ import type {
   WishRule,
   WishRuleCombine,
 } from "./types/index.js";
+import { ruleFiltersOnPrice } from "./types/list-rule.js";
 
 /**
  * The reference-table orders a trade rule needs to rank owned copies by
@@ -105,9 +106,10 @@ export interface RuleEvalContext {
    * prices against its own persisted `priceMarketplace`, so two rules can
    * bound prices on different marketplaces. Without the lookup a price-bounded
    * rule matches no priced printing (same as `filterCards` without `getPrice`).
-   * Note this makes such rules time-varying: their output shifts as prices
-   * refresh, unlike the keep/offer ranking above, which deliberately never
-   * reads prices.
+   * Note this makes which cards such a rule *asks for* time-varying: the set
+   * shifts as prices refresh, unlike the keep/offer ranking above, which
+   * deliberately never reads prices. What already counts as owned is not
+   * time-varying — `netOwned` nets price-blind (amendment 6).
    */
   priceLookup?: PriceLookup;
 }
@@ -172,8 +174,10 @@ interface WishRuleTargets {
   matchedPrintings: Map<string, Set<string>>;
   /**
    * Card kind only: card id → the printings whose owned copies net the want.
-   * Identical to {@link matchedPrintings} unless the rule counts special
-   * versions, in which case it is the superset the relaxed filter matched.
+   * Identical to {@link matchedPrintings} unless the rule relaxes a dimension
+   * for netting (a price bound, or the standard-printing flag under
+   * `countSpecialVersions`), in which case it is the superset the relaxed
+   * filter matched.
    */
   netPrintings: Map<string, Set<string>>;
 }
@@ -186,13 +190,26 @@ interface WishRuleTargets {
  * printing ids per card come along too — they become the want's acceptable
  * printings and the netting pool (ADR-034 amendment 3).
  *
- * With `countSpecialVersions` (card kind + `netOwned` + a filter restricted
- * to standard printings), the netting pool is widened instead to the filter
- * re-run with the standard-printing flag cleared: owned special versions fill
- * the shortfall, while the want and its acceptable printings keep the strict
- * filter. Only cards the strict filter matched get a pool — the relaxed pass
- * never adds wants. Without the standard restriction the flag is inert, so it
- * never has the inverted effect of counting plain copies.
+ * Two relaxations can widen the netting pool beyond the matched printings, by
+ * re-running the filter with a dimension cleared. Only cards the strict filter
+ * matched get a pool, so a relaxed pass never adds wants — it only lets more of
+ * the owner's copies count against an existing one. Both keep the want and its
+ * acceptable printings on the strict filter.
+ *
+ * - **Price is always cleared** for a `netOwned` rule (ADR-034 amendment 6).
+ *   A price bound is a budget for what to buy, not a property that makes a copy
+ *   you already own stop existing, so it must not decide what counts as owned.
+ *   Leaving it on netted out exactly the copies people expected to count: a
+ *   special version is nearly always dearer than the standard printing, so a cap
+ *   tuned to the latter excluded it, and a printing with no price at all failed
+ *   any bound outright (`matchesRange` rejects a null value). It also made
+ *   netting time-varying — the same collection netted differently after a price
+ *   refresh, with no user action.
+ * - **`countSpecialVersions`** (card kind + `netOwned` + a filter restricted to
+ *   standard printings) additionally clears the standard-printing flag, so owned
+ *   special versions fill the shortfall while the list still only asks for
+ *   standard printings. Without the standard restriction the flag is inert, so
+ *   it never has the inverted effect of counting plain copies.
  * @returns The rule's targets plus, for card kind, its matched and netting printings.
  */
 function wishRuleTargets(
@@ -232,16 +249,26 @@ function wishRuleTargets(
       matchedPrintings.set(printing.cardId, new Set([printing.id]));
     }
   }
-  if (!rule.countSpecialVersions || !rule.netOwned || rule.filter.isStandard !== true) {
+  const relaxPrice = rule.netOwned === true && ruleFiltersOnPrice(rule);
+  const relaxStandard =
+    rule.countSpecialVersions === true && rule.netOwned === true && rule.filter.isStandard === true;
+  if (!relaxPrice && !relaxStandard) {
+    // Nothing to clear: the pool is the matched set, and the two maps can share
+    // one object rather than paying a second full-catalog filter pass.
     return { targets, matchedPrintings, netPrintings: matchedPrintings };
   }
-  // Clearing the flag only ever widens the match, so the relaxed set is a
-  // superset of the strict one for every targeted card.
-  const relaxed = filterCards(
-    ctx.catalog,
-    { ...rule.filter, isStandard: null },
-    { customTagAssignments: ctx.customTagAssignments, getPrice: rulePriceResolver(rule, ctx) },
-  );
+  // Clearing either dimension only ever widens the match, so the relaxed set is
+  // a superset of the strict one for every targeted card. With the price range
+  // cleared no dimension reads prices, so the resolver is dropped too.
+  const netFilter = {
+    ...rule.filter,
+    ...(relaxPrice ? { price: { min: null, max: null } } : {}),
+    ...(relaxStandard ? { isStandard: null } : {}),
+  };
+  const relaxed = filterCards(ctx.catalog, netFilter, {
+    customTagAssignments: ctx.customTagAssignments,
+    getPrice: relaxPrice ? undefined : rulePriceResolver(rule, ctx),
+  });
   const netPrintings = new Map<string, Set<string>>();
   for (const printing of relaxed) {
     if (!targets.has(printing.cardId)) {
@@ -290,7 +317,8 @@ function unionInto(map: Map<string, Set<string>>, key: string, printings: Iterab
  * Total owned copies across a card's netting pool (filter-aware netting,
  * ADR-034 amendment 3): only copies whose printing a `netOwned` rule matched
  * count toward the target, so an owned copy outside the filter (excluded art
- * variant, other language) doesn't fill the want.
+ * variant, other language) doesn't fill the want. Price is the exception, never
+ * part of the pool's filter (amendment 6) — see {@link wishRuleTargets}.
  * @returns The owned-copy count within the pool (0 for a missing pool).
  */
 function countOwnedInPool(
@@ -319,9 +347,10 @@ function countOwnedInPool(
  * carries the union of the contributing rules' matched printings as its
  * acceptable set, and netting only counts owned copies whose printing a
  * `netOwned` rule matched — an owned copy outside the filters neither fills
- * the want nor satisfies it in matching. A `countSpecialVersions` rule widens
- * only its netting pool (see {@link wishRuleTargets}); the acceptable set
- * stays strict.
+ * the want nor satisfies it in matching. A price bound, and the standard flag
+ * under `countSpecialVersions`, widen only the netting pool (see
+ * {@link wishRuleTargets}); the acceptable set stays strict, so a budget still
+ * governs what the list asks for and what matching may send.
  * @returns One virtual entry per key with a positive combined quantity.
  */
 function combineWishRules(
@@ -487,9 +516,9 @@ export function ownedCopyPrintingScope(
       continue;
     }
     // Keyed by card: the netting pool is what gets counted. `netPrintings` is
-    // the relaxed superset when `countSpecialVersions` widens it, and is the
-    // same map as `matchedPrintings` otherwise — union both so neither branch
-    // can be missed.
+    // the relaxed superset when a price bound or `countSpecialVersions` widens
+    // it, and is the same map as `matchedPrintings` otherwise — union both so
+    // neither branch can be missed.
     addAll(netPrintings.values());
     addAll(matchedPrintings.values());
   }

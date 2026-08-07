@@ -1085,6 +1085,209 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
   });
 
+  describe("price-blind netting (ADR-034 amendment 6)", () => {
+    // One card, three printings: the cheap standard one the rule shops for, a
+    // dearer special, and one the marketplace has no quote for at all.
+    const pricedCatalog = [
+      makePrinting("cheap", "c1"),
+      makePrinting("dear", "c1", { artVariant: "altart", finish: "foil" }),
+      makePrinting("unpriced", "c1", { finish: "foil", rarity: "rare" }),
+    ];
+    const priceLookup = priceLookupFromMap({
+      cheap: { cardtrader: 167 },
+      dear: { cardtrader: 625 },
+      // "unpriced" has no quote — under a bound it used to fail outright.
+    });
+    const underCap = (overrides: Partial<Extract<ListRule, { kind: "wish" }>> = {}): ListRule =>
+      wishRule({
+        filter: filters({ isStandard: true, price: { min: null, max: 1.75 } }),
+        priceMarketplace: "cardtrader",
+        netOwned: true,
+        ...overrides,
+      });
+
+    it("an owned special above the cap still fills the want", () => {
+      // Two standard copies plus a €6.25 alt art against a €1.75 cap. The alt
+      // art used to fall outside the pool, so the list asked for a third copy
+      // of a card the owner already had three of.
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "dear", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules([underCap({ countSpecialVersions: true })], "card", {
+          catalog: pricedCatalog,
+          ownedCopies,
+          priceLookup,
+        }),
+      ).toEqual([]);
+    });
+
+    it("an owned copy of an unpriced printing counts too", () => {
+      // A missing quote is not a reason to pretend the copies don't exist.
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "unpriced", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "unpriced", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules([underCap({ countSpecialVersions: true })], "card", {
+          catalog: pricedCatalog,
+          ownedCopies,
+          priceLookup,
+        }),
+      ).toEqual([]);
+    });
+
+    it("nets price-blind without countSpecialVersions", () => {
+      // Both printings are standard here, so the flag is irrelevant — only the
+      // cap kept the dearer one out of the pool.
+      const bothStandard = [
+        makePrinting("cheap", "c1"),
+        makePrinting("dear", "c1", { finish: "foil", rarity: "rare" }),
+      ];
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "dear", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "dear", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules([underCap()], "card", {
+          catalog: bothStandard,
+          ownedCopies,
+          priceLookup,
+        }),
+      ).toEqual([]);
+    });
+
+    it("nets price-blind on a rule with no standard restriction", () => {
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "dear", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules(
+          [underCap({ filter: filters({ price: { min: null, max: 1.75 } }) })],
+          "card",
+          {
+            catalog: pricedCatalog,
+            ownedCopies,
+            priceLookup,
+          },
+        ),
+      ).toEqual([]);
+    });
+
+    it("the cap still gates the want and its acceptable printings", () => {
+      // Own nothing: the list asks for the cheap printing only, and matching
+      // may not satisfy it with the dear one. Only netting went price-blind.
+      expect(
+        evaluateListRules([underCap({ countSpecialVersions: true })], "card", {
+          catalog: pricedCatalog,
+          priceLookup,
+        }),
+      ).toEqual([
+        { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["cheap"]) },
+      ]);
+    });
+
+    it("relaxes only price — other facets still gate the pool", () => {
+      // The alt art is out on its variant, not its price, so it must not net.
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "dear", cardId: "c1" }),
+      ];
+      expect(
+        evaluateListRules(
+          [
+            underCap({
+              filter: filters({
+                isStandard: true,
+                artVariantsExclude: ["altart"],
+                price: { min: null, max: 1.75 },
+              }),
+              countSpecialVersions: true,
+            }),
+          ],
+          "card",
+          { catalog: pricedCatalog, ownedCopies, priceLookup },
+        ),
+      ).toEqual([
+        { kind: "card", cardId: "c1", quantity: 2, acceptablePrintingIds: new Set(["cheap"]) },
+      ]);
+    });
+
+    it("leaves a plain (non-netting) rule's matches on the cap", () => {
+      // Without netOwned there is no pool to widen, so nothing changes.
+      expect(
+        evaluateListRules(
+          [
+            wishRule({
+              filter: filters({ price: { min: null, max: 1.75 } }),
+              priceMarketplace: "cardtrader",
+            }),
+          ],
+          "printing",
+          { catalog: pricedCatalog, priceLookup },
+        ).map((entry) => entry.printingId),
+      ).toEqual(["cheap"]);
+    });
+
+    it("two max-combined rules share one price-blind pool", () => {
+      // The reported shape: a cheap-playset rule and a dearer fixed-1 rule over
+      // the same cards, combined with `max`. A low-rarity foil at 2.37 sits
+      // above the first rule's cap and below the second's, and the second rule
+      // never fires (its strict pass needs a standard printing at 1+, and the
+      // standard one is 0.40) — so only price-blind netting can see the foil.
+      const beamCatalog = [
+        makePrinting("plain", "c1", { rarity: "uncommon" }),
+        makePrinting("foil", "c1", { rarity: "uncommon", finish: "foil" }),
+      ];
+      const beamPrices = priceLookupFromMap({
+        plain: { cardtrader: 40 },
+        foil: { cardtrader: 237 },
+      });
+      const ownedCopies = [
+        ownedCopy({ copyId: "x1", printingId: "plain", cardId: "c1" }),
+        ownedCopy({ copyId: "x2", printingId: "plain", cardId: "c1" }),
+        ownedCopy({ copyId: "x3", printingId: "foil", cardId: "c1" }),
+      ];
+      const rules = [
+        underCap({ quantity: { mode: "playset", multiplier: 1 }, countSpecialVersions: true }),
+        underCap({
+          filter: filters({ isStandard: true, price: { min: 1, max: 3.55 } }),
+          quantity: { mode: "fixed", n: 1 },
+          countSpecialVersions: true,
+        }),
+      ];
+      expect(
+        evaluateListRules(
+          rules,
+          "card",
+          {
+            catalog: beamCatalog,
+            ownedCopies,
+            priceLookup: beamPrices,
+          },
+          "max",
+        ),
+      ).toEqual([]);
+    });
+
+    it("ownedCopyPrintingScope loads the copies the widened pool needs", () => {
+      // The scope must widen with the pool, or the copies that now net would
+      // never be read from the database and the fix would be invisible.
+      expect(
+        ownedCopyPrintingScope([underCap({ countSpecialVersions: true })], "card", {
+          catalog: pricedCatalog,
+          priceLookup,
+        }).toSorted(),
+      ).toEqual(["cheap", "dear", "unpriced"]);
+    });
+  });
+
   it("expandList keeps the set on rule-only entries and drops it on manual overlap", () => {
     const ruleEntries: VirtualEntry[] = [
       { kind: "card", cardId: "c1", quantity: 3, acceptablePrintingIds: new Set(["p1"]) },

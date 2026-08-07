@@ -1,4 +1,10 @@
-import type { ListIntent, ListKind, ListRuleCombine, TradeKeepPer } from "@openrift/shared";
+import type {
+  FilterRange,
+  ListIntent,
+  ListKind,
+  ListRuleCombine,
+  TradeKeepPer,
+} from "@openrift/shared";
 
 /**
  * The user-facing copy for one list's rule editor (ADR-034). A rule's *shape*
@@ -175,6 +181,23 @@ export function matchLabel(count: number, kind: ListKind): string {
         ? ["printing", "printings"]
         : ["copy", "copies"];
   return `${count} ${count === 1 ? one : many}`;
+}
+
+const NET_OWNED_HINT =
+  "Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off.";
+
+/**
+ * Hint for the "only what I'm missing" switch. A price range narrows what the
+ * list asks for but never which of your copies count toward it (ADR-034
+ * amendment 6), which is worth saying while a bound is set: the two readings
+ * are easy to confuse, and the wrong one makes owned copies look ignored.
+ * @returns The hint text, with the price clause only while a bound is set.
+ */
+export function netOwnedHint(price: FilterRange): string {
+  if (price.min === null && price.max === null) {
+    return NET_OWNED_HINT;
+  }
+  return `${NET_OWNED_HINT} The price range limits what the list asks for, not which of your copies count.`;
 }
 
 /**

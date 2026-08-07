@@ -43,6 +43,7 @@
 - fix(Decks): **One badge style everywhere** — the deck list's row view now shows the same format badge as the tiles (format name with a check or warning) instead of plain Valid or Invalid.
 - fix(Decks): **Charts say what they count** — the energy curve now notes that it counts the main deck and champion only.
 - fix(Decks): **Owned count matches the deck size** — the owned figure now counts the deck proper (runes included, sideboard not), so it lines up with the completion count instead of using a different total.
+- fix(Collection): **Dynamic lists count every copy you own** — with a price range set, "Only what I'm missing" ignored the copies priced outside it, so a card you already had a playset of kept asking for another.
 
 ## 2026-08-05
 

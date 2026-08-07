@@ -62,7 +62,7 @@ import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { rulePresetsFor } from "@/lib/rule-presets";
 import type { RuleWording } from "@/lib/rule-wording";
-import { matchLabel, ruleCountLabel, ruleWording } from "@/lib/rule-wording";
+import { matchLabel, netOwnedHint, ruleCountLabel, ruleWording } from "@/lib/rule-wording";
 import { useDisplayStore } from "@/stores/display-store";
 import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
 
@@ -615,10 +615,7 @@ function RuleFields({
       <p className="text-muted-foreground -mt-1 text-sm">{wording.quantityHint(rule.keepPer)}</p>
 
       {!isCopy && (
-        <FilterRow
-          label="Only what I'm missing"
-          hint="Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off."
-        >
+        <FilterRow label="Only what I'm missing" hint={netOwnedHint(rule.filter.price)}>
           <Switch
             aria-label="Only what I'm missing"
             checked={rule.netOwned}
