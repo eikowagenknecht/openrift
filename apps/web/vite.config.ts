@@ -18,8 +18,8 @@ import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const mediaDir = path.resolve(__dirname, "../../media");
-const repoRoot = path.resolve(__dirname, "../..");
+const mediaDir = path.resolve(import.meta.dirname, "../../media");
+const repoRoot = path.resolve(import.meta.dirname, "../..");
 
 const MEDIA_MIME_TYPES: Record<string, string> = {
   ".webp": "image/webp",
@@ -108,7 +108,7 @@ const compilerLogger = {
     ) {
       return;
     }
-    const relative = filename ? path.relative(__dirname, filename) : "?";
+    const relative = filename ? path.relative(import.meta.dirname, filename) : "?";
     const loc = event.detail?.loc?.start;
     const at = loc ? `:${loc.line}:${loc.column}` : "";
     if (!(relative in ALLOWED_COMPILER_BAILOUTS)) {
