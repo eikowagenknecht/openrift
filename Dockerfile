@@ -9,13 +9,17 @@ WORKDIR /app
 COPY bun.lock package.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/discord-bot/package.json apps/discord-bot/
+COPY apps/extension/package.json apps/extension/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY packages/e2e/package.json packages/e2e/
 
-# Stub .git so lefthook postinstall doesn't fail (real .git is copied below)
-RUN git init
-RUN bun install --frozen-lockfile
+# --ignore-scripts because only package.json files exist at this layer: the
+# extension's postinstall (`wxt prepare`) scans for entrypoints and exits 1
+# when it finds no source. Nothing built here needs a postinstall — native
+# addons come from optional dependencies, and lefthook is a dev-only hook
+# installer, so this also removes the `git init` stub it used to require.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Copy source and build.
 #
@@ -34,9 +38,12 @@ COPY . .
 # Captured here so the API can stamp X-Build-Id on responses and the browser
 # can detect when its bundled __COMMIT_HASH__ no longer matches a redeployed API.
 RUN git rev-parse --short HEAD > /app/.build-id
+# The extension is a workspace member, so its package.json has to be present
+# for the install above to resolve — but nothing in these images ships it, and
+# it releases through its own workflow. Skip building it here.
 RUN --mount=type=secret,id=sentry_auth_token \
     SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
-    bun run build
+    bunx turbo run build --filter='!extension'
 
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
 # Debian (glibc), not alpine: onnxruntime-node (scan bank) ships glibc-only
@@ -52,6 +59,7 @@ WORKDIR /app
 COPY --from=build /app/bun.lock /app/package.json ./
 COPY --from=build /app/apps/api/package.json apps/api/
 COPY --from=build /app/apps/discord-bot/package.json apps/discord-bot/
+COPY --from=build /app/apps/extension/package.json apps/extension/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/e2e/package.json packages/e2e/
@@ -81,6 +89,7 @@ WORKDIR /app
 COPY --from=build /app/bun.lock /app/package.json ./
 COPY --from=build /app/apps/api/package.json apps/api/
 COPY --from=build /app/apps/discord-bot/package.json apps/discord-bot/
+COPY --from=build /app/apps/extension/package.json apps/extension/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/e2e/package.json packages/e2e/

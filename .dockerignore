@@ -25,3 +25,12 @@ Thumbs.db
 # Data dumps (allow seed JSON, exclude raw dumps)
 /data/*
 !/data/prices.json
+
+# Local-only state, absent from a CI checkout but many GB in a dev tree. None
+# of it is tracked, and none belongs in an image: card art is bind-mounted at
+# runtime (see docker-compose.yml), the Alloy/Loki spool is root-owned and
+# fails the context transfer outright, and each worktree is a full repo copy.
+/media/
+/monitoring/data/
+/.claude/worktrees/
+/coverage/
