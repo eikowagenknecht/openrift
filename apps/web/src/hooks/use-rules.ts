@@ -12,13 +12,11 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchRulesAtVersion = createServerFn({ method: "GET" })
   .validator((input: { kind: RuleKind; version: string }) => input)
-  .handler(
-    ({ data }): Promise<RulesListResponse> =>
-      serverCache.fetchQuery({
-        queryKey: ["server-cache", "rules", data.kind, data.version],
-        queryFn: () =>
-          apiOrpcClient(rulesContract).list({ kind: data.kind, version: data.version }),
-      }),
+  .handler(({ data }): Promise<RulesListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "rules", data.kind, data.version],
+      queryFn: () => apiOrpcClient(rulesContract).list({ kind: data.kind, version: data.version }),
+    }),
   );
 
 const fetchVersions = createServerFn({ method: "GET" })

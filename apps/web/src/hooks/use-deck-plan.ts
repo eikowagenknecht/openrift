@@ -31,9 +31,8 @@ export interface DeckPlanSaveInput {
 const fetchDeckPlanFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: deckId }): Promise<DeckPlanDetailResponse> =>
-      apiOrpcClient(decksContract, context.cookie).getPlan({ id: deckId }),
+  .handler(({ context, data: deckId }): Promise<DeckPlanDetailResponse> =>
+    apiOrpcClient(decksContract, context.cookie).getPlan({ id: deckId }),
   );
 
 export function deckPlanQueryOptions(userId: string, deckId: string) {
@@ -52,9 +51,8 @@ export function useDeckPlan(deckId: string) {
 const saveDeckPlanFn = createServerFn({ method: "POST" })
   .validator((input: { deckId: string; plan: DeckPlanSaveInput }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckPlanDetailResponse> =>
-      apiOrpcClient(decksContract, context.cookie).replacePlan({ id: data.deckId, ...data.plan }),
+  .handler(({ context, data }): Promise<DeckPlanDetailResponse> =>
+    apiOrpcClient(decksContract, context.cookie).replacePlan({ id: data.deckId, ...data.plan }),
   );
 
 // Persists the whole plan (explicit Save). Updates the plan cache with the server's canonical copy.

@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchCollections = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<CollectionListResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).list(),
+  .handler(({ context }): Promise<CollectionListResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).list(),
   );
 
 export function collectionsQueryOptions(userId: string) {

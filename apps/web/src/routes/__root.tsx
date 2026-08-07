@@ -58,8 +58,8 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
 // (first-time visitors) — default to PREFERENCE_DEFAULTS.palette. Unknown
 // values are clamped so untrusted cookie content never reaches the DOM.
 // Only invoked during SSR, same as getServerTheme.
-const getServerPalette = createServerFn({ method: "GET" }).handler(
-  (): Palette => resolvePaletteFromCookie(getCookie("palette")),
+const getServerPalette = createServerFn({ method: "GET" }).handler((): Palette =>
+  resolvePaletteFromCookie(getCookie("palette")),
 );
 
 // Server function that reads the per-surface sort/group cookie. The SSR pass
@@ -81,8 +81,8 @@ const getServerSentryDsn = createServerFn({ method: "GET" }).handler(
 // Reads the deployment environment from the server so it can be inlined into
 // the SSR shell alongside the DSN. The browser SDK reports this verbatim to
 // Sentry, keeping preview errors out of the production environment.
-const getServerAppEnv = createServerFn({ method: "GET" }).handler(
-  (): AppEnv => parseAppEnv(process.env.APP_ENV),
+const getServerAppEnv = createServerFn({ method: "GET" }).handler((): AppEnv =>
+  parseAppEnv(process.env.APP_ENV),
 );
 
 function safeOrigin(url: string | undefined): string | null {

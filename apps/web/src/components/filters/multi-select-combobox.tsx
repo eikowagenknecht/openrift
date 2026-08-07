@@ -295,17 +295,15 @@ export function MultiSelectCombobox({
       iconAfterLabel,
       mutedOptions,
     },
-    ...(groups ?? []).map(
-      (group, groupIndex): Section => ({
-        index: groupIndex + 1,
-        label: group.label,
-        options: group.options,
-        selected: group.included,
-        excluded: group.excluded,
-        onCycle: group.onCycle,
-        counts: group.counts,
-      }),
-    ),
+    ...(groups ?? []).map((group, groupIndex): Section => ({
+      index: groupIndex + 1,
+      label: group.label,
+      options: group.options,
+      selected: group.included,
+      excluded: group.excluded,
+      onCycle: group.onCycle,
+      counts: group.counts,
+    })),
   ];
 
   // Flatten every section's options into the combobox's id-keyed item list (and

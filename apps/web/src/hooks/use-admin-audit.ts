@@ -36,16 +36,14 @@ const fetchAuditEventsFn = createServerFn({ method: "GET" })
 
 const fetchAuditActorsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminAuditActorsResponse> =>
-      apiOrpcClient(adminAuditEventsContract, context.cookie).actors(),
+  .handler(({ context }): Promise<AdminAuditActorsResponse> =>
+    apiOrpcClient(adminAuditEventsContract, context.cookie).actors(),
   );
 
 const fetchAuditActionsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminAuditActionsResponse> =>
-      apiOrpcClient(adminAuditEventsContract, context.cookie).actions(),
+  .handler(({ context }): Promise<AdminAuditActionsResponse> =>
+    apiOrpcClient(adminAuditEventsContract, context.cookie).actions(),
   );
 
 /**

@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminSetsResponse> =>
-      apiOrpcClient(adminCatalogContract, context.cookie).listSets(),
+  .handler(({ context }): Promise<AdminSetsResponse> =>
+    apiOrpcClient(adminCatalogContract, context.cookie).listSets(),
   );
 
 export const setsQueryOptions = queryOptions({

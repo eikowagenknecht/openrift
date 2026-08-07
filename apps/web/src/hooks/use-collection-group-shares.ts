@@ -11,9 +11,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 const fetchShares = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: collectionId }): Promise<CollectionGroupSharesResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).groupShares({ id: collectionId }),
+  .handler(({ context, data: collectionId }): Promise<CollectionGroupSharesResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).groupShares({ id: collectionId }),
   );
 
 /**

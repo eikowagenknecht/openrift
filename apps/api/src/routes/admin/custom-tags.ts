@@ -32,18 +32,16 @@ export const adminCustomTagsRouter = {
         counts.set(tag.categoryId, (counts.get(tag.categoryId) ?? 0) + 1);
       }
       return {
-        categories: cats.map(
-          (cat): CustomTagCategoryResponse => ({
-            id: cat.id,
-            slug: cat.slug,
-            label: cat.label,
-            description: cat.description,
-            sortOrder: cat.sortOrder,
-            tagCount: counts.get(cat.id) ?? 0,
-            createdAt: cat.createdAt.toISOString(),
-            updatedAt: cat.updatedAt.toISOString(),
-          }),
-        ),
+        categories: cats.map((cat): CustomTagCategoryResponse => ({
+          id: cat.id,
+          slug: cat.slug,
+          label: cat.label,
+          description: cat.description,
+          sortOrder: cat.sortOrder,
+          tagCount: counts.get(cat.id) ?? 0,
+          createdAt: cat.createdAt.toISOString(),
+          updatedAt: cat.updatedAt.toISOString(),
+        })),
       };
     },
   ),
@@ -110,21 +108,19 @@ export const adminCustomTagsRouter = {
       }
     }
     return {
-      tags: rows.map(
-        (r): CustomTagResponse => ({
-          id: r.id,
-          slug: r.slug,
-          label: r.label,
-          category: r.category,
-          categoryLabel: r.categoryLabel,
-          categoryId: r.categoryId,
-          description: r.description,
-          sortOrder: r.sortOrder,
-          cardCount: counts.get(r.slug) ?? 0,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
-        }),
-      ),
+      tags: rows.map((r): CustomTagResponse => ({
+        id: r.id,
+        slug: r.slug,
+        label: r.label,
+        category: r.category,
+        categoryLabel: r.categoryLabel,
+        categoryId: r.categoryId,
+        description: r.description,
+        sortOrder: r.sortOrder,
+        cardCount: counts.get(r.slug) ?? 0,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
     };
   }),
 

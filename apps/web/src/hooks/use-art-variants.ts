@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchArtVariants = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminArtVariantsResponse> =>
-      apiOrpcClient(adminArtVariantsContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminArtVariantsResponse> =>
+    apiOrpcClient(adminArtVariantsContract, context.cookie).list(),
   );
 
 export const adminArtVariantsQueryOptions = queryOptions({

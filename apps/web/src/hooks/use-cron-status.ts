@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchCronStatusFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<CronStatus> =>
-      apiOrpcClient(adminCoreContract, context.cookie).cronStatus(),
+  .handler(({ context }): Promise<CronStatus> =>
+    apiOrpcClient(adminCoreContract, context.cookie).cronStatus(),
   );
 
 export function useCronStatus() {

@@ -19,37 +19,32 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchRehostStatusFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<RehostStatusResponse> =>
-      apiOrpcClient(adminImagesContract, context.cookie).rehostStatus(),
+  .handler(({ context }): Promise<RehostStatusResponse> =>
+    apiOrpcClient(adminImagesContract, context.cookie).rehostStatus(),
   );
 
 const fetchBrokenImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<BrokenImagesResponse> =>
-      apiOrpcClient(adminImagesContract, context.cookie).brokenImages(),
+  .handler(({ context }): Promise<BrokenImagesResponse> =>
+    apiOrpcClient(adminImagesContract, context.cookie).brokenImages(),
   );
 
 const fetchLowResImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<LowResImagesResponse> =>
-      apiOrpcClient(adminImagesContract, context.cookie).lowResImages(),
+  .handler(({ context }): Promise<LowResImagesResponse> =>
+    apiOrpcClient(adminImagesContract, context.cookie).lowResImages(),
   );
 
 const fetchMissingImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<MissingImageCard[]> =>
-      apiOrpcClient(adminImagesContract, context.cookie).missingImages(),
+  .handler(({ context }): Promise<MissingImageCard[]> =>
+    apiOrpcClient(adminImagesContract, context.cookie).missingImages(),
   );
 
 const rehostImagesBatchFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<RehostImageResponse> =>
-      apiOrpcClient(adminImagesContract, context.cookie).rehost({ query: {} }),
+  .handler(({ context }): Promise<RehostImageResponse> =>
+    apiOrpcClient(adminImagesContract, context.cookie).rehost({ query: {} }),
   );
 
 const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
@@ -71,17 +66,15 @@ const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
 
 const cancelRegenerateImagesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<{ runId: string; cancelRequested: true }> =>
-      apiOrpcClient(adminImagesContract, context.cookie).cancelRegenerate(),
+  .handler(({ context }): Promise<{ runId: string; cancelRequested: true }> =>
+    apiOrpcClient(adminImagesContract, context.cookie).cancelRegenerate(),
   );
 
 const unrehostImagesFn = createServerFn({ method: "POST" })
   .validator((input: { imageIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UnrehostImagesResponse> =>
-      apiOrpcClient(adminImagesContract, context.cookie).unrehost({ imageIds: data.imageIds }),
+  .handler(({ context, data }): Promise<UnrehostImagesResponse> =>
+    apiOrpcClient(adminImagesContract, context.cookie).unrehost({ imageIds: data.imageIds }),
   );
 
 const clearRehostedFn = createServerFn({ method: "POST" })
@@ -92,9 +85,8 @@ const clearRehostedFn = createServerFn({ method: "POST" })
 
 const cleanupOrphanedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<{ scanned: number; deleted: number; errors: string[] }> =>
-      apiOrpcClient(adminImagesContract, context.cookie).cleanupOrphaned(),
+  .handler(({ context }): Promise<{ scanned: number; deleted: number; errors: string[] }> =>
+    apiOrpcClient(adminImagesContract, context.cookie).cleanupOrphaned(),
   );
 
 const migrateDirectoriesFn = createServerFn({ method: "POST" })

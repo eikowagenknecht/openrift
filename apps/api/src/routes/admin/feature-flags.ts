@@ -22,15 +22,13 @@ export const adminFeatureFlagsRouter = {
     const { featureFlags: flagsRepo } = context.repos;
     const rows = await flagsRepo.listAll();
     return {
-      flags: rows.map(
-        (r): FeatureFlagResponse => ({
-          key: r.key,
-          enabled: r.enabled,
-          description: r.description,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
-        }),
-      ),
+      flags: rows.map((r): FeatureFlagResponse => ({
+        key: r.key,
+        enabled: r.enabled,
+        description: r.description,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
     };
   }),
 

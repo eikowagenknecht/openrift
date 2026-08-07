@@ -19,11 +19,10 @@ const clearPricesFn = createServerFn({ method: "POST" })
   // clearActions[*].source, which is already one of these literals.
   .validator((input: { marketplace: "cardmarket" | "cardtrader" | "tcgplayer" }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ClearPricesResponse> =>
-      apiOrpcClient(adminOperationsContract, context.cookie).clearPrices({
-        marketplace: data.marketplace,
-      }),
+  .handler(({ context, data }): Promise<ClearPricesResponse> =>
+    apiOrpcClient(adminOperationsContract, context.cookie).clearPrices({
+      marketplace: data.marketplace,
+    }),
   );
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

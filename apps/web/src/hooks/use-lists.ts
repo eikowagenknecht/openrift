@@ -33,11 +33,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 const fetchLists = createServerFn({ method: "GET" })
   .validator((input: { intent?: ListIntent } | undefined) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ListListResponse> =>
-      apiOrpcClient(listsContract, context.cookie).list(
-        data?.intent ? { intent: data.intent } : {},
-      ),
+  .handler(({ context, data }): Promise<ListListResponse> =>
+    apiOrpcClient(listsContract, context.cookie).list(data?.intent ? { intent: data.intent } : {}),
   );
 
 const fetchListDetail = createServerFn({ method: "GET" })
@@ -99,9 +96,8 @@ interface CreateListInput {
 const createListFn = createServerFn({ method: "POST" })
   .validator((input: CreateListInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ListResponse> =>
-      apiOrpcClient(listsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<ListResponse> =>
+    apiOrpcClient(listsContract, context.cookie).create(data),
   );
 
 export function useCreateList() {
@@ -274,12 +270,11 @@ const bulkAddEntriesFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ListBulkAddResponse> =>
-      apiOrpcClient(listsContract, context.cookie).bulkCreateEntries({
-        id: data.listId,
-        entries: data.entries,
-      }),
+  .handler(({ context, data }): Promise<ListBulkAddResponse> =>
+    apiOrpcClient(listsContract, context.cookie).bulkCreateEntries({
+      id: data.listId,
+      entries: data.entries,
+    }),
   );
 
 interface BulkAddVariables {
@@ -365,12 +360,11 @@ export function useBulkAddListEntries() {
 const bulkAddCopiesToListFn = createServerFn({ method: "POST" })
   .validator((input: { listId: string; copyIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ListBulkAddResponse> =>
-      apiOrpcClient(listsContract, context.cookie).bulkAddFromCopies({
-        id: data.listId,
-        copyIds: data.copyIds,
-      }),
+  .handler(({ context, data }): Promise<ListBulkAddResponse> =>
+    apiOrpcClient(listsContract, context.cookie).bulkAddFromCopies({
+      id: data.listId,
+      copyIds: data.copyIds,
+    }),
   );
 
 export function useBulkAddCopiesToList() {
@@ -390,13 +384,12 @@ export function useBulkAddCopiesToList() {
 const moveListEntriesFn = createServerFn({ method: "POST" })
   .validator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ListMoveResponse> =>
-      apiOrpcClient(listsContract, context.cookie).moveEntries({
-        id: data.fromListId,
-        toListId: data.toListId,
-        entryIds: data.entryIds,
-      }),
+  .handler(({ context, data }): Promise<ListMoveResponse> =>
+    apiOrpcClient(listsContract, context.cookie).moveEntries({
+      id: data.fromListId,
+      toListId: data.toListId,
+      entryIds: data.entryIds,
+    }),
   );
 
 export function useMoveListEntries() {
@@ -532,9 +525,8 @@ export function useBulkRemoveListEntries() {
 const shareListFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: listId }): Promise<ListShareResponse> =>
-      apiOrpcClient(listsContract, context.cookie).share({ id: listId }),
+  .handler(({ context, data: listId }): Promise<ListShareResponse> =>
+    apiOrpcClient(listsContract, context.cookie).share({ id: listId }),
   );
 
 export function useShareList() {

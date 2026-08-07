@@ -24,21 +24,19 @@ export const adminDistributionChannelsRouter = {
     const [rows, counts] = await Promise.all([repo.listAll(), repo.usageCountsByChannel()]);
     const countById = new Map(counts.map((row) => [row.channelId, row.count]));
     return {
-      distributionChannels: rows.map(
-        (r): DistributionChannelResponse => ({
-          id: r.id,
-          slug: r.slug,
-          label: r.label,
-          description: r.description,
-          kind: r.kind,
-          sortOrder: r.sortOrder,
-          parentId: r.parentId,
-          childrenLabel: r.childrenLabel,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
-          printingCount: countById.get(r.id) ?? 0,
-        }),
-      ),
+      distributionChannels: rows.map((r): DistributionChannelResponse => ({
+        id: r.id,
+        slug: r.slug,
+        label: r.label,
+        description: r.description,
+        kind: r.kind,
+        sortOrder: r.sortOrder,
+        parentId: r.parentId,
+        childrenLabel: r.childrenLabel,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        printingCount: countById.get(r.id) ?? 0,
+      })),
     };
   }),
 

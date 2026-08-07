@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchDeckZones = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminDeckZonesResponse> =>
-      apiOrpcClient(adminDeckZonesContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminDeckZonesResponse> =>
+    apiOrpcClient(adminDeckZonesContract, context.cookie).list(),
   );
 
 export const adminDeckZonesQueryOptions = queryOptions({

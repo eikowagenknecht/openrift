@@ -21,9 +21,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserPreferencesResponse> =>
-      apiOrpcClient(preferencesContract, context.cookie).get(),
+  .handler(({ context }): Promise<UserPreferencesResponse> =>
+    apiOrpcClient(preferencesContract, context.cookie).get(),
   );
 
 const patchEmailNotificationsFn = createServerFn({ method: "POST" })

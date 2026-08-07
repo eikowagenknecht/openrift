@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<IgnoredCandidatesResponse> =>
-      apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).list(),
+  .handler(({ context }): Promise<IgnoredCandidatesResponse> =>
+    apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).list(),
   );
 
 export const ignoredCandidatesQueryOptions = queryOptions({

@@ -20,16 +20,14 @@ export const adminLanguagesRouter = {
     const { languages: repo } = context.repos;
     const rows = await repo.listAll();
     return {
-      languages: rows.map(
-        (r): LanguageResponse => ({
-          code: r.code,
-          name: r.name,
-          color: r.color,
-          sortOrder: r.sortOrder,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
-        }),
-      ),
+      languages: rows.map((r): LanguageResponse => ({
+        code: r.code,
+        name: r.name,
+        color: r.color,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
     };
   }),
 

@@ -34,23 +34,20 @@ export function formatRelativeTime(iso: string): string {
 
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunStartedResponse> =>
-      apiOrpcClient(adminOperationsContract, context.cookie).refreshTcgplayer(),
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminOperationsContract, context.cookie).refreshTcgplayer(),
   );
 
 const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunStartedResponse> =>
-      apiOrpcClient(adminOperationsContract, context.cookie).refreshCardmarket(),
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminOperationsContract, context.cookie).refreshCardmarket(),
   );
 
 const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunStartedResponse> =>
-      apiOrpcClient(adminOperationsContract, context.cookie).refreshCardtrader(),
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminOperationsContract, context.cookie).refreshCardtrader(),
   );
 
 // ── Server function for polling latest job run for a kind ─────────────────
@@ -58,9 +55,8 @@ const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
 export const getLatestJobRunFn = createServerFn({ method: "GET" })
   .validator((input: { kind: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<JobRunsListResponse> =>
-      apiOrpcClient(adminJobRunsContract, context.cookie).list({ kind: data.kind, limit: 1 }),
+  .handler(({ context, data }): Promise<JobRunsListResponse> =>
+    apiOrpcClient(adminJobRunsContract, context.cookie).list({ kind: data.kind, limit: 1 }),
   );
 
 // ── Action configs ──────────────────────────────────────────────────────────

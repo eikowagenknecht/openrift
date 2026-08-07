@@ -23,9 +23,8 @@ type PreferencesUpdateInput = Parameters<
 
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserPreferencesResponse> =>
-      apiOrpcClient(preferencesContract, context.cookie).get(),
+  .handler(({ context }): Promise<UserPreferencesResponse> =>
+    apiOrpcClient(preferencesContract, context.cookie).get(),
   );
 
 const patchPreferencesFn = createServerFn({ method: "POST" })

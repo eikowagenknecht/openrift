@@ -16,25 +16,24 @@ export const adminIgnoredProductsRouter = {
     const { marketplaceAdmin: mktAdmin } = context.repos;
     const rows = await mktAdmin.listIgnoredProducts();
     return {
-      products: rows.map(
-        (r): IgnoredProductResponse =>
-          r.level === "product"
-            ? {
-                level: "product",
-                marketplace: r.marketplace,
-                externalId: r.externalId,
-                productName: r.productName,
-                createdAt: r.createdAt.toISOString(),
-              }
-            : {
-                level: "variant",
-                marketplace: r.marketplace,
-                externalId: r.externalId,
-                finish: r.finish,
-                language: r.language,
-                productName: r.productName,
-                createdAt: r.createdAt.toISOString(),
-              },
+      products: rows.map((r): IgnoredProductResponse =>
+        r.level === "product"
+          ? {
+              level: "product",
+              marketplace: r.marketplace,
+              externalId: r.externalId,
+              productName: r.productName,
+              createdAt: r.createdAt.toISOString(),
+            }
+          : {
+              level: "variant",
+              marketplace: r.marketplace,
+              externalId: r.externalId,
+              finish: r.finish,
+              language: r.language,
+              productName: r.productName,
+              createdAt: r.createdAt.toISOString(),
+            },
       ),
     };
   }),

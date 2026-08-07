@@ -16,9 +16,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchAdminCardList = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminCardListResponse> =>
-      apiOrpcClient(adminCardQueriesContract, context.cookie).listCandidates(),
+  .handler(({ context }): Promise<AdminCardListResponse> =>
+    apiOrpcClient(adminCardQueriesContract, context.cookie).listCandidates(),
   );
 
 export const adminCardListQueryOptions = queryOptions({
@@ -62,9 +61,8 @@ export function useNextUncheckedCard(currentSlug: string, allowedSlugs?: Set<str
 
 const fetchAllCards = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AllCardsResponse> =>
-      apiOrpcClient(adminCardQueriesContract, context.cookie).allCards(),
+  .handler(({ context }): Promise<AllCardsResponse> =>
+    apiOrpcClient(adminCardQueriesContract, context.cookie).allCards(),
   );
 
 export const allCardsQueryOptions = queryOptions({
@@ -157,9 +155,8 @@ export function useUnmatchedCardDetail(name: string) {
 
 const fetchProviderStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<ProviderStatsResponse> =>
-      apiOrpcClient(adminCardQueriesContract, context.cookie).providerStats(),
+  .handler(({ context }): Promise<ProviderStatsResponse> =>
+    apiOrpcClient(adminCardQueriesContract, context.cookie).providerStats(),
   );
 
 export const providerStatsQueryOptions = queryOptions({
@@ -173,9 +170,8 @@ export function useProviderStats() {
 
 const fetchProviderNames = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<ProviderNamesResponse> =>
-      apiOrpcClient(adminCardQueriesContract, context.cookie).providerNames(),
+  .handler(({ context }): Promise<ProviderNamesResponse> =>
+    apiOrpcClient(adminCardQueriesContract, context.cookie).providerNames(),
   );
 
 const providerNamesQueryOptions = queryOptions({

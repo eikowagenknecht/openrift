@@ -202,16 +202,14 @@ export const friendGroupsRouter = {
       memberPreviews: memberPreviews.map((preview) => toMemberPreview(preview)),
     });
     return {
-      items: groups.map(
-        (row): FriendGroupSummaryResponse => ({
-          ...toGroup(row, canSeeCode(row.viewerRole)),
-          viewerRole: row.viewerRole,
-          memberCount: row.memberCount,
-          pendingRequestCount: row.pendingRequestCount,
-          sharedListCount: row.sharedListCount,
-          memberPreviews: row.memberPreviews.map((preview) => toMemberPreview(preview)),
-        }),
-      ),
+      items: groups.map((row): FriendGroupSummaryResponse => ({
+        ...toGroup(row, canSeeCode(row.viewerRole)),
+        viewerRole: row.viewerRole,
+        memberCount: row.memberCount,
+        pendingRequestCount: row.pendingRequestCount,
+        sharedListCount: row.sharedListCount,
+        memberPreviews: row.memberPreviews.map((preview) => toMemberPreview(preview)),
+      })),
       pendingInvites: invites.map((row) => toInviteEntry(row, row.memberPreviews)),
       // Requesters haven't been accepted yet, so no roster previews for them.
       outgoingRequests: requests.map((row) => toInviteEntry(row, [])),
@@ -1035,64 +1033,54 @@ export const friendGroupsRouter = {
       ]);
 
       const events: FriendGroupActivityEvent[] = [
-        ...completedTrades.map(
-          (trade): FriendGroupActivityEvent => ({
-            kind: "trade-completed",
-            at: trade.completedAt.toISOString(),
-            tradeId: trade.tradeId,
-            printingId: trade.printingId,
-            cardId: trade.cardId,
-            quantity: trade.quantity,
-            giverUserId: trade.giverUserId,
-            giverName: trade.giverName,
-            receiverUserId: trade.receiverUserId,
-            receiverName: trade.receiverName,
-          }),
-        ),
-        ...members.map(
-          (member): FriendGroupActivityEvent => ({
-            kind: "member-joined",
-            at: member.joinedAt.toISOString(),
-            userId: member.userId,
-            userName: member.userName,
-            userImage: member.userImage,
-            gravatarHash: gravatarHashForEmail(member.userEmail),
-          }),
-        ),
-        ...shares.map(
-          (share): FriendGroupActivityEvent => ({
-            kind: "list-shared",
-            at: share.sharedAt.toISOString(),
-            userId: share.userId,
-            userName: share.userName,
-            listId: share.listId,
-            listName: share.listName,
-            listIntent: share.listIntent as ListIntent,
-            listKind: share.listKind as ListKind,
-          }),
-        ),
-        ...collectionShares.map(
-          (share): FriendGroupActivityEvent => ({
-            kind: "collection-shared",
-            at: share.sharedAt.toISOString(),
-            userId: share.userId,
-            userName: share.userName,
-            collectionId: share.collectionId,
-            collectionName: share.collectionName,
-          }),
-        ),
-        ...matches.map(
-          (match): FriendGroupActivityEvent => ({
-            kind: "match",
-            at: match.matchedAt.toISOString(),
-            counterpartyUserId: match.counterpartyUserId,
-            counterpartyName: match.counterpartyName,
-            counterpartyImage: match.counterpartyImage,
-            counterpartyGravatarHash: match.counterpartyGravatarHash,
-            printingId: match.printingId,
-            cardId: match.cardId,
-          }),
-        ),
+        ...completedTrades.map((trade): FriendGroupActivityEvent => ({
+          kind: "trade-completed",
+          at: trade.completedAt.toISOString(),
+          tradeId: trade.tradeId,
+          printingId: trade.printingId,
+          cardId: trade.cardId,
+          quantity: trade.quantity,
+          giverUserId: trade.giverUserId,
+          giverName: trade.giverName,
+          receiverUserId: trade.receiverUserId,
+          receiverName: trade.receiverName,
+        })),
+        ...members.map((member): FriendGroupActivityEvent => ({
+          kind: "member-joined",
+          at: member.joinedAt.toISOString(),
+          userId: member.userId,
+          userName: member.userName,
+          userImage: member.userImage,
+          gravatarHash: gravatarHashForEmail(member.userEmail),
+        })),
+        ...shares.map((share): FriendGroupActivityEvent => ({
+          kind: "list-shared",
+          at: share.sharedAt.toISOString(),
+          userId: share.userId,
+          userName: share.userName,
+          listId: share.listId,
+          listName: share.listName,
+          listIntent: share.listIntent as ListIntent,
+          listKind: share.listKind as ListKind,
+        })),
+        ...collectionShares.map((share): FriendGroupActivityEvent => ({
+          kind: "collection-shared",
+          at: share.sharedAt.toISOString(),
+          userId: share.userId,
+          userName: share.userName,
+          collectionId: share.collectionId,
+          collectionName: share.collectionName,
+        })),
+        ...matches.map((match): FriendGroupActivityEvent => ({
+          kind: "match",
+          at: match.matchedAt.toISOString(),
+          counterpartyUserId: match.counterpartyUserId,
+          counterpartyName: match.counterpartyName,
+          counterpartyImage: match.counterpartyImage,
+          counterpartyGravatarHash: match.counterpartyGravatarHash,
+          printingId: match.printingId,
+          cardId: match.cardId,
+        })),
       ];
 
       // Newest first by ISO timestamp (lexicographic order matches chronological

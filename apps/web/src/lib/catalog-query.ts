@@ -109,8 +109,8 @@ export async function readCatalogVersionFromServerCache(): Promise<string | null
   return version;
 }
 
-const fetchCatalog = createServerFn({ method: "GET" }).handler(
-  (): Promise<CatalogResponse> => readCatalogFromServerCache(),
+const fetchCatalog = createServerFn({ method: "GET" }).handler((): Promise<CatalogResponse> =>
+  readCatalogFromServerCache(),
 );
 
 // Tiny origin round trip the browser uses to resolve the current version
@@ -118,8 +118,8 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
 // surfaces). Goes through the Start server (not the edge) on purpose: the
 // token must be fresh, and serverCache bounds origin load to one catalog
 // fetch per minute.
-const fetchCatalogVersion = createServerFn({ method: "GET" }).handler(
-  (): Promise<string | null> => readCatalogVersionFromServerCache(),
+const fetchCatalogVersion = createServerFn({ method: "GET" }).handler((): Promise<string | null> =>
+  readCatalogVersionFromServerCache(),
 );
 
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare

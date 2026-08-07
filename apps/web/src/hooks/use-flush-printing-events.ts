@@ -27,9 +27,8 @@ const FLUSH_RUN_KEY = ["admin", "job-runs", FLUSH_PRINTING_EVENTS_KIND] as const
 
 const flushPrintingEventsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunStartedResponse> =>
-      apiOrpcClient(adminPrintingEventsContract, context.cookie).flush(),
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).flush(),
   );
 
 export function useFlushPrintingEvents() {
@@ -78,9 +77,8 @@ export type { PrintingEventView } from "@/lib/server-fns/api-types";
 
 const fetchPrintingEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<PrintingEventsListResponse> =>
-      apiOrpcClient(adminPrintingEventsContract, context.cookie).list(),
+  .handler(({ context }): Promise<PrintingEventsListResponse> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).list(),
   );
 
 export const adminPrintingEventsQueryOptions = queryOptions({
@@ -96,9 +94,8 @@ export function useAdminPrintingEvents() {
 const retryPrintingEventsFn = createServerFn({ method: "POST" })
   .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<{ retried: number }> =>
-      apiOrpcClient(adminPrintingEventsContract, context.cookie).retry(data),
+  .handler(({ context, data }): Promise<{ retried: number }> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).retry(data),
   );
 
 export function useRetryPrintingEvents() {

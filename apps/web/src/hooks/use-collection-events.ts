@@ -11,11 +11,10 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 const fetchCollectionEventsFn = createServerFn({ method: "GET" })
   .validator((input: { cursor?: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<CollectionEventListResponse> =>
-      apiOrpcClient(collectionEventsContract, context.cookie).list(
-        data.cursor ? { cursor: data.cursor } : {},
-      ),
+  .handler(({ context, data }): Promise<CollectionEventListResponse> =>
+    apiOrpcClient(collectionEventsContract, context.cookie).list(
+      data.cursor ? { cursor: data.cursor } : {},
+    ),
   );
 
 export function collectionEventsQueryOptions(userId: string) {

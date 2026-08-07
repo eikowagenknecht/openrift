@@ -16,33 +16,29 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const listContactMethodsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserContactMethodsResponse> =>
-      apiOrpcClient(contactMethodsContract, context.cookie).list(),
+  .handler(({ context }): Promise<UserContactMethodsResponse> =>
+    apiOrpcClient(contactMethodsContract, context.cookie).list(),
   );
 
 const createContactMethodFn = createServerFn({ method: "POST" })
   .validator((input: { type: ContactMethodType; value: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UserContactMethodsResponse> =>
-      apiOrpcClient(contactMethodsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<UserContactMethodsResponse> =>
+    apiOrpcClient(contactMethodsContract, context.cookie).create(data),
   );
 
 const updateContactMethodFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; type: ContactMethodType; value: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UserContactMethodsResponse> =>
-      apiOrpcClient(contactMethodsContract, context.cookie).update(data),
+  .handler(({ context, data }): Promise<UserContactMethodsResponse> =>
+    apiOrpcClient(contactMethodsContract, context.cookie).update(data),
   );
 
 const deleteContactMethodFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UserContactMethodsResponse> =>
-      apiOrpcClient(contactMethodsContract, context.cookie).remove(data),
+  .handler(({ context, data }): Promise<UserContactMethodsResponse> =>
+    apiOrpcClient(contactMethodsContract, context.cookie).remove(data),
   );
 
 /** @returns The signed-in user's account-level contact methods (empty until loaded). */

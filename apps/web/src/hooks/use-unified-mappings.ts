@@ -21,9 +21,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UnifiedMappingsResponse> =>
-      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).list(),
+  .handler(({ context }): Promise<UnifiedMappingsResponse> =>
+    apiOrpcClient(adminUnifiedMappingsContract, context.cookie).list(),
   );
 
 export function unifiedMappingsQueryOptions() {
@@ -51,9 +50,8 @@ export function useUnifiedMappingsWhen(enabled: boolean) {
 const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
-      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).card({ cardId: data.cardId }),
+  .handler(({ context, data }): Promise<UnifiedMappingsCardResponse> =>
+    apiOrpcClient(adminUnifiedMappingsContract, context.cookie).card({ cardId: data.cardId }),
   );
 
 export function unifiedMappingsForCardQueryOptions(cardId: string) {

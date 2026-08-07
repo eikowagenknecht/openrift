@@ -13,9 +13,8 @@ export type { MarketplaceGroup } from "@/lib/server-fns/api-types";
 
 const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<MarketplaceGroupsResponse> =>
-      apiOrpcClient(adminMarketplaceGroupsContract, context.cookie).list(),
+  .handler(({ context }): Promise<MarketplaceGroupsResponse> =>
+    apiOrpcClient(adminMarketplaceGroupsContract, context.cookie).list(),
   );
 
 export const marketplaceGroupsQueryOptions = queryOptions({

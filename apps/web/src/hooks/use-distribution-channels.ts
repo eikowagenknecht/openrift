@@ -11,9 +11,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchChannels = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminDistributionChannelsResponse> =>
-      apiOrpcClient(adminDistributionChannelsContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminDistributionChannelsResponse> =>
+    apiOrpcClient(adminDistributionChannelsContract, context.cookie).list(),
   );
 
 export const adminDistributionChannelsQueryOptions = queryOptions({

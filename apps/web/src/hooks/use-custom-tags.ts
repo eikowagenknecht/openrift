@@ -24,9 +24,8 @@ interface CardCustomTagsResponse {
 
 const fetchCustomTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminCustomTagsResponse> =>
-      apiOrpcClient(adminCustomTagsContract, context.cookie).listTags(),
+  .handler(({ context }): Promise<AdminCustomTagsResponse> =>
+    apiOrpcClient(adminCustomTagsContract, context.cookie).listTags(),
   );
 
 export const adminCustomTagsQueryOptions = queryOptions({
@@ -43,9 +42,8 @@ export function useCustomTags() {
 
 const fetchCustomTagCategories = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminCustomTagCategoriesResponse> =>
-      apiOrpcClient(adminCustomTagsContract, context.cookie).listCategories(),
+  .handler(({ context }): Promise<AdminCustomTagCategoriesResponse> =>
+    apiOrpcClient(adminCustomTagsContract, context.cookie).listCategories(),
   );
 
 export const adminCustomTagCategoriesQueryOptions = queryOptions({
@@ -185,9 +183,8 @@ interface ClearCustomTagCardsResponse {
 const clearCustomTagCardsFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ClearCustomTagCardsResponse> =>
-      apiOrpcClient(adminCustomTagsContract, context.cookie).clearCards({ id: data.id }),
+  .handler(({ context, data }): Promise<ClearCustomTagCardsResponse> =>
+    apiOrpcClient(adminCustomTagsContract, context.cookie).clearCards({ id: data.id }),
   );
 
 export function useClearCustomTagCards() {
@@ -206,9 +203,8 @@ export function useClearCustomTagCards() {
 const fetchCardCustomTags = createServerFn({ method: "GET" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<CardCustomTagsResponse> =>
-      apiOrpcClient(adminCustomTagsContract, context.cookie).getCardTags({ id: data.cardId }),
+  .handler(({ context, data }): Promise<CardCustomTagsResponse> =>
+    apiOrpcClient(adminCustomTagsContract, context.cookie).getCardTags({ id: data.cardId }),
   );
 
 function cardCustomTagsQueryOptions(cardId: string) {
@@ -250,12 +246,11 @@ interface AddCardsToCustomTagResponse {
 const addCardsToCustomTagFn = createServerFn({ method: "POST" })
   .validator((input: { tagId: string; cardIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<AddCardsToCustomTagResponse> =>
-      apiOrpcClient(adminCustomTagsContract, context.cookie).addCards({
-        id: data.tagId,
-        cardIds: data.cardIds,
-      }),
+  .handler(({ context, data }): Promise<AddCardsToCustomTagResponse> =>
+    apiOrpcClient(adminCustomTagsContract, context.cookie).addCards({
+      id: data.tagId,
+      cardIds: data.cardIds,
+    }),
   );
 
 export function useAddCardsToCustomTag() {

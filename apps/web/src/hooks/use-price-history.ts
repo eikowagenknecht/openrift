@@ -11,12 +11,11 @@ const fetchPriceHistoryFn = createServerFn({ method: "GET" })
   // range is the TimeRange enum on the route (was loose `string` under fetchApi).
   .validator((input: { printingId: string; range: TimeRange }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PriceHistoryResponse> =>
-      apiOrpcClient(pricesContract, context.cookie).history({
-        printingId: data.printingId,
-        range: data.range,
-      }),
+  .handler(({ context, data }): Promise<PriceHistoryResponse> =>
+    apiOrpcClient(pricesContract, context.cookie).history({
+      printingId: data.printingId,
+      range: data.range,
+    }),
   );
 
 export function usePriceHistory(printingId: string | null, range: TimeRange = "30d") {

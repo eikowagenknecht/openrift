@@ -34,23 +34,20 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<FriendGroupListResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).list(),
+  .handler(({ context }): Promise<FriendGroupListResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).list(),
   );
 
 const fetchPendingInvitesCount = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<FriendGroupPendingInvitesCountResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).pendingInvitesCount(),
+  .handler(({ context }): Promise<FriendGroupPendingInvitesCountResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).pendingInvitesCount(),
   );
 
 const fetchPendingRequestsCount = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<FriendGroupPendingRequestsCountResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).pendingRequestsCount(),
+  .handler(({ context }): Promise<FriendGroupPendingRequestsCountResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).pendingRequestsCount(),
   );
 
 const fetchGroupDetail = createServerFn({ method: "GET" })
@@ -74,33 +71,29 @@ const fetchGroupDetail = createServerFn({ method: "GET" })
 const fetchGroupMatches = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).matches({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).matches({ slug }),
   );
 
 const fetchGroupActivity = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupActivityResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).activity({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupActivityResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).activity({ slug }),
   );
 
 const fetchMemberDetail = createServerFn({ method: "GET" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<FriendGroupMemberDetailResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).getMemberDetail(data),
+  .handler(({ context, data }): Promise<FriendGroupMemberDetailResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).getMemberDetail(data),
   );
 
 const fetchShareableLists = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupShareableListsResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).shareableLists({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupShareableListsResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).shareableLists({ slug }),
   );
 
 const fetchJoinPreview = createServerFn({ method: "GET" })
@@ -139,9 +132,8 @@ const fetchSharedList = createServerFn({ method: "GET" })
 const fetchShareableCollections = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).shareableCollections({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).shareableCollections({ slug }),
   );
 
 const fetchSharedCollection = createServerFn({ method: "GET" })
@@ -353,9 +345,8 @@ const createGroupFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<FriendGroupResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<FriendGroupResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).create(data),
   );
 
 const updateGroupFn = createServerFn({ method: "POST" })
@@ -384,25 +375,22 @@ const deleteGroupFn = createServerFn({ method: "POST" })
 const rotateCodeFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).rotateCode({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).rotateCode({ slug }),
   );
 
 const disableCodeFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).disableCode({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).disableCode({ slug }),
   );
 
 const enableCodeFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).enableCode({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).enableCode({ slug }),
   );
 
 const joinByCodeFn = createServerFn({ method: "POST" })
@@ -450,17 +438,15 @@ const transferOwnershipFn = createServerFn({ method: "POST" })
 const updateRoleFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string; role: "admin" | "member" }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<FriendGroupMemberResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).updateRole(data),
+  .handler(({ context, data }): Promise<FriendGroupMemberResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).updateRole(data),
   );
 
 const setRevealedContactsFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string; contactMethodIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<FriendGroupMemberResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).setRevealedContacts(data),
+  .handler(({ context, data }): Promise<FriendGroupMemberResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).setRevealedContacts(data),
   );
 
 const kickMemberFn = createServerFn({ method: "POST" })
@@ -707,17 +693,15 @@ export function useUnshareCollectionFromFriendGroup() {
 const fetchDiscordLinks = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupDiscordLinksResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).listDiscordLinks({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupDiscordLinksResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).listDiscordLinks({ slug }),
   );
 
 const createDiscordLinkCodeFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<FriendGroupDiscordLinkCodeResponse> =>
-      apiOrpcClient(friendGroupsContract, context.cookie).createDiscordLinkCode({ slug }),
+  .handler(({ context, data: slug }): Promise<FriendGroupDiscordLinkCodeResponse> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).createDiscordLinkCode({ slug }),
   );
 
 const deleteDiscordLinkFn = createServerFn({ method: "POST" })

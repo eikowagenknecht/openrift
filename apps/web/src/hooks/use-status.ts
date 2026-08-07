@@ -10,9 +10,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminStatusResponse> =>
-      apiOrpcClient(adminStatusContract, context.cookie).get(),
+  .handler(({ context }): Promise<AdminStatusResponse> =>
+    apiOrpcClient(adminStatusContract, context.cookie).get(),
   );
 
 const clearSsrCache = createServerFn({ method: "POST" })

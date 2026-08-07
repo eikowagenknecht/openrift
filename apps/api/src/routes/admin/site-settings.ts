@@ -19,15 +19,13 @@ export const adminSiteSettingsRouter = {
     const { siteSettings } = context.repos;
     const rows = await siteSettings.listAll();
     return {
-      settings: rows.map(
-        (r): SiteSettingResponse => ({
-          key: r.key,
-          value: r.value,
-          scope: r.scope,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
-        }),
-      ),
+      settings: rows.map((r): SiteSettingResponse => ({
+        key: r.key,
+        value: r.value,
+        scope: r.scope,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
     };
   }),
 

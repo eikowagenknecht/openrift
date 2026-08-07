@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchSuperTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminSuperTypesResponse> =>
-      apiOrpcClient(adminSuperTypesContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminSuperTypesResponse> =>
+    apiOrpcClient(adminSuperTypesContract, context.cookie).list(),
   );
 
 export const adminSuperTypesQueryOptions = queryOptions({

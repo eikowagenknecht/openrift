@@ -98,9 +98,8 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .validator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UploadCandidatesResponse> =>
-      apiOrpcClient(adminCardMutationsContract, context.cookie).upload(data),
+  .handler(({ context, data }): Promise<UploadCandidatesResponse> =>
+    apiOrpcClient(adminCardMutationsContract, context.cookie).upload(data),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────

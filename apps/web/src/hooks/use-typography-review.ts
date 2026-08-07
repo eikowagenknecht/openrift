@@ -13,9 +13,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchTypographyReview = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<TypographyReviewResponse> =>
-      apiOrpcClient(adminTypographyReviewContract, context.cookie).list(),
+  .handler(({ context }): Promise<TypographyReviewResponse> =>
+    apiOrpcClient(adminTypographyReviewContract, context.cookie).list(),
   );
 
 export const typographyReviewQueryOptions = queryOptions({

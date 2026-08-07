@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchRarities = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminRaritiesResponse> =>
-      apiOrpcClient(adminRaritiesContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminRaritiesResponse> =>
+    apiOrpcClient(adminRaritiesContract, context.cookie).list(),
   );
 
 export const adminRaritiesQueryOptions = queryOptions({

@@ -30,9 +30,8 @@ import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
 const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<DeckListResponse> =>
-      apiOrpcClient(decksContract, context.cookie).list({ includeArchived: "true" }),
+  .handler(({ context }): Promise<DeckListResponse> =>
+    apiOrpcClient(decksContract, context.cookie).list({ includeArchived: "true" }),
   );
 
 async function fetchDeckDetailImpl(
@@ -149,9 +148,8 @@ const createDeckFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckResponse> =>
-      apiOrpcClient(decksContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).create(data),
   );
 
 export function useCreateDeck() {
@@ -211,12 +209,11 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
-      apiOrpcClient(decksContract, context.cookie).replaceCards({
-        id: data.deckId,
-        cards: data.cards,
-      }),
+  .handler(({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
+    apiOrpcClient(decksContract, context.cookie).replaceCards({
+      id: data.deckId,
+      cards: data.cards,
+    }),
   );
 
 export function useSaveDeckCards() {
@@ -372,23 +369,21 @@ export function useUpdateDeckMeta(deckId: string): {
 const setDeckPinnedFn = createServerFn({ method: "POST" })
   .validator((input: { deckId: string; isPinned: boolean }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckResponse> =>
-      apiOrpcClient(decksContract, context.cookie).setPinned({
-        id: data.deckId,
-        isPinned: data.isPinned,
-      }),
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).setPinned({
+      id: data.deckId,
+      isPinned: data.isPinned,
+    }),
   );
 
 const setDeckArchivedFn = createServerFn({ method: "POST" })
   .validator((input: { deckId: string; archived: boolean }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckResponse> =>
-      apiOrpcClient(decksContract, context.cookie).setArchived({
-        id: data.deckId,
-        archived: data.archived,
-      }),
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).setArchived({
+      id: data.deckId,
+      archived: data.archived,
+    }),
   );
 
 function applyDeckUpdateToCaches(
@@ -437,9 +432,8 @@ export function useSetDeckArchived() {
 const cloneDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: deckId }): Promise<DeckResponse> =>
-      apiOrpcClient(decksContract, context.cookie).clone({ id: deckId }),
+  .handler(({ context, data: deckId }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).clone({ id: deckId }),
   );
 
 export function useCloneDeck() {
@@ -455,13 +449,12 @@ type ExportFormat = "piltover" | "text" | "tts";
 const exportDeckFn = createServerFn({ method: "GET" })
   .validator((input: { deckId: string; format?: ExportFormat }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckExportResponse> =>
-      apiOrpcClient(decksContract, context.cookie).export({
-        id: data.deckId,
-        // Omitting format lets the contract apply its `piltover` default.
-        ...(data.format ? { format: data.format } : {}),
-      }),
+  .handler(({ context, data }): Promise<DeckExportResponse> =>
+    apiOrpcClient(decksContract, context.cookie).export({
+      id: data.deckId,
+      // Omitting format lets the contract apply its `piltover` default.
+      ...(data.format ? { format: data.format } : {}),
+    }),
   );
 
 export function useExportDeck() {
@@ -489,8 +482,8 @@ export interface EncodeDeckCardInput {
 // to `export` by id. Reuses the same server codecs as the authenticated export.
 const encodeDeckCardsFn = createServerFn({ method: "POST" })
   .validator((input: { format?: ExportFormat; cards: EncodeDeckCardInput[] }) => input)
-  .handler(
-    ({ data }): Promise<DeckExportResponse> => apiOrpcClient(publicDecksContract).encode(data),
+  .handler(({ data }): Promise<DeckExportResponse> =>
+    apiOrpcClient(publicDecksContract).encode(data),
   );
 
 export function useEncodeDeckCards() {
@@ -508,9 +501,8 @@ export function useEncodeDeckCards() {
 const shareDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: deckId }): Promise<DeckShareResponse> =>
-      apiOrpcClient(decksContract, context.cookie).share({ id: deckId }),
+  .handler(({ context, data: deckId }): Promise<DeckShareResponse> =>
+    apiOrpcClient(decksContract, context.cookie).share({ id: deckId }),
   );
 
 export function useShareDeck() {
@@ -577,9 +569,8 @@ export function usePublicDeck(token: string) {
 const cloneSharedDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: token }): Promise<DeckCloneResponse> =>
-      apiOrpcClient(decksContract, context.cookie).cloneShared({ token }),
+  .handler(({ context, data: token }): Promise<DeckCloneResponse> =>
+    apiOrpcClient(decksContract, context.cookie).cloneShared({ token }),
   );
 
 export function useCloneSharedDeck() {

@@ -38,73 +38,64 @@ export interface TournamentDeckSubmissionInput {
 const fetchMyTournamentDeck = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: tournamentId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).getMine({ tournamentId }),
+  .handler(({ context, data: tournamentId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).getMine({ tournamentId }),
   );
 
 const editMyTournamentDeckFn = createServerFn({ method: "POST" })
   .validator((input: { entryId: string } & TournamentDeckSubmissionInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).editList(data),
+  .handler(({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).editList(data),
   );
 
 const submitMyTournamentDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).submit({ entryId }),
+  .handler(({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).submit({ entryId }),
   );
 
 const unlockMyTournamentDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).unlock({ entryId }),
+  .handler(({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).unlock({ entryId }),
   );
 
 const cancelUnlockRequestFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).cancelUnlock({ entryId }),
+  .handler(({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).cancelUnlock({ entryId }),
   );
 
 const fetchSubmissionPage = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: token }): Promise<DeckCheckSubmissionPageResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).submissionPage({ token }),
+  .handler(({ context, data: token }): Promise<DeckCheckSubmissionPageResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).submissionPage({ token }),
   );
 
 const submitTournamentDeckFn = createServerFn({ method: "POST" })
   .validator((input: { token: string } & TournamentDeckSubmissionInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).submitToToken(data),
+  .handler(({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).submitToToken(data),
   );
 
 const fetchClaimLanding = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: token }): Promise<DeckCheckClaimLandingResponse> =>
-      apiOrpcClient(deckCheckClaimContract, context.cookie).landing({ token }),
+  .handler(({ context, data: token }): Promise<DeckCheckClaimLandingResponse> =>
+    apiOrpcClient(deckCheckClaimContract, context.cookie).landing({ token }),
   );
 
 const claimTournamentDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: token }): Promise<DeckCheckClaimResultResponse> =>
-      apiOrpcClient(deckCheckPlayerContract, context.cookie).claim({ token }),
+  .handler(({ context, data: token }): Promise<DeckCheckClaimResultResponse> =>
+    apiOrpcClient(deckCheckPlayerContract, context.cookie).claim({ token }),
   );
 
 // ── Query hooks ─────────────────────────────────────────────────────────────

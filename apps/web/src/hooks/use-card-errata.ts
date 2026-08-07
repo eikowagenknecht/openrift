@@ -118,9 +118,8 @@ export interface BulkErrataUploadResponse {
 const uploadErrataFn = createServerFn({ method: "POST" })
   .validator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<BulkErrataUploadResponse> =>
-      apiOrpcClient(adminCardMutationsContract, context.cookie).uploadErrata(data),
+  .handler(({ context, data }): Promise<BulkErrataUploadResponse> =>
+    apiOrpcClient(adminCardMutationsContract, context.cookie).uploadErrata(data),
   );
 
 /**

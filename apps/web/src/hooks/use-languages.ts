@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchLanguages = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminLanguagesResponse> =>
-      apiOrpcClient(adminLanguagesContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminLanguagesResponse> =>
+    apiOrpcClient(adminLanguagesContract, context.cookie).list(),
   );
 
 export const adminLanguagesQueryOptions = queryOptions({

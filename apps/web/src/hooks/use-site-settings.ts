@@ -25,9 +25,8 @@ type SettingScope = "web" | "api";
 
 const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminSiteSettingsResponse> =>
-      apiOrpcClient(adminSiteSettingsContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminSiteSettingsResponse> =>
+    apiOrpcClient(adminSiteSettingsContract, context.cookie).list(),
   );
 
 export const adminSiteSettingsQueryOptions = queryOptions({

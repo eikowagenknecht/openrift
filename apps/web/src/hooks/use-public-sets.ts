@@ -8,36 +8,34 @@ import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-const fetchSetList = createServerFn({ method: "GET" }).handler(
-  (): Promise<SetListResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "sets"],
-      queryFn: () => apiOrpcClient(setsContract).list(),
-    }),
+const fetchSetList = createServerFn({ method: "GET" }).handler((): Promise<SetListResponse> =>
+  serverCache.fetchQuery({
+    queryKey: ["server-cache", "sets"],
+    queryFn: () => apiOrpcClient(setsContract).list(),
+  }),
 );
 
 const fetchSetDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
-  .handler(
-    ({ data }): Promise<SetDetailResponse> =>
-      serverCache.fetchQuery({
-        queryKey: ["server-cache", "set-detail", data],
-        queryFn: async () => {
-          // 404 is legitimate (unknown slug) — the contract declares it as a
-          // typed NOT_FOUND error; map it to the sentinel the caller expects
-          // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
-          const { error, data: detail } = await safe(
-            apiOrpcClient(setsContract).detail({ setSlug: data }),
-          );
-          if (error) {
-            if (isDefinedError(error) && error.code === "NOT_FOUND") {
-              throw new Error("NOT_FOUND");
-            }
-            throw error;
+  .handler(({ data }): Promise<SetDetailResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "set-detail", data],
+      queryFn: async () => {
+        // 404 is legitimate (unknown slug) — the contract declares it as a
+        // typed NOT_FOUND error; map it to the sentinel the caller expects
+        // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
+        const { error, data: detail } = await safe(
+          apiOrpcClient(setsContract).detail({ setSlug: data }),
+        );
+        if (error) {
+          if (isDefinedError(error) && error.code === "NOT_FOUND") {
+            throw new Error("NOT_FOUND");
           }
-          return detail;
-        },
-      }),
+          throw error;
+        }
+        return detail;
+      },
+    }),
   );
 
 interface EnrichedSetDetail {

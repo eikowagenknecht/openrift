@@ -85,9 +85,8 @@ const createCollectionFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<CollectionResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<CollectionResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).create(data),
   );
 
 export function useCreateCollection() {
@@ -106,9 +105,8 @@ export function useCreateCollection() {
 const updateCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; name?: string; description?: string | null }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<CollectionResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).update(data),
+  .handler(({ context, data }): Promise<CollectionResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).update(data),
   );
 
 export function useUpdateCollection() {
@@ -265,9 +263,8 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
 const clearCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<ClearCollectionResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).clear({ id: data.id }),
+  .handler(({ context, data }): Promise<ClearCollectionResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).clear({ id: data.id }),
   );
 
 // ── Collection sharing ──────────────────────────────────────────────────────
@@ -275,9 +272,8 @@ const clearCollectionFn = createServerFn({ method: "POST" })
 const shareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: collectionId }): Promise<CollectionShareResponse> =>
-      apiOrpcClient(collectionsContract, context.cookie).share({ id: collectionId }),
+  .handler(({ context, data: collectionId }): Promise<CollectionShareResponse> =>
+    apiOrpcClient(collectionsContract, context.cookie).share({ id: collectionId }),
   );
 
 export function useShareCollection() {

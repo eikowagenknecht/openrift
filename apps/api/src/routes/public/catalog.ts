@@ -17,7 +17,7 @@ const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
  * cache lifetime, so the catalog ETag stays stable across daily price refreshes.
  */
 export const catalogRouter = {
-  catalog: os.catalog.handler(
-    ({ context }): Promise<CatalogResponse> => assembleCatalogResponse(context.repos),
+  catalog: os.catalog.handler(({ context }): Promise<CatalogResponse> =>
+    assembleCatalogResponse(context.repos),
   ),
 };

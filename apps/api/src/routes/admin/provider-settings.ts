@@ -18,15 +18,13 @@ export const adminProviderSettingsRouter = {
     const { providerSettings: repo } = context.repos;
     const rows = await repo.listAll();
     return {
-      providerSettings: rows.map(
-        (r): ProviderSettingResponse => ({
-          provider: r.provider,
-          sortOrder: r.sortOrder,
-          isHidden: r.isHidden,
-          isFavorite: r.isFavorite,
-          helperReviewable: r.helperReviewable,
-        }),
-      ),
+      providerSettings: rows.map((r): ProviderSettingResponse => ({
+        provider: r.provider,
+        sortOrder: r.sortOrder,
+        isHidden: r.isHidden,
+        isFavorite: r.isFavorite,
+        helperReviewable: r.helperReviewable,
+      })),
     };
   }),
 

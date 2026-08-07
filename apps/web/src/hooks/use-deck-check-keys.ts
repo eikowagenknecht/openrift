@@ -19,17 +19,15 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchMyKeys = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<DeckCheckKeysResponse> =>
-      apiOrpcClient(deckCheckKeysContract, context.cookie).listMine(),
+  .handler(({ context }): Promise<DeckCheckKeysResponse> =>
+    apiOrpcClient(deckCheckKeysContract, context.cookie).listMine(),
   );
 
 const mintMyKeyFn = createServerFn({ method: "POST" })
   .validator((input: { label: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckKeyMintedResponse> =>
-      apiOrpcClient(deckCheckKeysContract, context.cookie).mintMine(data),
+  .handler(({ context, data }): Promise<DeckCheckKeyMintedResponse> =>
+    apiOrpcClient(deckCheckKeysContract, context.cookie).mintMine(data),
   );
 
 const renameMyKeyFn = createServerFn({ method: "POST" })
@@ -99,17 +97,15 @@ export function useRemoveMyDeckCheckKey() {
 const fetchOrgKeys = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: orgId }): Promise<DeckCheckKeysResponse> =>
-      apiOrpcClient(deckCheckKeysContract, context.cookie).listForOrg({ orgId }),
+  .handler(({ context, data: orgId }): Promise<DeckCheckKeysResponse> =>
+    apiOrpcClient(deckCheckKeysContract, context.cookie).listForOrg({ orgId }),
   );
 
 const mintOrgKeyFn = createServerFn({ method: "POST" })
   .validator((input: { orgId: string; label: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckKeyMintedResponse> =>
-      apiOrpcClient(deckCheckKeysContract, context.cookie).mintForOrg(data),
+  .handler(({ context, data }): Promise<DeckCheckKeyMintedResponse> =>
+    apiOrpcClient(deckCheckKeysContract, context.cookie).mintForOrg(data),
   );
 
 const renameOrgKeyFn = createServerFn({ method: "POST" })

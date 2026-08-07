@@ -387,28 +387,24 @@ function RailRowBody({ row }: { row: SharedRow }) {
  */
 function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const rows: SharedRow[] = [
-    ...data.shares.map(
-      (share): SharedRow => ({
-        key: `list:${share.listId}`,
-        sharedAt: share.sharedAt,
-        icon: LIST_INTENT_ICON[share.listIntent],
-        name: share.listName,
-        sub: `${capitalize(LIST_INTENT_NOUN[share.listIntent])} · ${share.userName ?? "a member"}`,
-        target: "list",
-        listId: share.listId,
-      }),
-    ),
-    ...data.collectionShares.map(
-      (share): SharedRow => ({
-        key: `collection:${share.collectionId}`,
-        sharedAt: share.sharedAt,
-        icon: FolderIcon,
-        name: share.collectionName,
-        sub: `Collection · ${share.userName ?? "a member"}`,
-        target: "collection",
-        collectionId: share.collectionId,
-      }),
-    ),
+    ...data.shares.map((share): SharedRow => ({
+      key: `list:${share.listId}`,
+      sharedAt: share.sharedAt,
+      icon: LIST_INTENT_ICON[share.listIntent],
+      name: share.listName,
+      sub: `${capitalize(LIST_INTENT_NOUN[share.listIntent])} · ${share.userName ?? "a member"}`,
+      target: "list",
+      listId: share.listId,
+    })),
+    ...data.collectionShares.map((share): SharedRow => ({
+      key: `collection:${share.collectionId}`,
+      sharedAt: share.sharedAt,
+      icon: FolderIcon,
+      name: share.collectionName,
+      sub: `Collection · ${share.userName ?? "a member"}`,
+      target: "collection",
+      collectionId: share.collectionId,
+    })),
   ]
     .toSorted((a, b) => b.sharedAt.localeCompare(a.sharedAt))
     .slice(0, 3);

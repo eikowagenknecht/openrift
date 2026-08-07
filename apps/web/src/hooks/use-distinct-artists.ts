@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchDistinctArtists = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<DistinctArtistsResponse> =>
-      apiOrpcClient(adminCardQueriesContract, context.cookie).distinctArtists(),
+  .handler(({ context }): Promise<DistinctArtistsResponse> =>
+    apiOrpcClient(adminCardQueriesContract, context.cookie).distinctArtists(),
   );
 
 export const adminDistinctArtistsQueryOptions = queryOptions({

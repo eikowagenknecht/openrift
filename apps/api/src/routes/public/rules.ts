@@ -80,14 +80,12 @@ export const rulesRouter = {
     const { rules: repo } = context.repos;
     const rows = await repo.listVersions(input.kind);
     return {
-      versions: rows.map(
-        (r): RuleVersionResponse => ({
-          kind: r.kind as RuleKind,
-          version: r.version,
-          comments: r.comments,
-          importedAt: r.importedAt.toISOString(),
-        }),
-      ),
+      versions: rows.map((r): RuleVersionResponse => ({
+        kind: r.kind as RuleKind,
+        version: r.version,
+        comments: r.comments,
+        importedAt: r.importedAt.toISOString(),
+      })),
     };
   }),
 };

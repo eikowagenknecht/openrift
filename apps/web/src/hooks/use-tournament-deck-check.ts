@@ -103,9 +103,8 @@ const createEntryFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).createEntry(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).createEntry(data),
   );
 
 const setEntryStateFn = createServerFn({ method: "POST" })
@@ -120,17 +119,15 @@ const setEntryStateFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).setEntryState(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).setEntryState(data),
   );
 
 const denyUnlockRequestFn = createServerFn({ method: "POST" })
   .validator((input: { tournamentId: string; entryId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).denyUnlockRequest(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).denyUnlockRequest(data),
   );
 
 const updateEntryFn = createServerFn({ method: "POST" })
@@ -147,9 +144,8 @@ const updateEntryFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).updateEntry(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).updateEntry(data),
   );
 
 const deleteEntryFn = createServerFn({ method: "POST" })
@@ -162,17 +158,15 @@ const deleteEntryFn = createServerFn({ method: "POST" })
 const unlinkEntryFn = createServerFn({ method: "POST" })
   .validator((input: { tournamentId: string; entryId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).unlinkEntry(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).unlinkEntry(data),
   );
 
 const reResolveFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: tournamentId }): Promise<{ updatedLines: number }> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).reResolve({ tournamentId }),
+  .handler(({ context, data: tournamentId }): Promise<{ updatedLines: number }> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).reResolve({ tournamentId }),
   );
 
 const addCardFn = createServerFn({ method: "POST" })
@@ -186,9 +180,8 @@ const addCardFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).addCard(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).addCard(data),
   );
 
 const renameCardFn = createServerFn({ method: "POST" })
@@ -203,17 +196,15 @@ const renameCardFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).renameCard(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).renameCard(data),
   );
 
 const applyZoneFixesFn = createServerFn({ method: "POST" })
   .validator((input: { tournamentId: string; entryId: string; cardIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      apiOrpcClient(tournamentDeckCheckContract, context.cookie).applyZoneFixes(data),
+  .handler(({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+    apiOrpcClient(tournamentDeckCheckContract, context.cookie).applyZoneFixes(data),
   );
 
 const removeCardFn = createServerFn({ method: "POST" })

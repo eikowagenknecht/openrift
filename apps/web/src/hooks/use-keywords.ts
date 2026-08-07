@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchKeywordStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<KeywordStatsResponse> =>
-      apiOrpcClient(adminKeywordsContract, context.cookie).stats(),
+  .handler(({ context }): Promise<KeywordStatsResponse> =>
+    apiOrpcClient(adminKeywordsContract, context.cookie).stats(),
   );
 
 export const keywordStatsQueryOptions = queryOptions({

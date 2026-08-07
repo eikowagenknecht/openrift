@@ -30,9 +30,8 @@ type UnignoreInput = UnignoreProductInput | UnignoreVariantInput;
 
 const fetchIgnoredProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<IgnoredProductsResponse> =>
-      apiOrpcClient(adminIgnoredProductsContract, context.cookie).list(),
+  .handler(({ context }): Promise<IgnoredProductsResponse> =>
+    apiOrpcClient(adminIgnoredProductsContract, context.cookie).list(),
   );
 
 export const ignoredProductsQueryOptions = queryOptions({

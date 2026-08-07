@@ -9,12 +9,11 @@ import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-const fetchPrices = createServerFn({ method: "GET" }).handler(
-  (): Promise<PricesResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "prices"],
-      queryFn: () => apiOrpcClient(pricesContract).prices(),
-    }),
+const fetchPrices = createServerFn({ method: "GET" }).handler((): Promise<PricesResponse> =>
+  serverCache.fetchQuery({
+    queryKey: ["server-cache", "prices"],
+    queryFn: () => apiOrpcClient(pricesContract).prices(),
+  }),
 );
 
 // Client-side fetch goes directly to /api/v1/prices so Cloudflare can serve

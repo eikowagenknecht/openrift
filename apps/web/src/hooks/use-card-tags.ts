@@ -20,9 +20,8 @@ interface AdminTagCategoriesResponse {
 
 const fetchCardTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminCardTagsResponse> =>
-      apiOrpcClient(adminCardTagsContract, context.cookie).listTags(),
+  .handler(({ context }): Promise<AdminCardTagsResponse> =>
+    apiOrpcClient(adminCardTagsContract, context.cookie).listTags(),
   );
 
 export const adminCardTagsQueryOptions = queryOptions({
@@ -39,9 +38,8 @@ export function useCardTags() {
 
 const fetchTagCategories = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminTagCategoriesResponse> =>
-      apiOrpcClient(adminCardTagsContract, context.cookie).listCategories(),
+  .handler(({ context }): Promise<AdminTagCategoriesResponse> =>
+    apiOrpcClient(adminCardTagsContract, context.cookie).listCategories(),
   );
 
 export const adminTagCategoriesQueryOptions = queryOptions({
@@ -135,9 +133,8 @@ interface DetectLegendTagsResponse {
 const detectLegendTagsFn = createServerFn({ method: "POST" })
   .validator((input: { categoryId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DetectLegendTagsResponse> =>
-      apiOrpcClient(adminCardTagsContract, context.cookie).detectLegendTags(data),
+  .handler(({ context, data }): Promise<DetectLegendTagsResponse> =>
+    apiOrpcClient(adminCardTagsContract, context.cookie).detectLegendTags(data),
   );
 
 export function useDetectLegendTags() {

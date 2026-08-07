@@ -21,24 +21,21 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchMyOrganizations = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<OrganizationListResponse> =>
-      apiOrpcClient(organizationsContract, context.cookie).list(),
+  .handler(({ context }): Promise<OrganizationListResponse> =>
+    apiOrpcClient(organizationsContract, context.cookie).list(),
   );
 
 const fetchOrganization = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: id }): Promise<OrganizationDetailResponse> =>
-      apiOrpcClient(organizationsContract, context.cookie).get({ id }),
+  .handler(({ context, data: id }): Promise<OrganizationDetailResponse> =>
+    apiOrpcClient(organizationsContract, context.cookie).get({ id }),
   );
 
 const fetchAdminOrganizations = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<OrganizationListResponse> =>
-      apiOrpcClient(adminOrganizationsContract, context.cookie).list(),
+  .handler(({ context }): Promise<OrganizationListResponse> =>
+    apiOrpcClient(adminOrganizationsContract, context.cookie).list(),
   );
 
 // ── Query options + hooks ────────────────────────────────────────────────────
@@ -81,25 +78,22 @@ export function useAdminOrganizations() {
 const addMemberFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; email: string; role: OrganizationRole }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<OrganizationDetailResponse> =>
-      apiOrpcClient(organizationsContract, context.cookie).addMember(data),
+  .handler(({ context, data }): Promise<OrganizationDetailResponse> =>
+    apiOrpcClient(organizationsContract, context.cookie).addMember(data),
   );
 
 const updateMemberRoleFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; userId: string; role: OrganizationRole }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<OrganizationDetailResponse> =>
-      apiOrpcClient(organizationsContract, context.cookie).updateMemberRole(data),
+  .handler(({ context, data }): Promise<OrganizationDetailResponse> =>
+    apiOrpcClient(organizationsContract, context.cookie).updateMemberRole(data),
   );
 
 const removeMemberFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; userId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<OrganizationDetailResponse> =>
-      apiOrpcClient(organizationsContract, context.cookie).removeMember(data),
+  .handler(({ context, data }): Promise<OrganizationDetailResponse> =>
+    apiOrpcClient(organizationsContract, context.cookie).removeMember(data),
   );
 
 const adminCreateOrgFn = createServerFn({ method: "POST" })
@@ -108,9 +102,8 @@ const adminCreateOrgFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<OrganizationResponse> =>
-      apiOrpcClient(adminOrganizationsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<OrganizationResponse> =>
+    apiOrpcClient(adminOrganizationsContract, context.cookie).create(data),
   );
 
 const adminUpdateOrgFn = createServerFn({ method: "POST" })
@@ -118,9 +111,8 @@ const adminUpdateOrgFn = createServerFn({ method: "POST" })
     (input: { id: string; slug?: string; name?: string; description?: string | null }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<OrganizationResponse> =>
-      apiOrpcClient(adminOrganizationsContract, context.cookie).update(data),
+  .handler(({ context, data }): Promise<OrganizationResponse> =>
+    apiOrpcClient(adminOrganizationsContract, context.cookie).update(data),
   );
 
 const adminDeleteOrgFn = createServerFn({ method: "POST" })

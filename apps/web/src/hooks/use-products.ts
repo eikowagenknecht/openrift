@@ -19,12 +19,11 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<ProductsListResponse> =>
-      serverCache.fetchQuery({
-        queryKey: ["server-cache", "products"],
-        queryFn: () => apiOrpcClient(productsContract, context.cookie).list(),
-      }),
+  .handler(({ context }): Promise<ProductsListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "products"],
+      queryFn: () => apiOrpcClient(productsContract, context.cookie).list(),
+    }),
   );
 
 export const productsListQueryOptions = queryOptions({

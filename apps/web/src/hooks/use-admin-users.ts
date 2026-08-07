@@ -9,9 +9,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchAdminUsers = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminUsersResponse> =>
-      apiOrpcClient(adminUsersContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminUsersResponse> =>
+    apiOrpcClient(adminUsersContract, context.cookie).list(),
   );
 
 export const adminUsersQueryOptions = queryOptions({

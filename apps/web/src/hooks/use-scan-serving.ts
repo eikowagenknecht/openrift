@@ -44,8 +44,8 @@ const DEV_SCAN_ASSETS: ScanAssets = {
 
 const fetchScanManifestFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<ScanManifest> => apiOrpcClient(scanContract, context.cookie).manifest(),
+  .handler(({ context }): Promise<ScanManifest> =>
+    apiOrpcClient(scanContract, context.cookie).manifest(),
   );
 
 /**
@@ -82,9 +82,8 @@ export function useScanAssets(): ScanAssets | null {
 
 const rebuildScanBankFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunStartedResponse> =>
-      apiOrpcClient(adminScanContract, context.cookie).rebuildBank(),
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminScanContract, context.cookie).rebuildBank(),
   );
 
 export function useRebuildScanBank() {

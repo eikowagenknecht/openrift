@@ -11,9 +11,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 const fetchCardBansFn = createServerFn({ method: "GET" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<{ bans: CardBanResponse[] }> =>
-      apiOrpcClient(adminCardBansContract, context.cookie).list({ id: data.cardId }),
+  .handler(({ context, data }): Promise<{ bans: CardBanResponse[] }> =>
+    apiOrpcClient(adminCardBansContract, context.cookie).list({ id: data.cardId }),
   );
 
 export function useCardBans(cardId: string) {

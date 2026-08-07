@@ -24,9 +24,8 @@ export function useFeatureEnabled(key: string): boolean {
 
 const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminFeatureFlagsResponse> =>
-      apiOrpcClient(adminFeatureFlagsContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminFeatureFlagsResponse> =>
+    apiOrpcClient(adminFeatureFlagsContract, context.cookie).list(),
   );
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
@@ -90,9 +89,8 @@ export function useDeleteFeatureFlag() {
 
 const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
-      apiOrpcClient(adminFeatureFlagsContract, context.cookie).listOverrides(),
+  .handler(({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
+    apiOrpcClient(adminFeatureFlagsContract, context.cookie).listOverrides(),
   );
 
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({

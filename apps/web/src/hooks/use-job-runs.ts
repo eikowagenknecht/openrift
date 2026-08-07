@@ -29,16 +29,15 @@ export interface JobRunsQueryParams {
 const fetchJobRuns = createServerFn({ method: "GET" })
   .validator((input: JobRunsQueryParams) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<JobRunsListResponse> =>
-      apiOrpcClient(adminJobRunsContract, context.cookie).list({
-        page: data.page,
-        limit: JOB_RUNS_PAGE_SIZE,
-        kind: data.kind,
-        trigger: data.trigger,
-        status: data.status,
-        activity: data.activity,
-      }),
+  .handler(({ context, data }): Promise<JobRunsListResponse> =>
+    apiOrpcClient(adminJobRunsContract, context.cookie).list({
+      page: data.page,
+      limit: JOB_RUNS_PAGE_SIZE,
+      kind: data.kind,
+      trigger: data.trigger,
+      status: data.status,
+      activity: data.activity,
+    }),
   );
 
 export function adminJobRunsQueryOptions(params: JobRunsQueryParams) {

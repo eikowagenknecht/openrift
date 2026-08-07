@@ -10,26 +10,25 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchCardDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
-  .handler(
-    ({ data }): Promise<CardDetailResponse> =>
-      serverCache.fetchQuery({
-        queryKey: ["server-cache", "card-detail", data],
-        queryFn: async () => {
-          // 404 (unknown slug) is a typed NOT_FOUND error on the contract;
-          // `safe` + `isDefinedError` narrows `error.code` to the declared set,
-          // mapped to the sentinel the route boundary expects.
-          const { error, data: detail } = await safe(
-            apiOrpcClient(cardsContract).detail({ cardSlug: data }),
-          );
-          if (error) {
-            if (isDefinedError(error) && error.code === "NOT_FOUND") {
-              throw new Error("NOT_FOUND");
-            }
-            throw error;
+  .handler(({ data }): Promise<CardDetailResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "card-detail", data],
+      queryFn: async () => {
+        // 404 (unknown slug) is a typed NOT_FOUND error on the contract;
+        // `safe` + `isDefinedError` narrows `error.code` to the declared set,
+        // mapped to the sentinel the route boundary expects.
+        const { error, data: detail } = await safe(
+          apiOrpcClient(cardsContract).detail({ cardSlug: data }),
+        );
+        if (error) {
+          if (isDefinedError(error) && error.code === "NOT_FOUND") {
+            throw new Error("NOT_FOUND");
           }
-          return detail;
-        },
-      }),
+          throw error;
+        }
+        return detail;
+      },
+    }),
   );
 
 interface EnrichedCardDetail {

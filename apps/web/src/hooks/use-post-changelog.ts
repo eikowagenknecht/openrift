@@ -12,9 +12,8 @@ interface PostChangelogResponse {
 
 const postChangelogFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<PostChangelogResponse> =>
-      apiOrpcClient(adminChangelogContract, context.cookie).post(),
+  .handler(({ context }): Promise<PostChangelogResponse> =>
+    apiOrpcClient(adminChangelogContract, context.cookie).post(),
   );
 
 export function usePostChangelog() {

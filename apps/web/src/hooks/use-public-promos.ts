@@ -10,12 +10,11 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPromoList = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<PromosListResponse> =>
-      serverCache.fetchQuery({
-        queryKey: ["server-cache", "promos"],
-        queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
-      }),
+  .handler(({ context }): Promise<PromosListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "promos"],
+      queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
+    }),
   );
 
 interface EnrichedPromoList {

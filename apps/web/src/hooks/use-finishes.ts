@@ -10,9 +10,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 const fetchFinishes = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<AdminFinishesResponse> =>
-      apiOrpcClient(adminFinishesContract, context.cookie).list(),
+  .handler(({ context }): Promise<AdminFinishesResponse> =>
+    apiOrpcClient(adminFinishesContract, context.cookie).list(),
   );
 
 export const adminFinishesQueryOptions = queryOptions({

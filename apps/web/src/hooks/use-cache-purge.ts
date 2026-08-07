@@ -13,9 +13,8 @@ interface CacheStatusResponse {
 
 const fetchCacheStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<CacheStatusResponse> =>
-      apiOrpcClient(adminCacheContract, context.cookie).status(),
+  .handler(({ context }): Promise<CacheStatusResponse> =>
+    apiOrpcClient(adminCacheContract, context.cookie).status(),
   );
 
 export const adminCacheStatusQueryOptions = queryOptions({

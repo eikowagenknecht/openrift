@@ -41,10 +41,9 @@ const createLoanFn = createServerFn({ method: "POST" })
 const loanActionFn = createServerFn({ method: "POST" })
   .validator((input: { loanId: string; action: "acknowledge" | "reject" }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<LoanResponse> =>
-      // acknowledge/reject share the same { id } → LoanResponse shape.
-      apiOrpcClient(loansContract, context.cookie)[data.action]({ id: data.loanId }),
+  .handler(({ context, data }): Promise<LoanResponse> =>
+    // acknowledge/reject share the same { id } → LoanResponse shape.
+    apiOrpcClient(loansContract, context.cookie)[data.action]({ id: data.loanId }),
   );
 
 const returnLoanCopiesFn = createServerFn({ method: "POST" })

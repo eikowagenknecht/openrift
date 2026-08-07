@@ -240,21 +240,19 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
 const checkProviderFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
-      apiOrpcClient(adminCardMutationsContract, context.cookie).checkByProvider({
-        provider: data.provider,
-      }),
+  .handler(({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
+    apiOrpcClient(adminCardMutationsContract, context.cookie).checkByProvider({
+      provider: data.provider,
+    }),
   );
 
 const deleteProviderFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<{ deleted: number; provider: string }> =>
-      apiOrpcClient(adminCardMutationsContract, context.cookie).deleteByProvider({
-        provider: data.provider,
-      }),
+  .handler(({ context, data }): Promise<{ deleted: number; provider: string }> =>
+    apiOrpcClient(adminCardMutationsContract, context.cookie).deleteByProvider({
+      provider: data.provider,
+    }),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
@@ -551,9 +549,8 @@ export function useCheckProvider() {
 
 const relinkCandidatePrintingsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<{ examined: number; linked: number }> =>
-      apiOrpcClient(adminCardMutationsContract, context.cookie).relinkCandidatePrintings(),
+  .handler(({ context }): Promise<{ examined: number; linked: number }> =>
+    apiOrpcClient(adminCardMutationsContract, context.cookie).relinkCandidatePrintings(),
   );
 
 /**

@@ -31,18 +31,16 @@ export const adminCardTagsRouter = {
         counts.set(def.categoryId, (counts.get(def.categoryId) ?? 0) + 1);
       }
       return {
-        categories: cats.map(
-          (cat): TagCategoryResponse => ({
-            id: cat.id,
-            slug: cat.slug,
-            label: cat.label,
-            description: cat.description,
-            sortOrder: cat.sortOrder,
-            tagCount: counts.get(cat.id) ?? 0,
-            createdAt: cat.createdAt.toISOString(),
-            updatedAt: cat.updatedAt.toISOString(),
-          }),
-        ),
+        categories: cats.map((cat): TagCategoryResponse => ({
+          id: cat.id,
+          slug: cat.slug,
+          label: cat.label,
+          description: cat.description,
+          sortOrder: cat.sortOrder,
+          tagCount: counts.get(cat.id) ?? 0,
+          createdAt: cat.createdAt.toISOString(),
+          updatedAt: cat.updatedAt.toISOString(),
+        })),
       };
     },
   ),

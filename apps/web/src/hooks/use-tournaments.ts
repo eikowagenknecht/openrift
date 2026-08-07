@@ -83,9 +83,8 @@ interface UpdateTournamentInput {
 
 const fetchTournaments = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<TournamentListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).list(),
+  .handler(({ context }): Promise<TournamentListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).list(),
   );
 
 const fetchTournamentDetail = createServerFn({ method: "GET" })
@@ -108,9 +107,8 @@ const fetchTournamentDetail = createServerFn({ method: "GET" })
 const fetchGroupTournaments = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: slug }): Promise<TournamentListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).listForGroup({ slug }),
+  .handler(({ context, data: slug }): Promise<TournamentListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).listForGroup({ slug }),
   );
 
 const fetchParticipants = createServerFn({ method: "GET" })
@@ -278,25 +276,22 @@ export function useTournamentStaffInviteLanding(token: string) {
 const createTournamentFn = createServerFn({ method: "POST" })
   .validator((input: CreateTournamentInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).create(data),
+  .handler(({ context, data }): Promise<TournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).create(data),
   );
 
 const updateTournamentFn = createServerFn({ method: "POST" })
   .validator((input: UpdateTournamentInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).update(data),
+  .handler(({ context, data }): Promise<TournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).update(data),
   );
 
 const cancelTournamentFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: id }): Promise<TournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).cancel({ id }),
+  .handler(({ context, data: id }): Promise<TournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).cancel({ id }),
   );
 
 const deleteTournamentFn = createServerFn({ method: "POST" })
@@ -347,9 +342,8 @@ const removeStaffFn = createServerFn({ method: "POST" })
 const addParticipantFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; displayName: string; region?: string | null }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentParticipantListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).addParticipant(data),
+  .handler(({ context, data }): Promise<TournamentParticipantListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).addParticipant(data),
   );
 
 const updateParticipantFn = createServerFn({ method: "POST" })
@@ -364,9 +358,8 @@ const updateParticipantFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentParticipantListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).updateParticipant(data),
+  .handler(({ context, data }): Promise<TournamentParticipantListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).updateParticipant(data),
   );
 
 const participantActionFn = createServerFn({ method: "POST" })
@@ -412,25 +405,22 @@ const participantActionFn = createServerFn({ method: "POST" })
 const createTeamFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; participantIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentParticipantListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).createTeam(data),
+  .handler(({ context, data }): Promise<TournamentParticipantListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).createTeam(data),
   );
 
 const dissolveTeamFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; teamId: string }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<TournamentParticipantListResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).dissolveTeam(data),
+  .handler(({ context, data }): Promise<TournamentParticipantListResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).dissolveTeam(data),
   );
 
 const requestJoinFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: token }): Promise<PublicTournamentJoinResponse> =>
-      apiOrpcClient(publicTournamentsContract, context.cookie).requestJoin({ token }),
+  .handler(({ context, data: token }): Promise<PublicTournamentJoinResponse> =>
+    apiOrpcClient(publicTournamentsContract, context.cookie).requestJoin({ token }),
   );
 
 // ── Mutation hooks ───────────────────────────────────────────────────────────
@@ -655,9 +645,8 @@ export function useTournamentReport(token: string) {
 const generateRoundFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; byes: string[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).generateRound(data),
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).generateRound(data),
   );
 
 const replacePairingFn = createServerFn({ method: "POST" })
@@ -665,33 +654,29 @@ const replacePairingFn = createServerFn({ method: "POST" })
     (input: { id: string; roundNumber: number; pods: PairingPodInput[]; byes: string[] }) => input,
   )
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).replacePairing(data),
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).replacePairing(data),
   );
 
 const rerollRoundFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; roundNumber: number }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).rerollRound(data),
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).rerollRound(data),
   );
 
 const finalizeRoundFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; roundNumber: number }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).finalizeRound(data),
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).finalizeRound(data),
   );
 
 const submitResultFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; podId: string; results: PodResultEntry[] }) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      apiOrpcClient(tournamentsContract, context.cookie).submitResult(data),
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).submitResult(data),
   );
 
 const setReportTokenFn = createServerFn({ method: "POST" })
@@ -718,20 +703,18 @@ const submitReportPlayerResultFn = createServerFn({ method: "POST" })
   .validator(
     (input: { token: string; podId: string; playerId: string; gamePoints: number }) => input,
   )
-  .handler(
-    ({ data }): Promise<PodReportResponse> =>
-      apiOrpcClient(publicPodTournamentsContract).submitPlayerResult(data),
+  .handler(({ data }): Promise<PodReportResponse> =>
+    apiOrpcClient(publicPodTournamentsContract).submitPlayerResult(data),
   );
 
 const submitReportResultFn = createServerFn({ method: "POST" })
   .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
-  .handler(
-    ({ data }): Promise<PodReportResponse> =>
-      apiOrpcClient(publicPodTournamentsContract).submitResult({
-        token: data.token,
-        podId: data.podId,
-        results: data.results,
-      }),
+  .handler(({ data }): Promise<PodReportResponse> =>
+    apiOrpcClient(publicPodTournamentsContract).submitResult({
+      token: data.token,
+      podId: data.podId,
+      results: data.results,
+    }),
   );
 
 /**

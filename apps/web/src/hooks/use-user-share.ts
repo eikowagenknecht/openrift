@@ -24,9 +24,8 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchUserShareStateFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserShareStateResponse> =>
-      apiOrpcClient(userShareContract, context.cookie).get(),
+  .handler(({ context }): Promise<UserShareStateResponse> =>
+    apiOrpcClient(userShareContract, context.cookie).get(),
   );
 
 function userShareStateQueryOptions(userId: string) {
@@ -50,9 +49,8 @@ export function useUserShareState() {
 
 const enableUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserShareStateResponse> =>
-      apiOrpcClient(userShareContract, context.cookie).enable(),
+  .handler(({ context }): Promise<UserShareStateResponse> =>
+    apiOrpcClient(userShareContract, context.cookie).enable(),
   );
 
 const disableUserShareFn = createServerFn({ method: "POST" })
@@ -63,9 +61,8 @@ const disableUserShareFn = createServerFn({ method: "POST" })
 
 const rotateUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<UserShareStateResponse> =>
-      apiOrpcClient(userShareContract, context.cookie).rotate(),
+  .handler(({ context }): Promise<UserShareStateResponse> =>
+    apiOrpcClient(userShareContract, context.cookie).rotate(),
   );
 
 export function useEnableUserShare() {
