@@ -1,9 +1,10 @@
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type { ColumnDef, RowData, SortingState } from "@tanstack/react-table";
 import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  FlexRender,
+  createSortedRowModel,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
 } from "@tanstack/react-table";
 import {
   ArrowDownIcon,
@@ -40,6 +41,21 @@ import {
 } from "@/components/ui/table";
 import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Feature set
+// ---------------------------------------------------------------------------
+
+// Sorting is the only table feature these pages use; v9 leaves everything else
+// (filtering, pagination, selection, pinning) out of the bundle. The row model
+// is registered unconditionally even on reorder tables, where `enableSorting:
+// false` keeps every column out of `createSortedRowModel`'s sort list.
+const features = tableFeatures({
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+});
+
+type AdminTableFeatures = typeof features;
 
 // ---------------------------------------------------------------------------
 // Column definition (public API — consumed by all admin pages)
@@ -202,12 +218,12 @@ function alignClass(align?: "left" | "center" | "right") {
 }
 
 // Convert our public AdminColumnDef to TanStack ColumnDef.
-function toTanStackColumns<TData, TDraft>(
+function toTanStackColumns<TData extends RowData, TDraft>(
   adminCols: AdminColumnDef<TData, TDraft>[],
   enableSort: boolean,
-): ColumnDef<TData>[] {
+): ColumnDef<AdminTableFeatures, TData>[] {
   return adminCols.map((col) => {
-    const def: ColumnDef<TData> = {
+    const def: ColumnDef<AdminTableFeatures, TData> = {
       id: col.header,
       header: col.header,
       cell: (info) => cloneElement(col.cell, { row: info.row.original, index: info.row.index }),
@@ -224,9 +240,11 @@ function toTanStackColumns<TData, TDraft>(
     if (col.sortValue) {
       const { sortValue } = col;
       (
-        def as ColumnDef<TData> & { accessorFn: (row: TData) => string | number | null }
+        def as ColumnDef<AdminTableFeatures, TData> & {
+          accessorFn: (row: TData) => string | number | null;
+        }
       ).accessorFn = sortValue;
-      def.sortingFn = (rowA, rowB, columnId) => {
+      def.sortFn = (rowA, rowB, columnId) => {
         const va = rowA.getValue<string | number | null>(columnId);
         const vb = rowB.getValue<string | number | null>(columnId);
         if (va === null && vb === null) {
@@ -254,7 +272,7 @@ function toTanStackColumns<TData, TDraft>(
 // Component
 // ---------------------------------------------------------------------------
 
-export function AdminTable<TData, TDraft = TData>({
+export function AdminTable<TData extends RowData, TDraft = TData>({
   columns: adminColumns,
   data,
   getRowKey,
@@ -291,18 +309,14 @@ export function AdminTable<TData, TDraft = TData>({
     : [];
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns: tanStackColumns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: enableSort ? getSortedRowModel() : undefined,
     getRowId: (row) => getRowKey(row),
     enableSorting: enableSort,
-    // See accepted-cards-table.tsx: react-table's autoResetPageIndex
-    // cascades setState at ~5Hz on each render. We don't paginate.
-    autoResetPageIndex: false,
   });
 
   const hasActions = Boolean(edit || del || actions || addChild);
@@ -491,7 +505,7 @@ export function AdminTable<TData, TDraft = TData>({
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
                       <span className={cn(canSort && "inline-flex items-center gap-1")}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <FlexRender header={header} />
                         {canSort &&
                           (sorted ? (
                             sorted === "asc" ? (
@@ -560,19 +574,25 @@ export function AdminTable<TData, TDraft = TData>({
                       </TableCell>
                     )}
 
-                    {row.getVisibleCells().map((cell) => {
+                    {/* getAllCells, not getVisibleCells: see the same call in
+                        admin-card-table-shared.tsx. Equivalent while no column
+                        can hide; re-pair them if columnVisibilityFeature is
+                        ever registered. */}
+                    {row.getAllCells().map((cell) => {
                       const meta = cell.column.columnDef.meta as
                         | AdminColumnMeta<TDraft>
                         | undefined;
                       return (
                         <TableCell key={cell.id} className={alignClass(meta?.align)}>
-                          {isEditing && meta?.editCell
-                            ? cloneElement(meta.editCell, {
-                                draft: editDraft,
-                                setDraft: (fn) =>
-                                  setEditDraft((prev) => (prev === null ? prev : fn(prev))),
-                              })
-                            : flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          {isEditing && meta?.editCell ? (
+                            cloneElement(meta.editCell, {
+                              draft: editDraft,
+                              setDraft: (fn) =>
+                                setEditDraft((prev) => (prev === null ? prev : fn(prev))),
+                            })
+                          ) : (
+                            <FlexRender cell={cell} />
+                          )}
                         </TableCell>
                       );
                     })}

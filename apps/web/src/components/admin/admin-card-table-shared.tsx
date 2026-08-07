@@ -1,11 +1,22 @@
 import { useNavigate } from "@tanstack/react-router";
 import type {
+  RowData,
   Row as TanStackRow,
   SortingState,
   Table as TanStackTable,
   Updater,
 } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
+import {
+  columnFilteringFeature,
+  createFilteredRowModel,
+  createSortedRowModel,
+  FlexRender,
+  filterFn_includesString,
+  globalFilteringFeature,
+  rowSortingFeature,
+  sortFn_basic,
+  tableFeatures,
+} from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { RefObject } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -27,6 +38,32 @@ import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 // same route's search params, and virtualize their rows the same way.
 
 // ---------------------------------------------------------------------------
+// Feature set
+// ---------------------------------------------------------------------------
+
+/**
+ * Both admin card tables sort and global-filter, and nothing else. No
+ * pagination, no selection, no pinning. v9 only ships the features registered
+ * here, so the rest never reaches the bundle.
+ *
+ * `globalFilteringFeature` and the filtered row model both build on
+ * `columnFilteringFeature`, hence its presence even though no column carries
+ * its own filter. The registry keys are the only strings the `sortFn` /
+ * `globalFilterFn` column and table options accept.
+ */
+export const adminCardTableFeatures = tableFeatures({
+  columnFilteringFeature,
+  globalFilteringFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  filterFns: { includesString: filterFn_includesString },
+  sortFns: { basic: sortFn_basic },
+});
+
+export type AdminCardTableFeatures = typeof adminCardTableFeatures;
+
+// ---------------------------------------------------------------------------
 // Sort / global filter URL sync
 // ---------------------------------------------------------------------------
 
@@ -36,7 +73,7 @@ import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
  * local state.
  * @param sorting Current sorting state, as read from `CardsRoute.useSearch`.
  * @param globalFilter Current global filter string, as read from `CardsRoute.useSearch`.
- * @returns `onSortingChange` / `onGlobalFilterChange` handlers for `useReactTable`.
+ * @returns `onSortingChange` / `onGlobalFilterChange` handlers for `useTable`.
  */
 export function useAdminCardsTableUrlSync(sorting: SortingState, globalFilter: string) {
   const navigate = useNavigate({ from: CardsRoute.fullPath });
@@ -108,7 +145,7 @@ export function useVirtualizedTableRows(rowCount: number) {
  * @param props Table instance, its row model, virtualizer output, and per-column widths.
  * @returns The `<Table>` element.
  */
-export function VirtualizedAdminCardTable<TData>({
+export function VirtualizedAdminCardTable<TData extends RowData>({
   table,
   rows,
   virtualItems,
@@ -117,8 +154,8 @@ export function VirtualizedAdminCardTable<TData>({
   tableAnchorRef,
   columnWidths,
 }: {
-  table: TanStackTable<TData>;
-  rows: TanStackRow<TData>[];
+  table: TanStackTable<AdminCardTableFeatures, TData>;
+  rows: TanStackRow<AdminCardTableFeatures, TData>[];
   virtualItems: VirtualItem[];
   totalSize: number;
   scrollMargin: number;
@@ -132,7 +169,7 @@ export function VirtualizedAdminCardTable<TData>({
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
               <TableHead key={header.id} style={{ width: columnWidths[header.id] }}>
-                {flexRender(header.column.columnDef.header, header.getContext())}
+                <FlexRender header={header} />
               </TableHead>
             ))}
           </TableRow>
@@ -154,9 +191,15 @@ export function VirtualizedAdminCardTable<TData>({
           const row = rows[virtualRow.index];
           return (
             <TableRow key={row.id} data-index={virtualRow.index}>
-              {row.getVisibleCells().map((cell) => (
+              {/* getAllCells, not getVisibleCells: the latter belongs to
+                  columnVisibilityFeature, which these tables don't register.
+                  Both yield the same cells while no column can hide, but
+                  adding columnVisibilityFeature means switching back in the
+                  same change — getHeaderGroups() filters by visibility on its
+                  own, so the headers would shrink while the cells wouldn't. */}
+              {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id} className="whitespace-normal">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  <FlexRender cell={cell} />
                 </TableCell>
               ))}
             </TableRow>

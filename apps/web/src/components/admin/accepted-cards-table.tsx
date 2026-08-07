@@ -3,17 +3,14 @@ import { formatShortCodesArray } from "@openrift/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { LoaderIcon, StarIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { AdminCardTableFeatures } from "@/components/admin/admin-card-table-shared";
 import {
+  adminCardTableFeatures,
   useAdminCardsTableUrlSync,
   useVirtualizedTableRows,
   VirtualizedAdminCardTable,
@@ -276,7 +273,7 @@ function buildColumns(
   priceStatus: "prices-to-assign" | undefined,
   priceScope: string | undefined,
   isAdmin: boolean,
-): ColumnDef<Row>[] {
+): ColumnDef<AdminCardTableFeatures, Row>[] {
   // Clicking a row starts an assigning run, so hand the detail page the same
   // filter the list is showing — its prev/next then walks only these cards.
   const detailSearch = {
@@ -328,13 +325,13 @@ function buildColumns(
             accessorFn: (r) => coverageSortValue(coverageBySlug.get(r.cardSlug ?? "")),
             header: ({ column }) => <SortableHeader column={column} label="Marketplaces" />,
             enableGlobalFilter: false,
-            sortingFn: "basic",
+            sortFn: "basic",
             cell: ({ row }) => (
               <MarketplaceCoverageBadges
                 coverage={coverageBySlug.get(row.original.cardSlug ?? "")}
               />
             ),
-          } satisfies ColumnDef<Row>,
+          } satisfies ColumnDef<AdminCardTableFeatures, Row>,
         ]
       : []),
     {
@@ -536,24 +533,14 @@ export function AcceptedCardsTable({
     globalFilter,
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: adminCardTableFeatures,
     data: filteredData,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: handleSortingChange,
     onGlobalFilterChange: handleGlobalFilterChange,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.cardSlug ?? r.normalizedName,
-    // react-table's default `autoResetPageIndex` queues a microtask that calls
-    // `setPagination` (internal setState) after every `getCoreRowModel` /
-    // `getSortedRowModel` / `getFilteredRowModel` run. With a parent that
-    // re-creates the table options each render (via the setOptions call in
-    // useReactTable), those memo deps look "changed" to the library's memo
-    // util even when our data ref is stable, so the internal setState fires
-    // on every render and cascades at ~5Hz. Opt out: we don't use pagination.
-    autoResetPageIndex: false,
     globalFilterFn: (row, _columnId, filterValue) => {
       const query = (filterValue as string).toLowerCase();
       const r = row.original;

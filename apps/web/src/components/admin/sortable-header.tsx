@@ -1,11 +1,15 @@
-import type { Column, RowData } from "@tanstack/react-table";
+import type { CellData, Column, RowData } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from "lucide-react";
 
-export function SortableHeader<TData extends RowData>({
+import type { AdminCardTableFeatures } from "@/components/admin/admin-card-table-shared";
+
+// Pinned to the admin card tables' feature set: `getCanSort` and friends only
+// exist on a column whose table registered `rowSortingFeature`.
+export function SortableHeader<TData extends RowData, TValue extends CellData = CellData>({
   column,
   label,
 }: {
-  column: Column<TData>;
+  column: Column<AdminCardTableFeatures, TData, TValue>;
   label: string;
 }) {
   const canSort = column.getCanSort();

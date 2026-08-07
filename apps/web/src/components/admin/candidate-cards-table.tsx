@@ -2,17 +2,14 @@ import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { AdminCardTableFeatures } from "@/components/admin/admin-card-table-shared";
 import {
+  adminCardTableFeatures,
   useAdminCardsTableUrlSync,
   useVirtualizedTableRows,
   VirtualizedAdminCardTable,
@@ -46,7 +43,7 @@ type Row = CandidateCardSummaryResponse;
 // Column definitions (dependencies passed via closure over meta)
 // ---------------------------------------------------------------------------
 
-function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
+function makeColumns(meta: CardNameCellMeta): ColumnDef<AdminCardTableFeatures, Row>[] {
   return [
     {
       id: "name",
@@ -193,19 +190,14 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
 
   const columns = makeColumns({ linkCard, acceptFavorite, allCards, isAdmin });
 
-  const table = useReactTable({
+  const table = useTable({
+    features: adminCardTableFeatures,
     data: filteredData,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: handleSortingChange,
     onGlobalFilterChange: handleGlobalFilterChange,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.name,
-    // See accepted-cards-table.tsx for why this is needed: react-table's
-    // autoResetPageIndex cascade re-renders the component at ~5Hz idle.
-    autoResetPageIndex: false,
     globalFilterFn: "includesString",
   });
 

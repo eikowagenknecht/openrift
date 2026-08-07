@@ -91,12 +91,6 @@ interface CompilerLoggerEvent {
 // apps/web. Every other bailout fails the build (see reactCompilerBailoutGuard).
 // Keep the reason with the entry, and delete the entry once the cause is gone.
 const ALLOWED_COMPILER_BAILOUTS: Record<string, string> = {
-  "src/components/admin/accepted-cards-table.tsx":
-    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
-  "src/components/admin/admin-table.tsx":
-    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
-  "src/components/admin/candidate-cards-table.tsx":
-    "IncompatibleLibrary: TanStack Table's useReactTable() returns unmemoizable functions",
   "src/lib/virtualizer-fresh.ts":
     'CompileSkip: carries "use no memo" on purpose (TanStack/virtual#736)',
 };
