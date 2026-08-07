@@ -7,7 +7,7 @@ import type { DeckOverviewGroup } from "@/lib/deck-card-group";
  * How the deck overview renders its zones: the thumbnail dashboard, a dense
  * list, or overlapping stacks per group.
  */
-export type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
+type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
 
 /**
  * Card ordering inside each zone (and each type group of a grouped zone) when
