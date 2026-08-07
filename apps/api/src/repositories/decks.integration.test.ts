@@ -214,6 +214,22 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(updated!.name).toBe("Renamed Deck");
   });
 
+  it("returns the odds config parsed after an update", async () => {
+    // Regression: jsonb reads back as a string under Bun's postgres.js, and
+    // update() only parsed formatConfig — the string oddsConfig then failed
+    // deckResponseSchema output validation on every odds-config save.
+    const deckId = createdDeckIds[0];
+    const oddsConfig = {
+      customGroups: [{ key: "custom-1", label: "1", types: ["unit"], energyMin: 1, energyMax: 1 }],
+      selection: null,
+    };
+    const updated = await repo.update(deckId, userId, { oddsConfig });
+
+    expect(updated).toBeDefined();
+    expect(typeof updated!.oddsConfig).toBe("object");
+    expect(updated!.oddsConfig).toEqual(oddsConfig);
+  });
+
   it("returns undefined when updating a nonexistent deck", async () => {
     const result = await repo.update("a0000000-0000-4000-a000-000000000000", userId, {
       name: "Nope",

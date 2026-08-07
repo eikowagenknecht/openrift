@@ -114,7 +114,7 @@ describe("toPublicDeck", () => {
 // ---------------------------------------------------------------------------
 
 describe("toDeckSummary", () => {
-  it("maps only the summary fields, excluding description/isWanted/isPublic/shareToken", () => {
+  it("maps the summary fields, reducing the description to its snippet", () => {
     const result = toDeckSummary({
       id: "deck-1",
       userId: "user-1",
@@ -134,6 +134,7 @@ describe("toDeckSummary", () => {
     expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
+      descriptionSnippet: "A fast deck",
       format: "constructed",
       formatConfig: null,
       isPinned: true,

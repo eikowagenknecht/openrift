@@ -1,4 +1,5 @@
 import type { Domain } from "@openrift/shared";
+import { useState } from "react";
 import { Bar, BarChart, Cell, LabelList, XAxis } from "recharts";
 
 import { CrispBar, CrispBarActive, SplitCrispBar } from "@/components/deck/stats/crisp-bar";
@@ -37,6 +38,13 @@ interface TypeBreakdownProps {
    * `focusValue` — a chart either owns the focus or reflects it.
    */
   hitData?: TypeCount[];
+  /** Skip the built-in "Types" heading when the host renders its own header row. */
+  hideHeading?: boolean;
+  /**
+   * Paint columns in the neutral primary by default and reveal the
+   * domain-colored stacks only on the hovered column — see the curve charts.
+   */
+  revealDomainsOnHover?: boolean;
 }
 
 function buildChartConfig(
@@ -60,9 +68,13 @@ export function TypeBreakdown({
   footnote,
   focusValue,
   hitData,
+  hideHeading,
+  revealDomainsOnHover,
 }: TypeBreakdownProps) {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
+  // Hovered column while `revealDomainsOnHover` is on.
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   if (data.length === 0) {
     return null;
@@ -115,7 +127,7 @@ export function TypeBreakdown({
       }
     : undefined;
 
-  const heading = (
+  const heading = hideHeading ? null : (
     <div className="mb-1 flex items-center text-xs">
       <h4 className="font-medium">Types</h4>
     </div>
@@ -164,7 +176,18 @@ export function TypeBreakdown({
         config={chartConfig}
         className={cn("aspect-auto h-28 w-full", onBarClick && "cursor-pointer")}
       >
-        <BarChart data={labeledData} margin={chartMargin} onClick={handleChartClick}>
+        <BarChart
+          data={labeledData}
+          margin={chartMargin}
+          onClick={handleChartClick}
+          onMouseMove={
+            revealDomainsOnHover
+              ? (state) =>
+                  setHoverIndex(activeRowIndex(state as ChartClickState, labeledData.length))
+              : undefined
+          }
+          onMouseLeave={revealDomainsOnHover ? () => setHoverIndex(null) : undefined}
+        >
           <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           {domains.map((domain, index) => (
@@ -183,8 +206,19 @@ export function TypeBreakdown({
               }
               isAnimationActive={false}
             >
-              {labeledData.map((entry) => (
-                <Cell key={entry.type} fillOpacity={columnOpacity(entry.type)} />
+              {labeledData.map((entry, rowIndex) => (
+                <Cell
+                  key={entry.type}
+                  fillOpacity={columnOpacity(entry.type)}
+                  // Always a concrete color — an explicit `fill={undefined}`
+                  // overrides the Bar's fill and paints SVG-default black.
+                  // Neutral until hovered; see the curve charts.
+                  fill={
+                    revealDomainsOnHover && hoverIndex !== rowIndex
+                      ? "var(--color-primary)"
+                      : getDomainColor(domain, domainColors)
+                  }
+                />
               ))}
               {showTotals && index === domains.length - 1 && (
                 <LabelList dataKey="total" content={<TotalLabel />} />

@@ -131,13 +131,13 @@ export function DeckUndoControls({ deckId }: { deckId: string }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            // Hidden on phones: the bar has no room for both, and undo is the
-            // one that matters after a misclick.
+            // On phones the bar has no room for a second always-on button, so
+            // redo only appears there while a redo actually exists.
             <PageTopBarIconButton
               aria-label="Redo"
               disabled={!canRedo}
               onClick={redo}
-              className="hidden sm:inline-flex"
+              className={canRedo ? "inline-flex" : "hidden sm:inline-flex"}
             />
           }
         >

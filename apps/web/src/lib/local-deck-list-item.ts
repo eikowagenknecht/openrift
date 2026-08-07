@@ -1,5 +1,5 @@
 import type { Card, CardType, DeckListItemResponse, Domain } from "@openrift/shared";
-import { validateDeck, WellKnown } from "@openrift/shared";
+import { descriptionSnippet, validateDeck, WellKnown } from "@openrift/shared";
 
 import { toDeckBuilderCard, toRuleEngineCard } from "@/lib/deck-builder-card";
 import type { LocalDeck } from "@/stores/local-decks-store";
@@ -87,6 +87,7 @@ export function localDeckToListItem(
     deck: {
       id: localDeck.id,
       name: localDeck.name,
+      descriptionSnippet: descriptionSnippet(localDeck.description),
       format: localDeck.format,
       formatConfig: localDeck.formatConfig,
       isPinned: false,

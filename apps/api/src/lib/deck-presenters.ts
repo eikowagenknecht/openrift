@@ -9,6 +9,7 @@ import type {
   PublicDeckResponse,
   SuperType,
 } from "@openrift/shared";
+import { descriptionSnippet } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
 import type { DecksTable } from "../db/index.js";
@@ -37,6 +38,7 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
   return {
     id: row.id,
     name: row.name,
+    descriptionSnippet: descriptionSnippet(row.description),
     format: row.format,
     formatConfig: row.formatConfig,
     isPinned: row.isPinned,

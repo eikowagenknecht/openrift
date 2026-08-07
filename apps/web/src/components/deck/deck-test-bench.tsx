@@ -24,6 +24,7 @@ import {
   MULLIGAN_LIMIT,
   OPENING_HAND_SIZE,
 } from "@/lib/deck-draw-odds";
+import { applyMulligan, shuffle } from "@/lib/deck-mulligan";
 import type { OddsGroupDef, OddsGroupTheme } from "@/lib/deck-odds-groups";
 import {
   defaultOddsGroupKeys,
@@ -248,19 +249,6 @@ interface BenchState {
 }
 
 /**
- * Fisher-Yates shuffle into a fresh array.
- * @returns The shuffled copy.
- */
-function shuffle<Value>(items: readonly Value[]): Value[] {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index--) {
-    const swap = Math.floor(Math.random() * (index + 1));
-    [result[index], result[swap]] = [result[swap], result[index]];
-  }
-  return result;
-}
-
-/**
  * The Test tab: sample opening hands with the real Riftbound rule (4 cards,
  * exchange up to 2 once) plus a hypergeometric draw-odds table for every
  * main-deck card. All client-side math — no server involvement.
@@ -302,16 +290,24 @@ export function DeckTestBench({
   // deck, so the experiment is visible everywhere at once.
   const testCards = swapsActive ? applySwaps(cards, swaps) : cards;
 
-  // One entry per physical copy of the main deck.
+  // One entry per physical copy of the main deck. The copy counter runs per
+  // card across entries — a card split over two pinned printings must not
+  // restart at 0 and hand two copies the same key (duplicate React keys, and
+  // selecting one would select both).
+  const copySeq = new Map<string, number>();
   const pool: PoolCard[] = testCards
     .filter((card) => card.zone === WellKnown.deckZone.MAIN)
     .flatMap((card) =>
-      Array.from({ length: card.quantity }, (_, index) => ({
-        key: `${card.cardId}-${index}`,
-        cardId: card.cardId,
-        cardName: card.cardName,
-        preferredPrintingId: card.preferredPrintingId,
-      })),
+      Array.from({ length: card.quantity }, () => {
+        const index = copySeq.get(card.cardId) ?? 0;
+        copySeq.set(card.cardId, index + 1);
+        return {
+          key: `${card.cardId}-${index}`,
+          cardId: card.cardId,
+          cardName: card.cardName,
+          preferredPrintingId: card.preferredPrintingId,
+        };
+      }),
     );
 
   const oddsRows = buildDrawOddsRows(testCards);
@@ -515,11 +511,13 @@ export function DeckTestBench({
     if (!bench || bench.mulliganUsed || selected.size === 0) {
       return;
     }
-    const kept = bench.hand.filter((card) => !selected.has(card.key));
-    const drawn = bench.library.slice(0, selected.size);
+    // Real procedure (rule 118): set the chosen cards aside, draw that many,
+    // then Recycle the set-aside cards to the bottom of the deck — so a later
+    // "Draw a card" can still reach the exchanged copies.
+    const result = applyMulligan(bench.hand, bench.library, selected, shuffle);
     setBench({
-      hand: [...kept, ...drawn],
-      library: bench.library.slice(selected.size),
+      hand: result.hand,
+      library: result.library,
       mulliganUsed: true,
       hasDrawn: false,
     });
@@ -545,7 +543,8 @@ export function DeckTestBench({
     <div className="flex flex-col gap-8 @3xl:flex-row @3xl:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <p className="text-muted-foreground text-sm">
-          Opening hand is {OPENING_HAND_SIZE} cards; you may exchange up to {MULLIGAN_LIMIT} once.
+          Opening hand is {OPENING_HAND_SIZE} cards. You may exchange up to {MULLIGAN_LIMIT} once
+          (exchanged cards go to the bottom of the deck).
         </p>
         {bench ? (
           <div className="flex flex-wrap items-start gap-2">

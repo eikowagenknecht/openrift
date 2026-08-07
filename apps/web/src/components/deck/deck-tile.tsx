@@ -174,7 +174,9 @@ export function FannedPreview({
           image={legendImage}
           alt="Legend"
           sizes="160px"
-          className="absolute h-[85%] rounded-lg object-cover shadow-md"
+          // Lift via `scale` only: it composes with the slot's inline
+          // `transform` rotation, which a class-based translate would not.
+          className="absolute h-[85%] rounded-lg object-cover shadow-md transition-[scale] duration-200 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           style={{ left: "12%", transform: "rotate(-6deg)" }}
           fallback={legendPlaceholder}
         />
@@ -186,7 +188,7 @@ export function FannedPreview({
           image={championImage}
           alt="Champion"
           sizes="160px"
-          className="absolute h-[85%] rounded-lg object-cover shadow-md"
+          className="absolute h-[85%] rounded-lg object-cover shadow-md transition-[scale] duration-200 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           style={{ right: "12%", transform: "rotate(6deg)" }}
           fallback={championPlaceholder}
         />
@@ -327,6 +329,11 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               {[[legendCard?.name, championCard?.name].filter(Boolean).join(" / "), tagSummary]
                 .filter(Boolean)
                 .join(" · ")}
+            </p>
+          )}
+          {deck.descriptionSnippet && (
+            <p className="text-muted-foreground/80 mt-0.5 truncate text-xs">
+              {deck.descriptionSnippet}
             </p>
           )}
         </div>

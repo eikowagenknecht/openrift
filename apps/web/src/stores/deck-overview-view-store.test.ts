@@ -66,6 +66,14 @@ describe("useDeckOverviewViewStore", () => {
     expect(useDeckOverviewViewStore.getState().showOwnershipBands).toBe(true);
   });
 
+  it("defaults to hidden prices and can show them", () => {
+    expect(useDeckOverviewViewStore.getState().showPrices).toBe(false);
+    useDeckOverviewViewStore.getState().setShowPrices(true);
+    expect(useDeckOverviewViewStore.getState().showPrices).toBe(true);
+    useDeckOverviewViewStore.getState().setShowPrices(false);
+    expect(useDeckOverviewViewStore.getState().showPrices).toBe(false);
+  });
+
   it("defaults to automatic columns and takes an explicit count", () => {
     expect(useDeckOverviewViewStore.getState().columns).toBeNull();
     useDeckOverviewViewStore.getState().setColumns(4);
@@ -92,6 +100,7 @@ describe("rehydrate validation", () => {
           showAllCopies: "yes",
           statsOpen: "nope",
           showOwnershipBands: "sure",
+          showPrices: "yes",
         },
         version: 0,
       }),
@@ -105,6 +114,7 @@ describe("rehydrate validation", () => {
     expect(state.showAllCopies).toBe(false);
     expect(state.statsOpen).toBe(true);
     expect(state.showOwnershipBands).toBe(true);
+    expect(state.showPrices).toBe(false);
   });
 
   it("keeps valid persisted values", async () => {
@@ -118,6 +128,7 @@ describe("rehydrate validation", () => {
           sortDir: "desc",
           statsOpen: false,
           showOwnershipBands: false,
+          showPrices: true,
         },
         version: 0,
       }),
@@ -130,6 +141,7 @@ describe("rehydrate validation", () => {
     expect(state.sortDir).toBe("desc");
     expect(state.statsOpen).toBe(false);
     expect(state.showOwnershipBands).toBe(false);
+    expect(state.showPrices).toBe(true);
   });
 
   it("rejects a column count outside the usable range", async () => {

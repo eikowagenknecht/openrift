@@ -55,6 +55,22 @@ describe("buildDrawOddsRows", () => {
   it("returns nothing for an empty main deck", () => {
     expect(buildDrawOddsRows([card("e", "Rune", 12, "runes")])).toEqual([]);
   });
+
+  it("merges a card split across entries into one row with combined odds", () => {
+    // The same card twice in main (one entry per pinned printing) is still one
+    // card to draw: one row, odds over the combined copies. Two rows keyed by
+    // the same cardId also broke React's list keys in the odds table.
+    const rows = buildDrawOddsRows([
+      card("a", "Brutalizer", 2),
+      card("a", "Brutalizer", 2),
+      card("b", "Filler", 3),
+    ]);
+    expect(rows.map((row) => [row.cardId, row.copies])).toEqual([
+      ["a", 4],
+      ["b", 3],
+    ]);
+    expect(rows[0].openingChance).toBeCloseTo(chanceToDraw(4, 7, 4), 10);
+  });
 });
 
 describe("formatChancePct", () => {

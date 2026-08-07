@@ -35,6 +35,7 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
     deck: {
       id: overrides.id ?? "deck-1",
       name: overrides.name ?? "Test Deck",
+      descriptionSnippet: null,
       format: overrides.format ?? "constructed",
       formatConfig: null,
       isPinned: overrides.isPinned ?? false,

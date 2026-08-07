@@ -2,17 +2,26 @@ import type { DeckZone } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { chanceToDraw, OPENING_HAND_SIZE } from "@/lib/deck-draw-odds";
+import type { OwnershipClass } from "@/lib/deck-stat-lenses";
 
 /**
  * A stats-chart focus: clicking a bar on the Stats tab narrows the deck view
  * to the cards that bar counts. Mirrors the chart populations in
  * `use-deck-stats` (main deck + champion only).
+ *
+ * The rarity and ownership kinds carry their matching entries as a
+ * precomputed key set: both need lookups a bare card doesn't hold (the
+ * resolved printing, the collection split), so the chart's host resolves them
+ * once at click time and the focus stays self-contained for every consumer.
  */
 export type StatsFocus =
   | { kind: "energy"; value: number }
   | { kind: "power"; value: number }
-  | { kind: "type"; value: string };
+  | { kind: "type"; value: string }
+  | { kind: "rarity"; value: string; cardKeys: ReadonlySet<string> }
+  | { kind: "ownership"; value: OwnershipClass; cardKeys: ReadonlySet<string> };
 
 // The population the stats charts count — keep in sync with use-deck-stats.
 const FOCUS_ZONES: ReadonlySet<DeckZone> = new Set([
@@ -41,14 +50,29 @@ export function cardMatchesStatsFocus(card: DeckBuilderCard, focus: StatsFocus):
     case "type": {
       return card.cardTypes.includes(focus.value);
     }
+    case "rarity":
+    case "ownership": {
+      return focus.cardKeys.has(getDeckCardKey(card));
+    }
   }
 }
+
+/** Chip labels for the ownership classes. */
+const OWNERSHIP_FOCUS_LABELS: Record<OwnershipClass, string> = {
+  exact: "Cards owned as shown",
+  other: "Cards owned in another printing",
+  missing: "Cards with missing copies",
+};
 
 /**
  * Human label for the focus chip, e.g. "2-energy cards" or "Units".
  * @returns The label string.
  */
-export function statsFocusLabel(focus: StatsFocus, typeLabels: Record<string, string>): string {
+export function statsFocusLabel(
+  focus: StatsFocus,
+  typeLabels: Record<string, string>,
+  rarityLabels: Record<string, string>,
+): string {
   switch (focus.kind) {
     case "energy": {
       return `${focus.value}-energy cards`;
@@ -58,6 +82,12 @@ export function statsFocusLabel(focus: StatsFocus, typeLabels: Record<string, st
     }
     case "type": {
       return `${typeLabels[focus.value]}s`;
+    }
+    case "rarity": {
+      return `${rarityLabels[focus.value]} cards`;
+    }
+    case "ownership": {
+      return OWNERSHIP_FOCUS_LABELS[focus.value];
     }
   }
 }

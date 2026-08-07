@@ -58,4 +58,34 @@ describe("useDeckBuilderUiStore", () => {
     useDeckBuilderUiStore.getState().reset();
     expect(useDeckBuilderUiStore.getState().overviewTab).toBe("overview");
   });
+
+  it("starts with every zone expanded", () => {
+    expect(useDeckBuilderUiStore.getState().collapsedZones.size).toBe(0);
+  });
+
+  it("toggles a zone collapsed and back", () => {
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("main");
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("sideboard");
+    expect(useDeckBuilderUiStore.getState().collapsedZones).toEqual(new Set(["main", "sideboard"]));
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("main");
+    expect(useDeckBuilderUiStore.getState().collapsedZones).toEqual(new Set(["sideboard"]));
+  });
+
+  it("reset expands every zone", () => {
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("main");
+    useDeckBuilderUiStore.getState().reset();
+    expect(useDeckBuilderUiStore.getState().collapsedZones.size).toBe(0);
+  });
+
+  it("defaults the stats lens to types and switches it", () => {
+    expect(useDeckBuilderUiStore.getState().statsLens).toBe("types");
+    useDeckBuilderUiStore.getState().setStatsLens("ownership");
+    expect(useDeckBuilderUiStore.getState().statsLens).toBe("ownership");
+  });
+
+  it("reset returns the stats lens to types", () => {
+    useDeckBuilderUiStore.getState().setStatsLens("rarity");
+    useDeckBuilderUiStore.getState().reset();
+    expect(useDeckBuilderUiStore.getState().statsLens).toBe("types");
+  });
 });

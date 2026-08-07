@@ -135,7 +135,13 @@ function HeroFanSlot({
     <img
       src={thumbnail}
       alt={alt}
-      className={cn("aspect-card h-20 rounded-md object-cover shadow-md sm:h-28", className)}
+      // Lift via `scale` only — the slot's position rides on translate/rotate
+      // classes, which a hover translate would override.
+      className={cn(
+        "aspect-card h-20 rounded-md object-cover shadow-md sm:h-28",
+        "transition-[scale,box-shadow] duration-200 hover:scale-105 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:scale-100",
+        className,
+      )}
       draggable={false}
     />
   );

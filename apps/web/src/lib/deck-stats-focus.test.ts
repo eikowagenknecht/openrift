@@ -1,6 +1,7 @@
 import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { chanceToDraw, OPENING_HAND_SIZE } from "@/lib/deck-draw-odds";
 import {
   cardMatchesStatsFocus,
@@ -43,6 +44,35 @@ describe("cardMatchesStatsFocus", () => {
     expect(cardMatchesStatsFocus(card, { kind: "type", value: "unit" })).toBe(true);
     expect(cardMatchesStatsFocus(card, { kind: "type", value: "gear" })).toBe(true);
     expect(cardMatchesStatsFocus(card, { kind: "type", value: "spell" })).toBe(false);
+  });
+
+  it("matches rarity and ownership focuses via their key sets", () => {
+    const card = main({ cardId: "a" });
+    const key = getDeckCardKey(card);
+    expect(
+      cardMatchesStatsFocus(card, { kind: "rarity", value: "rare", cardKeys: new Set([key]) }),
+    ).toBe(true);
+    expect(
+      cardMatchesStatsFocus(card, { kind: "rarity", value: "rare", cardKeys: new Set() }),
+    ).toBe(false);
+    expect(
+      cardMatchesStatsFocus(card, {
+        kind: "ownership",
+        value: "missing",
+        cardKeys: new Set([key]),
+      }),
+    ).toBe(true);
+  });
+
+  it("never matches a key-set focus outside the charts' population", () => {
+    const rune = stubDeckBuilderCard({ zone: WellKnown.deckZone.RUNES, cardId: "a" });
+    expect(
+      cardMatchesStatsFocus(rune, {
+        kind: "rarity",
+        value: "rare",
+        cardKeys: new Set([getDeckCardKey(rune)]),
+      }),
+    ).toBe(false);
   });
 });
 
@@ -88,8 +118,14 @@ describe("statsFocusOpeningChance", () => {
 
 describe("statsFocusLabel", () => {
   it("labels each focus kind", () => {
-    expect(statsFocusLabel({ kind: "energy", value: 2 }, {})).toBe("2-energy cards");
-    expect(statsFocusLabel({ kind: "power", value: 1 }, {})).toBe("1-power cards");
-    expect(statsFocusLabel({ kind: "type", value: "unit" }, { unit: "Unit" })).toBe("Units");
+    expect(statsFocusLabel({ kind: "energy", value: 2 }, {}, {})).toBe("2-energy cards");
+    expect(statsFocusLabel({ kind: "power", value: 1 }, {}, {})).toBe("1-power cards");
+    expect(statsFocusLabel({ kind: "type", value: "unit" }, { unit: "Unit" }, {})).toBe("Units");
+    expect(
+      statsFocusLabel({ kind: "rarity", value: "rare", cardKeys: new Set() }, {}, { rare: "Rare" }),
+    ).toBe("Rare cards");
+    expect(
+      statsFocusLabel({ kind: "ownership", value: "missing", cardKeys: new Set() }, {}, {}),
+    ).toBe("Cards with missing copies");
   });
 });

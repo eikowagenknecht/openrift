@@ -89,13 +89,25 @@ export function buildDrawOddsRows(
   if (deckSize === 0) {
     return [];
   }
-  return mainCards
-    .map((card) => ({
-      cardId: card.cardId,
-      cardName: card.cardName,
-      copies: card.quantity,
-      openingChance: chanceToDraw(card.quantity, deckSize, OPENING_HAND_SIZE),
-      earlyChance: chanceToDraw(card.quantity, deckSize, EARLY_DRAWS),
+  // Aggregate by card first: a card split across several entries (one per
+  // pinned printing) is still one card to draw, so its odds must use the
+  // combined copy count — and the table keys rows by cardId.
+  const byCard = new Map<string, { cardName: string; copies: number }>();
+  for (const card of mainCards) {
+    const entry = byCard.get(card.cardId);
+    if (entry) {
+      entry.copies += card.quantity;
+    } else {
+      byCard.set(card.cardId, { cardName: card.cardName, copies: card.quantity });
+    }
+  }
+  return [...byCard.entries()]
+    .map(([cardId, { cardName, copies }]) => ({
+      cardId,
+      cardName,
+      copies,
+      openingChance: chanceToDraw(copies, deckSize, OPENING_HAND_SIZE),
+      earlyChance: chanceToDraw(copies, deckSize, EARLY_DRAWS),
     }))
     .toSorted(
       (left, right) => right.copies - left.copies || left.cardName.localeCompare(right.cardName),

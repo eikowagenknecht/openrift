@@ -4,11 +4,21 @@
 
 ### Highlights
 
+- feat(Decks): **Rarity and collection in the deck stats** — two new lens bars show the deck's rarity split and how much of it you own, and clicking a segment filters the cards like the other charts.
+- feat(Decks): **Shared decks get real tabs** — shared deck pages now use the same Deck, Test, and Plan tabs as your own decks instead of one long page.
+- feat(Decks): **Card art in the deck's list view** — every row now leads with a small art preview, next to the prices and owned counts it already showed.
 - feat(Cards): **Bigger cards at high column counts** — the spacing between cards now shrinks as you add columns, so at 12 across each card is about a sixth larger than before.
 
 ### Other
 
+- feat(Decks): **Clearer stats charts** — each chart now has its own colors (domain colors stay on Power, where they matter most), the charts sit on one row when the screen fits them, and hairlines separate them.
+- feat(Decks): **Collapsible zones** — zone headers stay visible while their cards scroll and can fold a zone down to one line.
+- feat(Decks): **Prices on the deck grid** — a new toggle shows each card's price directly on its image.
+- feat(Decks): **Description preview on deck tiles** — the deck list shows the first line of each deck's description.
+- feat(Decks): **Redo on phones** — the phone editor now offers redo next to undo, in the bottom dock and the top bar.
 - feat(Cards): **Selected card glows** — the highlight was a thin tint you could barely see behind the card, and is now a soft glow in the card's domain colors.
+- fix(Decks): **Truer test hands and draw odds** — exchanged mulligan cards now go to the bottom of the deck instead of vanishing, and a card pinned to two printings counts as one row with combined odds.
+- fix(Decks): **Draw-odds groups save again** — saving a custom draw-odds group no longer fails with a validation error.
 
 ## 2026-08-06
 

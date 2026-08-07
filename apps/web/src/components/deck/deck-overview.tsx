@@ -6,8 +6,10 @@ import type {
   DeckViolation,
   DeckZone,
   Marketplace,
+  PriceLookup,
 } from "@openrift/shared";
 import {
+  EUR_MARKETPLACES,
   WellKnown,
   copyLimitFor,
   formatHasSideboard,
@@ -15,6 +17,7 @@ import {
   legendDisplayName,
   validateDeck,
 } from "@openrift/shared";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -23,6 +26,8 @@ import {
   LayersIcon,
   LayoutGridIcon,
   ListIcon,
+  DollarSignIcon,
+  EuroIcon,
   MinusIcon,
   PinIcon,
   PlusIcon,
@@ -43,6 +48,7 @@ import { DeckOverviewList, DECK_OVERVIEW_SORT_OPTIONS } from "@/components/deck/
 import { DeckTestBench } from "@/components/deck/deck-test-bench";
 import { FormatConfigCard } from "@/components/deck/format-config-card";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
+import { LensBar } from "@/components/deck/stats/lens-bar";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
@@ -61,8 +67,10 @@ import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useMeasuredWidth } from "@/hooks/use-measured-width";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { pricesQueryOptions } from "@/hooks/use-prices";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -82,6 +90,15 @@ import {
   ownershipBandTitle,
   sameOwnershipBandSources,
 } from "@/lib/deck-ownership-band";
+import {
+  buildOwnershipRows,
+  buildRarityByCardKey,
+  buildRarityRows,
+  OWNERSHIP_LENS_SERIES,
+  ownershipFocusKeys,
+  rarityFocusKeys,
+  rarityLensSeries,
+} from "@/lib/deck-stat-lenses";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import {
   cardMatchesStatsFocus,
@@ -96,9 +113,10 @@ import {
   zoneEmptyReadOnlyLabel,
   zoneExpected,
 } from "@/lib/deck-zone-labels";
+import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import type { DeckOverviewTab } from "@/stores/deck-builder-ui-store";
+import type { DeckOverviewTab, StatsLens } from "@/stores/deck-builder-ui-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -137,6 +155,9 @@ const LANDSCAPE_THUMB_CLASS = "aspect-[88/63] max-w-full";
 
 /** Stable empty map for the thumbs when ownership bands are off or unloaded. */
 const NO_BANDS: ReadonlyMap<string, OwnershipBandSegments> = new Map();
+
+/** Stable empty map for the thumbs while the price chips are off. */
+const NO_PRICE_TEXTS: ReadonlyMap<string, string> = new Map();
 
 /** Stable empty list so the focused-stats pass doesn't recompute when nothing is focused. */
 const NO_CARDS: DeckBuilderCard[] = [];
@@ -199,6 +220,33 @@ function buildAddRoom(cards: DeckBuilderCard[], format: DeckFormat): Map<string,
     room.set(key, Number.POSITIVE_INFINITY);
   }
   return room;
+}
+
+/**
+ * Preformatted per-copy price for each entry, keyed by {@link getDeckCardKey}.
+ * Resolution mirrors the list rows: the owned printing's price while "show my
+ * printings" is on (falling back to the display price until the price map
+ * lands), the entry's display printing otherwise.
+ * @returns Deck card key → formatted price string.
+ */
+function buildPriceTexts(
+  cards: DeckBuilderCard[],
+  ownershipData: DeckOwnershipData,
+  preferOwned: boolean,
+  priceMap: PriceLookup | undefined,
+  marketplace: Marketplace,
+): Map<string, string> {
+  const fmtPrice = formatterForMarketplace(marketplace);
+  const texts = new Map<string, string>();
+  for (const card of cards) {
+    const owned = preferOwned ? ownershipData.ownedPrintingByCardId.get(card.cardId) : undefined;
+    const entry = ownershipData.byCardZone.get(`${card.cardId}:${card.zone}`);
+    const cents = owned && priceMap ? priceMap.get(owned.id, marketplace) : entry?.displayPrice;
+    if (cents !== undefined) {
+      texts.set(getDeckCardKey(card), fmtPrice(cents));
+    }
+  }
+  return texts;
 }
 
 /**
@@ -269,9 +317,8 @@ interface DeckOverviewProps {
   /**
    * Whether a plan exists. Read-only views only: drives the section nav's Plan
    * entry (linked when present, absent when not; the host renders the plan
-   * below this component inside `#deck-plan`).
+   * as the share page's read-only plan view).
    */
-  hasPlan?: boolean;
   /**
    * Editor only: content of the Plan tab (the plan editor). When omitted the
    * Plan tab is hidden — local decks have no plan.
@@ -311,7 +358,6 @@ export function DeckOverview({
   signInHref,
   description,
   onCardClick,
-  hasPlan,
   planSlot,
   heroByline,
   heroActions,
@@ -319,7 +365,7 @@ export function DeckOverview({
   onSaveOddsConfig,
 }: DeckOverviewProps) {
   const championIdentifierTags = useChampionIdentifierTags();
-  const { labels: enumLabels } = useEnumOrders();
+  const { labels: enumLabels, orders: enumOrders } = useEnumOrders();
   const violations = validateDeck({
     format: deck.format,
     formatConfig: deck.formatConfig,
@@ -370,6 +416,8 @@ export function DeckOverview({
   const setStatsOpen = useDeckOverviewViewStore((state) => state.setStatsOpen);
   const storedShowBands = useDeckOverviewViewStore((state) => state.showOwnershipBands);
   const setShowOwnershipBands = useDeckOverviewViewStore((state) => state.setShowOwnershipBands);
+  const storedShowPrices = useDeckOverviewViewStore((state) => state.showPrices);
+  const setShowPrices = useDeckOverviewViewStore((state) => state.setShowPrices);
   const displayMode = hydrated ? storedDisplayMode : "grid";
   const statsOpen = hydrated ? storedStatsOpen : true;
   const showAllCopies = hydrated && storedShowAllCopies;
@@ -413,10 +461,27 @@ export function DeckOverview({
   // Grid only: list mode already spells ownership out as amber fractions.
   const bandsActive = showBands && canPreferOwned && displayMode === "grid";
   const ownedPrintingByCardId = ownershipData?.ownedPrintingByCardId;
-  const bandByCardKey =
-    bandsActive && bandSources
+  // Computed whenever the sources are up (not just while bands show): the
+  // stats band's ownership lens reads the same split in any display mode.
+  const ownershipSegmentsByCardKey =
+    canPreferOwned && bandSources
       ? buildOwnershipBands(cards, bandSources, ownedPrintingByCardId, preferOwned)
-      : NO_BANDS;
+      : undefined;
+  const bandByCardKey =
+    bandsActive && ownershipSegmentsByCardKey ? ownershipSegmentsByCardKey : NO_BANDS;
+
+  // Per-thumb price chips, opt-in via the toggle in the view controls. Gated
+  // behind hydration through `showPrices`, so SSR always renders without chips.
+  // The price map is only needed to price owned printings (non-suspending, same
+  // reasoning as the list column); display printings are priced by ownership.
+  const showPrices = hydrated && storedShowPrices;
+  // The toggle's icon speaks the marketplace's currency.
+  const PriceToggleIcon = EUR_MARKETPLACES.has(marketplace) ? EuroIcon : DollarSignIcon;
+  const { data: priceMap } = useQuery(pricesQueryOptions);
+  const priceTextByCardKey =
+    showPrices && displayMode === "grid" && ownershipData !== undefined
+      ? buildPriceTexts(cards, ownershipData, preferOwned, priceMap, marketplace)
+      : NO_PRICE_TEXTS;
 
   // "Show my printings": swap every deck thumbnail for the canonical printing
   // the viewer actually owns, falling back to the deck's display printing for
@@ -449,14 +514,14 @@ export function DeckOverview({
     return preferredPrintingId;
   };
 
-  // Editor tabs (mock A): Deck | Test | Plan under the hero. The active tab
-  // lives in the builder UI store so the sidebar's Plan entry can open the Plan
-  // tab from outside this component. Read-only views keep the single-scroll
-  // layout with the anchor section nav instead (Test renders as an in-page
-  // section there) and never read the tab.
+  // Tabs (mock A): Deck | Test | Plan under the hero, on the editor and the
+  // read-only share page alike. The active tab lives in the builder UI store
+  // so the sidebar's Plan entry (and the share route's #deck-test deep link)
+  // can open a tab from outside this component.
   const tab = useDeckBuilderUiStore((state) => state.overviewTab);
   const setTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
-  const showTabs = !readOnly;
+  const collapsedZones = useDeckBuilderUiStore((state) => state.collapsedZones);
+  const toggleZoneCollapsed = useDeckBuilderUiStore((state) => state.toggleZoneCollapsed);
 
   // Stats focus: clicking a chart bar narrows the deck view to the cards that
   // bar counts, and clicking the same bar again clears it. Both surfaces put
@@ -480,11 +545,11 @@ export function DeckOverview({
   // deck view rather than rendering an empty page.
   const showPlanTab = planSlot !== undefined;
   const tabAvailable = tab === "overview" || tab === "test" || (tab === "plan" && showPlanTab);
-  const activeTab = showTabs && tabAvailable ? tab : "overview";
+  const activeTab = tabAvailable ? tab : "overview";
   // Where the Plan tab's content parks its action row: the trailing end of the
   // tab strip, the same slot the Deck tab fills with its view controls.
   const [planActionsSlot, setPlanActionsSlot] = useState<HTMLDivElement | null>(null);
-  const showOverviewContent = !showTabs || activeTab === "overview";
+  const showOverviewContent = activeTab === "overview";
   const hasStats =
     stats.energyCurve.length > 0 || stats.powerCurve.length > 0 || stats.typeBreakdown.length > 0;
 
@@ -497,50 +562,270 @@ export function DeckOverview({
     : NO_CARDS;
   const focusedStats = useDeckStats(focusedCards);
 
-  // The deck's curves and type split, rendered bare (no cards): the band's
-  // hairline header is the only chrome. The focused chart dims its non-matching
-  // columns via focusValue; the other two split every segment into the
-  // focus-matching part (lit) and the rest (faded) via hitData.
+  // Rarity lens: the rarity each row stands for (owned printing while "show my
+  // printings" is on, display printing otherwise — same resolution as the list
+  // rows), one column per rarity in the rarity icons' colors.
+  const rarityByCardKey = ownershipData
+    ? buildRarityByCardKey(
+        cards,
+        (card) =>
+          (
+            ownedPrintingFor(card.cardId) ??
+            ownershipData.byCardZone.get(`${card.cardId}:${card.zone}`)?.displayPrinting
+          )?.rarity,
+      )
+    : undefined;
+  const rarityRows = rarityByCardKey
+    ? buildRarityRows(cards, rarityByCardKey, enumOrders.rarities, enumLabels.rarities)
+    : undefined;
+  const raritySeries = rarityRows ? rarityLensSeries(rarityRows, enumLabels.rarities) : [];
+  const rarityHitRows =
+    statsFocus && statsFocus.kind !== "rarity" && rarityByCardKey
+      ? buildRarityRows(focusedCards, rarityByCardKey, enumOrders.rarities, enumLabels.rarities)
+      : undefined;
+
+  // Ownership lens: the deck's copies split owned / other printing / missing,
+  // from the same per-entry segments the thumbnails' bands draw.
+  const ownershipRows = ownershipSegmentsByCardKey
+    ? buildOwnershipRows(cards, ownershipSegmentsByCardKey)
+    : undefined;
+  const ownershipHitRows =
+    statsFocus && statsFocus.kind !== "ownership" && ownershipSegmentsByCardKey
+      ? buildOwnershipRows(focusedCards, ownershipSegmentsByCardKey)
+      : undefined;
+
+  // Stats band layout: measured, not breakpoint-guessed. When the band is
+  // wide enough for every chart on one row, all five render side by side
+  // (energy/power on wider tracks). Otherwise the band keeps its three slots
+  // and the third cycles Types / Rarity / Collection via the lens switcher.
+  const [statsChartsEl, setStatsChartsEl] = useState<HTMLDivElement | null>(null);
+  const statsChartsWidth = useMeasuredWidth(statsChartsEl);
+  const rarityLensAvailable = rarityRows !== undefined && rarityRows.length > 0;
+  const ownershipLensAvailable = ownershipRows !== undefined;
+  const lensOptions: { key: StatsLens; label: string }[] = [
+    ...(stats.typeBreakdown.length > 0 ? [{ key: "types" as const, label: "Types" }] : []),
+    ...(rarityLensAvailable ? [{ key: "rarity" as const, label: "Rarity" }] : []),
+    ...(ownershipLensAvailable ? [{ key: "ownership" as const, label: "Collection" }] : []),
+  ];
+  const storedStatsLens = useDeckBuilderUiStore((state) => state.statsLens);
+  const setStatsLens = useDeckBuilderUiStore((state) => state.setStatsLens);
+  // An unavailable stored choice (deck switch, signed-out view) falls back to
+  // the first lens that exists rather than an empty slot.
+  const statsLens = lensOptions.some((option) => option.key === storedStatsLens)
+    ? storedStatsLens
+    : (lensOptions[0]?.key ?? "types");
+  // Per-chart minimum widths the one-row layout must fit (the curves need
+  // room for their many columns, the categorical charts for three to five).
+  const chartTracks = [
+    { present: stats.energyCurve.length > 0, track: "1.5fr", minWidth: 260 },
+    { present: stats.powerCurve.length > 0, track: "1.5fr", minWidth: 260 },
+    { present: stats.typeBreakdown.length > 0, track: "1fr", minWidth: 170 },
+    // Rarity and Collection render as thin bars and share one column.
+    { present: rarityLensAvailable || ownershipLensAvailable, track: "1fr", minWidth: 200 },
+  ].filter((chart) => chart.present);
+  // Wide mode separates cells with a centered hairline: pr-5 + border + pl-5.
+  const statsGap = 40;
+  const wideMinWidth =
+    chartTracks.reduce((sum, chart) => sum + chart.minWidth, 0) +
+    (chartTracks.length - 1) * statsGap;
+  const hasLensCharts = lensOptions.length > 1;
+  const wideStats = hasLensCharts && statsChartsWidth >= wideMinWidth;
+
+  const typesChart = (withHeading: boolean) =>
+    stats.typeBreakdown.length > 0 ? (
+      <TypeBreakdown
+        data={stats.typeBreakdown}
+        domains={stats.typeBreakdownDomains}
+        revealDomainsOnHover
+        showTotals
+        onBarClick={(value) => applyStatsFocus({ kind: "type", value })}
+        footnote={hasMultiTypeCards ? "A card with two types counts under both." : undefined}
+        focusValue={statsFocus?.kind === "type" ? statsFocus.value : null}
+        hitData={statsFocus && statsFocus.kind !== "type" ? focusedStats.typeBreakdown : undefined}
+        hideHeading={!withHeading}
+      />
+    ) : null;
+
+  const rarityChart = (withHeading: boolean) =>
+    rarityRows && rarityLensAvailable ? (
+      <LensBar
+        title={withHeading ? "Rarity" : undefined}
+        rows={rarityRows}
+        series={raritySeries}
+        onSegmentClick={(value) => {
+          if (!rarityByCardKey) {
+            return;
+          }
+          applyStatsFocus({
+            kind: "rarity",
+            value,
+            cardKeys: rarityFocusKeys(cards, rarityByCardKey, value),
+          });
+        }}
+        focusValue={statsFocus?.kind === "rarity" ? statsFocus.value : null}
+        hitRows={rarityHitRows}
+      />
+    ) : null;
+
+  const ownershipChart = (withHeading: boolean) =>
+    ownershipRows ? (
+      <LensBar
+        title={withHeading ? "Collection" : undefined}
+        rows={ownershipRows}
+        series={OWNERSHIP_LENS_SERIES}
+        footnote="Counts the main deck and champion against your collection."
+        onSegmentClick={(value) => {
+          if (!ownershipSegmentsByCardKey) {
+            return;
+          }
+          const ownershipClass = OWNERSHIP_LENS_SERIES.find((series) => series.key === value)?.key;
+          if (!ownershipClass) {
+            return;
+          }
+          applyStatsFocus({
+            kind: "ownership",
+            value: ownershipClass,
+            cardKeys: ownershipFocusKeys(cards, ownershipSegmentsByCardKey, ownershipClass),
+          });
+        }}
+        focusValue={statsFocus?.kind === "ownership" ? statsFocus.value : null}
+        hitRows={ownershipHitRows}
+      />
+    ) : null;
+
+  // The deck's curves and lenses, rendered bare (no cards): the band's
+  // hairline header is the only chrome. The focused chart dims its
+  // non-matching columns via focusValue; every other chart splits its
+  // segments into the focus-matching part (lit) and the rest (faded).
+  const energyChartNode =
+    stats.energyCurve.length > 0 ? (
+      <EnergyChart
+        data={stats.energyCurve}
+        stacks={stats.energyCurveStacks}
+        average={stats.averageEnergy}
+        // Domain color is Power's story (runes pay power); here the split
+        // only shows on the hovered column, so the two curves read apart.
+        revealDomainsOnHover
+        footnote="Counts the main deck and champion only. Click a bar to see its cards."
+        showTotals
+        onBarClick={(value) => applyStatsFocus({ kind: "energy", value })}
+        focusValue={statsFocus?.kind === "energy" ? statsFocus.value : null}
+        hitData={statsFocus && statsFocus.kind !== "energy" ? focusedStats.energyCurve : undefined}
+      />
+    ) : null;
+
+  const powerChartNode =
+    stats.powerCurve.length > 0 ? (
+      <PowerChart
+        data={stats.powerCurve}
+        stacks={stats.powerCurveStacks}
+        average={stats.averagePower}
+        showTotals
+        onBarClick={(value) => applyStatsFocus({ kind: "power", value })}
+        focusValue={statsFocus?.kind === "power" ? statsFocus.value : null}
+        hitData={statsFocus && statsFocus.kind !== "power" ? focusedStats.powerCurve : undefined}
+      />
+    ) : null;
+
+  // Wide mode's one-row cells, in track order, dropped where a chart has no
+  // data — the track list above filters on the same conditions. The two lens
+  // bars stack inside one cell, top-aligned against the taller charts.
+  const lensBarsNode =
+    rarityLensAvailable || ownershipLensAvailable ? (
+      <div className="flex flex-col gap-4">
+        {rarityChart(true)}
+        {ownershipChart(true)}
+      </div>
+    ) : null;
+  const wideCells = [
+    { key: "energy", node: energyChartNode },
+    { key: "power", node: powerChartNode },
+    { key: "types", node: typesChart(true) },
+    { key: "lenses", node: lensBarsNode },
+  ].filter((cell) => cell.node !== null);
+
+  // Narrow mode's third slot: the lens switcher, or the single remaining
+  // chart when there's nothing to cycle through.
+  const thirdSlotNode = hasLensCharts ? (
+    <div>
+      {/* Same grammar as the charts' own heading rows, with the active
+          lens standing where the h4 would be. */}
+      <div className="mb-1 flex items-center gap-3 text-xs">
+        {lensOptions.map((option) => (
+          <Pressable
+            key={option.key}
+            onClick={() => setStatsLens(option.key)}
+            aria-pressed={statsLens === option.key}
+            className={cn(
+              "font-medium transition-colors",
+              statsLens !== option.key && "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option.label}
+          </Pressable>
+        ))}
+      </div>
+      {statsLens === "types"
+        ? typesChart(false)
+        : statsLens === "rarity"
+          ? rarityChart(false)
+          : ownershipChart(false)}
+    </div>
+  ) : (
+    (typesChart(true) ?? rarityChart(true) ?? ownershipChart(true))
+  );
+  const narrowCells = [
+    { key: "energy", node: energyChartNode },
+    { key: "power", node: powerChartNode },
+    { key: "slot", node: thirdSlotNode },
+  ].filter((cell) => cell.node !== null);
+
+  // The deck's curves and lenses, rendered bare (no cards): the band's
+  // hairline header is the only chrome. The focused chart dims its
+  // non-matching columns via focusValue; every other chart splits its
+  // segments into the focus-matching part (lit) and the rest (faded).
   const statsCharts = (
-    <div className="grid gap-x-6 gap-y-4 @lg:grid-cols-2 @3xl:grid-cols-3">
-      {stats.energyCurve.length > 0 && (
-        <EnergyChart
-          data={stats.energyCurve}
-          stacks={stats.energyCurveStacks}
-          average={stats.averageEnergy}
-          footnote="Counts the main deck and champion only. Click a bar to see its cards."
-          showTotals
-          onBarClick={(value) => applyStatsFocus({ kind: "energy", value })}
-          focusValue={statsFocus?.kind === "energy" ? statsFocus.value : null}
-          hitData={
-            statsFocus && statsFocus.kind !== "energy" ? focusedStats.energyCurve : undefined
-          }
-        />
-      )}
-      {stats.powerCurve.length > 0 && (
-        <PowerChart
-          data={stats.powerCurve}
-          stacks={stats.powerCurveStacks}
-          average={stats.averagePower}
-          showTotals
-          onBarClick={(value) => applyStatsFocus({ kind: "power", value })}
-          focusValue={statsFocus?.kind === "power" ? statsFocus.value : null}
-          hitData={statsFocus && statsFocus.kind !== "power" ? focusedStats.powerCurve : undefined}
-        />
-      )}
-      {stats.typeBreakdown.length > 0 && (
-        <TypeBreakdown
-          data={stats.typeBreakdown}
-          domains={stats.typeBreakdownDomains}
-          showTotals
-          onBarClick={(value) => applyStatsFocus({ kind: "type", value })}
-          footnote={hasMultiTypeCards ? "A card with two types counts under both." : undefined}
-          focusValue={statsFocus?.kind === "type" ? statsFocus.value : null}
-          hitData={
-            statsFocus && statsFocus.kind !== "type" ? focusedStats.typeBreakdown : undefined
-          }
-        />
-      )}
+    <div
+      ref={setStatsChartsEl}
+      className={cn("grid gap-y-4", !wideStats && "@lg:grid-cols-2 @3xl:grid-cols-3")}
+      style={
+        wideStats
+          ? { gridTemplateColumns: chartTracks.map((chart) => chart.track).join(" ") }
+          : undefined
+      }
+    >
+      {wideStats
+        ? wideCells.map((cell, index) => (
+            <div
+              key={cell.key}
+              className={cn(
+                "min-w-0",
+                // Hairline dividers centered in the gaps — the frameless
+                // charts otherwise run into each other on one row.
+                index > 0 && "border-l pl-5",
+                index < wideCells.length - 1 && "pr-5",
+              )}
+            >
+              {cell.node}
+            </div>
+          ))
+        : narrowCells.map((cell, index) => (
+            <div
+              key={cell.key}
+              className={cn(
+                "min-w-0",
+                // Same dividers, applied only where the responsive grid puts
+                // two cells side by side: the second cell borders from two
+                // columns up, the third only in the three-column layout (at
+                // two columns it starts its own row).
+                index === 0 && "@lg:pr-5",
+                index === 1 && "@lg:border-l @lg:pl-5 @3xl:pr-5",
+                index === 2 && "@3xl:border-l @3xl:pl-5",
+              )}
+            >
+              {cell.node}
+            </div>
+          ))}
     </div>
   );
 
@@ -631,6 +916,24 @@ export function DeckOverview({
           </TooltipContent>
         </Tooltip>
       )}
+      {displayMode === "grid" && ownershipData !== undefined && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={showPrices ? "secondary" : "ghost"}
+                size="icon-sm"
+                aria-label="Show prices"
+                aria-pressed={showPrices}
+                onClick={() => setShowPrices(!showPrices)}
+              />
+            }
+          >
+            <PriceToggleIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>{showPrices ? "Showing prices" : "Show prices"}</TooltipContent>
+        </Tooltip>
+      )}
       {canPreferOwned && (
         <Tooltip>
           <TooltipTrigger
@@ -680,7 +983,7 @@ export function DeckOverview({
 
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-3 pb-4">
-      {hydrated && bandsActive && (
+      {hydrated && canPreferOwned && (
         <Suspense fallback={null}>
           <OwnershipBandSourcesBridge cards={cards} onResult={setBandSources} />
         </Suspense>
@@ -705,26 +1008,21 @@ export function DeckOverview({
         byline={heroByline}
         actions={heroActions}
       />
-      {readOnly && totalCards > 0 && (
-        <SectionNav hasPlan={hasPlan ?? false} trailing={viewControls} />
-      )}
-      {showTabs && (
-        <TabStrip
-          tab={activeTab}
-          onTabChange={setTab}
-          showPlanTab={showPlanTab}
-          trailing={
-            activeTab === "overview" ? (
-              viewControls
-            ) : activeTab === "plan" ? (
-              // Host container for the plan editor's own actions (save, clear,
-              // dirty badge). It portals into this once the ref lands — see
-              // PlanTabActionsContext.
-              <div ref={setPlanActionsSlot} className="flex items-center gap-2" />
-            ) : undefined
-          }
-        />
-      )}
+      <TabStrip
+        tab={activeTab}
+        onTabChange={setTab}
+        showPlanTab={showPlanTab}
+        trailing={
+          activeTab === "overview" ? (
+            viewControls
+          ) : activeTab === "plan" ? (
+            // Host container for the plan editor's own actions (save, clear,
+            // dirty badge). It portals into this once the ref lands — see
+            // PlanTabActionsContext. Read-only plan views portal nothing.
+            <div ref={setPlanActionsSlot} className="flex items-center gap-2" />
+          ) : undefined
+        }
+      />
       {showOverviewContent && (
         <FormatConfigCard
           deckId={deck.id}
@@ -741,11 +1039,11 @@ export function DeckOverview({
       )}
       {showOverviewContent && fallbackHint && <p className="text-sm">{fallbackHint}</p>}
 
-      {showTabs && activeTab === "plan" && (
+      {activeTab === "plan" && (
         <PlanTabActionsContext value={planActionsSlot}>{planSlot}</PlanTabActionsContext>
       )}
 
-      {showTabs && activeTab === "test" && (
+      {activeTab === "test" && (
         <DeckTestBench
           cards={cards}
           deckId={deck.id}
@@ -769,7 +1067,7 @@ export function DeckOverview({
           {statsFocus && (
             <div className="mb-3 flex">
               <span className="border-primary/40 bg-primary/10 inline-flex items-center gap-1.5 rounded-full border py-1 pr-2 pl-3 text-sm">
-                {statsFocusLabel(statsFocus, enumLabels.cardTypes)}
+                {statsFocusLabel(statsFocus, enumLabels.cardTypes, enumLabels.rarities)}
                 <span className="text-muted-foreground tabular-nums">
                   · {statsFocusCount(cards, statsFocus)} in deck
                 </span>
@@ -825,7 +1123,11 @@ export function DeckOverview({
                   <ZoneTile
                     key={zone}
                     deckId={deck.id}
+                    collapsedZones={collapsedZones}
+                    onToggleCollapsed={toggleZoneCollapsed}
+                    stickyHeader={!readOnly}
                     bandByCardKey={bandByCardKey}
+                    priceTextByCardKey={priceTextByCardKey}
                     addRoomByCardKey={addRoomByCardKey}
                     resolveHoverPrintingId={resolveHoverPrintingId}
                     showAllCopies={showAllCopies}
@@ -851,7 +1153,11 @@ export function DeckOverview({
               </div>
               <ZoneTile
                 deckId={deck.id}
+                collapsedZones={collapsedZones}
+                onToggleCollapsed={toggleZoneCollapsed}
+                stickyHeader={!readOnly}
                 bandByCardKey={bandByCardKey}
+                priceTextByCardKey={priceTextByCardKey}
                 addRoomByCardKey={addRoomByCardKey}
                 resolveHoverPrintingId={resolveHoverPrintingId}
                 showAllCopies={showAllCopies}
@@ -880,7 +1186,11 @@ export function DeckOverview({
                 cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
                 <ZoneTile
                   deckId={deck.id}
+                  collapsedZones={collapsedZones}
+                  onToggleCollapsed={toggleZoneCollapsed}
+                  stickyHeader={!readOnly}
                   bandByCardKey={bandByCardKey}
+                  priceTextByCardKey={priceTextByCardKey}
                   addRoomByCardKey={addRoomByCardKey}
                   resolveHoverPrintingId={resolveHoverPrintingId}
                   showAllCopies={showAllCopies}
@@ -908,7 +1218,11 @@ export function DeckOverview({
               {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
                 <ZoneTile
                   deckId={deck.id}
+                  collapsedZones={collapsedZones}
+                  onToggleCollapsed={toggleZoneCollapsed}
+                  stickyHeader={!readOnly}
                   bandByCardKey={bandByCardKey}
+                  priceTextByCardKey={priceTextByCardKey}
                   addRoomByCardKey={addRoomByCardKey}
                   resolveHoverPrintingId={resolveHoverPrintingId}
                   showAllCopies={showAllCopies}
@@ -938,27 +1252,6 @@ export function DeckOverview({
 
       {/* Phones: the cards lead and the stats band follows them. */}
       {showOverviewContent && isMobile && statsBand}
-
-      {readOnly && totalCards > 0 && (
-        <div
-          id="deck-test"
-          style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}
-          className="flex flex-col gap-3"
-        >
-          <div className="flex h-6 items-center gap-2 border-b">
-            <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
-              Test
-            </span>
-          </div>
-          <DeckTestBench
-            cards={cards}
-            deckId={deck.id}
-            oddsConfig={oddsConfig}
-            onSaveOddsConfig={onSaveOddsConfig}
-            getThumbnail={resolveThumbnail}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -994,9 +1287,9 @@ function OwnershipBandSourcesBridge({
 }
 
 /**
- * Anchor offset for the read-only section nav's targets: the sticky chain
- * (header + page top bar, published as --sticky-top by the share page) plus
- * the nav's own height.
+ * Anchor offset for the in-page anchors (#deck-stats, #deck-cards): the
+ * sticky chain (header + page top bar, published as --sticky-top by the
+ * hosts) plus breathing room.
  */
 const SECTION_SCROLL_MARGIN = "calc(var(--sticky-top, 57px) + 3.5rem)";
 
@@ -1081,50 +1374,6 @@ function TabStrip({
 }
 
 /**
- * Read-only (share page) section nav: quiet jump links to the sections below,
- * in the order they appear (Deck, Test, Plan — the plan section is rendered by
- * the host under this component). Mirrors the editor's tabs; the stats band is
- * part of the deck region, expanded by default, so it gets no entry of its own.
- * A section with nothing in it gets no link at all. Sticks below the page top
- * bar via the host's --sticky-top variable.
- * @returns The section nav bar.
- */
-function SectionNav({
-  hasPlan,
-  trailing,
-}: {
-  hasPlan: boolean;
-  /** Right-aligned controls sharing the row (view toggles). */
-  trailing?: React.ReactNode;
-}) {
-  // Jump links, not tabs: no active state and no underline rule, so the bar
-  // doesn't promise tab behavior it hasn't got. Small caps match the section
-  // headers each link lands on; the hover underline says "link".
-  const linkClass =
-    "text-muted-foreground hover:text-foreground text-2xs font-semibold tracking-widest uppercase underline-offset-4 transition-colors hover:underline";
-  return (
-    <nav
-      aria-label="Deck sections"
-      className="bg-background/85 sticky z-20 flex items-center gap-5 py-1.5 backdrop-blur-lg"
-      style={{ top: "var(--sticky-top, 57px)" }}
-    >
-      <a href="#deck-cards" className={linkClass}>
-        Deck
-      </a>
-      <a href="#deck-test" className={linkClass}>
-        Test
-      </a>
-      {hasPlan && (
-        <a href="#deck-plan" className={linkClass}>
-          Plan
-        </a>
-      )}
-      {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
-    </nav>
-  );
-}
-
-/**
  * Expands a zone's cards for rendering: with "show every copy" on, a card held
  * in multiples becomes one entry per physical copy (badge-less); otherwise one
  * entry per card with its ×N badge. `copyIndex` is null for the stacked form.
@@ -1148,6 +1397,8 @@ interface ZoneTileProps {
   deckId: string;
   /** Deck card key → collection-status band; empty when bands are off. */
   bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
+  /** Deck card key -> preformatted price chip text; empty when chips are off. */
+  priceTextByCardKey: ReadonlyMap<string, string>;
   /** Copies each entry may still add, keyed by deck card key (empty read-only). */
   addRoomByCardKey: ReadonlyMap<string, number>;
   /** Printing id the hover preview should show for an entry. */
@@ -1161,6 +1412,12 @@ interface ZoneTileProps {
   allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
+  /** Zones currently collapsed to their header row. */
+  collapsedZones: ReadonlySet<DeckZone>;
+  /** Toggles a zone's collapsed state (wired to the builder UI store). */
+  onToggleCollapsed: (zone: DeckZone) => void;
+  /** Editor only: pin the header below the sticky chain while its zone scrolls. */
+  stickyHeader?: boolean;
   zoneViolations: DeckViolation[];
   format: DeckFormat;
   className?: string;
@@ -1176,6 +1433,7 @@ interface ZoneTileProps {
 function ZoneTile({
   deckId,
   bandByCardKey,
+  priceTextByCardKey,
   addRoomByCardKey,
   resolveHoverPrintingId,
   showAllCopies,
@@ -1186,6 +1444,9 @@ function ZoneTile({
   allCards,
   expected,
   emptyHint,
+  collapsedZones,
+  onToggleCollapsed,
+  stickyHeader,
   zoneViolations,
   format,
   className,
@@ -1197,6 +1458,7 @@ function ZoneTile({
   onCardClick,
 }: ZoneTileProps) {
   const hasViolation = zoneViolations.length > 0;
+  const collapsed = collapsedZones.has(zone);
   const quantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const isEmpty = cards.length === 0;
   const isComplete = !hasViolation && expected !== undefined && quantity === expected;
@@ -1273,7 +1535,22 @@ function ZoneTile({
       {/* Fixed height so the violation icon (a 20px button) can't stretch one
           tile's header past its row-mates' — side-by-side zones keep their
           rules aligned whether or not an issue is showing. */}
-      <div className="flex h-6 items-center gap-2 border-b">
+      <div
+        className={cn(
+          "flex h-6 items-center gap-2 border-b",
+          // Frosted while pinned, so the cards scrolling underneath don't
+          // bleed through the label. z-10 sits under the top bar (z-30).
+          stickyHeader && "bg-background/85 sticky z-10 backdrop-blur-sm",
+        )}
+        style={stickyHeader ? { top: "var(--sticky-top, 57px)" } : undefined}
+      >
+        <ExpandToggle
+          expanded={!collapsed}
+          onClick={() => onToggleCollapsed(zone)}
+          aria-label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
+          chevronClassName="size-3.5"
+          className="shrink-0 rounded"
+        />
         {onClick && !readOnly ? (
           <Pressable
             onClick={onClick}
@@ -1337,7 +1614,7 @@ function ZoneTile({
         </span>
       </div>
 
-      {isEmpty ? (
+      {collapsed ? null : isEmpty ? (
         zone === WellKnown.deckZone.RUNES || readOnly || !onClick ? (
           // Runes fills itself when a Legend is set, so the primary path
           // isn't "click this button" — mirror the CTA styling minus the
@@ -1363,6 +1640,7 @@ function ZoneTile({
         <GroupedThumbs
           deckId={deckId}
           bandByCardKey={bandByCardKey}
+          priceTextByCardKey={priceTextByCardKey}
           addRoomByCardKey={addRoomByCardKey}
           resolveHoverPrintingId={resolveHoverPrintingId}
           showAllCopies={showAllCopies}
@@ -1388,6 +1666,7 @@ function ZoneTile({
                 deckId={deckId}
                 card={card}
                 band={bandByCardKey.get(getDeckCardKey(card))}
+                priceText={priceTextByCardKey.get(getDeckCardKey(card))}
                 addRoom={addRoomByCardKey.get(getDeckCardKey(card)) ?? 0}
                 hoverPrintingId={resolveHoverPrintingId(card.cardId, card.preferredPrintingId)}
                 copyIndex={copyIndex}
@@ -1440,6 +1719,7 @@ function ZoneTile({
 function GroupedThumbs({
   deckId,
   bandByCardKey,
+  priceTextByCardKey,
   addRoomByCardKey,
   resolveHoverPrintingId,
   showAllCopies,
@@ -1454,6 +1734,8 @@ function GroupedThumbs({
 }: {
   deckId: string;
   bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
+  /** Deck card key -> preformatted price chip text; empty when chips are off. */
+  priceTextByCardKey: ReadonlyMap<string, string>;
   /** Copies each entry may still add, keyed by deck card key (empty read-only). */
   addRoomByCardKey: ReadonlyMap<string, number>;
   /** Printing id the hover preview should show for an entry. */
@@ -1506,6 +1788,7 @@ function GroupedThumbs({
                     deckId={deckId}
                     card={card}
                     band={bandByCardKey.get(getDeckCardKey(card))}
+                    priceText={priceTextByCardKey.get(getDeckCardKey(card))}
                     addRoom={addRoomByCardKey.get(getDeckCardKey(card)) ?? 0}
                     hoverPrintingId={resolveHoverPrintingId(card.cardId, card.preferredPrintingId)}
                     copyIndex={copyIndex}
@@ -1672,6 +1955,7 @@ function ZoneThumb({
   deckId,
   card,
   band,
+  priceText,
   addRoom,
   hoverPrintingId,
   copyIndex,
@@ -1687,6 +1971,8 @@ function ZoneThumb({
   card: DeckBuilderCard;
   /** How this entry's copies split by collection status; absent when it owns none. */
   band?: OwnershipBandSegments;
+  /** Preformatted per-copy price, shown as a chip when the toggle is on. */
+  priceText?: string;
   /** Copies this entry may still add before the format's caps stop it. */
   addRoom?: number;
   /** Printing the hover preview shows — the owned one while "show my printings" is on. */
@@ -1813,6 +2099,23 @@ function ZoneThumb({
           }}
         >
           ×{card.quantity}
+        </span>
+      )}
+      {priceText && (
+        <span
+          className="bg-background/85 text-muted-foreground absolute leading-tight font-medium tabular-nums"
+          // Card-anchored chrome like the ×N badge, one step quieter: sized in
+          // container units, bottom-left corner (the badge and the edit
+          // controls own bottom-right), floored for legibility.
+          style={{
+            fontSize: "max(10px, 7.5cqw)",
+            padding: "0.5cqw 2.5cqw",
+            borderRadius: "3cqw",
+            left: "2cqw",
+            bottom: "2cqw",
+          }}
+        >
+          {priceText}
         </span>
       )}
       {editable && (

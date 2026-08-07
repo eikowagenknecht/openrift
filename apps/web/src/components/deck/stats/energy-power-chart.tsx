@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Bar, BarChart, Cell, LabelList, XAxis } from "recharts";
 
 import { CrispBar, CrispBarActive, SplitCrispBar } from "@/components/deck/stats/crisp-bar";
@@ -33,6 +34,13 @@ interface SingleChartProps {
   minAxisMax: number;
   /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
+  /**
+   * Paint columns in the neutral primary by default and reveal the
+   * domain-colored stacks only on the hovered column (the tooltip names the
+   * domains alongside). For charts where the domain split is secondary, so
+   * the band's charts don't all wear the same palette.
+   */
+  revealDomainsOnHover?: boolean;
   /** Print each column's total above its bar. */
   showTotals?: boolean;
   /** Makes the bars clickable — called with the column's metric value. */
@@ -189,6 +197,7 @@ function SingleChart({
   metric,
   minAxisMax,
   singleColor,
+  revealDomainsOnHover,
   showTotals,
   onBarClick,
   focusValue,
@@ -196,6 +205,9 @@ function SingleChart({
 }: SingleChartProps) {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
+  // Hovered column while `revealDomainsOnHover` is on — that column swaps
+  // from the neutral fill to its domain stacks.
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   if (data.length === 0) {
     return null;
   }
@@ -311,7 +323,17 @@ function SingleChart({
         config={chartConfig}
         className={cn("aspect-auto h-28 w-full", onBarClick && "cursor-pointer")}
       >
-        <BarChart data={chartData} margin={chartMargin} onClick={handleChartClick}>
+        <BarChart
+          data={chartData}
+          margin={chartMargin}
+          onClick={handleChartClick}
+          onMouseMove={
+            revealDomainsOnHover
+              ? (state) => setHoverIndex(activeRowIndex(state as ChartClickState, chartData.length))
+              : undefined
+          }
+          onMouseLeave={revealDomainsOnHover ? () => setHoverIndex(null) : undefined}
+        >
           <GradientDefs stacks={stacks} colors={domainColors} />
           <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <ChartTooltip
@@ -336,8 +358,20 @@ function SingleChart({
               }
               isAnimationActive={false}
             >
-              {chartData.map((row) => (
-                <Cell key={String(row.value)} fillOpacity={columnOpacity(String(row.value))} />
+              {chartData.map((row, rowIndex) => (
+                <Cell
+                  key={String(row.value)}
+                  fillOpacity={columnOpacity(String(row.value))}
+                  // Always a concrete color: an explicit `fill={undefined}`
+                  // overrides the Bar's fill and paints SVG-default black.
+                  // Neutral until hovered; the hovered column shows its real
+                  // domain stacks.
+                  fill={
+                    revealDomainsOnHover && hoverIndex !== rowIndex
+                      ? "var(--color-primary)"
+                      : comboFill(stack, domainColors)
+                  }
+                />
               ))}
               {showTotals && index === stacks.length - 1 && (
                 <LabelList dataKey="columnTotal" content={<TotalLabel />} />
@@ -355,6 +389,7 @@ export function EnergyChart({
   stacks,
   average,
   singleColor,
+  revealDomainsOnHover,
   footnote,
   showTotals,
   onBarClick,
@@ -365,6 +400,8 @@ export function EnergyChart({
   stacks: DomainCombo[];
   average: number | null;
   singleColor?: boolean;
+  /** See SingleChartProps — neutral columns, domain stacks on hover only. */
+  revealDomainsOnHover?: boolean;
   /** Muted note rendered under the chart, e.g. to disclose which zones it counts. */
   footnote?: string;
   /** Print each column's total above its bar. */
@@ -389,6 +426,7 @@ export function EnergyChart({
         metric="energy"
         minAxisMax={8}
         singleColor={singleColor}
+        revealDomainsOnHover={revealDomainsOnHover}
         showTotals={showTotals}
         onBarClick={onBarClick}
         focusValue={focusValue}

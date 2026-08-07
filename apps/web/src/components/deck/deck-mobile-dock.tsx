@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { Undo2Icon } from "lucide-react";
+import { Redo2Icon, Undo2Icon } from "lucide-react";
 
 import { useDeckUndo } from "@/components/deck/deck-undo-controls";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export function DeckMobileDock({ deckId, zone }: { deckId: string; zone: DeckZon
   const cards = useDeckCards(deckId);
   const { data } = useDeckDetail(deckId);
   const { setOpenMobile } = useSidebar();
-  const { canUndo, undo } = useDeckUndo(deckId);
+  const { canUndo, undo, canRedo, redo } = useDeckUndo(deckId);
   // The step the undo stack would restore, i.e. the deck before the last edit.
   const previous = useDeckUndoStore((state) =>
     state.deckId === deckId ? state.past.at(-1) : undefined,
@@ -112,6 +112,17 @@ export function DeckMobileDock({ deckId, zone }: { deckId: string; zone: DeckZon
           className="shrink-0"
         >
           <Undo2Icon />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Redo"
+          disabled={!canRedo}
+          onClick={redo}
+          className="shrink-0"
+        >
+          <Redo2Icon />
         </Button>
       </div>
     </div>

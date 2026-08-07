@@ -179,7 +179,9 @@ export function decksRepo(db: Kysely<Database>) {
       if (!row) {
         return undefined;
       }
-      return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
+      // Both jsonb columns, not just formatConfig: an unparsed oddsConfig
+      // string fails deckResponseSchema output validation on the PATCH reply.
+      return withParsedFormatConfig(row);
     },
 
     /** @returns Delete result -- check `numDeletedRows` to verify the row existed. */

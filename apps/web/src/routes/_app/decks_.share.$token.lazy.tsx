@@ -26,6 +26,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -121,6 +122,16 @@ function SharedDeckContent() {
 
   const [ownershipData, setOwnershipData] = useState<DeckOwnershipData>();
 
+  // The share page uses the same tab strip as the editor. Old share links
+  // deep-link with #deck-test / #deck-plan (the retired section nav's
+  // anchors), so map the hash to a tab once on mount; anything else starts on
+  // the Deck tab rather than inheriting a tab left over from another surface.
+  const setOverviewTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
+  useEffect(() => {
+    const hash = globalThis.location?.hash;
+    setOverviewTab(hash === "#deck-test" ? "test" : hash === "#deck-plan" ? "plan" : "overview");
+  }, [setOverviewTab]);
+
   const [hovered, setHovered] = useState<{
     id: string;
     preferredPrintingId: string | null;
@@ -213,7 +224,11 @@ function SharedDeckContent() {
             description={data.deck.description ?? undefined}
             oddsConfig={data.deck.oddsConfig}
             onCardClick={handleCardClick}
-            hasPlan={Boolean(data.plan)}
+            planSlot={
+              data.plan ? (
+                <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />
+              ) : undefined
+            }
             // The hero is the page header here: "by …" next to the deck
             // name, the copy CTA under the status chips.
             heroByline={<>by {data.owner.displayName}</>}
@@ -252,14 +267,6 @@ function SharedDeckContent() {
             showImages={showImages}
           />
         </Suspense>
-      )}
-
-      {data.plan && (
-        // Anchor target for the overview's section nav; offset clears the
-        // sticky header + top bar chain plus the nav's own height.
-        <div id="deck-plan" style={{ scrollMarginTop: "calc(var(--sticky-top, 57px) + 3.5rem)" }}>
-          <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />
-        </div>
       )}
 
       {ownershipData && (

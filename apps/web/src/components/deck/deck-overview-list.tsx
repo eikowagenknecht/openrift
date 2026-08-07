@@ -4,6 +4,7 @@ import {
   SIDEBOARD_MAXIMUM,
   WellKnown,
   formatHasSideboard,
+  imageUrl,
   legendDisplayName,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
@@ -706,6 +707,20 @@ function DeckListRow({
       {...interactiveProps}
       {...dragProps}
     >
+      {/* Wide art strip cropped from the printing the row stands for; the
+          empty box keeps rows aligned when a printing has no image on file. */}
+      <span className="bg-muted/40 h-6 w-10 shrink-0 overflow-hidden rounded-sm border">
+        {printing?.imageId && (
+          <img
+            src={imageUrl(printing.imageId, "120w")}
+            alt=""
+            loading="lazy"
+            draggable={false}
+            className="h-full w-full object-cover object-[50%_18%]"
+          />
+        )}
+      </span>
+
       <span
         aria-hidden
         className="w-0.5 shrink-0 self-stretch rounded-full"

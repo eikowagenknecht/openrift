@@ -53,6 +53,9 @@ interface DeckOverviewViewState {
    */
   showOwnershipBands: boolean;
   setShowOwnershipBands: (showOwnershipBands: boolean) => void;
+  /** Whether grid thumbnails carry a per-card price chip. Off by default. */
+  showPrices: boolean;
+  setShowPrices: (showPrices: boolean) => void;
 }
 
 const DISPLAY_MODES: ReadonlySet<DeckOverviewDisplayMode> = new Set(["grid", "list"]);
@@ -110,6 +113,8 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
       setStatsOpen: (statsOpen) => set({ statsOpen }),
       showOwnershipBands: true,
       setShowOwnershipBands: (showOwnershipBands) => set({ showOwnershipBands }),
+      showPrices: false,
+      setShowPrices: (showPrices) => set({ showPrices }),
     }),
     {
       name: "deck-overview-view",
@@ -135,6 +140,8 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
           statsOpen: raw.statsOpen === false ? false : current.statsOpen,
           // Same: bands are on by default, so only an explicit `false` sticks.
           showOwnershipBands: raw.showOwnershipBands === false ? false : current.showOwnershipBands,
+          // Prices are off by default, so only an explicit `true` sticks.
+          showPrices: raw.showPrices === true ? true : current.showPrices,
         };
       },
     },

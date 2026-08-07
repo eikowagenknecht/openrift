@@ -180,6 +180,8 @@ export const deckSummaryResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    /** One-line plain-text preview of the description, for list tiles. */
+    descriptionSnippet: z.string().nullable(),
     format: deckFormatSchema,
     formatConfig: formatConfigResponseSchema,
     isPinned: z.boolean(),
