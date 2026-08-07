@@ -3,7 +3,7 @@ import type { Palette } from "@openrift/shared";
 import type { AppEnv } from "@openrift/shared/app-env";
 import { parseAppEnv } from "@openrift/shared/app-env";
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
+import { PacerDevtoolsPanel } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
@@ -298,7 +298,10 @@ function RootComponent() {
                   name: "Tanstack Query",
                   render: <ReactQueryDevtoolsPanel />,
                 },
-                pacerDevtoolsPlugin(),
+                {
+                  name: "TanStack Pacer",
+                  render: <PacerDevtoolsPanel />,
+                },
               ]}
             />
           }

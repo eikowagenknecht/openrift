@@ -55,7 +55,7 @@
     "@commitlint/types": "21.2.0",
     "@tanstack/devtools-vite": "0.8.3",
     "@tanstack/react-devtools": "0.10.9",
-    "@tanstack/react-pacer-devtools": "0.7.1",
+    "@tanstack/react-pacer-devtools": "0.14.0",
     "@tanstack/react-query-devtools": "5.101.4",
     "@techstark/opencv-js": "5.0.0-release.1",
     "knip": "6.32.0",
