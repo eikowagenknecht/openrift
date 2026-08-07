@@ -7,7 +7,7 @@ import {
   isBaseBanFormat,
   legendDisplayName,
 } from "@openrift/shared";
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useEffect, useRef, useState } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
@@ -490,7 +490,6 @@ function DraggableTileWrapper({
   dragId,
   dragData,
   className,
-  style,
   onMouseEnter,
   onMouseLeave,
   printingId,
@@ -499,7 +498,6 @@ function DraggableTileWrapper({
   dragId: string;
   dragData: Record<string, unknown>;
   className: string;
-  style: CSSProperties | undefined;
   onMouseEnter: (() => void) | undefined;
   onMouseLeave: (() => void) | undefined;
   printingId: string;
@@ -517,7 +515,6 @@ function DraggableTileWrapper({
       ref={setNodeRef}
       data-printing-id={printingId}
       className={cn(className, isDragging && "opacity-40", enableDrag && "select-none")}
-      style={style}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       {...(enableDrag ? { ...listeners, ...attributes } : {})}
@@ -912,17 +909,31 @@ export const CardThumbnail = memo(function CardThumbnail({
 
   // The outer wrapper is inert — only the image area is clickable, so
   // interactive `aboveCard` strips never nest inside a button.
-  const wrapperClassName = cn(
-    // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-    "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
-    otherPrintings.length > 0 && "hover:[--fan:1]",
+  const selected = isSelected === true || highlighted === true;
+  // The selection tint is its own blurred layer rather than the wrapper's
+  // background, so it isn't bounded by the cell box: it bleeds past the gap and
+  // reads as a glow around the card. As a background it was confined to the
+  // 3px padding rim and the strip above the label (CardMetaLabel paints its own
+  // bg-background over the rest), which is nearly invisible. Negative inset +
+  // blur, so cell padding is free to be a pure spacing number.
+  const selectionGlow = selected && (
+    <div
+      className="pointer-events-none absolute -inset-2 -z-10 rounded-2xl blur-sm"
+      style={getDomainGradientStyle(card.domains, "50", domainColors)}
+    />
   );
-  const wrapperStyle =
-    isSelected || highlighted
-      ? getDomainGradientStyle(card.domains, "38", domainColors)
-      : undefined;
+  const wrapperClassName = cn(
+    // ⚠ p-0.75 is mirrored as BUTTON_PAD in card-grid-constants.ts — update both together
+    "group relative z-0 w-full rounded-lg p-0.75 text-left transition-all hover:z-10",
+    otherPrintings.length > 0 && "hover:[--fan:1]",
+    // Lifts the whole cell (glow included) above both neighbours. Without it the
+    // glow paints over the left neighbour's art but under the right one's, since
+    // equal-z siblings paint in DOM order.
+    selected && "z-10",
+  );
   const wrapperContent = (
     <>
+      {selectionGlow}
       {flashOverlay}
       {aboveCard}
       <div className="relative">
@@ -945,7 +956,6 @@ export const CardThumbnail = memo(function CardThumbnail({
         dragId={dragId ?? `card-${printing.id}`}
         dragData={dragData}
         className={wrapperClassName}
-        style={wrapperStyle}
         onMouseEnter={fanMouseEnter}
         onMouseLeave={fanMouseLeave}
         printingId={printing.id}
@@ -959,7 +969,6 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div
       data-printing-id={printing.id}
       className={wrapperClassName}
-      style={wrapperStyle}
       onMouseEnter={fanMouseEnter}
       onMouseLeave={fanMouseLeave}
     >

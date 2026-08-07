@@ -13,6 +13,7 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { computeGridMetrics } from "@/components/cards/card-grid-metrics";
 import type { ActionsColumn } from "@/components/cards/card-table-row";
 import {
   CardTableGroupHeader,
@@ -53,7 +54,11 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
-import { SSR_RESPONSIVE_GRID_COLS, useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import {
+  SSR_RESPONSIVE_GRID_COLS,
+  SSR_RESPONSIVE_GRID_GAP,
+  useResponsiveColumns,
+} from "@/hooks/use-responsive-columns";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
@@ -625,8 +630,11 @@ function PromoSectionsContent({
   // xwide:grid-cols-8 …).
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMeasurements = useGridViewportStore((s) => s.setMeasurements);
-  const { containerRef, columns, autoColumns, physicalMax, physicalMin, measured } =
+  const { containerRef, columns, autoColumns, physicalMax, physicalMin, containerWidth, measured } =
     useResponsiveColumns(maxColumns);
+  // Resolved once and spread onto every section grid, so the column count and
+  // the gap can't drift apart between sections.
+  const sectionGrid = buildGridProps(columns, containerWidth, measured);
   useEffect(() => {
     setMeasurements({ physicalMax, physicalMin, autoColumns });
   }, [autoColumns, physicalMax, physicalMin, setMeasurements]);
@@ -702,8 +710,7 @@ function PromoSectionsContent({
                     viewMode={viewMode}
                     showImages={showImages}
                     display={display}
-                    columns={columns}
-                    measured={measured}
+                    grid={sectionGrid}
                     onCardClick={onCardClick}
                     ownedCounts={ownedCounts}
                     sortPrintings={sortPrintings}
@@ -717,8 +724,7 @@ function PromoSectionsContent({
                     viewMode={viewMode}
                     showImages={showImages}
                     display={display}
-                    columns={columns}
-                    measured={measured}
+                    grid={sectionGrid}
                     onCardClick={onCardClick}
                     ownedCounts={ownedCounts}
                     sortPrintings={sortPrintings}
@@ -737,8 +743,7 @@ function PromoSectionsContent({
                   viewMode={viewMode}
                   showImages={showImages}
                   display={display}
-                  columns={columns}
-                  measured={measured}
+                  grid={sectionGrid}
                   onCardClick={onCardClick}
                   ownedCounts={ownedCounts}
                   sortPrintings={sortPrintings}
@@ -864,14 +869,17 @@ interface RenderedSectionProps {
   viewMode: ViewMode;
   showImages: boolean;
   display: CardThumbnailDisplay;
-  /** Column count from {@link useResponsiveColumns} — drives each section's inline gridTemplateColumns once measured. */
-  columns: number;
-  /** False until useLayoutEffect has measured the container; while false, the grid relies on SSR_RESPONSIVE_GRID_COLS so SSR paints the right column count without a hydration mismatch. */
-  measured: boolean;
+  /** Column/gap props from {@link buildGridProps}, resolved once for every section grid. */
+  grid: SectionGridProps;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
   setNameBySlug: Map<string, string>;
+}
+
+interface SectionGridProps {
+  className: string;
+  style: React.CSSProperties;
 }
 
 /**
@@ -881,18 +889,32 @@ interface RenderedSectionProps {
  * `gridTemplateColumns` locks in the JS-measured (or user-controlled) value
  * and overrides the CSS classes.
  *
+ * Both branches take their gap from card-grid-metrics, the same rule /cards
+ * lays out with.
+ * @param columns Resolved column count.
+ * @param containerWidth Measured container width, in px.
+ * @param measured Whether useResponsiveColumns has measured the container yet.
  * @returns Props to spread onto the grid container.
  */
-function gridProps(
+function buildGridProps(
   columns: number,
+  containerWidth: number,
   measured: boolean,
-): {
-  className: string;
-  style: React.CSSProperties | undefined;
-} {
+): SectionGridProps {
+  if (!measured) {
+    // No measurement yet, so the gap can't be resolved in JS either — the
+    // container-query classes evaluate the same rule against the live width.
+    return {
+      className: cn("grid", SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP),
+      style: {},
+    };
+  }
   return {
-    className: cn("grid gap-4", measured ? null : SSR_RESPONSIVE_GRID_COLS),
-    style: measured ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined,
+    className: "grid",
+    style: {
+      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+      gap: `${computeGridMetrics(containerWidth, columns).gap}px`,
+    },
   };
 }
 
@@ -915,8 +937,7 @@ function LeafSection({
   viewMode,
   showImages,
   display,
-  columns,
-  measured,
+  grid,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -936,7 +957,7 @@ function LeafSection({
         anchorId={item.sectionId}
       />
       {viewMode === "grid" ? (
-        <div {...gridProps(columns, measured)}>
+        <div {...grid}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -972,8 +993,7 @@ function FlatSection({
   viewMode,
   showImages,
   display,
-  columns,
-  measured,
+  grid,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -987,7 +1007,7 @@ function FlatSection({
     <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
       <SectionDivider title={item.title} count={sortedPrintings.length} anchorId={item.sectionId} />
       {viewMode === "grid" ? (
-        <div {...gridProps(columns, measured)}>
+        <div {...grid}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -1023,8 +1043,7 @@ function CompactSection({
   viewMode,
   showImages,
   display,
-  columns,
-  measured,
+  grid,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1060,8 +1079,7 @@ function CompactSection({
           stickyOffset={stickyOffset}
           showImages={showImages}
           display={display}
-          columns={columns}
-          measured={measured}
+          grid={grid}
           onCardClick={onCardClick}
           ownedCounts={ownedCounts}
           sortPrintings={sortPrintings}
@@ -1076,8 +1094,7 @@ function CompactBranchGrid({
   stickyOffset,
   showImages,
   display,
-  columns,
-  measured,
+  grid,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1086,8 +1103,7 @@ function CompactBranchGrid({
   stickyOffset: number;
   showImages: boolean;
   display: CardThumbnailDisplay;
-  columns: number;
-  measured: boolean;
+  grid: SectionGridProps;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
@@ -1120,7 +1136,7 @@ function CompactBranchGrid({
           ))}
         </dl>
       )}
-      <div {...gridProps(columns, measured)}>
+      <div {...grid}>
         {entries.map(({ printing, leafLabel, anchorId }) => {
           const ownedCount = ownedCounts?.[printing.id] ?? 0;
           return (
@@ -1377,6 +1393,9 @@ function PromosPending() {
       <Skeleton className="mb-6 h-5 w-64" />
       <Skeleton className="mb-2 h-7 w-36" />
       <Skeleton className="mb-4 h-4 w-48" />
+      {/* A pending placeholder, not a card grid: its viewport breakpoints
+          already don't track the live container-measured column counts, so it
+          keeps a plain gap rather than pretending to follow card-grid-metrics. */}
       <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 12 }, (_, i) => (
           <div key={i} className="p-1.5">

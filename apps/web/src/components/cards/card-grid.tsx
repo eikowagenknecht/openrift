@@ -20,13 +20,13 @@ import {
   BUTTON_PAD,
   CARD_ASPECT_INVERSE,
   FALLBACK_ROW_HEIGHT,
-  GAP,
   HEADER_CONTENT_HEIGHT,
   HEADER_PB,
   HEADER_PT,
   LABEL_HEIGHT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
+import { computeGridMetrics } from "./card-grid-metrics";
 import type { GroupInfo, VRow } from "./card-grid-types";
 import { CardViewerEmptyState } from "./card-viewer-empty-state";
 import { computeRowStarts } from "./compute-row-starts";
@@ -117,6 +117,7 @@ const HeaderRow = memo(function HeaderRow({
 const CardRowContent = memo(function CardRowContent({
   row,
   columns,
+  gap,
   labelHeight,
   addStripHeight,
   cardWidth,
@@ -125,6 +126,7 @@ const CardRowContent = memo(function CardRowContent({
 }: {
   row: VRow & { kind: "cards" };
   columns: number;
+  gap: number;
   labelHeight: number;
   addStripHeight: number;
   cardWidth: number;
@@ -167,15 +169,15 @@ const CardRowContent = memo(function CardRowContent({
   const gridStyle = {
     display: "grid" as const,
     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-    gap: `${GAP}px`,
+    gap: `${gap}px`,
   };
 
   if (deferred) {
     return (
       <div style={gridStyle}>
         {row.items.map((item) => (
-          // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
-          <div key={item.id} className="rounded-lg p-1.5">
+          // ⚠ p-0.75 mirrors BUTTON_PAD in card-grid-constants — update both together
+          <div key={item.id} className="rounded-lg p-0.75">
             {addStripHeight > 0 && <div style={{ height: addStripHeight }} />}
             <div className="bg-muted/40 aspect-card rounded-lg" />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
@@ -263,7 +265,9 @@ export function CardGrid({
     setMeasurements({ physicalMax, physicalMin, autoColumns });
   }, [physicalMax, physicalMin, autoColumns, setMeasurements]);
 
-  const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
+  // Gap and cell width move together: the gutter between cards scales with the
+  // card, so both come out of one call. See card-grid-metrics.ts.
+  const { gap, cardWidth: thumbWidth } = computeGridMetrics(containerWidth, columns);
 
   // ── Group items, then flatten into virtual rows ──────────────────
   const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels);
@@ -285,7 +289,7 @@ export function CardGrid({
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 
-  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight, GAP);
+  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight, gap);
 
   // ── Scroll margin (container's document offset) ────────────────────
   // Module-level cache: lets re-mounts within the same session skip the
@@ -317,7 +321,7 @@ export function CardGrid({
   const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
-    gap: GAP,
+    gap,
     scrollMargin,
     scrollPaddingStart: stickyOffset,
     overscan: 3,
@@ -512,6 +516,7 @@ export function CardGrid({
                 <CardRowContent
                   row={row}
                   columns={columns}
+                  gap={gap}
                   labelHeight={labelHeight}
                   addStripHeight={addStripHeight}
                   cardWidth={thumbWidth}

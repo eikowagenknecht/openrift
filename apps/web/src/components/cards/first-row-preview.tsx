@@ -13,6 +13,7 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { useFilterValues } from "@/hooks/use-card-filters";
+import { SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP } from "@/hooks/use-responsive-columns";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
 import { DEFAULT_TOP_LEVEL_UNITS } from "@/lib/filter-sections";
 import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";
@@ -126,7 +127,11 @@ export function FirstRowPreview() {
       }
       gridSlot={
         firstRow.length === 0 ? null : (
-          <>
+          // flex-col carrying the same gap classes as the grid: the virtualizer
+          // puts one row gap between the header row and the first card row, so
+          // header → cards has to be the identical measurement, and both change
+          // together with the container width.
+          <div className={cn("flex flex-col", SSR_RESPONSIVE_GRID_GAP)}>
             {/* Set-group header — mirrors <HeaderRow> in card-grid.tsx so the
                 live grid lands here on hydration without shifting cards down.
                 aria-hidden because the live grid renders an interactive button
@@ -142,29 +147,32 @@ export function FirstRowPreview() {
               </span>
               <div className="bg-border-accent h-px flex-1" />
             </div>
-            {/* mt-4 mirrors the virtualizer's GAP (16px) between adjacent
-                rows — header → first card row. Without it the cards sit
-                ~16px too high vs. the hydrated grid.
-                Column breakpoints query `@container/grid` (set on the center
-                column in <CardBrowserLayout>) and mirror the table in
-                useResponsiveColumns. Viewport breakpoints would over-count
+            {/* Nothing is measured yet, so the column count and the gap both
+                come from container-query classes that mirror the live rules
+                (useResponsiveColumns' table and card-grid-metrics). They query
+                `@container/grid`, set on the center column in
+                <CardBrowserLayout> — viewport breakpoints would over-count
                 columns whenever the filter sidebar is open. */}
-            <div className="mt-4 grid grid-cols-2 gap-4 @min-[640px]/grid:grid-cols-3 @min-[768px]/grid:grid-cols-4 @min-[1024px]/grid:grid-cols-5 @min-[1280px]/grid:grid-cols-6 @min-[1600px]/grid:grid-cols-7 @min-[1920px]/grid:grid-cols-8">
+            <div className={cn("grid", SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP)}>
               {firstRow.map((card, i) => {
                 const srcSet = `${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`;
+                // A resolution hint, so the per-breakpoint gap totals are
+                // computeGridMetrics evaluated at each breakpoint's own width
+                // and only approximate in between (100vw also ignores the
+                // filter sidebar). The trailing term is 2 × BUTTON_PAD, exact.
                 const sizes =
-                  "(min-width: 1920px) calc((100vw - 112px) / 8 - 12px), (min-width: 1600px) calc((100vw - 96px) / 7 - 12px), (min-width: 1280px) calc((100vw - 80px) / 6 - 12px), (min-width: 1024px) calc((100vw - 64px) / 5 - 12px), (min-width: 768px) calc((100vw - 48px) / 4 - 12px), (min-width: 640px) calc((100vw - 32px) / 3 - 12px), calc((100vw - 16px) / 2 - 12px)";
+                  "(min-width: 1920px) calc((100vw - 126px) / 8 - 6px), (min-width: 1600px) calc((100vw - 102px) / 7 - 6px), (min-width: 1280px) calc((100vw - 75px) / 6 - 6px), (min-width: 1024px) calc((100vw - 56px) / 5 - 6px), (min-width: 768px) calc((100vw - 39px) / 4 - 6px), (min-width: 640px) calc((100vw - 30px) / 3 - 6px), calc((100vw - 10px) / 2 - 6px)";
                 const fetchPriority = i === 0 ? "high" : undefined;
                 return (
                   // Mirrors the live <CardRowContent> deferred-cell shape:
-                  // p-1.5 wrapper (BUTTON_PAD), card image, then a label-height
+                  // p-0.75 wrapper (BUTTON_PAD), card image, then a label-height
                   // spacer matching CardThumbnail's two-line CardMetaLabel block.
-                  // Without the wrapper the SSR cells render ~12px wider and
+                  // Without the wrapper the SSR cells render ~6px wider and
                   // ~LABEL_HEIGHT shorter than the live cells, shifting the
                   // grid down and inward when CardBrowser hydrates.
                   <div
                     key={card.printingId}
-                    className={cn("rounded-lg p-1.5", visibilityForIndex(i))}
+                    className={cn("rounded-lg p-0.75", visibilityForIndex(i))}
                   >
                     {card.rotated ? (
                       // Landscape battlefields: mirror CardThumbnail's rotated
@@ -208,7 +216,7 @@ export function FirstRowPreview() {
                 );
               })}
             </div>
-          </>
+          </div>
         )
       }
     />

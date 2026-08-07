@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-07
+
+### Highlights
+
+- feat(Cards): **Bigger cards at high column counts** — the spacing between cards now shrinks as you add columns, so at 12 across each card is about a sixth larger than before.
+
+### Other
+
+- feat(Cards): **Selected card glows** — the highlight was a thin tint you could barely see behind the card, and is now a soft glow in the card's domain colors.
+
 ## 2026-08-06
 
 ### Highlights

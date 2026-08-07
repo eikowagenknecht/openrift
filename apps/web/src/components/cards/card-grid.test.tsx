@@ -40,15 +40,16 @@ import { CardGrid } from "./card-grid";
 import {
   BUTTON_PAD,
   CARD_ASPECT_INVERSE,
-  GAP,
   HEADER_CONTENT_HEIGHT,
   HEADER_PB,
   HEADER_PT,
   LABEL_HEIGHT,
 } from "./card-grid-constants";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { computeGridMetrics } from "./card-grid-metrics";
 
 // Mirrors CardGrid's estimateRowHeight for the mocked layout above.
-const THUMB_WIDTH = (CONTAINER_WIDTH - GAP * (COLUMNS - 1)) / COLUMNS;
+const { gap: GAP, cardWidth: THUMB_WIDTH } = computeGridMetrics(CONTAINER_WIDTH, COLUMNS);
 const CARDS_ROW_HEIGHT = Math.round(
   (THUMB_WIDTH - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE + LABEL_HEIGHT + BUTTON_PAD * 2,
 );

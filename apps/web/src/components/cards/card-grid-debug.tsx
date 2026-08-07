@@ -4,12 +4,12 @@ import { useEffect, useRef } from "react";
 import {
   BUTTON_PAD,
   CARD_ASPECT_INVERSE,
-  GAP,
   LABEL_WRAPPER_MT,
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
 } from "./card-grid-constants";
+import { computeGridMetrics } from "./card-grid-metrics";
 
 type VRow = { kind: "header" } | { kind: "cards" };
 
@@ -106,7 +106,7 @@ export function CardGridDebug({
       const prevTotal = prevTotalRef.current;
 
       // Derived layout values — mirrors estimateRowHeight logic
-      const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
+      const { gap, cardWidth, gutter } = computeGridMetrics(containerWidth, columns);
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);
 
@@ -114,7 +114,7 @@ export function CardGridDebug({
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const sansLoaded = document.fonts.check('12px "Hanken Grotesk Variable"');
       const lines = [
-        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} rem=${rootFontSize} sans=${sansLoaded}`,
+        `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} gap=${gap} gutter=${gutter} rem=${rootFontSize} sans=${sansLoaded}`,
       ];
 
       // Find first card row and build measurement tree
@@ -122,8 +122,8 @@ export function CardGridDebug({
       if (firstCard) {
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
         const gridEl = rowEl?.firstElementChild;
-        // In normal mode the card root is a <button class="p-1.5">.
-        // In add mode it's a <div class="p-1.5"> with AddStrip + image <button> + label.
+        // In normal mode the card root is a <button class="p-0.75">.
+        // In add mode it's a <div class="p-0.75"> with AddStrip + image <button> + label.
         const cardEl = gridEl?.firstElementChild as HTMLElement | null;
         const isAddMode = cardEl !== null && cardEl.tagName !== "BUTTON";
         // Image section: in add mode find the direct-child <button> (image wrapper),

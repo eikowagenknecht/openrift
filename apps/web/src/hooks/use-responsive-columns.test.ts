@@ -1,7 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { useResponsiveColumns } from "./use-responsive-columns";
+import { gridGapCss } from "@/components/cards/card-grid-metrics";
+
+import {
+  SSR_BANDS,
+  SSR_RESPONSIVE_GRID_COLS,
+  SSR_RESPONSIVE_GRID_GAP,
+  useResponsiveColumns,
+} from "./use-responsive-columns";
 
 const originalInnerWidth = globalThis.innerWidth;
 
@@ -83,8 +90,43 @@ describe("useResponsiveColumns", () => {
     });
 
     expect(result.current.measured).toBe(true);
-    // width 300 → physical max = floor((300+16)/(100+16)) = 2, so 6 clamps to 2.
+    // width 300 → physical max = floor((300+GRID_GAP_MIN)/(100+GRID_GAP_MIN)) = 2,
+    // so 6 clamps to 2.
     expect(result.current.columns).toBe(2);
     expect(result.current.containerWidth).toBe(300);
+  });
+});
+
+describe("SSR_RESPONSIVE_GRID_GAP", () => {
+  // The class strings are written out literally so Tailwind's scanner can find
+  // them, which means they can't be generated at runtime. Regenerating and
+  // comparing here is what stops them drifting from the live gap rule after
+  // someone retunes the gutter constants.
+  it("matches gridGapCss for every band's column count", () => {
+    const expected = SSR_BANDS.map((band) => {
+      const value = gridGapCss(band.columns).replaceAll(" ", "_");
+      return band.minWidth === 0
+        ? `gap-[${value}]`
+        : `@min-[${band.minWidth}px]/grid:gap-[${value}]`;
+    }).join(" ");
+    expect(SSR_RESPONSIVE_GRID_GAP).toBe(expected);
+  });
+
+  it("pairs one gap class with each column class", () => {
+    expect(SSR_RESPONSIVE_GRID_GAP.split(" ")).toHaveLength(SSR_BANDS.length);
+    expect(SSR_RESPONSIVE_GRID_COLS.split(" ")).toHaveLength(SSR_BANDS.length);
+  });
+
+  it("declares the same breakpoints as the column classes", () => {
+    const breakpointsOf = (classes: string) =>
+      classes.split(" ").map((c) => /^@min-\[(?<width>\d+)px\]/u.exec(c)?.groups?.width ?? "0");
+    expect(breakpointsOf(SSR_RESPONSIVE_GRID_GAP)).toEqual(breakpointsOf(SSR_RESPONSIVE_GRID_COLS));
+  });
+
+  it("uses the column count the matching column class sets", () => {
+    const cols = SSR_RESPONSIVE_GRID_COLS.split(" ").map((c) =>
+      Number(/grid-cols-(?<n>\d+)$/u.exec(c)?.groups?.n),
+    );
+    expect(cols).toEqual(SSR_BANDS.map((band) => band.columns));
   });
 });

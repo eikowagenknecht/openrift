@@ -18,8 +18,17 @@ export const CARD_ASPECT_INVERSE = 88 / 63;
  */
 export const CARD_BORDER_RADIUS = "5% / 3.6%";
 
-export const GAP = 16; // gap-4
-export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
+// The grid gap is not a constant — it scales with the card width so dense
+// layouts don't drown small cards in whitespace. See `card-grid-metrics.ts`
+// (`computeGridMetrics` for measured grids, `gridGapCss` for SSR ones); never
+// hardcode a gap next to a card grid.
+
+// p-0.75 on the CardThumbnail wrapper. Pure spacing: the hover ring is an
+// outset box-shadow on the image shell and nothing clips it, and the selection
+// tint is its own negative-inset layer, so neither needs room here. Kept small
+// so the gutter it contributes doesn't set a floor on how tight a dense grid
+// can get — see card-grid-metrics.ts.
+export const BUTTON_PAD = 3;
 
 export const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
 export const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root — 0.125rem × 2 sides × 16px = 4px total
