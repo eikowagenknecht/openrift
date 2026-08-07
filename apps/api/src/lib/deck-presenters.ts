@@ -30,6 +30,9 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     oddsConfig: row.oddsConfig,
+    coverCardId: row.coverCardId,
+    coverPrintingId: row.coverPrintingId,
+    coverPosition: row.coverPosition,
   };
 }
 
@@ -45,6 +48,9 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    coverCardId: row.coverCardId,
+    coverPrintingId: row.coverPrintingId,
+    coverPosition: row.coverPosition,
   };
 }
 
@@ -59,6 +65,9 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     oddsConfig: row.oddsConfig,
+    coverCardId: row.coverCardId,
+    coverPrintingId: row.coverPrintingId,
+    coverPosition: row.coverPosition,
   };
 }
 

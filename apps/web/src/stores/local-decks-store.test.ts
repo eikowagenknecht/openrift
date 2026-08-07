@@ -195,6 +195,9 @@ describe("sanitizeDecks", () => {
     format: WellKnown.deckFormat.CUSTOM_REGION,
     formatConfig: { tagSlugs: ["bandle-city"] },
     cards: sampleCards,
+    coverCardId: null,
+    coverPrintingId: null,
+    coverPosition: null,
     createdAt: "2026-07-01T00:00:00.000Z",
     updatedAt: "2026-07-02T00:00:00.000Z",
   };

@@ -84,6 +84,12 @@ export const updateDeckSchema = z.object({
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
   oddsConfig: deckOddsConfigSchema.nullish(),
+  // Custom cover art: any card of the deck as the hero/tile backdrop, with an
+  // optional pinned printing and vertical crop focus. Null clears back to the
+  // legend-derived default.
+  coverCardId: z.uuid().nullish(),
+  coverPrintingId: z.uuid().nullish(),
+  coverPosition: z.number().int().min(0).max(100).nullish(),
 });
 
 export const updateDeckCardsSchema = z.object({
@@ -157,6 +163,9 @@ export const deckResponseSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     oddsConfig: deckOddsConfigSchema.nullable(),
+    coverCardId: z.string().nullable(),
+    coverPrintingId: z.string().nullable(),
+    coverPosition: z.number().int().nullable(),
   })
   .openapi("DeckResponse");
 
@@ -188,6 +197,9 @@ export const deckSummaryResponseSchema = z
     archivedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    coverCardId: z.string().nullable(),
+    coverPrintingId: z.string().nullable(),
+    coverPosition: z.number().int().nullable(),
   })
   .openapi("DeckSummaryResponse");
 

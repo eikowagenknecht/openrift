@@ -28,6 +28,12 @@ interface DeckHeroProps {
   legend?: DeckBuilderCard;
   champion?: DeckBuilderCard;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  /**
+   * Custom cover art for the blurred backdrop, when the owner picked one.
+   * `position` is the vertical crop focus (percent from the top); null keeps
+   * the default framing. Absent = derive from the legend as always.
+   */
+  cover?: { thumbnail: string; position: number | null };
   /** Domain distribution + its card total, for the identity strip at the bottom edge. */
   domainDistribution: { domain: string; count: number }[];
   domainTotal: number;
@@ -164,6 +170,7 @@ export function DeckHero({
   legend,
   champion,
   getThumbnail,
+  cover,
   domainDistribution,
   domainTotal,
   ownershipData,
@@ -244,20 +251,27 @@ export function DeckHero({
     </>
   );
 
+  // The blurred identity backdrop: the owner's chosen cover when set, the
+  // legend's art otherwise. The ambient glow stays legend-driven either way —
+  // domain identity belongs to the legend, the cover is just the picture.
+  const backdropThumb = cover?.thumbnail ?? legendThumb;
+  const backdropPosition = `50% ${cover?.position ?? 20}%`;
+
   return (
     <section className="bg-card relative overflow-hidden rounded-xl border">
       <div className="absolute inset-0" style={deckGlowStyle(legendDomains, domainColors)} />
-      {legendThumb && (
+      {backdropThumb && (
         <>
-          {/* Full-art identity: the legend's art blurred behind a two-direction
+          {/* Full-art identity: the cover art blurred behind a two-direction
               scrim — side fade keeps the text readable, bottom fade settles the
               band into the card surface. scale-110 hides the blur's soft edges. */}
           <img
-            src={legendThumb}
+            src={backdropThumb}
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="absolute inset-0 h-full w-full scale-110 object-cover object-[50%_20%] opacity-25 blur-md saturate-125 dark:opacity-40"
+            style={{ objectPosition: backdropPosition }}
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-md saturate-125 dark:opacity-40"
           />
           <div className="from-card via-card/70 to-card/30 absolute inset-0 bg-gradient-to-r" />
           <div className="to-card/80 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />

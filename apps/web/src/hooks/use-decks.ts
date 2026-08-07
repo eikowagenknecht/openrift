@@ -106,6 +106,9 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       archivedAt: null,
       // Local decks keep their odds settings in the device-local store, not here.
       oddsConfig: null,
+      coverCardId: deck?.coverCardId ?? null,
+      coverPrintingId: deck?.coverPrintingId ?? null,
+      coverPosition: deck?.coverPosition ?? null,
       createdAt: deck?.createdAt ?? "",
       updatedAt: deck?.updatedAt ?? "",
     },
@@ -273,6 +276,9 @@ const updateDeckFn = createServerFn({ method: "POST" })
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
       oddsConfig?: DeckOddsConfig | null;
+      coverCardId?: string | null;
+      coverPrintingId?: string | null;
+      coverPosition?: number | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -305,6 +311,9 @@ export function useUpdateDeck() {
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
       oddsConfig?: DeckOddsConfig | null;
+      coverCardId?: string | null;
+      coverPrintingId?: string | null;
+      coverPosition?: number | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       if (!userId) {
@@ -336,12 +345,15 @@ export function useUpdateDeck() {
   });
 }
 
-/** Metadata patch shared by rename / description / change-format surfaces. */
+/** Metadata patch shared by rename / description / change-format / cover surfaces. */
 export interface DeckMetaPatch {
   name?: string;
   description?: string | null;
   format?: DeckFormat;
   formatConfig?: DeckFormatConfig | null;
+  coverCardId?: string | null;
+  coverPrintingId?: string | null;
+  coverPosition?: number | null;
 }
 
 /**

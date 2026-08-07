@@ -147,6 +147,9 @@ const dbDeck = {
   shareToken: null,
   isPinned: false,
   archivedAt: null,
+  coverCardId: null,
+  coverPrintingId: null,
+  coverPosition: null,
   createdAt: now,
   updatedAt: now,
 };

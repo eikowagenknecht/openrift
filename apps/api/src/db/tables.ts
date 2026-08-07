@@ -582,6 +582,12 @@ export interface DecksTable {
   shareToken: string | null;
   isPinned: Generated<boolean>;
   archivedAt: Date | null;
+  /** FK → cards(id), SET NULL. Custom cover art; null = legend-derived. */
+  coverCardId: string | null;
+  /** FK → printings(id), SET NULL. Pinned cover printing; null = preferred. */
+  coverPrintingId: string | null;
+  /** CHECK: 0-100. Vertical crop focus (percent from the top); null = default. */
+  coverPosition: number | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

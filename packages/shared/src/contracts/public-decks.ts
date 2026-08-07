@@ -42,6 +42,9 @@ export const publicDeckResponseSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     oddsConfig: deckOddsConfigSchema.nullable(),
+    coverCardId: z.string().nullable(),
+    coverPrintingId: z.string().nullable(),
+    coverPosition: z.number().int().nullable(),
   })
   .openapi("PublicDeckResponse");
 

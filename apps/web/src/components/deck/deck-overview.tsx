@@ -22,6 +22,7 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CircleCheckIcon,
+  GalleryVerticalEndIcon,
   InfoIcon,
   LayersIcon,
   LayoutGridIcon,
@@ -52,10 +53,12 @@ import { LensBar } from "@/components/deck/stats/lens-bar";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
+import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -81,8 +84,14 @@ import {
   RUNE_TARGET,
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
-import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
+import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
+import { groupDeckCards } from "@/lib/deck-card-group";
+import { GROUPED_ZONES } from "@/lib/deck-card-sort";
+import { curveOutRate } from "@/lib/deck-curve-out";
 import { formatChancePct } from "@/lib/deck-draw-odds";
+import { oddsGroupPresets, oddsGroupRow } from "@/lib/deck-odds-groups";
+import type { DeckListSortContext } from "@/lib/deck-overview-list-sort";
+import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
 import type { OwnershipBandSegments, OwnershipBandSources } from "@/lib/deck-ownership-band";
 import {
   buildOwnershipBands,
@@ -152,6 +161,32 @@ const LANDSCAPE_THUMB_STYLE: React.CSSProperties = {
 /** Aspect classes matching the two thumb styles above. */
 const PORTRAIT_THUMB_CLASS = "aspect-card max-w-full";
 const LANDSCAPE_THUMB_CLASS = "aspect-[88/63] max-w-full";
+
+/** Card height as a multiple of its width — the stacks math needs the number. */
+const CARD_HEIGHT_RATIO = 88 / 63;
+
+/**
+ * Tight per-type name-bar windows for the stack strips, as fractions of card
+ * height. These are the measured bars from the scanner's notes (see
+ * NAME_BANDS in packages/shared/src/scan/disambiguate.ts) — the scanner's own
+ * exported bands carry deliberate slack for its shift search, which showed as
+ * strips much taller than the colored name plaque.
+ */
+const NAME_STRIP_BANDS: Record<string, { y0: number; y1: number }> = {
+  unit: { y0: 0.56, y1: 0.63 },
+  spell: { y0: 0.56, y1: 0.63 },
+  gear: { y0: 0.56, y1: 0.63 },
+  legend: { y0: 0.67, y1: 0.74 },
+  rune: { y0: 0.67, y1: 0.74 },
+};
+
+/**
+ * @returns The name-bar window for a card type; unknown types get the
+ * unit/spell/gear bar.
+ */
+function nameStripBand(cardType: string): { y0: number; y1: number } {
+  return NAME_STRIP_BANDS[cardType] ?? NAME_STRIP_BANDS.unit;
+}
 
 /** Stable empty map for the thumbs when ownership bands are off or unloaded. */
 const NO_BANDS: ReadonlyMap<string, OwnershipBandSegments> = new Map();
@@ -265,11 +300,25 @@ export const PlanTabActionsContext = createContext<HTMLElement | null | undefine
  * its two cards side by side: from four columns up it shares row one (leaving
  * exactly one card each for legend and champion), below that it takes a row of
  * its own — at three columns that leaves one cell empty after champion, which
- * beats stacking the runes. Battlefields always get a full-width band, since
- * three landscape cards never fit a narrow cell.
+ * beats stacking the runes. Battlefields get a full-width band, since three
+ * landscape cards never fit a narrow cell — except in stacks mode, where the
+ * cascade is one landscape card (~1.4 columns) wide: with six or more columns
+ * it joins row one after legend, champion, and a two-card runes cell.
  * @returns Per-zone `style` objects for the tiles.
  */
-function smallZoneGridStyles(columns: number): Partial<Record<DeckZone, React.CSSProperties>> {
+function smallZoneGridStyles(
+  columns: number,
+  stackedBattlefield: boolean,
+): Partial<Record<DeckZone, React.CSSProperties>> {
+  if (stackedBattlefield && columns >= 6) {
+    const battlefieldSpan = columns - 4;
+    return {
+      legend: { gridColumn: "span 1 / span 1" },
+      champion: { gridColumn: "span 1 / span 1" },
+      runes: { gridColumn: "span 2 / span 2" },
+      battlefield: { gridColumn: `span ${battlefieldSpan} / span ${battlefieldSpan}` },
+    };
+  }
   const runeSpan = columns >= 4 ? columns - 2 : columns;
   return {
     legend: { gridColumn: "span 1 / span 1" },
@@ -280,7 +329,16 @@ function smallZoneGridStyles(columns: number): Partial<Record<DeckZone, React.CS
 }
 
 interface DeckOverviewProps {
-  deck: { id: string; name: string; format: DeckFormat; formatConfig: DeckFormatConfig | null };
+  deck: {
+    id: string;
+    name: string;
+    format: DeckFormat;
+    formatConfig: DeckFormatConfig | null;
+    /** Custom cover art; absent or null falls back to the legend. */
+    coverCardId?: string | null;
+    coverPrintingId?: string | null;
+    coverPosition?: number | null;
+  };
   cards: DeckBuilderCard[];
   /**
    * Card id → custom-tag slugs. Required so deck-level validation can fire
@@ -381,6 +439,17 @@ export function DeckOverview({
   );
   const legendCard = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
   const championCard = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
+  // Custom cover art bypasses the "show my printings" swap on purpose — the
+  // owner picked this exact look. The share page resolves thumbnails by the
+  // deck's own (card, printing) pairs, so a pinned cover printing that isn't
+  // the deck entry's falls back to the entry's art rather than to the legend.
+  const coverEntry = deck.coverCardId
+    ? cards.find((card) => card.cardId === deck.coverCardId)
+    : undefined;
+  const coverThumb = deck.coverCardId
+    ? (getThumbnail(deck.coverCardId, deck.coverPrintingId ?? null) ??
+      (coverEntry ? getThumbnail(coverEntry.cardId, coverEntry.preferredPrintingId) : undefined))
+    : undefined;
   const hasLegend = legendCard !== undefined;
   const introDismissed = useOnboardingStore((state) => state.deckBuilderIntroDismissed);
   const dismissIntro = useOnboardingStore((state) => state.dismissDeckBuilderIntro);
@@ -408,10 +477,14 @@ export function DeckOverview({
   const setShowAllCopies = useDeckOverviewViewStore((state) => state.setShowAllCopies);
   const listSortBy = useDeckOverviewViewStore((state) => state.sortBy);
   const listSortDir = useDeckOverviewViewStore((state) => state.sortDir);
+  const storedGroupBy = useDeckOverviewViewStore((state) => state.groupBy);
+  const storedGroupDir = useDeckOverviewViewStore((state) => state.groupDir);
   const setDisplayMode = useDeckOverviewViewStore((state) => state.setDisplayMode);
   const setColumns = useDeckOverviewViewStore((state) => state.setColumns);
   const setSortBy = useDeckOverviewViewStore((state) => state.setSortBy);
   const setSortDir = useDeckOverviewViewStore((state) => state.setSortDir);
+  const setGroupBy = useDeckOverviewViewStore((state) => state.setGroupBy);
+  const setGroupDir = useDeckOverviewViewStore((state) => state.setGroupDir);
   const storedStatsOpen = useDeckOverviewViewStore((state) => state.statsOpen);
   const setStatsOpen = useDeckOverviewViewStore((state) => state.setStatsOpen);
   const storedShowBands = useDeckOverviewViewStore((state) => state.showOwnershipBands);
@@ -424,6 +497,13 @@ export function DeckOverview({
   const showBands = hydrated ? storedShowBands : true;
   const canPreferOwned = ownershipData !== undefined && !signInHref;
   const preferOwned = hydrated && canPreferOwned && storedPreferOwned;
+  // Grouping is hydration-gated like the display mode (SSR renders the type
+  // default), and a stored ownership axis quietly falls back to type on
+  // surfaces without ownership data (anonymous share views).
+  const hydratedGroupBy = hydrated ? storedGroupBy : "type";
+  const groupBy: DeckOverviewGroup =
+    hydratedGroupBy === "ownership" && !canPreferOwned ? "type" : hydratedGroupBy;
+  const groupDir = hydrated ? storedGroupDir : "asc";
 
   // Card size is a column count here, like every other card surface: the zone
   // stack is measured, the user's override (or the measured Auto) picks the
@@ -444,7 +524,7 @@ export function DeckOverview({
   const smallZoneTemplateStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${tileColumns}, minmax(0, 1fr))`,
   };
-  const smallZoneStyles = smallZoneGridStyles(tileColumns);
+  const smallZoneStyles = smallZoneGridStyles(tileColumns, displayMode === "stacks");
 
   // Room left under the copy caps, per entry, for the thumbs' + buttons. Built
   // here rather than per thumb so the zones' `.map()` callbacks close over one
@@ -458,8 +538,9 @@ export function DeckOverview({
   // (see OwnershipBandSourcesBridge) and lifts one object up — SSR never mounts
   // the subscription.
   const [bandSources, setBandSources] = useState<OwnershipBandSources>();
-  // Grid only: list mode already spells ownership out as amber fractions.
-  const bandsActive = showBands && canPreferOwned && displayMode === "grid";
+  // Thumbnail modes only: list mode already spells ownership out as amber
+  // fractions. Stacks show the band on each pile's fully-visible card.
+  const bandsActive = showBands && canPreferOwned && displayMode !== "list";
   const ownedPrintingByCardId = ownershipData?.ownedPrintingByCardId;
   // Computed whenever the sources are up (not just while bands show): the
   // stats band's ownership lens reads the same split in any display mode.
@@ -479,7 +560,7 @@ export function DeckOverview({
   const PriceToggleIcon = EUR_MARKETPLACES.has(marketplace) ? EuroIcon : DollarSignIcon;
   const { data: priceMap } = useQuery(pricesQueryOptions);
   const priceTextByCardKey =
-    showPrices && displayMode === "grid" && ownershipData !== undefined
+    showPrices && displayMode !== "list" && ownershipData !== undefined
       ? buildPriceTexts(cards, ownershipData, preferOwned, priceMap, marketplace)
       : NO_PRICE_TEXTS;
 
@@ -513,6 +594,42 @@ export function DeckOverview({
     }
     return preferredPrintingId;
   };
+
+  // One ordering pipeline for the grid and stacks modes, mirroring what the
+  // list mode resolves per row: prices and rarities follow the printing on
+  // screen (the owned one while "show my printings" is on).
+  const getOwnershipEntry = (card: DeckBuilderCard) =>
+    ownershipData?.byCardZone.get(`${card.cardId}:${card.zone}`);
+  const overviewSortContext: DeckListSortContext = {
+    getEntry: getOwnershipEntry,
+    rarityOrder: enumOrders.rarities,
+    getRowPrice: (card) => {
+      const owned = ownedPrintingFor(card.cardId);
+      return owned && priceMap
+        ? priceMap.get(owned.id, marketplace)
+        : getOwnershipEntry(card)?.displayPrice;
+    },
+    getRowRarity: (card) =>
+      (ownedPrintingFor(card.cardId) ?? getOwnershipEntry(card)?.displayPrinting)?.rarity,
+  };
+  const sortZoneCards = (zoneCards: DeckBuilderCard[]) =>
+    sortDeckOverviewList(zoneCards, listSortBy, listSortDir, overviewSortContext);
+  const groupZoneCards = (zoneCards: DeckBuilderCard[]) =>
+    groupDeckCards(zoneCards, groupBy, groupDir, {
+      typeLabels: enumLabels.cardTypes,
+      domainLabels: enumLabels.domains,
+      domainOrder: enumOrders.domains,
+      getEntry: getOwnershipEntry,
+    });
+
+  // The axes on offer: ownership only where the viewer's collection is loaded.
+  const groupOptions: SortGroupOption<DeckOverviewGroup>[] = [
+    { value: "type", label: "Type" },
+    { value: "energy", label: "Energy" },
+    { value: "domain", label: "Domain" },
+    ...(canPreferOwned ? [{ value: "ownership" as const, label: "Ownership" }] : []),
+    { value: "none", label: "None" },
+  ];
 
   // Tabs (mock A): Deck | Test | Plan under the hero, on the editor and the
   // read-only share page alike. The active tab lives in the builder UI store
@@ -829,6 +946,45 @@ export function DeckOverview({
     </div>
   );
 
+  // Headline reliability figures, visible even with the charts collapsed:
+  // turn-1 play odds from the existing opening-hand presets, and the
+  // simulated curve-out rate through turn 3 (base rune economy, seeded so the
+  // numbers are stable per deck). Both show going first / going second.
+  const presets = oddsGroupPresets(cards, enumLabels.cardTypes);
+  const turnOneFirst = presets.find((preset) => preset.key === "turn-one-first");
+  const turnOneSecond = presets.find((preset) => preset.key === "turn-one-second");
+  const turnOneFirstChance = turnOneFirst ? oddsGroupRow(cards, turnOneFirst).openingChance : null;
+  const turnOneSecondChance = turnOneSecond
+    ? oddsGroupRow(cards, turnOneSecond).openingChance
+    : null;
+  const curveOutFirst = curveOutRate(cards, { goingSecond: false });
+  const curveOutSecond = curveOutRate(cards, { goingSecond: true });
+  const headlineChips = (
+    <div className="text-muted-foreground hidden items-center gap-3 text-xs tabular-nums @lg:flex">
+      {turnOneFirstChance !== null && turnOneSecondChance !== null && (
+        <span className="flex items-center gap-1">
+          Turn-1 play {formatChancePct(turnOneFirstChance)} · {formatChancePct(turnOneSecondChance)}
+          <InfoHint label="Turn-1 play" side="bottom">
+            The chance your opening hand holds a turn-one play. First number: going first (a unit or
+            gear at 2 energy or less). Second: going second (3 or less). Spells don&rsquo;t count
+            &mdash; there&rsquo;s nothing to react to yet.
+          </InfoHint>
+        </span>
+      )}
+      {curveOutFirst !== null && curveOutSecond !== null && (
+        <span className="flex items-center gap-1">
+          Curve-out {formatChancePct(curveOutFirst)} · {formatChancePct(curveOutSecond)}
+          <InfoHint label="Curve-out" side="bottom">
+            How often you can play at least one card on each of turns 1&ndash;3 &mdash; first number
+            going first, second going second. A card needs energy plus power runes, and you channel
+            two runes a turn (one extra on your first turn going second). No mulligan, and abilities
+            that add resources aren&rsquo;t counted, so real games run a little better.
+          </InfoHint>
+        </span>
+      )}
+    </div>
+  );
+
   // The collapsible band hosting the charts; rendered above the grid on
   // desktop and below it on phones (one instance either way).
   const statsBand = hasStats ? (
@@ -846,6 +1002,7 @@ export function DeckOverview({
         >
           <span className="text-2xs font-semibold tracking-widest uppercase">Stats</span>
         </ExpandToggle>
+        {headlineChips}
       </div>
       {statsOpen && statsCharts}
     </div>
@@ -855,11 +1012,12 @@ export function DeckOverview({
   // right side of the tab strip / section nav row, deck view only.
   const viewControls = totalCards > 0 && (
     <div className="flex items-center gap-2">
-      {displayMode === "grid" && (
+      {displayMode !== "list" && (
         // Same control the card browser and deck check use: fewer columns means
-        // bigger cards, and the middle label resets to the measured Auto.
+        // bigger cards, and the middle label resets to the measured Auto. Full
+        // size (not compact) so it shares the h-8 line of the sort control and
+        // the view toggle beside it.
         <ColumnControls
-          compact
           maxColumns={columnOverride}
           autoColumns={autoColumns}
           minColumns={physicalMin}
@@ -867,7 +1025,7 @@ export function DeckOverview({
           onMaxColumnsChange={setColumns}
         />
       )}
-      {displayMode === "grid" && (
+      {displayMode !== "list" && (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -887,23 +1045,28 @@ export function DeckOverview({
           </TooltipContent>
         </Tooltip>
       )}
-      {displayMode === "list" && (
-        <SortGroupControls
-          sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
-          sortBy={listSortBy}
-          sortDir={listSortDir}
-          onSortByChange={setSortBy}
-          onSortDirChange={setSortDir}
-        />
-      )}
-      {displayMode === "grid" && canPreferOwned && (
+      <SortGroupControls
+        sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
+        sortBy={listSortBy}
+        sortDir={listSortDir}
+        onSortByChange={setSortBy}
+        onSortDirChange={setSortDir}
+        group={{
+          options: groupOptions,
+          value: groupBy,
+          dir: groupDir,
+          onValueChange: setGroupBy,
+          onDirChange: setGroupDir,
+        }}
+      />
+      {displayMode !== "list" && canPreferOwned && (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
                 variant={showBands ? "secondary" : "ghost"}
                 size="icon-sm"
-                aria-label="Show what you own"
+                aria-label="Highlight owned copies"
                 aria-pressed={showBands}
                 onClick={() => setShowOwnershipBands(!showBands)}
               />
@@ -912,11 +1075,11 @@ export function DeckOverview({
             <CircleCheckIcon className="size-4" />
           </TooltipTrigger>
           <TooltipContent>
-            Show what you own — green: this printing, blue: another printing
+            Highlight owned copies — green: this printing, blue: another printing
           </TooltipContent>
         </Tooltip>
       )}
-      {displayMode === "grid" && ownershipData !== undefined && (
+      {displayMode !== "list" && ownershipData !== undefined && (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -959,7 +1122,7 @@ export function DeckOverview({
         spacing={0}
         value={[displayMode]}
         onValueChange={([next]) => {
-          if (next === "grid" || next === "list") {
+          if (next === "grid" || next === "stacks" || next === "list") {
             setDisplayMode(next);
           }
         }}
@@ -970,6 +1133,12 @@ export function DeckOverview({
             <LayoutGridIcon className="size-4" />
           </TooltipTrigger>
           <TooltipContent>Grid view</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger render={<ToggleGroupItem value="stacks" aria-label="Stacks view" />}>
+            <GalleryVerticalEndIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>Stacks view</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
@@ -998,6 +1167,9 @@ export function DeckOverview({
         legend={legendCard}
         champion={championCard}
         getThumbnail={resolveThumbnail}
+        cover={
+          coverThumb ? { thumbnail: coverThumb, position: deck.coverPosition ?? null } : undefined
+        }
         domainDistribution={stats.domainDistribution}
         domainTotal={stats.totalCards}
         ownershipData={ownershipData}
@@ -1090,6 +1262,8 @@ export function DeckOverview({
               marketplace={marketplace}
               sortBy={listSortBy}
               sortDir={listSortDir}
+              groupBy={groupBy}
+              groupDir={groupDir}
               statsFocus={statsFocus}
               // "Show my printings" reaches the rows through these two: the set
               // code, rarity and price follow the owned printing, and the hover
@@ -1125,13 +1299,16 @@ export function DeckOverview({
                     deckId={deck.id}
                     collapsedZones={collapsedZones}
                     onToggleCollapsed={toggleZoneCollapsed}
-                    stickyHeader={!readOnly}
                     bandByCardKey={bandByCardKey}
                     priceTextByCardKey={priceTextByCardKey}
                     addRoomByCardKey={addRoomByCardKey}
                     resolveHoverPrintingId={resolveHoverPrintingId}
                     showAllCopies={showAllCopies}
                     statsFocus={statsFocus}
+                    groupCards={groupZoneCards}
+                    sortCards={sortZoneCards}
+                    groupBy={groupBy}
+                    stacked={displayMode === "stacks"}
                     zone={zone}
                     label={ZONE_LABELS[zone]}
                     cards={cards.filter((card) => card.zone === zone)}
@@ -1151,100 +1328,122 @@ export function DeckOverview({
                   />
                 ))}
               </div>
-              <ZoneTile
-                deckId={deck.id}
-                collapsedZones={collapsedZones}
-                onToggleCollapsed={toggleZoneCollapsed}
-                stickyHeader={!readOnly}
-                bandByCardKey={bandByCardKey}
-                priceTextByCardKey={priceTextByCardKey}
-                addRoomByCardKey={addRoomByCardKey}
-                resolveHoverPrintingId={resolveHoverPrintingId}
-                showAllCopies={showAllCopies}
-                statsFocus={statsFocus}
-                zone={WellKnown.deckZone.MAIN}
-                label={ZONE_LABELS.main}
-                cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
-                allCards={cards}
-                expected={zoneExpected(WellKnown.deckZone.MAIN, deck.format)}
-                emptyHint={zoneEmptyHint(WellKnown.deckZone.MAIN, deck.format)}
-                format={deck.format}
-                zoneViolations={violations.filter(
-                  (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
-                )}
-                onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.MAIN) : undefined}
-                onHoverCard={onHoverCard}
-                getThumbnail={resolveThumbnail}
-                readOnly={readOnly}
-                onCardClick={onCardClick}
-              />
-              {/* Formats without a sideboard hide the tile once it's empty; a
+              {/* Stacks mode: the grouped zones shrink to their piles' width
+                  and flow side by side (a 3-pile main next to a 1-pile
+                  sideboard); the other modes keep full-width bands. */}
+              <div
+                className={
+                  displayMode === "stacks"
+                    ? "flex flex-wrap items-start gap-x-8 gap-y-3"
+                    : "contents"
+                }
+              >
+                <ZoneTile
+                  deckId={deck.id}
+                  collapsedZones={collapsedZones}
+                  onToggleCollapsed={toggleZoneCollapsed}
+                  bandByCardKey={bandByCardKey}
+                  priceTextByCardKey={priceTextByCardKey}
+                  addRoomByCardKey={addRoomByCardKey}
+                  resolveHoverPrintingId={resolveHoverPrintingId}
+                  showAllCopies={showAllCopies}
+                  statsFocus={statsFocus}
+                  groupCards={groupZoneCards}
+                  sortCards={sortZoneCards}
+                  groupBy={groupBy}
+                  stacked={displayMode === "stacks"}
+                  zone={WellKnown.deckZone.MAIN}
+                  label={ZONE_LABELS.main}
+                  cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
+                  allCards={cards}
+                  expected={zoneExpected(WellKnown.deckZone.MAIN, deck.format)}
+                  emptyHint={zoneEmptyHint(WellKnown.deckZone.MAIN, deck.format)}
+                  format={deck.format}
+                  zoneViolations={violations.filter(
+                    (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
+                  )}
+                  onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.MAIN) : undefined}
+                  onHoverCard={onHoverCard}
+                  getThumbnail={resolveThumbnail}
+                  readOnly={readOnly}
+                  onCardClick={onCardClick}
+                />
+                {/* Formats without a sideboard hide the tile once it's empty; a
             non-empty sideboard (format switch, imported list) stays visible
             with its violation so the cards can be moved out. The /8 target
             only applies where the zone is part of the format. */}
-              {(formatHasSideboard(deck.format) ||
-                cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
-                <ZoneTile
-                  deckId={deck.id}
-                  collapsedZones={collapsedZones}
-                  onToggleCollapsed={toggleZoneCollapsed}
-                  stickyHeader={!readOnly}
-                  bandByCardKey={bandByCardKey}
-                  priceTextByCardKey={priceTextByCardKey}
-                  addRoomByCardKey={addRoomByCardKey}
-                  resolveHoverPrintingId={resolveHoverPrintingId}
-                  showAllCopies={showAllCopies}
-                  statsFocus={statsFocus}
-                  zone={WellKnown.deckZone.SIDEBOARD}
-                  label={ZONE_LABELS.sideboard}
-                  cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
-                  allCards={cards}
-                  expected={zoneExpected(WellKnown.deckZone.SIDEBOARD, deck.format)}
-                  emptyHint={zoneEmptyHint(WellKnown.deckZone.SIDEBOARD, deck.format)}
-                  format={deck.format}
-                  zoneViolations={violations.filter(
-                    (violation) =>
-                      violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
-                  )}
-                  onClick={
-                    onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined
-                  }
-                  onHoverCard={onHoverCard}
-                  getThumbnail={resolveThumbnail}
-                  readOnly={readOnly}
-                  onCardClick={onCardClick}
-                />
-              )}
-              {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
-                <ZoneTile
-                  deckId={deck.id}
-                  collapsedZones={collapsedZones}
-                  onToggleCollapsed={toggleZoneCollapsed}
-                  stickyHeader={!readOnly}
-                  bandByCardKey={bandByCardKey}
-                  priceTextByCardKey={priceTextByCardKey}
-                  addRoomByCardKey={addRoomByCardKey}
-                  resolveHoverPrintingId={resolveHoverPrintingId}
-                  showAllCopies={showAllCopies}
-                  statsFocus={statsFocus}
-                  zone={WellKnown.deckZone.OVERFLOW}
-                  label={ZONE_LABELS.overflow}
-                  cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
-                  allCards={cards}
-                  expected={zoneExpected(WellKnown.deckZone.OVERFLOW, deck.format)}
-                  emptyHint={zoneEmptyHint(WellKnown.deckZone.OVERFLOW, deck.format)}
-                  format={deck.format}
-                  zoneViolations={violations.filter(
-                    (violation) =>
-                      violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
-                  )}
-                  onClick={onZoneClick ? () => onZoneClick(WellKnown.deckZone.OVERFLOW) : undefined}
-                  onHoverCard={onHoverCard}
-                  getThumbnail={resolveThumbnail}
-                  readOnly={readOnly}
-                  onCardClick={onCardClick}
-                />
-              )}
+                {(formatHasSideboard(deck.format) ||
+                  cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) && (
+                  <ZoneTile
+                    deckId={deck.id}
+                    collapsedZones={collapsedZones}
+                    onToggleCollapsed={toggleZoneCollapsed}
+                    bandByCardKey={bandByCardKey}
+                    priceTextByCardKey={priceTextByCardKey}
+                    addRoomByCardKey={addRoomByCardKey}
+                    resolveHoverPrintingId={resolveHoverPrintingId}
+                    showAllCopies={showAllCopies}
+                    statsFocus={statsFocus}
+                    groupCards={groupZoneCards}
+                    sortCards={sortZoneCards}
+                    groupBy={groupBy}
+                    stacked={displayMode === "stacks"}
+                    zone={WellKnown.deckZone.SIDEBOARD}
+                    label={ZONE_LABELS.sideboard}
+                    cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
+                    allCards={cards}
+                    expected={zoneExpected(WellKnown.deckZone.SIDEBOARD, deck.format)}
+                    emptyHint={zoneEmptyHint(WellKnown.deckZone.SIDEBOARD, deck.format)}
+                    format={deck.format}
+                    zoneViolations={violations.filter(
+                      (violation) =>
+                        violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
+                    )}
+                    onClick={
+                      onZoneClick ? () => onZoneClick(WellKnown.deckZone.SIDEBOARD) : undefined
+                    }
+                    onHoverCard={onHoverCard}
+                    getThumbnail={resolveThumbnail}
+                    readOnly={readOnly}
+                    onCardClick={onCardClick}
+                  />
+                )}
+                {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
+                  <ZoneTile
+                    deckId={deck.id}
+                    collapsedZones={collapsedZones}
+                    onToggleCollapsed={toggleZoneCollapsed}
+                    bandByCardKey={bandByCardKey}
+                    priceTextByCardKey={priceTextByCardKey}
+                    addRoomByCardKey={addRoomByCardKey}
+                    resolveHoverPrintingId={resolveHoverPrintingId}
+                    showAllCopies={showAllCopies}
+                    statsFocus={statsFocus}
+                    groupCards={groupZoneCards}
+                    sortCards={sortZoneCards}
+                    groupBy={groupBy}
+                    stacked={displayMode === "stacks"}
+                    zone={WellKnown.deckZone.OVERFLOW}
+                    label={ZONE_LABELS.overflow}
+                    cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
+                    allCards={cards}
+                    expected={zoneExpected(WellKnown.deckZone.OVERFLOW, deck.format)}
+                    emptyHint={zoneEmptyHint(WellKnown.deckZone.OVERFLOW, deck.format)}
+                    format={deck.format}
+                    zoneViolations={violations.filter(
+                      (violation) =>
+                        violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
+                    )}
+                    onClick={
+                      onZoneClick ? () => onZoneClick(WellKnown.deckZone.OVERFLOW) : undefined
+                    }
+                    onHoverCard={onHoverCard}
+                    getThumbnail={resolveThumbnail}
+                    readOnly={readOnly}
+                    onCardClick={onCardClick}
+                  />
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1406,6 +1605,14 @@ interface ZoneTileProps {
   showAllCopies: boolean;
   /** Active stats-chart focus: non-matching thumbs render dimmed. */
   statsFocus: StatsFocus | null;
+  /** Splits a grouped zone's cards along the chosen axis (see groupDeckCards). */
+  groupCards: (cards: DeckBuilderCard[]) => DeckCardGroup[];
+  /** Orders cards inside one sub-group (see sortDeckOverviewList). */
+  sortCards: (cards: DeckBuilderCard[]) => DeckBuilderCard[];
+  /** The active grouping axis — type groups keep their icons. */
+  groupBy: DeckOverviewGroup;
+  /** Stacks mode: grouped zones render overlapping piles instead of wraps. */
+  stacked: boolean;
   zone: DeckZone;
   label: string;
   cards: DeckBuilderCard[];
@@ -1416,8 +1623,6 @@ interface ZoneTileProps {
   collapsedZones: ReadonlySet<DeckZone>;
   /** Toggles a zone's collapsed state (wired to the builder UI store). */
   onToggleCollapsed: (zone: DeckZone) => void;
-  /** Editor only: pin the header below the sticky chain while its zone scrolls. */
-  stickyHeader?: boolean;
   zoneViolations: DeckViolation[];
   format: DeckFormat;
   className?: string;
@@ -1438,6 +1643,10 @@ function ZoneTile({
   resolveHoverPrintingId,
   showAllCopies,
   statsFocus,
+  groupCards,
+  sortCards,
+  groupBy,
+  stacked,
   zone,
   label,
   cards,
@@ -1446,7 +1655,6 @@ function ZoneTile({
   emptyHint,
   collapsedZones,
   onToggleCollapsed,
-  stickyHeader,
   zoneViolations,
   format,
   className,
@@ -1464,10 +1672,10 @@ function ZoneTile({
   const isComplete = !hasViolation && expected !== undefined && quantity === expected;
   const isLandscape = LANDSCAPE_ZONES.has(zone);
 
-  // Match the sidebar's sort: grouped zones order by type (Unit → Spell → Gear)
-  // and curve (energy → power → name); single-card zones use the API-provided
-  // order (alphabetical by card name within the zone).
-  const sortedCards = sortOverviewCards(cards, zone);
+  // Grouped zones split along the user's axis and sort inside each group
+  // (curve order by default); single-card zones keep the API-provided order
+  // (alphabetical by card name within the zone), matching the sidebar.
+  const groups = GROUPED_ZONES.has(zone) ? groupCards(cards) : null;
 
   // Drop-target wiring — mirrors the logic in deck-zone-section.tsx so the
   // sidebar and overview reject the same drags (copy limit, battlefield
@@ -1535,15 +1743,7 @@ function ZoneTile({
       {/* Fixed height so the violation icon (a 20px button) can't stretch one
           tile's header past its row-mates' — side-by-side zones keep their
           rules aligned whether or not an issue is showing. */}
-      <div
-        className={cn(
-          "flex h-6 items-center gap-2 border-b",
-          // Frosted while pinned, so the cards scrolling underneath don't
-          // bleed through the label. z-10 sits under the top bar (z-30).
-          stickyHeader && "bg-background/85 sticky z-10 backdrop-blur-sm",
-        )}
-        style={stickyHeader ? { top: "var(--sticky-top, 57px)" } : undefined}
-      >
+      <div className="flex h-6 items-center gap-2 border-b">
         <ExpandToggle
           expanded={!collapsed}
           onClick={() => onToggleCollapsed(zone)}
@@ -1636,7 +1836,44 @@ function ZoneTile({
             <span>{emptyHint}</span>
           </Button>
         )
-      ) : GROUPED_ZONES.has(zone) ? (
+      ) : stacked && isLandscape && cards.length > 1 ? (
+        <div className="flex flex-wrap items-start gap-1.5">
+          <BattlefieldCascade
+            deckId={deckId}
+            cards={cards}
+            showAllCopies={showAllCopies}
+            statsFocus={statsFocus}
+            bandByCardKey={bandByCardKey}
+            priceTextByCardKey={priceTextByCardKey}
+            addRoomByCardKey={addRoomByCardKey}
+            resolveHoverPrintingId={resolveHoverPrintingId}
+            zone={zone}
+            getThumbnail={getThumbnail}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+          {!readOnly &&
+            onClick !== undefined &&
+            expected !== undefined &&
+            quantity > 0 &&
+            quantity < expected && (
+              <Button
+                type="button"
+                variant="dashed"
+                onClick={onClick}
+                aria-label={`Add to ${label}`}
+                style={LANDSCAPE_THUMB_STYLE}
+                className={cn(
+                  LANDSCAPE_THUMB_CLASS,
+                  "h-auto shrink-0 flex-col gap-1 rounded-md font-normal",
+                )}
+              >
+                <PlusIcon className="size-4" />
+                <span className="text-muted-foreground text-xs">Add</span>
+              </Button>
+            )}
+        </div>
+      ) : groups ? (
         <GroupedThumbs
           deckId={deckId}
           bandByCardKey={bandByCardKey}
@@ -1646,7 +1883,10 @@ function ZoneTile({
           showAllCopies={showAllCopies}
           statsFocus={statsFocus}
           zone={zone}
-          cards={sortedCards}
+          groups={groups}
+          sortCards={sortCards}
+          groupBy={groupBy}
+          stacked={stacked}
           isLandscape={isLandscape}
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
@@ -1655,7 +1895,7 @@ function ZoneTile({
         />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
-          {expandCopies(sortedCards, showAllCopies).map(({ card, copyIndex }) => {
+          {expandCopies(cards, showAllCopies).map(({ card, copyIndex }) => {
             const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
             if (!thumbnail) {
               return null;
@@ -1710,11 +1950,259 @@ function ZoneTile({
 }
 
 /**
- * Renders grouped thumbs for main / sideboard / overflow zones. Each type
- * group (Unit / Spell / Gear / other) gets its own row with an icon + name +
+ * One stacks-mode pile. Owns the hover state with deterministic hit-testing:
+ * the hovered index is computed from the pointer's Y position against the
+ * pile's own layout model (rest windows, the expanded card, the 1px gaps)
+ * instead of CSS :hover. The browser only re-evaluates :hover on pointer
+ * events, so while the pile animates under a slow-moving cursor, CSS hover
+ * misses rows — the model can't, in either scan direction.
+ * @returns The pile column.
+ */
+function StackPile({
+  deckId,
+  entries,
+  zone,
+  bandByCardKey,
+  priceTextByCardKey,
+  addRoomByCardKey,
+  resolveHoverPrintingId,
+  statsFocus,
+  getThumbnail,
+  readOnly,
+  onCardClick,
+}: {
+  deckId: string;
+  entries: { card: DeckBuilderCard; copyIndex: number | null }[];
+  zone: DeckZone;
+  bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
+  priceTextByCardKey: ReadonlyMap<string, string>;
+  addRoomByCardKey: ReadonlyMap<string, number>;
+  resolveHoverPrintingId: (cardId: string, preferredPrintingId: string | null) => string | null;
+  statsFocus: StatsFocus | null;
+  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  readOnly?: boolean;
+  onCardClick?: (card: DeckBuilderCard) => void;
+}) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  // The selected card holds its expansion; the pile needs it for the layout
+  // model, the strips' own subscription only draws the ring.
+  const selectedCardId = useSelectionStore((state) =>
+    state.selectedZone === zone ? (state.selectedCard?.cardId ?? null) : null,
+  );
+
+  const items = entries.flatMap(({ card, copyIndex }) => {
+    const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
+    return thumbnail ? [{ card, copyIndex, thumbnail }] : [];
+  });
+
+  // Landscape cards (battlefields parked in overflow) have no measured name
+  // strip and render whole; a single-card pile is just the card.
+  const rendersFull = (index: number) =>
+    items.length === 1 || items[index].card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
+  const variantFor = (index: number): "top" | "middle" | "bottom" =>
+    index === 0 ? "top" : index === items.length - 1 ? "bottom" : "middle";
+  const isExpanded = (index: number) =>
+    !rendersFull(index) && (hoverIndex === index || items[index].card.cardId === selectedCardId);
+
+  // The model mirrors the strips' geometry exactly (see StackStrip): rest
+  // windows per variant, full height when expanded, 1px gaps between rows.
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const pointerY = event.clientY - rect.top;
+    let top = 0;
+    let found: number | null = null;
+    for (let index = 0; index < items.length; index++) {
+      const card = items[index].card;
+      const landscape = card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
+      const band = nameStripBand(card.cardType);
+      const variant = variantFor(index);
+      const restFraction =
+        variant === "top" ? band.y1 : variant === "bottom" ? 1 - band.y0 : band.y1 - band.y0;
+      const height = rendersFull(index)
+        ? landscape
+          ? width * (63 / 88)
+          : width * CARD_HEIGHT_RATIO
+        : isExpanded(index)
+          ? width * CARD_HEIGHT_RATIO
+          : width * CARD_HEIGHT_RATIO * restFraction;
+      if (pointerY < top + height + 1) {
+        found = index;
+        break;
+      }
+      top += height + 1;
+    }
+    setHoverIndex(found);
+  };
+
+  return (
+    <div
+      className="flex flex-col gap-px"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setHoverIndex(null)}
+    >
+      {items.map(({ card, copyIndex, thumbnail }, index) =>
+        rendersFull(index) ? (
+          <ZoneThumb
+            key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
+            deckId={deckId}
+            card={card}
+            band={bandByCardKey.get(getDeckCardKey(card))}
+            priceText={priceTextByCardKey.get(getDeckCardKey(card))}
+            addRoom={addRoomByCardKey.get(getDeckCardKey(card)) ?? 0}
+            hoverPrintingId={resolveHoverPrintingId(card.cardId, card.preferredPrintingId)}
+            copyIndex={copyIndex}
+            dimmed={statsFocus !== null && !cardMatchesStatsFocus(card, statsFocus)}
+            zone={zone}
+            thumbnail={thumbnail}
+            isLandscape={card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD)}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+        ) : (
+          <StackStrip
+            key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
+            deckId={deckId}
+            card={card}
+            copyIndex={copyIndex}
+            dimmed={statsFocus !== null && !cardMatchesStatsFocus(card, statsFocus)}
+            variant={variantFor(index)}
+            expanded={isExpanded(index)}
+            zone={zone}
+            thumbnail={thumbnail}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/**
+ * Stacks-mode battlefields: a physical cascade. The first card sits in front,
+ * fully visible; each following card slides 20% of the card height further
+ * down behind the one above, showing its bottom band. Hovering a buried card
+ * lifts it to the front.
+ * @returns The cascade block, or null when no card has art.
+ */
+function BattlefieldCascade({
+  deckId,
+  cards,
+  showAllCopies,
+  statsFocus,
+  bandByCardKey,
+  priceTextByCardKey,
+  addRoomByCardKey,
+  resolveHoverPrintingId,
+  zone,
+  getThumbnail,
+  readOnly,
+  onCardClick,
+}: {
+  deckId: string;
+  cards: DeckBuilderCard[];
+  showAllCopies: boolean;
+  statsFocus: StatsFocus | null;
+  bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
+  priceTextByCardKey: ReadonlyMap<string, string>;
+  addRoomByCardKey: ReadonlyMap<string, number>;
+  resolveHoverPrintingId: (cardId: string, preferredPrintingId: string | null) => string | null;
+  zone: DeckZone;
+  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  readOnly?: boolean;
+  onCardClick?: (card: DeckBuilderCard) => void;
+}) {
+  // How far each buried card slides out, as a fraction of the landscape
+  // card's height (which equals --deck-card-w after rotation). Deep enough
+  // that the slid-out band reaches the battlefield's name line.
+  const offset = 0.33;
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  // A selected battlefield stays lifted while its detail pane is open.
+  const selectedCardId = useSelectionStore((state) =>
+    state.selectedZone === zone ? (state.selectedCard?.cardId ?? null) : null,
+  );
+  const entries = expandCopies(cards, showAllCopies).flatMap(({ card, copyIndex }) => {
+    const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
+    return thumbnail ? [{ card, copyIndex, thumbnail }] : [];
+  });
+
+  // Static hit-map over the RESTING layout: each card owns the band that is
+  // visible when nothing is lifted (the front card its whole face, buried
+  // cards their slid-out slivers). CSS :hover can't do this — the lifted
+  // card's full body covers the sliver above it, so an upward scan jumped
+  // from the bottom card straight to the front one.
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const cardHeight = rect.width * (63 / 88);
+    const pointerY = event.clientY - rect.top;
+    let found: number | null = null;
+    for (let index = 0; index < entries.length; index++) {
+      const top = cardHeight * offset * index;
+      if (pointerY >= top && pointerY < top + cardHeight) {
+        found = index;
+        break;
+      }
+    }
+    setHoverIndex(found);
+  };
+
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    <div
+      className="relative max-w-full"
+      style={{
+        width: `calc(var(--deck-card-w) * ${88 / 63})`,
+        height: `calc(var(--deck-card-w) * ${1 + offset * (entries.length - 1)})`,
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setHoverIndex(null)}
+    >
+      {entries.map(({ card, copyIndex, thumbnail }, index) => (
+        <div
+          key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
+          // Lifting is state-driven (the hit-map above), so the buried card
+          // comes fully to the front — the cascade's version of the reveal.
+          className={cn(
+            "absolute inset-x-0 transition-transform duration-200 ease-out motion-reduce:transition-none",
+            (hoverIndex === index || card.cardId === selectedCardId) && "-translate-y-1",
+          )}
+          style={{
+            top: `calc(var(--deck-card-w) * ${offset * index})`,
+            zIndex:
+              hoverIndex === index || card.cardId === selectedCardId ? 40 : entries.length - index,
+          }}
+        >
+          <ZoneThumb
+            deckId={deckId}
+            card={card}
+            band={bandByCardKey.get(getDeckCardKey(card))}
+            priceText={priceTextByCardKey.get(getDeckCardKey(card))}
+            addRoom={addRoomByCardKey.get(getDeckCardKey(card)) ?? 0}
+            hoverPrintingId={resolveHoverPrintingId(card.cardId, card.preferredPrintingId)}
+            copyIndex={copyIndex}
+            dimmed={statsFocus !== null && !cardMatchesStatsFocus(card, statsFocus)}
+            zone={zone}
+            thumbnail={thumbnail}
+            isLandscape
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Renders grouped thumbs for main / sideboard / overflow zones. Each sub-group
+ * along the chosen axis (types by default) gets its own row with a name +
  * count header above a flex-wrap of thumbs, mirroring the sidebar's grouped
- * layout but with thumbnails instead of list rows.
- * @returns Stacked type-group sections.
+ * layout but with thumbnails instead of list rows. The single "none" group
+ * renders headerless as one flat wrap.
+ * @returns Stacked sub-group sections.
  */
 function GroupedThumbs({
   deckId,
@@ -1725,7 +2213,10 @@ function GroupedThumbs({
   showAllCopies,
   statsFocus,
   zone,
-  cards,
+  groups,
+  sortCards,
+  groupBy,
+  stacked,
   isLandscape,
   onHoverCard,
   getThumbnail,
@@ -1743,41 +2234,83 @@ function GroupedThumbs({
   showAllCopies: boolean;
   statsFocus: StatsFocus | null;
   zone: DeckZone;
-  cards: DeckBuilderCard[];
+  groups: DeckCardGroup[];
+  /** Orders cards inside one sub-group (see sortDeckOverviewList). */
+  sortCards: (cards: DeckBuilderCard[]) => DeckBuilderCard[];
+  /** The active grouping axis — type groups keep their icons. */
+  groupBy: DeckOverviewGroup;
+  /** Stacks mode: piles of name strips with the last card fully visible. */
+  stacked: boolean;
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
   onCardClick?: (card: DeckBuilderCard) => void;
 }) {
-  const { labels } = useEnumOrders();
-  const grouped = Map.groupBy(cards, (card) => card.cardType);
-  const presentTypes = [
-    ...TYPE_GROUP_ORDER.filter((type) => grouped.has(type)),
-    // Any card types outside TYPE_GROUP_ORDER still get a row at the end,
-    // preserving the deck's sort order.
-    ...[...grouped.keys()].filter((type) => !TYPE_GROUP_ORDER.includes(type)),
-  ];
+  if (stacked) {
+    return (
+      // Piles sit on the measured column grid: each is exactly one card wide,
+      // separated by the same gap the thumbs use.
+      <div className="flex flex-wrap items-start gap-x-1.5 gap-y-3">
+        {groups.map((group) => {
+          const count = group.cards.reduce((sum, card) => sum + card.quantity, 0);
+          const iconPath = groupBy === "type" ? getTypeIconPath(group.key, []) : undefined;
+          const entries = expandCopies(sortCards(group.cards), showAllCopies);
+          return (
+            <div
+              key={group.key}
+              className="flex min-w-0 flex-col gap-1.5"
+              style={{ width: "var(--deck-card-w)" }}
+            >
+              {group.label !== null && (
+                <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                  {iconPath && (
+                    <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
+                  )}
+                  <span className="truncate">
+                    {group.label} <span className="text-muted-foreground/60">· {count}</span>
+                  </span>
+                </div>
+              )}
+              <StackPile
+                deckId={deckId}
+                entries={entries}
+                zone={zone}
+                bandByCardKey={bandByCardKey}
+                priceTextByCardKey={priceTextByCardKey}
+                addRoomByCardKey={addRoomByCardKey}
+                resolveHoverPrintingId={resolveHoverPrintingId}
+                statsFocus={statsFocus}
+                getThumbnail={getThumbnail}
+                readOnly={readOnly}
+                onCardClick={onCardClick}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
-      {presentTypes.map((type) => {
-        const group = grouped.get(type) ?? [];
-        const count = group.reduce((sum, card) => sum + card.quantity, 0);
-        const iconPath = getTypeIconPath(type, []);
+      {groups.map((group) => {
+        const count = group.cards.reduce((sum, card) => sum + card.quantity, 0);
+        const iconPath = groupBy === "type" ? getTypeIconPath(group.key, []) : undefined;
         return (
-          <div key={type} className="flex flex-col gap-1.5">
-            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              {iconPath && (
-                <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
-              )}
-              <span className="whitespace-nowrap">
-                {labels.cardTypes[type]}s{" "}
-                <span className="text-muted-foreground/60">· {count}</span>
-              </span>
-            </div>
+          <div key={group.key} className="flex flex-col gap-1.5">
+            {group.label !== null && (
+              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                {iconPath && (
+                  <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
+                )}
+                <span className="whitespace-nowrap">
+                  {group.label} <span className="text-muted-foreground/60">· {count}</span>
+                </span>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-1.5">
-              {expandCopies(group, showAllCopies).map(({ card, copyIndex }) => {
+              {expandCopies(sortCards(group.cards), showAllCopies).map(({ card, copyIndex }) => {
                 const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
                 if (!thumbnail) {
                   return null;
@@ -2160,6 +2693,173 @@ function ZoneThumb({
   return (
     <DeckCardPrintingMenu deckId={deckId} card={card}>
       {thumbBody}
+    </DeckCardPrintingMenu>
+  );
+}
+
+/**
+ * One buried card in a stacks-mode pile: a horizontal window onto the card's
+ * name bar. Riftbound prints the name mid-card at a per-type height (unit /
+ * spell / gear higher, legend / rune lower), so the window is cut from the
+ * scanner's measured name bands rather than from the card's top edge the way
+ * MTG stacks crop. Hovering raises the usual floating full-card preview;
+ * click, drag, and the printing menu match the full thumbs.
+ * @returns The strip element.
+ */
+function StackStrip({
+  deckId,
+  card,
+  copyIndex,
+  dimmed,
+  variant,
+  expanded,
+  zone,
+  thumbnail,
+  readOnly,
+  onCardClick,
+}: {
+  deckId: string;
+  card: DeckBuilderCard;
+  /** Set when "show every copy" expanded this strip: hides the ×N chip. */
+  copyIndex?: number | null;
+  /** Stats-chart focus active and this card isn't in it — render faded. */
+  dimmed?: boolean;
+  /**
+   * Resting window, like a physical spread: the pile's "top" card shows its
+   * whole top half down through the name bar, "middle" cards the name bar
+   * alone, the "bottom" card the name bar plus its text box.
+   */
+  variant: "top" | "middle" | "bottom";
+  /** Unfold the full card (pile hover hit-testing, or the selected card). */
+  expanded: boolean;
+  zone: DeckZone;
+  thumbnail: string;
+  readOnly?: boolean;
+  onCardClick?: (card: DeckBuilderCard) => void;
+}) {
+  const isMobile = useIsMobile();
+  const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
+  const displayName = legendDisplayName({
+    name: card.cardName,
+    types: card.cardTypes,
+    tags: card.tags,
+  });
+  const nameBand = nameStripBand(card.cardType);
+  const isSelected = useSelectionStore(
+    (state) => state.selectedZone === zone && state.selectedCard?.cardId === card.cardId,
+  );
+
+  const dragData: DeckCardDragData = {
+    type: "deck-card",
+    cardId: card.cardId,
+    cardName: displayName,
+    fromZone: zone,
+    quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
+  };
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `overview-stack-${card.cardId}-${zone}-${card.preferredPrintingId ?? "default"}-${copyIndex ?? "stack"}`,
+    data: dragData,
+    disabled: !enableDrag,
+  });
+
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  const interactiveProps: React.HTMLAttributes<HTMLDivElement> = onCardClick
+    ? {
+        role: "button",
+        tabIndex: 0,
+        onClick: () => onCardClick(card),
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onCardClick(card);
+          }
+        },
+      }
+    : {};
+
+  // Resting window per variant, as fractions of the card's height; the pile
+  // owns hover hit-testing (see StackPile), so the geometry is driven purely
+  // by the `expanded` prop and the transitions animate the inline changes.
+  const restFraction =
+    variant === "top"
+      ? nameBand.y1
+      : variant === "bottom"
+        ? 1 - nameBand.y0
+        : nameBand.y1 - nameBand.y0;
+  const stripHeight = `calc(var(--deck-card-w) * ${CARD_HEIGHT_RATIO * restFraction})`;
+  const cardHeight = `calc(var(--deck-card-w) * ${CARD_HEIGHT_RATIO})`;
+  // The image anchors to the strip's bottom edge: at the name bar's lower
+  // edge for top/middle windows, at the card's true bottom for the bottom
+  // window — which is also the expanded anchor, so the card unfolds in place.
+  const imageBottomOffset =
+    variant === "bottom"
+      ? "0px"
+      : `calc(var(--deck-card-w) * ${-CARD_HEIGHT_RATIO * (1 - nameBand.y1)})`;
+
+  const stripBody =
+    thumbnail === failedUrl ? (
+      // A failed image degrades to a text strip so the pile keeps its slot.
+      <div
+        style={{ width: "var(--deck-card-w)", height: stripHeight }}
+        className={cn(
+          "bg-muted/60 text-muted-foreground flex shrink-0 items-center truncate px-2 text-xs first:rounded-t-md",
+          dimmed && "opacity-25",
+        )}
+      >
+        {displayName}
+      </div>
+    ) : (
+      <div
+        ref={enableDrag ? setNodeRef : undefined}
+        style={{
+          width: "var(--deck-card-w)",
+          height: expanded ? cardHeight : stripHeight,
+        }}
+        className={cn(
+          "relative shrink-0 overflow-hidden shadow-sm",
+          "transition-[height,border-radius] duration-200 ease-out motion-reduce:transition-none",
+          expanded
+            ? "z-10 rounded-md shadow-lg"
+            : variant === "top"
+              ? "rounded-t-md"
+              : variant === "bottom"
+                ? "rounded-b-md"
+                : undefined,
+          enableDrag && "cursor-grab active:cursor-grabbing",
+          onCardClick && !enableDrag && "cursor-pointer",
+          isDragging && card.quantity === 1 && "opacity-40",
+          isSelected && "ring-primary z-10 ring-2",
+          dimmed && "opacity-25",
+        )}
+        {...interactiveProps}
+        {...(enableDrag ? listeners : {})}
+        {...(enableDrag ? attributes : {})}
+      >
+        <img
+          src={thumbnail}
+          alt={displayName}
+          draggable={false}
+          onError={() => setFailedUrl(thumbnail)}
+          style={{ height: cardHeight, bottom: expanded ? "0px" : imageBottomOffset }}
+          className="absolute left-0 w-full object-cover transition-[bottom] duration-200 ease-out motion-reduce:transition-none"
+        />
+        {card.quantity > 1 && (copyIndex === null || copyIndex === undefined) && (
+          <span className="bg-background/85 text-foreground absolute right-1 bottom-1 rounded px-1 text-xs leading-tight font-medium tabular-nums">
+            ×{card.quantity}
+          </span>
+        )}
+      </div>
+    );
+
+  if (readOnly) {
+    return stripBody;
+  }
+
+  return (
+    <DeckCardPrintingMenu deckId={deckId} card={card}>
+      {stripBody}
     </DeckCardPrintingMenu>
   );
 }

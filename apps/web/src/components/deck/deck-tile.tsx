@@ -113,13 +113,20 @@ function PlaceholderPreviewCard({
 export function FannedPreview({
   legendImage,
   championImage,
+  coverImage,
+  coverPosition,
   gradientStyle,
 }: {
   legendImage?: PrintingImage | null;
   championImage?: PrintingImage | null;
+  /** Custom cover art for the blurred backdrop; the fan stays legend/champion. */
+  coverImage?: PrintingImage | null;
+  /** Vertical crop focus for the cover (percent from the top); null = default. */
+  coverPosition?: number | null;
   gradientStyle?: React.CSSProperties;
 }) {
   const isEmpty = !legendImage && !championImage;
+  const backdropImage = coverImage ?? legendImage;
   const legendPlaceholder = (
     <PlaceholderPreviewCard
       iconSrc="/images/types/legend.svg"
@@ -153,17 +160,19 @@ export function FannedPreview({
           : undefined),
       }}
     >
-      {legendImage && (
+      {backdropImage && (
         <>
-          {/* Full-art identity: the legend's art blurred behind the fan, with a
-              bottom fade into the tile body. Mirrors the deck hero's treatment. */}
+          {/* Full-art identity: the cover (or legend) art blurred behind the
+              fan, with a bottom fade into the tile body. Mirrors the deck
+              hero's treatment. */}
           <ImgWithFallback
-            src={imageUrl(legendImage.imageId, "240w")}
+            src={imageUrl(backdropImage.imageId, "240w")}
             alt=""
             aria-hidden="true"
             loading="lazy"
             draggable={false}
-            className="absolute inset-0 h-full w-full scale-110 object-cover object-[50%_20%] opacity-25 blur-md saturate-125 dark:opacity-40"
+            style={{ objectPosition: `50% ${coverImage ? (coverPosition ?? 20) : 20}%` }}
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-md saturate-125 dark:opacity-40"
             fallback={null}
           />
           <div className="to-card/60 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />
@@ -271,6 +280,9 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const championCard = championCardId ? getPreferredPrinting(championCardId)?.card : undefined;
   const legendImage = legendCardId ? (getPreferredFrontImage(legendCardId) ?? null) : null;
   const championImage = championCardId ? (getPreferredFrontImage(championCardId) ?? null) : null;
+  const coverImage = deck.coverCardId
+    ? (getPreferredFrontImage(deck.coverCardId, deck.coverPrintingId ?? undefined) ?? null)
+    : null;
 
   const domainColors = useDomainColors();
   const legendDomains = legendCard?.domains;
@@ -302,6 +314,8 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
       <FannedPreview
         legendImage={legendImage}
         championImage={championImage}
+        coverImage={coverImage}
+        coverPosition={deck.coverPosition}
         gradientStyle={
           legendDomains && legendDomains.length > 0
             ? getDomainGradientStyle(legendDomains, "40", domainColors)

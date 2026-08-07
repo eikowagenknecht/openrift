@@ -7,11 +7,13 @@ import {
   EllipsisVerticalIcon,
   FileTextIcon,
   GitCompareArrowsIcon,
+  ImageIcon,
   LinkIcon,
   PencilIcon,
   PlayIcon,
   PrinterIcon,
   RefreshCwIcon,
+  SearchIcon,
   Share2Icon,
   UploadIcon,
   XIcon,
@@ -21,11 +23,13 @@ import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckCompareDialog } from "@/components/deck/deck-compare-dialog";
+import { DeckCoverDialog } from "@/components/deck/deck-cover-dialog";
 import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckMobileDock } from "@/components/deck/deck-mobile-dock";
+import { DeckQuickAdd } from "@/components/deck/deck-quick-add";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
 import { DeckUndoControls, useDeckUndoShortcuts } from "@/components/deck/deck-undo-controls";
@@ -152,7 +156,7 @@ function DeckEditorContent({
   const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
-  const { getPreferredPrinting } = usePreferredPrinting();
+  const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
   const [hydratedId, setHydratedId] = useState<string | null>(null);
   const deckCards = useDeckCards(deckId);
   const saveStatus = useDeckSaveStatus(queryClient, scope, deckId);
@@ -163,6 +167,8 @@ function DeckEditorContent({
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -214,6 +220,19 @@ function DeckEditorContent({
   // Ctrl+Z / Ctrl+Shift+Z over the whole editor; mounted here (not in a
   // conditional subtree) so the shortcuts survive zone and tab switches.
   useDeckUndoShortcuts(deckId);
+
+  // Ctrl/Cmd+K opens the quick-add omnibar. Free on this route: the two
+  // existing Ctrl+K handlers are scoped to /cards and /collections.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k" && !event.repeat) {
+        event.preventDefault();
+        setQuickAddOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const ownershipData = useDeckOwnership(
     deckCards,
     allPrintings,
@@ -550,6 +569,13 @@ function DeckEditorContent({
                 {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
               </div>
               <PageTopBarActions>
+                <PageTopBarIconButton
+                  aria-label="Add a card (Ctrl+K)"
+                  title="Add a card (Ctrl+K)"
+                  onClick={() => setQuickAddOpen(true)}
+                >
+                  <SearchIcon className="size-4" />
+                </PageTopBarIconButton>
                 <DeckUndoControls deckId={deckId} />
                 <div className="hidden md:flex md:items-center md:gap-1">
                   <DeckExportDialog
@@ -575,6 +601,10 @@ function DeckEditorContent({
                         Edit description
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => setCoverOpen(true)}>
+                      <ImageIcon className="size-4" />
+                      Change cover art
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() =>
                         void navigate({
@@ -692,6 +722,26 @@ function DeckEditorContent({
           deckName={data.deck.name}
         />
       )}
+      <DeckQuickAdd
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        deckId={deckId}
+        format={data.deck.format}
+        cards={deckCards}
+      />
+      <DeckCoverDialog
+        open={coverOpen}
+        onOpenChange={setCoverOpen}
+        deckId={deckId}
+        cards={deckCards}
+        coverCardId={data.deck.coverCardId}
+        coverPrintingId={data.deck.coverPrintingId}
+        coverPosition={data.deck.coverPosition}
+        getThumbnail={(cardId, preferredPrintingId) => {
+          const id = getPreferredFrontImage(cardId, preferredPrintingId)?.imageId;
+          return id ? imageUrl(id, "400w") : undefined;
+        }}
+      />
       <DeckDndContext deckId={deckId}>
         <div ref={containerRef} className={cn(CONTAINER_WIDTH, "px-safe relative flex gap-4")}>
           <NestedSidebar

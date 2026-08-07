@@ -267,6 +267,9 @@ function DeckOverviewForEditor({
           name: deck.name,
           format: deck.format,
           formatConfig: deck.formatConfig,
+          coverCardId: deck.coverCardId,
+          coverPrintingId: deck.coverPrintingId,
+          coverPosition: deck.coverPosition,
         }}
         cards={cards}
         customTagAssignments={customTagAssignments}

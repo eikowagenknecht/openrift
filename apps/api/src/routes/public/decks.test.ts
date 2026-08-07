@@ -73,6 +73,9 @@ const dbDeck = {
   isWanted: false,
   isPublic: true,
   shareToken: "tok-abc",
+  coverCardId: null,
+  coverPrintingId: null,
+  coverPosition: null,
   createdAt: NOW,
   updatedAt: NOW,
 };

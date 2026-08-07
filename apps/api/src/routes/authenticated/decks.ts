@@ -176,6 +176,9 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   formatConfig: "formatConfig",
   isWanted: "isWanted",
   oddsConfig: "oddsConfig",
+  coverCardId: "coverCardId",
+  coverPrintingId: "coverPrintingId",
+  coverPosition: "coverPosition",
 };
 
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);

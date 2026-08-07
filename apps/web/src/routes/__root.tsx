@@ -3,7 +3,6 @@ import type { Palette } from "@openrift/shared";
 import type { AppEnv } from "@openrift/shared/app-env";
 import { parseAppEnv } from "@openrift/shared/app-env";
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { PacerDevtoolsPanel } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
@@ -17,6 +16,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { lazy, Suspense } from "react";
 
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
@@ -45,6 +45,15 @@ import { resolveViewPrefsFromCookie, VIEW_PREFS_COOKIE } from "@/lib/view-prefs"
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
 // ?t=<timestamp> on the client). No effect in production.
 import indexCss from "@/index.css?url";
+
+// Client-only lazy import: pacer-devtools 0.14.0 runs Solid's client-only
+// `template()` at module top level, so a static import crashes SSR module
+// evaluation in dev. The lazy component defers the import to the browser,
+// where the panel actually mounts.
+const PacerDevtoolsPanel = lazy(async () => {
+  const module = await import("@tanstack/react-pacer-devtools");
+  return { default: module.PacerDevtoolsPanel };
+});
 
 // Server function that reads the theme cookie and resolves it to "light" or
 // "dark". Returns the resolved theme so `shellComponent` can apply the correct
@@ -300,7 +309,11 @@ function RootComponent() {
                 },
                 {
                   name: "TanStack Pacer",
-                  render: <PacerDevtoolsPanel />,
+                  render: (
+                    <Suspense fallback={null}>
+                      <PacerDevtoolsPanel />
+                    </Suspense>
+                  ),
                 },
               ]}
             />

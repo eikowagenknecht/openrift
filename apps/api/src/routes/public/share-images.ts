@@ -10,6 +10,7 @@ import {
   buildDeckImageCardsFromRefs,
   formatLabelFromSlug,
   renderDeckImage,
+  resolveCoverImageId,
 } from "../../services/deck-image.js";
 import {
   buildCards,
@@ -220,6 +221,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         cards,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl,
+        coverImageId: await resolveCoverImageId(repos, found.deck),
       },
       scale,
     );

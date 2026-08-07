@@ -30,6 +30,9 @@ describe("toDeck", () => {
       shareToken: "tok-abc",
       isPinned: false,
       archivedAt: null,
+      coverCardId: "card-9",
+      coverPrintingId: "printing-9",
+      coverPosition: 35,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -45,6 +48,9 @@ describe("toDeck", () => {
       shareToken: "tok-abc",
       isPinned: false,
       archivedAt: null,
+      coverCardId: "card-9",
+      coverPrintingId: "printing-9",
+      coverPosition: 35,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -64,6 +70,9 @@ describe("toDeck", () => {
       shareToken: null,
       isPinned: false,
       archivedAt: null,
+      coverCardId: null,
+      coverPrintingId: null,
+      coverPosition: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -90,6 +99,9 @@ describe("toPublicDeck", () => {
       shareToken: "tok-abc",
       isPinned: false,
       archivedAt: null,
+      coverCardId: null,
+      coverPrintingId: null,
+      coverPosition: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -100,6 +112,9 @@ describe("toPublicDeck", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
+      coverCardId: null,
+      coverPrintingId: null,
+      coverPosition: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -128,6 +143,9 @@ describe("toDeckSummary", () => {
       shareToken: "abc123",
       isPinned: true,
       archivedAt: null,
+      coverCardId: "card-9",
+      coverPrintingId: null,
+      coverPosition: 50,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -139,6 +157,9 @@ describe("toDeckSummary", () => {
       formatConfig: null,
       isPinned: true,
       archivedAt: null,
+      coverCardId: "card-9",
+      coverPrintingId: null,
+      coverPosition: 50,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -159,6 +180,9 @@ describe("toDeckSummary", () => {
       shareToken: null,
       isPinned: false,
       archivedAt: archived,
+      coverCardId: null,
+      coverPrintingId: null,
+      coverPosition: null,
       createdAt: NOW,
       updatedAt: LATER,
     });

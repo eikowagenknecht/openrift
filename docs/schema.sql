@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Iluz6Bv5t5VxhZgRB3MAenjGXkg6ViGYiV4vQ0ik5vMLYejFIVWyFfBGccvqdIm
+\restrict sFg1F9W5EeMUJecgNdOacZ3jBOKp8eWaTIasRCMg46BJOhFHnVtjg2g8PHRAJ2N
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1234,7 +1234,11 @@ CREATE TABLE public.decks (
     archived_at timestamp with time zone,
     format_config jsonb,
     odds_config jsonb,
-    CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
+    cover_card_id uuid,
+    cover_printing_id uuid,
+    cover_position smallint,
+    CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
 
 
@@ -5525,6 +5529,22 @@ ALTER TABLE ONLY public.deck_plans
 
 
 --
+-- Name: decks decks_cover_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT decks_cover_card_id_fkey FOREIGN KEY (cover_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: decks decks_cover_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT decks_cover_printing_id_fkey FOREIGN KEY (cover_printing_id) REFERENCES public.printings(id) ON DELETE SET NULL;
+
+
+--
 -- Name: decks decks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6232,5 +6252,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Iluz6Bv5t5VxhZgRB3MAenjGXkg6ViGYiV4vQ0ik5vMLYejFIVWyFfBGccvqdIm
+\unrestrict sFg1F9W5EeMUJecgNdOacZ3jBOKp8eWaTIasRCMg46BJOhFHnVtjg2g8PHRAJ2N
 

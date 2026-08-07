@@ -38,6 +38,20 @@ describe("useDeckOverviewViewStore", () => {
     expect(useDeckOverviewViewStore.getState().sortDir).toBe("desc");
   });
 
+  it("defaults to type grouping, ascending, and takes another axis", () => {
+    expect(useDeckOverviewViewStore.getState().groupBy).toBe("type");
+    expect(useDeckOverviewViewStore.getState().groupDir).toBe("asc");
+    useDeckOverviewViewStore.getState().setGroupBy("energy");
+    useDeckOverviewViewStore.getState().setGroupDir("desc");
+    expect(useDeckOverviewViewStore.getState().groupBy).toBe("energy");
+    expect(useDeckOverviewViewStore.getState().groupDir).toBe("desc");
+  });
+
+  it("accepts the stacks display mode", () => {
+    useDeckOverviewViewStore.getState().setDisplayMode("stacks");
+    expect(useDeckOverviewViewStore.getState().displayMode).toBe("stacks");
+  });
+
   it("defaults to catalog printings and can prefer owned ones", () => {
     expect(useDeckOverviewViewStore.getState().preferOwnedPrintings).toBe(false);
     useDeckOverviewViewStore.getState().setPreferOwnedPrintings(true);
@@ -97,6 +111,8 @@ describe("rehydrate validation", () => {
           columns: 2.5,
           sortBy: "garbage",
           sortDir: "up",
+          groupBy: "color",
+          groupDir: "sideways",
           showAllCopies: "yes",
           statsOpen: "nope",
           showOwnershipBands: "sure",
@@ -111,6 +127,8 @@ describe("rehydrate validation", () => {
     expect(state.columns).toBeNull();
     expect(state.sortBy).toBe("default");
     expect(state.sortDir).toBe("asc");
+    expect(state.groupBy).toBe("type");
+    expect(state.groupDir).toBe("asc");
     expect(state.showAllCopies).toBe(false);
     expect(state.statsOpen).toBe(true);
     expect(state.showOwnershipBands).toBe(true);
@@ -122,10 +140,12 @@ describe("rehydrate validation", () => {
       "deck-overview-view",
       JSON.stringify({
         state: {
-          displayMode: "list",
+          displayMode: "stacks",
           columns: 6,
           sortBy: "ownership",
           sortDir: "desc",
+          groupBy: "energy",
+          groupDir: "desc",
           statsOpen: false,
           showOwnershipBands: false,
           showPrices: true,
@@ -135,10 +155,12 @@ describe("rehydrate validation", () => {
     );
     await useDeckOverviewViewStore.persist.rehydrate();
     const state = useDeckOverviewViewStore.getState();
-    expect(state.displayMode).toBe("list");
+    expect(state.displayMode).toBe("stacks");
     expect(state.columns).toBe(6);
     expect(state.sortBy).toBe("ownership");
     expect(state.sortDir).toBe("desc");
+    expect(state.groupBy).toBe("energy");
+    expect(state.groupDir).toBe("desc");
     expect(state.statsOpen).toBe(false);
     expect(state.showOwnershipBands).toBe(false);
     expect(state.showPrices).toBe(true);

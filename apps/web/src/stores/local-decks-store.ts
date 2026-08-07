@@ -47,6 +47,10 @@ export interface LocalDeck {
   format: DeckFormat;
   formatConfig: DeckFormatConfig | null;
   cards: LocalDeckCard[];
+  /** Custom cover art (see the server's decks.cover_* columns). Null = legend. */
+  coverCardId: string | null;
+  coverPrintingId: string | null;
+  coverPosition: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +61,9 @@ interface LocalDeckPatch {
   description?: string | null;
   format?: DeckFormat;
   formatConfig?: DeckFormatConfig | null;
+  coverCardId?: string | null;
+  coverPrintingId?: string | null;
+  coverPosition?: number | null;
 }
 
 interface LocalDecksState {
@@ -206,6 +213,16 @@ export function sanitizeDecks(raw: unknown): Record<string, LocalDeck> {
           ? (candidate.formatConfig as DeckFormatConfig)
           : null,
       cards: sanitizeCards(candidate.cards),
+      coverCardId: typeof candidate.coverCardId === "string" ? candidate.coverCardId : null,
+      coverPrintingId:
+        typeof candidate.coverPrintingId === "string" ? candidate.coverPrintingId : null,
+      coverPosition:
+        typeof candidate.coverPosition === "number" &&
+        Number.isInteger(candidate.coverPosition) &&
+        candidate.coverPosition >= 0 &&
+        candidate.coverPosition <= 100
+          ? candidate.coverPosition
+          : null,
       createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : fallbackStamp,
       updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : fallbackStamp,
     };
@@ -231,6 +248,9 @@ export const useLocalDecksStore = create<LocalDecksState>()(
               format,
               formatConfig: null,
               cards: [],
+              coverCardId: null,
+              coverPrintingId: null,
+              coverPosition: null,
               createdAt: stamp,
               updatedAt: stamp,
             },
@@ -259,6 +279,15 @@ export const useLocalDecksStore = create<LocalDecksState>()(
           }
           if (patch.formatConfig !== undefined) {
             next.formatConfig = patch.formatConfig;
+          }
+          if (patch.coverCardId !== undefined) {
+            next.coverCardId = patch.coverCardId;
+          }
+          if (patch.coverPrintingId !== undefined) {
+            next.coverPrintingId = patch.coverPrintingId;
+          }
+          if (patch.coverPosition !== undefined) {
+            next.coverPosition = patch.coverPosition;
           }
           return { decks: { ...state.decks, [id]: next } };
         }),

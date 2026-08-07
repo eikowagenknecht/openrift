@@ -32,7 +32,9 @@ import {
   isCardAllowedInZone,
   isDeckZoneFullForDrag,
 } from "@/lib/deck-builder-card";
-import { GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
+import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
+import { groupDeckCards } from "@/lib/deck-card-group";
+import { GROUPED_ZONES } from "@/lib/deck-card-sort";
 import type { DeckListSortContext } from "@/lib/deck-overview-list-sort";
 import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
@@ -90,6 +92,10 @@ interface DeckOverviewListProps {
   marketplace: Marketplace;
   sortBy: DeckOverviewSort;
   sortDir: "asc" | "desc";
+  /** Sub-grouping axis inside main / sideboard / overflow. */
+  groupBy: DeckOverviewGroup;
+  /** Direction for `groupBy` — flips the group order. */
+  groupDir: "asc" | "desc";
   /** Active stats-chart focus: non-matching rows render dimmed. */
   statsFocus?: StatsFocus | null;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
@@ -139,6 +145,8 @@ export function DeckOverviewList({
   marketplace,
   sortBy,
   sortDir,
+  groupBy,
+  groupDir,
   statsFocus,
   onHoverCard,
   onCardClick,
@@ -191,6 +199,14 @@ export function DeckOverviewList({
     getRowPrice: (card) => resolveRowPrinting(card, getEntry(card)).price,
     getRowRarity: (card) => resolveRowPrinting(card, getEntry(card)).printing?.rarity,
   };
+
+  const groupCards = (zoneCards: DeckBuilderCard[]): DeckCardGroup[] =>
+    groupDeckCards(zoneCards, groupBy, groupDir, {
+      typeLabels: labels.cardTypes,
+      domainLabels: labels.domains,
+      domainOrder: orders.domains,
+      getEntry,
+    });
 
   // Edit mode mirrors the grid's tile visibility, so both views scaffold the
   // same zones: an empty one still carries its header, its violation and its
@@ -291,8 +307,8 @@ export function DeckOverviewList({
 
         {zoneCards.length === 0 ? null : GROUPED_ZONES.has(zone) ? (
           <GroupedRows
-            cards={zoneCards}
-            typeLabels={labels.cardTypes}
+            groups={groupCards(zoneCards)}
+            groupBy={groupBy}
             sortBy={sortBy}
             sortDir={sortDir}
             sortContext={sortContext}
@@ -489,14 +505,15 @@ function DroppableZoneSection({
 }
 
 /**
- * Renders a grouped zone (main / sideboard / overflow) as type sub-groups —
- * Units / Spells / Gear each with a small header — sorting rows inside each
- * group by the chosen sort.
- * @returns The stacked type-group sections.
+ * Renders a grouped zone (main / sideboard / overflow) as sub-groups along the
+ * chosen axis — types by default, each with a small header — sorting rows
+ * inside each group by the chosen sort. The single "none" group renders
+ * headerless.
+ * @returns The stacked sub-group sections.
  */
 function GroupedRows({
-  cards,
-  typeLabels,
+  groups,
+  groupBy,
   sortBy,
   sortDir,
   sortContext,
@@ -511,8 +528,9 @@ function GroupedRows({
   onCardClick,
   draggable,
 }: {
-  cards: DeckBuilderCard[];
-  typeLabels: Record<string, string>;
+  groups: DeckCardGroup[];
+  /** The active grouping axis — type groups keep their icons. */
+  groupBy: DeckOverviewGroup;
   sortBy: DeckOverviewSort;
   sortDir: "asc" | "desc";
   sortContext: DeckListSortContext;
@@ -528,29 +546,24 @@ function GroupedRows({
   onCardClick?: (card: DeckBuilderCard) => void;
   draggable: boolean;
 }) {
-  const grouped = Map.groupBy(cards, (card) => card.cardType);
-  const presentTypes = [
-    ...TYPE_GROUP_ORDER.filter((type) => grouped.has(type)),
-    ...[...grouped.keys()].filter((type) => !TYPE_GROUP_ORDER.includes(type)),
-  ];
-
   return (
     <div className="flex flex-col gap-3">
-      {presentTypes.map((type) => {
-        const group = grouped.get(type) ?? [];
-        const count = group.reduce((sum, card) => sum + card.quantity, 0);
-        const iconPath = getTypeIconPath(type, []);
-        const sorted = sortDeckOverviewList(group, sortBy, sortDir, sortContext);
+      {groups.map((group) => {
+        const count = group.cards.reduce((sum, card) => sum + card.quantity, 0);
+        const iconPath = groupBy === "type" ? getTypeIconPath(group.key, []) : undefined;
+        const sorted = sortDeckOverviewList(group.cards, sortBy, sortDir, sortContext);
         return (
-          <div key={type} className="flex flex-col gap-0.5">
-            <div className="text-muted-foreground flex items-center gap-1.5 px-2 text-xs">
-              {iconPath && (
-                <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
-              )}
-              <span className="whitespace-nowrap">
-                {typeLabels[type]}s <span className="text-muted-foreground/60">· {count}</span>
-              </span>
-            </div>
+          <div key={group.key} className="flex flex-col gap-0.5">
+            {group.label !== null && (
+              <div className="text-muted-foreground flex items-center gap-1.5 px-2 text-xs">
+                {iconPath && (
+                  <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
+                )}
+                <span className="whitespace-nowrap">
+                  {group.label} <span className="text-muted-foreground/60">· {count}</span>
+                </span>
+              </div>
+            )}
             {sorted.map((card) => (
               <ListRow
                 key={getDeckCardKey(card)}

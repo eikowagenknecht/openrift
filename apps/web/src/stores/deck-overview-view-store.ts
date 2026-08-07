@@ -1,8 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-/** How the deck overview renders its zones: the thumbnail dashboard or a dense list. */
-type DeckOverviewDisplayMode = "grid" | "list";
+import type { DeckOverviewGroup } from "@/lib/deck-card-group";
+
+/**
+ * How the deck overview renders its zones: the thumbnail dashboard, a dense
+ * list, or overlapping stacks per group.
+ */
+export type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
 
 /**
  * Card ordering inside each zone (and each type group of a grouped zone) when
@@ -38,12 +43,18 @@ interface DeckOverviewViewState {
    */
   showAllCopies: boolean;
   setShowAllCopies: (showAllCopies: boolean) => void;
-  /** Card ordering inside each zone/type group. Only applies in list mode. */
+  /** Card ordering inside each zone sub-group, in every display mode. */
   sortBy: DeckOverviewSort;
   setSortBy: (sortBy: DeckOverviewSort) => void;
   /** Direction for `sortBy`. Ignored when `sortBy` is "default". */
   sortDir: "asc" | "desc";
   setSortDir: (sortDir: "asc" | "desc") => void;
+  /** Sub-grouping axis inside main / sideboard / overflow. */
+  groupBy: DeckOverviewGroup;
+  setGroupBy: (groupBy: DeckOverviewGroup) => void;
+  /** Direction for `groupBy` — flips the group order, not the membership. */
+  groupDir: "asc" | "desc";
+  setGroupDir: (groupDir: "asc" | "desc") => void;
   /** Whether the deck view's collapsible Stats charts are expanded. */
   statsOpen: boolean;
   setStatsOpen: (statsOpen: boolean) => void;
@@ -58,7 +69,7 @@ interface DeckOverviewViewState {
   setShowPrices: (showPrices: boolean) => void;
 }
 
-const DISPLAY_MODES: ReadonlySet<DeckOverviewDisplayMode> = new Set(["grid", "list"]);
+const DISPLAY_MODES: ReadonlySet<DeckOverviewDisplayMode> = new Set(["grid", "list", "stacks"]);
 
 const SORTS: ReadonlySet<DeckOverviewSort> = new Set([
   "default",
@@ -67,6 +78,14 @@ const SORTS: ReadonlySet<DeckOverviewSort> = new Set([
   "price",
   "rarity",
   "ownership",
+]);
+
+const GROUPS: ReadonlySet<DeckOverviewGroup> = new Set([
+  "type",
+  "energy",
+  "domain",
+  "ownership",
+  "none",
 ]);
 
 /**
@@ -109,6 +128,10 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
       setSortBy: (sortBy) => set({ sortBy }),
       sortDir: "asc",
       setSortDir: (sortDir) => set({ sortDir }),
+      groupBy: "type",
+      setGroupBy: (groupBy) => set({ groupBy }),
+      groupDir: "asc",
+      setGroupDir: (groupDir) => set({ groupDir }),
       statsOpen: true,
       setStatsOpen: (statsOpen) => set({ statsOpen }),
       showOwnershipBands: true,
@@ -136,6 +159,8 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
           showAllCopies: raw.showAllCopies === true ? true : current.showAllCopies,
           sortBy: keepAllowed(raw.sortBy, SORTS, current.sortBy),
           sortDir: raw.sortDir === "desc" ? "desc" : current.sortDir,
+          groupBy: keepAllowed(raw.groupBy, GROUPS, current.groupBy),
+          groupDir: raw.groupDir === "desc" ? "desc" : current.groupDir,
           // Defaults to open, so only an explicit `false` survives rehydrate.
           statsOpen: raw.statsOpen === false ? false : current.statsOpen,
           // Same: bands are on by default, so only an explicit `false` sticks.

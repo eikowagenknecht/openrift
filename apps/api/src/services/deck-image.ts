@@ -118,6 +118,30 @@ export interface DeckImageInput {
   siteHost?: string;
   /** Absolute deck share URL encoded in the QR; the QR is dropped when absent. */
   shareUrl?: string;
+  /**
+   * Custom cover art for the blurred backdrop, mirroring the web hero. Null /
+   * absent keeps the legend-derived backdrop; the left hero panel stays the
+   * legend either way.
+   */
+  coverImageId?: string | null;
+}
+
+/**
+ * Resolves the deck's custom cover to a printable image id, honoring the
+ * pinned printing the same way the web resolves it.
+ * @returns The cover's image id, or null when the deck has no custom cover.
+ */
+export async function resolveCoverImageId(
+  repos: Pick<Repos, "canonicalPrintings">,
+  deck: { coverCardId: string | null; coverPrintingId: string | null },
+): Promise<string | null> {
+  if (!deck.coverCardId) {
+    return null;
+  }
+  const metas = await repos.canonicalPrintings.resolvePrintingMetaForRows([
+    { cardId: deck.coverCardId, preferredPrintingId: deck.coverPrintingId },
+  ]);
+  return metas[0]?.imageId ?? null;
 }
 
 interface PackedGrid {
@@ -553,11 +577,12 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
   ] = await Promise.all([
     legend ? artUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
     // The backdrop is blurred anyway, so render it at half resolution and let
-    // satori scale it up — the payload stays small even at the HQ scale.
-    legend?.imageId
+    // satori scale it up — the payload stays small even at the HQ scale. A
+    // custom cover replaces the legend art here (and only here).
+    (input.coverImageId ?? legend?.imageId)
       ? blurredArtBackdropDataUri(
           io,
-          legend.imageId,
+          input.coverImageId ?? legend?.imageId ?? "",
           Math.round((WIDTH / 2) * scale),
           Math.round((HEIGHT / 2) * scale),
         )
