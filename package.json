@@ -47,7 +47,7 @@
     "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || env | grep -q ^DEPENDABOT || lefthook install"
   },
   "dependencies": {
-    "@tanstack/react-pacer": "0.22.1"
+    "@tanstack/react-pacer": "0.23.0"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
@@ -76,7 +76,7 @@
     "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.4; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.4",
-    "hono": "4.13.0",
+    "hono": "4.13.1",
     "html2canvas": "npm:html2canvas-pro@2.3.3",
     "kysely": "0.29.4"
   },
