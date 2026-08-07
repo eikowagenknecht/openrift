@@ -11,6 +11,7 @@ import type { OwnedBreakdownVariant } from "./use-owned-count";
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
+      // oxlint-disable-next-line react/function-component-definition -- mocked server-fn handler, not a component
       handler: () => async () => null,
       middleware: () => chain,
       validator: () => chain,

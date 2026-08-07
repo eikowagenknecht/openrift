@@ -12,6 +12,7 @@ const { session, serverFnCalls } = vi.hoisted(() => ({
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
+      // oxlint-disable-next-line react/function-component-definition -- mocked server-fn handler, not a component
       handler: () => async (input: unknown) => {
         serverFnCalls.push(input);
         return null;
