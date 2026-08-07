@@ -25,7 +25,7 @@ const MAX_CARD_WIDTH = 500;
 // Pair the `measured` flag with CSS container-query grid classes on the SSR
 // markup so the browser's first paint already shows the right column count
 // based on the actual container width (see /promos for the pattern).
-export const SSR_SAFE_COLUMNS = 2;
+const SSR_SAFE_COLUMNS = 2;
 
 export function useResponsiveColumns(maxColumns?: number | null) {
   // Hold the measured node in state rather than a plain ref so the effect below

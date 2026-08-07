@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 6W2Kkjw9A0C6aGGNAblIESuf2D3AEH82ICkabKdg4GWHa66FOVxnPt0CX5p7nla
+\restrict Iluz6Bv5t5VxhZgRB3MAenjGXkg6ViGYiV4vQ0ik5vMLYejFIVWyFfBGccvqdIm
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1233,6 +1233,7 @@ CREATE TABLE public.decks (
     is_pinned boolean DEFAULT false NOT NULL,
     archived_at timestamp with time zone,
     format_config jsonb,
+    odds_config jsonb,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
 );
 
@@ -6231,5 +6232,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6W2Kkjw9A0C6aGGNAblIESuf2D3AEH82ICkabKdg4GWHa66FOVxnPt0CX5p7nla
+\unrestrict Iluz6Bv5t5VxhZgRB3MAenjGXkg6ViGYiV4vQ0ik5vMLYejFIVWyFfBGccvqdIm
 

@@ -19,7 +19,7 @@ export interface DeckDiffEntry {
   theirs: number;
 }
 
-export interface DeckDiffZone {
+interface DeckDiffZone {
   zone: DeckZone;
   entries: DeckDiffEntry[];
 }

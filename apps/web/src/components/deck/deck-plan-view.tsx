@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 // presentational: it takes the plan plus a denormalized card-meta lookup so it
 // works for anonymous viewers without catalog access.
 
-export type CardMetaLookup = (cardId: string) => DeckPlanCardMetaResponse | undefined;
+type CardMetaLookup = (cardId: string) => DeckPlanCardMetaResponse | undefined;
 
 function CardLine({
   cardId,

@@ -35,7 +35,7 @@ const fetchDeckPlanFn = createServerFn({ method: "GET" })
     apiOrpcClient(decksContract, context.cookie).getPlan({ id: deckId }),
   );
 
-export function deckPlanQueryOptions(userId: string, deckId: string) {
+function deckPlanQueryOptions(userId: string, deckId: string) {
   return queryOptions({
     queryKey: queryKeys.decks.plan(userId, deckId),
     queryFn: (): Promise<DeckPlanDetailResponse> => fetchDeckPlanFn({ data: deckId }),
