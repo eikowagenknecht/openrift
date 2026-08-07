@@ -11,16 +11,48 @@ type DeckOverviewDisplayMode = "grid" | "list";
  */
 export type DeckOverviewSort = "default" | "name" | "energy" | "price" | "rarity" | "ownership";
 
+/**
+ * Widest column count a persisted override may carry. Well past what any
+ * display produces (the measurement caps itself on card width), so it only
+ * exists to keep a hand-edited blob from asking for a thousand columns.
+ */
+const MAX_PERSISTED_COLUMNS = 24;
+
 interface DeckOverviewViewState {
   /** Thumbnail dashboard vs the dense text list. */
   displayMode: DeckOverviewDisplayMode;
   setDisplayMode: (displayMode: DeckOverviewDisplayMode) => void;
+  /**
+   * Cards per row in grid mode. `null` follows the measured container the way
+   * the card browser's Auto does; a number is the user's own pick, clamped at
+   * the call site to what the container can physically fit.
+   */
+  columns: number | null;
+  setColumns: (columns: number | null) => void;
+  /** Render deck thumbnails with the printings the viewer owns. */
+  preferOwnedPrintings: boolean;
+  setPreferOwnedPrintings: (preferOwnedPrintings: boolean) => void;
+  /**
+   * Render every physical copy as its own card instead of one thumb with a
+   * ×N badge — for checking a physical deck against the screen.
+   */
+  showAllCopies: boolean;
+  setShowAllCopies: (showAllCopies: boolean) => void;
   /** Card ordering inside each zone/type group. Only applies in list mode. */
   sortBy: DeckOverviewSort;
   setSortBy: (sortBy: DeckOverviewSort) => void;
   /** Direction for `sortBy`. Ignored when `sortBy` is "default". */
   sortDir: "asc" | "desc";
   setSortDir: (sortDir: "asc" | "desc") => void;
+  /** Whether the deck view's collapsible Stats charts are expanded. */
+  statsOpen: boolean;
+  setStatsOpen: (statsOpen: boolean) => void;
+  /**
+   * Whether grid thumbnails carry the collection-status band (green for the
+   * printing on screen, blue for another printing of the same card).
+   */
+  showOwnershipBands: boolean;
+  setShowOwnershipBands: (showOwnershipBands: boolean) => void;
 }
 
 const DISPLAY_MODES: ReadonlySet<DeckOverviewDisplayMode> = new Set(["grid", "list"]);
@@ -44,6 +76,15 @@ function keepAllowed<Value>(raw: unknown, allowed: ReadonlySet<Value>, fallback:
 }
 
 /**
+ * @returns True when a persisted column override is a usable count.
+ */
+function isColumnCount(raw: unknown): raw is number {
+  return (
+    typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_PERSISTED_COLUMNS
+  );
+}
+
+/**
  * Persisted, device-local view preferences for the deck overview: the
  * grid/list display mode and the list-mode card ordering. Kept separate from
  * the global card-browser `displayStore` (whose grid/table mode drives the
@@ -55,10 +96,20 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
     (set) => ({
       displayMode: "grid",
       setDisplayMode: (displayMode) => set({ displayMode }),
+      columns: null,
+      setColumns: (columns) => set({ columns }),
+      preferOwnedPrintings: false,
+      setPreferOwnedPrintings: (preferOwnedPrintings) => set({ preferOwnedPrintings }),
+      showAllCopies: false,
+      setShowAllCopies: (showAllCopies) => set({ showAllCopies }),
       sortBy: "default",
       setSortBy: (sortBy) => set({ sortBy }),
       sortDir: "asc",
       setSortDir: (sortDir) => set({ sortDir }),
+      statsOpen: true,
+      setStatsOpen: (statsOpen) => set({ statsOpen }),
+      showOwnershipBands: true,
+      setShowOwnershipBands: (showOwnershipBands) => set({ showOwnershipBands }),
     }),
     {
       name: "deck-overview-view",
@@ -72,8 +123,18 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
         return {
           ...current,
           displayMode: keepAllowed(raw.displayMode, DISPLAY_MODES, current.displayMode),
+          // Anything that isn't a usable count — including the `thumbSize` step
+          // this replaced — falls back to Auto.
+          columns: isColumnCount(raw.columns) ? raw.columns : current.columns,
+          preferOwnedPrintings:
+            raw.preferOwnedPrintings === true ? true : current.preferOwnedPrintings,
+          showAllCopies: raw.showAllCopies === true ? true : current.showAllCopies,
           sortBy: keepAllowed(raw.sortBy, SORTS, current.sortBy),
           sortDir: raw.sortDir === "desc" ? "desc" : current.sortDir,
+          // Defaults to open, so only an explicit `false` survives rehydrate.
+          statsOpen: raw.statsOpen === false ? false : current.statsOpen,
+          // Same: bands are on by default, so only an explicit `false` sticks.
+          showOwnershipBands: raw.showOwnershipBands === false ? false : current.showOwnershipBands,
         };
       },
     },

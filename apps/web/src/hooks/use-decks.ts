@@ -7,6 +7,7 @@ import type {
   DeckFormat,
   DeckFormatConfig,
   DeckListResponse,
+  DeckOddsConfig,
   DeckResponse,
   DeckShareResponse,
   DeckZone,
@@ -103,6 +104,8 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       shareToken: null,
       isPinned: false,
       archivedAt: null,
+      // Local decks keep their odds settings in the device-local store, not here.
+      oddsConfig: null,
       createdAt: deck?.createdAt ?? "",
       updatedAt: deck?.updatedAt ?? "",
     },
@@ -269,6 +272,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
       description?: string | null;
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
+      oddsConfig?: DeckOddsConfig | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -300,6 +304,7 @@ export function useUpdateDeck() {
       description?: string | null;
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
+      oddsConfig?: DeckOddsConfig | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       if (!userId) {

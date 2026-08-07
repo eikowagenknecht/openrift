@@ -40,16 +40,22 @@ describe("useDeckBuilderUiStore", () => {
     expect(useDeckBuilderUiStore.getState().runesByDomain.size).toBe(0);
   });
 
-  it("toggles the plan panel", () => {
-    useDeckBuilderUiStore.getState().setPlanActive(true);
-    expect(useDeckBuilderUiStore.getState().planActive).toBe(true);
-    useDeckBuilderUiStore.getState().setPlanActive(false);
-    expect(useDeckBuilderUiStore.getState().planActive).toBe(false);
+  it("starts on the overview tab", () => {
+    expect(useDeckBuilderUiStore.getState().overviewTab).toBe("overview");
   });
 
-  it("reset also clears the plan panel", () => {
-    useDeckBuilderUiStore.getState().setPlanActive(true);
+  it("switches the overview tab", () => {
+    useDeckBuilderUiStore.getState().setOverviewTab("plan");
+    expect(useDeckBuilderUiStore.getState().overviewTab).toBe("plan");
+    useDeckBuilderUiStore.getState().setOverviewTab("test");
+    expect(useDeckBuilderUiStore.getState().overviewTab).toBe("test");
+    useDeckBuilderUiStore.getState().setOverviewTab("overview");
+    expect(useDeckBuilderUiStore.getState().overviewTab).toBe("overview");
+  });
+
+  it("reset returns to the overview tab", () => {
+    useDeckBuilderUiStore.getState().setOverviewTab("test");
     useDeckBuilderUiStore.getState().reset();
-    expect(useDeckBuilderUiStore.getState().planActive).toBe(false);
+    expect(useDeckBuilderUiStore.getState().overviewTab).toBe("overview");
   });
 });

@@ -1,7 +1,7 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
 import { WellKnown, copyLimitFor } from "@openrift/shared";
-import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { AlertTriangleIcon, BanIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
@@ -13,8 +13,11 @@ import type {
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Pressable } from "@/components/ui/pressable";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -48,6 +51,8 @@ interface DeckZoneSectionProps {
   deckId: string;
   zone: DeckZone;
   cards: DeckBuilderCard[];
+  /** Per-card ownership — rows show an amber owned/needed fraction when short. */
+  ownership?: DeckOwnershipData;
   violations: DeckViolation[];
   isActive: boolean;
   shiftHeld?: boolean;
@@ -62,6 +67,7 @@ export function DeckZoneSection({
   deckId,
   zone,
   cards,
+  ownership,
   violations,
   isActive,
   shiftHeld,
@@ -184,6 +190,7 @@ export function DeckZoneSection({
         card={card}
         hasViolation={cardViolations.has(card.cardId)}
         violationMessage={cardViolations.get(card.cardId)}
+        shortfall={ownership?.byCardZone.get(`${card.cardId}:${zone}`)?.shortfall}
         controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
         maxQuantity={maxCardQuantity}
         draggable={DRAG_ZONES.has(zone)}
@@ -239,50 +246,43 @@ export function DeckZoneSection({
     });
   };
 
+  const zoneLabel = ZONE_LABELS[zone];
+
   return (
     <div
       ref={dropRef}
       className={cn(
-        "overflow-hidden rounded-lg border transition-opacity select-none",
-        isActive && "border-primary bg-primary/15 ring-primary/40 ring-1",
-        isOver && !dropDisabled && "ring-primary/60 ring-2",
+        // Frameless: no box. The drop highlight is a ring around the whole
+        // block, since there's no border left to recolor.
+        "flex flex-col gap-1.5 rounded transition-all select-none",
+        isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         dropDisabled && "opacity-40",
       )}
     >
-      <div className="flex items-center px-1 py-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="size-5 shrink-0 rounded"
+      {/* Same header grammar as the deck overview's zones: a small-caps label
+          over a hairline rule. The active zone recolors that rule instead of
+          tinting a box. Two separate controls, never nested: the chevron
+          collapses the section, the label opens the zone in the main area. */}
+      <div className={cn("flex h-6 items-center gap-1.5 border-b", isActive && "border-primary")}>
+        <ExpandToggle
+          expanded={open}
+          chevronClassName="size-3.5"
+          aria-label={`${open ? "Collapse" : "Expand"} ${zoneLabel}`}
           onClick={() => setOpen((prev) => !prev)}
-        >
-          {open ? (
-            <ChevronDownIcon className="size-3.5" />
-          ) : (
-            <ChevronRightIcon className="size-3.5" />
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-auto flex-1 justify-start gap-2 rounded px-1.5 py-1 text-sm font-normal"
+          className="shrink-0"
+        />
+        <Pressable
           onClick={activateZone}
+          aria-label={`Edit ${zoneLabel}`}
+          className={cn(
+            "text-muted-foreground hover:text-foreground text-2xs min-w-0 flex-1 truncate font-semibold tracking-widest uppercase transition-colors",
+            isActive && "text-foreground",
+          )}
         >
-          <span className={cn(isActive && "font-bold")}>{ZONE_LABELS[zone]}</span>
-          <span
-            className={cn(
-              "ml-auto text-xs",
-              hasZoneViolations ? "text-destructive" : "text-muted-foreground",
-            )}
-          >
-            {totalQuantity}
-            {expected !== null && expected !== undefined && `/${expected}`}
-          </span>
-        </Button>
+          {zoneLabel}
+        </Pressable>
         {dropDisabled ? (
-          <BanIcon className="text-muted-foreground mr-1.5 ml-1 size-3.5 shrink-0" />
+          <BanIcon className="text-muted-foreground size-3.5 shrink-0" />
         ) : hasZoneViolations ? (
           <Popover>
             <PopoverTrigger
@@ -291,7 +291,7 @@ export function DeckZoneSection({
                   variant="ghost"
                   size="icon-xs"
                   aria-label="Show zone issues"
-                  className="mr-1 ml-1 size-5 shrink-0 rounded"
+                  className="size-5 shrink-0 rounded"
                 />
               }
             >
@@ -308,46 +308,56 @@ export function DeckZoneSection({
             </PopoverContent>
           </Popover>
         ) : null}
+        <span
+          className={cn(
+            "ml-auto text-xs tabular-nums",
+            hasZoneViolations
+              ? "text-destructive"
+              : expected !== undefined && totalQuantity === expected
+                ? "text-green-600 dark:text-green-500"
+                : "text-muted-foreground",
+          )}
+        >
+          {totalQuantity}
+          {expected !== null && expected !== undefined && `/${expected}`}
+        </span>
       </div>
 
-      {open && (
-        <div className="border-t px-1 py-1">
-          {cards.length === 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="text-muted-foreground h-auto w-full justify-start rounded py-1 text-left font-normal whitespace-normal"
-              onClick={activateZone}
-            >
-              {zoneEmptyHint(zone, format)}
-            </Button>
-          ) : isGrouped ? (
-            <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
-          ) : (
-            <div className="flex flex-col gap-0.5">
-              {cards.map((card) => {
-                const typeIconPaths = getTypeIconPaths(card.cardTypes, card.superTypes);
-                return (
-                  <div key={getDeckCardKey(card)} className="flex">
-                    <div className="flex w-7 shrink-0 flex-wrap items-center justify-center gap-0.5">
-                      {typeIconPaths.map((path) => (
-                        <img
-                          key={path}
-                          src={path}
-                          alt={card.cardTypes.join(" ")}
-                          className="size-3.5 brightness-0 dark:invert"
-                        />
-                      ))}
-                    </div>
-                    <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
+      {open &&
+        (cards.length === 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground h-auto w-full justify-start rounded py-1 text-left font-normal whitespace-normal"
+            onClick={activateZone}
+          >
+            {zoneEmptyHint(zone, format)}
+          </Button>
+        ) : isGrouped ? (
+          <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {cards.map((card) => {
+              const typeIconPaths = getTypeIconPaths(card.cardTypes, card.superTypes);
+              return (
+                <div key={getDeckCardKey(card)} className="flex">
+                  <div className="flex w-7 shrink-0 flex-wrap items-center justify-center gap-0.5">
+                    {typeIconPaths.map((path) => (
+                      <img
+                        key={path}
+                        src={path}
+                        alt={card.cardTypes.join(" ")}
+                        className="size-3.5 brightness-0 dark:invert"
+                      />
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
     </div>
   );
 }

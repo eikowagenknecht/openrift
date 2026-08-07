@@ -6,6 +6,7 @@ import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
 import {
   COLORS,
+  blurredArtBackdropDataUri,
   cardArtDataUri,
   cardRadiusPx,
   element,
@@ -46,6 +47,40 @@ const TILE_BORDER = 1;
 
 const TITLE_H = 46;
 const LEFT_W = 250;
+
+/**
+ * Domain colors for the deck-image background glow. Mirrors
+ * `DEFAULT_DOMAIN_COLORS` in apps/web/src/lib/domain.ts; kept as a local
+ * constant rather than a repo lookup because the renderer has no existing path
+ * to the domain enum's DB-backed colors and this is a flat, rarely-changing
+ * palette.
+ */
+const DOMAIN_GLOW_COLORS: Record<string, string> = {
+  fury: "#CB212D",
+  calm: "#16AA71",
+  mind: "#227799",
+  body: "#E2710C",
+  chaos: "#6B4891",
+  order: "#CDA902",
+  colorless: "#737373",
+};
+
+/**
+ * Ambient background glow built from the legend's domain colors, mirroring
+ * the web app's deck hero (`deckGlowStyle` in
+ * apps/web/src/components/deck/deck-hero.tsx): one radial per domain,
+ * anchored to opposite top corners so a dual-domain deck reads as a blend. A
+ * deck with no legend keeps the flat background (returns undefined).
+ * @returns A CSS `background-image` value, or undefined when there's no legend.
+ */
+function legendGlowBackground(domains: readonly string[]): string | undefined {
+  if (domains.length === 0) {
+    return undefined;
+  }
+  const first = DOMAIN_GLOW_COLORS[domains[0] ?? ""] ?? DOMAIN_GLOW_COLORS.colorless;
+  const second = domains.length > 1 ? (DOMAIN_GLOW_COLORS[domains[1] ?? ""] ?? first) : first;
+  return `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`;
+}
 
 const QR_SIZE = 84;
 /** Legend domain glyphs, shown top-right beside the card count (no amounts). */
@@ -506,34 +541,52 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
   const domains = runeCountsByDomain(runes).map((entry) => entry.domain);
 
   // Resolve every raster source up front (art is the dominant cost).
-  const [legendUri, gridUris, battlefieldUris, sideboardUris, runeUris, domainUris, qrUri] =
-    await Promise.all([
-      legend ? artUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
-      grid
-        ? Promise.all(
-            gridCards.map((card) => artUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
-          )
-        : Promise.resolve([]),
-      Promise.all(
-        battlefields.map((card) => artUri(io, card.imageId, battlefieldTileW, bottomTileH, scale)),
-      ),
-      Promise.all(
-        sideboard.map((card) => artUri(io, card.imageId, sideboardTileW, sideboardTileH, scale)),
-      ),
-      Promise.all(runeCards.map((card) => artUri(io, card.imageId, runeTileW, runeTileH, scale))),
-      Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
-      input.shareUrl
-        ? QRCode.toDataURL(input.shareUrl, {
-            errorCorrectionLevel: "M",
-            width: QR_SIZE * scale,
-            // The 2-module quiet zone is white rather than transparent, so it
-            // doubles as the light plate the code needs. That keeps the mark's
-            // footprint at exactly QR_SIZE for the layout maths below.
-            margin: 2,
-            color: { dark: "#000000", light: "#ffffff" },
-          }).catch(() => null)
-        : Promise.resolve(null),
-    ]);
+  const [
+    legendUri,
+    backdropUri,
+    gridUris,
+    battlefieldUris,
+    sideboardUris,
+    runeUris,
+    domainUris,
+    qrUri,
+  ] = await Promise.all([
+    legend ? artUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
+    // The backdrop is blurred anyway, so render it at half resolution and let
+    // satori scale it up — the payload stays small even at the HQ scale.
+    legend?.imageId
+      ? blurredArtBackdropDataUri(
+          io,
+          legend.imageId,
+          Math.round((WIDTH / 2) * scale),
+          Math.round((HEIGHT / 2) * scale),
+        )
+      : Promise.resolve(null),
+    grid
+      ? Promise.all(
+          gridCards.map((card) => artUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
+        )
+      : Promise.resolve([]),
+    Promise.all(
+      battlefields.map((card) => artUri(io, card.imageId, battlefieldTileW, bottomTileH, scale)),
+    ),
+    Promise.all(
+      sideboard.map((card) => artUri(io, card.imageId, sideboardTileW, sideboardTileH, scale)),
+    ),
+    Promise.all(runeCards.map((card) => artUri(io, card.imageId, runeTileW, runeTileH, scale))),
+    Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
+    input.shareUrl
+      ? QRCode.toDataURL(input.shareUrl, {
+          errorCorrectionLevel: "M",
+          width: QR_SIZE * scale,
+          // The 2-module quiet zone is white rather than transparent, so it
+          // doubles as the light plate the code needs. That keeps the mark's
+          // footprint at exactly QR_SIZE for the layout maths below.
+          margin: 2,
+          color: { dark: "#000000", light: "#ffffff" },
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   const hasFooterMark = Boolean(qrUri) || Boolean(input.siteHost);
 
@@ -758,19 +811,54 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
     emptyNotice || rightColumn,
   );
 
+  const glowBackground = legend ? legendGlowBackground(legend.domains) : undefined;
+
+  // Full-art identity, mirroring the web deck hero: the legend's art blurred
+  // across the whole canvas at low opacity, under a vertical scrim that keeps
+  // the title row and the bottom band readable. The domain glow stays beneath
+  // and shows through the art's transparency.
+  const heroBackdrop =
+    backdropUri &&
+    element(
+      "div",
+      { display: "flex", position: "absolute", top: 0, left: 0, width: WIDTH, height: HEIGHT },
+      {
+        type: "img",
+        props: {
+          src: backdropUri,
+          width: WIDTH,
+          height: HEIGHT,
+          style: { opacity: 0.35 },
+        },
+      },
+      element("div", {
+        display: "flex",
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: WIDTH,
+        height: HEIGHT,
+        backgroundImage:
+          "linear-gradient(to bottom, rgba(20,22,29,0.85) 0%, rgba(20,22,29,0.35) 30%, rgba(20,22,29,0.35) 65%, rgba(20,22,29,0.9) 100%)",
+      }),
+    );
+
   const root = element(
     "div",
     {
       display: "flex",
+      position: "relative",
       flexDirection: "column",
       width: WIDTH,
       height: HEIGHT,
       padding: PAD,
       backgroundColor: COLORS.background,
+      ...(glowBackground ? { backgroundImage: glowBackground } : {}),
       color: COLORS.text,
       fontFamily: "Hanken Grotesk",
       overflow: "hidden",
     },
+    heroBackdrop,
     titleRow,
     body,
   );

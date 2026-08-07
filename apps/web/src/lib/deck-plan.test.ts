@@ -1,16 +1,13 @@
-import type { Card, DeckPlanResponse } from "@openrift/shared";
+import type { DeckPlanResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildPlanCardMeta,
   computePlanWarnings,
   createEmptyMatchup,
   createEmptyPlanDraft,
   isPlanDraftEmpty,
   planDraftToSaveInput,
-  planReferencedCardIds,
   planResponseToDraft,
-  planSummary,
 } from "./deck-plan";
 import type { DeckPlanContext, PlanDraft } from "./deck-plan";
 
@@ -283,161 +280,5 @@ describe("isPlanDraftEmpty", () => {
       matchups: [{ ...createEmptyMatchup(), opponentCardId: null, opponentLabel: "Aggro" }],
     };
     expect(isPlanDraftEmpty(draft)).toBe(false);
-  });
-});
-
-function emptyPlanResponse(overrides?: Partial<DeckPlanResponse>): DeckPlanResponse {
-  return {
-    generalStrategy: "",
-    mulliganSplit: false,
-    mulliganGeneral: "",
-    mulliganFirst: "",
-    mulliganSecond: "",
-    battlefieldGame1CardId: null,
-    battlefieldFirstCardId: null,
-    battlefieldSecondCardId: null,
-    battlefieldCustom: false,
-    battlefieldNote: "",
-    matchups: [],
-    ...overrides,
-  };
-}
-
-function card(overrides: Partial<Card> & { slug: string; name: string }): Card {
-  const type = overrides.type ?? overrides.types?.[0] ?? "unit";
-  return {
-    type,
-    types: [type],
-    superTypes: [],
-    domains: [],
-    might: null,
-    energy: null,
-    power: null,
-    keywords: [],
-    tags: [],
-    mightBonus: null,
-    maxCopiesOverride: null,
-    errata: null,
-    bans: [],
-    ...overrides,
-  };
-}
-
-describe("planReferencedCardIds", () => {
-  it("is empty for a plan with no battlefields and no matchups", () => {
-    expect(planReferencedCardIds(emptyPlanResponse())).toEqual([]);
-  });
-
-  it("collects battlefields, opponent cards, and swap cards, deduplicated", () => {
-    const plan = emptyPlanResponse({
-      battlefieldGame1CardId: BATTLEFIELD,
-      battlefieldFirstCardId: null,
-      battlefieldSecondCardId: BATTLEFIELD, // same as G1 → deduped
-      matchups: [
-        {
-          id: "m1",
-          opponentCardId: OPPONENT,
-          opponentLabel: "",
-          notes: "",
-          swaps: [
-            { cardId: MAIN_CARD, direction: "out", quantity: 1 },
-            { cardId: BENCH_CARD, direction: "in", quantity: 1 },
-          ],
-        },
-      ],
-    });
-    const ids = planReferencedCardIds(plan);
-    expect(new Set(ids)).toEqual(new Set([BATTLEFIELD, OPPONENT, MAIN_CARD, BENCH_CARD]));
-    expect(ids).toHaveLength(4);
-  });
-
-  it("skips the opponent card for a label-only matchup", () => {
-    const plan = emptyPlanResponse({
-      matchups: [{ id: "m1", opponentCardId: null, opponentLabel: "Aggro", notes: "", swaps: [] }],
-    });
-    expect(planReferencedCardIds(plan)).toEqual([]);
-  });
-});
-
-describe("buildPlanCardMeta", () => {
-  it("returns meta for catalog-known cards and skips unknown ones", () => {
-    const plan = emptyPlanResponse({
-      battlefieldGame1CardId: BATTLEFIELD,
-      matchups: [
-        {
-          id: "m1",
-          opponentCardId: OPPONENT,
-          opponentLabel: "",
-          notes: "",
-          swaps: [{ cardId: MAIN_CARD, direction: "out", quantity: 1 }],
-        },
-      ],
-    });
-    const cardsById: Record<string, Card> = {
-      [OPPONENT]: card({ slug: "diana", name: "Diana", type: "legend" }),
-      [BATTLEFIELD]: card({ slug: "the-rift", name: "The Rift", type: "battlefield" }),
-      // MAIN_CARD intentionally absent from the catalog map
-    };
-    const meta = buildPlanCardMeta(plan, cardsById, (id) => (id === OPPONENT ? "img-diana" : null));
-
-    expect(meta).toHaveLength(2);
-    const opponent = meta.find((entry) => entry.cardId === OPPONENT);
-    expect(opponent).toEqual({
-      cardId: OPPONENT,
-      cardName: "Diana",
-      cardSlug: "diana",
-      cardTypes: ["legend"],
-      imageId: "img-diana",
-    });
-    expect(meta.find((entry) => entry.cardId === BATTLEFIELD)?.imageId).toBeNull();
-    expect(meta.find((entry) => entry.cardId === MAIN_CARD)).toBeUndefined();
-  });
-
-  // ADR-037: the plan card meta carries the full type set so downstream
-  // orientation/display sees every type, not just the primary.
-  it("emits the full type set for a multi-type card", () => {
-    const plan = emptyPlanResponse({ battlefieldGame1CardId: OPPONENT });
-    const cardsById: Record<string, Card> = {
-      [OPPONENT]: card({ slug: "unit-gear", name: "Unit Gear", types: ["unit", "gear"] }),
-    };
-    const meta = buildPlanCardMeta(plan, cardsById, () => null);
-    expect(meta.find((entry) => entry.cardId === OPPONENT)?.cardTypes).toEqual(["unit", "gear"]);
-  });
-
-  it("is empty when the plan references nothing", () => {
-    expect(buildPlanCardMeta(emptyPlanResponse(), {}, () => null)).toEqual([]);
-  });
-});
-
-describe("planSummary", () => {
-  it("is empty for an empty plan", () => {
-    expect(planSummary(emptyPlanResponse())).toBe("");
-  });
-
-  it("lists each present section in order", () => {
-    const plan = emptyPlanResponse({
-      generalStrategy: "Race",
-      mulliganGeneral: "Keep removal",
-      battlefieldGame1CardId: BATTLEFIELD,
-      matchups: [
-        { id: "m1", opponentCardId: OPPONENT, opponentLabel: "", notes: "", swaps: [] },
-        { id: "m2", opponentCardId: null, opponentLabel: "Aggro", notes: "", swaps: [] },
-      ],
-    });
-    expect(planSummary(plan)).toBe("Strategy · Mulligan · Battlefields · 2 matchups");
-  });
-
-  it("pluralizes a single matchup correctly and honors the mulligan split", () => {
-    const plan = emptyPlanResponse({
-      mulliganSplit: true,
-      mulliganFirst: "Keep threats",
-      matchups: [{ id: "m1", opponentCardId: OPPONENT, opponentLabel: "", notes: "", swaps: [] }],
-    });
-    expect(planSummary(plan)).toBe("Mulligan · 1 matchup");
-  });
-
-  it("counts a custom battlefield note as battlefields", () => {
-    const plan = emptyPlanResponse({ battlefieldCustom: true, battlefieldNote: "Take the river" });
-    expect(planSummary(plan)).toBe("Battlefields");
   });
 });

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   Combobox,
   ComboboxContent,
@@ -12,6 +14,8 @@ export interface CardSearchResult {
   label: string;
   sublabel?: string;
   detail?: string;
+  /** Opt-in extra rendered right after the label (e.g. energy/power stats). */
+  adornment?: ReactNode;
 }
 
 /**
@@ -71,7 +75,8 @@ export function CardSearchDropdown({
         <ComboboxList>
           {(item: CardSearchResult) => (
             <ComboboxItem key={item.id} value={item}>
-              <span className="truncate font-medium">{item.label}</span>
+              <span className="min-w-0 truncate font-medium">{item.label}</span>
+              {item.adornment}
               {item.sublabel ? (
                 <span className="text-muted-foreground shrink-0">{item.sublabel}</span>
               ) : null}

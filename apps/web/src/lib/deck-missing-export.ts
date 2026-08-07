@@ -21,11 +21,12 @@ export function missingCardsToWants(cards: readonly CardOwnership[]): Cardmarket
 /**
  * Maps a deck's missing-card rows to list entries for a wishlist of the given
  * kind: card-kind lists get one entry per row keyed by card, printing-kind
- * lists one entry keyed by the row's display printing. Rows without a display
- * printing are skipped for printing-kind lists (a card with no catalog
- * printings has nothing to pin), and copy-kind lists get no entries — missing
- * cards aren't owned copies. Duplicate targets across zones are summed
- * server-side on bulk add.
+ * lists one entry keyed by the row's completion printing (the cheapest
+ * printing that fills the shortfall, falling back to the display printing
+ * when nothing cheaper is priced). Rows without either printing are skipped
+ * for printing-kind lists (a card with no catalog printings has nothing to
+ * pin), and copy-kind lists get no entries — missing cards aren't owned
+ * copies. Duplicate targets across zones are summed server-side on bulk add.
  * @returns The entries to bulk-add to the list.
  */
 export function missingCardsToListEntries(
@@ -37,11 +38,10 @@ export function missingCardsToListEntries(
     return missing.map((card) => ({ cardId: card.cardId, quantity: card.shortfall }));
   }
   if (kind === "printing") {
-    return missing.flatMap((card) =>
-      card.displayPrinting
-        ? [{ printingId: card.displayPrinting.id, quantity: card.shortfall }]
-        : [],
-    );
+    return missing.flatMap((card) => {
+      const printing = card.completionPrinting ?? card.displayPrinting;
+      return printing ? [{ printingId: printing.id, quantity: card.shortfall }] : [];
+    });
   }
   return [];
 }

@@ -1,6 +1,6 @@
 import type { DeckResponse, DeckZone, Marketplace, Printing } from "@openrift/shared";
 import { copyLimitFor, imageUrl, WellKnown } from "@openrift/shared";
-import { useDeferredValue, useEffect, useState } from "react";
+import { Suspense, useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -15,7 +15,7 @@ import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
-import { DeckOverviewPlanSection } from "@/components/deck/deck-overview-plan-section";
+import { DeckPlanEditor } from "@/components/deck/deck-plan-editor";
 import { DeckTableActions } from "@/components/deck/deck-table-actions";
 import { FormatTagPickBanner, needsFormatTagPick } from "@/components/deck/format-tag-pick-banner";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -27,7 +27,7 @@ import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
-import { useDeckDetail } from "@/hooks/use-decks";
+import { useDeckDetail, useUpdateDeck } from "@/hooks/use-decks";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
@@ -168,9 +168,6 @@ interface DeckCardBrowserProps {
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
-  /** Hover handler for the overview list rows — lets the host anchor its
-   * preview differently (to the right of the list) than the thumbnail hover. */
-  onHoverListCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   /** Overview-only — opens the editor's detail pane for the clicked card. The
    * editor builds the handler because it owns the deck-items list used for the
    * pane's prev/next navigation. */
@@ -190,7 +187,6 @@ export function DeckCardBrowser({
   onZoneClick,
   onViewMissing,
   onHoverCard,
-  onHoverListCard,
   onOverviewCardClick,
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
@@ -224,7 +220,6 @@ export function DeckCardBrowser({
         onZoneClick={onZoneClick}
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
-        onHoverListCard={onHoverListCard}
         onCardClick={onOverviewCardClick}
       />
     );
@@ -242,7 +237,6 @@ function DeckOverviewForEditor({
   onZoneClick,
   onViewMissing,
   onHoverCard,
-  onHoverListCard,
   onCardClick,
 }: Omit<DeckCardBrowserProps, "deckId" | "onOverviewCardClick"> & {
   deck: DeckResponse;
@@ -250,7 +244,9 @@ function DeckOverviewForEditor({
 }) {
   const cards = useDeckCards(deck.id);
   const customTagAssignments = useCustomTagAssignments();
-  const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
+  const { getPreferredFrontImage } = usePreferredPrinting();
+  const updateDeck = useUpdateDeck();
+  const isLocal = isLocalDeckId(deck.id);
 
   // Mirror the parent editor's deckItems so arrow-key navigation walks the
   // same list the detail pane's prev/next uses. selectedIndex from the
@@ -262,19 +258,6 @@ function DeckOverviewForEditor({
     ? (printingsByCardId.get(selectedCard.cardId) ?? EMPTY_SIBLINGS)
     : EMPTY_SIBLINGS;
   useGridKeyboardNav({ items, siblingPrintings });
-
-  // Opens the detail pane for a card named in the plan (e.g. a battlefield
-  // pick). Mirrors handleOverviewCardClick, but resolves from a bare cardId —
-  // anchoring to the card's deck-zone instance when it actually runs in the
-  // deck, so the highlight and prev/next nav line up with the overview thumbs.
-  const handlePlanCardClick = (cardId: string) => {
-    const printing = getPreferredPrinting(cardId, null);
-    if (!printing) {
-      return;
-    }
-    const inDeck = cards.find((card) => card.cardId === cardId);
-    useSelectionStore.getState().selectCard(printing, items, "card", inDeck?.zone);
-  };
 
   return (
     <div className="flex flex-col">
@@ -296,18 +279,34 @@ function DeckOverviewForEditor({
         onZoneClick={onZoneClick}
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
-        onHoverListCard={onHoverListCard}
         onCardClick={onCardClick}
         description={deck.description ?? undefined}
+        // Server decks persist their odds settings on the deck row so they
+        // travel with the share page; local decks fall back to the test
+        // bench's device-local store.
+        oddsConfig={isLocal ? undefined : (deck.oddsConfig ?? null)}
+        onSaveOddsConfig={
+          isLocal
+            ? undefined
+            : (config) => updateDeck.mutate({ deckId: deck.id, oddsConfig: config })
+        }
+        // Deck plans are a logged-in feature (ADR-035); local decks have none,
+        // so they get no Plan tab at all. The tab hosts the plan editor itself —
+        // it's the only plan surface, reached either from here or from the
+        // sidebar's Plan entry.
+        planSlot={
+          isLocal ? undefined : (
+            <Suspense fallback={<div className="text-muted-foreground p-4">Loading plan…</div>}>
+              <DeckPlanEditor
+                deckId={deck.id}
+                deckCards={cards}
+                format={deck.format}
+                onHoverCard={onHoverCard}
+              />
+            </Suspense>
+          )
+        }
       />
-      {/* Deck plans are a logged-in feature (ADR-035); local decks have none. */}
-      {!isLocalDeckId(deck.id) && (
-        <DeckOverviewPlanSection
-          deckId={deck.id}
-          onHoverCard={onHoverCard}
-          onCardClick={handlePlanCardClick}
-        />
-      )}
     </div>
   );
 }

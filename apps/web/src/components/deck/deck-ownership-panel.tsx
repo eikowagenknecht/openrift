@@ -1,9 +1,8 @@
 import type { Marketplace } from "@openrift/shared";
-import { ChevronRightIcon, PackageSearchIcon } from "lucide-react";
+import { PackageSearchIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { formatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
@@ -15,30 +14,13 @@ interface DeckOwnershipPanelProps {
   onViewMissing: () => void;
 }
 
-export function ownershipPercent(data: DeckOwnershipData): number {
-  return data.totalNeeded > 0 ? Math.round((data.totalOwned / data.totalNeeded) * 100) : 0;
-}
-
-export function DeckOwnershipPanel({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
-  const pct = ownershipPercent(data);
-
-  return (
-    <Collapsible className="rounded-lg border">
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium">
-        <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
-        <span>Ownership</span>
-        <OwnershipBar pct={pct} />
-        <span className="text-muted-foreground text-xs">{pct}%</span>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent className="border-t px-3 py-3">
-        <DeckOwnershipBody data={data} marketplace={marketplace} onViewMissing={onViewMissing} />
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
+/**
+ * Owned/borrowed/missing/locked counts plus the price block and the missing-
+ * cards button. Rendered inside the sidebar's merged Stats panel (below the
+ * charts) rather than as its own collapsible.
+ * @returns The ownership breakdown.
+ */
+export function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
   const fmt = formatterForMarketplace(marketplace);
 
   return (
@@ -104,6 +86,13 @@ function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPa
           {data.missingValueCents !== undefined && data.missingValueCents > 0 && (
             <Row label="Missing value" value={fmt(data.missingValueCents)} />
           )}
+          {/* The cheapest-completion figure above can undercut the creator's
+              pinned printings — show what the pins would cost when it does. */}
+          {data.missingAsDisplayedValueCents !== undefined &&
+            data.missingValueCents !== undefined &&
+            data.missingAsDisplayedValueCents > data.missingValueCents && (
+              <Row label="As shown" value={fmt(data.missingAsDisplayedValueCents)} indent />
+            )}
         </div>
       )}
 
@@ -123,36 +112,5 @@ function Row({ label, value, indent }: { label: string; value: string; indent?: 
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
     </div>
-  );
-}
-
-export function OwnershipBar({
-  pct,
-  owned,
-  total,
-  className,
-}: {
-  pct: number;
-  owned?: number;
-  total?: number;
-  className?: string;
-}) {
-  const bar = (
-    <div className={cn("bg-muted flex h-2 flex-1 overflow-hidden rounded-full", className)}>
-      <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-    </div>
-  );
-  if (owned === undefined || total === undefined) {
-    return bar;
-  }
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger render={<div className="flex flex-1" />}>{bar}</TooltipTrigger>
-        <TooltipContent side="bottom">
-          {owned} / {total} owned
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }

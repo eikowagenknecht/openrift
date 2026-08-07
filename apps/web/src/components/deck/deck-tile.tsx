@@ -153,6 +153,22 @@ export function FannedPreview({
           : undefined),
       }}
     >
+      {legendImage && (
+        <>
+          {/* Full-art identity: the legend's art blurred behind the fan, with a
+              bottom fade into the tile body. Mirrors the deck hero's treatment. */}
+          <ImgWithFallback
+            src={imageUrl(legendImage.imageId, "240w")}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            draggable={false}
+            className="absolute inset-0 h-full w-full scale-110 object-cover object-[50%_20%] opacity-25 blur-md saturate-125 dark:opacity-40"
+            fallback={null}
+          />
+          <div className="to-card/60 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />
+        </>
+      )}
       {legendImage ? (
         <CardPreviewImage
           image={legendImage}

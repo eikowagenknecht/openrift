@@ -45,9 +45,42 @@ export interface DeckDropData {
   disabled?: boolean;
 }
 
-type AnyDragData = DeckCardDragData | BrowserCardDragData;
+export type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
 const DRAG_ACTIVATION = { distance: 8 };
+/**
+ * Zones whose cards can be picked up and re-homed by dragging. Every deck
+ * surface that renders draggable cards (overview grid, overview list, sidebar)
+ * uses this set, so they all offer the drag affordance on the same rows.
+ */
+export const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+]);
+
+/**
+ * The deck card a drag is carrying, resolved against the current deck. A
+ * browser drag carries its card outright; a deck drag carries ids, so the copy
+ * living in the source zone is looked up — its quantity and types are what the
+ * zone-fullness and type checks read.
+ * @returns The dragged card, or undefined when nothing is being dragged (or the
+ *   dragged deck card is no longer in its source zone).
+ */
+export function resolveDraggedCard(
+  dragData: AnyDragData | undefined,
+  allCards: readonly DeckBuilderCard[],
+): DeckBuilderCard | undefined {
+  if (dragData?.type === "browser-card") {
+    return dragData.card;
+  }
+  if (dragData?.type === "deck-card") {
+    return allCards.find(
+      (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
+    );
+  }
+  return undefined;
+}
 // Zones that accept deck-card drops. Champion is included so a unit can be
 // dragged from main/sideboard/overflow into the chosen-champion slot; the
 // move action handles replacing whatever's currently there.
@@ -78,8 +111,56 @@ export function isDropRejected(activeData: AnyDragData, overData: DeckDropData):
   );
 }
 const MODIFIERS = [snapCenterToCursor];
+/** How close to a container's edge the pointer must get before it auto-scrolls. */
 const EDGE_SIZE = 40;
+/** Pixels per frame at the very edge; scaled down across the edge band. */
 const SCROLL_SPEED = 15;
+/** The sidebar's own scroll container (SidebarContent sets this data-slot). */
+const SIDEBAR_VIEWPORT_SELECTOR = '[data-slot="sidebar-content"]';
+
+/**
+ * Vertical auto-scroll step for one frame of an edge-scrolling container. The
+ * speed ramps from 0 at the inner edge of the band to SCROLL_SPEED at the
+ * container's edge, and is clamped there so a pointer past the edge doesn't
+ * scroll faster than one sitting on it.
+ * @returns Pixels to scroll this frame — negative up, positive down, and 0 when
+ *   the pointer is clear of both edges or the container is already at that end.
+ */
+export function edgeScrollDelta(input: {
+  pointerY: number;
+  top: number;
+  bottom: number;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): number {
+  const { pointerY, top, bottom, scrollTop, scrollHeight, clientHeight } = input;
+  const maxScroll = scrollHeight - clientHeight;
+  if (maxScroll <= 0) {
+    return 0;
+  }
+  const distFromTop = pointerY - top;
+  const distFromBottom = bottom - pointerY;
+  if (distFromTop < EDGE_SIZE && scrollTop > 0) {
+    return -SCROLL_SPEED * Math.min(1, 1 - distFromTop / EDGE_SIZE);
+  }
+  if (distFromBottom < EDGE_SIZE && scrollTop < maxScroll) {
+    return SCROLL_SPEED * Math.min(1, 1 - distFromBottom / EDGE_SIZE);
+  }
+  return 0;
+}
+
+/**
+ * Whether a viewport point falls inside a rect, edges included.
+ * @returns `true` when the point is within the rect.
+ */
+export function isPointInRect(
+  x: number,
+  y: number,
+  rect: { top: number; right: number; bottom: number; left: number },
+): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
 
 export function DeckDndContext({ deckId, children }: { deckId: string; children: ReactNode }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
@@ -134,8 +215,9 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
   }, [dragInfo]);
 
   // Custom auto-scroll for containers that aren't ancestors of the dragged node.
-  // dnd-kit's built-in auto-scroll handles ancestor containers; this covers the
-  // case where a card dragged from the browser hovers over the sidebar.
+  // dnd-kit's built-in auto-scroll only walks the active node's ancestors, so
+  // this covers a card dragged from the browser grid over the sidebar. The page
+  // itself is never scrolled here — that stays dnd-kit's job.
   useEffect(() => {
     if (!dragInfo) {
       return;
@@ -157,29 +239,26 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         if (activeNodeRef.current && element.contains(activeNodeRef.current)) {
           continue;
         }
+        // The page is dnd-kit's to scroll, gated by canScroll.
+        if (element === document.body || element === document.documentElement) {
+          continue;
+        }
         const { overflowY } = getComputedStyle(element);
         if (overflowY !== "auto" && overflowY !== "scroll") {
           continue;
         }
-        if (element.scrollHeight <= element.clientHeight) {
-          continue;
-        }
 
         const rect = element.getBoundingClientRect();
-        const distFromTop = y - rect.top;
-        const distFromBottom = rect.bottom - y;
-
-        if (distFromTop < EDGE_SIZE && element.scrollTop > 0) {
-          const intensity = 1 - distFromTop / EDGE_SIZE;
-          element.scrollBy(0, -SCROLL_SPEED * intensity);
-          break;
-        }
-        if (
-          distFromBottom < EDGE_SIZE &&
-          element.scrollTop < element.scrollHeight - element.clientHeight
-        ) {
-          const intensity = 1 - distFromBottom / EDGE_SIZE;
-          element.scrollBy(0, SCROLL_SPEED * intensity);
+        const delta = edgeScrollDelta({
+          pointerY: y,
+          top: rect.top,
+          bottom: rect.bottom,
+          scrollTop: element.scrollTop,
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+        });
+        if (delta !== 0) {
+          element.scrollBy(0, delta);
           break;
         }
       }
@@ -336,10 +415,39 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
       : (dragInfo?.quantity ?? 1)
     : 1;
 
+  const pointerOverSidebar = () => {
+    const rect = document.querySelector(SIDEBAR_VIEWPORT_SELECTOR)?.getBoundingClientRect();
+    const { x, y } = pointerRef.current;
+    return rect !== undefined && isPointInRect(x, y, rect);
+  };
+
+  // dnd-kit walks the active node's scrollable ancestors outermost-first (its
+  // default TraversalOrder.TreeOrder reverses the innermost-first list) and
+  // scrolls the first one that wants to move. The sidebar is full-height, so
+  // its top and bottom edges sit on the viewport's: dragging between its zone
+  // sections put the pointer in the *page's* edge band first, which scrolled
+  // the main view while the sidebar itself stayed put. Vetoing the page while
+  // the pointer is over the sidebar lets that loop fall through to the
+  // sidebar's own scroll container. Over the main area nothing is vetoed, so
+  // page auto-scroll behaves as before. Measured per call rather than cached:
+  // dnd-kit re-runs this on each pointer move, and a frame-old answer could
+  // leave the page scrolling after the pointer crossed into the sidebar.
+  const canScroll = (element: Element) => {
+    const isPage =
+      element === document.scrollingElement ||
+      element === document.documentElement ||
+      element === document.body;
+    if (!isPage) {
+      return true;
+    }
+    return !pointerOverSidebar();
+  };
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={pointerWithin}
+      autoScroll={{ canScroll }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

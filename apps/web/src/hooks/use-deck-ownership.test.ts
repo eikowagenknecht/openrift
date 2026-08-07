@@ -58,6 +58,92 @@ describe("computeDeckOwnership", () => {
     expect(entry?.shortfall).toBe(0);
   });
 
+  it("counts the deck proper (runes included, sideboard excluded) for the required-zone basis", () => {
+    // Regression: the hero's owned chip used totalNeeded (which includes the
+    // sideboard), so its denominator never matched the "X / 56" completion
+    // figure. requiredZone* must count runes but not the sideboard.
+    const deckCards = [
+      stubDeckBuilderCard({ cardId: "rune-1", quantity: 12, zone: "runes" }),
+      stubDeckBuilderCard({ cardId: "unit-1", quantity: 3, zone: "main" }),
+      stubDeckBuilderCard({ cardId: "side-1", quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "printing-rune", cardId: "rune-1" }),
+      stubPrinting({ id: "printing-unit", cardId: "unit-1" }),
+      stubPrinting({ id: "printing-side", cardId: "side-1" }),
+    ];
+    const owned = { "printing-rune": 12, "printing-unit": 1, "printing-side": 2 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    // Full totals keep the sideboard for the missing-cards flows.
+    expect(result.totalNeeded).toBe(17);
+    expect(result.totalOwned).toBe(15);
+    // The deck-proper basis drops the sideboard but keeps the runes.
+    expect(result.requiredZoneNeeded).toBe(15);
+    expect(result.requiredZoneOwned).toBe(13);
+  });
+
+  it("prices missing copies at the cheapest printing in the viewer's languages", () => {
+    // Regression: a creator pinning a premium printing made the missing cost
+    // extraordinary. Completion pricing uses the cheapest acceptable copy; the
+    // pinned figure survives separately as missingAsDisplayedValueCents.
+    const cardId = "card-1";
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "main", preferredPrintingId: "fancy" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "fancy", cardId, language: "EN" }),
+      stubPrinting({ id: "cheap-en", cardId, language: "EN" }),
+      stubPrinting({ id: "cheaper-sc", cardId, language: "SC" }),
+    ];
+    const prices = stubPriceLookup({
+      fancy: { tcgplayer: 5000 },
+      "cheap-en": { tcgplayer: 300 },
+      "cheaper-sc": { tcgplayer: 100 },
+    });
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      prices,
+      // Viewer accepts EN only — the even cheaper SC printing must not win.
+      ["EN"],
+    );
+
+    expect(result.missingValueCents).toBe(600);
+    expect(result.missingAsDisplayedValueCents).toBe(10_000);
+    const entry = result.byCardZone.get(`${cardId}:main`);
+    expect(entry?.completionPrice).toBe(300);
+    expect(entry?.completionPrinting?.id).toBe("cheap-en");
+    // The deck's displayed value keeps the creator's pin.
+    expect(entry?.displayPrice).toBe(5000);
+  });
+
+  it("falls back to any language when no acceptable printing is priced", () => {
+    const cardId = "card-1";
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
+    const printings = [
+      stubPrinting({ id: "en-unpriced", cardId, language: "EN" }),
+      stubPrinting({ id: "sc-priced", cardId, language: "SC" }),
+    ];
+    const prices = stubPriceLookup({ "sc-priced": { tcgplayer: 250 } });
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, ["EN"]);
+
+    expect(result.byCardZone.get(`${cardId}:main`)?.completionPrinting?.id).toBe("sc-priced");
+    expect(result.missingValueCents).toBe(250);
+  });
+
   it("marks a partially owned card with correct shortfall", () => {
     const cardId = "card-1";
     const printingId = "printing-1";
@@ -256,8 +342,11 @@ describe("computeDeckOwnership", () => {
     expect(result.deckValueCents).toBe(10);
     // Own 1 copy at EN price
     expect(result.ownedValueCents).toBe(5);
-    // Missing 1 copy at EN price
-    expect(result.missingValueCents).toBe(5);
+    // Missing 1 copy: the viewer's language order accepts DE too, so the
+    // cheapest completion is the DE printing at $3; the displayed-printing
+    // figure keeps the EN price.
+    expect(result.missingValueCents).toBe(3);
+    expect(result.missingAsDisplayedValueCents).toBe(5);
   });
 
   it("uses preferredPrintingId when set, even when another language is cheaper", () => {

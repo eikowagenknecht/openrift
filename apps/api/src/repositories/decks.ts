@@ -3,6 +3,7 @@ import type {
   CardType,
   DeckFormat,
   DeckFormatConfig,
+  DeckOddsConfig,
   DeckZone,
   Domain,
   SuperType,
@@ -17,24 +18,37 @@ function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
   return value === null ? null : JSON.stringify(value);
 }
 
+function serializeOddsConfig(value: DeckOddsConfig | null): string | null {
+  return value === null ? null : JSON.stringify(value);
+}
+
 /**
- * The stored shape is enforced by `validateFormatConfig` at the write boundary,
- * so the cast {@link parseJsonb} performs is safe at read time.
- * @returns The row with `formatConfig` parsed, or null if the column was NULL.
+ * The stored shapes are enforced at the write boundary (`validateFormatConfig`
+ * for the format config, `deckOddsConfigSchema` for the odds config), so the
+ * casts {@link parseJsonb} performs are safe at read time.
+ * @returns The row with its jsonb columns parsed (null when a column was NULL).
  */
-function withParsedFormatConfig<T extends { formatConfig: DeckFormatConfig | string | null }>(
-  row: T,
-): T & { formatConfig: DeckFormatConfig | null } {
-  return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
+function withParsedFormatConfig<
+  T extends {
+    formatConfig: DeckFormatConfig | string | null;
+    oddsConfig: DeckOddsConfig | string | null;
+  },
+>(row: T): T & { formatConfig: DeckFormatConfig | null; oddsConfig: DeckOddsConfig | null } {
+  return {
+    ...row,
+    formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig),
+    oddsConfig: parseJsonb<DeckOddsConfig>(row.oddsConfig),
+  };
 }
 
 /**
  * Input for {@link decksRepo}.`update`: every editable deck column, but with
- * `formatConfig` as the structured {@link DeckFormatConfig} (the repo
- * serializes it before writing) rather than the column's stored string form.
+ * `formatConfig` / `oddsConfig` as their structured shapes (the repo
+ * serializes them before writing) rather than the columns' stored string form.
  */
-export type DeckUpdateInput = Omit<Updateable<DecksTable>, "formatConfig"> & {
+export type DeckUpdateInput = Omit<Updateable<DecksTable>, "formatConfig" | "oddsConfig"> & {
   formatConfig?: DeckFormatConfig | null;
+  oddsConfig?: DeckOddsConfig | null;
 };
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
@@ -138,7 +152,7 @@ export function decksRepo(db: Kysely<Database>) {
         .values({ ...values, formatConfig: serializeFormatConfig(values.formatConfig) })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return { ...row, formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig) };
+      return withParsedFormatConfig(row);
     },
 
     /** @returns The updated deck row, or `undefined` if not found. */
@@ -147,10 +161,13 @@ export function decksRepo(db: Kysely<Database>) {
       userId: string,
       updates: DeckUpdateInput,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const { formatConfig, ...rest } = updates;
+      const { formatConfig, oddsConfig, ...rest } = updates;
       const dbUpdates: Updateable<DecksTable> = { ...rest };
       if ("formatConfig" in updates) {
         dbUpdates.formatConfig = serializeFormatConfig(formatConfig ?? null);
+      }
+      if ("oddsConfig" in updates) {
+        dbUpdates.oddsConfig = serializeOddsConfig(oddsConfig ?? null);
       }
       const row = await db
         .updateTable("decks")

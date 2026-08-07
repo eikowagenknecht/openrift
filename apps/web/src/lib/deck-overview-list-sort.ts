@@ -9,6 +9,20 @@ export interface DeckListSortContext {
   getEntry: (card: DeckBuilderCard) => CardOwnership | undefined;
   /** Rarity slugs in display order; unknown/absent rarities sort last. */
   rarityOrder: readonly string[];
+  /**
+   * The price the row actually shows, when that isn't the entry's display
+   * price — with "show my printings" on, rows price the printing the viewer
+   * owns. Supply it and the price sort follows the visible numbers, including
+   * the rows it leaves unpriced; omit it and the sort reads `displayPrice`.
+   */
+  getRowPrice?: (card: DeckBuilderCard) => number | undefined;
+  /**
+   * The rarity the row actually shows, for the same reason as
+   * {@link DeckListSortContext.getRowPrice}: the rarity icon follows the
+   * printing on screen, which is the viewer's own while "show my printings" is
+   * on. Omit it and the sort reads the entry's display printing.
+   */
+  getRowRarity?: (card: DeckBuilderCard) => string | undefined;
 }
 
 /**
@@ -47,9 +61,14 @@ export function sortDeckOverviewList(
   }
 
   if (sortBy === "price") {
+    // Presence of the resolver decides, not its result: a row it prices as
+    // undefined renders blank, so it must sort last rather than fall back to a
+    // price the user can't see.
+    const priceOf =
+      ctx.getRowPrice ?? ((card: DeckBuilderCard) => ctx.getEntry(card)?.displayPrice);
     return cards.toSorted((a, b) => {
-      const ap = ctx.getEntry(a)?.displayPrice;
-      const bp = ctx.getEntry(b)?.displayPrice;
+      const ap = priceOf(a);
+      const bp = priceOf(b);
       if (ap === undefined && bp === undefined) {
         return byName(a, b);
       }
@@ -71,9 +90,14 @@ export function sortDeckOverviewList(
       const index = ctx.rarityOrder.indexOf(slug);
       return index === -1 ? ctx.rarityOrder.length : index;
     };
+    // Presence decides, exactly as for the price above: a row the resolver
+    // gives no rarity shows no rarity icon, so it belongs with the unknowns
+    // rather than sorting by a rarity that isn't on screen.
+    const rarityOf =
+      ctx.getRowRarity ?? ((card: DeckBuilderCard) => ctx.getEntry(card)?.displayPrinting?.rarity);
     return cards.toSorted((a, b) => {
-      const ar = ctx.getEntry(a)?.displayPrinting?.rarity;
-      const br = ctx.getEntry(b)?.displayPrinting?.rarity;
+      const ar = rarityOf(a);
+      const br = rarityOf(b);
       if (ar === undefined && br === undefined) {
         return byName(a, b);
       }

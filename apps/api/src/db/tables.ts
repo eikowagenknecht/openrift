@@ -19,6 +19,7 @@ import type {
   Currency,
   DeckFormat,
   DeckFormatConfig,
+  DeckOddsConfig,
   DeckZone,
   Finish,
   FriendGroupInviteDirection,
@@ -568,6 +569,14 @@ export interface DecksTable {
    * `parseJsonb`. This Select/Insert split mirrors `user_preferences.data`.
    */
   formatConfig: ColumnType<DeckFormatConfig | null, string | null, string | null>;
+  /**
+   * Per-deck draw-odds settings (jsonb): the owner's custom card groups and
+   * the enabled row selection for the test bench's odds table. NULL until
+   * customized (suggested defaults apply). Shape enforced at the API boundary
+   * by `deckOddsConfigSchema`. Same write/read contract as `formatConfig`:
+   * writes pre-stringified for postgres.js (Bun), reads through `parseJsonb`.
+   */
+  oddsConfig: ColumnType<DeckOddsConfig | null, string | null, string | null>;
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;

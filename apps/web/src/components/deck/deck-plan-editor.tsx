@@ -1,24 +1,18 @@
-import type { DeckFormat } from "@openrift/shared";
-import { getOrientation, imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
-import {
-  AlertTriangleIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  PlusIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
+import type { DeckFormat, DeckZone } from "@openrift/shared";
+import { legendDisplayName, WellKnown } from "@openrift/shared";
+import { AlertTriangleIcon, ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { use, useState } from "react";
+import { createPortal } from "react-dom";
 
-import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import type { HoverHandler } from "@/components/deck/deck-card-picker";
+import { CardChip, CardPicker } from "@/components/deck/deck-card-picker";
+import { PlanTabActionsContext } from "@/components/deck/deck-overview";
+import { SwapColumns } from "@/components/deck/swap-column-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -29,6 +23,7 @@ import { useDeckPlan, useSaveDeckPlan } from "@/hooks/use-deck-plan";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { sortOverviewCards } from "@/lib/deck-card-sort";
 import {
   computePlanWarnings,
   createEmptyMatchup,
@@ -48,8 +43,6 @@ import type {
 import { zoneExpected } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 
-type HoverHandler = (cardId: string | null, preferredPrintingId?: string | null) => void;
-
 function buildContext(deckCards: DeckBuilderCard[]): DeckPlanContext {
   const maindeck = new Map<string, number>();
   const sideboard = new Map<string, number>();
@@ -64,108 +57,6 @@ function buildContext(deckCards: DeckBuilderCard[]): DeckPlanContext {
     }
   }
   return { maindeck, sideboard, battlefieldCardIds };
-}
-
-function toResults(
-  cards: { cardId: string; cardName: string; cardType?: string }[],
-  query: string,
-): CardSearchResult[] {
-  const needle = query.trim().toLowerCase();
-  return cards
-    .filter((card) => needle === "" || card.cardName.toLowerCase().includes(needle))
-    .slice(0, 50)
-    .map((card) => ({ id: card.cardId, label: card.cardName, detail: card.cardType }));
-}
-
-// A compact thumbnail + name chip for a picked card. Hovering shows the full
-// card via the page's floating preview (the opponent card isn't in the deck, so
-// the name/image come from the catalog).
-function CardChip({
-  cardId,
-  onRemove,
-  onHoverCard,
-  variant = "pill",
-}: {
-  cardId: string;
-  onRemove?: () => void;
-  onHoverCard?: HoverHandler;
-  /** "pill" is a compact inline chip; "field" fills the row like an input box. */
-  variant?: "pill" | "field";
-}) {
-  const { getPreferredPrinting } = usePreferredPrinting();
-  const printing = getPreferredPrinting(cardId);
-  const frontImage = printing?.images.find((image) => image.face === "front");
-  const landscape = getOrientation(printing?.card.types ?? []) === "landscape";
-  const field = variant === "field";
-  return (
-    <span
-      className={cn(
-        "min-w-0 items-center text-sm",
-        field
-          ? "dark:bg-input/30 border-input flex h-8 w-full gap-2 rounded-lg border bg-transparent px-2.5"
-          : "bg-muted/60 inline-flex gap-1.5 rounded-md py-0.5 pr-1 pl-1.5",
-      )}
-      onMouseEnter={() => onHoverCard?.(cardId)}
-      onMouseLeave={() => onHoverCard?.(null)}
-    >
-      {frontImage ? (
-        <ImgWithFallback
-          src={imageUrl(frontImage.imageId, "400w")}
-          alt=""
-          className={cn("shrink-0 rounded-xs object-cover", landscape ? "h-5 w-8" : "h-7 w-5")}
-          fallback={null}
-        />
-      ) : null}
-      <span className="truncate">
-        {printing ? legendDisplayName(printing.card) : "Unknown card"}
-      </span>
-      {onRemove ? (
-        <ChipRemoveButton
-          onClick={onRemove}
-          aria-label="Remove"
-          className={cn("text-muted-foreground shrink-0 p-0.5", field ? "ml-auto" : "ml-0")}
-        >
-          <XIcon className="size-3.5" />
-        </ChipRemoveButton>
-      ) : null}
-    </span>
-  );
-}
-
-// Searchable picker over a fixed candidate set (deck zone cards or the catalog).
-// Remounts the dropdown after each pick so its input clears instead of keeping
-// the chosen label.
-function CardPicker({
-  candidates,
-  onSelect,
-  placeholder,
-}: {
-  candidates: { cardId: string; cardName: string; cardType?: string }[];
-  onSelect: (cardId: string) => void;
-  placeholder: string;
-}) {
-  const [query, setQuery] = useState("");
-  const [resetKey, setResetKey] = useState(0);
-  // The combobox fires onInputValueChange with the picked label as it fills the
-  // input on selection, which would leave `query` stuck on that card and filter
-  // the next open down to just it. Clearing here, after the remount, wins over
-  // that late update.
-  useEffect(() => {
-    setQuery("");
-  }, [resetKey]);
-  return (
-    <CardSearchDropdown
-      key={resetKey}
-      results={toResults(candidates, query)}
-      onSearch={setQuery}
-      onSelect={(cardId) => {
-        onSelect(cardId);
-        setResetKey((key) => key + 1);
-      }}
-      placeholder={placeholder}
-      className="h-8"
-    />
-  );
 }
 
 // The small uppercase field label used across the matchup editor, matching the
@@ -237,8 +128,8 @@ interface MatchupEditorProps {
   isFirst: boolean;
   isLast: boolean;
   cardCandidates: { cardId: string; cardName: string; cardType?: string }[];
-  maindeckCandidates: { cardId: string; cardName: string }[];
-  sideboardCandidates: { cardId: string; cardName: string }[];
+  maindeckCandidates: { cardId: string; cardName: string; quantity: number }[];
+  sideboardCandidates: { cardId: string; cardName: string; quantity: number }[];
   warnings: PlanWarning[];
   nameOf: (cardId: string) => string;
   onHoverCard?: HoverHandler;
@@ -295,54 +186,15 @@ function MatchupEditor({
   const removeSwap = (swapIndex: number) => {
     onChange({ swaps: matchup.swaps.filter((_, i) => i !== swapIndex) });
   };
-
-  const renderColumn = (direction: SwapDirection) => {
-    const swaps = matchup.swaps
-      .map((swap, swapIndex) => ({ swap, swapIndex }))
-      .filter((entry) => entry.swap.direction === direction);
-    // Drop cards already in this column — re-adding them is a no-op.
-    const used = new Set(swaps.map((entry) => entry.swap.cardId));
-    const candidates = (direction === "out" ? maindeckCandidates : sideboardCandidates).filter(
-      (candidate) => !used.has(candidate.cardId),
-    );
+  // Cap each quantity box at the copies the zone actually holds. A card that
+  // has since left the deck isn't in the candidates any more — leave it
+  // uncapped so the row stays editable, and let the amber
+  // out-exceeds-maindeck / in-exceeds-sideboard warnings report the drift.
+  const maxSwapQuantity = (cardId: string, direction: SwapDirection) => {
+    const candidates = direction === "out" ? maindeckCandidates : sideboardCandidates;
     return (
-      <div className="flex-1 space-y-2">
-        <div className="text-2xs font-semibold tracking-wide uppercase">
-          {direction === "out" ? (
-            <span className="text-destructive">− Out (maindeck)</span>
-          ) : (
-            <span className="text-green-600 dark:text-green-400">+ In (sideboard)</span>
-          )}
-        </div>
-        {swaps.map(({ swap, swapIndex }) => (
-          <div key={`${swap.cardId}-${swap.direction}`} className="flex items-center gap-1.5">
-            <Input
-              type="number"
-              min={1}
-              max={99}
-              value={swap.quantity}
-              onChange={(event) =>
-                setSwapQuantity(swapIndex, Math.max(1, Number(event.target.value) || 1))
-              }
-              className="h-8 w-12 shrink-0 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
-              aria-label="Quantity"
-            />
-            <div className="min-w-0 flex-1">
-              <CardChip
-                cardId={swap.cardId}
-                variant="field"
-                onRemove={() => removeSwap(swapIndex)}
-                onHoverCard={onHoverCard}
-              />
-            </div>
-          </div>
-        ))}
-        <CardPicker
-          candidates={candidates}
-          onSelect={(cardId) => addSwap(direction, cardId)}
-          placeholder={direction === "out" ? "Add a card to cut…" : "Add a card to bring in…"}
-        />
-      </div>
+      candidates.find((candidate) => candidate.cardId === cardId)?.quantity ??
+      Number.POSITIVE_INFINITY
     );
   };
 
@@ -434,10 +286,16 @@ function MatchupEditor({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row">
-            {renderColumn("out")}
-            {renderColumn("in")}
-          </div>
+          <SwapColumns
+            swaps={matchup.swaps}
+            maindeckCandidates={maindeckCandidates}
+            sideboardCandidates={sideboardCandidates}
+            onAdd={addSwap}
+            onSetQuantity={setSwapQuantity}
+            onRemove={removeSwap}
+            onHoverCard={onHoverCard}
+            maxQuantityFor={maxSwapQuantity}
+          />
 
           <WarningList warnings={warnings} nameOf={nameOf} />
 
@@ -470,6 +328,7 @@ export function DeckPlanEditor({
   format: DeckFormat;
   onHoverCard?: HoverHandler;
 }) {
+  const actionsSlot = use(PlanTabActionsContext);
   const { data } = useDeckPlan(deckId);
   const savePlan = useSaveDeckPlan();
   const { allPrintings } = useCards();
@@ -504,12 +363,23 @@ export function DeckPlanEditor({
       });
     }
   }
-  const maindeckCandidates = deckCards
-    .filter((card) => card.zone === WellKnown.deckZone.MAIN)
-    .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
-  const sideboardCandidates = deckCards
-    .filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)
-    .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
+  // Swap pickers list cards in the deck list's default order. Rows stay
+  // per-entry, but the copy count sums a card's pinned printings so "of N"
+  // reports what the zone really holds.
+  const zoneCandidates = (zone: DeckZone) => {
+    const inZone = deckCards.filter((card) => card.zone === zone);
+    const totalByCard = new Map<string, number>();
+    for (const card of inZone) {
+      totalByCard.set(card.cardId, (totalByCard.get(card.cardId) ?? 0) + card.quantity);
+    }
+    return sortOverviewCards(inZone, zone).map((card) => ({
+      cardId: card.cardId,
+      cardName: card.cardName,
+      quantity: totalByCard.get(card.cardId) ?? card.quantity,
+    }));
+  };
+  const maindeckCandidates = zoneCandidates(WellKnown.deckZone.MAIN);
+  const sideboardCandidates = zoneCandidates(WellKnown.deckZone.SIDEBOARD);
   const battlefieldCandidates = deckCards
     .filter((card) => card.zone === WellKnown.deckZone.BATTLEFIELD)
     .map((card) => ({ cardId: card.cardId, cardName: card.cardName }));
@@ -580,34 +450,45 @@ export function DeckPlanEditor({
 
   const completeMatchups = draft.matchups.filter(isMatchupComplete).length;
 
+  // The host (the overview's Plan tab) lends a slot in its tab row; labels
+  // collapse to their icons on phones so the row fits beside the tabs.
+  const actions = (
+    <>
+      {isDirty ? (
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          Unsaved changes
+        </Badge>
+      ) : null}
+      {savePlan.isError ? (
+        <span className="text-destructive hidden text-sm sm:inline">Save failed</span>
+      ) : null}
+      {isPlanDraftEmpty(draft) ? null : (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          aria-label="Clear plan"
+          onClick={() => setClearConfirmOpen(true)}
+        >
+          <Trash2Icon />
+          <span className="hidden sm:inline">Clear plan</span>
+        </Button>
+      )}
+      <Button
+        size="sm"
+        onClick={() => savePlan.mutate({ deckId, plan: planDraftToSaveInput(draft) })}
+        disabled={!isDirty || savePlan.isPending}
+      >
+        {savePlan.isPending ? "Saving…" : "Save plan"}
+      </Button>
+    </>
+  );
+
   return (
     <div className="space-y-6 pb-8">
-      <div className="bg-background/80 sticky top-(--sticky-top) z-10 -mx-1 flex items-center justify-between gap-3 px-1 py-2 backdrop-blur-lg">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">Plan</h2>
-          {isDirty ? <Badge variant="secondary">Unsaved changes</Badge> : null}
-        </div>
-        <div className="flex items-center gap-2">
-          {savePlan.isError ? <span className="text-destructive text-sm">Save failed</span> : null}
-          {isPlanDraftEmpty(draft) ? null : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setClearConfirmOpen(true)}
-            >
-              <Trash2Icon className="size-4" />
-              Clear plan
-            </Button>
-          )}
-          <Button
-            onClick={() => savePlan.mutate({ deckId, plan: planDraftToSaveInput(draft) })}
-            disabled={!isDirty || savePlan.isPending}
-          >
-            {savePlan.isPending ? "Saving…" : "Save plan"}
-          </Button>
-        </div>
-      </div>
+      {/* No host slot (standalone use): the actions stay inline at the top. */}
+      {actionsSlot === undefined && <div className="flex items-center gap-2">{actions}</div>}
+      {actionsSlot ? createPortal(actions, actionsSlot) : null}
 
       <p className="text-muted-foreground">
         An optional plan for piloting this deck: your gameplan, mulligan priorities, battlefield

@@ -82,6 +82,49 @@ describe("sortDeckOverviewList", () => {
     ]);
   });
 
+  it("orders by the row's own price when the list resolves one", () => {
+    // "Show my printings" is on: each row prices the printing the viewer owns,
+    // which reverses the order the deck's display prices would give.
+    const cards = [
+      stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
+      stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
+    ];
+    const rowPrices: Record<string, number | undefined> = { a: 900, b: 100 };
+    const ctx: DeckListSortContext = {
+      ...contextFrom({ a: { displayPrice: 100 }, b: { displayPrice: 900 } }),
+      getRowPrice: (card) => rowPrices[card.cardId],
+    };
+
+    expect(names(sortDeckOverviewList(cards, "price", "asc", ctx))).toEqual(["Bard", "Ashe"]);
+  });
+
+  it("pins a row the resolver leaves unpriced last, ignoring its display price", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "priced", cardName: "Priced" }),
+      stubDeckBuilderCard({ cardId: "blank", cardName: "Blank" }),
+    ];
+    const ctx: DeckListSortContext = {
+      // The blank row has a display price, but the printing it shows has none,
+      // so it renders no price and must sort with the other unpriced rows.
+      ...contextFrom({ priced: { displayPrice: 900 }, blank: { displayPrice: 100 } }),
+      getRowPrice: (card) => (card.cardId === "priced" ? 900 : undefined),
+    };
+
+    expect(names(sortDeckOverviewList(cards, "price", "asc", ctx))).toEqual(["Priced", "Blank"]);
+    expect(names(sortDeckOverviewList(cards, "price", "desc", ctx))).toEqual(["Priced", "Blank"]);
+  });
+
+  it("falls back to the display price when no row resolver is supplied", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "cheap", cardName: "Cheap" }),
+      stubDeckBuilderCard({ cardId: "pricey", cardName: "Pricey" }),
+    ];
+    const ctx = contextFrom({ cheap: { displayPrice: 100 }, pricey: { displayPrice: 900 } });
+
+    expect(ctx.getRowPrice).toBeUndefined();
+    expect(names(sortDeckOverviewList(cards, "price", "asc", ctx))).toEqual(["Cheap", "Pricey"]);
+  });
+
   it("orders by rarity rank with unknown rarities last", () => {
     const cards = [
       stubDeckBuilderCard({ cardId: "r", cardName: "Rare" }),
@@ -97,6 +140,58 @@ describe("sortDeckOverviewList", () => {
       "Rare",
       "Unknown",
     ]);
+  });
+
+  it("orders by the row's own rarity when the list resolves one", () => {
+    // "Show my printings" is on: the rarity icons come from the printings the
+    // viewer owns, which rank the two rows the other way round.
+    const cards = [
+      stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
+      stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
+    ];
+    const rowRarities: Record<string, string | undefined> = { a: "rare", b: "common" };
+    const ctx: DeckListSortContext = {
+      ...contextFrom({
+        a: { displayPrinting: { rarity: "common" } as CardOwnership["displayPrinting"] },
+        b: { displayPrinting: { rarity: "rare" } as CardOwnership["displayPrinting"] },
+      }),
+      getRowRarity: (card) => rowRarities[card.cardId],
+    };
+
+    expect(names(sortDeckOverviewList(cards, "rarity", "asc", ctx))).toEqual(["Bard", "Ashe"]);
+  });
+
+  it("pins a row the rarity resolver leaves blank last, ignoring its display rarity", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "known", cardName: "Known" }),
+      stubDeckBuilderCard({ cardId: "blank", cardName: "Blank" }),
+    ];
+    const ctx: DeckListSortContext = {
+      // Blank has a display rarity, but the printing it shows resolves to none,
+      // so it renders no icon and sorts with the unknowns.
+      ...contextFrom({
+        known: { displayPrinting: { rarity: "rare" } as CardOwnership["displayPrinting"] },
+        blank: { displayPrinting: { rarity: "common" } as CardOwnership["displayPrinting"] },
+      }),
+      getRowRarity: (card) => (card.cardId === "known" ? "rare" : undefined),
+    };
+
+    expect(names(sortDeckOverviewList(cards, "rarity", "asc", ctx))).toEqual(["Known", "Blank"]);
+    expect(names(sortDeckOverviewList(cards, "rarity", "desc", ctx))).toEqual(["Known", "Blank"]);
+  });
+
+  it("falls back to the display rarity when no row resolver is supplied", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "r", cardName: "Rare" }),
+      stubDeckBuilderCard({ cardId: "c", cardName: "Common" }),
+    ];
+    const ctx = contextFrom({
+      r: { displayPrinting: { rarity: "rare" } as CardOwnership["displayPrinting"] },
+      c: { displayPrinting: { rarity: "common" } as CardOwnership["displayPrinting"] },
+    });
+
+    expect(ctx.getRowRarity).toBeUndefined();
+    expect(names(sortDeckOverviewList(cards, "rarity", "asc", ctx))).toEqual(["Common", "Rare"]);
   });
 
   it("orders by ownership shortfall, ascending owned-first and desc missing-first", () => {

@@ -1,5 +1,5 @@
 import { Radio } from "@base-ui/react/radio";
-import { ArrowDownNarrowWideIcon, ArrowUpNarrowWideIcon } from "lucide-react";
+import { ArrowDownNarrowWideIcon, ArrowUpDownIcon, ArrowUpNarrowWideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -263,6 +263,9 @@ export function SortGroupControls<
           "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
+        {/* Sort glyph so the closed trigger reads as a sorting control even
+            when the selected label alone wouldn't say so. */}
+        <ArrowUpDownIcon className="text-muted-foreground size-3.5" />
         {groupingActive && group && (
           <>
             <span>{groupLabel}</span>

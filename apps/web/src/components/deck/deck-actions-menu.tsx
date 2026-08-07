@@ -27,15 +27,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
@@ -46,7 +37,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { useCards } from "@/hooks/use-cards";
 import {
   deckDetailQueryOptions,
@@ -62,6 +52,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { DeckExportDialog } from "./deck-export-dialog";
+import { DeckRenameDialog } from "./deck-rename-dialog";
 import { ProxyExportDialog } from "./proxy-export-dialog";
 
 /**
@@ -85,7 +76,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameName, setRenameName] = useState(deck.name);
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
@@ -124,14 +114,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     }
     deleteDeck.mutate(deck.id);
     setDeleteOpen(false);
-  };
-
-  const handleRename = () => {
-    const trimmed = renameName.trim();
-    if (trimmed && trimmed !== deck.name) {
-      updateDeck.mutate({ deckId: deck.id, name: trimmed });
-    }
-    setRenameOpen(false);
   };
 
   const handleFormatChange = (event: React.MouseEvent, slug: string) => {
@@ -190,7 +172,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
-              setRenameName(deck.name);
               setRenameOpen(true);
             }}
           >
@@ -217,7 +198,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           )}
           <DropdownMenuItem onClick={handleClone}>
             <CopyIcon className="size-4" />
-            Clone
+            Duplicate
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
@@ -285,43 +266,12 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
+      <DeckRenameDialog
+        deckId={deck.id}
+        currentName={deck.name}
         open={renameOpen}
-        onOpenChange={(open) => {
-          setRenameOpen(open);
-          if (!open) {
-            setRenameName(deck.name);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename deck</DialogTitle>
-            <DialogDescription>Enter a new name for your deck.</DialogDescription>
-          </DialogHeader>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleRename();
-            }}
-          >
-            <Input
-              ref={(node) => {
-                node?.focus();
-              }}
-              value={renameName}
-              onChange={(event) => setRenameName(event.target.value)}
-              maxLength={100}
-            />
-            <DialogFooter className="mt-4">
-              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-              <Button type="submit" disabled={!renameName.trim()}>
-                Rename
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setRenameOpen}
+      />
     </>
   );
 }

@@ -1,4 +1,5 @@
-import type { CardType, DeckZone, SuperType } from "@openrift/shared";
+import type { CardBan, CardType, DeckZone, SuperType } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,10 +7,66 @@ import {
   cellPreferredPrintingId,
   getAllowedMoveTargets,
   isCardAllowedInZone,
+  isCardBanned,
   isDeckZoneFullForDrag,
 } from "./deck-builder-card";
 
+function ban(formatId: string): CardBan {
+  return { formatId, formatName: formatId, bannedAt: "2026-01-01", reason: null };
+}
+
+describe("isCardBanned", () => {
+  it("is false for a card with no bans", () => {
+    expect(isCardBanned({ bans: [] })).toBe(false);
+  });
+
+  it("is true for a base-banlist ban", () => {
+    expect(isCardBanned({ bans: [ban(WellKnown.banFormat.CONSTRUCTED)] })).toBe(true);
+  });
+
+  it("is false for a mode-scoped ban alone", () => {
+    // 2v2 bans stay a display-only ribbon: a deck has no play-mode identity,
+    // so they must not invalidate it.
+    expect(isCardBanned({ bans: [ban(WellKnown.banFormat.TWO_V_TWO)] })).toBe(false);
+  });
+
+  it("is true when a base ban sits alongside a mode-scoped one", () => {
+    expect(
+      isCardBanned({
+        bans: [ban(WellKnown.banFormat.TWO_V_TWO), ban(WellKnown.banFormat.CONSTRUCTED)],
+      }),
+    ).toBe(true);
+  });
+});
+
 describe("isCardAllowedInZone", () => {
+  const ALL_ZONES: DeckZone[] = [
+    "legend",
+    "champion",
+    "runes",
+    "battlefield",
+    "main",
+    "sideboard",
+    "overflow",
+  ];
+
+  it("rejects Token cards in every zone, overflow included", () => {
+    // Tokens are created by effects during play, never registered in a deck,
+    // so no zone takes one — not even the overflow parking area.
+    const token = { cardTypes: ["unit"] as CardType[], superTypes: ["token"] as SuperType[] };
+    for (const zone of ALL_ZONES) {
+      expect(isCardAllowedInZone(token, zone)).toBe(false);
+    }
+  });
+
+  it("rejects a Token even when its type would otherwise fit the zone", () => {
+    const tokenBattlefield = {
+      cardTypes: ["battlefield"] as CardType[],
+      superTypes: ["token"] as SuperType[],
+    };
+    expect(isCardAllowedInZone(tokenBattlefield, "battlefield")).toBe(false);
+  });
+
   it("allows Legend cards in the legend zone and overflow, nowhere else", () => {
     const legend = { cardTypes: ["legend"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(legend, "legend")).toBe(true);

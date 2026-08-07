@@ -1,12 +1,13 @@
-import { Bar, BarChart, XAxis } from "recharts";
+import { Bar, BarChart, Cell, LabelList, XAxis } from "recharts";
 
-import { CrispBar, CrispBarActive } from "@/components/deck/stats/crisp-bar";
+import { CrispBar, CrispBarActive, SplitCrispBar } from "@/components/deck/stats/crisp-bar";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { DomainCombo, EnergyCostCount, PowerCount } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainColor } from "@/lib/domain";
+import { cn } from "@/lib/utils";
 
 interface EnergyPowerChartProps {
   energyData: EnergyCostCount[];
@@ -17,6 +18,8 @@ interface EnergyPowerChartProps {
   averagePower: number | null;
   /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
+  /** Muted note rendered under the energy chart, e.g. to disclose which zones it counts. */
+  footnote?: string;
 }
 
 interface SingleChartProps {
@@ -30,6 +33,81 @@ interface SingleChartProps {
   minAxisMax: number;
   /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
+  /** Print each column's total above its bar. */
+  showTotals?: boolean;
+  /** Makes the bars clickable — called with the column's metric value. */
+  onBarClick?: (value: number) => void;
+  /**
+   * Metric value of the focused column, if any. The matching column keeps full
+   * opacity and the rest dim, so the chart shows what the card grid below is
+   * filtered to. Null when the focus belongs to another chart or is cleared.
+   */
+  focusValue?: number | null;
+  /**
+   * Counts matching another chart's focus, in the same row/stack shape as
+   * `data`. Each segment then splits: the matching part keeps full strength and
+   * the filtered-out remainder fades, so this chart shows how the other chart's
+   * filter cuts across it. Rows and stacks missing here count as 0; stacks are
+   * never taken from this data. Mutually exclusive with `focusValue` — a chart
+   * either owns the focus or reflects it, never both.
+   */
+  hitData?: (EnergyCostCount | PowerCount)[];
+}
+
+/**
+ * The chart-level click state recharts 3 hands external handlers. It carries
+ * the active index and label only — `activePayload` was part of the v2 state
+ * and is gone, so a click has to be resolved positionally against the chart's
+ * own data. (`activeIndex` is typed `string | null` upstream.)
+ */
+export interface ChartClickState {
+  activeLabel?: string | number;
+  activeIndex?: string | number | null;
+  activeTooltipIndex?: string | number | null;
+}
+
+/**
+ * Resolves a chart click to a row index in the data the chart was given.
+ * @returns The row index, or null when the click didn't land on a column.
+ */
+export function activeRowIndex(state: ChartClickState, rowCount: number): number | null {
+  const raw = state.activeIndex ?? state.activeTooltipIndex;
+  if (raw === null || raw === undefined || raw === "") {
+    return null;
+  }
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index < 0 || index >= rowCount) {
+    return null;
+  }
+  return index;
+}
+
+/**
+ * Count label above a bar column. Zero columns (axis padding) stay unlabeled
+ * so the empty tail doesn't fill with noise.
+ * @returns The label text node, or null for empty columns.
+ */
+export function TotalLabel(props: {
+  x?: string | number;
+  y?: string | number;
+  width?: string | number;
+  value?: string | number;
+}) {
+  const { x, y, width, value } = props;
+  if (!value || x === undefined || y === undefined || width === undefined) {
+    return null;
+  }
+  return (
+    <text
+      x={Number(x) + Number(width) / 2}
+      y={Number(y) - 4}
+      textAnchor="middle"
+      fontSize={10}
+      fill="var(--muted-foreground)"
+    >
+      {value}
+    </text>
+  );
 }
 
 function buildChartConfig(
@@ -111,6 +189,10 @@ function SingleChart({
   metric,
   minAxisMax,
   singleColor,
+  showTotals,
+  onBarClick,
+  focusValue,
+  hitData,
 }: SingleChartProps) {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
@@ -118,8 +200,30 @@ function SingleChart({
     return null;
   }
 
+  // Matched counts keyed the same way as the rows, so a missing row is simply
+  // "nothing matched here" rather than a hole.
+  const hitMap = new Map((hitData ?? []).map((entry) => [Number(entry[metric]), entry]));
+  const hitKeyFor = (key: string) => `${metric}_${key}__hit`;
+
+  // Per-column opacity for the focused-column treatment. Cells inherit the
+  // Bar's fill (solid or gradient) and only override the opacity, so this
+  // works the same for the single-color and stacked variants.
+  const columnOpacity = (columnValue: string) =>
+    focusValue === null || focusValue === undefined || Number(columnValue) === focusValue ? 1 : 0.3;
+
   const valueMap = new Map(data.map((entry) => [Number(entry[metric]), entry]));
   const maxValue = Math.max(minAxisMax, ...data.map((entry) => Number(entry[metric])));
+
+  const handleChartClick = onBarClick
+    ? (state: ChartClickState) => {
+        const parsed = Number(state.activeLabel);
+        if (!Number.isNaN(parsed)) {
+          onBarClick(parsed);
+        }
+      }
+    : undefined;
+  // Total labels need headroom above the tallest bar.
+  const chartMargin = { top: showTotals ? 14 : 0, right: 0, bottom: 0, left: 0 };
 
   const heading = (
     <div className="mb-1 flex items-center text-xs">
@@ -135,24 +239,26 @@ function SingleChart({
     const singleConfig: ChartConfig = {
       [totalKey]: { label: "Count", color: "var(--color-primary)" },
     };
+    const hitTotalKey = hitKeyFor("total");
     const chartData = Array.from({ length: maxValue + 1 }, (_, value) => {
       const entry = valueMap.get(value);
+      const hitEntry = hitMap.get(value);
       let total = 0;
-      if (entry) {
-        for (const stack of stacks) {
-          total += (entry[stack.key] as number) ?? 0;
-        }
+      let hitTotal = 0;
+      for (const stack of stacks) {
+        total += (entry?.[stack.key] as number) ?? 0;
+        hitTotal += (hitEntry?.[stack.key] as number) ?? 0;
       }
-      return { value: String(value), [totalKey]: total };
+      return { value: String(value), [totalKey]: total, [hitTotalKey]: hitTotal };
     });
     return (
       <div>
         {heading}
         <ChartContainer
           config={singleConfig}
-          className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36"
+          className={cn("aspect-auto h-28 w-full", onBarClick && "cursor-pointer")}
         >
-          <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <BarChart data={chartData} margin={chartMargin} onClick={handleChartClick}>
             <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <ChartTooltip
               cursor={false}
@@ -162,8 +268,16 @@ function SingleChart({
               dataKey={`${metric}_total`}
               fill="var(--color-primary)"
               activeBar={<CrispBarActive />}
-              shape={<CrispBar />}
-            />
+              shape={
+                hitData ? <SplitCrispBar hitKey={hitTotalKey} fullKey={totalKey} /> : <CrispBar />
+              }
+              isAnimationActive={false}
+            >
+              {chartData.map((row) => (
+                <Cell key={row.value} fillOpacity={columnOpacity(row.value)} />
+              ))}
+              {showTotals && <LabelList dataKey={totalKey} content={<TotalLabel />} />}
+            </Bar>
           </BarChart>
         </ChartContainer>
       </div>
@@ -172,10 +286,20 @@ function SingleChart({
 
   const chartData = Array.from({ length: maxValue + 1 }, (_, value) => {
     const entry = valueMap.get(value);
+    const hitEntry = hitMap.get(value);
     const row: Record<string, string | number> = { value: String(value) };
+    let total = 0;
     for (const stack of stacks) {
-      row[`${metric}_${stack.key}`] = (entry?.[stack.key] as number) ?? 0;
+      const count = (entry?.[stack.key] as number) ?? 0;
+      row[`${metric}_${stack.key}`] = count;
+      // Read by SplitCrispBar only — not a dataKey, so it never becomes a
+      // series, a tooltip row or part of a total.
+      row[hitKeyFor(stack.key)] = Math.min(count, (hitEntry?.[stack.key] as number) ?? 0);
+      total += count;
     }
+    // Column total for the label above the stack (rendered by the last Bar,
+    // whose segment top is the whole column's top).
+    row.columnTotal = total;
     return row;
   });
   const chartConfig = buildChartConfig(stacks, metric, labels.domains, domainColors);
@@ -183,8 +307,11 @@ function SingleChart({
   return (
     <div>
       {heading}
-      <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+      <ChartContainer
+        config={chartConfig}
+        className={cn("aspect-auto h-28 w-full", onBarClick && "cursor-pointer")}
+      >
+        <BarChart data={chartData} margin={chartMargin} onClick={handleChartClick}>
           <GradientDefs stacks={stacks} colors={domainColors} />
           <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <ChartTooltip
@@ -193,15 +320,29 @@ function SingleChart({
               <ChartTooltipContent reverseOrder labelFormatter={(value) => `${value} ${label}`} />
             }
           />
-          {stacks.map((stack) => (
+          {stacks.map((stack, index) => (
             <Bar
               key={`${metric}_${stack.key}`}
               dataKey={`${metric}_${stack.key}`}
               stackId="a"
               fill={comboFill(stack, domainColors)}
               activeBar={<CrispBarActive />}
-              shape={<CrispBar />}
-            />
+              shape={
+                hitData ? (
+                  <SplitCrispBar hitKey={hitKeyFor(stack.key)} fullKey={`${metric}_${stack.key}`} />
+                ) : (
+                  <CrispBar />
+                )
+              }
+              isAnimationActive={false}
+            >
+              {chartData.map((row) => (
+                <Cell key={String(row.value)} fillOpacity={columnOpacity(String(row.value))} />
+              ))}
+              {showTotals && index === stacks.length - 1 && (
+                <LabelList dataKey="columnTotal" content={<TotalLabel />} />
+              )}
+            </Bar>
           ))}
         </BarChart>
       </ChartContainer>
@@ -214,22 +355,47 @@ export function EnergyChart({
   stacks,
   average,
   singleColor,
+  footnote,
+  showTotals,
+  onBarClick,
+  focusValue,
+  hitData,
 }: {
   data: EnergyCostCount[];
   stacks: DomainCombo[];
   average: number | null;
   singleColor?: boolean;
+  /** Muted note rendered under the chart, e.g. to disclose which zones it counts. */
+  footnote?: string;
+  /** Print each column's total above its bar. */
+  showTotals?: boolean;
+  /** Makes the bars clickable — called with the column's energy cost. */
+  onBarClick?: (value: number) => void;
+  /** Energy cost of the focused column; the others dim. Null when unfocused. */
+  focusValue?: number | null;
+  /** Energy counts matching another chart's focus — see SingleChartProps. */
+  hitData?: EnergyCostCount[];
 }) {
+  if (data.length === 0) {
+    return null;
+  }
   return (
-    <SingleChart
-      data={data}
-      stacks={stacks}
-      average={average}
-      label="Energy"
-      metric="energy"
-      minAxisMax={8}
-      singleColor={singleColor}
-    />
+    <div>
+      <SingleChart
+        data={data}
+        stacks={stacks}
+        average={average}
+        label="Energy"
+        metric="energy"
+        minAxisMax={8}
+        singleColor={singleColor}
+        showTotals={showTotals}
+        onBarClick={onBarClick}
+        focusValue={focusValue}
+        hitData={hitData}
+      />
+      {footnote && <p className="text-muted-foreground text-2xs mt-1">{footnote}</p>}
+    </div>
   );
 }
 
@@ -238,11 +404,23 @@ export function PowerChart({
   stacks,
   average,
   singleColor,
+  showTotals,
+  onBarClick,
+  focusValue,
+  hitData,
 }: {
   data: PowerCount[];
   stacks: DomainCombo[];
   average: number | null;
   singleColor?: boolean;
+  /** Print each column's total above its bar. */
+  showTotals?: boolean;
+  /** Makes the bars clickable — called with the column's power value. */
+  onBarClick?: (value: number) => void;
+  /** Power value of the focused column; the others dim. Null when unfocused. */
+  focusValue?: number | null;
+  /** Power counts matching another chart's focus — see SingleChartProps. */
+  hitData?: PowerCount[];
 }) {
   return (
     <SingleChart
@@ -253,6 +431,10 @@ export function PowerChart({
       metric="power"
       minAxisMax={4}
       singleColor={singleColor}
+      showTotals={showTotals}
+      onBarClick={onBarClick}
+      focusValue={focusValue}
+      hitData={hitData}
     />
   );
 }
@@ -265,6 +447,7 @@ export function EnergyPowerChart({
   powerStacks,
   averagePower,
   singleColor,
+  footnote,
 }: EnergyPowerChartProps) {
   if (energyData.length === 0 && powerData.length === 0) {
     return null;
@@ -276,6 +459,7 @@ export function EnergyPowerChart({
         stacks={energyStacks}
         average={averageEnergy}
         singleColor={singleColor}
+        footnote={footnote}
       />
       <PowerChart
         data={powerData}

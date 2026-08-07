@@ -13,6 +13,8 @@ import {
   legendExactlyOne,
   mainDeckCopyLimit,
   mainDeckExactly,
+  noBannedCards,
+  noTokenCards,
   runesAllTypeRune,
   runesExactlyTwelve,
   runesMatchLegendDomains,
@@ -39,6 +41,7 @@ function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
     customTagSlugs: [],
     keywords: [],
     maxCopiesOverride: null,
+    banned: false,
     ...overrides,
   };
 }
@@ -284,9 +287,8 @@ describe("runesMatchLegendDomains", () => {
 // ── mainDeckExactly ─────────────────────────────────────────────────────────
 
 describe("mainDeckExactly", () => {
-  it("passes with exactly 40 cards in main", () => {
-    const cards = [makeCard({ quantity: 40 })];
-    expect(mainDeckExactly(makeState(cards))).toEqual([]);
+  it("passes with exactly 39 cards in main", () => {
+    expect(mainDeckExactly(makeState([makeCard({ quantity: 39 })]))).toEqual([]);
   });
 
   it("passes with 39 main + 1 champion", () => {
@@ -294,17 +296,39 @@ describe("mainDeckExactly", () => {
     expect(mainDeckExactly(makeState(cards))).toEqual([]);
   });
 
-  it("fails with fewer than 40 across main + champion", () => {
-    const violations = mainDeckExactly(makeState([makeCard({ quantity: 30 })]));
-    expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("MAIN_TOO_FEW");
+  it("does not flag main when the deck is only missing its champion", () => {
+    // The regression: a full 39-card main with no champion used to show a red
+    // "39/40 — need 1 more" on a zone that was already complete. The missing
+    // champion is CHAMPION_REQUIRED's to report.
+    expect(mainDeckExactly(makeState([makeCard({ quantity: 39 })]))).toEqual([]);
   });
 
-  it("fails with more than 40 across main + champion", () => {
-    const cards = [makeCard({ quantity: 41 })];
-    const violations = mainDeckExactly(makeState(cards));
-    expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("MAIN_TOO_MANY");
+  it("ignores champion-zone cards when counting", () => {
+    // 39 main + a champion is legal, so a champion must not push main over.
+    const cards = [makeCard({ quantity: 39 }), makeChampion({ quantity: 1 })];
+    expect(mainDeckExactly(makeState(cards))).toEqual([]);
+  });
+
+  it("fails with fewer than 39 in main and counts against 39", () => {
+    const violations = mainDeckExactly(makeState([makeCard({ quantity: 36 })]));
+    expect(violations).toEqual([
+      {
+        zone: "main",
+        code: "MAIN_TOO_FEW",
+        message: "36/39 main-deck cards — need 3 more",
+      },
+    ]);
+  });
+
+  it("fails with more than 39 in main and counts against 39", () => {
+    const violations = mainDeckExactly(makeState([makeCard({ quantity: 40 })]));
+    expect(violations).toEqual([
+      {
+        zone: "main",
+        code: "MAIN_TOO_MANY",
+        message: "40/39 main-deck cards — remove 1",
+      },
+    ]);
   });
 });
 
@@ -767,6 +791,188 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
 
 // ── validateDeck ────────────────────────────────────────────────────────────
 
+describe("noBannedCards", () => {
+  it("returns no violations when nothing is banned", () => {
+    expect(noBannedCards(makeState([makeCard(), makeLegend()]))).toEqual([]);
+  });
+
+  it("flags a banned card with its zone and cardId", () => {
+    const violations = noBannedCards(
+      makeState([makeCard({ cardId: "bad", cardName: "Forbidden Pact", banned: true })]),
+    );
+
+    expect(violations).toEqual([
+      {
+        zone: "main",
+        code: "CARD_BANNED",
+        message: "Forbidden Pact is banned.",
+        cardId: "bad",
+      },
+    ]);
+  });
+
+  it("emits one violation per banned card", () => {
+    const violations = noBannedCards(
+      makeState([
+        makeCard({ cardId: "bad-1", cardName: "First Ban", banned: true }),
+        makeCard({ cardId: "fine", cardName: "Legal Card" }),
+        makeCard({ cardId: "bad-2", cardName: "Second Ban", zone: "sideboard", banned: true }),
+      ]),
+    );
+
+    expect(violations).toHaveLength(2);
+    expect(violations.map((violation) => violation.cardId)).toEqual(["bad-1", "bad-2"]);
+    expect(violations[1].zone).toBe("sideboard");
+  });
+
+  it("ignores a banned card parked in overflow", () => {
+    // Overflow is a staging area outside the deck, so parking a banned card
+    // there must not make the deck illegal.
+    expect(
+      noBannedCards(makeState([makeCard({ cardId: "bad", zone: "overflow", banned: true })])),
+    ).toEqual([]);
+  });
+});
+
+describe("noTokenCards", () => {
+  function makeToken(overrides: Partial<DeckCard> = {}): DeckCard {
+    return makeCard({
+      cardId: "token-1",
+      cardName: "Sprite",
+      superTypes: ["token"],
+      ...overrides,
+    });
+  }
+
+  it("returns no violations for a deck without tokens", () => {
+    expect(noTokenCards(makeState([makeCard(), makeLegend()]))).toEqual([]);
+  });
+
+  it("flags a token with its zone and cardId", () => {
+    expect(noTokenCards(makeState([makeToken()]))).toEqual([
+      {
+        zone: "main",
+        code: "CARD_NOT_DECK_LEGAL",
+        message: "Sprite is a Token and can't be part of a deck.",
+        cardId: "token-1",
+      },
+    ]);
+  });
+
+  it("emits one violation per token", () => {
+    const violations = noTokenCards(
+      makeState([
+        makeToken({ cardId: "tok-1", cardName: "Sprite" }),
+        makeCard({ cardId: "fine", cardName: "Legal Card" }),
+        makeToken({ cardId: "tok-2", cardName: "Husk", zone: "sideboard" }),
+      ]),
+    );
+
+    expect(violations).toHaveLength(2);
+    expect(violations.map((violation) => violation.cardId)).toEqual(["tok-1", "tok-2"]);
+    expect(violations[1].zone).toBe("sideboard");
+  });
+
+  it("ignores a token parked in overflow", () => {
+    expect(noTokenCards(makeState([makeToken({ zone: "overflow" })]))).toEqual([]);
+  });
+
+  it("leaves other supertypes alone", () => {
+    expect(noTokenCards(makeState([makeCard({ superTypes: ["champion", "signature"] })]))).toEqual(
+      [],
+    );
+  });
+});
+
+describe("tokens via validateDeck", () => {
+  it("makes an otherwise legal constructed deck illegal", () => {
+    const mainCards = Array.from({ length: 13 }, (_, index) =>
+      makeCard({
+        cardId: `main-${index}`,
+        quantity: 3,
+        superTypes: index === 0 ? ["token"] : [],
+      }),
+    );
+    const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
+
+    expect(violations).toEqual([
+      {
+        zone: "main",
+        code: "CARD_NOT_DECK_LEGAL",
+        message: "Test Card is a Token and can't be part of a deck.",
+        cardId: "main-0",
+      },
+    ]);
+  });
+
+  it("enforces the token rule in custom-region", () => {
+    const violations = validateDeck(
+      makeState(
+        [makeCard({ cardId: "tok", superTypes: ["token"], customTagSlugs: ["ionia"] })],
+        "custom-region",
+        { tagSlugs: ["ionia"] },
+      ),
+    );
+
+    expect(violations.map((violation) => violation.code)).toContain("CARD_NOT_DECK_LEGAL");
+  });
+
+  it("does not enforce the token rule in freeform", () => {
+    // Freeform is the deliberate no-rules sandbox: validateDeck short-circuits
+    // before any rule runs, so tokens are allowed there like everything else.
+    expect(validateDeck(makeState([makeCard({ superTypes: ["token"] })], "freeform"))).toEqual([]);
+  });
+});
+
+describe("banned cards via validateDeck", () => {
+  it("makes an otherwise legal constructed deck illegal", () => {
+    const mainCards = Array.from({ length: 13 }, (_, index) =>
+      makeCard({ cardId: `main-${index}`, quantity: 3, banned: index === 0 }),
+    );
+    const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
+
+    expect(violations).toEqual([
+      {
+        zone: "main",
+        code: "CARD_BANNED",
+        message: "Test Card is banned.",
+        cardId: "main-0",
+      },
+    ]);
+  });
+
+  it("enforces bans in custom-region", () => {
+    const violations = validateDeck(
+      makeState(
+        [makeCard({ cardId: "bad", banned: true, customTagSlugs: ["ionia"] })],
+        "custom-region",
+        {
+          tagSlugs: ["ionia"],
+        },
+      ),
+    );
+
+    expect(violations.map((violation) => violation.code)).toContain("CARD_BANNED");
+  });
+
+  it("does not enforce bans in freeform", () => {
+    expect(validateDeck(makeState([makeCard({ banned: true })], "freeform"))).toEqual([]);
+  });
+
+  it("emits one violation when a banned card is split across printing rows", () => {
+    // Two rows for the same card in one zone collapse before rules run, so a
+    // split banned card must not produce duplicate (zone, code, cardId) keys.
+    const violations = validateDeck(
+      makeState([
+        makeCard({ cardId: "bad", quantity: 1, banned: true }),
+        makeCard({ cardId: "bad", quantity: 2, banned: true }),
+      ]),
+    );
+
+    expect(violations.filter((violation) => violation.code === "CARD_BANNED")).toHaveLength(1);
+  });
+});
+
 describe("validateDeck", () => {
   it("returns no violations for a valid constructed deck", () => {
     const mainCards = Array.from({ length: 13 }, (_, index) =>
@@ -775,6 +981,20 @@ describe("validateDeck", () => {
     const cards = [...makeConstructedShell(), ...mainCards];
     const violations = validateDeck(makeState(cards));
     expect(violations).toEqual([]);
+  });
+
+  it("blames only the champion zone when a full main deck has no champion", () => {
+    // A complete 39-card main plus a missing champion is one gap, not two: the
+    // main zone is finished, so only CHAMPION_REQUIRED should fire.
+    const mainCards = Array.from({ length: 13 }, (_, index) =>
+      makeCard({ cardId: `main-${index}`, quantity: 3 }),
+    );
+    const shellWithoutChampion = makeConstructedShell().filter((card) => card.zone !== "champion");
+    const codes = validateDeck(makeState([...shellWithoutChampion, ...mainCards])).map(
+      (violation) => violation.code,
+    );
+
+    expect(codes).toEqual(["CHAMPION_REQUIRED"]);
   });
 
   it("returns empty for freeform regardless of content", () => {

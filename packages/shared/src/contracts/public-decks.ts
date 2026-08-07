@@ -11,7 +11,7 @@ import {
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { deckExportResponseSchema } from "./decks.js";
+import { deckExportResponseSchema, deckOddsConfigSchema } from "./decks.js";
 
 extendZodWithOpenApi(z);
 
@@ -41,6 +41,7 @@ export const publicDeckResponseSchema = z
     formatConfig: formatConfigResponseSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
+    oddsConfig: deckOddsConfigSchema.nullable(),
   })
   .openapi("PublicDeckResponse");
 
@@ -59,6 +60,8 @@ export const publicDeckCardResponseSchema = z
     tags: z.array(z.string()),
     keywords: z.array(z.string()),
     maxCopiesOverride: z.number().nullable(),
+    /** True when the card is on the base banlist; drives the deck's CARD_BANNED violation. */
+    banned: z.boolean(),
     energy: z.number().nullable(),
     might: z.number().nullable(),
     power: z.number().nullable(),

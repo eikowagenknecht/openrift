@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { toDeck, toDeckCard, toDeckSummary, toPublicDeck } from "./deck-presenters.js";
+import {
+  toDeck,
+  toDeckCard,
+  toDeckSummary,
+  toPublicDeck,
+  toPublicDeckCard,
+} from "./deck-presenters.js";
 
 const NOW = new Date("2025-06-15T12:00:00.000Z");
 const LATER = new Date("2025-06-16T08:30:00.000Z");
@@ -18,6 +24,7 @@ describe("toDeck", () => {
       description: "Fast opener",
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
@@ -32,6 +39,7 @@ describe("toDeck", () => {
       description: "Fast opener",
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
@@ -50,6 +58,7 @@ describe("toDeck", () => {
       description: null,
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: false,
       isPublic: false,
       shareToken: null,
@@ -75,6 +84,7 @@ describe("toPublicDeck", () => {
       description: "Fast opener",
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: false,
       isPublic: true,
       shareToken: "tok-abc",
@@ -89,6 +99,7 @@ describe("toPublicDeck", () => {
       description: "Fast opener",
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -111,6 +122,7 @@ describe("toDeckSummary", () => {
       description: "A fast deck",
       format: "constructed",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: true,
       isPublic: true,
       shareToken: "abc123",
@@ -140,6 +152,7 @@ describe("toDeckSummary", () => {
       description: null,
       format: "freeform",
       formatConfig: null,
+      oddsConfig: null,
       isWanted: false,
       isPublic: false,
       shareToken: null,
@@ -170,6 +183,53 @@ describe("toDeckCard", () => {
       quantity: 4,
       preferredPrintingId: null,
     });
+  });
+});
+
+describe("toPublicDeckCard", () => {
+  const deckCard = {
+    cardId: "card-1",
+    zone: "main",
+    quantity: 3,
+    preferredPrintingId: null,
+  };
+  const cardMeta = {
+    name: "Iron Ballista",
+    slug: "iron-ballista",
+    type: "unit" as const,
+    types: ["unit" as const],
+    superTypes: [],
+    domains: [],
+    tags: [],
+    keywords: [],
+    maxCopiesOverride: null,
+    energy: 2,
+    might: 3,
+    power: null,
+  };
+  const printingMeta = {
+    resolvedPrintingId: "printing-1",
+    shortCode: "OGN-100",
+    imageId: "image-1",
+  };
+
+  it("denormalizes card and printing meta onto the row", () => {
+    const result = toPublicDeckCard(deckCard, cardMeta, printingMeta, false);
+
+    expect(result).toMatchObject({
+      cardId: "card-1",
+      zone: "main",
+      quantity: 3,
+      cardName: "Iron Ballista",
+      cardSlug: "iron-ballista",
+      resolvedPrintingId: "printing-1",
+      shortCode: "OGN-100",
+      banned: false,
+    });
+  });
+
+  it("carries the banned flag through so the share page can validate bans", () => {
+    expect(toPublicDeckCard(deckCard, cardMeta, printingMeta, true).banned).toBe(true);
   });
 });
 

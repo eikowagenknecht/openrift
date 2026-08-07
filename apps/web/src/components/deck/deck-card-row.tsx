@@ -22,6 +22,12 @@ interface DeckCardRowProps {
   card: DeckBuilderCard;
   hasViolation?: boolean;
   violationMessage?: string;
+  /**
+   * Copies still missing from the viewer's collection for this row. Rendered
+   * as an amber owned/needed fraction; omit (or 0) to show nothing — fully
+   * owned rows stay quiet.
+   */
+  shortfall?: number;
   dimmed?: boolean;
   controlMode?: ControlMode;
   /** Largest copy count in this row's zone — used to size the count column so names align. */
@@ -170,6 +176,7 @@ export function DeckCardRow({
   card,
   hasViolation,
   violationMessage,
+  shortfall,
   dimmed,
   controlMode = "quantity",
   maxQuantity,
@@ -242,6 +249,20 @@ export function DeckCardRow({
       <span className="min-w-0 flex-1 truncate text-left">
         {legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags })}
       </span>
+
+      {shortfall !== undefined && shortfall > 0 && (
+        <Tooltip>
+          <TooltipTrigger className="shrink-0">
+            <span className="text-2xs text-amber-600 tabular-nums dark:text-amber-500">
+              {card.quantity - shortfall}/{card.quantity}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            You have {card.quantity - shortfall} of {card.quantity}{" "}
+            {card.quantity === 1 ? "copy" : "copies"}
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       {card.power !== null && card.power > 0 && (
         <span className="flex shrink-0 items-center gap-0.5">

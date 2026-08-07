@@ -4,6 +4,8 @@ import { cloneElement } from "react";
 import type * as Recharts from "recharts";
 import { describe, expect, it, vi } from "vitest";
 
+import type { TypeCount } from "@/lib/stat-types";
+
 // Recharts' ResponsiveContainer measures its parent and renders 0x0 in jsdom,
 // so the inner chart never paints its <text> ticks. Replacing it with a
 // pass-through that injects explicit width/height into the child chart lets
@@ -35,7 +37,106 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
+import { activeRowIndex } from "./energy-power-chart";
+// oxlint-disable-next-line import/first -- must import after vi.mock
 import { TypeBreakdown } from "./type-breakdown";
+
+describe("activeRowIndex", () => {
+  // recharts 3 hands external handlers exactly these fields. `activePayload`
+  // — which the Types chart used to read — is a v2 field and is absent, which
+  // is why clicking a Types column silently did nothing.
+  const v3State = {
+    activeCoordinate: { x: 120, y: 40 },
+    activeDataKey: "fury",
+    activeIndex: "1",
+    activeLabel: "3 Spells",
+    activeTooltipIndex: "1",
+    isTooltipActive: true,
+  };
+
+  it("resolves the clicked column from the v3 state's string index", () => {
+    expect(activeRowIndex(v3State, 3)).toBe(1);
+  });
+
+  it("falls back to activeTooltipIndex when activeIndex is absent", () => {
+    expect(activeRowIndex({ activeTooltipIndex: "2" }, 3)).toBe(2);
+  });
+
+  it("resolves a numeric index too", () => {
+    expect(activeRowIndex({ activeIndex: 0 }, 3)).toBe(0);
+  });
+
+  it("returns null for a click that landed on no column", () => {
+    // A null index must not coerce to row 0 — that would filter on a stray
+    // click in the chart's padding.
+    expect(activeRowIndex({ activeIndex: null }, 3)).toBeNull();
+    expect(activeRowIndex({}, 3)).toBeNull();
+    expect(activeRowIndex({ activeIndex: "" }, 3)).toBeNull();
+  });
+
+  it("rejects an index outside the data", () => {
+    expect(activeRowIndex({ activeIndex: "3" }, 3)).toBeNull();
+    expect(activeRowIndex({ activeIndex: "-1" }, 3)).toBeNull();
+    expect(activeRowIndex({ activeIndex: "1.5" }, 3)).toBeNull();
+    expect(activeRowIndex({ activeIndex: "fury" }, 3)).toBeNull();
+  });
+});
+
+const TWO_TYPES: TypeCount[] = [
+  { type: "unit", total: 12, fire: 12 },
+  { type: "spell", total: 1, water: 1 },
+];
+
+/** @returns The fill-opacity of every bar rectangle recharts painted. */
+function barOpacities(container: HTMLElement): string[] {
+  return [...container.querySelectorAll("path.recharts-rectangle")].map(
+    (rect) => rect.getAttribute("fill-opacity") ?? "1",
+  );
+}
+
+describe("TypeBreakdown focused column", () => {
+  it("dims the other columns when a column is focused", () => {
+    const { container } = render(
+      <TypeBreakdown data={TWO_TYPES} domains={["fire", "water"]} focusValue="spell" />,
+    );
+    const opacities = barOpacities(container);
+    expect(opacities).toContain("0.3");
+    expect(opacities).toContain("1");
+  });
+
+  it("leaves every column lit when nothing is focused", () => {
+    const { container } = render(<TypeBreakdown data={TWO_TYPES} domains={["fire", "water"]} />);
+    expect(barOpacities(container)).not.toContain("0.3");
+  });
+});
+
+describe("TypeBreakdown cross-filter split", () => {
+  it("splits a segment into a lit match and a faded remainder", () => {
+    // One column, one domain: 12 fire units, 4 of which match another chart's
+    // focus. Exactly two rectangles must come out — the lit 4 and the faded 8 —
+    // so this can't pass on some unrelated zero-height segment.
+    const { container } = render(
+      <TypeBreakdown
+        data={[{ type: "unit", total: 12, fire: 12 }]}
+        domains={["fire"]}
+        hitData={[{ type: "unit", total: 4, fire: 4 }]}
+      />,
+    );
+    expect(barOpacities(container).toSorted()).toEqual(["0.3", "1"]);
+  });
+
+  it("fades a column whole when nothing in it matches", () => {
+    const { container } = render(
+      <TypeBreakdown data={TWO_TYPES} domains={["fire", "water"]} hitData={[]} />,
+    );
+    expect(barOpacities(container).every((value) => value === "0.3")).toBe(true);
+  });
+
+  it("leaves the bars alone without hitData", () => {
+    const { container } = render(<TypeBreakdown data={TWO_TYPES} domains={["fire", "water"]} />);
+    expect(barOpacities(container)).not.toContain("0.3");
+  });
+});
 
 describe("TypeBreakdown x-axis labels", () => {
   it("renders display labels (not slugs) for card types", () => {

@@ -179,6 +179,7 @@ export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): D
     tags: [],
     keywords: [],
     maxCopiesOverride: null,
+    banned: false,
     energy: 1,
     might: 1,
     power: 1,
@@ -208,6 +209,8 @@ export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardO
     lockedExcluded: 0,
     borrowed: 0,
     displayPrice: undefined,
+    completionPrice: undefined,
+    completionPrinting: undefined,
     displayPrinting: {
       id: nextId(),
       language: "EN",

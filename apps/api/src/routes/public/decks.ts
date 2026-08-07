@@ -3,6 +3,7 @@ import type {
   DeckPlanCardMetaResponse,
   PublicDeckDetailResponse,
 } from "@openrift/shared";
+import { isBaseBanFormat } from "@openrift/shared";
 import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
 import { implement } from "@orpc/server";
 
@@ -38,7 +39,7 @@ export const publicDecksRouter = {
     const plan = toDeckPlan(planData);
 
     const uniqueCardIds = [...new Set(cards.map((card) => card.cardId))];
-    const [cardMetas, printingMetas, customTagAssignmentsMap] = await Promise.all([
+    const [cardMetas, printingMetas, customTagAssignmentsMap, banRows] = await Promise.all([
       catalog.cardsByIds(uniqueCardIds),
       canonicalPrintings.resolvePrintingMetaForRows(
         cards.map((card) => ({
@@ -47,8 +48,14 @@ export const publicDecksRouter = {
         })),
       ),
       customTags.assignmentsForCardIds(uniqueCardIds),
+      catalog.cardBansByCardIds(uniqueCardIds),
     ]);
     const cardMetaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
+    // Only base-list bans invalidate a deck; mode-scoped ones (e.g. 2v2) stay
+    // a display concern, so they never reach the share payload.
+    const bannedCardIds = new Set(
+      banRows.filter((ban) => isBaseBanFormat(ban.formatId)).map((ban) => ban.cardId),
+    );
 
     // The plan references cards the deck may not contain (notably the opponent
     // identity card), so denormalize their display meta separately.
@@ -102,7 +109,7 @@ export const publicDecksRouter = {
           // in input order. Either being missing means an invariant broke.
           throw new Error(`Missing enrichment for deck card ${row.cardId}`);
         }
-        return toPublicDeckCard(row, cardMeta, printingMeta);
+        return toPublicDeckCard(row, cardMeta, printingMeta, bannedCardIds.has(row.cardId));
       }),
       owner: {
         displayName: found.ownerName ?? "Anonymous",

@@ -1,7 +1,8 @@
-import type { Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
+import type { DeckZone, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { REQUIRED_ZONES } from "@/lib/deck-zone-labels";
 
 import { useEffectiveLanguageOrder } from "./use-effective-language-order";
 import { usePrices } from "./use-prices";
@@ -54,17 +55,42 @@ export interface CardOwnership {
    * The printing whose price backed `displayPrice` — used to deep-link to the
    * matching marketplace product. `undefined` when the card has no printings.
    */
-  displayPrinting:
-    | {
-        id: string;
-        language: string;
-        shortCode: string;
-        rarity: Rarity;
-        imageId: string | undefined;
-        /** True for Battlefields — their art is stored landscape and rotated for display. */
-        landscape: boolean;
-      }
-    | undefined;
+  displayPrinting: OwnershipPrinting | undefined;
+  /**
+   * Cheapest priced printing that fills this card's shortfall, preferring the
+   * viewer's languages. A creator can pin a premium printing; the viewer
+   * completing the deck buys the cheapest copy they accept, so missing-cards
+   * pricing uses this instead of `displayPrice`. `undefined` when nothing is
+   * missing or no printing has a price.
+   */
+  completionPrice: number | undefined;
+  completionPrinting: OwnershipPrinting | undefined;
+}
+
+interface OwnershipPrinting {
+  id: string;
+  language: string;
+  shortCode: string;
+  rarity: Rarity;
+  imageId: string | undefined;
+  /** True for Battlefields — their art is stored landscape and rotated for display. */
+  landscape: boolean;
+}
+
+/**
+ * Projects a catalog printing down to the fields the ownership consumers
+ * (missing-cards dialog, list rows) render and deep-link with.
+ * @returns The compact printing shape.
+ */
+function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
+  return {
+    id: printing.id,
+    language: printing.language,
+    shortCode: printing.shortCode,
+    rarity: printing.rarity,
+    imageId: printing.images[0]?.imageId,
+    landscape: getOrientation(printing.card.types) === "landscape",
+  };
 }
 
 /**
@@ -77,6 +103,9 @@ function isCountedZone(zone: string): boolean {
   return zone !== WellKnown.deckZone.OVERFLOW;
 }
 
+/** The deck proper — the zones behind the "X / 56" completion figure. */
+const REQUIRED_ZONE_SET: ReadonlySet<DeckZone> = new Set(REQUIRED_ZONES);
+
 export interface DeckOwnershipData {
   /**
    * Per-card ownership keyed by `cardId:zone`. Overflow rows are present so
@@ -85,6 +114,21 @@ export interface DeckOwnershipData {
   byCardZone: Map<string, CardOwnership>;
   totalNeeded: number;
   totalOwned: number;
+  /**
+   * Needed/owned across the deck proper only (legend, champion, runes,
+   * battlefields, main — no sideboard). This is the basis the hero's owned
+   * chip displays, so its denominator matches the "X / 56" completion figure.
+   * `totalNeeded`/`totalOwned` above keep counting the sideboard for the
+   * missing-cards flows.
+   */
+  requiredZoneNeeded: number;
+  requiredZoneOwned: number;
+  /**
+   * Per card, the canonical-ranked printing the viewer actually owns copies
+   * of — drives the "show my printings" display toggle. Absent when the
+   * viewer owns none.
+   */
+  ownedPrintingByCardId: ReadonlyMap<string, OwnershipPrinting>;
   totalLocked: number;
   totalBorrowed: number;
   missingCount: number;
@@ -94,7 +138,16 @@ export interface DeckOwnershipData {
   /** Deck value of the sideboard zone alone. */
   sideboardValueCents: number | undefined;
   ownedValueCents: number | undefined;
+  /**
+   * Cost to buy every missing copy the cheapest way, preferring the viewer's
+   * languages (see {@link CardOwnership.completionPrice}).
+   */
   missingValueCents: number | undefined;
+  /**
+   * Cost of the missing copies at the deck's displayed printings (the
+   * creator's pins). Shown alongside the cheapest figure when they differ.
+   */
+  missingAsDisplayedValueCents: number | undefined;
   missingCards: CardOwnership[];
 }
 
@@ -213,9 +266,12 @@ export function computeDeckOwnership(
   const claimedBorrowedByCardId = new Map<string, number>();
 
   const byCardZone = new Map<string, CardOwnership>();
+  const ownedPrintingByCardId = new Map<string, OwnershipPrinting>();
   const missingCards: CardOwnership[] = [];
   let totalNeeded = 0;
   let totalOwned = 0;
+  let requiredZoneNeeded = 0;
+  let requiredZoneOwned = 0;
   let totalLocked = 0;
   let totalBorrowed = 0;
   let missingCount = 0;
@@ -225,6 +281,7 @@ export function computeDeckOwnership(
   let sideboardValueCents = 0;
   let ownedValueCents = 0;
   let missingValueCents = 0;
+  let missingAsDisplayedValueCents = 0;
 
   // Overflow rows are walked last so a stashed copy never claims an owned copy
   // ahead of the zone that actually needs it — their own owned/borrowed numbers
@@ -267,6 +324,19 @@ export function computeDeckOwnership(
     // a cheaper non-EN printing bleed into the missing-cards dialog even
     // when the deck row pins (or canonically resolves to) EN.
     const candidates = printingsByCardId.get(card.cardId) ?? [];
+
+    // The canonical-ranked printing the viewer owns, for the "show my
+    // printings" display toggle. Computed once per card (first zone wins).
+    if (!ownedPrintingByCardId.has(card.cardId) && ownedCountByPrinting) {
+      const ownedCandidates = candidates.filter(
+        (candidate) => (ownedCountByPrinting[candidate.id] ?? 0) > 0,
+      );
+      const bestOwned = preferredPrinting(ownedCandidates, languageOrder);
+      if (bestOwned) {
+        ownedPrintingByCardId.set(card.cardId, toOwnershipPrinting(bestOwned));
+      }
+    }
+
     let resolvedPrinting: Printing | undefined;
     if (card.preferredPrintingId) {
       resolvedPrinting = candidates.find((p) => p.id === card.preferredPrintingId);
@@ -278,15 +348,33 @@ export function computeDeckOwnership(
     const displayPrice = resolvedPrinting
       ? prices.get(resolvedPrinting.id, marketplace)
       : undefined;
-    const displayPrinting = resolvedPrinting
-      ? {
-          id: resolvedPrinting.id,
-          language: resolvedPrinting.language,
-          shortCode: resolvedPrinting.shortCode,
-          rarity: resolvedPrinting.rarity,
-          imageId: resolvedPrinting.images[0]?.imageId,
-          landscape: getOrientation(resolvedPrinting.card.types) === "landscape",
+    const displayPrinting = resolvedPrinting ? toOwnershipPrinting(resolvedPrinting) : undefined;
+
+    // Cheapest way to fill this card's remaining copies. First tier: printings
+    // in the viewer's languages (`languageOrder` is their preference list when
+    // set, every language otherwise). Fallback tier: any priced printing.
+    let completionPrice: number | undefined;
+    let completionResolved: Printing | undefined;
+    if (shortfall > 0) {
+      const pools = [
+        candidates.filter((candidate) => languageOrder.includes(candidate.language)),
+        candidates,
+      ];
+      for (const pool of pools) {
+        for (const candidate of pool) {
+          const price = prices.get(candidate.id, marketplace);
+          if (price !== undefined && (completionPrice === undefined || price < completionPrice)) {
+            completionPrice = price;
+            completionResolved = candidate;
+          }
         }
+        if (completionPrice !== undefined) {
+          break;
+        }
+      }
+    }
+    const completionPrinting = completionResolved
+      ? toOwnershipPrinting(completionResolved)
       : undefined;
 
     const entry: CardOwnership = {
@@ -309,6 +397,8 @@ export function computeDeckOwnership(
       borrowed: borrowedInZone,
       displayPrice,
       displayPrinting,
+      completionPrice,
+      completionPrinting,
     };
 
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);
@@ -321,6 +411,10 @@ export function computeDeckOwnership(
     totalOwned += ownedInZone;
     totalLocked += lockedInZone;
     totalBorrowed += borrowedInZone;
+    if (REQUIRED_ZONE_SET.has(card.zone)) {
+      requiredZoneNeeded += card.quantity;
+      requiredZoneOwned += ownedInZone;
+    }
 
     if (shortfall > 0) {
       missingCount += shortfall;
@@ -336,7 +430,14 @@ export function computeDeckOwnership(
         mainValueCents += displayPrice * card.quantity;
       }
       ownedValueCents += displayPrice * ownedInZone;
-      missingValueCents += displayPrice * shortfall;
+      missingAsDisplayedValueCents += displayPrice * shortfall;
+    }
+    // Missing cost uses the cheapest acceptable printing; fall back to the
+    // displayed one when nothing cheaper is priced.
+    const completionPerCopy = completionPrice ?? displayPrice;
+    if (completionPerCopy !== undefined && shortfall > 0) {
+      hasPrices = true;
+      missingValueCents += completionPerCopy * shortfall;
     }
   }
 
@@ -344,6 +445,9 @@ export function computeDeckOwnership(
     byCardZone,
     totalNeeded,
     totalOwned,
+    requiredZoneNeeded,
+    requiredZoneOwned,
+    ownedPrintingByCardId,
     totalLocked,
     totalBorrowed,
     missingCount,
@@ -352,6 +456,7 @@ export function computeDeckOwnership(
     sideboardValueCents: hasPrices ? sideboardValueCents : undefined,
     ownedValueCents: hasPrices ? ownedValueCents : undefined,
     missingValueCents: hasPrices ? missingValueCents : undefined,
+    missingAsDisplayedValueCents: hasPrices ? missingAsDisplayedValueCents : undefined,
     missingCards,
   };
 }

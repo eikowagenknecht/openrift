@@ -3,7 +3,6 @@ import { WellKnown, imageUrl } from "@openrift/shared";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
@@ -11,22 +10,13 @@ import { DeckPlanView } from "@/components/deck/deck-plan-view";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { SharedDeckOwnershipBridge } from "@/components/deck/shared-deck-ownership-bridge";
-import {
-  PAGE_TOP_BAR_STICKY,
-  PageTopBar,
-  PageTopBarActions,
-  PageTopBarHeightContext,
-  PageTopBarPrimaryButton,
-  PageTopBarTitle,
-  useMeasuredHeight,
-} from "@/components/layout/page-top-bar";
 import { Pane } from "@/components/layout/panes";
 import { CardDetailSkeleton, SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Button } from "@/components/ui/button";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
-import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -50,18 +40,16 @@ export const Route = createLazyFileRoute("/_app/decks_/share/$token")({
 const EMPTY_FILTER_SEARCH: FilterSearch = {};
 
 function SharedDeckPage() {
-  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
-  const topBarHeight = useMeasuredHeight(topBarSlot);
-
+  // No page top bar here on purpose: the hero already carries the deck's name
+  // and status, so the page opens straight with it. Attribution and the copy
+  // CTA live in a slim row above the hero, and the sticky section nav keeps a
+  // compact copy button reachable while scrolled.
   return (
-    <PageTopBarHeightContext value={topBarHeight}>
-      <FilterSearchProvider value={EMPTY_FILTER_SEARCH}>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
-          <SharedDeckContent topBarSlot={topBarSlot} topBarHeight={topBarHeight} />
-        </div>
-      </FilterSearchProvider>
-    </PageTopBarHeightContext>
+    <FilterSearchProvider value={EMPTY_FILTER_SEARCH}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <SharedDeckContent />
+      </div>
+    </FilterSearchProvider>
   );
 }
 
@@ -79,6 +67,7 @@ function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard 
     tags: card.tags,
     keywords: card.keywords,
     maxCopiesOverride: card.maxCopiesOverride,
+    banned: card.banned,
     energy: card.energy,
     might: card.might,
     power: card.power,
@@ -89,13 +78,7 @@ function thumbKey(cardId: string, preferredPrintingId: string | null): string {
   return `${cardId}|${preferredPrintingId ?? ""}`;
 }
 
-function SharedDeckContent({
-  topBarSlot,
-  topBarHeight,
-}: {
-  topBarSlot: HTMLDivElement | null;
-  topBarHeight: number;
-}) {
+function SharedDeckContent() {
   const { token } = Route.useParams();
   const { data } = usePublicDeck(token);
   const { data: session } = useSession();
@@ -109,7 +92,6 @@ function SharedDeckContent({
   const headerHeight = useHeaderHeight();
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
-  const { labels: formatLabels } = useDeckFormatList();
 
   // Everything the shell needs — builder cards, thumbnails, hover full-image
   // URLs — comes straight from the enriched payload. No catalog lookup, so
@@ -150,12 +132,9 @@ function SharedDeckContent({
   // resolve it once printings are available.
   const [pendingClick, setPendingClick] = useState<DeckBuilderCard | null>(null);
 
+  // The whole share page is the deck overview, so every hover docks the
+  // preview at the right edge ("main-right") instead of chasing the cursor.
   const onHoverCard = (id: string | null, preferredPrintingId?: string | null) =>
-    setHovered(
-      id ? { id, preferredPrintingId: preferredPrintingId ?? null, origin: "main" } : null,
-    );
-  // List rows anchor their preview to the right of the centered list.
-  const onHoverListCard = (id: string | null, preferredPrintingId?: string | null) =>
     setHovered(
       id ? { id, preferredPrintingId: preferredPrintingId ?? null, origin: "main-right" } : null,
     );
@@ -196,26 +175,6 @@ function SharedDeckContent({
       ref={containerRef}
       className={cn(PAGE_PADDING, CONTAINER_WIDTH, "relative flex flex-col gap-4 py-4")}
     >
-      {topBarSlot &&
-        createPortal(
-          <PageTopBar>
-            <div className="flex min-w-0 flex-1 items-baseline gap-2">
-              <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
-              <span className="text-muted-foreground hidden truncate text-xs md:inline">
-                {formatLabels[data.deck.format] ?? data.deck.format} · Shared by{" "}
-                {data.owner.displayName}
-              </span>
-            </div>
-            <PageTopBarActions>
-              <PageTopBarPrimaryButton onClick={handleClone} disabled={cloneMutation.isPending}>
-                <CopyIcon />
-                {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
-              </PageTopBarPrimaryButton>
-            </PageTopBarActions>
-          </PageTopBar>,
-          topBarSlot,
-        )}
-
       <HoveredCardPreview
         hoveredCard={hoveredCard}
         origin={hovered?.origin ?? "main"}
@@ -224,7 +183,7 @@ function SharedDeckContent({
 
       <div
         className="@container flex items-stretch gap-6"
-        style={{ "--sticky-top": `${headerHeight + topBarHeight}px` } as React.CSSProperties}
+        style={{ "--sticky-top": `${headerHeight}px` } as React.CSSProperties}
       >
         <div className="min-w-0 flex-1">
           <DeckOverview
@@ -244,7 +203,6 @@ function SharedDeckContent({
               thumbByKey.get(thumbKey(cardId, preferredPrintingId))
             }
             onHoverCard={onHoverCard}
-            onHoverListCard={onHoverListCard}
             onViewMissing={() => setMissingOpen(true)}
             readOnly
             signInHref={
@@ -253,7 +211,22 @@ function SharedDeckContent({
                 : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
             }
             description={data.deck.description ?? undefined}
+            oddsConfig={data.deck.oddsConfig}
             onCardClick={handleCardClick}
+            hasPlan={Boolean(data.plan)}
+            // The hero is the page header here: "by …" next to the deck
+            // name, the copy CTA under the status chips.
+            heroByline={<>by {data.owner.displayName}</>}
+            heroActions={
+              <Button onClick={handleClone} disabled={cloneMutation.isPending}>
+                <CopyIcon />
+                {cloneMutation.isPending
+                  ? "Copying…"
+                  : isLoggedIn
+                    ? "Copy to my decks"
+                    : "Sign in to copy"}
+              </Button>
+            }
           />
         </div>
         {!isMobile && (
@@ -281,7 +254,13 @@ function SharedDeckContent({
         </Suspense>
       )}
 
-      {data.plan && <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />}
+      {data.plan && (
+        // Anchor target for the overview's section nav; offset clears the
+        // sticky header + top bar chain plus the nav's own height.
+        <div id="deck-plan" style={{ scrollMarginTop: "calc(var(--sticky-top, 57px) + 3.5rem)" }}>
+          <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />
+        </div>
+      )}
 
       {ownershipData && (
         <DeckMissingCardsDialog

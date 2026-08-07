@@ -1,12 +1,12 @@
 import type { DeckZone } from "@openrift/shared";
 import { formatHasSideboard, getOrientation, imageUrl, WellKnown } from "@openrift/shared";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
-  ClipboardListIcon,
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
   FileTextIcon,
+  GitCompareArrowsIcon,
   LinkIcon,
   PencilIcon,
   PlayIcon,
@@ -16,18 +16,19 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
-import { Suspense, use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
+import { DeckCompareDialog } from "@/components/deck/deck-compare-dialog";
 import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
-import { DeckPlanEditor } from "@/components/deck/deck-plan-editor";
+import { DeckMobileDock } from "@/components/deck/deck-mobile-dock";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
-import { DeckFormatBadge } from "@/components/deck/deck-validation-banner";
+import { DeckUndoControls, useDeckUndoShortcuts } from "@/components/deck/deck-undo-controls";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
@@ -70,10 +71,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
-import { useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
-import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
 import {
   useDeckDetail,
   useEncodeDeckCards,
@@ -90,8 +90,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
-import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
-import { ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -160,25 +159,12 @@ function DeckEditorContent({
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
-  const planActive = useDeckBuilderUiStore((state) => state.planActive);
-  const setPlanActive = useDeckBuilderUiStore((state) => state.setPlanActive);
-  // Deck plans are a logged-in feature (ADR-035): never show the plan view for a
-  // local deck, even if planActive lingered from a previous server deck.
-  const showPlan = planActive && !isLocal;
-  // Non-blocking read so the sidebar entry can show whether a plan exists yet
-  // (dashed when empty). The editor itself loads the plan via its own suspense.
-  // Local decks have no plan, so skip the (auth-only) query entirely.
-  const planQuery = useQuery({
-    ...deckPlanQueryOptions(userId ?? "", deckId),
-    enabled: !isLocal && Boolean(userId),
-  });
-  const hasPlan = planQuery.data
-    ? !isPlanDraftEmpty(planResponseToDraft(planQuery.data.plan))
-    : false;
+  const setOverviewTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -224,6 +210,10 @@ function DeckEditorContent({
   const { data: borrowedCounts } = useBorrowedCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const editorViolations = useDeckViolations(deckId, data.deck.format, data.deck.formatConfig);
+  // Ctrl+Z / Ctrl+Shift+Z over the whole editor; mounted here (not in a
+  // conditional subtree) so the shortcuts survive zone and tab switches.
+  useDeckUndoShortcuts(deckId);
   const ownershipData = useDeckOwnership(
     deckCards,
     allPrintings,
@@ -329,8 +319,6 @@ function DeckEditorContent({
   };
 
   const handleZoneClick = (zone: DeckZone) => {
-    // Leaving the Plan view whenever a zone is opened.
-    setPlanActive(false);
     // Clicking the active zone again returns to the overview dashboard.
     if (zone === activeZone) {
       setActiveZone(null);
@@ -373,11 +361,18 @@ function DeckEditorContent({
       setRanges({ energy: null, might: null, power: null });
     };
 
+    // Tokens are created by effects during play, never deck-registered, so no
+    // zone can take one — every preset excludes them. Without this they leak
+    // into the main/sideboard browser through the colorless bucket: today
+    // every token is colorless, and colorless is a legal main-deck domain.
+    const excludeTokens = [WellKnown.superType.TOKEN];
+
     switch (zone) {
       case WellKnown.deckZone.LEGEND: {
         setArrayFilters({
           types: [WellKnown.cardType.LEGEND],
           superTypes: [],
+          superTypesEx: excludeTokens,
           domains: [],
           customTags: formatTagSlugs,
         });
@@ -388,6 +383,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.UNIT],
           superTypes: [WellKnown.superType.CHAMPION],
+          superTypesEx: excludeTokens,
           domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
@@ -400,6 +396,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.RUNE],
           superTypes: [],
+          superTypesEx: excludeTokens,
           domains: runesDomainFilter,
           customTags: formatTagSlugs,
         });
@@ -410,6 +407,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
+          superTypesEx: excludeTokens,
           domains: [],
           customTags: formatTagSlugs,
         });
@@ -421,6 +419,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.UNIT, "spell", WellKnown.cardType.GEAR],
           superTypes: [],
+          superTypesEx: excludeTokens,
           domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
@@ -435,6 +434,7 @@ function DeckEditorContent({
             WellKnown.cardType.BATTLEFIELD,
           ],
           superTypes: [],
+          superTypesEx: excludeTokens,
           domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
@@ -459,16 +459,21 @@ function DeckEditorContent({
     setHovered(
       id ? { id, origin: "sidebar", preferredPrintingId: preferredPrintingId ?? null } : null,
     );
-  const setHoveredMain = (id: string | null, preferredPrintingId?: string | null) =>
+  // Overview hovers (grid and list alike) dock the preview at the right edge
+  // ("main-right") instead of chasing the cursor; the zone browser keeps the
+  // cursor-following float.
+  const setHoveredMain = (id: string | null, preferredPrintingId?: string | null) => {
+    const overviewShowing = activeZone === null;
     setHovered(
-      id ? { id, origin: "main", preferredPrintingId: preferredPrintingId ?? null } : null,
+      id
+        ? {
+            id,
+            origin: overviewShowing ? "main-right" : "main",
+            preferredPrintingId: preferredPrintingId ?? null,
+          }
+        : null,
     );
-  // The overview list pins its preview to the right of the centered list
-  // (sidebar-style anchor) rather than chasing the cursor like the thumbnails.
-  const setHoveredList = (id: string | null, preferredPrintingId?: string | null) =>
-    setHovered(
-      id ? { id, origin: "main-right", preferredPrintingId: preferredPrintingId ?? null } : null,
-    );
+  };
 
   // While the detail pane is open, the floating hover preview from the main
   // (overview) thumbnails or list would compete with the pane. Suppress it.
@@ -494,6 +499,11 @@ function DeckEditorContent({
     .reduce((sum, card) => sum + card.quantity, 0);
   const totalCards = deckCards.reduce((sum, card) => sum + card.quantity, 0);
 
+  // While a zone browser fills the main area (the hero out of sight), the top
+  // bar carries the completion figure shared with the hero and sidebar header.
+  const inZoneView = activeZone !== null;
+  const requiredCounts = requiredZoneProgress(deckCards, data.deck.format);
+
   if (hydratedId !== deckId) {
     return null;
   }
@@ -502,108 +512,132 @@ function DeckEditorContent({
     <div className="flex min-w-0 flex-1 flex-col">
       {topBarSlot &&
         createPortal(
-          <PageTopBar>
-            <div className="hidden md:block">
-              <PageTopBarBack to="/decks" />
-            </div>
-            <div className="flex min-w-0 flex-1 items-baseline gap-2">
-              <PageTopBarTitle onToggleSidebar={toggleSidebar}>
-                <span className="md:hidden">
-                  {activeZone ? (
-                    <>
-                      {ZONE_LABELS[activeZone]}
-                      <span className="text-muted-foreground ml-1">({zoneCount})</span>
-                    </>
-                  ) : (
-                    "Zones"
-                  )}
-                </span>
-                <span className="hidden md:inline">{data.deck.name}</span>
-              </PageTopBarTitle>
-              <DeckFormatBadge deckId={deckId} />
-              {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
-            </div>
-            <PageTopBarActions>
-              <div className="hidden md:flex md:items-center md:gap-1">
-                <DeckExportDialog
-                  deckId={deckId}
-                  deckName={data.deck.name}
-                  isDirty={saveStatus.isDirty}
-                />
-                <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
+          <>
+            <PageTopBar>
+              <div className="hidden md:block">
+                <PageTopBarBack to="/decks" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<PageTopBarIconButton />}>
-                  <EllipsisVerticalIcon className="size-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setRenameOpen(true)}>
-                    <PencilIcon className="size-4" />
-                    Rename
-                  </DropdownMenuItem>
-                  {/* Descriptions are a signed-in feature (ADR-035). */}
-                  {!isLocal && (
-                    <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
-                      <FileTextIcon className="size-4" />
-                      Edit description
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={() =>
-                      void navigate({
-                        to: "/decks/import",
-                        search: { replaceDeckId: deckId },
-                      })
-                    }
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <PageTopBarTitle onToggleSidebar={toggleSidebar}>
+                  <span className="md:hidden">
+                    {activeZone ? (
+                      <>
+                        {ZONE_LABELS[activeZone]}
+                        <span className="text-muted-foreground ml-1">({zoneCount})</span>
+                      </>
+                    ) : (
+                      "Zones"
+                    )}
+                  </span>
+                  <span className="hidden md:inline">{data.deck.name}</span>
+                </PageTopBarTitle>
+                {/* In editing mode the hero scrolls out of reach, so the bar
+                  carries the shared completion figure as a compact chip. */}
+                {inZoneView && data.deck.format !== WellKnown.deckFormat.FREEFORM && (
+                  <span
+                    className={cn(
+                      "hidden shrink-0 text-xs tabular-nums md:inline",
+                      editorViolations.length > 0
+                        ? "text-destructive"
+                        : requiredCounts.progress === requiredCounts.total
+                          ? "text-green-600 dark:text-green-500"
+                          : "text-muted-foreground",
+                    )}
                   >
-                    <UploadIcon className="size-4" />
-                    Import &amp; replace cards…
-                  </DropdownMenuItem>
-                  {otherFormats.length > 0 && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <RefreshCwIcon className="size-4" />
-                        Change format
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {otherFormats.map((entry) => (
-                          <DropdownMenuItem
-                            key={entry.slug}
-                            onClick={() => handleFormatChange(entry.slug)}
-                          >
-                            {entry.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
-                  {/* Local decks have no server share link/image; the deck code
+                    {requiredCounts.progress}/{requiredCounts.total}
+                  </span>
+                )}
+                {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
+              </div>
+              <PageTopBarActions>
+                <DeckUndoControls deckId={deckId} />
+                <div className="hidden md:flex md:items-center md:gap-1">
+                  <DeckExportDialog
+                    deckId={deckId}
+                    deckName={data.deck.name}
+                    isDirty={saveStatus.isDirty}
+                  />
+                  <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<PageTopBarIconButton />}>
+                    <EllipsisVerticalIcon className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+                      <PencilIcon className="size-4" />
+                      Rename
+                    </DropdownMenuItem>
+                    {/* Descriptions are a signed-in feature (ADR-035). */}
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
+                        <FileTextIcon className="size-4" />
+                        Edit description
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() =>
+                        void navigate({
+                          to: "/decks/import",
+                          search: { replaceDeckId: deckId },
+                        })
+                      }
+                    >
+                      <UploadIcon className="size-4" />
+                      Import &amp; replace cards…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCompareOpen(true)}>
+                      <GitCompareArrowsIcon className="size-4" />
+                      Compare with another deck…
+                    </DropdownMenuItem>
+                    {otherFormats.length > 0 && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <RefreshCwIcon className="size-4" />
+                          Change format
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {otherFormats.map((entry) => (
+                            <DropdownMenuItem
+                              key={entry.slug}
+                              onClick={() => handleFormatChange(entry.slug)}
+                            >
+                              {entry.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
+                    {/* Local decks have no server share link/image; the deck code
                       lives in Export, so only server decks get "Share deck". */}
-                  {!isLocal && (
-                    <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                      <LinkIcon className="size-4" />
-                      Share deck
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                        <LinkIcon className="size-4" />
+                        Share deck
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
+                      <PlayIcon className="size-4" />
+                      Play on RiftAtlas
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
-                    <PlayIcon className="size-4" />
-                    Play on RiftAtlas
-                  </DropdownMenuItem>
-                  <div className="md:hidden">
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                      <Share2Icon className="size-4" />
-                      Export
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setProxyOpen(true)}>
-                      <PrinterIcon className="size-4" />
-                      Proxies
-                    </DropdownMenuItem>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </PageTopBarActions>
-          </PageTopBar>,
+                    <div className="md:hidden">
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                        <Share2Icon className="size-4" />
+                        Export
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setProxyOpen(true)}>
+                        <PrinterIcon className="size-4" />
+                        Proxies
+                      </DropdownMenuItem>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </PageTopBarActions>
+            </PageTopBar>
+            {/* The deck's identity while a zone fills the main area: a
+                domain-gradient hairline on the bar's bottom edge. */}
+          </>,
           topBarSlot,
         )}
       <DeckRenameDialog
@@ -611,6 +645,12 @@ function DeckEditorContent({
         currentName={data.deck.name}
         open={renameOpen}
         onOpenChange={setRenameOpen}
+      />
+      <DeckCompareDialog
+        deckId={deckId}
+        deckName={data.deck.name}
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
       />
       {!isLocal && (
         <DeckDescriptionDialog
@@ -666,58 +706,15 @@ function DeckEditorContent({
                   deckId={deckId}
                   onZoneClick={handleZoneClick}
                   onOverviewClick={() => {
-                    setPlanActive(false);
                     setActiveZone(null);
+                    setOverviewTab("overview");
                   }}
                   onHoverCard={setHoveredSidebar}
                   ownershipData={ownershipData}
                   marketplace={marketplace}
                   onViewMissing={() => setMissingOpen(true)}
                   hideStatsAndOwnership={activeZone === null}
-                  afterOverview={
-                    // Deck plans are a logged-in feature (ADR-035). For a local
-                    // deck the Plan row isn't a button — it's a muted label with
-                    // an actual "Sign in" link.
-                    isLocal ? (
-                      <div className="border-input text-muted-foreground flex h-auto items-center gap-2 rounded-lg border px-2.5 py-2 text-left">
-                        <ClipboardListIcon className="size-3.5" />
-                        <span>Plan</span>
-                        <Link
-                          to="/login"
-                          search={{ redirect: undefined, email: undefined }}
-                          className="hover:text-foreground ml-auto text-xs font-normal underline"
-                        >
-                          Sign in
-                        </Link>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPlanActive(true);
-                          // Close any open card detail so the hover preview isn't suppressed.
-                          useSelectionStore.getState().closeDetail();
-                          if (isMobile) {
-                            setOpenMobile(false);
-                          }
-                        }}
-                        className={cn(
-                          "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
-                          !hasPlan && "border-dashed",
-                          showPlan && "bg-primary/10 font-bold",
-                        )}
-                      >
-                        <ClipboardListIcon className="size-3.5" />
-                        <span>Plan</span>
-                        {hasPlan ? null : (
-                          <span className="text-muted-foreground ml-auto text-xs font-normal">
-                            empty
-                          </span>
-                        )}
-                      </Button>
-                    )
-                  }
+                  overviewShowing={activeZone === null}
                   deckItems={deckItems}
                 />
               </div>
@@ -748,32 +745,22 @@ function DeckEditorContent({
                 } as React.CSSProperties
               }
             >
-              <div className="flex min-w-0 flex-1 flex-col">
-                {showPlan ? (
-                  <Suspense
-                    fallback={<div className="text-muted-foreground p-4">Loading plan…</div>}
-                  >
-                    <DeckPlanEditor
-                      deckId={deckId}
-                      deckCards={deckCards}
-                      format={data.deck.format}
-                      onHoverCard={setHoveredMain}
-                    />
-                  </Suspense>
-                ) : (
-                  <DeckCardBrowser
-                    deckId={deckId}
-                    ownershipData={ownershipData}
-                    marketplace={marketplace}
-                    onZoneClick={handleZoneClick}
-                    onViewMissing={() => setMissingOpen(true)}
-                    onHoverCard={setHoveredMain}
-                    onHoverListCard={setHoveredList}
-                    onOverviewCardClick={handleOverviewCardClick}
-                  />
-                )}
+              {/* pb-20 clears the mobile deck dock so the last grid row stays
+                  reachable while a zone is open. */}
+              <div
+                className={cn("flex min-w-0 flex-1 flex-col", isMobile && activeZone && "pb-20")}
+              >
+                <DeckCardBrowser
+                  deckId={deckId}
+                  ownershipData={ownershipData}
+                  marketplace={marketplace}
+                  onZoneClick={handleZoneClick}
+                  onViewMissing={() => setMissingOpen(true)}
+                  onHoverCard={setHoveredMain}
+                  onOverviewCardClick={handleOverviewCardClick}
+                />
               </div>
-              {!isMobile && activeZone === null && !showPlan && (
+              {!isMobile && activeZone === null && (
                 <SelectionDetailPane
                   items={deckItems}
                   printingsByCardId={printingsByCardId}
@@ -800,6 +787,7 @@ function DeckEditorContent({
             }}
           />
         )}
+        {isMobile && activeZone && <DeckMobileDock deckId={deckId} zone={activeZone} />}
       </DeckDndContext>
     </div>
   );

@@ -56,16 +56,18 @@ interface DeckMissingCardsDialogProps {
  */
 function CardIdentity({
   card,
+  printing,
   rarityLabel,
 }: {
   card: CardOwnership;
+  printing: CardOwnership["displayPrinting"];
   rarityLabel: string | undefined;
 }) {
   const content = (
     <>
-      {card.displayPrinting && (
+      {printing && (
         <img
-          src={getFilterIconPath("rarities", card.displayPrinting.rarity)}
+          src={getFilterIconPath("rarities", printing.rarity)}
           alt={rarityLabel}
           title={rarityLabel}
           width={28}
@@ -73,9 +75,7 @@ function CardIdentity({
           className="size-3.5 shrink-0"
         />
       )}
-      <span className="text-muted-foreground font-mono">
-        {card.displayPrinting?.shortCode ?? "--"}
-      </span>
+      <span className="text-muted-foreground font-mono">{printing?.shortCode ?? "--"}</span>
       <span>{card.displayName}</span>
     </>
   );
@@ -182,13 +182,17 @@ export function DeckMissingCardsDialog({
 
   // Fetch marketplace source metadata only when the dialog is open, so we don't
   // send the extra request until the user actually needs the deep-link URLs.
+  // Rows deep-link to the completion printing (the cheapest one that fills the
+  // shortfall) rather than the deck's displayed pin — see `CardOwnership`.
   const printingIds = open
-    ? sorted.flatMap((card) => (card.displayPrinting ? [card.displayPrinting.id] : []))
+    ? sorted.flatMap((card) => {
+        const printing = card.completionPrinting ?? card.displayPrinting;
+        return printing ? [printing.id] : [];
+      })
     : [];
   const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
 
-  const linkFor = (card: CardOwnership): string => {
-    const printing = card.displayPrinting;
+  const linkFor = (card: CardOwnership, printing: CardOwnership["displayPrinting"]): string => {
     const info = printing ? marketplaceInfo?.infos[printing.id]?.[marketplace] : undefined;
     if (printing && info?.available && info.productId !== null) {
       return meta.productUrl(info.productId, printing.language);
@@ -199,12 +203,13 @@ export function DeckMissingCardsDialog({
   const listText = () =>
     sorted
       .map((card) => {
-        const code = card.displayPrinting?.shortCode;
+        const printing = card.completionPrinting ?? card.displayPrinting;
+        const price = card.completionPrice ?? card.displayPrice;
+        const code = printing?.shortCode;
         const cardName = straightenApostrophes(card.cardName);
         const namePart = code ? `${code} ${cardName}` : cardName;
-        const price =
-          card.displayPrice === undefined ? "" : ` - ${fmt(card.displayPrice * card.shortfall)}`;
-        return `${card.shortfall}x ${namePart}${price}`;
+        const priceText = price === undefined ? "" : ` - ${fmt(price * card.shortfall)}`;
+        return `${card.shortfall}x ${namePart}${priceText}`;
       })
       .join("\n");
 
@@ -241,77 +246,79 @@ export function DeckMissingCardsDialog({
               <div className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
                 {zoneLabel(zone)}
               </div>
-              {cards.map((card) => (
-                <div
-                  key={`${card.cardId}:${card.zone}`}
-                  className="hover:bg-muted/40 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
-                >
-                  {/* Small card thumbnail alongside the two stacked rows on mobile;
+              {cards.map((card) => {
+                // The viewer completes the deck by buying the cheapest
+                // acceptable printing, not the creator's (possibly premium)
+                // pin — see `CardOwnership.completionPrinting`.
+                const printing = card.completionPrinting ?? card.displayPrinting;
+                const price = card.completionPrice ?? card.displayPrice;
+                return (
+                  <div
+                    key={`${card.cardId}:${card.zone}`}
+                    className="hover:bg-muted/40 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
+                  >
+                    {/* Small card thumbnail alongside the two stacked rows on mobile;
                       hidden on desktop where the row is a single line. */}
-                  <CardArtThumb
-                    imageId={card.displayPrinting?.imageId}
-                    landscape={card.displayPrinting?.landscape}
-                    rarity={card.displayPrinting?.rarity}
-                    loading="lazy"
-                    className="h-10 sm:hidden"
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
-                    <div className="flex min-w-0 items-center gap-1.5 sm:flex-1">
-                      <CardIdentity
-                        card={card}
-                        rarityLabel={
-                          card.displayPrinting
-                            ? enumLabels.rarities[card.displayPrinting.rarity]
-                            : undefined
-                        }
-                      />
-                      {card.locked > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <span className="text-muted-foreground inline-flex items-center" />
-                            }
-                          >
-                            <LockIcon className="size-3" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-56 text-xs">
-                            {lockedTooltipText(card)}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    {/* On mobile this pair is its own row (copies left, buy right); on
-                      desktop `contents` dissolves the wrapper so both align inline. */}
-                    <div className="flex items-center justify-between gap-3 sm:contents">
-                      <div className="whitespace-nowrap sm:text-right">
-                        {card.displayPrice === undefined ? (
-                          <span className="text-muted-foreground">{card.shortfall} × --</span>
-                        ) : card.shortfall === 1 ? (
-                          <span className="font-medium">{fmt(card.displayPrice)}</span>
-                        ) : (
-                          <>
-                            <span className="text-muted-foreground">
-                              {card.shortfall} × {fmt(card.displayPrice)} ={" "}
-                            </span>
-                            <span className="font-medium">
-                              {fmt(card.displayPrice * card.shortfall)}
-                            </span>
-                          </>
+                    <CardArtThumb
+                      imageId={printing?.imageId}
+                      landscape={printing?.landscape}
+                      rarity={printing?.rarity}
+                      loading="lazy"
+                      className="h-10 sm:hidden"
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+                      <div className="flex min-w-0 items-center gap-1.5 sm:flex-1">
+                        <CardIdentity
+                          card={card}
+                          printing={printing}
+                          rarityLabel={printing ? enumLabels.rarities[printing.rarity] : undefined}
+                        />
+                        {card.locked > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <span className="text-muted-foreground inline-flex items-center" />
+                              }
+                            >
+                              <LockIcon className="size-3" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-56 text-xs">
+                              {lockedTooltipText(card)}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
-                      <MarketplaceLink
-                        marketplace={marketplace}
-                        href={linkFor(card)}
-                        title={`Buy on ${meta.label}`}
-                        aria-label={`Buy ${card.displayName} on ${meta.label}`}
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-md"
-                      >
-                        <ShoppingCartIcon className="size-4" />
-                      </MarketplaceLink>
+                      {/* On mobile this pair is its own row (copies left, buy right); on
+                      desktop `contents` dissolves the wrapper so both align inline. */}
+                      <div className="flex items-center justify-between gap-3 sm:contents">
+                        <div className="whitespace-nowrap sm:text-right">
+                          {price === undefined ? (
+                            <span className="text-muted-foreground">{card.shortfall} × --</span>
+                          ) : card.shortfall === 1 ? (
+                            <span className="font-medium">{fmt(price)}</span>
+                          ) : (
+                            <>
+                              <span className="text-muted-foreground">
+                                {card.shortfall} × {fmt(price)} ={" "}
+                              </span>
+                              <span className="font-medium">{fmt(price * card.shortfall)}</span>
+                            </>
+                          )}
+                        </div>
+                        <MarketplaceLink
+                          marketplace={marketplace}
+                          href={linkFor(card, printing)}
+                          title={`Buy on ${meta.label}`}
+                          aria-label={`Buy ${card.displayName} on ${meta.label}`}
+                          className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-md"
+                        >
+                          <ShoppingCartIcon className="size-4" />
+                        </MarketplaceLink>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>

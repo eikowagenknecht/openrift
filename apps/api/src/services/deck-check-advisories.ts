@@ -206,6 +206,10 @@ export async function buildEntryAdvisories(
           customTagSlugs: [],
           keywords: detail.keywords,
           maxCopiesOverride: detail.maxCopiesOverride,
+          // Always false: this service emits its own `banned-card` violation
+          // above, with the play-mode wording the event needs. Letting the
+          // rule engine's CARD_BANNED fire too would report every ban twice.
+          banned: false,
         },
       ];
     });

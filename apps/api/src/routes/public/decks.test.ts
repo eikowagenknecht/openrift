@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +24,7 @@ const mockDeckPlansRepo = {
 
 const mockCatalogRepo = {
   cardsByIds: vi.fn(() => Promise.resolve([] as object[])),
+  cardBansByCardIds: vi.fn(() => Promise.resolve([] as { cardId: string; formatId: string }[])),
 };
 
 const mockCanonicalPrintingsRepo = {
@@ -67,6 +69,7 @@ const dbDeck = {
   description: "A fast opener",
   format: "constructed" as const,
   formatConfig: null,
+  oddsConfig: null,
   isWanted: false,
   isPublic: true,
   shareToken: "tok-abc",
@@ -117,6 +120,42 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([]);
     mockCustomTagsRepo.assignmentsForCardIds.mockReset();
     mockCustomTagsRepo.assignmentsForCardIds.mockResolvedValue(new Map());
+    mockCatalogRepo.cardBansByCardIds.mockReset();
+    mockCatalogRepo.cardBansByCardIds.mockResolvedValue([]);
+  });
+
+  it("marks a base-banned card so the share page can validate bans", async () => {
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
+    });
+    mockRepo.cardsForDeck.mockResolvedValue([dbCard]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
+    mockCatalogRepo.cardBansByCardIds.mockResolvedValue([
+      { cardId: dbCard.cardId, formatId: WellKnown.banFormat.CONSTRUCTED },
+    ]);
+
+    const json = await readJson(await app.request("/api/v1/decks/share/tok-abc"));
+    expect(json.cards[0].banned).toBe(true);
+  });
+
+  it("leaves a mode-scoped ban off the card, since it does not invalidate a deck", async () => {
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
+    });
+    mockRepo.cardsForDeck.mockResolvedValue([dbCard]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
+    mockCatalogRepo.cardBansByCardIds.mockResolvedValue([
+      { cardId: dbCard.cardId, formatId: WellKnown.banFormat.TWO_V_TWO },
+    ]);
+
+    const json = await readJson(await app.request("/api/v1/decks/share/tok-abc"));
+    expect(json.cards[0].banned).toBe(false);
   });
 
   it("returns 200 with the enriched public deck detail when the token resolves", async () => {

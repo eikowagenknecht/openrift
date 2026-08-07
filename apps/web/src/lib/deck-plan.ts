@@ -1,4 +1,4 @@
-import type { Card, DeckPlanCardMetaResponse, DeckPlanResponse } from "@openrift/shared";
+import type { DeckPlanResponse } from "@openrift/shared";
 
 import type { DeckPlanSaveInput } from "@/hooks/use-deck-plan";
 
@@ -9,7 +9,7 @@ import type { DeckPlanSaveInput } from "@/hooks/use-deck-plan";
 
 export type SwapDirection = "in" | "out";
 
-interface PlanSwapDraft {
+export interface PlanSwapDraft {
   cardId: string;
   direction: SwapDirection;
   quantity: number;
@@ -274,91 +274,4 @@ export function isPlanDraftEmpty(draft: PlanDraft): boolean {
     draft.battlefieldNote.trim() === "" &&
     draft.matchups.filter(isMatchupComplete).length === 0
   );
-}
-
-/**
- * Every card id a plan references: the per-scenario battlefields, plus each
- * matchup's opponent identity card (when linked) and swapped cards.
- * Deduplicated.
- * @returns The distinct referenced card ids.
- */
-export function planReferencedCardIds(plan: DeckPlanResponse): string[] {
-  const ids = new Set<string>();
-  for (const id of [
-    plan.battlefieldGame1CardId,
-    plan.battlefieldFirstCardId,
-    plan.battlefieldSecondCardId,
-  ]) {
-    if (id !== null) {
-      ids.add(id);
-    }
-  }
-  for (const matchup of plan.matchups) {
-    if (matchup.opponentCardId !== null) {
-      ids.add(matchup.opponentCardId);
-    }
-    for (const swap of matchup.swaps) {
-      ids.add(swap.cardId);
-    }
-  }
-  return [...ids];
-}
-
-/**
- * Builds the denormalized card-meta lookup a plan needs to render names and
- * thumbnails. The public share page receives this from the API; the editor has
- * the live catalog, so it builds the same shape locally. Cards missing from the
- * catalog are skipped.
- * @returns Display metadata for every catalog-known card the plan references.
- */
-export function buildPlanCardMeta(
-  plan: DeckPlanResponse,
-  cardsById: Record<string, Card>,
-  getImageId: (cardId: string) => string | null,
-): DeckPlanCardMetaResponse[] {
-  return planReferencedCardIds(plan).flatMap((cardId) => {
-    const card = cardsById[cardId];
-    if (!card) {
-      return [];
-    }
-    return [
-      {
-        cardId,
-        cardName: card.name,
-        cardSlug: card.slug,
-        cardTypes: card.types,
-        imageId: getImageId(cardId),
-      },
-    ];
-  });
-}
-
-/**
- * A short "Strategy · Mulligan · 3 matchups" summary of what a plan contains,
- * for a collapsed section header.
- * @returns The summary string, or "" when the plan is empty.
- */
-export function planSummary(plan: DeckPlanResponse): string {
-  const parts: string[] = [];
-  if (plan.generalStrategy !== "") {
-    parts.push("Strategy");
-  }
-  const hasMulligan = plan.mulliganSplit
-    ? plan.mulliganFirst !== "" || plan.mulliganSecond !== ""
-    : plan.mulliganGeneral !== "";
-  if (hasMulligan) {
-    parts.push("Mulligan");
-  }
-  const hasBattlefields = plan.battlefieldCustom
-    ? plan.battlefieldNote !== ""
-    : plan.battlefieldGame1CardId !== null ||
-      plan.battlefieldFirstCardId !== null ||
-      plan.battlefieldSecondCardId !== null;
-  if (hasBattlefields) {
-    parts.push("Battlefields");
-  }
-  if (plan.matchups.length > 0) {
-    parts.push(`${plan.matchups.length} matchup${plan.matchups.length === 1 ? "" : "s"}`);
-  }
-  return parts.join(" · ");
 }

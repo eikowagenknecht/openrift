@@ -159,6 +159,41 @@ export async function cardArtDataUri(
 }
 
 /**
+ * Renders a card image as a blurred full-bleed backdrop, mirroring the web
+ * deck hero's full-art treatment: cover-crop anchored below the card's top
+ * border (so the frame edge never shows), strong gaussian blur, and a slight
+ * saturation lift. The blur is baked in here because satori has no CSS
+ * `filter`. Callers overlay their own scrim gradients and set opacity in the
+ * element tree.
+ * @returns A `data:image/png;base64,...` URI, or null if the file is unreadable.
+ */
+export async function blurredArtBackdropDataUri(
+  io: Io,
+  imageId: string,
+  widthPx: number,
+  heightPx: number,
+): Promise<string | null> {
+  try {
+    const path = `${CARD_MEDIA_DIR}/${imageId.slice(-2)}/${imageId}-${CARD_ART_VARIANT}.webp`;
+    const source = await io.fs.readFile(path);
+    // Oversized top-anchored cover, then a window one quarter down: skips the
+    // card border and lands on the art band, independent of source dimensions.
+    const overscanH = Math.round(heightPx * 1.4);
+    const png = await io
+      .sharp(source)
+      .resize(widthPx, overscanH, { fit: "cover", position: "top" })
+      .extract({ left: 0, top: Math.round(heightPx * 0.25), width: widthPx, height: heightPx })
+      .blur(widthPx / 50)
+      .modulate({ saturation: 1.25 })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Rasterizes an SVG buffer to a PNG data URI at the given pixel size. Used for
  * the rune-domain glyphs, which ship as small (24px) SVGs: the input density is
  * raised so librsvg renders the vector natively at the target size rather than

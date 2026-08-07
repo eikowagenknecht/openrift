@@ -69,13 +69,20 @@ function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
         powerData={stats.powerCurve}
         powerStacks={stats.powerCurveStacks}
         averagePower={stats.averagePower}
+        footnote="Counts the main deck and champion only."
       />
       <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
     </div>
   );
 }
 
-export function DeckStatsPanel({ deckId }: { deckId: string }) {
+export function DeckStatsPanel({
+  deckId,
+  children,
+}: {
+  deckId: string;
+  children?: React.ReactNode;
+}) {
   // Start collapsed on mobile where the sidebar is hidden (display: none),
   // so Recharts doesn't render into a zero-sized container and warn.
   const defaultOpen = globalThis.matchMedia("(min-width: 768px)").matches;
@@ -83,17 +90,28 @@ export function DeckStatsPanel({ deckId }: { deckId: string }) {
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
 
+  // Frameless, like the zone sections above it: a small-caps label over a
+  // hairline rule, no box. The whole header stays one toggle here — unlike a
+  // zone, there is no second destination to open.
   return (
-    <Collapsible defaultOpen={defaultOpen} className="rounded-lg border">
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium">
-        <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
-        <span>Stats</span>
-        <DomainBar data={stats.domainDistribution} total={stats.totalCards} colors={domainColors} />
-        <span className="text-muted-foreground text-xs">{stats.totalCards} cards</span>
+    <Collapsible defaultOpen={defaultOpen} className="flex flex-col gap-1.5">
+      <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex h-6 w-full items-center gap-1.5 border-b text-left transition-colors">
+        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+        <span className="text-2xs shrink-0 font-semibold tracking-widest uppercase">Stats</span>
+        <DomainBar
+          data={stats.domainDistribution}
+          total={stats.totalCards}
+          colors={domainColors}
+          className="mx-1"
+        />
+        <span className="shrink-0 text-xs tabular-nums">{stats.totalCards} cards</span>
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="border-t px-3 py-3">
+      <CollapsibleContent>
         <DeckStatsBody stats={stats} />
+        {/* The ownership breakdown folds in below the charts (one panel
+            instead of two stacked collapsibles in the sidebar). */}
+        {children && <div className="mt-3 border-t pt-3">{children}</div>}
       </CollapsibleContent>
     </Collapsible>
   );

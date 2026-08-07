@@ -3,10 +3,12 @@ import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  requiredZoneProgress,
   ZONE_EMPTY_HINTS,
   ZONE_EXPECTED,
   ZONE_LABELS,
   zoneEmptyHint,
+  zoneEmptyReadOnlyLabel,
   zoneExpected,
   zoneLabel,
 } from "./deck-zone-labels";
@@ -105,5 +107,45 @@ describe("zoneEmptyHint", () => {
     expect(zoneEmptyHint(WellKnown.deckZone.LEGEND, WellKnown.deckFormat.CUSTOM_REGION)).toBe(
       ZONE_EMPTY_HINTS.legend,
     );
+  });
+});
+
+describe("requiredZoneProgress", () => {
+  it("sums quantities in required zones against the format total", () => {
+    const cards = [
+      { zone: WellKnown.deckZone.LEGEND, quantity: 1 },
+      { zone: WellKnown.deckZone.RUNES, quantity: 12 },
+      { zone: WellKnown.deckZone.MAIN, quantity: 30 },
+      // Sideboard and overflow never count toward completion.
+      { zone: WellKnown.deckZone.SIDEBOARD, quantity: 8 },
+      { zone: WellKnown.deckZone.OVERFLOW, quantity: 5 },
+    ];
+    expect(requiredZoneProgress(cards, WellKnown.deckFormat.CONSTRUCTED)).toEqual({
+      progress: 43,
+      total: 56,
+    });
+  });
+
+  it("uses the Custom-Region total of 54 (single battlefield)", () => {
+    expect(requiredZoneProgress([], WellKnown.deckFormat.CUSTOM_REGION)).toEqual({
+      progress: 0,
+      total: 54,
+    });
+  });
+});
+
+describe("zoneEmptyReadOnlyLabel", () => {
+  it("states what's missing instead of prompting an action", () => {
+    // Regression: the share page showed a bare "Empty" for every zone.
+    expect(zoneEmptyReadOnlyLabel(WellKnown.deckZone.LEGEND)).toBe("No Legend picked");
+    expect(zoneEmptyReadOnlyLabel(WellKnown.deckZone.MAIN)).toBe("No cards");
+  });
+
+  it("covers every labelled zone", () => {
+    for (const zone of Object.keys(ZONE_LABELS)) {
+      const label = zoneEmptyReadOnlyLabel(zone as keyof typeof ZONE_LABELS);
+      expect(label).toBeTruthy();
+      expect(label).not.toBe("Empty");
+    }
   });
 });

@@ -169,6 +169,7 @@ import * as m220 from "./220-collection-events-immutable-refs.js";
 import * as m221 from "./221-latest-prices-last-seen.js";
 import * as m222 from "./222-discord-trade-channels.js";
 import * as m223 from "./223-sidebar-hidden.js";
+import * as m224 from "./224-deck-odds-config.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -397,4 +398,5 @@ export const migrations: Record<string, Migration> = {
   "221-latest-prices-last-seen": m221,
   "222-discord-trade-channels": m222,
   "223-sidebar-hidden": m223,
+  "224-deck-odds-config": m224,
 };

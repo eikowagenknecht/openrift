@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
 
 interface DeckRenameDialogProps {
@@ -51,14 +53,19 @@ export function DeckRenameDialog({
           <DialogHeader>
             <DialogTitle>Rename deck</DialogTitle>
           </DialogHeader>
-          <Input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            maxLength={200}
-            // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
-            autoFocus
-          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="deck-rename-name">Name</Label>
+            <Input
+              id="deck-rename-name"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={200}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
+              autoFocus
+            />
+          </div>
           <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <Button type="submit" disabled={!draft.trim()}>
               Save
             </Button>

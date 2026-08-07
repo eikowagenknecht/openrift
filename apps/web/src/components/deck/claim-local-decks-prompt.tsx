@@ -107,23 +107,26 @@ export function ClaimLocalDecksPrompt() {
           </DialogHeader>
 
           <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
-            {list.map((deck) => (
-              <li key={deck.id}>
-                <label className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md p-2">
-                  <Checkbox
-                    checked={isSelected(deck.id)}
-                    onCheckedChange={(checked) =>
-                      setDeselected((prev) => ({ ...prev, [deck.id]: !checked }))
-                    }
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium">{deck.name}</span>
-                  <Badge variant="secondary">{formatLabels[deck.format] ?? deck.format}</Badge>
-                  <span className="text-muted-foreground tabular-nums">
-                    {deck.cards.reduce((sum, card) => sum + card.quantity, 0)} cards
-                  </span>
-                </label>
-              </li>
-            ))}
+            {list.map((deck) => {
+              const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
+              return (
+                <li key={deck.id}>
+                  <label className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md p-2">
+                    <Checkbox
+                      checked={isSelected(deck.id)}
+                      onCheckedChange={(checked) =>
+                        setDeselected((prev) => ({ ...prev, [deck.id]: !checked }))
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium">{deck.name}</span>
+                    <Badge variant="secondary">{formatLabels[deck.format] ?? deck.format}</Badge>
+                    <span className="text-muted-foreground tabular-nums">
+                      {totalCards} {totalCards === 1 ? "card" : "cards"}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
 
           <DialogFooter>

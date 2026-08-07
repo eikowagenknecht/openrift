@@ -22,12 +22,17 @@ import {
 } from "@/lib/deck-builder-card";
 import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
+import { useDeckUndoStore } from "@/stores/deck-undo-store";
 
 const EMPTY_CARDS: DeckBuilderCard[] = [];
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;
 
-function allCards(collection: DeckCollection): DeckBuilderCard[] {
+/**
+ * Every row currently in a draft collection.
+ * @returns The draft's cards, in collection order.
+ */
+export function allCards(collection: DeckCollection): DeckBuilderCard[] {
   return [...collection.values()];
 }
 
@@ -655,23 +660,40 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
     return noopActions;
   }
 
+  // Snapshot the deck as it stands *before* each edit, so undo restores the
+  // state the user is about to leave. Every card mutation in the app goes
+  // through one of these methods, which makes this the single capture point.
+  const record = () => {
+    useDeckUndoStore.getState().record(deckId, allCards(collection));
+  };
+
   return {
     addCard: (card, zone, count) => {
       const target = zone ?? activeZone;
       if (!target) {
         return;
       }
+      record();
       addCardAction(collection, card, target, count, runesByDomain, format);
     },
-    removeCard: (cardId, zone, preferredPrintingId) =>
-      removeCardAction(collection, cardId, zone, runesByDomain, format, preferredPrintingId),
-    moveCard: (cardId, from, to, preferredPrintingId) =>
-      moveCardAction(collection, cardId, from, to, preferredPrintingId, format),
-    moveOneCard: (cardId, from, to, preferredPrintingId) =>
-      moveOneCardAction(collection, cardId, from, to, preferredPrintingId, format),
-    setQuantity: (cardId, zone, quantity, preferredPrintingId) =>
-      setQuantityAction(collection, cardId, zone, quantity, preferredPrintingId),
-    changePreferredPrinting: (cardId, zone, fromPrintingId, toPrintingId, countToConvert) =>
+    removeCard: (cardId, zone, preferredPrintingId) => {
+      record();
+      removeCardAction(collection, cardId, zone, runesByDomain, format, preferredPrintingId);
+    },
+    moveCard: (cardId, from, to, preferredPrintingId) => {
+      record();
+      moveCardAction(collection, cardId, from, to, preferredPrintingId, format);
+    },
+    moveOneCard: (cardId, from, to, preferredPrintingId) => {
+      record();
+      moveOneCardAction(collection, cardId, from, to, preferredPrintingId, format);
+    },
+    setQuantity: (cardId, zone, quantity, preferredPrintingId) => {
+      record();
+      setQuantityAction(collection, cardId, zone, quantity, preferredPrintingId);
+    },
+    changePreferredPrinting: (cardId, zone, fromPrintingId, toPrintingId, countToConvert) => {
+      record();
       changePreferredPrintingAction(
         collection,
         cardId,
@@ -679,8 +701,12 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
         fromPrintingId,
         toPrintingId,
         countToConvert,
-      ),
-    setLegend: (card, rbd) => setLegendAction(collection, card, rbd ?? runesByDomain, format),
+      );
+    },
+    setLegend: (card, rbd) => {
+      record();
+      setLegendAction(collection, card, rbd ?? runesByDomain, format);
+    },
   };
 }
 

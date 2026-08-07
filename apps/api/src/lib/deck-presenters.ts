@@ -28,6 +28,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    oddsConfig: row.oddsConfig,
   };
 }
 
@@ -55,6 +56,7 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     formatConfig: row.formatConfig,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    oddsConfig: row.oddsConfig,
   };
 }
 
@@ -135,6 +137,11 @@ export function toDeckCard(row: {
  * endpoint denormalizes this so the share page can SSR without pulling the
  * global catalog.
  *
+ * @param deckCard The raw deck-card row.
+ * @param cardMeta The card's catalog row.
+ * @param printingMeta The resolved printing meta.
+ * @param banned Whether the card is on the base banlist. The share page feeds
+ *   this into the rule engine, which otherwise can't see bans.
  * @returns The serialized public deck card response.
  */
 export function toPublicDeckCard(
@@ -158,6 +165,7 @@ export function toPublicDeckCard(
     shortCode: string | null;
     imageId: string | null;
   },
+  banned: boolean,
 ): PublicDeckCardResponse {
   return {
     cardId: deckCard.cardId,
@@ -173,6 +181,7 @@ export function toPublicDeckCard(
     tags: cardMeta.tags,
     keywords: cardMeta.keywords,
     maxCopiesOverride: cardMeta.maxCopiesOverride,
+    banned,
     energy: cardMeta.energy,
     might: cardMeta.might,
     power: cardMeta.power,

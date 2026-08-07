@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-08-06
+
+### Highlights
+
+- feat(Decks): **A deck dock on phones** — while adding cards on a phone, a bottom bar shows the zone's fill, your latest change, and an undo button, and tapping it opens the zone list.
+- feat(Decks): **Compare with another deck** — paste a deck code, share link, or card list to see exactly what to add, cut, or adjust, with owned counts on the additions.
+- feat(Decks): **See what you own at a glance** — deck thumbnails carry a small band split by your copies: green for the printing shown, blue for other printings you own, empty for missing. A pinned printing now shows a small pin instead of a colored border.
+- feat(Decks): **Undo in the deck builder** — any card change can be taken back with Ctrl+Z or the new top-bar buttons (Ctrl+Shift+Z redoes), including bulk removes.
+- feat(Decks): **Test sideboard swaps** — the Test tab lets you bring sideboard cards in and take main-deck cards out to see how hands and draw odds change, without touching the deck.
+- feat(Decks): **Rune odds by turn** — the Test tab shows the chance of having channeled enough runes of each domain by turns 1 to 4, going first or second.
+- feat(Decks): **Every deck gets a hero** — the overview and shared decks open with the deck's legend and champion art over its domain colors, deck status as tappable chips, and link previews glow to match.
+- feat(Decks): **Test your opening hand** — the new Test tab draws sample hands with the real rule (4 cards, exchange up to 2 once) and lists every card's chance to show up early, on your decks and shared ones.
+- feat(Decks): **See the deck in your printings** — a toggle swaps every card image to the version you own, so the deck looks like what you would actually sleeve up.
+- fix(Decks): **Banned cards now fail validation** — a Constructed or Custom-Region deck holding a banned card is flagged instead of passing as legal.
+- fix(Decks): **Tokens no longer offered in the deck builder** — tokens are created during play, so they no longer show up when browsing a zone, can't be added to a deck, and are flagged if an imported list contains one.
+
+### Other
+
+- feat(Decks): **Drag and drop in list view** — the deck's list mode now moves cards between zones by dragging, just like the thumbnail grid.
+- feat(Decks): **Sidebar header returns to the overview** — clicking the deck's name and art in the sidebar goes back to the overview, and the Overview button only shows while a zone is open.
+- feat(Decks): **Deck identity while editing** — the sidebar shows the deck's name, art and completion count, and the top bar carries the count while a zone is open.
+- feat(Decks): **Deck, Test and Plan tabs** — the deck page splits into tabs under the hero, with the view controls on the same row and the stats charts as a collapsible section right above the cards they filter.
+- feat(Decks): **Cheapest way to finish a deck** — missing-card prices now use the cheapest printing in your languages instead of the creator's pinned versions, with the as-shown cost in the value breakdown.
+- feat(Decks): **Lighter deck overview** — zones drop their boxes for plain labeled sections (the sidebar's zone panel too), card images are larger by default, and clicking a zone's header opens it for editing.
+- feat(Decks): **Sections at a glance on shared decks** — a slim bar under the hero jumps to the deck, the test bench, or the plan, with the view controls on the same row.
+- feat(Decks): **List view uses the whole screen** — the deck's list mode now flows into as many columns as fit your window instead of two fixed ones.
+- feat(Decks): **Deck list flags the exact card** — a rule problem now shows a warning on the offending row.
+- feat(Decks): **Sidebar shows what you're short** — a card you don't fully own carries an amber owned count on its row, and Stats and Ownership now share one panel.
+- feat(Decks): **Legend and champion are clickable** — their names in the hero open the card's details.
+
+- feat(Decks): **Edit counts on the deck view** — hovering a card's count turns it into minus and plus controls with a remove button, so quantity tweaks no longer need the sidebar or menus.
+- feat(Decks): **Card size on the deck overview** — the grid now uses a column stepper like the card browser, so cards fit the window instead of turning huge on a phone, and the count sticks per device.
+- fix(Decks): **Card preview stays out of the way** — hovering a deck card now shows the large preview on the opposite side of the screen, instead of chasing the cursor or covering the rows you are pointing at.
+- fix(Decks): **Dropping a card on the wrong zone no longer removes it** — releasing a dragged card over a zone that can't take it is now a no-op instead of deleting a copy.
+- fix(Decks): **Dragging scrolls the zone panel** — dragging a card near the top or bottom of the left zone panel now scrolls the panel itself instead of the page behind it.
+- fix(Decks): **Plan tab hosts the plan** — the tab now opens the full plan editor instead of an empty page, with its save and clear actions in the tab row (the separate sidebar button is gone).
+- fix(Decks): **Cleaner odds settings** — the group picker drops the browser's number spinners and its filler text, and on a shared deck it notes that copying the deck lets you add your own card groups.
+- fix(Decks): **Zone counts turn green when done** — a complete zone (12/12 runes, 39/39 main deck) now shows its count in green in the sidebar and the overview instead of staying grey.
+- fix(Decks): **A missing champion no longer blames the main deck** — a full 39-card main deck used to show a red "39/40, need 1 more" when the Chosen Champion slot was empty; the main deck now counts against 39 and the missing champion is reported on its own zone.
+- fix(Decks): **Shared decks read better** — the page opens straight with the deck's hero (no duplicate title bar), shows who shared it with their avatar, names what an empty zone is missing, and a turned-off share link explains itself instead of showing a 404 page.
+- fix(Decks): **One badge style everywhere** — the deck list's row view now shows the same format badge as the tiles (format name with a check or warning) instead of plain Valid or Invalid.
+- fix(Decks): **Charts say what they count** — the energy curve now notes that it counts the main deck and champion only.
+- fix(Decks): **Owned count matches the deck size** — the owned figure now counts the deck proper (runes included, sideboard not), so it lines up with the completion count instead of using a different total.
+
 ## 2026-08-05
 
 ### Highlights

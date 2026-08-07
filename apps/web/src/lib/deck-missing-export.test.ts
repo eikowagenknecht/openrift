@@ -64,6 +64,23 @@ describe("missingCardsToListEntries", () => {
     ]);
   });
 
+  it("prefers the completion printing over the display printing for printing-kind lists", () => {
+    const card = stubCardOwnership({
+      shortfall: 1,
+      completionPrinting: {
+        id: "cheap-printing",
+        language: "EN",
+        shortCode: "OGN-002",
+        rarity: "common",
+        imageId: undefined,
+        landscape: false,
+      },
+    });
+    expect(missingCardsToListEntries([card], "printing")).toEqual([
+      { printingId: "cheap-printing", quantity: 1 },
+    ]);
+  });
+
   it("keeps rows without a display printing for card-kind lists", () => {
     const card = stubCardOwnership({ shortfall: 1, displayPrinting: undefined });
     expect(missingCardsToListEntries([card], "card")).toEqual([

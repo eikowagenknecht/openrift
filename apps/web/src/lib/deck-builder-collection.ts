@@ -24,6 +24,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
+import { useDeckUndoStore } from "@/stores/deck-undo-store";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
 // Cache scope for a browser-local draft. Local drafts are keyed under this
@@ -264,6 +265,44 @@ function getOrCreateEntry(queryClient: QueryClient, userId: string, deckId: stri
 }
 
 /**
+ * Replace a draft's rows with `cards`: drop what's gone, patch what stayed,
+ * insert what's new. Says nothing about saving — the caller decides whether
+ * the change should be written back.
+ */
+function replaceDraftCards(entry: DraftEntry, cards: DeckBuilderCard[]): void {
+  const existingKeys = new Set<string | number>();
+  for (const key of entry.collection.keys()) {
+    existingKeys.add(key);
+  }
+  const incomingKeys = new Set<string | number>(cards.map((card) => getDeckCardKey(card)));
+
+  for (const key of existingKeys) {
+    if (!incomingKeys.has(key)) {
+      entry.collection.delete(key);
+    }
+  }
+  for (const card of cards) {
+    const key = getDeckCardKey(card);
+    if (existingKeys.has(key)) {
+      entry.collection.update(key, (draft) => {
+        draft.quantity = card.quantity;
+        draft.cardName = card.cardName;
+        draft.cardType = card.cardType;
+        draft.superTypes = card.superTypes;
+        draft.domains = card.domains;
+        draft.tags = card.tags;
+        draft.keywords = card.keywords;
+        draft.energy = card.energy;
+        draft.might = card.might;
+        draft.power = card.power;
+      });
+    } else {
+      entry.collection.insert(card);
+    }
+  }
+}
+
+/**
  * Replace the draft's contents with the authoritative server state. Used on
  * deck load to seed the draft from the loaded deck detail. Cancels any
  * pending/in-flight save since the new state came from the server and
@@ -284,43 +323,32 @@ export function hydrateDeckDraft(
   entry.saveController?.abort();
   entry.saveController = null;
 
-  const existingKeys = new Set<string | number>();
-  for (const key of entry.collection.keys()) {
-    existingKeys.add(key);
-  }
-  const incomingKeys = new Set<string | number>(cards.map((card) => getDeckCardKey(card)));
-
   entry.suppressSave = true;
   try {
-    for (const key of existingKeys) {
-      if (!incomingKeys.has(key)) {
-        entry.collection.delete(key);
-      }
-    }
-    for (const card of cards) {
-      const key = getDeckCardKey(card);
-      if (existingKeys.has(key)) {
-        entry.collection.update(key, (draft) => {
-          draft.quantity = card.quantity;
-          draft.cardName = card.cardName;
-          draft.cardType = card.cardType;
-          draft.superTypes = card.superTypes;
-          draft.domains = card.domains;
-          draft.tags = card.tags;
-          draft.keywords = card.keywords;
-          draft.energy = card.energy;
-          draft.might = card.might;
-          draft.power = card.power;
-        });
-      } else {
-        entry.collection.insert(card);
-      }
-    }
+    replaceDraftCards(entry, cards);
   } finally {
     entry.suppressSave = false;
   }
 
   setStatus(entry, { isSaving: false, isDirty: false, error: null });
+
+  // Server state just replaced the draft (deck load, import-replace), so any
+  // undo history recorded against the previous contents is meaningless.
+  useDeckUndoStore.getState().reset(deckId);
+}
+
+/**
+ * Replace the draft's contents with a snapshot the user is restoring (undo or
+ * redo). Unlike {@link hydrateDeckDraft} this is an ordinary edit: saving is
+ * not suppressed, so the usual debounced autosave writes it back.
+ */
+export function applyDeckSnapshot(
+  queryClient: QueryClient,
+  userId: string,
+  deckId: string,
+  cards: DeckBuilderCard[],
+): void {
+  replaceDraftCards(getOrCreateEntry(queryClient, userId, deckId), cards);
 }
 
 /**
@@ -335,11 +363,21 @@ export function useDeckDraftCollection(
   deckId: string,
 ): Collection<DeckBuilderCard, string | number> | null {
   const queryClient = useQueryClient();
-  const userId = useUserId();
-  // Gate on the `local:` prefix, not on userId: a local deck always resolves
-  // (even logged out), while a server deck needs a real user.
-  const scope = isLocalDeckId(deckId) ? LOCAL_SCOPE : userId;
+  const scope = useDeckDraftScope(deckId);
   return scope ? getDeckDraftCollection(queryClient, scope, deckId) : null;
+}
+
+/**
+ * The cache scope a deck's draft lives under. Gates on the `local:` prefix,
+ * not on userId: a local deck always resolves (even logged out), while a
+ * server deck needs a real user.
+ *
+ * @returns The scope to pass to the draft functions, or null when a server
+ * deck has no signed-in user.
+ */
+export function useDeckDraftScope(deckId: string): string | null {
+  const userId = useUserId();
+  return isLocalDeckId(deckId) ? LOCAL_SCOPE : userId;
 }
 
 export function useDeckSaveStatus(

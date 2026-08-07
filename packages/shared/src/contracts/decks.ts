@@ -45,6 +45,36 @@ export const createDeckSchema = z.object({
   isPublic: z.boolean().optional(),
 });
 
+/**
+ * One card group for the deck's draw-odds table: an AND of optional
+ * conditions over structured card data, list fields matched any-of. Mirrors
+ * the web app's odds-group shape.
+ */
+export const deckOddsGroupSchema = z.object({
+  key: z.string().min(1).max(80),
+  label: z.string().min(1).max(80),
+  types: z.array(z.string().min(1).max(40)).max(5).optional(),
+  keywords: z.array(z.string().min(1).max(40)).max(10).optional(),
+  tags: z.array(z.string().min(1).max(60)).max(5).optional(),
+  energyMin: z.number().int().min(0).max(99).optional(),
+  energyMax: z.number().int().min(0).max(99).optional(),
+  mightMin: z.number().int().min(0).max(99).optional(),
+  powerMin: z.number().int().min(0).max(99).optional(),
+});
+
+/**
+ * Per-deck draw-odds settings: the owner's custom groups plus which rows the
+ * table shows. `selection: null` means the suggested defaults. Travels with
+ * the deck, share page included.
+ */
+export const deckOddsConfigSchema = z.object({
+  customGroups: z.array(deckOddsGroupSchema).max(20),
+  selection: z.array(z.string().min(1).max(80)).max(60).nullable(),
+});
+
+export type DeckOddsGroup = z.infer<typeof deckOddsGroupSchema>;
+export type DeckOddsConfig = z.infer<typeof deckOddsConfigSchema>;
+
 // isPublic is intentionally absent: a deck's public state is controlled only by
 // the /decks/{id}/share sub-resource, not by PATCH, so the two can't desync.
 export const updateDeckSchema = z.object({
@@ -53,6 +83,7 @@ export const updateDeckSchema = z.object({
   format: deckFieldRules.format.optional(),
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
+  oddsConfig: deckOddsConfigSchema.nullish(),
 });
 
 export const updateDeckCardsSchema = z.object({
@@ -125,6 +156,7 @@ export const deckResponseSchema = z
     archivedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    oddsConfig: deckOddsConfigSchema.nullable(),
   })
   .openapi("DeckResponse");
 

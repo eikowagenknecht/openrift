@@ -9,10 +9,12 @@ import { useDeckDetail } from "@/hooks/use-decks";
 import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
 
 /**
- * Badge showing a click-to-open popover listing each violation.
+ * Badge showing a click-to-open popover listing each violation. Purely
+ * presentational — the hero reuses it on surfaces (public share page) where
+ * the owner-only hooks in {@link DeckFormatBadge} must never run.
  * @returns The violation badge element.
  */
-function ViolationBadge({
+export function ViolationBadge({
   formatLabel,
   violations,
 }: {
@@ -32,8 +34,9 @@ function ViolationBadge({
       </PopoverTrigger>
       <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
         <ul className="space-y-0.5">
+          {/* Per-card codes repeat across cards, so the key needs the card. */}
           {violations.map((violation) => (
-            <li key={violation.code} className="text-xs">
+            <li key={`${violation.code}-${violation.cardId ?? "deck"}`} className="text-xs">
               {violation.message}
             </li>
           ))}

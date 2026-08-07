@@ -42,6 +42,10 @@ const mockLoans = {
   borrowedCountByCard: vi.fn(() => Promise.resolve(new Map<string, number>())),
 };
 
+const mockCatalog = {
+  cardBansByCardIds: vi.fn(() => Promise.resolve([] as { cardId: string; formatId: string }[])),
+};
+
 const mockUserPreferences = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
@@ -110,6 +114,7 @@ app.use("*", async (c, next) => {
     customTags: mockCustomTags,
     copies: mockCopies,
     loans: mockLoans,
+    catalog: mockCatalog,
   } as never);
   await next();
 });
@@ -136,6 +141,7 @@ const dbDeck = {
   description: null,
   format: "constructed",
   formatConfig: null,
+  oddsConfig: null,
   isWanted: false,
   isPublic: false,
   shareToken: null,

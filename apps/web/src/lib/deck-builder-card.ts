@@ -8,9 +8,19 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, copyLimitFor, formatHasSideboard } from "@openrift/shared";
+import { WellKnown, copyLimitFor, formatHasSideboard, isBaseBanFormat } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
+
+/**
+ * Whether a catalog card is banned in a way that invalidates a deck. Only the
+ * base banlist counts — mode-scoped bans (e.g. 2v2) stay a display-only
+ * ribbon, since a deck carries no play-mode identity.
+ * @returns True when the card is on the base banlist.
+ */
+export function isCardBanned(card: Pick<Card, "bans">): boolean {
+  return card.bans.some((ban) => isBaseBanFormat(ban.formatId));
+}
 
 /** A complete deck holds this many runes; rune adds stop once the total reaches it. */
 export const RUNE_TARGET = 12;
@@ -41,6 +51,8 @@ export interface DeckBuilderCard {
   keywords: string[];
   /** Per-card deck copy-limit override (`Card.maxCopiesOverride`); null = normal 3-copy rule. */
   maxCopiesOverride: number | null;
+  /** True when the card is on the base banlist; drives the `CARD_BANNED` rule violation. */
+  banned: boolean;
   energy: number | null;
   might: number | null;
   power: number | null;
@@ -79,6 +91,7 @@ export function toRuleEngineCard(
     customTagSlugs: customTagAssignments[card.cardId] ?? [],
     keywords: card.keywords,
     maxCopiesOverride: card.maxCopiesOverride,
+    banned: card.banned,
   };
 }
 
@@ -135,6 +148,12 @@ export function isCardAllowedInZone(
   card: { cardTypes: CardType[]; superTypes: SuperType[] },
   zone: DeckZone,
 ): boolean {
+  // Tokens are created by effects during play (rule 133.7.c), never registered
+  // in a deck — so no zone takes one, overflow included. This is the gate the
+  // add strips, drag-and-drop, and the "move to" menu all read.
+  if (card.superTypes.includes(WellKnown.superType.TOKEN)) {
+    return false;
+  }
   switch (zone) {
     case WellKnown.deckZone.LEGEND: {
       return card.cardTypes.includes(WellKnown.cardType.LEGEND);
@@ -297,6 +316,7 @@ export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBu
     tags: card.tags,
     keywords: card.keywords,
     maxCopiesOverride: card.maxCopiesOverride,
+    banned: isCardBanned(card),
     energy: card.energy,
     might: card.might,
     power: card.power,
@@ -329,6 +349,7 @@ export function toDeckBuilderCard(
     tags: card.tags ?? EMPTY_ARRAY,
     keywords: card.keywords ?? EMPTY_ARRAY,
     maxCopiesOverride: card.maxCopiesOverride ?? null,
+    banned: isCardBanned(card),
     energy: card.energy,
     might: card.might,
     power: card.power,

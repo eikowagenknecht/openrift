@@ -10,7 +10,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, validateDeck, ERROR_CODES } from "@openrift/shared";
+import { WellKnown, isBaseBanFormat, validateDeck, ERROR_CODES } from "@openrift/shared";
 import { decksContract } from "@openrift/shared/contracts/decks";
 import type { updateDeckPlanSchema } from "@openrift/shared/contracts/decks";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
@@ -175,6 +175,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   format: "format",
   formatConfig: "formatConfig",
   isWanted: "isWanted",
+  oddsConfig: "oddsConfig",
 };
 
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);
@@ -187,7 +188,7 @@ const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser
 export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
-    const { decks, marketplace, userPreferences, enums, copies, loans } = context.repos;
+    const { decks, marketplace, userPreferences, enums, copies, loans, catalog } = context.repos;
     const userId = context.userId;
 
     const [deckRows, allCards, prefs, enumRows, buildableByCard, borrowedByCard] =
@@ -208,7 +209,15 @@ export const decksRouter = {
 
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const deckValueMap = await marketplace.deckValues(userId, favMarketplace);
+    // Bans invalidate a deck (CARD_BANNED), so the list's valid/invalid badge
+    // needs them. One query covers every card across every deck in the response.
+    const [deckValueMap, banRows] = await Promise.all([
+      marketplace.deckValues(userId, favMarketplace),
+      catalog.cardBansByCardIds([...new Set(allCards.map((card) => card.cardId))]),
+    ]);
+    const bannedCardIds = new Set(
+      banRows.filter((ban) => isBaseBanFormat(ban.formatId)).map((ban) => ban.cardId),
+    );
 
     // Group cards by deck
     const cardsByDeckId = Map.groupBy(allCards, (card) => card.deckId);
@@ -312,6 +321,7 @@ export const decksRouter = {
                 customTagSlugs: [],
                 keywords: card.keywords,
                 maxCopiesOverride: card.maxCopiesOverride,
+                banned: bannedCardIds.has(card.cardId),
               })),
             }).length === 0
           : true;

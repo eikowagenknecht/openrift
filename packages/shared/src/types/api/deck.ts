@@ -31,6 +31,10 @@ import type { z } from "zod";
  */
 export type DeckFormatConfig = NonNullable<z.infer<typeof formatConfigResponseSchema>>;
 
+// Deck draw-odds settings (decks.odds_config jsonb): the owner's custom card
+// groups plus the enabled row selection. Inferred types live in the contract.
+export type { DeckOddsConfig, DeckOddsGroup } from "@openrift/shared/contracts/decks";
+
 export type DeckListResponse = z.infer<typeof deckListResponseSchema>;
 
 /** Slimmed-down deck fields for the list view (no isWanted/isPublic/shareToken/description). */

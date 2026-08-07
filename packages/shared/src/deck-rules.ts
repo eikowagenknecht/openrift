@@ -28,6 +28,13 @@ export interface DeckCard {
    * positive = cap at that value.
    */
   maxCopiesOverride: number | null;
+  /**
+   * True when the card sits on the base banlist — see `isBaseBanFormat` in
+   * well-known.ts. Mode-scoped bans (e.g. 2v2) deliberately do not set this:
+   * a deck carries no play-mode identity, so those stay a display-only
+   * ribbon rather than invalidating the deck everywhere.
+   */
+  banned: boolean;
 }
 
 export interface DeckState {
@@ -290,27 +297,33 @@ export const runesMatchLegendDomains: DeckRule = (state) => {
   return violations;
 };
 
-// Main deck + champion zone must total exactly 40 cards.
+// Main zone must hold exactly 39 cards.
+//
+// The deck's 40-card main total is 39 here plus the 1 card `championExactlyOne`
+// requires, so counting the champion in this rule too would report the same
+// missing card twice — and on the wrong zone. A deck with a full 39-card main
+// and no champion is missing a *champion*, so CHAMPION_REQUIRED is the
+// violation that names it; flagging MAIN here painted a complete zone red and
+// compared it against a denominator (40) that the main zone's own target (39,
+// see ZONE_EXPECTED) never used. Each zone now answers for its own gap.
 export const mainDeckExactly: DeckRule = (state) => {
-  const mainCount = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.MAIN));
-  const championCount = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.CHAMPION));
-  const count = mainCount + championCount;
+  const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.MAIN));
 
-  if (count < 40) {
+  if (count < 39) {
     return [
       {
         zone: WellKnown.deckZone.MAIN,
         code: "MAIN_TOO_FEW",
-        message: `${count}/40 main deck cards — need ${40 - count} more`,
+        message: `${count}/39 main-deck cards — need ${39 - count} more`,
       },
     ];
   }
-  if (count > 40) {
+  if (count > 39) {
     return [
       {
         zone: WellKnown.deckZone.MAIN,
         code: "MAIN_TOO_MANY",
-        message: `${count}/40 main deck cards — remove ${count - 40}`,
+        message: `${count}/39 main-deck cards — remove ${count - 39}`,
       },
     ];
   }
@@ -710,6 +723,58 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
   return violations;
 };
 
+// No card on the base banlist may be played. Mode-scoped bans (e.g. 2v2) are
+// deliberately not enforced — `banned` only carries the base list, so those
+// keep their display-only ribbon (see isBaseBanFormat in well-known.ts).
+export const noBannedCards: DeckRule = (state) => {
+  const violations: DeckViolation[] = [];
+
+  for (const card of state.cards) {
+    // Overflow is a parking area outside the deck proper — every other rule
+    // ignores its contents, so a banned card stashed there is not a violation.
+    if (card.zone === WellKnown.deckZone.OVERFLOW) {
+      continue;
+    }
+    if (card.banned) {
+      violations.push({
+        zone: card.zone,
+        code: "CARD_BANNED",
+        message: `${card.cardName} is banned.`,
+        cardId: card.cardId,
+      });
+    }
+  }
+
+  return violations;
+};
+
+// Tokens are game objects an effect creates during play (rule 133.7.c), not
+// cards you register. The builder already refuses to put one in a zone, so
+// this catches the other door: an imported list or deck code naming a token
+// resolves against the whole catalogue and would otherwise sit in the deck
+// looking legal.
+export const noTokenCards: DeckRule = (state) => {
+  const violations: DeckViolation[] = [];
+
+  for (const card of state.cards) {
+    // Overflow is a parking area outside the deck proper, same carve-out as
+    // `noBannedCards`.
+    if (card.zone === WellKnown.deckZone.OVERFLOW) {
+      continue;
+    }
+    if (card.superTypes.includes(WellKnown.superType.TOKEN)) {
+      violations.push({
+        zone: card.zone,
+        code: "CARD_NOT_DECK_LEGAL",
+        message: `${card.cardName} is a Token and can't be part of a deck.`,
+        cardId: card.cardId,
+      });
+    }
+  }
+
+  return violations;
+};
+
 // ── Tag-locked rules (custom-region and any future tag-locked format) ──────
 
 /**
@@ -769,6 +834,8 @@ const cardsCarryFormatTag: DeckRule = (state) => {
 // ── Rule Sets ───────────────────────────────────────────────────────────────
 
 const CONSTRUCTED_RULES: DeckRule[] = [
+  noBannedCards,
+  noTokenCards,
   legendExactlyOne,
   championExactlyOne,
   championSharesTagWithLegend,
@@ -797,6 +864,8 @@ const CONSTRUCTED_RULES: DeckRule[] = [
 const REGION_LOCKED_RULES: DeckRule[] = [
   formatTagRequired,
   cardsCarryFormatTag,
+  noBannedCards,
+  noTokenCards,
   legendExactlyOne,
   championExactlyOne,
   championSharesTagWithLegend,
