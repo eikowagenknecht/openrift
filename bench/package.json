@@ -7,7 +7,7 @@
     "@orpc/client": "1.14.6",
     "@orpc/contract": "1.14.6",
     "@orpc/server": "1.14.6",
-    "hono": "4.12.27",
+    "hono": "4.12.34",
     "zod": "4.4.3"
   },
   "devDependencies": {
