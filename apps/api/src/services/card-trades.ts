@@ -654,6 +654,16 @@ export function cancelTrade(
       }
     } else if (trade.status !== "reserved") {
       throw new AppError(409, ERROR_CODES.CONFLICT, "This trade can no longer be cancelled");
+    } else if (trade.giverSyncAppliedAt !== null || trade.receiverSyncAppliedAt !== null) {
+      // One side has already settled. The giver's settle hard-deletes the copy
+      // rows, so cancelling cannot put back the copy, its id, or its condition,
+      // grade and notes — it would only record a lie about a swap that half
+      // happened (ADR-019, amendment 2026-08-10).
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Someone has already settled their side of this trade, so it can no longer be cancelled",
+      );
     }
     // Transition first (guarded), so a lost race against complete/another cancel
     // does not delete copies it didn't transition.
@@ -728,28 +738,19 @@ export function setTradeQuantity(
 }
 
 /**
- * Marks a reserved trade as physically traded (either party).
- * @returns The completed trade as a viewer-oriented DTO.
+ * Guards the caller into settling their own half of a swap, and promotes the
+ * trade once both halves are in.
+ *
+ * A settle is legal from `reserved` (the normal path) and from `completed`,
+ * which only rows predating the 2026-08-10 amendment can still be in: the
+ * migration revived every completed row with an unresolved sync, so what is
+ * left is a fully-resolved row whose `claim*SyncSide` will match zero and 409.
+ * @returns Nothing.
  */
-export function completeTrade(
-  transact: Transact,
-  tradeId: string,
-  byUserId: string,
-): Promise<CardTradeResponse> {
-  return transact(async (trxRepos) => {
-    const { trade } = await loadTradeForParty(trxRepos, tradeId, byUserId);
-    assertTradeStatus(trade, "reserved", "Only a reserved trade can be marked as traded");
-    const completed = await trxRepos.cardTrades.markCompleted(tradeId, byUserId);
-    if (completed === 0) {
-      // A concurrent cancel released it after we read `reserved`.
-      throw new AppError(
-        409,
-        ERROR_CODES.CONFLICT,
-        "Only a reserved trade can be marked as traded",
-      );
-    }
-    return reloadDto(trxRepos, tradeId, byUserId);
-  });
+function assertSettleable(trade: CardTrade): void {
+  if (trade.status !== "reserved" && trade.status !== "completed") {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer open to settle");
+  }
 }
 
 /** Adds `quantity` copies of the trade's printing for the receiver and decrements their wish. */
@@ -808,9 +809,13 @@ async function applyReceiverSync(
 }
 
 /**
- * Applies the caller's own side of a completed trade's sync. Giver: dispose the
- * reserved copies (releasing the reservation first, atomically). Receiver: add
- * the copies and decrement the wish entry.
+ * Settles the caller's own half of a swap, with the data change. Giver: dispose
+ * the reserved copies (releasing the reservation first, atomically), which is
+ * "I handed them over". Receiver: add the copies and decrement the wish entry,
+ * which is "I got them".
+ *
+ * Each side asserts only its own half, so nothing here claims the swap happened
+ * for the other party. The second settle promotes the trade to `completed`.
  * @returns The trade as a viewer-oriented DTO.
  */
 export function applyTradeSync(
@@ -821,7 +826,7 @@ export function applyTradeSync(
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
-    assertTradeStatus(trade, "completed", "Sync is only available after the trade is completed");
+    assertSettleable(trade);
 
     if (role === "giver") {
       // Claim the giver's side first (guarded UPDATE): a concurrent double-apply
@@ -844,14 +849,18 @@ export function applyTradeSync(
       await applyReceiverSync(trxRepos, trade, targetCollectionId);
     }
 
+    await trxRepos.cardTrades.markCompletedWhenBothSettled(tradeId, byUserId);
     return reloadDto(trxRepos, tradeId, byUserId);
   });
 }
 
 /**
- * Skips the caller's own side of a completed trade's sync (no data mutation).
+ * Settles the caller's own half without the data change: the swap happened, but
+ * leave my collection alone. Covers the giver who already removed the card by
+ * hand and anyone who doesn't track their collection closely.
+ *
  * The giver's skip still releases the reservation — the copy physically left,
- * the stale copy reappears as available until they fix it manually.
+ * so the stale copy reappears as available until they fix it manually.
  * @returns The trade as a viewer-oriented DTO.
  */
 export function skipTradeSync(
@@ -861,7 +870,7 @@ export function skipTradeSync(
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
-    assertTradeStatus(trade, "completed", "Sync is only available after the trade is completed");
+    assertSettleable(trade);
 
     if (role === "giver") {
       await claimGiverSyncSide(trxRepos, tradeId);
@@ -872,6 +881,7 @@ export function skipTradeSync(
       await claimReceiverSyncSide(trxRepos, tradeId);
     }
 
+    await trxRepos.cardTrades.markCompletedWhenBothSettled(tradeId, byUserId);
     return reloadDto(trxRepos, tradeId, byUserId);
   });
 }

@@ -77,7 +77,6 @@ import {
   acceptTrade,
   applyTradeSync,
   cancelTrade,
-  completeTrade,
   createTrade,
   declineTrade,
   listTradeCopyOptions,
@@ -196,7 +195,6 @@ export interface Services {
   acceptTrade: typeof acceptTrade;
   declineTrade: typeof declineTrade;
   cancelTrade: typeof cancelTrade;
-  completeTrade: typeof completeTrade;
   setTradeQuantity: typeof setTradeQuantity;
   applyTradeSync: typeof applyTradeSync;
   skipTradeSync: typeof skipTradeSync;
@@ -389,7 +387,6 @@ export const services: Services = {
   acceptTrade,
   declineTrade,
   cancelTrade,
-  completeTrade,
   setTradeQuantity,
   applyTradeSync,
   skipTradeSync,

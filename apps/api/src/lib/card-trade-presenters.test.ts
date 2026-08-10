@@ -305,14 +305,14 @@ describe("toCardTradeLiveByPrinting", () => {
   it("orders by printing, then the viewer's own copies, then most committed first", () => {
     const result = toCardTradeLiveByPrinting([
       annotationRow({ printingId: "printing-b", role: "receiver", phase: "asked" }),
-      annotationRow({ printingId: "printing-a", role: "receiver", phase: "traded" }),
+      annotationRow({ printingId: "printing-a", role: "receiver", phase: "reserved" }),
       annotationRow({ printingId: "printing-a", role: "giver", phase: "asked" }),
       annotationRow({ printingId: "printing-a", role: "giver", phase: "reserved" }),
     ]);
     expect(result.annotations.map((row) => [row.printingId, row.role, row.phase])).toEqual([
       ["printing-a", "giver", "reserved"],
       ["printing-a", "giver", "asked"],
-      ["printing-a", "receiver", "traded"],
+      ["printing-a", "receiver", "reserved"],
       ["printing-b", "receiver", "asked"],
     ]);
   });
@@ -326,18 +326,14 @@ describe("toCardTradeLiveByPrinting", () => {
   });
 
   it("ranks the full phase ladder, least committed last", () => {
+    // The ladder stops at reserved: a settled side has nothing left to
+    // annotate, so there is no rung above it (ADR-019, amendment 2026-08-10).
     const result = toCardTradeLiveByPrinting([
       annotationRow({ phase: "offered" }),
-      annotationRow({ phase: "traded" }),
       annotationRow({ phase: "asked" }),
       annotationRow({ phase: "reserved" }),
     ]);
-    expect(result.annotations.map((row) => row.phase)).toEqual([
-      "traded",
-      "reserved",
-      "offered",
-      "asked",
-    ]);
+    expect(result.annotations.map((row) => row.phase)).toEqual(["reserved", "offered", "asked"]);
   });
 
   it("does not mutate the input rows", () => {

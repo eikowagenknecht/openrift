@@ -9,7 +9,7 @@ import {
   tradeStatusTitle,
 } from "./trade-status-labels";
 
-const PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+const PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 const ROLES: CardTradeRole[] = ["giver", "receiver"];
 
 describe("liveTradeStatus", () => {
@@ -17,7 +17,6 @@ describe("liveTradeStatus", () => {
     ["asked", "Requested"],
     ["offered", "Offered"],
     ["reserved", "Reserved"],
-    ["traded", "Traded"],
   ] as [CardTradeLivePhase, string][])("labels the %s phase as %s", (phase, label) => {
     for (const role of ROLES) {
       expect(liveTradeStatus({ role, phase }).label).toBe(label);
@@ -27,7 +26,7 @@ describe("liveTradeStatus", () => {
 
   it.each(ROLES)("marks only the asked phase as soft on the %s side", (role) => {
     const tones = PHASES.map((phase) => liveTradeStatus({ role, phase }).tone);
-    expect(tones).toEqual(["soft", "committed", "committed", "committed"]);
+    expect(tones).toEqual(["soft", "committed", "committed"]);
   });
 
   // The words are shared, so the icon is the only thing left telling a card on

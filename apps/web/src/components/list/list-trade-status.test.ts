@@ -115,13 +115,12 @@ describe("listEntryTradeStatus", () => {
     expect(listEntryTradeStatus(copyEntry(alphaOne.id, false), EMPTY_LIST_TRADE_INDEX)).toBeNull();
   });
 
-  // The whole point of the chip: `reserved` stays true after the cards change
-  // hands, until the giver applies their sync, so the boolean alone cannot tell
-  // a pinned copy from one that already physically left.
-  it("gives a pinned copy the traded phase, not the reserved one", () => {
-    const index = buildListTradeIndex([annotation({ phase: "traded", quantity: 2 })], CATALOG);
+  // The feed's annotation wins over the bare `reserved` boolean, and carries the
+  // role the flag cannot express.
+  it("gives a pinned copy the feed's annotation, not just the boolean", () => {
+    const index = buildListTradeIndex([annotation({ phase: "reserved", quantity: 2 })], CATALOG);
     expect(listEntryTradeStatus(copyEntry(alphaOne.id, true), index)).toMatchObject({
-      phase: "traded",
+      phase: "reserved",
       role: "giver",
     });
   });
@@ -164,7 +163,7 @@ describe("listEntryTradeStatus", () => {
     const index = buildListTradeIndex(
       [
         annotation({ printingId: alphaOne.id, role: "receiver", phase: "reserved" }),
-        annotation({ printingId: alphaTwo.id, role: "receiver", phase: "traded" }),
+        annotation({ printingId: alphaTwo.id, role: "receiver", phase: "offered" }),
       ],
       CATALOG,
     );

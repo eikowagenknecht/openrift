@@ -224,12 +224,18 @@ export function TradeStatusBadge({
   status,
   counterpartyName,
   awaitingViewer,
+  viewerSettled,
   className,
 }: {
   status: CardTradeStatus;
   counterpartyName?: string | null;
   /** True when a pending trade is awaiting the viewer's accept/decline. */
   awaitingViewer?: boolean;
+  /**
+   * True when the viewer has settled their own half of a reserved swap. Splits
+   * `reserved` into "go and swap" and "waiting on them to confirm".
+   */
+  viewerSettled?: boolean;
   /**
    * Extra badge classes. Pass `min-w-0 shrink` where the row must never widen
    * its container — "Waiting for {name}" is as long as the member's name, and
@@ -254,6 +260,17 @@ export function TradeStatusBadge({
     );
   }
   if (status === "reserved") {
+    // The viewer has settled their own half, so the swap is done as far as they
+    // are concerned and the trade is only waiting on the other party's
+    // confirmation (ADR-019, amendment 2026-08-10).
+    if (viewerSettled) {
+      return (
+        <Badge variant="secondary" className={cn("shrink-0", className)}>
+          <ClockIcon />
+          <span className="truncate">Waiting for {counterpartyName ?? "them"}</span>
+        </Badge>
+      );
+    }
     return (
       <Badge variant="success" className={cn("shrink-0", className)}>
         <CheckIcon />
@@ -270,9 +287,10 @@ export function TradeStatusBadge({
 
 /**
  * The countdown shown next to a pending trade's status badge. A request expires
- * 24h after it's sent (ADR-019); this tells the viewer how long is left to act
- * before it auto-expires, turning amber in the final stretch. Renders nothing
- * once the trade is no longer pending or has no deadline.
+ * 7 days after it's sent (ADR-019, `PENDING_TTL_HOURS` in the trades service);
+ * this tells the viewer how long is left to act before it auto-expires, turning
+ * amber in the final stretch. Renders nothing once the trade is no longer
+ * pending or has no deadline.
  * @returns The countdown element, or null.
  */
 export function TradeExpiry({

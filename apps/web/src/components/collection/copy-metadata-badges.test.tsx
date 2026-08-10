@@ -35,18 +35,12 @@ describe("CopyMetadataStrip live-trade marker", () => {
     expect(screen.getByLabelText("Reserved (outgoing)")).toBeInTheDocument();
   });
 
-  // `reserved` stays true through the handover until the giver applies their
-  // sync, so the flag alone would keep saying "Reserved" after the cards had
-  // physically changed hands. The phase is what moves the word on.
-  it("says Traded, not Reserved, once the trade has completed", () => {
-    render(
-      <CopyMetadataStrip
-        copy={stubCopy({ printingId: "p-1", reserved: true })}
-        tradeAnnotation={annotation("traded")}
-      />,
-    );
+  // There is no phase past `reserved` to move the word on to. The giver's
+  // settle deletes the copy outright, so a handed-over card has no strip to
+  // draw (ADR-019, amendment 2026-08-10).
+  it("drops the badge entirely once the printing has no live annotation", () => {
+    render(<CopyMetadataStrip copy={stubCopy({ printingId: "p-1", reserved: true })} />);
 
-    expect(screen.getByLabelText("Traded (outgoing)")).toBeInTheDocument();
     expect(screen.queryByLabelText("Reserved (outgoing)")).not.toBeInTheDocument();
   });
 

@@ -47,7 +47,6 @@ const PHASE_LABELS: Record<CardTradeLivePhase, string> = {
   asked: "Requested",
   offered: "Offered",
   reserved: "Reserved",
-  traded: "Traded",
 };
 
 /**

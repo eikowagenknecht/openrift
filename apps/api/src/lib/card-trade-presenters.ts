@@ -167,12 +167,16 @@ export function toCardTradeCopyOptions(input: {
 
 /**
  * Live-trade phases from least to most committed. `asked` is a bid nobody has
- * acted on, `offered` already consumes the giver's supply, `reserved` has
- * physical copies pinned, and `traded` means the cards changed hands. Clients
- * that can only show one marker per card collapse along this ladder, so the
- * order is part of the contract, not a presentation detail.
+ * acted on, `offered` already consumes the giver's supply, and `reserved` has
+ * physical copies pinned. Clients that can only show one marker per card
+ * collapse along this ladder, so the order is part of the contract, not a
+ * presentation detail.
+ *
+ * The ladder stops at `reserved`. Settling is per side now, and a side that has
+ * settled has nothing left to annotate (ADR-019, amendment 2026-08-10), so the
+ * former `traded` rung has no rows to carry.
  */
-const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 
 /** Roles in their response order: the viewer's own copies first. */
 const LIVE_ROLE_ORDER: readonly CardTradeRole[] = ["giver", "receiver"];

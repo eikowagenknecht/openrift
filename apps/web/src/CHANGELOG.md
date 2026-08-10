@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Trades): **Each side confirms its own half of a swap** — instead of one person marking the whole trade done, you say you handed the cards over or that you got them, and the trade closes once you both have.
 - feat(Decks): **Deck stats before you import** — the import preview now shows the deck's size, domains and format legality, plus how much of it you already own and what the rest would cost.
 - feat(Decks): **Deck import on phones** — the preview reads as a list of cards, matched rows tuck their controls behind a tap, and the import button stays in reach at the bottom.
 - feat(Decks): **Card details from the missing list** — clicking a card in a deck's missing-cards list now opens its details over the list, with arrow keys stepping through the cards you still need, instead of leaving the page.
@@ -14,7 +15,7 @@
 
 ### Other
 
-- feat(Groups): **Group cards say what the actions are** — the groups list split its "actions needed" count into trade requests waiting on your answer and completed trades still to add to your collection.
+- feat(Groups): **Group cards name the waiting trades** — the groups list badge now says how many trade requests are waiting on your answer, instead of a vaguer "actions needed" count.
 - feat(Decks): **Cost to complete beside the deck value** — the price breakdown drops the owned total and shows what you are missing as a second column, split into deck and sideboard.
 - feat(Decks): **Deck filters you can link to and filter on a phone** — the deck list now filters like the card browser, with match counts on every option, a filter sheet on phones, and the filters in the address bar so you can share or bookmark a filtered list.
 - feat(Cards): **Price history opens with the card** — the chart now shows by default, names the marketplace it plots and how far the price moved, and the buy buttons sit below it.
@@ -22,6 +23,7 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Trades): **Card preview on phones** — tapping a possible-trade row popped a large card preview over most of the screen with no way to close it, so the preview is now mouse-only.
 - fix(Decks): **Bigger grid and list buttons** — the view switch in the deck search row was smaller than the controls beside it and is now the same height.
 - fix(Decks): **Optional deck name on import** — the field starts empty with "Imported Deck" as a placeholder, so there is nothing to clear before importing.
 - fix(Decks): **Jump to cards that need attention** — the "need attention" count in the import summary now scrolls straight to the first row that still needs work.

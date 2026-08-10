@@ -260,7 +260,7 @@ describe("tradeAnnotationByCopyId", () => {
 
   it("gives every copy of a printing that printing's annotation", () => {
     const byCopy = tradeAnnotationByCopyId(
-      [annotation({ printingId: "p-1", phase: "traded" })],
+      [annotation({ printingId: "p-1", phase: "reserved" })],
       new Map([
         ["copy-a", printingOne],
         ["copy-b", printingOne],
@@ -268,8 +268,8 @@ describe("tradeAnnotationByCopyId", () => {
     );
 
     // Both, pinned or not: the caller decides which copies to draw it against.
-    expect(byCopy.get("copy-a")?.phase).toBe("traded");
-    expect(byCopy.get("copy-b")?.phase).toBe("traded");
+    expect(byCopy.get("copy-a")?.phase).toBe("reserved");
+    expect(byCopy.get("copy-b")?.phase).toBe("reserved");
   });
 
   it("keeps each copy on its own printing's annotation", () => {

@@ -20,11 +20,9 @@ describe("TradeStatusChip", () => {
     ["giver", "asked", "Requested", "outgoing"],
     ["giver", "offered", "Offered", "outgoing"],
     ["giver", "reserved", "Reserved", "outgoing"],
-    ["giver", "traded", "Traded", "outgoing"],
     ["receiver", "asked", "Requested", "incoming"],
     ["receiver", "offered", "Offered", "incoming"],
     ["receiver", "reserved", "Reserved", "incoming"],
-    ["receiver", "traded", "Traded", "incoming"],
   ] as [CardTradeRole, CardTradeLivePhase, string, string][])(
     "spells out %s/%s as %s (%s)",
     (role, phase, label, direction) => {
@@ -62,8 +60,8 @@ describe("TradeStatusChip", () => {
   });
 
   it("drops the number in icon detail", () => {
-    render(<TradeStatusChip detail="icon" annotation={annotation({ phase: "traded" })} />);
-    const chip = screen.getByTitle("Traded (outgoing)");
+    render(<TradeStatusChip detail="icon" annotation={annotation({ phase: "reserved" })} />);
+    const chip = screen.getByTitle("Reserved (outgoing)");
     expect(chip).not.toHaveTextContent("1");
   });
 
@@ -120,7 +118,6 @@ describe("TradeStatusChip", () => {
   it.each([
     ["offered", "Offered (outgoing) · 1 copy"],
     ["reserved", "Reserved (outgoing) · 1 copy"],
-    ["traded", "Traded (outgoing) · 1 copy"],
   ] as [CardTradeLivePhase, string][])("weights the committed %s state", (phase, title) => {
     render(<TradeStatusChip detail="label" annotation={annotation({ phase })} />);
     expect(screen.getByTitle(title)).toHaveClass("text-foreground", "font-semibold");

@@ -14,16 +14,25 @@ export type TradeSection = "action-needed" | "active" | "history";
  * @returns The section the trade belongs in.
  */
 export function tradeSection(trade: CardTradeResponse): TradeSection {
-  // Things the viewer must act on: a request awaiting them, or a completed
-  // trade whose own-side sync they haven't resolved.
-  if (trade.actionNeeded === "accept-or-decline" || trade.actionNeeded === "apply-sync") {
+  // A request awaiting the viewer's answer is the only thing that blocks
+  // someone else, and the only thing the groups-list badge counts.
+  if (trade.actionNeeded === "accept-or-decline") {
     return "action-needed";
   }
-  // In-flight: their own pending request, or a reserved trade not yet traded.
-  if (trade.actionNeeded === "cancel" || trade.actionNeeded === "complete") {
+  // In flight: their own pending request, or a reservation whose swap is still
+  // outstanding on either side. Settling sits here rather than in action-needed
+  // on purpose — the swap is arranged and the rest happens whenever the two of
+  // them actually meet, and chasing people to press the button is what produced
+  // premature completions (ADR-019, amendment 2026-08-10).
+  if (trade.actionNeeded === "cancel" || trade.actionNeeded === "settle") {
     return "active";
   }
-  // Terminal (declined/cancelled/expired) or completed with sync resolved.
+  // A settled side of a still-open reservation stays in flight; the viewer is
+  // simply waiting on the other party now.
+  if (trade.status === "reserved") {
+    return "active";
+  }
+  // Terminal: completed, declined, cancelled or expired.
   return "history";
 }
 
@@ -311,7 +320,7 @@ export function maxTradeQuantity(demandQuantity: number, availableCount: number)
  * `offered` already consumes the giver's supply, `reserved` has copies pinned,
  * `traded` means the cards changed hands.
  */
-const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 
 /** @returns How committed a phase is; higher wins a collapse. */
 function phaseRank(phase: CardTradeLivePhase): number {

@@ -71,12 +71,12 @@ const setTradeQuantityFn = createServerFn({ method: "POST" })
   );
 
 const tradeActionFn = createServerFn({ method: "POST" })
-  .validator((input: { tradeId: string; action: "decline" | "cancel" | "complete" }) => input)
+  .validator((input: { tradeId: string; action: "decline" | "cancel" }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<CardTradeResponse> =>
-    // decline/cancel/complete share the same { id } → CardTradeResponse
-    // shape, so index the client by the action name. Accept has its own
-    // function below because it carries the giver's copy choice.
+    // decline/cancel share the same { id } → CardTradeResponse shape, so index
+    // the client by the action name. Accept has its own function below because
+    // it carries the giver's copy choice.
     apiOrpcClient(cardTradesContract, context.cookie)[data.action]({ id: data.tradeId }),
   );
 
@@ -304,14 +304,6 @@ export function useCancelTrade() {
   return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
     mutationFn: (data) => tradeActionFn({ data: { tradeId: data.tradeId, action: "cancel" } }),
     invalidates: (variables) => tradeInvalidationKeys(userId ?? "", variables.groupSlug),
-  });
-}
-
-export function useCompleteTrade() {
-  const userId = useRequiredUserId();
-  return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
-    mutationFn: (data) => tradeActionFn({ data: { tradeId: data.tradeId, action: "complete" } }),
-    invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });
 }
 

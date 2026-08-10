@@ -1904,7 +1904,7 @@ const REGION_OPTIONS = [
   { value: "demacia", label: "Demacia" },
 ];
 
-const LIVE_TRADE_PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved", "traded"];
+const LIVE_TRADE_PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 
 function demoTradeAnnotation(
   role: CardTradeRole,
@@ -2156,7 +2156,7 @@ function CompositesSection() {
               <TradeStatusChip annotation={demoTradeAnnotation("giver", "asked")} totalCount={5} />
               <TradeStatusChip
                 detail="icon"
-                annotation={demoTradeAnnotation("receiver", "traded")}
+                annotation={demoTradeAnnotation("receiver", "reserved")}
               />
               <TradeStatusChip detail="word" annotation={demoTradeAnnotation("giver", "offered")} />
               <div className="w-40">

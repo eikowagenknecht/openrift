@@ -80,11 +80,6 @@ export const cardTradesRouter = {
     return cancelTrade(context.transact, input.id, context.userId);
   }),
 
-  complete: os.complete.handler(({ input, context }): Promise<CardTradeResponse> => {
-    const { completeTrade } = context.services;
-    return completeTrade(context.transact, input.id, context.userId);
-  }),
-
   setQuantity: os.setQuantity.handler(({ input, context }): Promise<CardTradeResponse> => {
     const { setTradeQuantity } = context.services;
     return setTradeQuantity(context.transact, input.id, context.userId, input.quantity);

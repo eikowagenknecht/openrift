@@ -341,10 +341,10 @@ describe("CollectionGridCell live-trade chip", () => {
   // A copies-view tile is one physical copy, so the cell hands the strip the
   // annotation and lets the copy's own `reserved` flag decide whether to draw it.
   it("hands the copies-view strip its printing's annotation instead of a chip", () => {
-    liveAnnotations = [annotation({ phase: "traded" })];
+    liveAnnotations = [annotation({ phase: "reserved" })];
 
     renderStripCell({ stacked: false, mode: "browse", itemId: "cx1" });
 
-    expect(screen.getByTestId("cell-strip").dataset.tradePhase).toBe("traded");
+    expect(screen.getByTestId("cell-strip").dataset.tradePhase).toBe("reserved");
   });
 });

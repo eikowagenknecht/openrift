@@ -30,7 +30,6 @@ import {
   useAcceptTrade,
   useApplyTradeSync,
   useCancelTrade,
-  useCompleteTrade,
   useDeclineTrade,
   useGroupTrades,
   useSkipTradeSync,
@@ -177,7 +176,6 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
   const acceptFlow = useTradeAcceptFlow({ onSettled: () => settle(trade.id) });
   const decline = useDeclineTrade();
   const cancel = useCancelTrade();
-  const complete = useCompleteTrade();
   const applySync = useApplyTradeSync();
   const skipSync = useSkipTradeSync();
 
@@ -190,6 +188,13 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
   // A pending trade awaiting the viewer's accept/decline is "Your decision", not
   // "Waiting for them".
   const awaitingViewer = trade.actionNeeded === "accept-or-decline";
+  // Cancelling a reservation both sides agreed to is the rare exit, so it lives
+  // in the overflow menu. It disappears entirely once either side has settled:
+  // the giver's settle hard-deletes the copies, so there is nothing to undo and
+  // the server refuses it (ADR-019, amendment 2026-08-10).
+  const settledSide =
+    trade.viewerSyncAppliedAt !== null || trade.counterpartySyncAppliedAt !== null;
+  const cancellable = !settledSide;
 
   function run<TVariables>(
     mutation: { mutate: (variables: TVariables, options?: { onSettled?: () => void }) => void },
@@ -241,6 +246,7 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
           <TradeStatusBadge
             status={trade.status}
             awaitingViewer={awaitingViewer}
+            viewerSettled={trade.viewerSyncAppliedAt !== null}
             className="min-w-0 shrink"
           />
         )}
@@ -282,42 +288,13 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
             </Button>
           ) : null}
 
-          {trade.actionNeeded === "complete" ? (
-            // Cancelling a trade both sides already agreed to is the rare exit,
-            // so it steps back into the overflow menu and leaves "Mark traded"
-            // as the one button on the row.
-            <>
-              <Button size="sm" disabled={acting} onClick={() => run(complete, actionArgs)}>
-                Mark traded
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    // On phones the action bar is already carrying the primary
-                    // button, so the menu lifts out of it to the card's
-                    // top-right corner; from sm up it rejoins the button row.
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      disabled={acting}
-                      aria-label="More trade actions"
-                      className="absolute top-2 right-2 sm:static"
-                    />
-                  }
-                >
-                  <EllipsisVerticalIcon />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem variant="destructive" onClick={() => run(cancel, actionArgs)}>
-                    <XIcon className="size-4" />
-                    Cancel trade
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : null}
-
-          {trade.actionNeeded === "apply-sync" ? (
+          {trade.actionNeeded === "settle" ? (
+            // The viewer settles their own half and nothing else. There is no
+            // "mark traded" that speaks for both parties: the receiver says they
+            // got the cards, the giver says they handed them over, and the
+            // second of those completes the trade (ADR-019, amendment
+            // 2026-08-10). The skip variant settles the same half without
+            // touching the collection, for someone whose data is already right.
             <>
               <Button
                 size="sm"
@@ -325,15 +302,41 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
                 disabled={acting}
                 onClick={() => run(skipSync, actionArgs)}
               >
-                Skip
+                {incoming ? "Got them, don't add" : "Handed over, keep mine"}
               </Button>
               {incoming ? (
                 <AddIncomingTradeButtons trade={trade} cardName={cardName} />
               ) : (
                 <Button size="sm" disabled={acting} onClick={() => run(applySync, actionArgs)}>
-                  Remove from my collection
+                  Handed over, remove {trade.quantity}
                 </Button>
               )}
+              {cancellable ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      // On phones the action bar is already carrying the primary
+                      // button, so the menu lifts out of it to the card's
+                      // top-right corner; from sm up it rejoins the button row.
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        disabled={acting}
+                        aria-label="More trade actions"
+                        className="absolute top-2 right-2 sm:static"
+                      />
+                    }
+                  >
+                    <EllipsisVerticalIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem variant="destructive" onClick={() => run(cancel, actionArgs)}>
+                      <XIcon className="size-4" />
+                      Cancel trade
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -417,7 +420,7 @@ function BulkTradeActions({ trades, mode }: { trades: CardTradeResponse[]; mode:
   const addTargets =
     mode === "none"
       ? []
-      : trades.filter((trade) => trade.actionNeeded === "apply-sync" && trade.role === "receiver");
+      : trades.filter((trade) => trade.actionNeeded === "settle" && trade.role === "receiver");
   const acting = useTradeActionStore((state) =>
     targets.some((trade) => state.pending.has(trade.id)),
   );

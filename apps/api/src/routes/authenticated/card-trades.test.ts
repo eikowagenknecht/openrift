@@ -22,7 +22,6 @@ const mockAcceptTrade = vi.fn(() => Promise.resolve({} as object));
 const mockListTradeCopyOptions = vi.fn(() => Promise.resolve({} as object));
 const mockDeclineTrade = vi.fn(() => Promise.resolve({} as object));
 const mockCancelTrade = vi.fn(() => Promise.resolve({} as object));
-const mockCompleteTrade = vi.fn(() => Promise.resolve({} as object));
 const mockSetTradeQuantity = vi.fn(() => Promise.resolve({} as object));
 const mockApplyTradeSync = vi.fn(() => Promise.resolve({} as object));
 const mockSkipTradeSync = vi.fn(() => Promise.resolve({} as object));
@@ -44,7 +43,6 @@ app.use("*", async (c, next) => {
     acceptTrade: mockAcceptTrade,
     declineTrade: mockDeclineTrade,
     cancelTrade: mockCancelTrade,
-    completeTrade: mockCompleteTrade,
     setTradeQuantity: mockSetTradeQuantity,
     applyTradeSync: mockApplyTradeSync,
     skipTradeSync: mockSkipTradeSync,
@@ -181,23 +179,14 @@ describe("GET /api/v1/trades", () => {
 describe("GET /api/v1/trades/action-counts", () => {
   it("returns 200 with the total summed across groups", async () => {
     mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
-      { groupId: "g1", groupSlug: "alpha", count: 2, respondCount: 2, syncCount: 0 },
-      { groupId: "g2", groupSlug: "beta", count: 3, respondCount: 1, syncCount: 2 },
+      { groupId: "g1", groupSlug: "alpha", count: 2 },
+      { groupId: "g2", groupSlug: "beta", count: 3 },
     ]);
     const res = await app.request("/api/v1/trades/action-counts");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.total).toBe(5);
     expect(json.byGroup).toHaveLength(2);
-  });
-
-  it("carries each group's per-action-type split through to the response", async () => {
-    mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
-      { groupId: "g1", groupSlug: "alpha", count: 44, respondCount: 12, syncCount: 32 },
-    ]);
-    const res = await app.request("/api/v1/trades/action-counts");
-    const json = await readJson(res);
-    expect(json.byGroup[0]).toMatchObject({ count: 44, respondCount: 12, syncCount: 32 });
   });
 
   it("returns total 0 when no groups need action", async () => {
@@ -233,14 +222,14 @@ describe("GET /api/v1/trades/live-by-printing", () => {
   // would put an in-progress negotiation on a shoulder-surfable surface.
   it("carries no counterparty, group or user identity", async () => {
     mockCardTradesRepo.liveAnnotationsForUser.mockResolvedValue([
-      { printingId: PRINTING_ID, role: "giver", phase: "traded", tradeCount: 1, quantity: 4 },
+      { printingId: PRINTING_ID, role: "giver", phase: "reserved", tradeCount: 1, quantity: 4 },
     ]);
     const res = await app.request("/api/v1/trades/live-by-printing");
     const json = await readJson(res);
     expect(json.annotations[0]).toEqual({
       printingId: PRINTING_ID,
       role: "giver",
-      phase: "traded",
+      phase: "reserved",
       tradeCount: 1,
       quantity: 4,
     });
@@ -353,27 +342,6 @@ describe("POST /api/v1/trades/:id/cancel", () => {
     const lintBody = await readJson(res);
     expect(lintBody.status).toBe("cancelled");
     expect(mockCancelTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
-  });
-});
-
-describe("POST /api/v1/trades/:id/complete", () => {
-  it("returns 200 with the updated trade", async () => {
-    mockCompleteTrade.mockResolvedValue({ ...tradeResponse, status: "completed" });
-    const res = await app.request(`/api/v1/trades/${TRADE_ID}/complete`, { method: "POST" });
-    expect(res.status).toBe(200);
-    const lintBody = await readJson(res);
-    expect(lintBody.status).toBe("completed");
-    expect(mockCompleteTrade).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
-  });
-
-  it("returns 409 when the service rejects completion", async () => {
-    mockCompleteTrade.mockRejectedValue(
-      new AppError(409, "CONFLICT", "Trade is not ready to complete"),
-    );
-    const res = await app.request(`/api/v1/trades/${TRADE_ID}/complete`, { method: "POST" });
-    expect(res.status).toBe(409);
-    const lintBody = await readJson(res);
-    expect(lintBody.message).toBe("Trade is not ready to complete");
   });
 });
 

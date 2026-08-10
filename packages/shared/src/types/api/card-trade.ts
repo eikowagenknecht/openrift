@@ -23,8 +23,14 @@ export type CardTradeInitiator = "giver" | "receiver";
 
 export type CardTradeStatus = (typeof CARD_TRADE_STATUSES)[number];
 
-/** The viewer's primary contextual action on a trade row, or `null` when none. */
-export type CardTradeActionNeeded = "accept-or-decline" | "cancel" | "complete" | "apply-sync";
+/**
+ * The viewer's primary contextual action on a trade row, or `null` when none.
+ * `settle` covers the viewer's own half of a reserved swap (hand over / receive),
+ * which also carries the optional collection change. There is no separate
+ * completion step: the second settle promotes the trade (ADR-019, amendment
+ * 2026-08-10).
+ */
+export type CardTradeActionNeeded = "accept-or-decline" | "cancel" | "settle";
 
 export type CardTradeCounterparty = z.infer<typeof cardTradeCounterpartySchema>;
 

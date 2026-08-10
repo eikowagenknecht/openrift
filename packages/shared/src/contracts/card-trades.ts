@@ -97,7 +97,7 @@ export const cardTradeResponseSchema = z
     expiresAt: z.string().nullable(),
     viewerSyncAppliedAt: z.string().nullable(),
     counterpartySyncAppliedAt: z.string().nullable(),
-    actionNeeded: z.enum(["accept-or-decline", "cancel", "complete", "apply-sync"]).nullable(),
+    actionNeeded: z.enum(["accept-or-decline", "cancel", "settle"]).nullable(),
   })
   .openapi("CardTradeResponse");
 
@@ -153,14 +153,20 @@ export const cardTradeCopyOptionsResponseSchema = z
  * How far along a live trade is, from the viewer's side. `initiator` splits
  * `pending` in two: a request the counterparty made is an `asked` bid, while a
  * request the viewer's own side made is an `offered` commitment (a giver-side
- * offer already consumes supply). `reserved` means accepted with copies pinned,
- * `traded` means physically swapped with the viewer's own sync still to apply.
+ * offer already consumes supply). `reserved` means accepted with copies pinned
+ * and the viewer's own side not yet settled.
  *
- * The same four slugs serve both roles. Role plus phase decide the wording,
+ * The ladder stops there. Once the viewer settles, the giver's copies are gone
+ * and the receiver's are ordinary owned copies, so there is nothing left to
+ * annotate; a marker for the other party's outstanding half would be noise on a
+ * card browser. This is why there is no `traded` phase (ADR-019, amendment
+ * 2026-08-10).
+ *
+ * The same three slugs serve both roles. Role plus phase decide the wording,
  * which lives in the client — nothing here is a display string.
  */
 export const cardTradeLivePhaseSchema = z
-  .enum(["asked", "offered", "reserved", "traded"])
+  .enum(["asked", "offered", "reserved"])
   .openapi("CardTradeLivePhase");
 
 /**
@@ -185,8 +191,8 @@ export const cardTradeLiveAnnotationSchema = z
 /**
  * Every live trade the viewer has, across all their groups, aggregated to one
  * row per (printing, role, phase). Terminal trades (declined, cancelled,
- * expired) are absent, and so is a completed trade whose own-side sync the
- * viewer already applied — there is nothing left to surface for either.
+ * expired, completed) are absent, and so is a `reserved` trade the viewer has
+ * already settled — there is nothing left to surface for either.
  */
 export const cardTradeLiveByPrintingResponseSchema = z
   .object({ annotations: z.array(cardTradeLiveAnnotationSchema) })
@@ -199,12 +205,8 @@ export const cardTradeActionCountsResponseSchema = z
       z.object({
         groupId: z.string(),
         groupSlug: z.string(),
-        /** `respondCount + syncCount`, the group's whole action-needed bucket. */
-        count: z.number().int().nonnegative(),
         /** Requests awaiting the viewer's accept or decline (`accept-or-decline`). */
-        respondCount: z.number().int().nonnegative(),
-        /** Completed trades whose own-side collection sync is unapplied (`apply-sync`). */
-        syncCount: z.number().int().nonnegative(),
+        count: z.number().int().nonnegative(),
       }),
     ),
   })
@@ -218,7 +220,7 @@ const TAG = "CardTrades";
  * base (UNAUTHORIZED + FORBIDDEN). Domain codes per route: `create` →
  * NOT_FOUND (group or counterparty) + BAD_REQUEST (self-trade or over-demand)
  * + CONFLICT (no match, insufficient supply, or duplicate live trade);
- * `accept`, `decline`, `cancel`, `complete`, `sync`, `skipSync` → NOT_FOUND
+ * `accept`, `decline`, `cancel`, `sync`, `skipSync` → NOT_FOUND
  * (trade) + CONFLICT (wrong state or already resolved); `setQuantity` → also
  * adds BAD_REQUEST (quantity below minimum); `copyOptions` → NOT_FOUND (trade)
  * + CONFLICT (not pending) + FORBIDDEN (viewer is not the giver). `accept` also
@@ -276,14 +278,6 @@ export const cardTradesContract = {
     .errors({
       NOT_FOUND: { message: "Trade not found" },
       CONFLICT: { message: "Trade cannot be cancelled" },
-    })
-    .output(cardTradeResponseSchema),
-  complete: authedRoute
-    .route({ method: "POST", path: "/api/v1/trades/{id}/complete", tags: [TAG] })
-    .input(idParamSchema)
-    .errors({
-      NOT_FOUND: { message: "Trade not found" },
-      CONFLICT: { message: "Trade is not reserved" },
     })
     .output(cardTradeResponseSchema),
   setQuantity: authedRoute

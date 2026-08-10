@@ -138,11 +138,17 @@ function deriveActionNeeded(
     // The non-initiator must accept/decline; the initiator can only cancel.
     return role === initiator ? "cancel" : "accept-or-decline";
   }
+  // One action covers both the physical claim and its data change: the viewer
+  // settles their own half ("handed over" / "got them"), and the second settle
+  // promotes the trade. A side that has already settled has nothing left to do
+  // and waits on the other party (ADR-019, amendment 2026-08-10).
   if (status === "reserved") {
-    return "complete";
+    return viewerSyncAppliedAt === null ? "settle" : null;
   }
+  // Only rows predating the amendment can be `completed` with a side still
+  // outstanding; the migration revived the rest. They keep their settle action.
   if (status === "completed") {
-    return viewerSyncAppliedAt === null ? "apply-sync" : null;
+    return viewerSyncAppliedAt === null ? "settle" : null;
   }
   return null;
 }
@@ -442,26 +448,42 @@ export function cardTradesRepo(db: Kysely<Database>) {
      * @returns Completed-trade feed rows.
      */
     /**
-     * Total cards ever traded in a group: the sum of `quantity` over its
-     * completed trades. Feeds the group hero's "N cards traded" stat —
-     * a lifetime count, unlike the bounded activity feed.
-     * @returns The summed quantity (0 for a group with no completed trades).
+     * Total cards ever traded in a group: the sum of `quantity` over its traded
+     * rows. Feeds the group hero's "N cards traded" stat — a lifetime count,
+     * unlike the bounded activity feed.
+     *
+     * A trade counts from the *first* settle, not from completion (ADR-019,
+     * amendment 2026-08-10). Waiting for both would permanently undercount every
+     * swap whose second side never confirms, and would read lower than the old
+     * model, where one unilateral "mark as traded" counted at once. Testing the
+     * two timestamps rather than the status covers both shapes in one predicate:
+     * a completed row always has both set, a half-settled one has exactly one,
+     * and a cancelled or expired row has neither.
+     * @returns The summed quantity (0 for a group with nothing traded).
      */
     async countCompletedCardsInGroup(groupId: string): Promise<number> {
       const row = await db
         .selectFrom("cardTrades")
         .select((eb) => eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"))
         .where("groupId", "=", groupId)
-        .where("status", "=", "completed")
+        .where((eb) =>
+          eb.or([
+            eb("giverSyncAppliedAt", "is not", null),
+            eb("receiverSyncAppliedAt", "is not", null),
+          ]),
+        )
         .executeTakeFirst();
       return row?.total ?? 0;
     },
 
     /**
      * Lifetime cards traded per member of a group: for each user, the sum of
-     * `quantity` over the group's completed trades they took part in, as giver
-     * or receiver. Feeds the members page's per-member traded counts. Members
-     * with no completed trades are absent from the map.
+     * `quantity` over the group's traded rows they took part in, as giver or
+     * receiver. Feeds the members page's per-member traded counts. Members with
+     * nothing traded are absent from the map.
+     *
+     * Counts from the first settle, on the same predicate and for the same
+     * reason as {@link countCompletedCardsInGroup}.
      * @returns userId → summed quantity.
      */
     async countCompletedCardsByMemberInGroup(groupId: string): Promise<Map<string, number>> {
@@ -473,7 +495,12 @@ export function cardTradesRepo(db: Kysely<Database>) {
             eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"),
           ])
           .where("groupId", "=", groupId)
-          .where("status", "=", "completed")
+          .where((eb) =>
+            eb.or([
+              eb("giverSyncAppliedAt", "is not", null),
+              eb("receiverSyncAppliedAt", "is not", null),
+            ]),
+          )
           .groupBy(side)
           .execute();
       const [given, received] = await Promise.all([
@@ -540,51 +567,42 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Per-group counts of trades needing the viewer's action, split by which
-     * action it is: a pending request awaiting their response, or a completed
-     * trade whose own-side sync they haven't applied. Mirrors the two
-     * `action-needed` cases in `deriveActionNeeded` (`cancel` / `complete` are
-     * deliberately excluded), so `count` is exactly the two split parts summed.
-     * @returns One entry per group with at least one such trade.
+     * Per-group count of trade requests awaiting the viewer's answer. Mirrors
+     * the single `accept-or-decline` case in `deriveActionNeeded`; `cancel` and
+     * `settle` are both deliberately excluded.
+     *
+     * `settle` is out because a badge that lights up the moment a trade is
+     * accepted nags before a meetup is even possible, and pressure to press the
+     * confirm button early is what produced premature completions in the first
+     * place (ADR-019, amendment 2026-08-10). An outstanding swap is still
+     * visible in the group's Trades tab under Action needed; it just doesn't
+     * chase the viewer from the groups list.
+     * @returns One entry per group with at least one such request.
      */
     async actionNeededCountsForUser(
       userId: string,
     ): Promise<CardTradeActionCountsResponse["byGroup"]> {
-      // The two predicates drive both the row filter and the per-type counts, so
-      // the split can never drift from the total the WHERE admits.
-      const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
-        (t.receiver_user_id = ${userId} and t.initiator = 'giver')
-        or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
-      ))`;
-      const awaitingSync = sql<boolean>`(t.status = 'completed' and (
-        (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
-        or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
-      ))`;
       const rows = await db
         .selectFrom("cardTrades as t")
         .innerJoin("friendGroups as g", "g.id", "t.groupId")
         .select(["t.groupId as groupId", "g.slug as groupSlug"])
-        .select([
-          sql<string>`count(*) filter (where ${awaitingResponse})`.as("respondCount"),
-          sql<string>`count(*) filter (where ${awaitingSync})`.as("syncCount"),
-        ])
+        .select((eb) => eb.fn.countAll<string>().as("count"))
         .where((eb) =>
           eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
         )
-        .where(sql<boolean>`(${awaitingResponse} or ${awaitingSync})`)
+        .where(
+          sql<boolean>`(t.status = 'pending' and (
+            (t.receiver_user_id = ${userId} and t.initiator = 'giver')
+            or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
+          ))`,
+        )
         .groupBy(["t.groupId", "g.slug"])
         .execute();
-      return rows.map((row) => {
-        const respondCount = Number(row.respondCount);
-        const syncCount = Number(row.syncCount);
-        return {
-          groupId: row.groupId,
-          groupSlug: row.groupSlug,
-          count: respondCount + syncCount,
-          respondCount,
-          syncCount,
-        };
-      });
+      return rows.map((row) => ({
+        groupId: row.groupId,
+        groupSlug: row.groupSlug,
+        count: Number(row.count),
+      }));
     },
 
     /**
@@ -617,19 +635,21 @@ export function cardTradesRepo(db: Kysely<Database>) {
             t.printing_id,
             t.quantity,
             (CASE WHEN t.giver_user_id = ${userId} THEN 'giver' ELSE 'receiver' END) AS role,
-            -- The WHERE below admits nothing but these four cases, so the ELSE
-            -- branch is the completed-and-unsynced one.
+            -- The WHERE below admits nothing but these three cases.
             (CASE
               WHEN t.status = 'pending' AND t.initiator = 'receiver' THEN 'asked'
               WHEN t.status = 'pending' AND t.initiator = 'giver' THEN 'offered'
-              WHEN t.status = 'reserved' THEN 'reserved'
-              ELSE 'traded'
+              ELSE 'reserved'
             END) AS phase
           FROM card_trades t
+          -- A side the viewer has already settled drops out: the giver's copies
+          -- are gone and the receiver's are ordinary owned copies, so there is
+          -- nothing left to annotate. That is why the phase ladder stops at
+          -- reserved (ADR-019, amendment 2026-08-10).
           WHERE (t.giver_user_id = ${userId} OR t.receiver_user_id = ${userId})
             AND (
-              t.status IN ('pending', 'reserved')
-              OR (t.status = 'completed' AND (
+              t.status = 'pending'
+              OR (t.status = 'reserved' AND (
                 (t.giver_user_id = ${userId} AND t.giver_sync_applied_at IS NULL)
                 OR (t.receiver_user_id = ${userId} AND t.receiver_sync_applied_at IS NULL)
               ))
@@ -965,10 +985,16 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * reserved → completed.
-     * @returns Rows affected (0 if no longer reserved).
+     * reserved → completed, but only once both sides have settled their own
+     * half. Completion is derived, never asserted by a party (ADR-019,
+     * amendment 2026-08-10), so this is the only writer of `completed`.
+     *
+     * Both sync guards are part of the WHERE, so the first settler's call
+     * matches zero rows and the second one promotes, in whichever order they
+     * arrive. `byUserId` therefore records who settled second.
+     * @returns Rows affected (0 while either side is still outstanding).
      */
-    async markCompleted(id: string, byUserId: string): Promise<number> {
+    async markCompletedWhenBothSettled(id: string, byUserId: string): Promise<number> {
       const result = await db
         .updateTable("cardTrades")
         .set({
@@ -979,6 +1005,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .where("id", "=", id)
         .where("status", "=", "reserved")
+        .where("giverSyncAppliedAt", "is not", null)
+        .where("receiverSyncAppliedAt", "is not", null)
         .executeTakeFirst();
       return Number(result.numUpdatedRows);
     },

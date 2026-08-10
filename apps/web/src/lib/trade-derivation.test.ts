@@ -66,20 +66,21 @@ describe("tradeSection", () => {
     );
   });
 
-  it("buckets an unresolved completed sync into action-needed", () => {
-    expect(tradeSection(stubTrade({ status: "completed", actionNeeded: "apply-sync" }))).toBe(
-      "action-needed",
-    );
-  });
-
   it("buckets the viewer's own pending request into active", () => {
     expect(tradeSection(stubTrade({ status: "pending", actionNeeded: "cancel" }))).toBe("active");
   });
 
-  it("buckets a reserved trade into active", () => {
-    expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: "complete" }))).toBe(
-      "active",
-    );
+  it("buckets an unsettled reserved trade into active, not action-needed", () => {
+    // Accepting is the last thing that demands an answer. Pushing an arranged
+    // swap into action-needed would nag before a meetup is even possible, which
+    // is the pressure that produced premature completions.
+    expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: "settle" }))).toBe("active");
+  });
+
+  it("keeps a reserved trade the viewer already settled in active", () => {
+    // Their half is done and the trade is waiting on the other party, so it is
+    // still in flight rather than history.
+    expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: null }))).toBe("active");
   });
 
   it("buckets a resolved completed trade into history", () => {
@@ -272,8 +273,8 @@ describe("bucketMemberTrades", () => {
   it("keeps only the given member's trades", () => {
     const buckets = bucketMemberTrades(
       [
-        forMember("alice", { id: "a1", status: "reserved", actionNeeded: "complete" }),
-        forMember("bob", { id: "b1", status: "reserved", actionNeeded: "complete" }),
+        forMember("alice", { id: "a1", status: "reserved", actionNeeded: "settle" }),
+        forMember("bob", { id: "b1", status: "reserved", actionNeeded: "settle" }),
       ],
       "alice",
     );
@@ -282,9 +283,11 @@ describe("bucketMemberTrades", () => {
 
   it("surfaces a reserved trade in the active bucket — the case the match overlay dropped", () => {
     // A reserved trade no longer appears as a match (its copies are reserved),
-    // so before this it vanished from the member page. It must land in `active`.
+    // so before this it vanished from the member page. It must land in a
+    // visible bucket, which is action-needed while the viewer's half is
+    // unsettled.
     const buckets = bucketMemberTrades(
-      [forMember("alice", { id: "r1", status: "reserved", actionNeeded: "complete" })],
+      [forMember("alice", { id: "r1", status: "reserved", actionNeeded: "settle" })],
       "alice",
     );
     expect(buckets.active.map((t) => t.id)).toEqual(["r1"]);
@@ -592,12 +595,12 @@ describe("groupTradeAnnotationsByPrinting", () => {
     const map = groupTradeAnnotationsByPrinting([
       annotation({ phase: "asked", tradeCount: 2 }),
       annotation({ phase: "reserved" }),
-      annotation({ phase: "traded" }),
+      annotation({ phase: "offered" }),
     ]);
     expect(map.get("printing-1")?.map((entry) => entry.phase)).toEqual([
       "asked",
       "reserved",
-      "traded",
+      "offered",
     ]);
   });
 
@@ -651,15 +654,14 @@ describe("collapseTradeAnnotations", () => {
     );
   });
 
-  it("picks traded over reserved, offered and asked", () => {
+  it("picks reserved over offered and asked, the top of the ladder", () => {
     expect(
       collapseTradeAnnotations([
         annotation({ phase: "asked" }),
         annotation({ phase: "offered" }),
         annotation({ phase: "reserved" }),
-        annotation({ phase: "traded" }),
       ])?.phase,
-    ).toBe("traded");
+    ).toBe("reserved");
   });
 
   it("picks reserved over offered and asked", () => {
@@ -713,11 +715,11 @@ describe("collapseTradeAnnotations", () => {
   it("collapses each printing of a grouped map independently", () => {
     const map = groupTradeAnnotationsByPrinting([
       annotation({ printingId: "printing-1", phase: "asked", tradeCount: 2, quantity: 2 }),
-      annotation({ printingId: "printing-1", phase: "traded", tradeCount: 1, quantity: 1 }),
+      annotation({ printingId: "printing-1", phase: "reserved", tradeCount: 1, quantity: 1 }),
       annotation({ printingId: "printing-2", role: "receiver", phase: "offered", quantity: 6 }),
     ]);
     expect(collapseTradeAnnotations(map.get("printing-1") ?? [])).toEqual(
-      annotation({ printingId: "printing-1", phase: "traded", tradeCount: 1, quantity: 1 }),
+      annotation({ printingId: "printing-1", phase: "reserved", tradeCount: 1, quantity: 1 }),
     );
     expect(collapseTradeAnnotations(map.get("printing-2") ?? [])).toEqual(
       annotation({ printingId: "printing-2", role: "receiver", phase: "offered", quantity: 6 }),
@@ -728,8 +730,8 @@ describe("collapseTradeAnnotations", () => {
 describe("dominantTradeBadge", () => {
   it("returns the badge every trade shares", () => {
     const trades = [
-      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
-      stubTrade({ id: "t2", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "settle" }),
+      stubTrade({ id: "t2", status: "reserved", actionNeeded: "settle" }),
     ];
 
     expect(dominantTradeBadge(trades)).toEqual({ status: "reserved", awaitingViewer: false });
@@ -737,8 +739,8 @@ describe("dominantTradeBadge", () => {
 
   it("returns the majority badge when a minority differs", () => {
     const trades = [
-      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
-      stubTrade({ id: "t2", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "settle" }),
+      stubTrade({ id: "t2", status: "reserved", actionNeeded: "settle" }),
       stubTrade({ id: "t3", status: "pending", actionNeeded: "cancel" }),
     ];
 
@@ -747,7 +749,7 @@ describe("dominantTradeBadge", () => {
 
   it("returns null on an even split, where neither half describes the group", () => {
     const trades = [
-      stubTrade({ id: "t1", status: "reserved", actionNeeded: "complete" }),
+      stubTrade({ id: "t1", status: "reserved", actionNeeded: "settle" }),
       stubTrade({ id: "t2", status: "pending", actionNeeded: "cancel" }),
     ];
 

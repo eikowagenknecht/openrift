@@ -103,14 +103,6 @@ describe("ListActionsCell trade status", () => {
     expect(screen.getByText("Reserved")).toBeInTheDocument();
   });
 
-  // The gap the boolean left: `reserved` stays true until the giver applies
-  // their sync, so a copy that already physically left used to read "Reserved".
-  it("says Traded, not Reserved, once the cards have changed hands", () => {
-    renderCell(copyRow, [annotation({ phase: "traded" })]);
-    expect(screen.getByText("Traded")).toBeInTheDocument();
-    expect(screen.queryByText("Reserved")).not.toBeInTheDocument();
-  });
-
   // Wish lists are card- or printing-kind and carry no `reserved` flag, so they
   // could never show a trade status at all before.
   it("gives a card-kind wish row the incoming status of any printing of the card", () => {

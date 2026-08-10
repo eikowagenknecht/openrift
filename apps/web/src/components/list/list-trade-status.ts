@@ -21,7 +21,7 @@ import { collapseTradeAnnotations, groupTradeAnnotationsByPrinting } from "@/lib
  * @returns Whether the phase pins named copies.
  */
 function isPinnedPhase(phase: CardTradeLivePhase): boolean {
-  return phase === "reserved" || phase === "traded";
+  return phase === "reserved";
 }
 
 /** The viewer's live-trade annotations, indexed for both list-entry shapes. */

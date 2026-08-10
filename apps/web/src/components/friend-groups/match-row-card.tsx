@@ -23,6 +23,7 @@ import { useCreateTrade, useDeclineTrade, useUserTrades } from "@/hooks/use-card
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
+import { useMouseHover } from "@/hooks/use-mouse-hover";
 import { usePrices } from "@/hooks/use-prices";
 import type { CatalogPosition } from "@/lib/catalog-position";
 import { compareCatalogPosition, setIndexById, UNKNOWN_SET_INDEX } from "@/lib/catalog-position";
@@ -321,11 +322,13 @@ function MatchRow({
   liveTrade?: CardTradeResponse;
 }) {
   const incoming = match.direction === "incoming";
-  // Large card preview beside the row on hover (mouse only), anchored to the row
-  // so it floats out to whichever side has room — the same interaction as the
-  // deck builder's list. Touch has no hover, so nothing changes there.
+  // Large card preview beside the row on hover, anchored to the row so it floats
+  // out to whichever side has room — the same interaction as the deck builder's
+  // list. Mouse-only via useMouseHover: iOS Safari synthesizes hover on a tap,
+  // which otherwise opened this 400px portal over most of the phone screen with
+  // nothing to dismiss it.
   const rowRef = useRef<HTMLDivElement>(null);
-  const [previewing, setPreviewing] = useState(false);
+  const { hovering: previewing, hoverProps } = useMouseHover();
   // sellPref is always the seller's side, buyPref the buyer's. When the card
   // comes to you the counterparty is the seller (sellPref = their ask); when it
   // goes to them they're the buyer (buyPref = their offer).
@@ -345,8 +348,7 @@ function MatchRow({
     // below. From sm up both groups dissolve (sm:contents) back into one row.
     <div
       ref={rowRef}
-      onMouseEnter={() => setPreviewing(true)}
-      onMouseLeave={() => setPreviewing(false)}
+      {...hoverProps}
       className="group hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
     >
       {/* Identity: on phones its own top row (arrow + art + name/meta); from sm

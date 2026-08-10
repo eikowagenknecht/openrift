@@ -8,7 +8,6 @@ import {
   acceptTrade,
   autoCancelUnfillablePendingTrades,
   cancelTrade,
-  completeTrade,
   createTrade,
   declineTrade,
   listTradeCopyOptions,
@@ -379,12 +378,11 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await acceptTrade(transact, trade.id, GIVER_ID);
     expect(await availableForReceiver(second.group.id)).toBe(0);
 
-    // Completed with the receiver's sync unapplied still nets: the card is in
-    // hand, just not recorded yet.
-    await completeTrade(transact, trade.id, RECEIVER_ID);
+    // Reserved with the receiver's side unsettled still nets: the card is
+    // promised, just not in hand yet.
     expect(await availableForReceiver(second.group.id)).toBe(0);
 
-    // Applying the receiver sync ends the promise window. The second group's
+    // Settling the receiver's side ends the promise window. The second group's
     // own manual wish entry still says 1 (manual lists don't self-clean), so
     // its suggestion legitimately returns; dynamic netOwned wishes recompute
     // from the newly owned copy instead and stay hidden.
@@ -533,7 +531,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group } = await setupMatch(2);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, RECEIVER_ID);
     const receiverCopiesBefore = await countReceiverCopiesOfP1();
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
     // A second apply (double-click / retry) is rejected by the guarded UPDATE.
@@ -544,11 +541,27 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect((await countReceiverCopiesOfP1()) - receiverCopiesBefore).toBe(1);
   });
 
-  it("a completed trade can no longer be cancelled (transition guard)", async () => {
+  it("a trade one side has settled can no longer be cancelled", async () => {
+    // The giver's settle hard-deletes the copies, so a later cancel could not
+    // put them back and would only record a lie (ADR-019, amendment
+    // 2026-08-10). The trade stays reserved until the receiver settles too.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, GIVER_ID);
+    await applyTradeSync(transact, trade.id, GIVER_ID);
+    await expect(cancelTrade(transact, trade.id, RECEIVER_ID)).rejects.toMatchObject({
+      status: 409,
+    });
+    const row = await repos.cardTrades.getById(trade.id);
+    expect(row?.status).toBe("reserved");
+  });
+
+  it("a fully settled trade can no longer be cancelled either", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    await applyTradeSync(transact, trade.id, GIVER_ID);
+    await applyTradeSync(transact, trade.id, RECEIVER_ID);
     await expect(cancelTrade(transact, trade.id, RECEIVER_ID)).rejects.toMatchObject({
       status: 409,
     });
@@ -649,12 +662,30 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(cancelled.status).toBe("cancelled");
   });
 
-  it("either party can mark a reserved trade traded", async () => {
+  it("one side settling leaves the trade reserved; the second one completes it", async () => {
+    // Nobody asserts completion. It is derived from both halves being settled,
+    // which is what makes a premature "trade done" inexpressible.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    const completed = await completeTrade(transact, trade.id, RECEIVER_ID);
-    expect(completed.status).toBe("completed");
+
+    const afterFirst = await applyTradeSync(transact, trade.id, RECEIVER_ID);
+    expect(afterFirst.status).toBe("reserved");
+
+    const afterSecond = await applyTradeSync(transact, trade.id, GIVER_ID);
+    expect(afterSecond.status).toBe("completed");
+    expect(afterSecond.completedAt).not.toBeNull();
+  });
+
+  it("a skip settles a side too, so skip then apply completes the trade", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+
+    const afterSkip = await skipTradeSync(transact, trade.id, GIVER_ID);
+    expect(afterSkip.status).toBe("reserved");
+    const afterApply = await applyTradeSync(transact, trade.id, RECEIVER_ID);
+    expect(afterApply.status).toBe("completed");
   });
 
   it("countCompletedCardsInGroup sums only completed trades' quantities", async () => {
@@ -662,10 +693,15 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(0);
     const trade = await request(group, 2);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    // Reserved (accepted but not yet handed over) doesn't count toward the
-    // lifetime stat — only physically completed trades do.
+    // Reserved with neither side settled doesn't count toward the lifetime
+    // stat: nothing has physically moved yet.
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(0);
-    await completeTrade(transact, trade.id, RECEIVER_ID);
+    // The first settle counts it. Waiting for both would permanently undercount
+    // every swap whose second side never confirms.
+    await applyTradeSync(transact, trade.id, RECEIVER_ID);
+    expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
+    // The second settle doesn't double it.
+    await applyTradeSync(transact, trade.id, GIVER_ID);
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
   });
 
@@ -674,9 +710,9 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
     const trade = await request(group, 2);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    // Reserved trades don't count — same rule as the group-wide stat.
+    // Unsettled reserved trades don't count — same rule as the group-wide stat.
     expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
-    await completeTrade(transact, trade.id, RECEIVER_ID);
+    await applyTradeSync(transact, trade.id, RECEIVER_ID);
     expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(
       new Map([
         [GIVER_ID, 2],
@@ -685,11 +721,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     );
   });
 
-  it("complete → giver Apply disposes copies (removed event + tradelist entry gone)", async () => {
+  it("giver settle disposes copies (removed event + tradelist entry gone)", async () => {
     const { group, tradeListId, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, GIVER_ID);
     await applyTradeSync(transact, trade.id, GIVER_ID);
 
     const survivingCopy = await db
@@ -723,7 +758,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, wishEntryId } = await setupMatch(2);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, RECEIVER_ID);
     const receiverCopiesBefore = await countReceiverCopiesOfP1();
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
     const receiverCopiesAfter = await countReceiverCopiesOfP1();
@@ -750,7 +784,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, GIVER_ID);
     await skipTradeSync(transact, trade.id, GIVER_ID);
 
     const stillThere = await db
@@ -786,10 +819,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       moveCopies(repos, transact, GIVER_ID, [copyIds[0]], otherCollection.id),
     ).resolves.toBeUndefined();
 
-    // Sync (which releases first) disposes successfully.
-    await completeTrade(transact, trade.id, GIVER_ID);
+    // Settling (which releases the pin first) disposes successfully. The trade
+    // stays reserved: the receiver has not settled their half yet.
     await expect(applyTradeSync(transact, trade.id, GIVER_ID)).resolves.toMatchObject({
-      status: "completed",
+      status: "reserved",
     });
   });
 
@@ -834,23 +867,18 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], home);
   });
 
-  it("disposeCopies points a completed trade's leftover pin at the sync, not at cancelling", async () => {
+  it("disposeCopies points a live pin at cancelling the trade", async () => {
     const { group, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    // Completing does not release the pins; only the giver's sync does. Until
-    // then the trade cannot be cancelled either, so "cancel it" would be a
-    // remedy the user cannot carry out.
-    await completeTrade(transact, trade.id, GIVER_ID);
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
 
     await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
       status: 409,
-      message:
-        "This card is still reserved by a completed trade. Resolve or skip that trade's sync to free it.",
+      message: "This card is reserved in an active trade — cancel the trade to free it.",
     });
 
-    // Resolving the giver's side releases the pin, and the copy is disposable.
+    // Settling the giver's side releases the pin, and the copy is disposable.
     await skipTradeSync(transact, trade.id, GIVER_ID);
     await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).resolves.toBeUndefined();
   });
@@ -906,72 +934,55 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
 
-    // The giver is the non-initiator: they must accept or decline, so it counts
-    // — and it counts as a response owed, not a collection sync.
+    // The giver is the non-initiator: they must accept or decline, so it counts.
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
-      count: 1,
-      respondCount: 1,
-      syncCount: 0,
-    });
+    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({ count: 1 });
 
     // The receiver initiated, so their only action is "cancel" — not counted.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
     expect(receiverCounts.find((entry) => entry.groupId === group.id)).toBeUndefined();
 
-    // Accepting makes it reserved (giver's action becomes "complete") — no longer counted.
+    // Accepting makes it reserved, where the action becomes "settle" — not
+    // counted for either side.
     await acceptTrade(transact, trade.id, GIVER_ID);
     const giverAfterAccept = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
     expect(giverAfterAccept.find((entry) => entry.groupId === group.id)).toBeUndefined();
   });
 
-  it("action-needed counts a completed trade for whichever side hasn't applied sync", async () => {
+  it("action-needed ignores an unsettled reservation on both sides", async () => {
+    // The badge is requests awaiting an answer and nothing else. Lighting it up
+    // the moment a trade is accepted would nag before a meetup is even
+    // possible, which is the pressure that produced premature completions
+    // (ADR-019, amendment 2026-08-10). The swap stays visible in the group's
+    // Trades tab under Active.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    await completeTrade(transact, trade.id, GIVER_ID);
     const inGroup = (counts: { groupId: string; count: number }[]) =>
       counts.find((entry) => entry.groupId === group.id);
 
-    // Completion leaves both sides owing their own collection sync (apply-sync),
-    // which lands in the sync half of the split rather than the response half.
-    const giverCompleted = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    const receiverCompleted = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
-    expect(inGroup(giverCompleted)).toMatchObject({ count: 1, respondCount: 0, syncCount: 1 });
-    expect(inGroup(receiverCompleted)).toMatchObject({ count: 1, respondCount: 0, syncCount: 1 });
+    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(GIVER_ID))).toBeUndefined();
+    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID))).toBeUndefined();
 
-    // After the giver applies their sync, only the receiver still owes one.
     await applyTradeSync(transact, trade.id, GIVER_ID);
-    const giverSynced = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    const receiverSynced = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
-    expect(inGroup(giverSynced)).toBeUndefined();
-    expect(inGroup(receiverSynced)?.count).toBe(1);
+    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(GIVER_ID))).toBeUndefined();
+    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID))).toBeUndefined();
   });
 
-  it("action-needed splits a group holding both kinds of action", async () => {
+  it("action-needed counts only the requests, alongside an unsettled reservation", async () => {
     const { group } = await setupMatch(2);
-    // One trade taken all the way to completed: neither side has filed it, so
-    // both owe a collection sync.
-    const settled = await request(group, 1);
-    await acceptTrade(transact, settled.id, GIVER_ID);
-    await completeTrade(transact, settled.id, GIVER_ID);
+    // One accepted trade, which contributes nothing to the badge.
+    const reserved = await request(group, 1);
+    await acceptTrade(transact, reserved.id, GIVER_ID);
     // A second request on top, which only the giver has to answer.
     await request(group, 1);
 
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
-      count: 2,
-      respondCount: 1,
-      syncCount: 1,
-    });
+    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({ count: 1 });
 
-    // The receiver initiated the pending one, so only their unfiled trade counts.
+    // The receiver initiated the pending one, so nothing is waiting on them.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
-    expect(receiverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
-      count: 1,
-      respondCount: 0,
-      syncCount: 1,
-    });
+    expect(receiverCounts.find((entry) => entry.groupId === group.id)).toBeUndefined();
   });
 
   // ── Pending offers consume supply ────────────────────────────────────────
@@ -1367,25 +1378,22 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(askedBefore.tradeCount - askedAfter.tradeCount).toBe(1);
   });
 
-  it("reports a completed trade as traded until each side resolves its own sync", async () => {
+  it("drops a settled side's reserved annotation and leaves the other side's", async () => {
+    // There is no rung above reserved: once a side settles, the giver's copies
+    // are gone and the receiver's are ordinary owned copies, so there is nothing
+    // left to annotate (ADR-019, amendment 2026-08-10).
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
 
-    const giverTraded = await bucketDelta(GIVER_ID, "giver", "traded", () =>
-      completeTrade(transact, trade.id, GIVER_ID),
-    );
-    expect(giverTraded).toEqual({ tradeCount: 1, quantity: 1 });
-    const receiverTraded = await bucket(RECEIVER_ID, "receiver", "traded");
-    expect(receiverTraded.tradeCount).toBeGreaterThanOrEqual(1);
+    const receiverReserved = await bucket(RECEIVER_ID, "receiver", "reserved");
+    expect(receiverReserved.tradeCount).toBeGreaterThanOrEqual(1);
 
-    // Resolving the giver's side drops their annotation; the receiver still owes
-    // theirs, so their bucket is untouched.
-    const afterSkip = await bucketDelta(GIVER_ID, "giver", "traded", () =>
+    const afterSkip = await bucketDelta(GIVER_ID, "giver", "reserved", () =>
       skipTradeSync(transact, trade.id, GIVER_ID),
     );
     expect(afterSkip).toEqual({ tradeCount: -1, quantity: -1 });
-    expect(await bucket(RECEIVER_ID, "receiver", "traded")).toEqual(receiverTraded);
+    expect(await bucket(RECEIVER_ID, "receiver", "reserved")).toEqual(receiverReserved);
   });
 
   it("drops a declined trade from every bucket", async () => {
