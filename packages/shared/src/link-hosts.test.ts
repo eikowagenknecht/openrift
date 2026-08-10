@@ -11,6 +11,7 @@ describe("resolveLinkHost", () => {
     expect(resolveLinkHost("https://youtu.be/abc123")?.kind).toBe("video");
     expect(resolveLinkHost("https://riftmana.com/deck/1")?.label).toBe("RiftMana");
     expect(resolveLinkHost("https://topdeck.gg/event/1")?.label).toBe("TopDeck.gg");
+    expect(resolveLinkHost("https://metafy.gg/@coach")?.label).toBe("Metafy");
     expect(resolveLinkHost("https://discord.gg/abc")?.label).toBe("Discord");
     expect(resolveLinkHost("https://x.com/someone/status/1")?.label).toBe("X");
   });

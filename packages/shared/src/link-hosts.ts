@@ -24,6 +24,7 @@ const LINK_HOSTS: ReadonlyMap<string, LinkHost> = new Map([
   ["riftmana.com", { label: "RiftMana", kind: "site" }],
   ["piltoverarchive.com", { label: "Piltover Archive", kind: "site" }],
   ["topdeck.gg", { label: "TopDeck.gg", kind: "site" }],
+  ["metafy.gg", { label: "Metafy", kind: "site" }],
   ["x.com", { label: "X", kind: "site" }],
   ["discord.gg", { label: "Discord", kind: "site" }],
 ]);
