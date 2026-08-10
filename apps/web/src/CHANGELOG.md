@@ -17,6 +17,7 @@
 
 ### Other
 
+- feat(Trades): **Action needed reads as a list of people** — a member with several waiting trades now starts folded, so you see who is waiting and on how much before opening anything, and can accept the lot from the header.
 - feat(Decks): **Display options in one menu** — the deck toolbar's icon toggles (every copy, owned highlights, prices, your printings) now sit behind one options button, with labels.
 - feat(Decks): **Imports remember where the deck came from** — sending a deck over with the browser extension now offers the page it came from as a deck link, ready to save or drop on the review step.
 - feat(Trades): **Say which copy you handed over** — confirming your half of a swap now offers a "Choose which copies…" option, so the copy that leaves your collection is the one that actually changed hands, from any of your collections.
@@ -29,6 +30,7 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Trades): **One clear button when confirming a swap** — the button now spells out the whole action ("Got them, add to Inbox"), and the rarer variants that leave your collection alone moved into the menu beside it.
 - fix(Trades): **Cards already promised to someone else** — a card whose copies are all tied up in an open offer to another member no longer shows as a possible trade, so requesting it can no longer fail as unavailable.
 - fix(Cards): **Page jump when opening a card** — the page scrolled to the top when card details opened and back again when they closed, on every surface.
 - fix(Trades): **Card preview on phones** — tapping a possible-trade row popped a large card preview over most of the screen with no way to close it, so the preview is now mouse-only.

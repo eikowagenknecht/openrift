@@ -127,7 +127,8 @@ function SettleOverflowMenu({ disabled, children }: { disabled: boolean; childre
  * The receiver's side of a reserved trade: one press files the copies into the
  * remembered target (the inbox until the viewer picks otherwise), with an
  * overflow menu to send them somewhere else. Picking somewhere else is
- * remembered, so the button then reads "Add to <that collection>" everywhere.
+ * remembered, so the button then reads "Got them, add to <that collection>"
+ * everywhere.
  *
  * Mounted only for the rows that can actually add, since it is what pulls the
  * viewer's collections in to label itself.
@@ -137,11 +138,14 @@ function AddIncomingTradeButtons({
   trade,
   cardName,
   cancelItem,
+  onSkip,
 }: {
   trade: CardTradeResponse;
   cardName: string;
   /** The row's "Cancel trade" item, or null once the trade is past cancelling. */
   cancelItem: ReactNode;
+  /** Settles this half without touching the collection. */
+  onSkip: () => void;
 }) {
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
@@ -159,13 +163,17 @@ function AddIncomingTradeButtons({
     <>
       {/* A collection name can be any length, so the label truncates rather
           than pushing the row wider than the card. */}
-      <Button size="sm" className="max-w-44 min-w-0" disabled={acting} onClick={addToTarget}>
-        <span className="truncate">Add to {target.label}</span>
+      <Button size="sm" className="max-w-56 min-w-0" disabled={acting} onClick={addToTarget}>
+        <span className="truncate">Got them, add to {target.label}</span>
       </Button>
       <SettleOverflowMenu disabled={acting}>
         <DropdownMenuItem onClick={() => setPickerOpen(true)}>
           <FolderPlusIcon className="size-4" />
           Add to another collection…
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onSkip}>
+          <CheckIcon className="size-4" />
+          Got them, don&apos;t add
         </DropdownMenuItem>
         {cancelItem}
       </SettleOverflowMenu>
@@ -198,11 +206,14 @@ function RemoveOutgoingTradeButtons({
   trade,
   cardName,
   cancelItem,
+  onSkip,
 }: {
   trade: CardTradeResponse;
   cardName: string;
   /** The row's "Cancel trade" item, or null once the trade is past cancelling. */
   cancelItem: ReactNode;
+  /** Settles this half without touching the collection. */
+  onSkip: () => void;
 }) {
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
@@ -236,6 +247,10 @@ function RemoveOutgoingTradeButtons({
         >
           <LayersIcon className="size-4" />
           Choose which copies…
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onSkip}>
+          <CheckIcon className="size-4" />
+          Handed over, keep mine
         </DropdownMenuItem>
         {cancelItem}
       </SettleOverflowMenu>
@@ -388,32 +403,25 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
             // second of those completes the trade (ADR-019, amendment
             // 2026-08-10). The skip variant settles the same half without
             // touching the collection, for someone whose data is already right.
-            // Both sides carry one overflow menu, which is also where the
-            // cancel item goes; the side components own it so the row never
-            // renders two triggers into the same corner.
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={acting}
-                onClick={() => run(skipSync, actionArgs)}
-              >
-                {incoming ? "Got them, don't add" : "Handed over, keep mine"}
-              </Button>
-              {incoming ? (
-                <AddIncomingTradeButtons
-                  trade={trade}
-                  cardName={cardName}
-                  cancelItem={cancelItem}
-                />
-              ) : (
-                <RemoveOutgoingTradeButtons
-                  trade={trade}
-                  cardName={cardName}
-                  cancelItem={cancelItem}
-                />
-              )}
-            </>
+            // It is the rarer choice, so it joins the cancel item in the side's
+            // single overflow menu and the primary button carries the whole
+            // sentence instead. The side components own that menu, so the row
+            // never renders two triggers into the same corner.
+            incoming ? (
+              <AddIncomingTradeButtons
+                trade={trade}
+                cardName={cardName}
+                cancelItem={cancelItem}
+                onSkip={() => run(skipSync, actionArgs)}
+              />
+            ) : (
+              <RemoveOutgoingTradeButtons
+                trade={trade}
+                cardName={cardName}
+                cancelItem={cancelItem}
+                onSkip={() => run(skipSync, actionArgs)}
+              />
+            )
           ) : null}
         </div>
       </div>
@@ -620,9 +628,16 @@ function CardmarketExportButton({
 function CounterpartyTradeGroup({
   group,
   bulk,
+  defaultOpen = true,
 }: {
   group: TradeCounterpartyGroup;
   bulk: BulkMode;
+  /**
+   * Whether the block starts expanded. Action needed folds its blocks so a pile
+   * of requests across several members reads as an index; everywhere else the
+   * rows are the point of the section.
+   */
+  defaultOpen?: boolean;
 }) {
   const { counterparty } = group;
   const prices = usePrices();
@@ -643,7 +658,7 @@ function CounterpartyTradeGroup({
   const shared = dominantTradeBadge(trades);
 
   return (
-    <Collapsible defaultOpen>
+    <Collapsible defaultOpen={defaultOpen}>
       <div className="flex items-center gap-2">
         <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
           <UserAvatar
@@ -701,11 +716,22 @@ function CounterpartyGroupedBucket({
   icon,
   trades,
   bulk,
+  foldGroups,
 }: {
   heading: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   trades: CardTradeResponse[];
   bulk: BulkMode;
+  /**
+   * Starts the multi-trade counterparty blocks collapsed. Set on Action needed,
+   * where the headers alone answer who is waiting and on how much, and the bulk
+   * buttons live on the header row so a pile needs no expanding to act on.
+   *
+   * A block holding one trade stays open regardless: folding a single row saves
+   * no space, and `BulkTradeActions` renders nothing below two, so the header
+   * would carry no action at all.
+   */
+  foldGroups?: boolean;
 }) {
   if (trades.length === 0) {
     return null;
@@ -718,7 +744,12 @@ function CounterpartyGroupedBucket({
       </SectionHeading>
       <div className="flex flex-col gap-2">
         {groups.map((group) => (
-          <CounterpartyTradeGroup key={group.counterparty.userId} group={group} bulk={bulk} />
+          <CounterpartyTradeGroup
+            key={group.counterparty.userId}
+            group={group}
+            bulk={bulk}
+            defaultOpen={foldGroups !== true || group.trades.length < 2}
+          />
         ))}
       </div>
     </section>
@@ -796,6 +827,7 @@ export function MemberTradesSection({
         icon={BellIcon}
         trades={actionNeeded}
         bulk="accept-decline"
+        foldGroups
       />
       <CounterpartyGroupedBucket
         heading="In progress"
@@ -860,6 +892,7 @@ export function TradesSection({ groupId, suggestions, memberLists }: TradesSecti
         icon={BellIcon}
         trades={actionNeeded}
         bulk="accept-decline"
+        foldGroups
       />
       <CounterpartyGroupedBucket
         heading="In progress"
