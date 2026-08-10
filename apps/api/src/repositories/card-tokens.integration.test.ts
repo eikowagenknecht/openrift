@@ -19,16 +19,17 @@ let summonerId: string;
 let plainId: string;
 let spritePrintingId: string;
 
-/** @returns The inserted card's id. */
+/**
+ * Inserts a card. The card-type junction is left to migration 193's trigger,
+ * which seeds it from `cards.type` at commit; writing the row here as well
+ * collides on `card_card_types_pkey`.
+ * @returns The inserted card's id.
+ */
 async function seedCard(name: string, type: string, normName: string): Promise<string> {
   const [card] = await ctx!.db
     .insertInto("cards")
     .values({ name, slug: normName, type, normName, keywords: [], tags: [] })
     .returning("id")
-    .execute();
-  await ctx!.db
-    .insertInto("cardCardTypes")
-    .values({ cardId: card.id, typeSlug: type, position: 0 })
     .execute();
   return card.id;
 }
