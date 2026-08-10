@@ -1674,9 +1674,8 @@ function TabStrip({
   /** Right-aligned controls sharing the row (view toggles on the Deck tab). */
   trailing?: React.ReactNode;
   /**
-   * Phone replacement for {@link trailing}: a cluster narrow enough to share
-   * the tab row. Supplied, it renders instead of `trailing` on phones and the
-   * second row disappears; omitted, `trailing` keeps its own row below.
+   * Phone replacement for {@link trailing}, for a cluster too wide to share
+   * the tab row at that size. Omitted, `trailing` runs on every viewport.
    */
   trailingMobile?: React.ReactNode;
 }) {
@@ -1688,19 +1687,17 @@ function TabStrip({
         ? "border-primary text-foreground"
         : "text-muted-foreground hover:text-foreground border-transparent",
     );
-  // Phones share the row when the caller hands over a compact cluster, and
-  // otherwise put the trailing controls on their own row below the tabs —
-  // sharing the row with the full cluster makes the strip wider than the
-  // screen. The Plan tab has no compact form (its save / clear actions are
-  // labelled buttons), so it keeps the second row. Whichever branch runs, each
-  // node renders once (the Plan tab's trailing is a portal target, so it must
-  // never duplicate).
-  const inlineTrailing = isMobile ? trailingMobile : trailing;
-  const belowTrailing = isMobile && !trailingMobile ? trailing : null;
+  // Everything the tabs carry shares their row, on every viewport. Only the
+  // Deck tab's cluster is too wide for a phone, and it hands over a compact
+  // stand-in rather than claiming a second row; the Plan tab's save / clear
+  // actions already shed their labels below `sm` and fit as they are. Exactly
+  // one of the two renders (the Plan tab's trailing is a portal target, so it
+  // must never duplicate).
+  const inlineTrailing = isMobile ? (trailingMobile ?? trailing) : trailing;
   // Same vocabulary as the share page's section nav — the two surfaces must not
   // name the same things differently. The charts have no tab of their own: they
   // sit inside the Deck tab, above the grid their bars filter.
-  const strip = (
+  return (
     // items-end keeps the tab underlines glued to the rule; the fixed height
     // reserves the trailing controls' room on every tab, so switching from
     // Deck (which has them) to Test/Plan doesn't shift the layout.
@@ -1736,16 +1733,6 @@ function TabStrip({
       )}
     </div>
   );
-
-  if (belowTrailing) {
-    return (
-      <div className="flex flex-col gap-2">
-        {strip}
-        <div className="flex items-center justify-end gap-2">{belowTrailing}</div>
-      </div>
-    );
-  }
-  return strip;
 }
 
 /**

@@ -12,7 +12,7 @@
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, and corners and edges now match the card browser.
 - fix(Cards): **Steadier card details** — the window no longer opens oversized before snapping down, and stepping between printings keeps the price chart's place instead of collapsing the layout for a moment.
-- fix(Decks): **Deck view controls on phones** — the row of view buttons ran off the screen edge, and now keeps the grid, stacks, and list switch beside the tabs with the rest in an options sheet, each option spelled out.
+- fix(Decks): **Deck tab bar on phones** — the row of view buttons ran off the screen edge, so the tabs now carry the grid, stacks, and list switch plus an options sheet, with the plan's save and clear buttons on that same row.
 - fix(Decks): **Missing card images** — a card whose printing has no image now shows a named placeholder instead of disappearing from the deck.
 
 ## 2026-08-07
