@@ -10,7 +10,6 @@ import type {
   PriceLookup,
 } from "@openrift/shared";
 import {
-  EUR_MARKETPLACES,
   WellKnown,
   copyLimitFor,
   formatHasSideboard,
@@ -22,20 +21,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
-  CircleCheckIcon,
   GalleryVerticalEndIcon,
   ImageOffIcon,
   InfoIcon,
-  LayersIcon,
   LayoutGridIcon,
   ListIcon,
-  DollarSignIcon,
-  EuroIcon,
   MinusIcon,
   PencilIcon,
   PinIcon,
   PlusIcon,
-  WalletCardsIcon,
+  SlidersHorizontalIcon,
   XIcon,
 } from "lucide-react";
 import { createContext, Suspense, useEffect, useState } from "react";
@@ -66,7 +61,11 @@ import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-ch
 import { LensBar } from "@/components/deck/stats/lens-bar";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ColumnControls } from "@/components/filters/column-controls";
-import { DetailPaneToggle, MobileOptionsDrawer } from "@/components/filters/options-bar";
+import {
+  activeToggleClass,
+  DetailPaneToggle,
+  MobileOptionsDrawer,
+} from "@/components/filters/options-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
@@ -604,8 +603,6 @@ export function DeckOverview({
   // The price map is only needed to price owned printings (non-suspending, same
   // reasoning as the list column); display printings are priced by ownership.
   const showPrices = hydrated && storedShowPrices;
-  // The toggle's icon speaks the marketplace's currency.
-  const PriceToggleIcon = EUR_MARKETPLACES.has(marketplace) ? EuroIcon : DollarSignIcon;
   const { data: priceMap } = useQuery(pricesQueryOptions);
   const priceTextByCardKey =
     showPrices && displayMode !== "list" && ownershipData !== undefined
@@ -1081,19 +1078,35 @@ export function DeckOverview({
       aria-label="Deck view"
     >
       <Tooltip>
-        <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
+        <TooltipTrigger
+          render={
+            <ToggleGroupItem value="grid" className={activeToggleClass} aria-label="Grid view" />
+          }
+        >
           <LayoutGridIcon className="size-4" />
         </TooltipTrigger>
         <TooltipContent>Grid view</TooltipContent>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<ToggleGroupItem value="stacks" aria-label="Stacks view" />}>
+        <TooltipTrigger
+          render={
+            <ToggleGroupItem
+              value="stacks"
+              className={activeToggleClass}
+              aria-label="Stacks view"
+            />
+          }
+        >
           <GalleryVerticalEndIcon className="size-4" />
         </TooltipTrigger>
         <TooltipContent>Stacks view</TooltipContent>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
+        <TooltipTrigger
+          render={
+            <ToggleGroupItem value="list" className={activeToggleClass} aria-label="List view" />
+          }
+        >
           <ListIcon className="size-4" />
         </TooltipTrigger>
         <TooltipContent>List view</TooltipContent>
@@ -1101,13 +1114,106 @@ export function DeckOverview({
     </ToggleGroup>
   );
 
-  // View controls (columns, list sort, grid/list toggle) — rendered on the
-  // right side of the tab strip / section nav row, deck view only. Desktop
-  // only: the full cluster runs about 520px wide, wider than a phone screen,
-  // so phones get `mobileViewControls` below instead.
+  // List mode has no thumbnails, so every option that dresses one drops out.
+  const hasThumbnails = displayMode !== "list";
+
+  // Every labelled display switch, in one list so the desktop popover and the
+  // phone drawer offer the same options in the same order. `modified` drives
+  // the dot on the popover trigger: bands default to on, the rest to off.
+  const optionSwitches: DeckOptionSwitch[] = [
+    ...(hasThumbnails
+      ? [
+          {
+            key: "copies",
+            label: "Show every copy",
+            description: "One thumbnail per physical copy instead of a ×N badge.",
+            checked: showAllCopies,
+            modified: showAllCopies,
+            onCheckedChange: setShowAllCopies,
+          },
+        ]
+      : []),
+    ...(hasThumbnails && canPreferOwned
+      ? [
+          {
+            key: "bands",
+            label: "Highlight owned copies",
+            description: "Green: this printing. Blue: another printing.",
+            checked: showBands,
+            modified: !showBands,
+            onCheckedChange: setShowOwnershipBands,
+          },
+        ]
+      : []),
+    ...(hasThumbnails && ownershipData !== undefined
+      ? [
+          {
+            key: "prices",
+            label: "Show prices",
+            checked: showPrices,
+            modified: showPrices,
+            onCheckedChange: setShowPrices,
+          },
+        ]
+      : []),
+    ...(canPreferOwned
+      ? [
+          {
+            key: "owned-printings",
+            label: "Show my printings",
+            description: "Swap each card's art for the printing you own.",
+            checked: preferOwned,
+            modified: preferOwned,
+            onCheckedChange: setPreferOwnedPrintings,
+          },
+        ]
+      : []),
+  ];
+
+  const optionSwitchRows = optionSwitches.map((option) => (
+    <OptionSwitchRow
+      key={option.key}
+      label={option.label}
+      description={option.description}
+      checked={option.checked}
+      // oxlint-disable-next-line react/jsx-handler-names -- forwarded store setter, name fixed by the descriptor
+      onCheckedChange={option.onCheckedChange}
+    />
+  ));
+
+  const optionsModified = optionSwitches.some((option) => option.modified);
+
+  // The switches sit behind one trigger rather than a run of tooltip-only
+  // icon buttons: the row then speaks a single visual language (every control
+  // outlined and h-8), keeps its width when a display mode hides a switch,
+  // and shows the same labelled list the phone drawer does.
+  const optionsPopover = optionSwitches.length > 0 && (
+    <Popover>
+      <PopoverTrigger
+        render={<Button variant="outline" size="icon" />}
+        className="relative"
+        aria-label={optionsModified ? "Display options, changed" : "Display options"}
+      >
+        <SlidersHorizontalIcon className="size-4" />
+        {optionsModified && (
+          // Same changed-state dot the filter customize control uses, kept
+          // inside the button bounds so nothing clips it.
+          <span className="bg-primary ring-background absolute top-0.5 right-0.5 size-2 rounded-full ring-2" />
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 gap-4">
+        {optionSwitchRows}
+      </PopoverContent>
+    </Popover>
+  );
+
+  // View controls (columns, sort, display options, view toggle) — rendered on
+  // the right side of the tab strip row, deck view only. Desktop only: the
+  // cluster is wider than a phone screen, so phones get `mobileViewControls`
+  // below instead.
   const viewControls = totalCards > 0 && (
     <div className="flex items-center gap-2">
-      {displayMode !== "list" && (
+      {hasThumbnails && (
         // Same control the card browser and deck check use: fewer columns means
         // bigger cards, and the middle label resets to the measured Auto. Full
         // size (not compact) so it shares the h-8 line of the sort control and
@@ -1119,26 +1225,6 @@ export function DeckOverview({
           maxColumnsLimit={physicalMax}
           onMaxColumnsChange={setColumns}
         />
-      )}
-      {displayMode !== "list" && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={showAllCopies ? "secondary" : "ghost"}
-                size="icon-sm"
-                aria-label="Show every copy"
-                aria-pressed={showAllCopies}
-                onClick={() => setShowAllCopies(!showAllCopies)}
-              />
-            }
-          >
-            <LayersIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>
-            {showAllCopies ? "Showing every copy" : "Show every copy"}
-          </TooltipContent>
-        </Tooltip>
       )}
       <SortGroupControls
         sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
@@ -1154,64 +1240,7 @@ export function DeckOverview({
           onDirChange: setGroupDir,
         }}
       />
-      {displayMode !== "list" && canPreferOwned && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={showBands ? "secondary" : "ghost"}
-                size="icon-sm"
-                aria-label="Highlight owned copies"
-                aria-pressed={showBands}
-                onClick={() => setShowOwnershipBands(!showBands)}
-              />
-            }
-          >
-            <CircleCheckIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>
-            Highlight owned copies — green: this printing, blue: another printing
-          </TooltipContent>
-        </Tooltip>
-      )}
-      {displayMode !== "list" && ownershipData !== undefined && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={showPrices ? "secondary" : "ghost"}
-                size="icon-sm"
-                aria-label="Show prices"
-                aria-pressed={showPrices}
-                onClick={() => setShowPrices(!showPrices)}
-              />
-            }
-          >
-            <PriceToggleIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>{showPrices ? "Showing prices" : "Show prices"}</TooltipContent>
-        </Tooltip>
-      )}
-      {canPreferOwned && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={preferOwned ? "secondary" : "ghost"}
-                size="icon-sm"
-                aria-label="Show the printings you own"
-                aria-pressed={preferOwned}
-                onClick={() => setPreferOwnedPrintings(!preferOwned)}
-              />
-            }
-          >
-            <WalletCardsIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>
-            {preferOwned ? "Showing your printings" : "Show the printings you own"}
-          </TooltipContent>
-        </Tooltip>
-      )}
+      {optionsPopover}
       {displayModeToggle}
       {/* This surface has a detail pane but no card-browser toolbar, so the
           dock toggle lives here — otherwise the pane would only be reachable
@@ -1223,51 +1252,12 @@ export function DeckOverview({
 
   // The same controls for phones, minus the ones that only make sense in a
   // wide row: everything but the display-mode switch moves into the options
-  // drawer the card browser already uses, so the tab strip keeps one row and
-  // the icon-only toggles get their labels back.
-  const mobileOptionSwitches = [
-    displayMode !== "list" && (
-      <OptionSwitchRow
-        key="copies"
-        label="Show every copy"
-        description="One thumbnail per physical copy instead of a ×N badge."
-        checked={showAllCopies}
-        onCheckedChange={setShowAllCopies}
-      />
-    ),
-    displayMode !== "list" && canPreferOwned && (
-      <OptionSwitchRow
-        key="bands"
-        label="Highlight owned copies"
-        description="Green: this printing. Blue: another printing."
-        checked={showBands}
-        onCheckedChange={setShowOwnershipBands}
-      />
-    ),
-    displayMode !== "list" && ownershipData !== undefined && (
-      <OptionSwitchRow
-        key="prices"
-        label="Show prices"
-        checked={showPrices}
-        onCheckedChange={setShowPrices}
-      />
-    ),
-    canPreferOwned && (
-      <OptionSwitchRow
-        key="owned-printings"
-        label="Show my printings"
-        description="Swap each card's art for the printing you own."
-        checked={preferOwned}
-        onCheckedChange={setPreferOwnedPrintings}
-      />
-    ),
-  ].filter(Boolean);
-
+  // drawer the card browser already uses, so the tab strip keeps one row.
   const mobileViewControls = totalCards > 0 && (
     <>
       {displayModeToggle}
       <MobileOptionsDrawer>
-        {displayMode !== "list" && (
+        {hasThumbnails && (
           <div className="flex min-w-0 items-center gap-2">
             <p className="text-muted-foreground w-18 text-xs font-medium">Columns</p>
             <ColumnControls
@@ -1295,8 +1285,8 @@ export function DeckOverview({
             onDirChange: setGroupDir,
           }}
         />
-        {mobileOptionSwitches.length > 0 && (
-          <div className="flex flex-col gap-4 border-t pt-4">{mobileOptionSwitches}</div>
+        {optionSwitchRows.length > 0 && (
+          <div className="flex flex-col gap-4 border-t pt-4">{optionSwitchRows}</div>
         )}
       </MobileOptionsDrawer>
     </>
@@ -1735,8 +1725,22 @@ const SECTION_SCROLL_MARGIN = "calc(var(--sticky-top, 57px) + 3.5rem)";
  * @returns The tab strip.
  */
 /**
- * One labelled switch in the phone options drawer, standing in for a
- * tooltip-only icon toggle from the desktop control row.
+ * One boolean display option, rendered as a labelled switch in both the
+ * desktop options popover and the phone options drawer.
+ */
+interface DeckOptionSwitch {
+  key: string;
+  label: string;
+  /** Optional second line, for options whose label doesn't carry the meaning. */
+  description?: string;
+  checked: boolean;
+  /** Whether the option currently sits away from its default. */
+  modified: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+/**
+ * One labelled switch in the options popover / drawer.
  * @returns The switch row.
  */
 function OptionSwitchRow({

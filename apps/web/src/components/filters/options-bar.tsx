@@ -57,8 +57,9 @@ const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
 
 // Persistent primary fill for the active toggle option, overriding the base
 // toggle's muted active state (including on hover) to match the prior
-// variant="default" Button look.
-const activeToggleClass =
+// variant="default" Button look. Exported so surfaces with their own toggles
+// outside this bar (the deck overview's view controls) read the same when on.
+export const activeToggleClass =
   "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
 
 /**
