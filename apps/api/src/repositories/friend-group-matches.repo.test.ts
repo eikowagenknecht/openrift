@@ -470,6 +470,103 @@ describe("friendGroupMatchesRepo — promised-incoming netting", () => {
   });
 });
 
+describe("friendGroupMatchesRepo — pending-offer claims", () => {
+  // The seller offers two copies of prt-1; the viewer wants 2. The `cardTrades`
+  // queue is read twice: promised-incoming first (empty here), pending offers
+  // second. The fake db ignores WHEREs, so the canned rows stand for the
+  // already-filtered live offers — the status/initiator ladder is covered by
+  // the integration test.
+  function twoCopyQueues() {
+    return {
+      friendGroupListShares: [[tradeShare()], [wishShare()]],
+      listEntries: [
+        [supplyEntry(), supplyEntry({ id: "e-t2", copyId: "cp-2" })],
+        [demandEntry({ quantity: 2 })],
+      ],
+      copies: [[copyRow(), copyRow({ id: "cp-2" })]],
+      users: [[userRow()]],
+      printings: [[printingRow()]],
+      cardTrades: [[]] as Rows[],
+    };
+  }
+
+  function offerRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      id: "trd-1",
+      groupId: "g",
+      quantity: 1,
+      giverUserId: "seller",
+      printingId: "prt-1",
+      ...overrides,
+    };
+  }
+
+  it("hides the copies a live offer already commits", async () => {
+    const queues = { ...twoCopyQueues(), cardTrades: [[], [offerRow({ quantity: 2 })]] };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" })).toEqual([]);
+  });
+
+  it("keeps the copies the offer leaves over", async () => {
+    const queues = { ...twoCopyQueues(), cardTrades: [[], [offerRow()]] };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.copyId).toBe("cp-2");
+  });
+
+  it("ignores an offer on a different printing", async () => {
+    const queues = {
+      ...twoCopyQueues(),
+      cardTrades: [[], [offerRow({ printingId: "prt-other", quantity: 2 })]],
+    };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" })).toHaveLength(
+      2,
+    );
+  });
+
+  it("ignores another member's offer of the same printing", async () => {
+    const queues = {
+      ...twoCopyQueues(),
+      cardTrades: [[], [offerRow({ giverUserId: "other-seller", quantity: 2 })]],
+    };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" })).toHaveLength(
+      2,
+    );
+  });
+
+  it("hides the viewer's own committed copies in the mirror direction", async () => {
+    const queues = {
+      ...twoCopyQueues(),
+      cardTrades: [[], [offerRow({ giverUserId: "viewer", quantity: 2 })]],
+    };
+    queues.friendGroupListShares[0][0].ownerUserId = "viewer"; // viewer's trade list
+    queues.friendGroupListShares[1][0].ownerUserId = "buyer"; // other's wish list
+    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    expect(await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" })).toEqual([]);
+  });
+
+  it("lets an offer in another group claim that group's copies, not this one's", async () => {
+    // The offer lives in group `other`, whose shares see only cp-9. Both of
+    // this group's copies survive: the seller genuinely still has them here.
+    const queues = {
+      ...twoCopyQueues(),
+      cardTrades: [[], [offerRow({ groupId: "other", quantity: 1 })]],
+    };
+    // Third `friendGroupListShares` read: the other group's trade shares, whose
+    // one manual entry (third `listEntries` read) is a copy this group can't see.
+    queues.friendGroupListShares.push([tradeShare()]);
+    queues.listEntries.push([supplyEntry({ id: "e-t9", copyId: "cp-9" })]);
+    queues.copies.push([copyRow({ id: "cp-9" })]);
+    const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
+    const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
+    expect(rows.map((row) => row.copyId)).toEqual(["cp-1", "cp-2"]);
+  });
+});
+
 describe("friendGroupMatchesRepo — sorting and counterparty scoping", () => {
   // Two sellers (Alice, Bob); the viewer wants both Alpha and Beta.
   function multiSellerQueues() {

@@ -23,6 +23,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
+import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
 import type { ListRuleProviders } from "./lists.js";
 import { printingDetailsByIds } from "./query-helpers.js";
 
@@ -109,7 +110,10 @@ export interface IncomingMatchFeedRow {
  * copy → printing → card resolution. Demand is additionally netted against
  * quantities already promised to the wanting member by firm live trades
  * ({@link netDemandAgainstPromises}), the demand-side mirror of the supply
- * side's reserved-copy exclusion.
+ * side's reserved-copy exclusion. Supply drops one more class on top of the
+ * reserved copies: those a member's own live offers already commit
+ * ({@link copiesClaimedByPendingOffers}), so the view never advertises a card
+ * whose copies a request could not claim.
  *
  * **Only `wish` ↔ `trade` shares participate.** `organize` lists never appear
  * here. Deck-derived demand is excluded by construction — we only read list
@@ -141,6 +145,11 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
      * dynamic trade-rule output alike (ADR-034), reusing the same supply builder
      * as the match view so the two can never disagree (a copy offered only via a
      * rule must not read as "0 available" at trade time).
+     *
+     * Deliberately offer-agnostic: copies claimed by the giver's own pending
+     * offers stay in the result, because every caller nets them itself and
+     * `setTradeQuantity` must exclude the very offer it is resizing. The match
+     * view runs that pass in {@link copiesClaimedByPendingOffers}.
      * @returns The unreserved reservable copy ids plus whether any copy is offered.
      */
     giverPrintingSupply(
@@ -151,10 +160,14 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
 
     /**
      * Every member offering a given card on a tradelist shared with the group
-     * — the Discord bot's "who has this?" view. Same supply path as matching
+     * — the Discord bot's "who has this?" view. Same supply builder as matching
      * (`buildSupply`), so reserved/loaned/altered copies and rule-derived
-     * offers behave exactly like the in-app Trades pages. Not viewer-centric:
-     * the group's link to a Discord server is the consent that scopes it.
+     * offers behave exactly like the in-app Trades pages. It stops one step
+     * short of the match view: copies claimed by a pending offer still count,
+     * because the question is who physically holds the card, and the bot's
+     * answer is a pointer to a person rather than something to act on directly.
+     * Not viewer-centric: the group's link to a Discord server is the consent
+     * that scopes it.
      * @returns One row per offering member, most copies first.
      */
     tradelistHoldersForCard(scope: {
@@ -436,6 +449,121 @@ async function loadPromisedIncoming(
     byCard.set(cardKey, (byCard.get(cardKey) ?? 0) + row.quantity);
   }
   return { byPrinting, byCard };
+}
+
+/** One of a giver's live offers, in the order the claim pass consumes them. */
+interface PendingOfferRow {
+  id: string;
+  groupId: string;
+  quantity: number;
+  giverUserId: string;
+  printingId: string;
+}
+
+/**
+ * Loads every still-`pending` **offer** (`initiator = 'giver'`) the given
+ * members have out, in any group. Requests are excluded on purpose: a
+ * receiver-initiated pending row is a bid and claims nothing (ADR-019), so
+ * several members may keep asking for one card while the giver decides.
+ * @returns The offers, oldest first (the order {@link claimCopiesForOffers} allocates in).
+ */
+function loadPendingOffers(
+  db: Kysely<Database>,
+  giverUserIds: string[],
+): Promise<PendingOfferRow[]> {
+  return db
+    .selectFrom("cardTrades")
+    .select(["id", "groupId", "quantity", "giverUserId", "printingId"])
+    .where("giverUserId", "in", giverUserIds)
+    .where("initiator", "=", "giver")
+    .where("status", "=", "pending")
+    .orderBy("createdAt", "asc")
+    .orderBy("id", "asc")
+    .execute();
+}
+
+/**
+ * Groups a claim pass by the giver+printing it allocates within.
+ * @returns The composite key.
+ */
+function offerKey(giverUserId: string, printingId: string): string {
+  return `${giverUserId}:${printingId}`;
+}
+
+/**
+ * The supply copies a member's own live offers already commit, so the match
+ * view stops advertising a card whose copies are all spoken for.
+ *
+ * Nothing is pinned until a recipient accepts, so these copies are not
+ * `reserved` and `buildSupply` still surfaces them. Without this pass the card
+ * kept showing up as requestable and the request then failed at
+ * `assertSupplyAvailable` with "Only 0 copies are still available", which reads
+ * as "they don't have it any more" rather than "their copy is promised to
+ * someone else". The two sides run the same allocation, so what the view offers
+ * is what a request can actually claim.
+ *
+ * Offers living in another group are resolved against *that* group's supply, as
+ * {@link claimCopiesForOffers} requires — a giver who shares different copies
+ * with different groups must not be emptied out here. That costs one extra
+ * supply read per (printing, other group), and only for printings this group
+ * can see at all, so the common case of every offer sitting in the group being
+ * viewed adds no reads.
+ * @returns The copy ids to drop from this group's supply.
+ */
+async function copiesClaimedByPendingOffers(
+  db: Kysely<Database>,
+  providers: ListRuleProviders | undefined,
+  groupId: string,
+  supply: readonly SupplyEntry[],
+): Promise<Set<string>> {
+  const claimed = new Set<string>();
+  const giverUserIds = [...new Set(supply.map((entry) => entry.ownerUserId))];
+  if (giverUserIds.length === 0) {
+    return claimed;
+  }
+  const offers = await loadPendingOffers(db, giverUserIds);
+  if (offers.length === 0) {
+    return claimed;
+  }
+  // This group's own view of the supply, deduped: one copy on two shared lists
+  // is two match rows but still one physical card.
+  const localByKey = new Map<string, Set<string>>();
+  for (const entry of supply) {
+    const key = offerKey(entry.ownerUserId, entry.printingId);
+    const existing = localByKey.get(key);
+    if (existing) {
+      existing.add(entry.copyId);
+    } else {
+      localByKey.set(key, new Set([entry.copyId]));
+    }
+  }
+
+  for (const [key, keyOffers] of Map.groupBy(offers, (offer) =>
+    offerKey(offer.giverUserId, offer.printingId),
+  )) {
+    const local = localByKey.get(key);
+    if (local === undefined) {
+      continue;
+    }
+    const supplyByGroup = new Map<string, readonly string[]>([[groupId, [...local]]]);
+    for (const offer of keyOffers) {
+      if (supplyByGroup.has(offer.groupId)) {
+        continue;
+      }
+      const { unreservedCopyIds } = await resolveGiverPrintingSupply(db, providers, {
+        groupId: offer.groupId,
+        giverUserId: offer.giverUserId,
+        printingId: offer.printingId,
+      });
+      supplyByGroup.set(offer.groupId, unreservedCopyIds);
+    }
+    for (const copyId of claimCopiesForOffers(keyOffers, supplyByGroup).claimed) {
+      if (local.has(copyId)) {
+        claimed.add(copyId);
+      }
+    }
+  }
+  return claimed;
 }
 
 /**
@@ -795,9 +923,9 @@ async function runMatchQuery(
   const copyMeta = await loadCopyMeta(db, [...allCopyIds]);
 
   // Build supply + demand.
-  const supply: SupplyEntry[] = [];
+  const offeredSupply: SupplyEntry[] = [];
   for (const list of scopedSupply) {
-    supply.push(
+    offeredSupply.push(
       ...buildSupply(
         list,
         supplyManual.get(list.listId) ?? [],
@@ -829,6 +957,18 @@ async function runMatchQuery(
     ...new Set(rawDemand.map((entry) => entry.ownerUserId)),
   ]);
   const demand = netDemandAgainstPromises(rawDemand, promised);
+
+  // The supply-side counterpart: a copy one of the owner's own live offers
+  // already commits stops advertising, because a request for it would be
+  // refused (see `copiesClaimedByPendingOffers`). Read after the demand netting
+  // so both `cardTrades` reads stay in one place.
+  const offerClaimed = await copiesClaimedByPendingOffers(
+    db,
+    providers,
+    scope.groupId,
+    offeredSupply,
+  );
+  const supply = offeredSupply.filter((entry) => !offerClaimed.has(entry.copyId));
 
   // Index demand for matching: card demand by cardId, printing demand by printingId.
   const demandByCard = new Map<string, DemandEntry[]>();

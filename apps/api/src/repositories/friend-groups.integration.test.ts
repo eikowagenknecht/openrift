@@ -517,6 +517,89 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).toHaveLength(1);
   });
 
+  // Regression: the seller's only copy was already promised to a third member
+  // by a pending offer, but the match view still advertised it, so requesting
+  // it failed with "Only 0 copies are still available" (`assertSupplyAvailable`
+  // counts a live offer as a claim on the copy).
+  it("a pending offer to another member hides the copy from the match view", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, SELLER_ID, "member");
+    await repo.addMember(group.id, OUTSIDER_ID, "member");
+
+    const wish = await createList(VIEWER_ID, "wish", "card");
+    await db
+      .insertInto("listEntries")
+      .values({
+        listId: wish.id,
+        userId: VIEWER_ID,
+        kind: "card",
+        cardId: CARD_FURY_UNIT.id,
+        quantity: 1,
+      })
+      .execute();
+    await repo.share(group.id, wish.id, VIEWER_ID);
+
+    const copy = await addCopy(SELLER_ID, PRINTING_1.id);
+    const trade = await createList(SELLER_ID, "trade", "copy");
+    await db
+      .insertInto("listEntries")
+      .values({ listId: trade.id, userId: SELLER_ID, kind: "copy", copyId: copy.id, quantity: 1 })
+      .execute();
+    await repo.share(group.id, trade.id, SELLER_ID);
+
+    expect(
+      await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
+    ).toHaveLength(1);
+
+    // The seller offers that same copy to the outsider. Nothing is pinned until
+    // the outsider accepts, so the copy is not `reserved` — only the claim pass
+    // takes it off the table.
+    const offer = await db
+      .insertInto("cardTrades")
+      .values({
+        groupId: group.id,
+        giverUserId: SELLER_ID,
+        receiverUserId: OUTSIDER_ID,
+        initiator: "giver",
+        printingId: PRINTING_1.id,
+        cardId: CARD_FURY_UNIT.id,
+        quantity: 1,
+        status: "pending",
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    expect(
+      await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
+    ).toHaveLength(0);
+
+    // A request in the other direction is a bid, not a commitment (ADR-019), so
+    // it must not hide anything.
+    await db
+      .updateTable("cardTrades")
+      .set({ initiator: "receiver", giverUserId: OUTSIDER_ID, receiverUserId: SELLER_ID })
+      .where("id", "=", offer.id)
+      .execute();
+    expect(
+      await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
+    ).toHaveLength(1);
+
+    // A closed offer releases the copy too.
+    await db
+      .updateTable("cardTrades")
+      .set({
+        initiator: "giver",
+        giverUserId: SELLER_ID,
+        receiverUserId: OUTSIDER_ID,
+        status: "cancelled",
+      })
+      .where("id", "=", offer.id)
+      .execute();
+    expect(
+      await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
+    ).toHaveLength(1);
+  });
+
   it("organize lists never appear in the match view", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");

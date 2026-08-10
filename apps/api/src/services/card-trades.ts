@@ -9,7 +9,8 @@ import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { sortCopiesForPinning, toCardTradeCopyOptions } from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
-import type { CardTrade, PendingGiverTrade } from "../repositories/card-trades.js";
+import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
+import type { CardTrade } from "../repositories/card-trades.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
@@ -114,7 +115,9 @@ function assertRecipient(trade: CardTrade, role: CardTradeRole, action: string):
  * the request direction: receiver-initiated pending rows are bids and claim no
  * copies, so several members may ask for one card and the giver picks. A
  * knock-on effect is intended: once the only copy is out on an offer, a new
- * request for it also fails here, because the supply really is committed.
+ * request for it also fails here, because the supply really is committed. The
+ * match view runs the same claim pass and hides those copies, so this is the
+ * backstop for a race rather than the message a member normally sees.
  *
  * `excludeTradeId` drops the trade being resized from the claim pass, so a
  * pending offer does not compete with itself in {@link setTradeQuantity}.
@@ -166,39 +169,6 @@ async function readSupplyByGroup(
     byGroup.set(groupId, unreservedCopyIds);
   }
   return byGroup;
-}
-
-/**
- * Allocates the giver's visible copies to their live pending offers, oldest
- * first. An offer only claims copies the group it lives in can actually see, so
- * a giver who shares different copies with different groups is never falsely
- * emptied out. An offer that no longer fits claims nothing and is reported back
- * as unfillable.
- *
- * Shared by {@link assertSupplyAvailable} and
- * {@link autoCancelUnfillablePendingTrades} so that creating a trade and
- * sweeping for dead ones can never disagree about what is still free. Counting
- * offers globally instead would refuse a second offer whenever the first one
- * lives in another group, even when the two draw on different copies.
- * @returns The copy ids claimed by a surviving offer, and the offers that no longer fit.
- */
-function claimCopiesForOffers(
-  offers: readonly PendingGiverTrade[],
-  supplyByGroup: ReadonlyMap<string, readonly string[]>,
-): { claimed: Set<string>; unfillable: PendingGiverTrade[] } {
-  const claimed = new Set<string>();
-  const unfillable: PendingGiverTrade[] = [];
-  for (const offer of offers) {
-    const free = (supplyByGroup.get(offer.groupId) ?? []).filter((copyId) => !claimed.has(copyId));
-    if (free.length < offer.quantity) {
-      unfillable.push(offer);
-      continue;
-    }
-    for (const copyId of free.slice(0, offer.quantity)) {
-      claimed.add(copyId);
-    }
-  }
-  return { claimed, unfillable };
 }
 
 /**
