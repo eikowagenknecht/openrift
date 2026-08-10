@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import { EnergyGlyph, PowerDomainIcon } from "@/components/deck/deck-card-row";
+import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ export type HoverHandler = (cardId: string | null, preferredPrintingId?: string 
 function CardStats({ cardId }: { cardId: string }) {
   const { getPreferredPrinting } = usePreferredPrinting();
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
   const card = getPreferredPrinting(cardId)?.card;
   // Mirrors the deck list row: pips only for real power, energy whenever the
   // card has any, power first.
@@ -33,13 +35,12 @@ function CardStats({ cardId }: { cardId: string }) {
   }
   return (
     <span className="flex shrink-0 items-center gap-1">
-      {powerPips > 0 ? (
-        <span className="flex shrink-0 items-center gap-0.5">
-          {Array.from({ length: powerPips }, (_, index) => (
-            <PowerDomainIcon key={index} domains={card?.domains ?? []} colors={domainColors} />
-          ))}
-        </span>
-      ) : null}
+      <PowerPips
+        power={powerPips}
+        domains={card?.domains ?? []}
+        colors={domainColors}
+        domainLabels={labels.domains}
+      />
       {energy !== null && <EnergyGlyph value={energy} />}
     </span>
   );

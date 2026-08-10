@@ -10,7 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, LockIcon, PlusIcon } from "lucide-react";
 
-import { EnergyGlyph, PowerDomainIcon } from "@/components/deck/deck-card-row";
+import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import type {
   AnyDragData,
   DeckCardDragData,
@@ -58,6 +58,20 @@ interface RowPrinting {
   price: number | undefined;
   /** Printing id handed to the hover preview. */
   hoverPrintingId: string | null;
+}
+
+/**
+ * Which optional cells every row reserves, decided once for the whole list. A
+ * row is right-packed around its `flex-1` name, so a cell rendered on only some
+ * rows shifts every column after the name on those rows out of line with their
+ * neighbours. Reserving per list rather than always is what keeps the width for
+ * card names in the decks that need neither cell.
+ */
+interface ReservedCells {
+  /** Some row has copies locked away from deck building. */
+  lock: boolean;
+  /** Some row has a price on the selected marketplace. */
+  price: boolean;
 }
 
 /** Sort choices exposed by the overview list toolbar. */
@@ -198,6 +212,13 @@ export function DeckOverviewList({
   const getEntry = (card: DeckBuilderCard) =>
     ownership?.byCardZone.get(`${card.cardId}:${card.zone}`);
 
+  // Locked copies are rare and an unpriced printing rarer still, so both cells
+  // are reserved per deck rather than always — see `ReservedCells`.
+  const reserved: ReservedCells = {
+    lock: showOwnership && cards.some((card) => (getEntry(card)?.locked ?? 0) > 0),
+    price: cards.some((card) => resolveRowPrinting(card, getEntry(card)).price !== undefined),
+  };
+
   const sortContext: DeckListSortContext = {
     getEntry,
     rarityOrder: orders.rarities,
@@ -320,8 +341,10 @@ export function DeckOverviewList({
             sortDir={sortDir}
             sortContext={sortContext}
             rarityLabels={labels.rarities}
+            domainLabels={labels.domains}
             domainColors={domainColors}
             showOwnership={showOwnership}
+            reserved={reserved}
             fmtPrice={fmtPrice}
             resolveRowPrinting={resolveRowPrinting}
             cardViolations={cardViolations}
@@ -338,8 +361,10 @@ export function DeckOverviewList({
                 card={card}
                 entry={sortContext.getEntry(card)}
                 rarityLabels={labels.rarities}
+                domainLabels={labels.domains}
                 domainColors={domainColors}
                 showOwnership={showOwnership}
+                reserved={reserved}
                 fmtPrice={fmtPrice}
                 resolveRowPrinting={resolveRowPrinting}
                 violationMessage={cardViolations.get(card.cardId)}
@@ -525,8 +550,10 @@ function GroupedRows({
   sortDir,
   sortContext,
   rarityLabels,
+  domainLabels,
   domainColors,
   showOwnership,
+  reserved,
   fmtPrice,
   resolveRowPrinting,
   cardViolations,
@@ -542,8 +569,11 @@ function GroupedRows({
   sortDir: "asc" | "desc";
   sortContext: DeckListSortContext;
   rarityLabels: Record<string, string>;
+  /** Slug → display name for the power pips accessible label. */
+  domainLabels: Record<string, string>;
   domainColors: Record<string, string>;
   showOwnership: boolean;
+  reserved: ReservedCells;
   fmtPrice: (cents: number) => string;
   /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
@@ -577,8 +607,10 @@ function GroupedRows({
                 card={card}
                 entry={sortContext.getEntry(card)}
                 rarityLabels={rarityLabels}
+                domainLabels={domainLabels}
                 domainColors={domainColors}
                 showOwnership={showOwnership}
+                reserved={reserved}
                 fmtPrice={fmtPrice}
                 resolveRowPrinting={resolveRowPrinting}
                 violationMessage={cardViolations.get(card.cardId)}
@@ -599,8 +631,12 @@ interface DeckListRowProps {
   card: DeckBuilderCard;
   entry: CardOwnership | undefined;
   rarityLabels: Record<string, string>;
+  /** Slug → display name for the power pips accessible label. */
+  domainLabels: Record<string, string>;
   domainColors: Record<string, string>;
   showOwnership: boolean;
+  /** The optional cells this row holds space for, whether it fills them or not. */
+  reserved: ReservedCells;
   fmtPrice: (cents: number) => string;
   /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
@@ -660,12 +696,18 @@ function DraggableDeckListRow(props: DeckListRowProps) {
   );
 }
 
-function DeckListRow({
+/**
+ * The row itself, hook-free so the tests can render it on its own.
+ * @returns One list row.
+ */
+export function DeckListRow({
   card,
   entry,
   rarityLabels,
+  domainLabels,
   domainColors,
   showOwnership,
+  reserved,
   fmtPrice,
   resolveRowPrinting,
   violationMessage,
@@ -711,7 +753,9 @@ function DeckListRow({
     <div
       ref={dragRef}
       className={cn(
-        "flex items-center gap-2 rounded px-2 py-1 text-sm",
+        // Tighter gaps on phones: the row keeps every column but the set code
+        // there, and the seven gaps are what the card name pays for them.
+        "flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2",
         onCardClick && "hover:bg-muted/50 cursor-pointer",
         // Gate on dragProps, not dragRef: reading a `…Ref`-named value during
         // render trips the compiler's refs-during-render check (build-failing
@@ -777,13 +821,14 @@ function DeckListRow({
         )}
       </span>
 
-      {card.power !== null && card.power > 0 && (
-        <span className="hidden shrink-0 items-center gap-0.5 sm:flex">
-          {Array.from({ length: card.power }, (_, index) => (
-            <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
-          ))}
-        </span>
-      )}
+      {/* Power shows on phones too, next to energy — it's half of what a card
+          costs, and no more than four pips wide. */}
+      <PowerPips
+        power={card.power}
+        domains={card.domains}
+        colors={domainColors}
+        domainLabels={domainLabels}
+      />
 
       {card.energy !== null && <EnergyGlyph value={card.energy} />}
 
@@ -797,19 +842,23 @@ function DeckListRow({
           {entry.owned}/{entry.needed}
         </span>
       )}
-      {showOwnership && entry && entry.locked > 0 && (
-        <Tooltip>
-          <TooltipTrigger className="text-muted-foreground flex shrink-0 items-center gap-0.5">
-            <LockIcon className="size-3" />
-            <span className="text-xs tabular-nums">{entry.locked}</span>
-          </TooltipTrigger>
-          <TooltipContent>{lockedReasonText(entry)}</TooltipContent>
-        </Tooltip>
+      {reserved.lock && (
+        <span className="flex w-7 shrink-0 justify-end">
+          {entry && entry.locked > 0 && (
+            <Tooltip>
+              <TooltipTrigger className="text-muted-foreground flex items-center gap-0.5">
+                <LockIcon className="size-3" />
+                <span className="text-xs tabular-nums">{entry.locked}</span>
+              </TooltipTrigger>
+              <TooltipContent>{lockedReasonText(entry)}</TooltipContent>
+            </Tooltip>
+          )}
+        </span>
       )}
 
-      {price !== undefined && (
+      {reserved.price && (
         <span className="text-muted-foreground w-14 shrink-0 text-right tabular-nums">
-          {fmtPrice(price)}
+          {price === undefined ? null : fmtPrice(price)}
         </span>
       )}
     </div>

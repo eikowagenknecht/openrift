@@ -16,6 +16,8 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Decks): **Power cost in deck rows** — a two-domain card showed the colorless rune instead of the wild Power symbol the card art uses, and screen readers now read the cost once instead of once per pip.
+- fix(Decks): **Deck list view columns** — the list shows each card's power cost on phones again, and a row with locked copies or no price on file no longer pushes the columns after the name out of line with the rows above it.
 - fix(Decks): **Deck tile values match the deck page** — a tile priced the deck using printings in languages you don't collect, so it could read lower than the deck itself.
 - fix(Cards): **Steadier card details** — the window no longer opens oversized before snapping down, and stepping between printings keeps the price chart's place instead of collapsing the layout for a moment.
 - fix(Cards): **Arrow keys in the card window** — stepping between cards and printings with the keyboard now works while the window is open, matching the grid, and the panel's close button closes the panel instead of just emptying it.

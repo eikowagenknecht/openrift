@@ -1,12 +1,13 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { WellKnown, legendDisplayName } from "@openrift/shared";
 import { AlertTriangleIcon, LockIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
@@ -50,6 +51,21 @@ interface DeckCardRowProps {
   onContextMenu?: (event: React.MouseEvent) => void;
 }
 
+/**
+ * The wild Power symbol: a cost payable with a rune of any domain. Same glyph
+ * the card art and the card designer reach for when a card has no single domain
+ * rune to show — `/images/domains/colorless.svg` is the colorless *domain's*
+ * icon and does not mean "any", which is what this used to draw here.
+ */
+const WILD_RUNE_ICON = "/images/glyphs/rune-rainbow.svg";
+
+/**
+ * One power pip: the card's domain rune, or the wild rune when it has no single
+ * one. Mirrors `CardPlaceholderImage` and the designer, which pick the same
+ * glyph for the same card. Decorative on purpose — `PowerPips` names the whole
+ * stack once rather than letting a 4-power card announce its domain four times.
+ * @returns The pip glyph.
+ */
 export function PowerDomainIcon({
   domains,
   colors,
@@ -57,27 +73,78 @@ export function PowerDomainIcon({
   domains: string[];
   colors: Record<string, string>;
 }) {
-  if (domains.length === 1) {
-    const domainIcon = getFilterIconPath("domains", domains[0]);
-    return domainIcon ? <img src={domainIcon} alt={domains[0]} className="inline size-3" /> : null;
+  const domain = domains[0] ?? WellKnown.domain.COLORLESS;
+  if (domains.length === 1 && domain !== WellKnown.domain.COLORLESS) {
+    const domainIcon = getFilterIconPath("domains", domain);
+    return domainIcon ? <img src={domainIcon} alt="" className="inline size-3" /> : null;
   }
-  const c1 = getDomainColor(domains[0], colors);
-  const c2 = getDomainColor(domains[1], colors);
+  // The domain badges ship as .webp and carry their own color, but both glyphs
+  // below are SVG shapes filled with `currentColor` — inside an <img> that
+  // resolves against the SVG's own document, paints black, and disappears in
+  // dark mode. The other surfaces tint them against a domain-colored pip; a
+  // deck row has no pip behind them, so the glyph paints the card's domain
+  // colors itself through a mask.
+  const icon =
+    domains.length > 1 ? WILD_RUNE_ICON : getFilterIconPath("domains", WellKnown.domain.COLORLESS);
+  const c1 = getDomainColor(domain, colors);
+  const c2 = getDomainColor(domains[1] ?? domain, colors);
   return (
     <span
+      aria-hidden
       className="inline-block size-3"
       style={{
         background: `linear-gradient(135deg, ${c1} 30%, ${c2} 70%)`,
-        mask: "url(/images/domains/colorless.svg) center / contain no-repeat",
-        WebkitMask: "url(/images/domains/colorless.svg) center / contain no-repeat",
+        mask: `url(${icon}) center / contain no-repeat`,
+        WebkitMask: `url(${icon}) center / contain no-repeat`,
       }}
     />
   );
 }
 
+/**
+ * A card's power cost, one rune pip per point. The stack carries the accessible
+ * name for all of them, since the pips repeat a single fact and reading it once
+ * per pip is noise; a card with no power cost renders nothing at all.
+ * @returns The pip row, or null when there is no power cost.
+ */
+export function PowerPips({
+  power,
+  domains,
+  colors,
+  domainLabels,
+}: {
+  power: number | null;
+  domains: string[];
+  colors: Record<string, string>;
+  /** Slug → display name, from `useEnumOrders().labels.domains`. */
+  domainLabels: Record<string, string>;
+}) {
+  if (power === null || power <= 0) {
+    return null;
+  }
+  const named = domains.map((domain) => domainLabels[domain]).join(", ");
+  const label = named.length > 0 ? `Power ${power} (${named})` : `Power ${power}`;
+  return (
+    <span role="img" aria-label={label} className="flex shrink-0 items-center gap-0.5">
+      {Array.from({ length: power }, (_, index) => (
+        <PowerDomainIcon key={index} domains={domains} colors={colors} />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * A card's energy cost. Named like the power pips beside it, so the two costs
+ * don't read as a bare number next to a labelled one.
+ * @returns The energy glyph.
+ */
 export function EnergyGlyph({ value }: { value: number }) {
   return (
-    <span className="text-2xs flex size-4 shrink-0 items-center justify-center rounded-full bg-white leading-none font-bold text-[#013951]">
+    <span
+      role="img"
+      aria-label={`Energy ${value}`}
+      className="text-2xs flex size-4 shrink-0 items-center justify-center rounded-full bg-white leading-none font-bold text-[#013951]"
+    >
       {value}
     </span>
   );
@@ -201,6 +268,7 @@ export function DeckCardRow({
 }: DeckCardRowProps) {
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
   const enableDrag = draggable && !isMobile;
 
   const dragData: DeckCardDragData = {
@@ -284,13 +352,12 @@ export function DeckCardRow({
         </Tooltip>
       )}
 
-      {card.power !== null && card.power > 0 && (
-        <span className="flex shrink-0 items-center gap-0.5">
-          {Array.from({ length: card.power }, (_, index) => (
-            <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
-          ))}
-        </span>
-      )}
+      <PowerPips
+        power={card.power}
+        domains={card.domains}
+        colors={domainColors}
+        domainLabels={labels.domains}
+      />
 
       {card.energy !== null && <EnergyGlyph value={card.energy} />}
     </>
