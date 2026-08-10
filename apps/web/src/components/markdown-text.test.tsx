@@ -48,6 +48,17 @@ describe("MarkdownText", () => {
     expect(container.querySelector("strong")).toHaveTextContent("strong");
   });
 
+  it("renders bullet and numbered lists with their markers", () => {
+    const { container } = render(<MarkdownText text={"- one\n- two\n\n1. first\n2. second"} />);
+    expect(container.querySelectorAll("ul li")).toHaveLength(2);
+    expect(container.querySelectorAll("ol li")).toHaveLength(2);
+    // Tailwind's preflight drops list markers and indentation, so the wrapper
+    // has to put them back — without these the items render as bare lines.
+    const wrapper = container.firstElementChild?.className ?? "";
+    expect(wrapper).toContain("[&_ul]:list-disc");
+    expect(wrapper).toContain("[&_ol]:list-decimal");
+  });
+
   it("strips disallowed block elements while keeping text", () => {
     const { container } = render(<MarkdownText text={"# Heading\n\nBody text."} />);
     expect(container.querySelector("h1")).toBeNull();

@@ -1,6 +1,7 @@
 import type {
   CardType,
   DeckCardResponse,
+  DeckLink,
   DeckPlanResponse,
   DeckResponse,
   DeckSummaryResponse,
@@ -12,6 +13,7 @@ import type {
 import { descriptionSnippet } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
+import { parseJsonbRequired } from "../db/helpers.js";
 import type { DecksTable } from "../db/index.js";
 import type { DeckPlanData } from "../repositories/deck-plans.js";
 
@@ -33,7 +35,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
-    videoUrl: row.videoUrl,
+    links: parseJsonbRequired<DeckLink[]>(row.links),
     // Owner-only: where the owner stores this deck. `toPublicDeck` omits it.
     collectionId: row.collectionId,
   };
@@ -74,7 +76,7 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
-    videoUrl: row.videoUrl,
+    links: parseJsonbRequired<DeckLink[]>(row.links),
   };
 }
 

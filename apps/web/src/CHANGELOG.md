@@ -10,7 +10,7 @@
 - feat(Decks): **Tokens your deck needs** — deck and shared deck pages now list the tokens your cards create as one more section of the deck, and clicking one opens its card details.
 - feat(Decks): **Tell a deck which box it lives in** — pick or create the box a deck is stored in, and a new Box tab shows what is already in it, which collection to pull each remaining card from, ticks cards off as you sort them, and offers to move out anything the deck doesn't need.
 - feat(Decks): **Deck value is what it costs, not what's pinned** — every price on the deck page now uses the cheapest printing in your languages, so pinning a premium art no longer inflates the value; the premium figure moved into the value popup.
-- feat(Decks): **Deck guides with card links** — the description is now a full guide editor: type [[ to link any card (hover shows it, click opens it), write with a live preview, and attach a YouTube video.
+- feat(Decks): **Deck guides with card links** — the description is now a full guide editor: type [[ to link any card (hover shows it, click opens it), write with a live preview, edit it straight from the deck page, and add up to five links (YouTube, RiftMana, TopDeck.gg and more) crediting where the deck came from.
 
 ### Other
 

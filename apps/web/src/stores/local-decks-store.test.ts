@@ -198,7 +198,7 @@ describe("sanitizeDecks", () => {
     coverCardId: null,
     coverPrintingId: null,
     coverPosition: null,
-    videoUrl: null,
+    links: [],
     createdAt: "2026-07-01T00:00:00.000Z",
     updatedAt: "2026-07-02T00:00:00.000Z",
   };
@@ -269,5 +269,53 @@ describe("sanitizeDecks", () => {
   it("replaces a non-array cards value with an empty list", () => {
     const decks = sanitizeDecks({ "local:abc": { ...validDeck, cards: "corrupt" } });
     expect(decks["local:abc"].cards).toEqual([]);
+  });
+
+  it("keeps well-formed links and their titles", () => {
+    const decks = sanitizeDecks({
+      "local:abc": {
+        ...validDeck,
+        links: [
+          { url: "https://youtu.be/abc123", title: "Guide" },
+          { url: "https://riftmana.com/deck/1" },
+        ],
+      },
+    });
+    expect(decks["local:abc"].links).toEqual([
+      { url: "https://youtu.be/abc123", title: "Guide" },
+      { url: "https://riftmana.com/deck/1" },
+    ]);
+  });
+
+  it("drops links that fail the host allowlist", () => {
+    const decks = sanitizeDecks({
+      "local:abc": {
+        ...validDeck,
+        links: [
+          { url: "https://example.com/deck" },
+          "not an object",
+          { title: "no url" },
+          { url: "https://youtu.be/keep" },
+        ],
+      },
+    });
+    expect(decks["local:abc"].links).toEqual([{ url: "https://youtu.be/keep" }]);
+  });
+
+  it("lifts a pre-links videoUrl into the first link", () => {
+    // Blobs written before deck links existed carry a single YouTube string.
+    // The store has no persist `version`, so the shape change migrates here.
+    const { links: _links, ...beforeLinks } = validDeck;
+    const decks = sanitizeDecks({
+      "local:abc": { ...beforeLinks, videoUrl: "https://youtu.be/abc123" },
+    });
+    expect(decks["local:abc"].links).toEqual([
+      { url: "https://youtu.be/abc123", title: "Video guide" },
+    ]);
+  });
+
+  it("yields no links when a blob has neither shape", () => {
+    const { links: _links, ...beforeLinks } = validDeck;
+    expect(sanitizeDecks({ "local:abc": beforeLinks })["local:abc"].links).toEqual([]);
   });
 });

@@ -186,7 +186,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   coverCardId: "coverCardId",
   coverPrintingId: "coverPrintingId",
   coverPosition: "coverPosition",
-  videoUrl: "videoUrl",
+  links: "links",
   collectionId: "collectionId",
 };
 

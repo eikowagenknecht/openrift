@@ -159,7 +159,7 @@ const dbDeck = {
   coverCardId: null,
   coverPrintingId: null,
   coverPosition: null,
-  videoUrl: null,
+  links: [],
   collectionId: null,
   createdAt: now,
   updatedAt: now,

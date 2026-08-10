@@ -1,3 +1,4 @@
+import { isAllowedLinkUrl } from "@openrift/shared";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import rehypeExternalLinks from "rehype-external-links";
@@ -8,16 +9,6 @@ const ALLOWED_ELEMENTS = ["p", "a", "em", "strong", "code", "ul", "ol", "li", "b
 
 /** Heading levels available to primer-style surfaces (deck descriptions). */
 const HEADING_ELEMENTS = ["h1", "h2", "h3"];
-
-const ALLOWED_LINK_HOSTS: ReadonlySet<string> = new Set([
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "youtu.be",
-  "riftdecks.com",
-  "piltoverarchive.com",
-  "openrift.app",
-]);
 
 /**
  * Internal href scheme carrying a `[[Card Name]]` reference through the
@@ -41,18 +32,7 @@ export function expandCardLinks(text: string): string {
 }
 
 function isAllowedLinkHref(href: string | undefined): boolean {
-  if (!href) {
-    return false;
-  }
-  try {
-    const url = new URL(href);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return false;
-    }
-    return ALLOWED_LINK_HOSTS.has(url.hostname.toLowerCase());
-  } catch {
-    return false;
-  }
+  return href !== undefined && isAllowedLinkUrl(href);
 }
 
 /** Renders a resolved `[[Card Name]]` reference. */
@@ -65,10 +45,10 @@ export type RenderCardLink = (name: string, children: React.ReactNode) => React.
  * and raw HTML are stripped; headings only render when `headings` is set
  * (primer-style surfaces).
  *
- * Treats `text` as untrusted by default: link hrefs outside the curated
- * host allowlist are dropped (the link text stays visible but is no
- * longer clickable). Pass `trusted` for admin-curated content where any
- * http(s) host should be linkable.
+ * Treats `text` as untrusted by default: link hrefs outside the shared host
+ * allowlist (`link-hosts.ts`, also used by deck links) are dropped — the link
+ * text stays visible but is no longer clickable. Pass `trusted` for
+ * admin-curated content where any http(s) host should be linkable.
  *
  * With `renderCardLink`, `[[Card Name]]` spans become card references
  * rendered through the callback (deck descriptions); without it they stay
@@ -120,7 +100,9 @@ export function MarkdownText({
   return (
     <div
       className={cn(
-        "space-y-2 [&_a]:underline [&_a]:underline-offset-2",
+        // Tailwind's preflight strips list markers and indentation, so the
+        // ul/ol/li we allow through would otherwise render as bare lines.
+        "space-y-2 [&_a]:underline [&_a]:underline-offset-2 [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
         headings &&
           "[&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-semibold [&_h1:first-child]:mt-0 [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h2:first-child]:mt-0 [&_h3]:mt-3 [&_h3]:font-medium [&_h3:first-child]:mt-0",
         className,

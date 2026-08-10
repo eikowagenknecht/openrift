@@ -17,6 +17,7 @@ import type {
   publicDeckResponseSchema,
 } from "@openrift/shared/contracts/public-decks";
 import type {
+  deckLinkSchema,
   deckPlanResponseSchema,
   formatConfigResponseSchema,
 } from "@openrift/shared/response-schemas";
@@ -41,6 +42,9 @@ export type DeckListResponse = z.infer<typeof deckListResponseSchema>;
 export type DeckSummaryResponse = z.infer<typeof deckSummaryResponseSchema>;
 
 export type DeckListItemResponse = z.infer<typeof deckListItemResponseSchema>;
+
+/** One outbound link on a deck (guide video, source site). */
+export type DeckLink = z.infer<typeof deckLinkSchema>;
 
 export type DeckResponse = z.infer<typeof deckResponseSchema>;
 

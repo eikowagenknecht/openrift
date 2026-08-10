@@ -2,6 +2,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   cardTypeSchema,
   deckFormatSchema,
+  deckLinkSchema,
   deckPlanResponseSchema,
   deckZoneSchema,
   domainSchema,
@@ -45,7 +46,7 @@ export const publicDeckResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
-    videoUrl: z.string().nullable(),
+    links: z.array(deckLinkSchema),
   })
   .openapi("PublicDeckResponse");
 

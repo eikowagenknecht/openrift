@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
+import { isAllowedLinkUrl } from "./link-hosts.js";
 import { WellKnown } from "./well-known.js";
 
 // Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
@@ -216,6 +217,23 @@ export const copyLinkSchema = z
     label: z.string().min(1).max(100).optional(),
   })
   .openapi("CopyLink");
+
+// ── Decks ────────────────────────────────────────────────────────────────────
+
+/**
+ * An outbound link on a deck (guide video, the site the list came from). Unlike
+ * a copy's links these render on the public share page, so the host has to be
+ * on the shared allowlist. A missing title falls back to the site's name.
+ */
+export const deckLinkSchema = z
+  .object({
+    url: z
+      .url({ protocol: /^https$/u })
+      .max(500)
+      .refine(isAllowedLinkUrl, "Links must point at a site we support"),
+    title: z.string().min(1).max(60).optional(),
+  })
+  .openapi("DeckLink");
 
 /**
  * Per-copy metadata (ADR-038), shared by the authenticated copy shape and the

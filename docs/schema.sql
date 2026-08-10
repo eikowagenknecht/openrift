@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict y06V9SREZ4DKqXinHoi4umh4pqU0VrWqOwP97Vc6UF8MuMhkkdaAXtLJchMNvpu
+\restrict SdHL3kpIO2D27R6aq2kJFLn0qhjgWwQsIgLeI8IPuXsuZrsYud8ULtcnD5ze9fh
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1249,8 +1249,8 @@ CREATE TABLE public.decks (
     cover_card_id uuid,
     cover_printing_id uuid,
     cover_position smallint,
-    video_url text,
     collection_id uuid,
+    links jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
@@ -6309,5 +6309,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict y06V9SREZ4DKqXinHoi4umh4pqU0VrWqOwP97Vc6UF8MuMhkkdaAXtLJchMNvpu
+\unrestrict SdHL3kpIO2D27R6aq2kJFLn0qhjgWwQsIgLeI8IPuXsuZrsYud8ULtcnD5ze9fh
 

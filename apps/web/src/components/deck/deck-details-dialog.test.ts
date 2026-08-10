@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cardTokenAtCaret } from "@/components/deck/deck-description-dialog";
+import { cardTokenAtCaret } from "@/components/deck/deck-details-dialog";
 
 describe("cardTokenAtCaret", () => {
   it("returns the partial name being typed after [[", () => {

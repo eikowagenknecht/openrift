@@ -2,6 +2,7 @@ import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type {
   DeckFormat,
   DeckFormatConfig,
+  DeckLink,
   DeckOddsConfig,
   DeckViolation,
   DeckZone,
@@ -31,6 +32,7 @@ import {
   DollarSignIcon,
   EuroIcon,
   MinusIcon,
+  PencilIcon,
   PinIcon,
   PlusIcon,
   WalletCardsIcon,
@@ -42,7 +44,7 @@ import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
 import { DeckBoxTab } from "@/components/deck/deck-box-tab";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
-import { DeckDescription, VideoGuideChip } from "@/components/deck/deck-description";
+import { DeckDescription, DeckLinkChips } from "@/components/deck/deck-description";
 import type {
   BrowserCardDragData,
   DeckCardDragData,
@@ -365,8 +367,8 @@ interface DeckOverviewProps {
     coverCardId?: string | null;
     coverPrintingId?: string | null;
     coverPosition?: number | null;
-    /** YouTube guide link, rendered as a chip next to the description. */
-    videoUrl?: string | null;
+    /** Outbound links, rendered as chips next to the description. */
+    links?: readonly DeckLink[];
     /**
      * The deck's home collection. Its copies count as available for this deck
      * even when the collection is excluded from deck building. Absent on the
@@ -405,6 +407,12 @@ interface DeckOverviewProps {
   signInHref?: string;
   /** Long-form deck description rendered above the KPI strip. */
   description?: string;
+  /**
+   * Owner-only: opens the deck-details dialog. When set and a description
+   * exists, an Edit affordance renders next to it. Read-only views and local
+   * decks (which have no description) omit it.
+   */
+  onEditDescription?: () => void;
   /** Fired when a card thumbnail is clicked. Opens the detail pane. */
   onCardClick?: (card: DeckBuilderCard) => void;
   /**
@@ -450,6 +458,7 @@ export function DeckOverview({
   readOnly,
   signInHref,
   description,
+  onEditDescription,
   onCardClick,
   planSlot,
   heroByline,
@@ -466,6 +475,7 @@ export function DeckOverview({
     championIdentifierTags,
   });
   const stats = useDeckStats(cards);
+  const hasLinks = (deck.links?.length ?? 0) > 0;
 
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
   const { progress: requiredProgress, total: requiredTotal } = requiredZoneProgress(
@@ -1375,17 +1385,27 @@ export function DeckOverview({
           readOnly={readOnly}
         />
       )}
-      {showOverviewContent && (description || deck.videoUrl) && (
+      {showOverviewContent && (description || hasLinks) && (
         <div className="flex flex-col gap-3">
           {description && (
-            <DeckDescription
-              text={description}
-              className="text-muted-foreground text-sm"
-              onHoverCard={onHoverCard}
-              onCardClick={onCardClick}
-            />
+            <div className="flex flex-col gap-1">
+              <DeckDescription
+                text={description}
+                className="text-muted-foreground text-sm"
+                onHoverCard={onHoverCard}
+                onCardClick={onCardClick}
+              />
+              {/* Only offered once there is something to edit — an empty deck
+                  reaches the same dialog from the top bar's menu. */}
+              {!readOnly && onEditDescription && (
+                <Button variant="ghost" size="sm" className="w-fit" onClick={onEditDescription}>
+                  <PencilIcon className="size-4" />
+                  Edit description
+                </Button>
+              )}
+            </div>
           )}
-          {deck.videoUrl && <VideoGuideChip url={deck.videoUrl} />}
+          {hasLinks && <DeckLinkChips links={deck.links ?? []} />}
         </div>
       )}
       {showOverviewContent && showIntroBanner && (

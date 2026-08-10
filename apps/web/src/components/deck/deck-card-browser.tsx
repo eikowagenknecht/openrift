@@ -172,6 +172,9 @@ interface DeckCardBrowserProps {
    * editor builds the handler because it owns the deck-items list used for the
    * pane's prev/next navigation. */
   onOverviewCardClick: (card: DeckBuilderCard) => void;
+  /** Overview-only — opens the deck-details dialog from the description's
+   * Edit affordance. Omitted for local decks, which have no description. */
+  onEditDescription?: () => void;
 }
 
 /**
@@ -188,6 +191,7 @@ export function DeckCardBrowser({
   onViewMissing,
   onHoverCard,
   onOverviewCardClick,
+  onEditDescription,
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
@@ -221,6 +225,7 @@ export function DeckCardBrowser({
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
         onCardClick={onOverviewCardClick}
+        onEditDescription={onEditDescription}
       />
     );
   }
@@ -238,6 +243,7 @@ function DeckOverviewForEditor({
   onViewMissing,
   onHoverCard,
   onCardClick,
+  onEditDescription,
 }: Omit<DeckCardBrowserProps, "deckId" | "onOverviewCardClick"> & {
   deck: DeckResponse;
   onCardClick: (card: DeckBuilderCard) => void;
@@ -270,7 +276,7 @@ function DeckOverviewForEditor({
           coverCardId: deck.coverCardId,
           coverPrintingId: deck.coverPrintingId,
           coverPosition: deck.coverPosition,
-          videoUrl: deck.videoUrl,
+          links: deck.links,
           collectionId: deck.collectionId,
         }}
         cards={cards}
@@ -286,6 +292,7 @@ function DeckOverviewForEditor({
         onHoverCard={onHoverCard}
         onCardClick={onCardClick}
         description={deck.description ?? undefined}
+        onEditDescription={onEditDescription}
         // Server decks persist their odds settings on the deck row so they
         // travel with the share page; local decks fall back to the test
         // bench's device-local store.

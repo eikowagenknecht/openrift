@@ -6,6 +6,7 @@ import type {
   DeckExportResponse,
   DeckFormat,
   DeckFormatConfig,
+  DeckLink,
   DeckListResponse,
   DeckOddsConfig,
   DeckResponse,
@@ -109,7 +110,7 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       coverCardId: deck?.coverCardId ?? null,
       coverPrintingId: deck?.coverPrintingId ?? null,
       coverPosition: deck?.coverPosition ?? null,
-      videoUrl: deck?.videoUrl ?? null,
+      links: deck?.links ?? [],
       // A browser-local deck has no server collections to be stored in.
       collectionId: null,
       createdAt: deck?.createdAt ?? "",
@@ -282,7 +283,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
       coverCardId?: string | null;
       coverPrintingId?: string | null;
       coverPosition?: number | null;
-      videoUrl?: string | null;
+      links?: DeckLink[];
       collectionId?: string | null;
     }) => input,
   )
@@ -319,7 +320,7 @@ export function useUpdateDeck() {
       coverCardId?: string | null;
       coverPrintingId?: string | null;
       coverPosition?: number | null;
-      videoUrl?: string | null;
+      links?: DeckLink[];
       collectionId?: string | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
@@ -361,7 +362,7 @@ export interface DeckMetaPatch {
   coverCardId?: string | null;
   coverPrintingId?: string | null;
   coverPosition?: number | null;
-  videoUrl?: string | null;
+  links?: DeckLink[];
 }
 
 /**

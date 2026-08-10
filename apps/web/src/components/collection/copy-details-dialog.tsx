@@ -6,12 +6,14 @@ import type {
   Printing,
 } from "@openrift/shared";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftIcon, HandHeartIcon, PlusIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, HandHeartIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { copyHasRecordedDetails, copyMarkers } from "@/components/collection/copy-indicators";
 import { tradeAnnotationByCopyId } from "@/components/collection/tile-trade-status";
+import type { LinkDraft } from "@/components/link-rows-field";
+import { LinkRowsField } from "@/components/link-rows-field";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +27,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import {
@@ -69,11 +70,6 @@ const URL_PATTERN = /^https?:\/\//u;
 // `String(copy.grade)` so the select round-trips stored grades exactly.
 const GRADE_OPTIONS = Array.from({ length: 19 }, (_, index) => String(10 - index * 0.5));
 const GRADE_ITEMS = Object.fromEntries(GRADE_OPTIONS.map((grade) => [grade, grade]));
-
-interface LinkDraft {
-  url: string;
-  label: string;
-}
 
 /**
  * Per-copy metadata viewer/editor (ADR-038). With one target copy it opens
@@ -383,7 +379,7 @@ function CopyEditor({
   const [notesPublic, setNotesPublic] = useState(copy.notesPublic ?? "");
   const [notesPrivate, setNotesPrivate] = useState(copy.notesPrivate ?? "");
   const [links, setLinks] = useState<LinkDraft[]>(
-    copy.links.map((link) => ({ url: link.url, label: link.label ?? "" })),
+    copy.links.map((link) => ({ url: link.url, title: link.label ?? "" })),
   );
 
   const isGraded = conditionValue === GRADED;
@@ -402,7 +398,7 @@ function CopyEditor({
       notesPublic: notesPublic.trim() === "" ? null : notesPublic.trim(),
       notesPrivate: notesPrivate.trim() === "" ? null : notesPrivate.trim(),
       links: nonEmptyLinks.map((link): CopyLink => {
-        const label = link.label.trim();
+        const label = link.title.trim();
         return label === "" ? { url: link.url.trim() } : { url: link.url.trim(), label };
       }),
     };
@@ -545,57 +541,13 @@ function CopyEditor({
 
         <div className="flex flex-col gap-1.5">
           <Label>Photos &amp; videos</Label>
-          {links.map((link, index) => (
-            // oxlint-disable-next-line react/no-array-index-key -- drafts have no stable identity
-            <div key={index} className="flex items-center gap-2">
-              <Input
-                value={link.url}
-                onChange={(event) =>
-                  setLinks(
-                    links.map((entry, i) =>
-                      i === index ? { ...entry, url: event.target.value } : entry,
-                    ),
-                  )
-                }
-                placeholder="https://…"
-                aria-label={`Link ${index + 1} URL`}
-                aria-invalid={link.url.trim() !== "" && !URL_PATTERN.test(link.url.trim())}
-              />
-              <Input
-                className="w-28"
-                value={link.label}
-                onChange={(event) =>
-                  setLinks(
-                    links.map((entry, i) =>
-                      i === index ? { ...entry, label: event.target.value } : entry,
-                    ),
-                  )
-                }
-                maxLength={100}
-                placeholder="Label"
-                aria-label={`Link ${index + 1} label`}
-              />
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setLinks(links.filter((_entry, i) => i !== index))}
-                aria-label={`Remove link ${index + 1}`}
-              >
-                <XIcon />
-              </Button>
-            </div>
-          ))}
-          {links.length < MAX_LINKS && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="self-start"
-              onClick={() => setLinks([...links, { url: "", label: "" }])}
-            >
-              <PlusIcon />
-              Add link
-            </Button>
-          )}
+          <LinkRowsField
+            links={links}
+            onChange={setLinks}
+            max={MAX_LINKS}
+            isValidUrl={(url) => URL_PATTERN.test(url)}
+            titlePlaceholder="Label"
+          />
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   cardTypeSchema,
   deckFormatSchema,
+  deckLinkSchema,
   deckPlanResponseSchema,
   deckZoneSchema,
   domainSchema,
@@ -10,8 +11,10 @@ import {
 import { idParamSchema, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { isVideoGuideUrl } from "../video-guide-url.js";
 import { authedRoute } from "./_base.js";
+
+/** How many outbound links a deck may carry. */
+export const MAX_DECK_LINKS = 5;
 
 extendZodWithOpenApi(z);
 
@@ -91,9 +94,10 @@ export const updateDeckSchema = z.object({
   coverCardId: z.uuid().nullish(),
   coverPrintingId: z.uuid().nullish(),
   coverPosition: z.number().int().min(0).max(100).nullish(),
-  // Video guide: a YouTube link shown as a chip next to the description on
-  // the deck and share pages. Null clears it.
-  videoUrl: z.string().max(300).refine(isVideoGuideUrl, "Must be a YouTube link").nullish(),
+  // Outbound links shown as chips next to the description on the deck and
+  // share pages: a video guide, the site the list came from. Replaces the
+  // whole list; an empty array clears it.
+  links: z.array(deckLinkSchema).max(MAX_DECK_LINKS).optional(),
   // Home collection: the box the deck physically lives in. Copies there stay
   // buildable for this deck even when the collection is excluded from deck
   // building. Null clears the link.
@@ -174,7 +178,7 @@ export const deckResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
-    videoUrl: z.string().nullable(),
+    links: z.array(deckLinkSchema),
     /** Owner-only: the collection the deck is stored in, or null. */
     collectionId: z.string().nullable(),
   })

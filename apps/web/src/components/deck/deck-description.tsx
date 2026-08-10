@@ -1,5 +1,6 @@
-import { legendDisplayName } from "@openrift/shared";
-import { PlayIcon } from "lucide-react";
+import type { DeckLink, LinkHost } from "@openrift/shared";
+import { legendDisplayName, resolveLinkHost } from "@openrift/shared";
+import { ExternalLinkIcon, PlayIcon } from "lucide-react";
 
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
@@ -109,21 +110,38 @@ function ResolvedDeckDescription({
 }
 
 /**
- * The "Watch deck guide" chip for a deck's video link, rendered next to the
- * description on the deck and share pages.
- * @returns The outline chip link.
+ * A deck's outbound links, rendered as chips next to the description on the
+ * deck and share pages. A link with no title of its own is named after the
+ * site it points at. Hosts are allowlisted, so one that no longer resolves
+ * (written before the list changed) is dropped rather than shown bare.
+ * @returns The chip row, or null when nothing resolves.
  */
-export function VideoGuideChip({ url }: { url: string }) {
+export function DeckLinkChips({ links }: { links: readonly DeckLink[] }) {
+  const resolved = links
+    .map((link) => ({ link, host: resolveLinkHost(link.url) }))
+    .filter((entry): entry is { link: DeckLink; host: LinkHost } => entry.host !== null);
+  if (resolved.length === 0) {
+    return null;
+  }
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="w-fit"
-      // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- text label is inside the Button children
-      render={<a href={url} target="_blank" rel="noreferrer" />}
-    >
-      <PlayIcon className="size-4" />
-      Watch deck guide
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      {resolved.map(({ link, host }) => (
+        <Button
+          key={link.url}
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- text label is inside the Button children
+          render={<a href={link.url} target="_blank" rel="noreferrer" />}
+        >
+          {host.kind === "video" ? (
+            <PlayIcon className="size-4" />
+          ) : (
+            <ExternalLinkIcon className="size-4" />
+          )}
+          {link.title ?? host.label}
+        </Button>
+      ))}
+    </div>
   );
 }

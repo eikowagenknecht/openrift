@@ -1,6 +1,10 @@
-import { isVideoGuideUrl } from "@openrift/shared";
+import type { DeckLink } from "@openrift/shared";
+import { ALLOWED_LINK_SITE_NAMES, isAllowedLinkUrl } from "@openrift/shared";
+import { MAX_DECK_LINKS } from "@openrift/shared/contracts/decks";
 import { useRef, useState } from "react";
 
+import type { LinkDraft } from "@/components/link-rows-field";
+import { LinkRowsField } from "@/components/link-rows-field";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
+import type { DeckMetaPatch } from "@/hooks/use-decks";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { cn } from "@/lib/utils";
@@ -41,29 +46,49 @@ export function cardTokenAtCaret(value: string, caret: number): string | null {
   return match?.groups?.token ?? null;
 }
 
-interface DeckDescriptionDialogProps {
+/** Names the accepted sites, so an invalid row says more than "invalid". */
+const ALLOWED_HOSTS_HINT = `Links must be https and point at one of: ${ALLOWED_LINK_SITE_NAMES.join(", ")}.`;
+
+/** @returns The stored links as editable rows (a missing title edits as ""). */
+function toDrafts(links: readonly DeckLink[]): LinkDraft[] {
+  return links.map((link) => ({ url: link.url, title: link.title ?? "" }));
+}
+
+/** @returns The filled rows as stored links, dropping empty titles. */
+function toLinks(drafts: readonly LinkDraft[]): DeckLink[] {
+  return drafts.map((draft) => {
+    const title = draft.title.trim();
+    return title === "" ? { url: draft.url.trim() } : { url: draft.url.trim(), title };
+  });
+}
+
+interface DeckDetailsDialogProps {
   deckId: string;
+  currentName: string;
   currentDescription: string | null;
-  currentVideoUrl: string | null;
+  currentLinks: readonly DeckLink[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 /**
- * The deck's guide editor: a side-by-side Markdown write/preview surface with
- * `[[` card-name autocomplete, plus the video guide link. On phones the two
- * panes collapse into a Write/Preview toggle.
+ * The deck's name and guide editor: the deck name, then a side-by-side
+ * Markdown write/preview surface with `[[` card-name autocomplete, then the
+ * deck's outbound links. On phones the two panes collapse into a
+ * Write/Preview toggle.
  * @returns The dialog.
  */
-export function DeckDescriptionDialog({
+export function DeckDetailsDialog({
   deckId,
+  currentName,
   currentDescription,
-  currentVideoUrl,
+  currentLinks,
   open,
   onOpenChange,
-}: DeckDescriptionDialogProps) {
+}: DeckDetailsDialogProps) {
+  const [name, setName] = useState(currentName);
   const [draft, setDraft] = useState(currentDescription ?? "");
-  const [video, setVideo] = useState(currentVideoUrl ?? "");
+  const [links, setLinks] = useState<LinkDraft[]>(() => toDrafts(currentLinks));
   const [pane, setPane] = useState<"write" | "preview">("write");
   const [token, setToken] = useState<string | null>(null);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -77,8 +102,8 @@ export function DeckDescriptionDialog({
       : [];
   const clampedSuggestion = Math.min(suggestionIndex, Math.max(0, suggestions.length - 1));
 
-  const trimmedVideo = video.trim();
-  const videoValid = trimmedVideo === "" || isVideoGuideUrl(trimmedVideo);
+  const filledLinks = links.filter((link) => link.url.trim() !== "");
+  const linksValid = filledLinks.every((link) => isAllowedLinkUrl(link.url.trim()));
 
   const refreshToken = (element: HTMLTextAreaElement) => {
     const next = cardTokenAtCaret(element.value, element.selectionStart);
@@ -130,17 +155,23 @@ export function DeckDescriptionDialog({
     }
   };
 
+  const trimmedName = name.trim();
+
   const handleSubmit = () => {
-    if (!videoValid) {
+    if (!linksValid || trimmedName === "") {
       return;
     }
     const trimmed = draft.trim();
-    const patch: { description?: string | null; videoUrl?: string | null } = {};
+    const patch: DeckMetaPatch = {};
+    if (trimmedName !== currentName) {
+      patch.name = trimmedName;
+    }
     if (trimmed !== (currentDescription ?? "")) {
       patch.description = trimmed === "" ? null : trimmed;
     }
-    if (trimmedVideo !== (currentVideoUrl ?? "")) {
-      patch.videoUrl = trimmedVideo === "" ? null : trimmedVideo;
+    const nextLinks = toLinks(filledLinks);
+    if (JSON.stringify(nextLinks) !== JSON.stringify(currentLinks)) {
+      patch.links = nextLinks;
     }
     if (Object.keys(patch).length > 0) {
       update(patch);
@@ -170,8 +201,9 @@ export function DeckDescriptionDialog({
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
+          setName(currentName);
           setDraft(currentDescription ?? "");
-          setVideo(currentVideoUrl ?? "");
+          setLinks(toDrafts(currentLinks));
           setPane("write");
           setToken(null);
         }
@@ -181,34 +213,50 @@ export function DeckDescriptionDialog({
       <DialogContent className="sm:max-w-4xl">
         <DialogForm onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Edit description</DialogTitle>
+            <DialogTitle>Deck details</DialogTitle>
             <DialogDescription>
-              Write your deck guide in Markdown: headings, lists, links. Type
+              Name your deck, then write its guide in Markdown: headings, lists, links. Type
               <code className="bg-muted mx-1 rounded px-1">[[</code>
               to link a card by name.
             </DialogDescription>
           </DialogHeader>
 
-          <ToggleGroup
-            variant="outline"
-            spacing={0}
-            size="sm"
-            value={[pane]}
-            onValueChange={([next]) => {
-              if (next === "write" || next === "preview") {
-                setPane(next);
-              }
-            }}
-            aria-label="Editor pane"
-            className="lg:hidden"
-          >
-            <ToggleGroupItem value="write">Write</ToggleGroupItem>
-            <ToggleGroupItem value="preview">Preview</ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="deck-details-name">Name</Label>
+            <Input
+              id="deck-details-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={200}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
+              autoFocus
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="deck-details-description">Description</Label>
+            <ToggleGroup
+              variant="outline"
+              spacing={0}
+              size="sm"
+              value={[pane]}
+              onValueChange={([next]) => {
+                if (next === "write" || next === "preview") {
+                  setPane(next);
+                }
+              }}
+              aria-label="Editor pane"
+              className="lg:hidden"
+            >
+              <ToggleGroupItem value="write">Write</ToggleGroupItem>
+              <ToggleGroupItem value="preview">Preview</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
 
           <div className="grid gap-3 lg:grid-cols-2">
             <div className={cn("relative", pane === "preview" && "max-lg:hidden")}>
               <Textarea
+                id="deck-details-description"
                 ref={textareaRef}
                 value={draft}
                 onChange={(event) => {
@@ -222,8 +270,6 @@ export function DeckDescriptionDialog({
                 rows={14}
                 className="lg:max-h-96"
                 placeholder="A few words about your deck…"
-                // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: dialog input should grab focus
-                autoFocus
               />
               {suggestions.length > 0 && (
                 <div
@@ -263,24 +309,19 @@ export function DeckDescriptionDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="deck-video-url">Video guide (YouTube link)</Label>
-            <Input
-              id="deck-video-url"
-              value={video}
-              onChange={(event) => setVideo(event.target.value)}
-              placeholder="https://youtube.com/watch?v=…"
-              maxLength={300}
-              aria-invalid={!videoValid}
+            <Label>Links</Label>
+            <LinkRowsField
+              links={links}
+              onChange={setLinks}
+              max={MAX_DECK_LINKS}
+              isValidUrl={isAllowedLinkUrl}
+              urlPlaceholder="https://youtube.com/watch?v=…"
             />
-            {!videoValid && (
-              <p className="text-destructive text-xs">
-                Must be a YouTube link (youtube.com or youtu.be).
-              </p>
-            )}
+            {!linksValid && <p className="text-destructive text-xs">{ALLOWED_HOSTS_HINT}</p>}
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={!videoValid}>
+            <Button type="submit" disabled={!linksValid || trimmedName === ""}>
               Save
             </Button>
           </DialogFooter>

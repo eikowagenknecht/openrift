@@ -6,7 +6,6 @@ import {
   BoxIcon,
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
-  FileTextIcon,
   GitCompareArrowsIcon,
   ImageIcon,
   LinkIcon,
@@ -25,7 +24,7 @@ import { createPortal } from "react-dom";
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckCompareDialog } from "@/components/deck/deck-compare-dialog";
 import { DeckCoverDialog } from "@/components/deck/deck-cover-dialog";
-import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog";
+import { DeckDetailsDialog } from "@/components/deck/deck-details-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckHomeCollectionDialog } from "@/components/deck/deck-home-collection-dialog";
@@ -172,7 +171,7 @@ function DeckEditorContent({
   const [renameOpen, setRenameOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
-  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -608,17 +607,14 @@ function DeckEditorContent({
                     <EllipsisVerticalIcon className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+                    {/* Descriptions are a signed-in feature (ADR-035), so a
+                        local deck gets the name on its own. */}
+                    <DropdownMenuItem
+                      onClick={() => (isLocal ? setRenameOpen(true) : setDetailsOpen(true))}
+                    >
                       <PencilIcon className="size-4" />
-                      Rename
+                      {isLocal ? "Rename" : "Name & description"}
                     </DropdownMenuItem>
-                    {/* Descriptions are a signed-in feature (ADR-035). */}
-                    {!isLocal && (
-                      <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
-                        <FileTextIcon className="size-4" />
-                        Edit description
-                      </DropdownMenuItem>
-                    )}
                     <DropdownMenuItem onClick={() => setCoverOpen(true)}>
                       <ImageIcon className="size-4" />
                       Change cover art
@@ -696,12 +692,14 @@ function DeckEditorContent({
           </>,
           topBarSlot,
         )}
-      <DeckRenameDialog
-        deckId={deckId}
-        currentName={data.deck.name}
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-      />
+      {isLocal && (
+        <DeckRenameDialog
+          deckId={deckId}
+          currentName={data.deck.name}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+        />
+      )}
       <DeckCompareDialog
         deckId={deckId}
         deckName={data.deck.name}
@@ -710,12 +708,13 @@ function DeckEditorContent({
         onOpenChange={setCompareOpen}
       />
       {!isLocal && (
-        <DeckDescriptionDialog
+        <DeckDetailsDialog
           deckId={deckId}
+          currentName={data.deck.name}
           currentDescription={data.deck.description ?? null}
-          currentVideoUrl={data.deck.videoUrl ?? null}
-          open={descriptionOpen}
-          onOpenChange={setDescriptionOpen}
+          currentLinks={data.deck.links}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
         />
       )}
       {!isLocal && (
@@ -844,6 +843,7 @@ function DeckEditorContent({
                   onViewMissing={() => setMissingOpen(true)}
                   onHoverCard={setHoveredMain}
                   onOverviewCardClick={handleOverviewCardClick}
+                  onEditDescription={isLocal ? undefined : () => setDetailsOpen(true)}
                 />
               </div>
               {!isMobile && activeZone === null && (

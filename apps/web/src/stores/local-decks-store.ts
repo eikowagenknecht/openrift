@@ -6,8 +6,8 @@
 // imported from a code while logged out), which the merged `/decks` list
 // surfaces and offers to claim into the account.
 
-import type { DeckFormat, DeckFormatConfig, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckFormat, DeckFormatConfig, DeckLink, DeckZone } from "@openrift/shared";
+import { isAllowedLinkUrl, WellKnown } from "@openrift/shared";
 import { toast } from "sonner";
 import { create } from "zustand";
 import type { StateStorage } from "zustand/middleware";
@@ -51,8 +51,8 @@ export interface LocalDeck {
   coverCardId: string | null;
   coverPrintingId: string | null;
   coverPosition: number | null;
-  /** YouTube guide link (see the server's decks.video_url column). */
-  videoUrl: string | null;
+  /** Outbound links (see the server's decks.links column). */
+  links: DeckLink[];
   createdAt: string;
   updatedAt: string;
 }
@@ -66,7 +66,7 @@ interface LocalDeckPatch {
   coverCardId?: string | null;
   coverPrintingId?: string | null;
   coverPosition?: number | null;
-  videoUrl?: string | null;
+  links?: DeckLink[];
 }
 
 interface LocalDecksState {
@@ -182,6 +182,38 @@ function sanitizeCards(raw: unknown): LocalDeckCard[] {
 }
 
 /**
+ * Read a deck's outbound links out of a persisted entry, dropping anything
+ * that no longer passes the host allowlist. Blobs written before links existed
+ * carry a single `videoUrl` string instead, which becomes the first entry —
+ * this is the only migration path, since the store deliberately has no persist
+ * `version` (a stale bundle must never discard a newer blob).
+ * @returns The deck's valid links, newest shape or old, else an empty list.
+ */
+function sanitizeLinks(candidate: Record<string, unknown>): DeckLink[] {
+  if (Array.isArray(candidate.links)) {
+    const links: DeckLink[] = [];
+    for (const entry of candidate.links) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const link = entry as Record<string, unknown>;
+      if (typeof link.url !== "string" || !isAllowedLinkUrl(link.url)) {
+        continue;
+      }
+      links.push({
+        url: link.url,
+        ...(typeof link.title === "string" && link.title !== "" ? { title: link.title } : {}),
+      });
+    }
+    return links;
+  }
+  if (typeof candidate.videoUrl === "string" && isAllowedLinkUrl(candidate.videoUrl)) {
+    return [{ url: candidate.videoUrl, title: "Video guide" }];
+  }
+  return [];
+}
+
+/**
  * Validate a persisted decks blob, keeping every salvageable deck and dropping
  * only what can't be trusted. These are anonymous users' ONLY copy of their
  * decks (ADR-035): a malformed entry (cross-version write from another tab,
@@ -226,7 +258,7 @@ export function sanitizeDecks(raw: unknown): Record<string, LocalDeck> {
         candidate.coverPosition <= 100
           ? candidate.coverPosition
           : null,
-      videoUrl: typeof candidate.videoUrl === "string" ? candidate.videoUrl : null,
+      links: sanitizeLinks(candidate),
       createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : fallbackStamp,
       updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : fallbackStamp,
     };
@@ -255,7 +287,7 @@ export const useLocalDecksStore = create<LocalDecksState>()(
               coverCardId: null,
               coverPrintingId: null,
               coverPosition: null,
-              videoUrl: null,
+              links: [],
               createdAt: stamp,
               updatedAt: stamp,
             },
@@ -294,8 +326,8 @@ export const useLocalDecksStore = create<LocalDecksState>()(
           if (patch.coverPosition !== undefined) {
             next.coverPosition = patch.coverPosition;
           }
-          if (patch.videoUrl !== undefined) {
-            next.videoUrl = patch.videoUrl;
+          if (patch.links !== undefined) {
+            next.links = patch.links;
           }
           return { decks: { ...state.decks, [id]: next } };
         }),

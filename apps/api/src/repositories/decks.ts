@@ -3,6 +3,7 @@ import type {
   CardType,
   DeckFormat,
   DeckFormatConfig,
+  DeckLink,
   DeckOddsConfig,
   DeckZone,
   Domain,
@@ -11,7 +12,7 @@ import type {
 import type { DeleteResult, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
+import { parseJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
 
 function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
@@ -24,20 +25,29 @@ function serializeOddsConfig(value: DeckOddsConfig | null): string | null {
 
 /**
  * The stored shapes are enforced at the write boundary (`validateFormatConfig`
- * for the format config, `deckOddsConfigSchema` for the odds config), so the
- * casts {@link parseJsonb} performs are safe at read time.
+ * for the format config, `deckOddsConfigSchema` for the odds config,
+ * `deckLinkSchema` for the links), so the casts {@link parseJsonb} performs
+ * are safe at read time.
  * @returns The row with its jsonb columns parsed (null when a column was NULL).
  */
-function withParsedFormatConfig<
+function withParsedJsonb<
   T extends {
     formatConfig: DeckFormatConfig | string | null;
     oddsConfig: DeckOddsConfig | string | null;
+    links: DeckLink[] | string;
   },
->(row: T): T & { formatConfig: DeckFormatConfig | null; oddsConfig: DeckOddsConfig | null } {
+>(
+  row: T,
+): T & {
+  formatConfig: DeckFormatConfig | null;
+  oddsConfig: DeckOddsConfig | null;
+  links: DeckLink[];
+} {
   return {
     ...row,
     formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig),
     oddsConfig: parseJsonb<DeckOddsConfig>(row.oddsConfig),
+    links: parseJsonbRequired<DeckLink[]>(row.links),
   };
 }
 
@@ -46,9 +56,13 @@ function withParsedFormatConfig<
  * `formatConfig` / `oddsConfig` as their structured shapes (the repo
  * serializes them before writing) rather than the columns' stored string form.
  */
-export type DeckUpdateInput = Omit<Updateable<DecksTable>, "formatConfig" | "oddsConfig"> & {
+export type DeckUpdateInput = Omit<
+  Updateable<DecksTable>,
+  "formatConfig" | "oddsConfig" | "links"
+> & {
   formatConfig?: DeckFormatConfig | null;
   oddsConfig?: DeckOddsConfig | null;
+  links?: DeckLink[];
 };
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
@@ -100,7 +114,7 @@ export function decksRepo(db: Kysely<Database>) {
         query = query.where("archivedAt", "is", null);
       }
       const rows = await query.execute();
-      return rows.map((row) => withParsedFormatConfig(row));
+      return rows.map((row) => withParsedJsonb(row));
     },
 
     /**
@@ -130,7 +144,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedFormatConfig(row);
+      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /** @returns The deck's `id` and `format`, or `undefined` if not found. */
@@ -171,7 +185,7 @@ export function decksRepo(db: Kysely<Database>) {
         .values({ ...values, formatConfig: serializeFormatConfig(values.formatConfig) })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return withParsedFormatConfig(row);
+      return withParsedJsonb(row);
     },
 
     /** @returns The updated deck row, or `undefined` if not found. */
@@ -180,13 +194,16 @@ export function decksRepo(db: Kysely<Database>) {
       userId: string,
       updates: DeckUpdateInput,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const { formatConfig, oddsConfig, ...rest } = updates;
+      const { formatConfig, oddsConfig, links, ...rest } = updates;
       const dbUpdates: Updateable<DecksTable> = { ...rest };
       if ("formatConfig" in updates) {
         dbUpdates.formatConfig = serializeFormatConfig(formatConfig ?? null);
       }
       if ("oddsConfig" in updates) {
         dbUpdates.oddsConfig = serializeOddsConfig(oddsConfig ?? null);
+      }
+      if ("links" in updates) {
+        dbUpdates.links = JSON.stringify(links ?? []);
       }
       const row = await db
         .updateTable("decks")
@@ -200,7 +217,7 @@ export function decksRepo(db: Kysely<Database>) {
       }
       // Both jsonb columns, not just formatConfig: an unparsed oddsConfig
       // string fails deckResponseSchema output validation on the PATCH reply.
-      return withParsedFormatConfig(row);
+      return withParsedJsonb(row);
     },
 
     /** @returns Delete result -- check `numDeletedRows` to verify the row existed. */
@@ -356,7 +373,7 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `${source.name} (Copy)`,
             description: source.description,
-            videoUrl: source.videoUrl,
+            links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
             format: source.format,
             // Carry format_config so a cloned Custom-Region deck stays locked
             // to the same region without forcing the user to re-pick.
@@ -382,7 +399,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return withParsedFormatConfig(newDeck);
+        return withParsedJsonb(newDeck);
       });
     },
 
@@ -402,7 +419,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedFormatConfig(row);
+      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -422,7 +439,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedFormatConfig(row);
+      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -461,7 +478,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedFormatConfig(row);
+      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -488,7 +505,7 @@ export function decksRepo(db: Kysely<Database>) {
       }
 
       const { ownerName, ownerEmail, ...deck } = row;
-      return { deck: withParsedFormatConfig(deck), ownerName, ownerEmail };
+      return { deck: withParsedJsonb(deck), ownerName, ownerEmail };
     },
 
     /**
@@ -518,7 +535,7 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `Copy of ${source.name}`,
             description: source.description,
-            videoUrl: source.videoUrl,
+            links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
             format: source.format,
             formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
             isWanted: false,
@@ -540,7 +557,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return withParsedFormatConfig(newDeck);
+        return withParsedJsonb(newDeck);
       });
     },
   };

@@ -37,7 +37,7 @@ function localDeck(overrides: Partial<LocalDeck> = {}): LocalDeck {
     coverCardId: null,
     coverPrintingId: null,
     coverPosition: null,
-    videoUrl: null,
+    links: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
     ...overrides,

@@ -19,6 +19,7 @@ import type {
   Currency,
   DeckFormat,
   DeckFormatConfig,
+  DeckLink,
   DeckOddsConfig,
   DeckZone,
   Finish,
@@ -588,8 +589,12 @@ export interface DecksTable {
   coverPrintingId: string | null;
   /** CHECK: 0-100. Vertical crop focus (percent from the top); null = default. */
   coverPosition: number | null;
-  /** YouTube guide link (validated at the API boundary); null = none. */
-  videoUrl: string | null;
+  /**
+   * Outbound links ({@link DeckLink}[]): a guide video, the site the list came
+   * from. Hosts are allowlisted at the API boundary. Reads back as a string
+   * under postgres.js, so parse it (`parseJsonbRequired`) in the repository.
+   */
+  links: ColumnType<DeckLink[] | string, string | undefined, string>;
   /**
    * FK → collections(id), SET NULL. The deck's home collection: the box it
    * physically lives in. Copies there always count as buildable for this deck,
