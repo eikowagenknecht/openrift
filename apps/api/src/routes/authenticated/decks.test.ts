@@ -1,3 +1,4 @@
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
@@ -54,7 +55,7 @@ const mockCatalog = {
 };
 
 const mockUserPreferences = {
-  getByUserId: vi.fn(() => Promise.resolve(undefined)),
+  getByUserId: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockDeckFormats = {
@@ -209,6 +210,9 @@ describe("GET /api/v1/decks", () => {
     );
     mockLoans.borrowedCountByCard.mockReset();
     mockLoans.borrowedCountByCard.mockResolvedValue(new Map<string, number>());
+    mockMarketplace.deckValues.mockClear();
+    mockUserPreferences.getByUserId.mockReset();
+    mockUserPreferences.getByUserId.mockResolvedValue(undefined);
   });
 
   it("returns 200 with list of decks", async () => {
@@ -222,6 +226,35 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].totalCards).toBe(4);
     expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
+  });
+
+  // The tile's value must be priced on the same basis as the deck page, which
+  // only counts printings in the languages the viewer collects.
+  it("prices deck values in the user's preferred languages", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+    mockUserPreferences.getByUserId.mockResolvedValue({
+      data: { marketplaceOrder: ["cardtrader"], languages: ["SC", "EN"] },
+    });
+
+    const res = await app.request("/api/v1/decks");
+
+    expect(res.status).toBe(200);
+    expect(mockMarketplace.deckValues).toHaveBeenCalledWith(USER_ID, "cardtrader", ["SC", "EN"]);
+  });
+
+  it("falls back to the default languages when the user has no preference", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+
+    const res = await app.request("/api/v1/decks");
+
+    expect(res.status).toBe(200);
+    expect(mockMarketplace.deckValues).toHaveBeenCalledWith(
+      USER_ID,
+      PREFERENCE_DEFAULTS.marketplaceOrder[0],
+      PREFERENCE_DEFAULTS.languages,
+    );
   });
 
   // The deck needs 4 of one card. With no buildable/borrowed stock, the whole

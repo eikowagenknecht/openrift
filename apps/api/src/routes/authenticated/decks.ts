@@ -214,6 +214,12 @@ export const decksRouter = {
 
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    // The tile's value has to use the same basis as the deck page, which
+    // prices each card at the cheapest printing in the viewer's languages
+    // (`computeDeckOwnership`). Resolve the stored preference the same way the
+    // display store does — unset means the default, an explicitly empty list
+    // means "any language".
+    const preferredLanguages = prefs?.data?.languages ?? PREFERENCE_DEFAULTS.languages;
     // Bans invalidate a deck (CARD_BANNED), so the list's valid/invalid badge
     // needs them. One query covers every card across every deck in the response.
     // The home-collection extras cover every deck's box in one query too: each
@@ -222,7 +228,7 @@ export const decksRouter = {
       .map((row) => row.collectionId)
       .filter((id): id is string => id !== null);
     const [deckValueMap, banRows, homeExtrasByCollection] = await Promise.all([
-      marketplace.deckValues(userId, favMarketplace),
+      marketplace.deckValues(userId, favMarketplace, preferredLanguages),
       catalog.cardBansByCardIds([...new Set(allCards.map((card) => card.cardId))]),
       copies.buildableCountByCardForCollections(userId, homeCollectionIds),
     ]);

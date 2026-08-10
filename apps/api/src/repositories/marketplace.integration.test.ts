@@ -1,14 +1,14 @@
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { PRINTING_1 } from "../test/fixtures/constants.js";
+import { CARD_FURY_RUNE, PRINTING_1, PRINTINGS } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { marketplaceRepo } from "./marketplace.js";
 
 const ctx = createDbContext("a0000000-0030-4000-a000-000000000001");
 
 describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
-  const { db } = ctx!;
+  const { db, userId } = ctx!;
   const repo = marketplaceRepo(db);
 
   // Use the seed printing but create our own marketplace data with unique
@@ -16,12 +16,22 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const anniePrintingId = PRINTING_1.id;
   const mpTcg = "mp-repo-test-tcg";
   const mpCm = "mp-repo-test-cm";
+  // Third marketplace, used only by the deckValues language tests so their
+  // prices can't shift the assertions above.
+  const mpLang = "mp-repo-test-lang";
+
+  // Fury Rune is printed in both EN and SC in the seed, which is what the
+  // language-aware pricing needs.
+  const runeEnPrintingId = PRINTINGS["OGN-007:common:normal::EN"].id;
+  const runeScPrintingId = PRINTINGS["OGN-007:common:normal::SC"].id;
 
   let tcgVariantId = "";
   let tcgProductId = "";
+  let langDeckId = "";
 
   // Track recordedAt timestamps we inserted for cleanup
   const createdPriceKeys: { productId: string; recordedAt: Date }[] = [];
+  const createdDeckIds: string[] = [];
 
   beforeAll(async () => {
     // Create marketplace groups for our test marketplaces
@@ -30,6 +40,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .values([
         { marketplace: mpTcg, groupId: 80_001, name: "MP Repo Test TCG", abbreviation: null },
         { marketplace: mpCm, groupId: 80_002, name: "MP Repo Test CM", abbreviation: null },
+        { marketplace: mpLang, groupId: 80_003, name: "MP Repo Test Lang", abbreviation: null },
       ])
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
@@ -80,9 +91,103 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         printingId: anniePrintingId,
       })
       .execute();
+
+    // Two SKUs of the same card on one marketplace, one per language, with the
+    // out-of-language one deliberately cheaper — this is the CardTrader shape
+    // that made the tile read lower than the deck page.
+    const langProducts = await db
+      .insertInto("marketplaceProducts")
+      .values([
+        {
+          marketplace: mpLang,
+          groupId: 80_003,
+          externalId: 913_001,
+          productName: "Fury Rune (Test EN)",
+          finish: "normal",
+          language: "EN",
+        },
+        {
+          marketplace: mpLang,
+          groupId: 80_003,
+          externalId: 913_002,
+          productName: "Fury Rune (Test SC)",
+          finish: "normal",
+          language: "SC",
+        },
+      ])
+      .returning(["id", "language"])
+      .execute();
+    const langEnProductId = langProducts.find((row) => row.language === "EN")!.id;
+    const langScProductId = langProducts.find((row) => row.language === "SC")!.id;
+
+    await db
+      .insertInto("marketplaceProductVariants")
+      .values([
+        { marketplaceProductId: langEnProductId, printingId: runeEnPrintingId },
+        { marketplaceProductId: langScProductId, printingId: runeScPrintingId },
+      ])
+      .execute();
+
+    const langPriceAt = new Date("2026-03-01T00:00:00Z");
+    await db
+      .insertInto("marketplaceProductPrices")
+      .values([
+        {
+          marketplaceProductId: langEnProductId,
+          marketCents: 500,
+          lowCents: 500,
+          recordedAt: langPriceAt,
+        },
+        {
+          marketplaceProductId: langScProductId,
+          marketCents: 100,
+          lowCents: 100,
+          recordedAt: langPriceAt,
+        },
+      ])
+      .execute();
+    createdPriceKeys.push(
+      { productId: langEnProductId, recordedAt: langPriceAt },
+      { productId: langScProductId, recordedAt: langPriceAt },
+    );
+
+    await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
+    await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
+
+    // A deck holding a single copy of that card, so the deck total is exactly
+    // the price of whichever printing the query picked.
+    const [deck] = await db
+      .insertInto("decks")
+      .values({
+        userId,
+        name: "MP Repo Test Language Deck",
+        description: null,
+        format: "freeform",
+        formatConfig: null,
+        isWanted: false,
+        isPublic: false,
+      })
+      .returning("id")
+      .execute();
+    langDeckId = deck.id;
+    createdDeckIds.push(deck.id);
+
+    await db
+      .insertInto("deckCards")
+      .values({
+        deckId: deck.id,
+        cardId: CARD_FURY_RUNE.id,
+        zone: "main",
+        quantity: 1,
+      })
+      .execute();
   });
 
   afterAll(async () => {
+    for (const deckId of createdDeckIds.toReversed()) {
+      await db.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
+      await db.deleteFrom("decks").where("id", "=", deckId).execute();
+    }
     for (const key of createdPriceKeys.toReversed()) {
       await db
         .deleteFrom("marketplaceProductPrices")
@@ -95,10 +200,16 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       DELETE FROM marketplace_product_variants mpv
       USING marketplace_products mp
       WHERE mp.id = mpv.marketplace_product_id
-        AND mp.marketplace IN (${mpTcg}, ${mpCm})
+        AND mp.marketplace IN (${mpTcg}, ${mpCm}, ${mpLang})
     `.execute(db);
-    await db.deleteFrom("marketplaceProducts").where("marketplace", "in", [mpTcg, mpCm]).execute();
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "in", [mpTcg, mpCm]).execute();
+    await db
+      .deleteFrom("marketplaceProducts")
+      .where("marketplace", "in", [mpTcg, mpCm, mpLang])
+      .execute();
+    await db
+      .deleteFrom("marketplaceGroups")
+      .where("marketplace", "in", [mpTcg, mpCm, mpLang])
+      .execute();
   });
 
   // ---------------------------------------------------------------------------
@@ -211,5 +322,36 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       expect(p.printingId).toBeDefined();
       expect(typeof p.marketCents).toBe("number");
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // deckValues
+  // ---------------------------------------------------------------------------
+
+  it("prices a card at its cheapest printing in the requested languages", async () => {
+    const values = await repo.deckValues(userId, mpLang, ["EN"]);
+
+    // The SC printing is cheaper (100), but the viewer only collects EN.
+    expect(values.get(langDeckId)).toBe(500);
+  });
+
+  it("picks the cheaper printing when its language is requested too", async () => {
+    const values = await repo.deckValues(userId, mpLang, ["EN", "SC"]);
+
+    expect(values.get(langDeckId)).toBe(100);
+  });
+
+  it("falls back to any language when nothing is priced in the requested ones", async () => {
+    const values = await repo.deckValues(userId, mpLang, ["FR"]);
+
+    expect(values.get(langDeckId)).toBe(100);
+  });
+
+  it("prices at the plain cheapest printing when no languages are given", async () => {
+    const empty = await repo.deckValues(userId, mpLang, []);
+    const absent = await repo.deckValues(userId, mpLang);
+
+    expect(empty.get(langDeckId)).toBe(100);
+    expect(absent.get(langDeckId)).toBe(100);
   });
 });

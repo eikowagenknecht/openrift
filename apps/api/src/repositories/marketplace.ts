@@ -258,9 +258,23 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * committed to the deck, and the deck editor leaves it out of its own
      * value figure too (see `computeDeckOwnership` in the web app).
      *
+     * `languages` mirrors `cheapestPrice` in the web app's
+     * `computeDeckOwnership` exactly, so a deck tile and the deck page quote
+     * the same basis: the cheapest priced printing whose language the viewer
+     * collects, falling back to the cheapest priced printing in any language
+     * when the card has none priced in those. This matters on marketplaces
+     * with per-language prices (CardTrader) — without it a cheap foreign
+     * printing drags the tile below what the deck page shows. An empty list
+     * means "no language preference" and prices at the plain cheapest.
+     *
      * @returns A map from deck ID to total value in cents.
      */
-    async deckValues(userId: string, marketplace: string): Promise<Map<string, number>> {
+    async deckValues(
+      userId: string,
+      marketplace: string,
+      languages?: readonly string[],
+    ): Promise<Map<string, number>> {
+      const preferredLanguages = [...(languages ?? [])];
       const rows = await sql<{ deckId: string; totalValueCents: number }>`
         SELECT
           dc.deck_id AS "deckId",
@@ -268,7 +282,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
         FROM deck_cards dc
         INNER JOIN decks d ON d.id = dc.deck_id AND d.user_id = ${userId}
         LEFT JOIN LATERAL (
-          SELECT MIN(mvp.headline_cents) AS headline_cents
+          SELECT COALESCE(
+            MIN(mvp.headline_cents) FILTER (
+              WHERE p.language = ANY(${preferredLanguages}::text[])
+            ),
+            MIN(mvp.headline_cents)
+          ) AS headline_cents
           FROM printings p
           INNER JOIN mv_latest_printing_prices mvp
             ON mvp.printing_id = p.id AND mvp.marketplace = ${marketplace}
