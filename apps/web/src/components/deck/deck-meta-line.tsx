@@ -1,6 +1,7 @@
 import type { DeckListItemResponse } from "@openrift/shared";
 import { Fragment } from "react";
 
+import { useHomeCollection } from "@/hooks/use-home-collection";
 import type { DeckMetaPartKey } from "@/lib/deck-meta";
 import { deckMetaParts } from "@/lib/deck-meta";
 import { formatterForMarketplace } from "@/lib/format";
@@ -15,18 +16,22 @@ const WARN_CLASS = "text-amber-600 dark:text-amber-500";
  * the whole list instead of shifting whenever a deck has nothing missing.
  */
 const COLUMN_WIDTH: Record<DeckMetaPartKey, string> = {
+  // A collection name is free text, so this one truncates instead of sizing to
+  // its content — a long box name may not push the numbers out of alignment.
+  box: "w-24 truncate",
   missing: "w-20",
   value: "w-16",
   updated: "w-24",
 };
 
 /**
- * The deck's stat summary: missing, value, updated date. The card count lives
- * on the format badge, as it does on the deck page.
+ * The deck's stat summary: deck box, missing, value, updated date. The card
+ * count lives on the format badge, as it does on the deck page.
  *
- * `inline` joins the stats with separators and lets the date wrap onto its own
- * line, for the grid tile and for list rows on phones. `columns` right-aligns
- * each part in a fixed-width cell, for list rows from `sm` up.
+ * `inline` joins the stats with separators and lets the box and the date wrap
+ * onto their own lines, for the grid tile and for list rows on phones.
+ * `columns` right-aligns each part in a fixed-width cell, for list rows from
+ * `sm` up.
  * @returns The stat line.
  */
 export function DeckMetaLine({
@@ -47,7 +52,8 @@ export function DeckMetaLine({
 }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const priceFormatter = formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader");
-  const parts = deckMetaParts(item, (cents) => priceFormatter(cents / 100));
+  const box = useHomeCollection(item.deck.collectionId);
+  const parts = deckMetaParts(item, (cents) => priceFormatter(cents / 100), box?.name);
 
   if (variant === "columns") {
     return (
@@ -71,7 +77,12 @@ export function DeckMetaLine({
   }
 
   const date = parts.find((part) => part.key === "updated");
-  const stats = parts.filter((part) => part.key !== "updated" && part.text !== null);
+  // The box sits outside the stat run so it can wrap onto a line of its own on
+  // a phone, where a name joined into the run would push the row over.
+  const boxPart = parts.find((part) => part.key === "box");
+  const stats = parts.filter(
+    (part) => part.key !== "updated" && part.key !== "box" && part.text !== null,
+  );
 
   return (
     // Wrapping with a wider gap between the two groups: the stats stay on one
@@ -96,6 +107,11 @@ export function DeckMetaLine({
           </Fragment>
         ))}
       </span>
+      {boxPart?.text && (
+        <span title={boxPart.title} className="min-w-0 truncate">
+          {boxPart.text}
+        </span>
+      )}
       {date && (
         <span title={date.title} className="whitespace-nowrap">
           {date.inlineText ?? date.text}

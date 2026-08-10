@@ -1,9 +1,23 @@
 import type { DeckListItemResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import type { DeckMetaPartKey } from "./deck-meta";
 import { deckMetaParts } from "./deck-meta";
 
 const price = (cents: number) => `€${(cents / 100).toFixed(2)}`;
+
+/**
+ * Looks a part up by key rather than by position, so adding a fact doesn't
+ * renumber every assertion.
+ * @returns The named part.
+ */
+function part(parts: ReturnType<typeof deckMetaParts>, key: DeckMetaPartKey) {
+  const found = parts.find((candidate) => candidate.key === key);
+  if (!found) {
+    throw new Error(`No ${key} part`);
+  }
+  return found;
+}
 
 function stubItem(overrides: Partial<DeckListItemResponse> = {}): DeckListItemResponse {
   return {
@@ -20,6 +34,7 @@ function stubItem(overrides: Partial<DeckListItemResponse> = {}): DeckListItemRe
       coverCardId: null,
       coverPrintingId: null,
       coverPosition: null,
+      collectionId: null,
       ...overrides.deck,
     },
     legendCardId: null,
@@ -38,25 +53,41 @@ function stubItem(overrides: Partial<DeckListItemResponse> = {}): DeckListItemRe
 
 describe("deckMetaParts", () => {
   it("returns the canonical order regardless of which facts apply", () => {
-    const keys = deckMetaParts(stubItem(), price).map((part) => part.key);
-    expect(keys).toEqual(["missing", "value", "updated"]);
+    const keys = deckMetaParts(stubItem(), price, "Deckbox 1").map((entry) => entry.key);
+    expect(keys).toEqual(["box", "missing", "value", "updated"]);
 
     const emptyKeys = deckMetaParts(
       stubItem({ totalValueCents: null, missingCount: null }),
       price,
-    ).map((part) => part.key);
-    expect(emptyKeys).toEqual(["missing", "value", "updated"]);
+    ).map((entry) => entry.key);
+    expect(emptyKeys).toEqual(["box", "missing", "value", "updated"]);
   });
 
   it("formats a fully-populated deck", () => {
-    const parts = deckMetaParts(stubItem(), price);
-    expect(parts.map((part) => part.text)).toEqual(["4 missing", "€142.30", "2026-08-09"]);
-    expect(parts[0].warn).toBe(true);
-    expect(parts[2].inlineText).toBe("updated 2026-08-09");
+    const parts = deckMetaParts(stubItem(), price, "Deckbox 1");
+    expect(parts.map((entry) => entry.text)).toEqual([
+      "in Deckbox 1",
+      "4 missing",
+      "€142.30",
+      "2026-08-09",
+    ]);
+    expect(part(parts, "missing").warn).toBe(true);
+    expect(part(parts, "updated").inlineText).toBe("updated 2026-08-09");
+  });
+
+  it("names the box it is stored in, with the full phrase on hover", () => {
+    const parts = deckMetaParts(stubItem(), price, "Deckbox 1");
+    expect(part(parts, "box").text).toBe("in Deckbox 1");
+    expect(part(parts, "box").title).toBe("Stored in Deckbox 1");
+  });
+
+  it("blanks the box part for a deck that lives nowhere", () => {
+    expect(part(deckMetaParts(stubItem(), price), "box").text).toBeNull();
+    expect(part(deckMetaParts(stubItem(), price, null), "box").text).toBeNull();
   });
 
   it("keeps the created date as hover context only when it differs", () => {
-    expect(deckMetaParts(stubItem(), price)[2].title).toBe("Created 2026-08-01");
+    expect(part(deckMetaParts(stubItem(), price), "updated").title).toBe("Created 2026-08-01");
 
     const sameDay = deckMetaParts(
       stubItem({
@@ -64,20 +95,22 @@ describe("deckMetaParts", () => {
       }),
       price,
     );
-    expect(sameDay[2].title).toBeUndefined();
+    expect(part(sameDay, "updated").title).toBeUndefined();
   });
 
   it("blanks the missing part when nothing is missing", () => {
-    expect(deckMetaParts(stubItem({ missingCount: 0 }), price)[0].text).toBeNull();
+    expect(part(deckMetaParts(stubItem({ missingCount: 0 }), price), "missing").text).toBeNull();
   });
 
   it("blanks the missing part for local decks with no server inventory", () => {
-    expect(deckMetaParts(stubItem({ missingCount: null }), price)[0].text).toBeNull();
+    expect(part(deckMetaParts(stubItem({ missingCount: null }), price), "missing").text).toBeNull();
   });
 
   it("blanks the value part when the deck has no priced cards", () => {
-    expect(deckMetaParts(stubItem({ totalValueCents: null }), price)[1].text).toBeNull();
-    expect(deckMetaParts(stubItem({ totalValueCents: 0 }), price)[1].text).toBeNull();
+    expect(
+      part(deckMetaParts(stubItem({ totalValueCents: null }), price), "value").text,
+    ).toBeNull();
+    expect(part(deckMetaParts(stubItem({ totalValueCents: 0 }), price), "value").text).toBeNull();
   });
 
   it("leaves an empty deck with only its date", () => {
@@ -85,6 +118,6 @@ describe("deckMetaParts", () => {
       stubItem({ totalCards: 0, totalValueCents: null, missingCount: 0 }),
       price,
     );
-    expect(parts.map((part) => part.text)).toEqual([null, null, "2026-08-09"]);
+    expect(parts.map((entry) => entry.text)).toEqual([null, null, null, "2026-08-09"]);
   });
 });

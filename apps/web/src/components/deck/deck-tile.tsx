@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
-import { DeckBoxMarker } from "./deck-box-marker";
 import { DeckDomainBar } from "./deck-domain-bar";
 import { DeckFormatBadge } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
@@ -317,7 +316,6 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               {deck.descriptionSnippet}
             </p>
           )}
-          <DeckBoxMarker collectionId={deck.collectionId} className="mt-0.5 max-w-full" />
         </div>
 
         {/* Domain icons, type counts + format badge */}
