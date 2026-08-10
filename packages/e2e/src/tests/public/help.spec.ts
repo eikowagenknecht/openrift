@@ -37,7 +37,7 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
     slug: "lists",
     title: "Wishlists & Tradelists",
     description:
-      "Build, fill, and price the wishlists and tradelists that power group trading — including per-card overrides and the three list kinds.",
+      "Build, fill, and price the wishlists and tradelists that power group trading, including per-card overrides and the three list kinds.",
   },
   {
     slug: "groups",
@@ -56,6 +56,18 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
     title: "Printing Proxies",
     description:
       "Print proxy PDFs from your decks for playtesting, with card images or text placeholders.",
+  },
+  {
+    slug: "discord-bot",
+    title: "Discord Bot",
+    description:
+      "Add the OpenRift bot to your Discord server to look up cards, unfurl deck codes, and quote rules right from chat.",
+  },
+  {
+    slug: "tournament-decklist-api",
+    title: "Tournament Decklist API",
+    description:
+      "Push entrant decklists from your registration system into a tournament's deck check: API keys, the payload, claim links, and limits.",
   },
 ];
 

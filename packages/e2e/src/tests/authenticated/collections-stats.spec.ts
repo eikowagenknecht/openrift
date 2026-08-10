@@ -323,23 +323,31 @@ test.describe("collection stats", () => {
         const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await expect(groupGroup).toBeVisible({ timeout: 15_000 });
 
+        // Every group-by value also names a filter chip and a distribution
+        // chart legend elsewhere on the page (some of them inside the hidden
+        // mobile filter drawer), so scope the row assertions to the
+        // Completion section itself.
+        const completion = page
+          .getByRole("heading", { name: "Completion", level: 2 })
+          .locator("xpath=ancestor::section[1]");
+
         // Default is "Set" — the only seeded set is OGS (Proving Grounds, supplemental).
-        await expect(page.getByText("Proving Grounds")).toBeVisible();
-        await expect(page.getByText("Supplemental", { exact: true })).toBeVisible();
+        await expect(completion.getByText("Proving Grounds")).toBeVisible();
+        await expect(completion.getByText("Supplemental", { exact: true })).toBeVisible();
 
         await groupGroup.getByRole("button", { name: "Domain" }).click();
         // Annie is Fury, Garen is Body.
-        await expect(page.getByText("Fury", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Body", { exact: true }).first()).toBeVisible();
+        await expect(completion.getByText("Fury", { exact: true }).first()).toBeVisible();
+        await expect(completion.getByText("Body", { exact: true }).first()).toBeVisible();
 
         await groupGroup.getByRole("button", { name: "Rarity" }).click();
         // Annie is Epic, Garen is Rare.
-        await expect(page.getByText("Epic", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Rare", { exact: true }).first()).toBeVisible();
+        await expect(completion.getByText("Epic", { exact: true }).first()).toBeVisible();
+        await expect(completion.getByText("Rare", { exact: true }).first()).toBeVisible();
 
         await groupGroup.getByRole("button", { name: "Type" }).click();
         // Both are Units.
-        await expect(page.getByText("Unit", { exact: true }).first()).toBeVisible();
+        await expect(completion.getByText("Unit", { exact: true }).first()).toBeVisible();
       });
     });
   });
@@ -357,7 +365,7 @@ test.describe("collection stats", () => {
       });
     });
 
-    test("Cards / Printings / Copies each render the Overall row with distinct totals", async ({
+    test("Cards / Printings / Playset each render the Overall row with distinct totals", async ({
       browser,
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
@@ -376,7 +384,8 @@ test.describe("collection stats", () => {
         // One printing owned.
         await expect(overallRow).toContainText(/^Overall\D*1\s*\//u);
 
-        await countGroup.getByRole("button", { name: "Copies" }).click();
+        // The third mode counts toward a playset rather than raw copies.
+        await countGroup.getByRole("button", { name: "Playset" }).click();
         // Three copies counted toward a max-3 playset target.
         await expect(overallRow).toContainText(/^Overall\D*3\s*\//u);
       });
@@ -396,30 +405,25 @@ test.describe("collection stats", () => {
       });
     });
 
-    test("toggle button expands/collapses the filter panel with hidden Owned/SuperType sections", async ({
+    test("the filter bar renders inline, without the hidden Owned/SuperType sections", async ({
       browser,
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto("/collections/stats");
 
-        const showFilters = page.getByRole("button", { name: "Show filters" });
-        await expect(showFilters).toBeVisible({ timeout: 15_000 });
-        await showFilters.click();
-
-        const hideFilters = page.getByRole("button", { name: "Hide filters" });
-        await expect(hideFilters).toBeVisible();
-
-        // Visible sections inside the expanded panel. Domain/Rarity also appear
-        // elsewhere on the stats page (as CardTitle for the distribution chart
-        // and as a group-by button), so scope to the filter-section paragraph.
-        const filterLabels = page.locator("p.text-muted-foreground.w-18.text-xs.font-medium");
-        await expect(filterLabels.filter({ hasText: /^Domain$/u })).toBeVisible();
-        await expect(filterLabels.filter({ hasText: /^Rarity$/u })).toBeVisible();
+        // The stats page hosts the same CompactFilterBar the card browsers
+        // use, always expanded — there is no show/hide toggle any more, and
+        // no mobile drawer on this page. Each dimension is a group named
+        // "<label> filter".
+        await expect(page.getByRole("group", { name: "Domain filter" })).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole("group", { name: "Rarity filter" })).toBeVisible();
 
         // HIDDEN_FILTER_SECTIONS removes "owned" and "superTypes".
-        await expect(filterLabels.filter({ hasText: /^Owned$/u })).toHaveCount(0);
-        await expect(filterLabels.filter({ hasText: /^Super Type$/u })).toHaveCount(0);
+        await expect(page.getByRole("group", { name: "Owned filter" })).toHaveCount(0);
+        await expect(page.getByRole("group", { name: "Super Type filter" })).toHaveCount(0);
       });
     });
 
@@ -436,11 +440,12 @@ test.describe("collection stats", () => {
           timeout: 15_000,
         });
 
-        // Active-filter chip strip renders the domain label. The chip itself
-        // is a div containing a label + close button; assert the "Domain:"
-        // prefix chip is visible.
-        await expect(page.getByText(/Domain:/u).first()).toBeVisible();
-        await expect(page.getByText("fury").first()).toBeVisible();
+        // The stats page carries the compact filter bar, where an active
+        // domain reads as a pressed toggle rather than a removable chip.
+        const furyToggle = page
+          .getByRole("group", { name: "Domain filter" })
+          .getByRole("button", { name: "Fury" });
+        await expect(furyToggle).toHaveAttribute("aria-pressed", "true");
 
         // Group-by "Domain" reveals the per-domain rows — Fury should show owned > 0
         // (Annie is Fury). We no longer assert on "body" because Body is a
@@ -448,7 +453,10 @@ test.describe("collection stats", () => {
         // sections unrelated to the domain filter.
         const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await groupGroup.getByRole("button", { name: "Domain" }).click();
-        await expect(page.getByText("Fury", { exact: true }).first()).toBeVisible();
+        const completion = page
+          .getByRole("heading", { name: "Completion", level: 2 })
+          .locator("xpath=ancestor::section[1]");
+        await expect(completion.getByText("Fury", { exact: true }).first()).toBeVisible();
       });
     });
   });
@@ -488,10 +496,15 @@ test.describe("collection stats", () => {
           page.locator('[data-slot="card-title"]', { hasText: /^Type$/u }),
         ).toBeVisible();
 
-        // Seeded rarities are Epic (Annie) and Rare (Garen) — both appear in the
-        // rarity chart legend.
-        await expect(page.getByText("Epic", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Rare", { exact: true }).first()).toBeVisible();
+        // Seeded rarities are Epic (Annie) and Rare (Garen) — both appear in
+        // the rarity chart legend. Scope to that card: the same words label
+        // the rarity filter chips higher up the page, some of which are not
+        // visible at this viewport.
+        const rarityCard = page
+          .locator('[data-slot="card"]')
+          .filter({ has: page.locator('[data-slot="card-title"]', { hasText: /^Rarity$/u }) });
+        await expect(rarityCard.getByText("Epic", { exact: true }).first()).toBeVisible();
+        await expect(rarityCard.getByText("Rare", { exact: true }).first()).toBeVisible();
 
         // Price extremes — both card tiles link into /cards/<slug>.
         const cheapest = page.getByRole("link", { name: /Annie, Fiery|Garen, Rugged/u }).first();

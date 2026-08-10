@@ -574,9 +574,10 @@ test.describe("card detail route — printings list", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     // Each language group renders an h2 header above the printing buttons.
+    // The header pairs a LanguageChip with the label, so its text reads
+    // "EN English" rather than either part on its own.
     const headings = page.getByRole("heading", { level: 2 });
-    // The English header may render as the language label "English" (via languageLabels lookup) or fall back to the code "EN".
-    await expect(headings.filter({ hasText: /^(?:English|EN)$/u }).first()).toBeVisible();
+    await expect(headings.filter({ hasText: /English/u }).first()).toBeVisible();
   });
 
   test("clicking a sibling printing updates the info panel", async ({ page }) => {

@@ -103,15 +103,16 @@ const ANNIE_FIERY_PRINTING_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
  * @returns The card tile wrapper locator.
  */
 function cardTile(page: Page, cardName: string): Locator {
-  // Scope via the card image's accessible name. After the first Add, the
-  // zones sidebar renders "Annie, Fiery" text too; a plain getByText().first()
-  // would drift from the browser tile into the sidebar and the "group"
-  // ancestor of a sidebar row has a different DOM shape.
+  // Scope via the card image's accessible name, then require the tile to carry
+  // an add button. Once the card is in the deck, its zone row renders the same
+  // image, and climbing from that one lands on a wrapper with no strip — the
+  // add button is what tells the browser's tile apart from a deck row.
   return page
     .getByRole("img", { name: cardName })
     .locator(
       "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' group ')][1]",
     )
+    .filter({ has: page.getByRole("button", { name: "Add to deck" }) })
     .first();
 }
 
@@ -159,12 +160,21 @@ async function searchFor(page: Page, query: string) {
   }).toPass({ timeout: 15_000 });
 }
 
+// The zone label is a Pressable named "Edit <zone>"; its count is a sibling
+// span in the same header row, so the count is read off the section wrapper
+// (the header's parent) rather than out of the button's accessible name.
+function zoneLabelButton(page: Page, label: string): Locator {
+  return page.getByRole("button", { name: `Edit ${label}`, exact: true }).first();
+}
+
+// The header's trailing count span: "N" on zones with no target, "N/target"
+// on the ones that have one (Main Deck 39, Runes 12, ...).
+function zoneCount(page: Page, label: string): Locator {
+  return zoneLabelButton(page, label).locator("xpath=following-sibling::span[last()]");
+}
+
 async function activateZone(page: Page, label: string) {
-  // The zone row's label-button contains "<Zone label>" and the count number.
-  await page
-    .getByRole("button", { name: new RegExp(`^${label}\\b`, "u") })
-    .first()
-    .click();
+  await zoneLabelButton(page, label).click();
 }
 
 // On mobile the zones sidebar is collapsed; tapping the title button opens it so
@@ -290,7 +300,7 @@ test.describe("deck editor card browser", () => {
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
-      await expect(row.getByText("0 owned")).toBeVisible();
+      await expect(row.getByTitle("0 owned")).toBeVisible();
       await expect(row.getByText(/in deck/u)).toBeHidden();
     });
 
@@ -308,7 +318,7 @@ test.describe("deck editor card browser", () => {
       });
 
       const row = strip(cardTile(page, "Annie, Fiery"));
-      await expect(row.getByText("2 owned")).toBeVisible();
+      await expect(row.getByTitle("2 owned")).toBeVisible();
     });
   });
 
@@ -334,10 +344,10 @@ test.describe("deck editor card browser", () => {
       );
 
       await addCardButton(tile).click();
-      await expect(row.getByText("1 in deck")).toBeVisible();
+      await expect(row.getByTitle("1 in deck")).toBeVisible();
 
-      // Main Deck sidebar row reflects the new count (Main Deck shows "N/39").
-      await expect(page.getByRole("button", { name: /Main Deck.*\b1\/39\b/u })).toBeVisible();
+      // Main Deck sidebar section reflects the new count (Main Deck shows "N/39").
+      await expect(zoneCount(page, "Main Deck")).toHaveText("1/39");
 
       // Once a card is added, the Constructed · Draft badge flips to the
       // amber violations badge (one of several constructed-format rules).
@@ -347,10 +357,10 @@ test.describe("deck editor card browser", () => {
       await expect(page.locator('span[class*="bg-amber"]').first()).toBeVisible();
 
       await addCardButton(tile).click();
-      await expect(row.getByText("2 in deck")).toBeVisible();
+      await expect(row.getByTitle("2 in deck")).toBeVisible();
 
       await removeCardButton(tile).click();
-      await expect(row.getByText("1 in deck")).toBeVisible();
+      await expect(row.getByTitle("1 in deck")).toBeVisible();
 
       // Save fires after the 1s debounce — confirm it lands.
       const saveResponse = await saveRequest;
@@ -377,13 +387,13 @@ test.describe("deck editor card browser", () => {
       const tile = cardTile(page, "Annie, Fiery");
       await addCardButton(tile).click();
 
-      // Sideboard row count increments; Main Deck stays at 0.
-      await expect(page.getByRole("button", { name: /Sideboard.*\b1\b/u }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: /Main Deck.*\b0\/39\b/u })).toBeVisible();
+      // Sideboard count increments; Main Deck stays at 0.
+      await expect(zoneCount(page, "Sideboard")).toHaveText("1");
+      await expect(zoneCount(page, "Main Deck")).toHaveText("0/39");
 
       // A second + still adds to Sideboard.
       await addCardButton(tile).click();
-      await expect(page.getByRole("button", { name: /Sideboard.*\b2\b/u }).first()).toBeVisible();
+      await expect(zoneCount(page, "Sideboard")).toHaveText("2");
     });
   });
 
@@ -408,7 +418,7 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await addCardButton(tile).click();
 
-      await expect(row.getByText("3 in deck")).toBeVisible();
+      await expect(row.getByTitle("3 in deck")).toBeVisible();
       await expect(addCardButton(tile)).toBeDisabled();
 
       // Freeform waives the 3-copy cap. The store's add path skips
@@ -428,11 +438,11 @@ test.describe("deck editor card browser", () => {
       await addCardButton(freeTile).click();
       await addCardButton(freeTile).click();
       await addCardButton(freeTile).click();
-      await expect(strip(freeTile).getByText("3 in deck")).toBeVisible();
+      await expect(strip(freeTile).getByTitle("3 in deck")).toBeVisible();
       // No cap in freeform: the button stays enabled and a fourth copy lands.
       await expect(addCardButton(freeTile)).toBeEnabled();
       await addCardButton(freeTile).click();
-      await expect(strip(freeTile).getByText("4 in deck")).toBeVisible();
+      await expect(strip(freeTile).getByTitle("4 in deck")).toBeVisible();
     });
   });
 
@@ -452,10 +462,10 @@ test.describe("deck editor card browser", () => {
 
       // Start at 1 so remainingCount = 2, triggering the bulk-add affordance.
       await addCardButton(tile).click();
-      await expect(row.getByText("1 in deck")).toBeVisible();
+      await expect(row.getByTitle("1 in deck")).toBeVisible();
 
       await addCardButton(tile).click({ modifiers: ["Shift"] });
-      await expect(row.getByText("3 in deck")).toBeVisible();
+      await expect(row.getByTitle("3 in deck")).toBeVisible();
     });
 
     test("shift+click the - button removes all copies in one action", async ({ page }) => {
@@ -472,15 +482,15 @@ test.describe("deck editor card browser", () => {
       const row = strip(tile);
       await addCardButton(tile).click();
       await addCardButton(tile).click();
-      await expect(row.getByText("2 in deck")).toBeVisible();
+      await expect(row.getByTitle("2 in deck")).toBeVisible();
 
       await removeCardButton(tile).click({ modifiers: ["Shift"] });
       await expect(row.getByText(/in deck/u)).toBeHidden();
     });
   });
 
-  test.describe("click card opens detail pane", () => {
-    test("clicking a card's image area reveals the detail pane", async ({ page }) => {
+  test.describe("click card opens the card detail", () => {
+    test("clicking a card's image area reveals the card detail", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const deckId = await createDeckViaApi(page, `Detail Pane ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
@@ -491,12 +501,14 @@ test.describe("deck editor card browser", () => {
       });
 
       // The image area is .aspect-card inside the tile. Clicking there fires
-      // handleCardClick, which opens the shared selection detail pane.
+      // handleCardClick, which opens the shared selection detail.
       await cardTile(page, "Annie, Fiery").locator(".aspect-card").first().click();
 
-      const pane = page.getByRole("complementary");
-      await expect(pane).toBeVisible({ timeout: 5000 });
-      await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/u })).toBeVisible();
+      // Docking the pane is an opt-in display preference (`paneDocked`, off by
+      // default), so the detail arrives as a dialog.
+      const detail = page.getByRole("dialog");
+      await expect(detail).toBeVisible({ timeout: 5000 });
+      await expect(detail.getByRole("heading", { name: /Annie, Fiery/u }).first()).toBeVisible();
     });
   });
 
@@ -545,7 +557,7 @@ test.describe("deck editor card browser", () => {
       const rowAfter = strip(cardTile(page, "Annie, Fiery"));
       // After reload the per-tile "in deck" count comes from a separate deck-cards
       // query that resolves a beat after the grid image mounts; give it headroom.
-      await expect(rowAfter.getByText("1 in deck")).toBeVisible({ timeout: 15_000 });
+      await expect(rowAfter.getByTitle("1 in deck")).toBeVisible({ timeout: 15_000 });
     });
   });
 });

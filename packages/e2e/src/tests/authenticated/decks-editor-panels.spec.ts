@@ -110,14 +110,12 @@ function statsHeader(page: Page) {
  * tests that inspect the sidebar panel must click a zone first.
  */
 async function activateSidebarPanels(page: Page): Promise<void> {
-  // Pick Main Deck (exists for every format we test). Clicking any sidebar
-  // zone button switches away from Overview and reveals the Stats panel below
-  // the zones. Retry in case the sidebar hasn't finished hydrating yet.
+  // Pick Main Deck (exists for every format we test). The zone label is a
+  // Pressable named "Edit <zone>"; clicking it switches away from Overview and
+  // reveals the Stats panel below the zones. Retry in case the sidebar hasn't
+  // finished hydrating yet.
   await expect(async () => {
-    await page
-      .getByRole("button", { name: /^Main Deck/u })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
     await expect(statsHeader(page)).toBeVisible({
       timeout: 2000,
     });
@@ -337,11 +335,12 @@ test.describe("deck editor panels", () => {
         /(?:tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
       );
 
-      // Both cards are in zone "main"; they're now grouped under a single
-      // "Main" zone header row in the dialog table.
-      await expect(dialog.getByRole("columnheader", { name: "Main" })).toHaveCount(1);
+      // Both cards are in zone "main", so the list groups them under a single
+      // "Main Deck" heading (a plain label row, not a table header).
+      await expect(dialog.getByText("Main Deck", { exact: true })).toHaveCount(1);
 
-      const copyButton = dialog.getByRole("button", { name: "Copy to clipboard" });
+      // Two copy buttons now: a Cardmarket-flavored one and the plain list.
+      const copyButton = dialog.getByRole("button", { name: "Copy list" });
       await copyButton.click();
       await expect(dialog.getByRole("button", { name: "Copied" })).toBeVisible();
 
@@ -353,7 +352,7 @@ test.describe("deck editor panels", () => {
       expect(lines[1]).toMatch(/^2x .*Tibbers/u);
 
       // Reverts after the 2s timeout.
-      await expect(dialog.getByRole("button", { name: "Copy to clipboard" })).toBeVisible({
+      await expect(dialog.getByRole("button", { name: "Copy list" })).toBeVisible({
         timeout: 5000,
       });
     });
@@ -402,10 +401,7 @@ test.describe("deck editor panels", () => {
         .getByRole("button", { name: /^Zones/u })
         .first()
         .click();
-      await page
-        .getByRole("button", { name: /^Main Deck/u })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
       // Re-open the sidebar after the zone click closed it. The title renders
       // as "Main Deck(3)" with no space — the count span has ml-1 margin but
       // no textual whitespace — so the regex matches an optional space.

@@ -233,6 +233,10 @@ export function CardFan({
           <div
             key={url}
             className="absolute inset-0"
+            // The fan is aria-hidden with tabIndex={-1} buttons and blank alt
+            // text, so it has no role, name, or text an E2E locator could use.
+            // This index is that handle (packages/e2e home.spec.ts).
+            data-fan-index={index}
             // Right cards stack over left like a held hand. Never raise the
             // hovered card's z-index: on top it would cover the neighbors'
             // exposed strips and swallow their pointer events, so a

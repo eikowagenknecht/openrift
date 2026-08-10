@@ -83,13 +83,17 @@ async function readDeckCards(
 }
 
 // Locate the zone-section wrapper (the droppable <div>) by its header label.
-// The header lives inside the wrapper as the first child; ancestor::div[1] lands
-// on the outer rounded-lg container that owns the drop ref + ring highlight.
+// Sections are frameless now, so there is no box class to climb to: the label
+// button sits in the header row, and the header's parent is the wrapper that
+// owns the drop ref and the ring highlight — hence ancestor::div[2].
 function zoneSection(page: Page, label: string): Locator {
-  return page
-    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`, "u") })
-    .first()
-    .locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]");
+  return zoneLabelButton(page, label).locator("xpath=ancestor::div[2]");
+}
+
+// The zone label itself is a Pressable labelled "Edit <zone>"; clicking it
+// opens that zone in the main area (and makes it the active zone).
+function zoneLabelButton(page: Page, label: string): Locator {
+  return page.getByRole("button", { name: `Edit ${label}`, exact: true }).first();
 }
 
 // Card row inside a zone. The draggable outer <div> wraps an inner role=button
@@ -106,10 +110,7 @@ function browserCardTile(page: Page, cardName: string): Locator {
 // Ensure the store's activeZone is set to `label` before the browser can be
 // used (the browser renders a placeholder until a zone is active).
 async function activateZone(page: Page, label: string) {
-  await zoneSection(page, label)
-    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`, "u") })
-    .first()
-    .click();
+  await zoneLabelButton(page, label).click();
 }
 
 async function searchBrowserFor(page: Page, cardName: string) {
@@ -123,6 +124,11 @@ async function searchBrowserFor(page: Page, cardName: string) {
 // listener once a drag activates, so we press Shift after the activation move
 // and release it after mouseup.
 async function dndDragWithShift(page: Page, source: Locator, target: Locator) {
+  // Both ends re-render while the deck settles after a previous edit, which
+  // can hand back a null box; wait for each to be laid out before measuring.
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
+  await source.scrollIntoViewIfNeeded();
   const sourceBox = await source.boundingBox();
   const targetBox = await target.boundingBox();
   if (!sourceBox || !targetBox) {
@@ -175,8 +181,9 @@ test.describe("deck editor zones + drag-drop", () => {
       // Seeded card is visible → Main Deck is expanded by default.
       await expect(mainSection.getByText(unit.name, { exact: false })).toBeVisible();
 
-      // Chevron is the first icon-only button inside the section header.
-      const chevron = mainSection.getByRole("button").first();
+      // The chevron is a separate control from the label, and its accessible
+      // name flips with the state it will move to.
+      const chevron = mainSection.getByRole("button", { name: /(?:Collapse|Expand) Main Deck/u });
       await chevron.click();
       await expect(mainSection.getByText(unit.name, { exact: false })).toBeHidden();
       await chevron.click();

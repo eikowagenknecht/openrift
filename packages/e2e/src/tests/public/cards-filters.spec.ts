@@ -79,12 +79,39 @@ async function toggleDrawerFilter(
 }
 
 /**
+ * Expand the drawer's "More filters" fold, which holds the secondary filters
+ * (the flag badges among them) and starts collapsed. Dispatch rather than
+ * click: the trigger sits below the drawer's fold line and the panel
+ * re-renders while counts settle, so a real click waits on a stability it
+ * never reaches. No-op when the fold is already open.
+ * @returns Nothing.
+ */
+async function openMoreFilters(drawer: Locator) {
+  const trigger = drawer.getByRole("button", { name: "More filters" });
+  if ((await trigger.getAttribute("aria-expanded")) === "true") {
+    return;
+  }
+  await trigger.dispatchEvent("click").catch(() => {});
+}
+
+/**
  * Close the drawer via its footer apply button, returning to the grid.
  * @returns Nothing.
  */
 async function closeFilterDrawer(page: Page) {
-  await page.getByRole("button", { name: FOOTER_BUTTON }).first().click();
-  await expect(page.locator('[data-slot="drawer-content"]')).toBeHidden();
+  // The footer button carries the live result count, so it re-renders (and
+  // detaches) while the counts settle — a plain click can spend its whole
+  // timeout waiting for a stable node. Dispatch instead, and retry until the
+  // drawer is actually gone.
+  const drawer = page.locator('[data-slot="drawer-content"]');
+  await expect(async () => {
+    await page
+      .getByRole("button", { name: FOOTER_BUTTON })
+      .first()
+      .dispatchEvent("click")
+      .catch(() => {});
+    await expect(drawer).toBeHidden({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 test.describe("card filters (mobile drawer)", () => {
@@ -108,8 +135,11 @@ test.describe("card filters (mobile drawer)", () => {
     await expect(drawerBadge(drawer, /^Unit/u)).toBeVisible();
     await expect(drawerBadge(drawer, /^Epic/u)).toBeVisible();
 
-    // The footer apply button carries the live result count.
-    await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible();
+    // The footer apply button carries the live result count, so its label only
+    // settles once the counts do.
+    await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("clicking a domain badge narrows the grid, adds a chip, and updates the URL", async ({
@@ -120,8 +150,10 @@ test.describe("card filters (mobile drawer)", () => {
 
     const drawer = await openFilterDrawer(page);
     await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
-    // Footer count updates to the narrowed result set.
-    await expect(page.getByRole("button", { name: /^Show \d+ cards?$/u })).toBeVisible();
+    // Footer count updates to the narrowed result set. Which noun it counts
+    // follows the grid's view mode, so accept the same shapes as everywhere
+    // else in this file.
+    await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible();
 
     await closeFilterDrawer(page);
 
@@ -216,13 +248,19 @@ test.describe("card filters (mobile drawer)", () => {
     await waitForCatalogLoaded(page);
 
     const drawer = await openFilterDrawer(page);
+    await openMoreFilters(drawer);
 
     // Tri-state cycle: null → true → false → null (ADR-034). Each click waits
     // for its URL signal so a detached-mid-click retry never double-toggles.
+    // Every filter change re-renders the drawer, which collapses the fold
+    // again, so re-open it before each step.
     await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=true/u);
+    await openMoreFilters(drawer);
     await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=false/u);
+    await openMoreFilters(drawer);
 
     await expect(async () => {
+      await openMoreFilters(drawer);
       if (/[?&]errata=/u.test(page.url())) {
         await drawerBadge(drawer, /^Errata/u)
           .dispatchEvent("click")

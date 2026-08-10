@@ -27,13 +27,9 @@ test.describe("landing page", () => {
     await expect(page).toHaveURL(/\/signup/u);
   });
 
-  test("navigates to the login page", async ({ page }) => {
-    await page.goto("/");
-
-    await page.getByRole("link", { name: /sign in/iu }).click();
-
-    await expect(page).toHaveURL(/\/login/u);
-  });
+  // There is no "navigate to login" test: the landing page renders no header,
+  // and its two CTAs are "Browse cards" and "Sign up free". Reaching /login is
+  // covered by tests/auth/login.spec.ts.
 
   test("redirects authenticated users to /cards", async ({ authenticatedPage: page }) => {
     // Pre-flight: confirm the session cookie is active for this context by
@@ -52,48 +48,72 @@ test.describe("landing page", () => {
 
   test("shows the tagline", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText(/open-source Riftbound collection tracker/iu)).toBeVisible();
+    await expect(page.getByText(/the Riftbound app for you and your playgroup/iu)).toBeVisible();
   });
 
   test("shows the stats line with live card counts", async ({ page }) => {
     await page.goto("/");
     // Numbers animate from 0 up to the real values via useCountUp, so require
-    // non-zero digits — otherwise the assertion would pass on the initial
-    // "0 cards · 0 printings" frame before data loads.
-    await expect(page.getByText(/[1-9]\d* cards · [1-9]\d* printings/u)).toBeVisible();
+    // a non-zero leading digit — otherwise the assertion would pass on the
+    // initial "0 cards · 0 printings" frame before data loads. The counts go
+    // through toLocaleString, so allow thousands separators.
+    await expect(
+      page.getByText(/[1-9][\d,.]* cards · [1-9][\d,.]* printings · [\d,.]+ copies tracked/u),
+    ).toBeVisible();
   });
 
-  test("tapping the logo hints at scatter cards", async ({ page }) => {
-    await page.setViewportSize({ width: 1920, height: 1200 });
+  test("tapping the logo hints at the fan cards", async ({ page }) => {
     await page.goto("/");
+    await expect(page.locator('[data-fan-index="0"]')).toBeVisible();
 
-    const firstCard = page.locator('[data-card-index="0"]');
-    await expect(firstCard).toHaveCSS("opacity", "1");
-
-    // The logo button has no accessible name (alt=""), so select it via the
-    // image src. Clicking triggers the `hinting` state which adds
-    // border-primary/40 to every CardShape button for 400ms.
-    await page.locator('button:has(img[src*="logo-color.svg"])').click();
-    await expect(firstCard.locator("button")).toHaveClass(/border-primary\/40/u);
+    // Tapping the logo sets `hinting`, which swaps every fan card's border to
+    // border-primary/50 for 400ms. Start waiting before the click: waitFor
+    // reacts to DOM mutations, while an assertion polled on a fixed schedule
+    // could sample either side of that window. The class carries a "/", which
+    // a CSS class selector would need escaped — match the attribute instead.
+    const hinted = page
+      .locator('[data-fan-index="0"] [class*="border-primary/50"]')
+      .waitFor({ state: "attached", timeout: 10_000 });
+    await page.getByRole("button", { name: "OpenRift" }).click();
+    await hinted;
   });
 
-  test("renders all four feature tiles", async ({ page }) => {
+  test("renders the feature rows and the toolbox", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /every card, every printing/iu })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /your collection, tracked/iu })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /build with what you own/iu })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /open, not locked in/iu })).toBeVisible();
+    const sections = [
+      "Every card, every printing",
+      "Prices, side by side",
+      "Collections, wishlists, tradelists",
+      "Private groups",
+      "Advanced deck building",
+      "And a full toolbox",
+    ];
+    for (const section of sections) {
+      await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
+    }
   });
 
-  test("feature tiles navigate to their targets", async ({ page }) => {
-    // Unauthenticated: collections/decks/import redirect to
+  test("feature rows navigate to their targets", async ({ page }) => {
+    // Unauthenticated: collections/decks/groups redirect to
     // /login?redirect=%2Fcollections... so the target shows up URL-encoded in
     // the query string. Decode the URL before matching.
-    const tiles: { name: RegExp; url: RegExp }[] = [
+    const rows: { name: RegExp; url: RegExp }[] = [
       { name: /every card, every printing/iu, url: /\/cards/u },
-      { name: /your collection, tracked/iu, url: /\/collections(?!\/import)/u },
-      { name: /build with what you own/iu, url: /\/decks/u },
-      { name: /open, not locked in/iu, url: /\/collections\/import/u },
+      { name: /collections, wishlists, tradelists/iu, url: /\/collections/u },
+      { name: /private groups/iu, url: /\/groups/u },
+      { name: /advanced deck building/iu, url: /\/decks/u },
+    ];
+    for (const row of rows) {
+      await page.goto("/");
+      await page.getByRole("link", { name: row.name }).click();
+      await expect.poll(() => decodeURIComponent(page.url())).toMatch(row.url);
+    }
+  });
+
+  test("toolbox tiles navigate to their tools", async ({ page }) => {
+    const tiles: { name: string; url: RegExp }[] = [
+      { name: "Pack opener", url: /\/pack-opener/u },
+      { name: "Rules reference", url: /\/rules/u },
     ];
     for (const tile of tiles) {
       await page.goto("/");
@@ -147,81 +167,60 @@ test.describe("landing page", () => {
     expect(jsonLdContents.some((content) => /"@type"\s*:\s*"WebSite"/u.test(content))).toBe(true);
   });
 
-  test("minigame: collecting all visible cards spins the logo", async ({ page }) => {
-    // Use a viewport where several cards land inside the scatter's visible area.
+  test("minigame: collecting a fan card removes it from the hand", async ({ page }) => {
+    // Desktop width so the fan deals its full five cards, not the mobile three.
     await page.setViewportSize({ width: 1920, height: 1200 });
     await page.goto("/");
 
-    // Wait for the first layout pass (wrappers fade from opacity-0 to 1).
-    const firstCard = page.locator('[data-card-index="0"]');
-    await expect(firstCard).toHaveCSS("opacity", "1");
+    const cards = page.locator("[data-fan-index]");
+    await expect(cards.first()).toBeVisible();
+    const dealt = await cards.count();
+    expect(dealt).toBeGreaterThan(1);
 
-    // Collect every currently-visible scatter card. Done inside the browser so
-    // React commits between activate/collect clicks without Playwright round-
-    // trips. Collecting a card that's in viewport but behind the hero blocker
-    // panel is fine: it raises both gone.size and reachableCount by one, so
-    // the "all collected" threshold still lines up.
+    // Click from inside the browser rather than with the mouse: the cards
+    // overlap by design (each leans over its left neighbor), so a real click
+    // at a card's center can land on the sibling stacked above it.
+    await page.locator('[data-fan-index="0"] button').evaluate((button: HTMLElement) => {
+      button.click();
+    });
+
+    // The collected card stays mounted for its 800ms fly-away, then unmounts.
+    await expect(cards).toHaveCount(dealt - 1);
+    await expect(page.locator('[data-fan-index="0"]')).toHaveCount(0);
+  });
+
+  test("minigame: collecting every card spins the logo and re-deals", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1200 });
+    await page.goto("/");
+
+    const cards = page.locator("[data-fan-index]");
+    await expect(cards.first()).toBeVisible();
+    const dealt = await cards.count();
+
+    // The spin lasts 1000ms, starting 1300ms after the last collect (fly-away
+    // plus the all-collected delay). Arm the wait before collecting so the
+    // mutation is observed rather than polled for, which could miss it.
+    const spun = page
+      .locator('img[src*="logo-color.svg"].animate-logo-spin')
+      .waitFor({ state: "attached", timeout: 15_000 });
+
+    // Collect the whole hand inside the browser, a frame apart so React
+    // commits each collect before the next click arrives.
     await page.evaluate(async () => {
       async function nextFrame() {
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
       }
-      const visibleWrappers = [
-        ...document.querySelectorAll<HTMLElement>("[data-card-index]"),
-      ].filter((el) => Number(getComputedStyle(el).opacity) > 0.5);
-      for (const wrapper of visibleWrappers) {
-        const button = wrapper.querySelector<HTMLButtonElement>("button");
-        if (!button) {
-          continue;
-        }
-        button.click(); // activate
-        await nextFrame();
-        button.click(); // collect
+      for (const wrapper of document.querySelectorAll<HTMLElement>("[data-fan-index]")) {
+        wrapper.querySelector<HTMLButtonElement>("button")?.click();
         await nextFrame();
       }
     });
 
-    // Once gone.size >= reachableCount, the scatter fires onAllCollected after
-    // a 500ms debounce and the logo gets animate-logo-spin for 1000ms.
-    const logo = page.locator('img[src*="logo-color.svg"]');
-    await expect(logo).toHaveClass(/animate-logo-spin/u);
+    await spun;
 
-    // After the spin, CardScatter is re-keyed and state resets, so the
-    // collected counter should no longer be visible.
-    await expect(page.getByText(/\d+ \/ \d+ collected/u)).not.toBeVisible();
-
-    // Fresh scatter mounts with flyIn=true — cards animate back in and
-    // settle at opacity-1 again once the fly-in animation finishes.
-    await expect(firstCard).toHaveCSS("opacity", "1");
-  });
-
-  test("minigame: collecting a scatter card shows the collected counter", async ({ page }) => {
-    // Use a viewport tall/wide enough that the center-top scatter card (index 0
-    // at 50%, 31.3% of the 8000×3000 canvas) lands inside the visible area and
-    // above the hero blocker panel. At the default 1280×720 it's offscreen.
-    await page.setViewportSize({ width: 1920, height: 1200 });
-    await page.goto("/");
-
-    // Scatter cards render with opacity-0 + pointer-events-none until the
-    // layout effect marks them as visible and the 300ms transition completes.
-    // Playwright's toBeVisible ignores opacity, so wait on computed opacity
-    // directly — that's what actually gates the card being ready to click.
-    const wrapper = page.locator('[data-card-index="0"]');
-    const card = wrapper.locator("button");
-    const foil = wrapper.locator(".bg-foil");
-    await expect(wrapper).toHaveCSS("opacity", "1");
-
-    // First click activates — the foil shimmer fades in to full opacity.
-    // force:true bypasses stability checks (cards have a continuous drift
-    // animation, so they're never "stable" by Playwright's definition).
-    // Waiting for the foil opacity change also gates the second click on a
-    // committed render, so it's seen as a "collect" not another "activate".
-    await card.click({ force: true });
-    await expect(foil).toHaveCSS("opacity", "1");
-
-    // Second click collects — the card flies away and the counter appears.
-    await card.click({ force: true });
-    await expect(page.getByText(/\d+ \/ \d+ collected/u)).toBeVisible();
+    // After the spin the fan is re-keyed, so the full hand deals back in.
+    await expect(cards).toHaveCount(dealt, { timeout: 15_000 });
   });
 });

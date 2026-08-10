@@ -477,10 +477,10 @@ test.describe("collection activity", () => {
         await expect(eventCards).toHaveCount(1);
         await expect(page.getByText(/1 moved/u)).toBeVisible();
 
-        // The active filter button uses the default variant (bg-primary class);
-        // non-active buttons use the ghost variant.
-        await expect(movedButton).toHaveClass(/bg-primary/u);
-        await expect(addedButton).not.toHaveClass(/bg-primary/u);
+        // The action filter is a toggle group now, so selection shows up as
+        // pressed state rather than a variant class.
+        await expect(movedButton).toHaveAttribute("aria-pressed", "true");
+        await expect(addedButton).toHaveAttribute("aria-pressed", "false");
       });
     });
   });
@@ -668,7 +668,7 @@ test.describe("collection activity", () => {
       await deleteUser(state.user.email);
     });
 
-    test("clicking an event card navigates to /cards with its printingId and opens the detail pane", async ({
+    test("clicking an event card navigates to /cards with its printingId and opens the card detail", async ({
       browser,
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
@@ -683,9 +683,11 @@ test.describe("collection activity", () => {
           timeout: 15_000,
         });
 
-        const pane = page.getByRole("complementary");
-        await expect(pane).toBeVisible();
-        await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/u })).toBeVisible();
+        // The docked pane is opt-in (the `paneDocked` display preference,
+        // off by default), so a card click opens the detail dialog instead.
+        const detail = page.getByRole("dialog");
+        await expect(detail).toBeVisible();
+        await expect(detail.getByRole("heading", { name: /Annie, Fiery/u }).first()).toBeVisible();
       });
     });
   });

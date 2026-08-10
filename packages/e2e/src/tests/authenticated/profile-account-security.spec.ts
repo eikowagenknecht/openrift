@@ -256,7 +256,7 @@ test.describe("profile account & security", () => {
       }
     });
 
-    test("shows 'Code expired' when the current-email OTP is past expiry", async ({ page }) => {
+    test("rejects a current-email OTP that is past expiry", async ({ page }) => {
       const sql = loadDb();
       const oldEmail = uniqueEmail("email-expired");
       const newEmail = uniqueEmail("email-expired-new");
@@ -286,9 +286,15 @@ test.describe("profile account & security", () => {
       await page.locator('input[autocomplete="one-time-code"]').first().fill(otp);
       await page.getByRole("button", { name: /^verify$/iu }).click();
 
-      await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
-        timeout: 15_000,
-      });
+      // Either OTP error is a pass, for the reason spelled out in
+      // auth/verify-email.spec.ts: better-auth sweeps expired verification
+      // rows on any verification read, so whether the API answers "expired" or
+      // "invalid" depends on which got there first.
+      await expect(
+        page.getByText(
+          /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,
+        ),
+      ).toBeVisible({ timeout: 15_000 });
     });
 
     test("shows 'Incorrect code' when the current-email OTP is wrong", async ({ page }) => {

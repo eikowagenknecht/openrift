@@ -308,7 +308,7 @@ test.describe("decks list", () => {
       }
     });
 
-    test("shows name, format badge, card count, and a menu trigger", async ({ page }) => {
+    test("shows name, format badge, and a menu trigger", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const deckName = `Tile Render ${Date.now()}`;
       const deckId = await apiCreateDeck(page, deckName, "freeform");
@@ -319,8 +319,10 @@ test.describe("decks list", () => {
       await expect(tile).toBeVisible({ timeout: 15_000 });
 
       await expect(tile.getByRole("heading", { level: 3, name: deckName })).toBeVisible();
+      // The card count rides on the format badge now, and an empty deck shows
+      // the bare format with no figure — so there is no "0 cards" text.
       await expect(tile.getByText("Freeform")).toBeVisible();
-      await expect(tile.getByText(/\b0 cards\b/u)).toBeVisible();
+      await expect(tile.getByText(/\bcards\b/u)).toHaveCount(0);
 
       await expect(tile.getByRole("button", { name: "Deck actions" })).toBeVisible();
     });
@@ -379,7 +381,9 @@ test.describe("decks list", () => {
 
       const dialog = page.getByRole("dialog");
       const input = dialog.getByRole("textbox");
-      const renameButton = dialog.getByRole("button", { name: "Rename" });
+      // The dialog's confirm button is labelled "Save"; "Rename" is only the
+      // menu item that opens it.
+      const renameButton = dialog.getByRole("button", { name: "Save" });
 
       await input.fill("");
       await expect(renameButton).toBeDisabled();
@@ -405,7 +409,7 @@ test.describe("decks list", () => {
       const updateRequest = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn(request.url(), "updateDeckFn"),
       );
-      await dialog.getByRole("button", { name: "Rename" }).click();
+      await dialog.getByRole("button", { name: "Save" }).click();
       await updateRequest;
 
       await expect(dialog).toBeHidden();

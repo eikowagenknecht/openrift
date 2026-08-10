@@ -98,7 +98,7 @@ test.describe("verify email page", () => {
       });
     });
 
-    test("shows 'Code expired' when the OTP has expired", async ({ page, request }) => {
+    test("rejects an expired OTP with an error", async ({ page, request }) => {
       const sql = loadDb();
       const email = `verify-expired-${Date.now()}@test.com`;
       let otp: string;
@@ -117,9 +117,17 @@ test.describe("verify email page", () => {
       await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
       await page.locator(OTP_INPUT).fill(otp);
 
-      await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
-        timeout: 10_000,
-      });
+      // Either OTP error is a pass. better-auth deletes every expired
+      // verification row on any verification read (findVerificationValue in
+      // its internal adapter), so whether the row still exists when the code
+      // is submitted decides which error comes back: OTP_EXPIRED if it does,
+      // INVALID_OTP if the sweep got there first. What the page must do in
+      // both cases is refuse the code and say so.
+      await expect(
+        page.getByText(
+          /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,
+        ),
+      ).toBeVisible({ timeout: 10_000 });
     });
 
     test("shows 'Too many attempts' when the API returns TOO_MANY_ATTEMPTS", async ({ page }) => {

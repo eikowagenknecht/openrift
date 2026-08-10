@@ -162,7 +162,12 @@ test.describe("profile shell", () => {
 
       // The active TOC link is styled via class tokens (text-foreground +
       // font-medium); inactive links are muted. No aria-current yet.
+      // The TOC starts on its first section, which is "Public sharing".
+      const sharingLink = nav.getByRole("link", { name: "Public sharing", exact: true });
+      await expect(sharingLink).toHaveClass(/font-medium/u);
+
       const preferencesLink = nav.getByRole("link", { name: "Preferences", exact: true });
+      await preferencesLink.click();
       await expect(preferencesLink).toHaveClass(/font-medium/u);
 
       // Clicking a TOC link sets it active directly (and scrolls to it) — more

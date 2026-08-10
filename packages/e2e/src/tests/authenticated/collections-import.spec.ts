@@ -144,8 +144,54 @@ function isServerFn(constName: string) {
 // CSV helpers
 // ---------------------------------------------------------------------------
 
+// Mirrors generateExportCSV in apps/web/src/lib/csv-export.ts — the copy-level
+// metadata columns trail the card columns.
 const EXPORT_HEADER =
-  "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity";
+  "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity," +
+  "Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links";
+
+/**
+ * Split one CSV row into fields, honouring quoted fields (card names carry a
+ * comma).
+ * @returns The row's fields, unquoted.
+ */
+function csvFields(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let index = 0;
+  while (index < line.length) {
+    const char = line[index];
+    if (inQuotes) {
+      if (char === '"' && line[index + 1] === '"') {
+        current += '"';
+        index += 2;
+        continue;
+      }
+      if (char === '"') {
+        inQuotes = false;
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      fields.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+    index += 1;
+  }
+  fields.push(current);
+  return fields;
+}
+
+// Quantity is no longer the last column — the copy-metadata columns trail it —
+// so read it by its position in the header.
+function quantityOf(line: string): string {
+  return csvFields(line)[EXPORT_HEADER.split(",").indexOf("Quantity")];
+}
 
 function escapeCsvField(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -281,7 +327,7 @@ test.describe("collections import/export", () => {
       expect(lines[0]).toBe(EXPORT_HEADER);
       // Single printing with 2 copies → 1 data row.
       expect(lines).toHaveLength(2);
-      expect(lines[1]).toMatch(/,2$/u);
+      expect(quantityOf(lines[1])).toBe("2");
 
       await expect(page.getByText("Collection exported.")).toBeVisible();
     });
@@ -307,7 +353,7 @@ test.describe("collections import/export", () => {
       expect(lines[0]).toBe(EXPORT_HEADER);
       // Two unique printings → 2 data rows, quantities 3 and 1.
       expect(lines).toHaveLength(3);
-      const quantities = lines.slice(1).map((line) => line.split(",").at(-1));
+      const quantities = lines.slice(1).map((line) => quantityOf(line));
       expect(quantities.sort()).toEqual(["1", "3"]);
     });
   });

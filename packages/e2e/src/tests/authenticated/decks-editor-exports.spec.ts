@@ -185,10 +185,7 @@ test.describe("deck editor exports", () => {
       );
 
       // Flip isDirty via the card browser's "+" button.
-      await page
-        .getByRole("button", { name: /^Main Deck\b/u })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
       await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       // Scope the Add click to the card tile so we don't race with the sidebar
       // adding a duplicate "Add to deck" button once the optimistic update lands.
@@ -202,7 +199,9 @@ test.describe("deck editor exports", () => {
       await annieTile.getByRole("button", { name: "Add to deck" }).click();
       // Wait for the optimistic update to land so isDirty is reliably true
       // before we open the export dialog.
-      await expect(annieTile.getByText("1 in deck")).toBeVisible({ timeout: 5000 });
+      // The in-deck pill spells its meaning in an sr-only span, so the visible
+      // text is just the figure — match the pill's title instead.
+      await expect(annieTile.getByTitle("1 in deck")).toBeVisible({ timeout: 5000 });
 
       // The amber "Constructed" violation badge used to be asserted here as a
       // proxy for isDirty, but the indicator was removed from the top bar.

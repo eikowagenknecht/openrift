@@ -195,10 +195,7 @@ test.describe("reset password", () => {
       });
     });
 
-    test("expired OTP shows 'Code expired. Please request a new one.'", async ({
-      page,
-      request,
-    }) => {
+    test("expired OTP is rejected with an error", async ({ page, request }) => {
       const sql = loadDb();
       const email = `reset-expired-${Date.now()}@test.com`;
       let otp: string;
@@ -223,9 +220,14 @@ test.describe("reset password", () => {
       await page.locator("#confirm-password").fill("NewPassword1!");
       await page.getByRole("button", { name: /reset password/iu }).click();
 
-      await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
-        timeout: 10_000,
-      });
+      // Either OTP error is a pass, for the reason spelled out in
+      // verify-email.spec.ts: better-auth's expired-row sweep decides whether
+      // the API reports the code as expired or merely invalid.
+      await expect(
+        page.getByText(
+          /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,
+        ),
+      ).toBeVisible({ timeout: 10_000 });
     });
 
     test("TOO_MANY_ATTEMPTS renders the user-facing message", async ({ page }) => {

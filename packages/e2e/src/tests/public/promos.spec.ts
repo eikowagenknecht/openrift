@@ -214,7 +214,12 @@ test.describe("promos", () => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
 
-      const firstCard = page.locator(".aspect-card").first();
+      // Anchor on a seeded card's art rather than "the first tile": the domain
+      // and rarity filter chips are buttons with <img> icons too, and a card
+      // still awaiting an image overlays its thumbnail with a "suggest image"
+      // link that navigates to /contribute instead of selecting the card.
+      // Master Yi is the first promo in the seed that has real art.
+      const firstCard = page.getByRole("img", { name: /Master Yi, Wuju Bladesman/u }).first();
       await expect(firstCard).toBeVisible();
 
       // Clicking a card selects it and opens the card detail rather than

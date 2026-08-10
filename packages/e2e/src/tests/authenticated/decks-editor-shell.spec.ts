@@ -102,9 +102,11 @@ test.describe("deck editor shell", () => {
       // empty deck).
       await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
 
-      // Kebab menu opens a dropdown with a Rename item.
+      // Kebab menu opens a dropdown. Renaming a server deck now happens in the
+      // combined name-and-description dialog ("Rename" is the local-deck-only
+      // wording), so that is the item to look for.
       await kebabTrigger(page).click();
-      await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "Name & description" })).toBeVisible();
 
       // Close the menu before navigating.
       await page.keyboard.press("Escape");
@@ -140,11 +142,14 @@ test.describe("deck editor shell", () => {
       });
 
       await kebabTrigger(page).click();
-      await page.getByRole("menuitem", { name: "Rename" }).click();
+      await page.getByRole("menuitem", { name: "Name & description" }).click();
 
+      // Server decks rename through the "Deck details" dialog, which also
+      // carries the description and links fields — so target the Name box
+      // rather than the dialog's only textbox.
       const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: "Rename deck" })).toBeVisible();
-      const input = dialog.getByRole("textbox");
+      await expect(dialog.getByRole("heading", { name: "Deck details" })).toBeVisible();
+      const input = dialog.getByLabel("Name", { exact: true });
       await expect(input).toHaveValue("Rename Me");
 
       await input.fill("Renamed");
@@ -168,7 +173,9 @@ test.describe("deck editor shell", () => {
   });
 
   test.describe("format badge", () => {
-    test("freeform deck renders the valid green badge", async ({ authenticatedPage }) => {
+    test("freeform deck renders a plain format badge with no issues", async ({
+      authenticatedPage,
+    }) => {
       const page = authenticatedPage;
       const deckId = await createDeckViaApi(page.request, {
         name: "Freeform Badge",
@@ -180,11 +187,15 @@ test.describe("deck editor shell", () => {
         timeout: 15_000,
       });
 
-      // Freeform never produces violations — the valid "Freeform" badge
-      // renders as a green span. "Freeform" also appears in the main-area
-      // description paragraph, so scope to the badge span.
+      // Freeform never produces violations, and it has no completion target
+      // either, so it draws the neutral outline badge (green with a check is
+      // for a valid *constructed* deck). "Freeform" also appears in the
+      // main-area description paragraph, so scope to the badge itself.
       await expect(
-        page.locator('span[class*="bg-green-500"]').filter({ hasText: /^Freeform$/u }),
+        page
+          .locator('[data-slot="badge"]')
+          .filter({ hasText: /^Freeform$/u })
+          .first(),
       ).toBeVisible();
       await expect(page.getByText(/issues?/u)).toHaveCount(0);
     });

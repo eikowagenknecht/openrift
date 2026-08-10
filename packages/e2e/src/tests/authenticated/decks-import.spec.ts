@@ -195,16 +195,29 @@ async function goToImport(page: Page) {
   await expect(page.getByRole("heading", { name: "Import Deck" })).toBeVisible({ timeout: 15_000 });
 }
 
-// The import form now defaults to the Text tab (useState<DeckImportFormat>("text")),
-// so tests that paste a Piltover deck code must select the "Deck Code" tab first.
-async function selectDeckCodeTab(page: Page) {
-  await page.getByRole("tab", { name: "Deck Code" }).click();
+// The format is a Select now ("Detect automatically" by default, plus one
+// entry per format) rather than a tab strip. Detection would handle most of
+// these pastes on its own, but the tests pin the format so a detection change
+// can't silently move what they exercise.
+// The trigger takes no accessible name from its <Label for>, so address it by
+// the id that label points at.
+function formatSelect(page: Page): Locator {
+  return page.locator("#import-mode");
+}
+
+async function selectImportFormat(page: Page, label: "Text" | "Deck Code" | "TTS") {
+  await formatSelect(page).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
+async function selectDeckCodeFormat(page: Page) {
+  await selectImportFormat(page, "Deck Code");
   await expect(page.getByPlaceholder(/Piltover Archive deck code/iu)).toBeVisible();
 }
 
 async function advanceToPreviewWithPiltover(page: Page) {
   await goToImport(page);
-  await selectDeckCodeTab(page);
+  await selectDeckCodeFormat(page);
   const code = buildPiltoverSample();
   await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
   await page.getByRole("button", { name: /^Parse$/u }).click();
@@ -224,32 +237,32 @@ test.describe("deck import", () => {
       }
     });
 
-    test("renders the title, all three format tabs, and default Text placeholder", async ({
-      page,
-    }) => {
+    test("defaults to automatic detection and offers one option per format", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await expect(page.getByRole("tab", { name: "Deck Code" })).toBeVisible();
-      await expect(page.getByRole("tab", { name: "Text" })).toBeVisible();
-      await expect(page.getByRole("tab", { name: "TTS" })).toBeVisible();
+      // The default mode detects the format from whatever is pasted, so the
+      // textarea invites any of them.
+      await expect(formatSelect(page)).toContainText("Detect automatically");
+      await expect(
+        page.getByPlaceholder(/Paste a deck list, deck code, TTS string/iu),
+      ).toBeVisible();
 
-      // Default tab is Text (useState<DeckImportFormat>("text")).
-      await expect(page.getByRole("tab", { name: "Text" })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
-      await expect(page.getByPlaceholder(/Legend:/u)).toBeVisible();
+      await formatSelect(page).click();
+      for (const label of ["Detect automatically", "Text", "Deck Code", "TTS"]) {
+        await expect(page.getByRole("option", { name: label, exact: true })).toBeVisible();
+      }
+      await page.keyboard.press("Escape");
     });
 
-    test("switching tabs updates the textarea placeholder for each format", async ({ page }) => {
+    test("switching format updates the textarea placeholder", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await page.getByRole("tab", { name: "Text" }).click();
+      await selectImportFormat(page, "Text");
       await expect(page.getByPlaceholder(/Legend:/u)).toBeVisible();
 
-      await page.getByRole("tab", { name: "TTS" }).click();
+      await selectImportFormat(page, "TTS");
       await expect(page.getByPlaceholder(/OGN-001-1/u)).toBeVisible();
     });
 
@@ -257,7 +270,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await selectDeckCodeTab(page);
+      await selectDeckCodeFormat(page);
       const parseButton = page.getByRole("button", { name: /^Parse$/u });
       await expect(parseButton).toBeDisabled();
 
@@ -269,20 +282,22 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      // Piltover tab — Piltover Archive link.
+      // The links live in each format's description, and the default
+      // auto-detect blurb carries none of them.
+      await selectDeckCodeFormat(page);
       const piltoverLink = page.getByRole("link", { name: "Piltover Archive" }).first();
       await expect(piltoverLink).toHaveAttribute("target", "_blank");
       await expect(piltoverLink).toHaveAttribute("rel", "noreferrer");
       await expect(piltoverLink).toHaveAttribute("href", /piltoverarchive\.com/u);
 
       // Text tab — includes Piltover Archive and TCG Arena links.
-      await page.getByRole("tab", { name: "Text" }).click();
+      await selectImportFormat(page, "Text");
       const tcgArena = page.getByRole("link", { name: "TCG Arena" });
       await expect(tcgArena).toHaveAttribute("href", /tcg-arena\.fr/u);
       await expect(tcgArena).toHaveAttribute("rel", "noreferrer");
 
       // TTS tab — Tabletop Simulator mod link.
-      await page.getByRole("tab", { name: "TTS" }).click();
+      await selectImportFormat(page, "TTS");
       const ttsLink = page.getByRole("link", { name: "Tabletop Simulator mod" });
       await expect(ttsLink).toHaveAttribute("href", /steamcommunity\.com/u);
       await expect(ttsLink).toHaveAttribute("rel", "noreferrer");
@@ -303,7 +318,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await selectDeckCodeTab(page);
+      await selectDeckCodeFormat(page);
       await page.getByPlaceholder(/Piltover Archive deck code/iu).fill("NOT-A-REAL-CODE!!!");
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -319,7 +334,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await page.getByRole("tab", { name: "Text" }).click();
+      await selectImportFormat(page, "Text");
       // One valid line (advances to preview) + one unknown zone header + one malformed line.
       await page
         .getByPlaceholder(/Legend:/u)
@@ -352,7 +367,7 @@ test.describe("deck import", () => {
       const code = buildPiltoverSample();
 
       await goToImport(page);
-      await selectDeckCodeTab(page);
+      await selectDeckCodeFormat(page);
       await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -485,7 +500,7 @@ test.describe("deck import", () => {
 
     async function advanceFromMixedText(page: Page) {
       await goToImport(page);
-      await page.getByRole("tab", { name: "Text" }).click();
+      await selectImportFormat(page, "Text");
       await page.getByPlaceholder(/Legend:/u).fill(mixedTextSample());
       await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
@@ -504,7 +519,9 @@ test.describe("deck import", () => {
       const jump = page.getByRole("button", { name: /Jump to the first of 1 row/u });
       await expect(jump).toHaveText("1 need attention");
       await jump.click();
-      await expect(page.getByText("Totally Fake Card Name")).toBeInViewport();
+      // The name shows both in the row and in its unresolved-entry search
+      // field's placeholder area, so scope to the first occurrence.
+      await expect(page.getByText("Totally Fake Card Name").first()).toBeInViewport();
     });
 
     test("skipping an unresolved entry adds a skipped badge without losing ready count", async ({
@@ -593,7 +610,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await page.getByRole("tab", { name: "Text" }).click();
+      await selectImportFormat(page, "Text");
       await page.getByPlaceholder(/Legend:/u).fill(buildTextSample());
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -637,7 +654,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await page.getByRole("tab", { name: "TTS" }).click();
+      await selectImportFormat(page, "TTS");
       await page.getByPlaceholder(/OGN-001-1/u).fill(buildTtsSample());
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -700,7 +717,13 @@ test.describe("deck import", () => {
       await advanceToPreviewWithPiltover(page);
       await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
 
-      await expect(page.getByText("Failed to create deck.")).toBeVisible({ timeout: 15_000 });
+      // The import page no longer writes its own message: the QueryClient's
+      // default mutation onError owns the toast and prints the server's error
+      // text, which a mocked 500 doesn't pin down. Assert an error toast shows
+      // at all, and that the flow stopped before saving cards.
+      await expect(page.locator("[data-sonner-toast][data-type='error']")).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(page).toHaveURL(/\/decks\/import$/u);
       expect(saveRequestSeen).toBe(false);
     });
@@ -729,7 +752,10 @@ test.describe("deck import", () => {
       await advanceToPreviewWithPiltover(page);
       await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
 
-      await expect(page.getByText("Failed to save deck cards.")).toBeVisible({ timeout: 15_000 });
+      // Same as above: the global mutation error handler owns this toast.
+      await expect(page.locator("[data-sonner-toast][data-type='error']")).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(page).toHaveURL(/\/decks\/import$/u);
     });
   });

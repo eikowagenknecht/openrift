@@ -54,19 +54,21 @@ async function deleteUser(email: string) {
   }
 }
 
-async function seedInboxCopy(email: string, cardName: string): Promise<void> {
+// OGS-001 "Annie, Fiery", EN normal — the printing the cards view shows by
+// default. Seeding any printing of the card is not enough: the cell's owned
+// pill counts the *displayed* printing, so a copy of a sibling variant leaves
+// the strip empty.
+const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
+
+async function seedInboxCopy(email: string, printingId: string): Promise<void> {
   const sql = loadDb();
   try {
     await sql`
       INSERT INTO copies (collection_id, printing_id)
-      SELECT c.id, p.id
+      SELECT c.id, ${printingId}
       FROM users u
       JOIN collections c ON c.user_id = u.id AND c.is_inbox = true
-      JOIN printings p ON p.card_id = (
-        SELECT id FROM cards WHERE name = ${cardName} LIMIT 1
-      )
       WHERE u.email = ${email}
-      LIMIT 1
     `;
   } finally {
     await sql.end();
@@ -155,7 +157,7 @@ test.describe("cards /cards (logged in)", () => {
 
   test("Show owned count toggle shows an owned-count strip on cards", async ({ page }) => {
     userEmail = await createAndLogin(page);
-    await seedInboxCopy(userEmail, "Annie, Fiery");
+    await seedInboxCopy(userEmail, ANNIE_FIERY_NORMAL);
     await page.goto("/cards");
     await waitForCards(page);
 
@@ -175,9 +177,16 @@ test.describe("cards /cards (logged in)", () => {
       });
     }).toPass({ timeout: 15_000 });
 
-    // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a printing;
-    // with one seeded copy of Annie, Fiery, its strip shows "×1".
-    await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
+    // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a
+    // printing. Its trigger is the strip's count pill: a package icon plus the
+    // bare count (the "×N" spelling only survives in the table's actions
+    // column), so the button's accessible name is just "1".
+    const ownedPill = page.getByRole("button", { name: "1", exact: true }).first();
+    await expect(ownedPill).toBeVisible({ timeout: 10_000 });
+
+    // Opening it proves the pill is the owned strip's, not some other "1".
+    await ownedPill.click();
+    await expect(page.getByText("In your collections")).toBeVisible();
   });
 
   test("Ctrl+K opens the QuickAddPalette and Escape closes it", async ({ page }) => {

@@ -205,9 +205,9 @@ export default async function globalSetup(_config: FullConfig) {
   // Warm up the landing route in a real browser. Fetching HTML alone only
   // warms the SSR module graph — the first test still pays the cost of Vite
   // compiling the client JS bundle, which makes the initial render/hydration
-  // slow enough that scatter visibility effects don't settle within test
-  // timeouts. Driving a real browser through the page exercises both SSR and
-  // client bundles, matching what tests actually do.
+  // slow enough that the hero fan doesn't settle within test timeouts.
+  // Driving a real browser through the page exercises both SSR and client
+  // bundles, matching what tests actually do.
   console.log("[e2e] Warming up landing page in browser...");
   const warmupStart = Date.now();
   const browser = await chromium.launch();
@@ -215,10 +215,10 @@ export default async function globalSetup(_config: FullConfig) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1200 } });
     const page = await context.newPage();
     await page.goto(WEB_BASE_URL, { waitUntil: "networkidle", timeout: 120_000 });
-    // Confirm the scatter is interactive — if this passes, the client bundle
-    // compiled and hydration ran through the layout-effect that gates card
-    // visibility. After this, repeat runs of the same page are nearly instant.
-    await page.locator('[data-card-index="0"]').waitFor({ state: "attached", timeout: 30_000 });
+    // Confirm the hero fan rendered — if this passes, the client bundle
+    // compiled and the landing-summary query resolved into card images.
+    // After this, repeat runs of the same page are nearly instant.
+    await page.locator('[data-fan-index="0"]').waitFor({ state: "attached", timeout: 30_000 });
 
     // Pre-compile the heavy public routes too. Vite dev compiles each route on
     // first request, and that first-hit latency is what let a test interact
