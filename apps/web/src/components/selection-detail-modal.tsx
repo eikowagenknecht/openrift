@@ -3,7 +3,6 @@ import { Suspense, lazy, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import { CardDetailSkeleton } from "@/components/selection-detail-pane";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Pressable } from "@/components/ui/pressable";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
 import { getDomainTintStyle } from "@/lib/domain";
@@ -133,7 +133,7 @@ export function SelectionDetailModal({
           <DialogTitle>Card details</DialogTitle>
           <DialogDescription>Details for the selected card</DialogDescription>
         </DialogHeader>
-        <Suspense fallback={<CardDetailSkeleton />}>
+        <Suspense fallback={<CardDetailModalSkeleton />}>
           <CardDetail
             printing={selectedCard}
             layout="modal"
@@ -156,5 +156,37 @@ export function SelectionDetailModal({
         </p>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Placeholder for the lazily-loaded modal detail. It has to mirror the modal's
+ * own two-column arrangement: the pane's skeleton puts an `aspect-card` block at
+ * full width, which in an 860px dialog is a ~1150px-tall placeholder, so the
+ * dialog opened enormous and snapped down the moment the real layout mounted.
+ * @returns The modal-shaped loading skeleton.
+ */
+function CardDetailModalSkeleton() {
+  return (
+    <div className="@container flex flex-col gap-4">
+      <div className="space-y-1.5">
+        <Skeleton className="h-6 w-56" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <div className="grid gap-5 @2xl:grid-cols-[340px_minmax(0,1fr)]">
+        {/* Same 340px column the real layout gives the art, so the placeholder
+            occupies the height the card will. */}
+        <Skeleton className="aspect-card w-full rounded-xl" />
+        <div className="min-w-0 space-y-4">
+          <div className="flex gap-1.5">
+            <Skeleton className="h-7 w-16 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+          </div>
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
   );
 }

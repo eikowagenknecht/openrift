@@ -83,6 +83,14 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
     onRangeChange?.(newRange);
   };
 
+  // The history is a plain query, not a suspense one, so switching printings
+  // leaves `data` undefined for a moment with no boundary to catch it. Holding
+  // the row's height here stops the detail collapsing and springing back on
+  // every step through the printing picker.
+  if (data === undefined) {
+    return <Skeleton className="h-12 w-full rounded-lg" />;
+  }
+
   // In strict CT mode, many points may have `value: null` (pre-Zero days);
   // count only plottable ones so we don't render a 30-wide chart that has
   // just one solitary point on it.
