@@ -1,10 +1,11 @@
 import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { MissingCardDetailOverlay } from "@/components/deck/missing-card-detail-overlay";
 import { AddToWishlistDialog } from "@/components/list/add-to-wishlist-dialog";
 import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -16,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Pressable } from "@/components/ui/pressable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
@@ -27,6 +29,7 @@ import { formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { formatCardmarketWants } from "@/lib/list-export";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
+import { useDisplayStore } from "@/stores/display-store";
 
 interface DeckMissingCardsDialogProps {
   open: boolean;
@@ -49,19 +52,21 @@ interface DeckMissingCardsDialogProps {
 }
 
 /**
- * Card rarity icon, short code, and display name. Links to the in-app card
- * detail page when a slug is known; falls back to plain text otherwise (a card
- * with no catalog printings has no slug to link to).
+ * Card rarity icon, short code, and display name. Opens the card detail on top
+ * of this dialog when the row has a catalog printing; falls back to plain text
+ * otherwise (a card with no catalog printings has nothing to show).
  * @returns The card identification content.
  */
 function CardIdentity({
   card,
   printing,
   rarityLabel,
+  onOpenDetail,
 }: {
   card: CardOwnership;
   printing: CardOwnership["displayPrinting"];
   rarityLabel: string | undefined;
+  onOpenDetail: (printingId: string) => void;
 }) {
   const content = (
     <>
@@ -80,18 +85,17 @@ function CardIdentity({
     </>
   );
 
-  if (card.cardSlug === undefined) {
+  if (printing === undefined) {
     return <span className="inline-flex items-center gap-1.5">{content}</span>;
   }
 
   return (
-    <Link
-      to="/cards/$cardSlug"
-      params={{ cardSlug: card.cardSlug }}
-      className="hover:text-foreground inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+    <Pressable
+      onClick={() => onOpenDetail(printing.id)}
+      className="hover:text-foreground inline-flex items-center gap-1.5 rounded-sm underline-offset-2 hover:underline"
     >
       {content}
-    </Link>
+    </Pressable>
   );
 }
 
@@ -165,10 +169,15 @@ export function DeckMissingCardsDialog({
 }: DeckMissingCardsDialogProps) {
   const [wishlistPickerOpen, setWishlistPickerOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
+  // Which row's card detail is stacked on top, by printing id. The raw setter
+  // is handed to the overlay, which needs a stable identity for its history
+  // entry — see MissingCardDetailOverlay.
+  const [detailPrintingId, setDetailPrintingId] = useState<string | null>(null);
   const navigate = useNavigate();
   const fmt = formatterForMarketplace(marketplace);
   const meta = MARKETPLACE_META[marketplace];
   const { labels: enumLabels } = useEnumOrders();
+  const showImages = useDisplayStore((s) => s.showImages);
 
   const sorted = missingCards.toSorted((a, b) => {
     const zoneCmp = zoneLabel(a.zone).localeCompare(zoneLabel(b.zone));
@@ -180,17 +189,17 @@ export function DeckMissingCardsDialog({
 
   const groupedByZone = [...Map.groupBy(sorted, (card) => card.zone).entries()];
 
+  // The printing each row shows, in row order. Rows deep-link to (and open the
+  // detail for) the completion printing — the cheapest one that fills the
+  // shortfall — rather than the deck's displayed pin, see `CardOwnership`.
+  const rowPrintingIds = sorted.flatMap((card) => {
+    const printing = card.cheapestPrinting ?? card.displayPrinting;
+    return printing ? [printing.id] : [];
+  });
+
   // Fetch marketplace source metadata only when the dialog is open, so we don't
   // send the extra request until the user actually needs the deep-link URLs.
-  // Rows deep-link to the completion printing (the cheapest one that fills the
-  // shortfall) rather than the deck's displayed pin — see `CardOwnership`.
-  const printingIds = open
-    ? sorted.flatMap((card) => {
-        const printing = card.cheapestPrinting ?? card.displayPrinting;
-        return printing ? [printing.id] : [];
-      })
-    : [];
-  const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
+  const { data: marketplaceInfo } = useMarketplaceInfo(open ? rowPrintingIds : []);
 
   const linkFor = (card: CardOwnership, printing: CardOwnership["displayPrinting"]): string => {
     const info = printing ? marketplaceInfo?.infos[printing.id]?.[marketplace] : undefined;
@@ -222,6 +231,14 @@ export function DeckMissingCardsDialog({
   const buildWishlistEntries = (kind: ListKind) => missingCardsToListEntries(sorted, kind);
 
   const showWishlistButton = mode === "missing" && deckName !== undefined && sorted.length > 0;
+
+  // Tag and keyword chips in the detail have nothing to filter here, so they
+  // hand the query to the catalog and close both dialogs behind themselves.
+  const handleSearchAndClose = (query: string) => {
+    setDetailPrintingId(null);
+    onOpenChange(false);
+    void navigate({ to: "/cards", search: { search: query } });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -266,12 +283,18 @@ export function DeckMissingCardsDialog({
                       loading="lazy"
                       className="h-10 sm:hidden"
                     />
+                    {/* On mobile this column stacks the name over the price; on
+                      desktop `contents` dissolves it so both align inline with
+                      the cart. The cart stays a direct child of the row either
+                      way, so it centers against the full row height instead of
+                      sitting at the bottom of the stack. */}
                     <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
                       <div className="flex min-w-0 items-center gap-1.5 sm:flex-1">
                         <CardIdentity
                           card={card}
                           printing={printing}
                           rarityLabel={printing ? enumLabels.rarities[printing.rarity] : undefined}
+                          onOpenDetail={setDetailPrintingId}
                         />
                         {card.locked > 0 && (
                           <Tooltip>
@@ -288,34 +311,30 @@ export function DeckMissingCardsDialog({
                           </Tooltip>
                         )}
                       </div>
-                      {/* On mobile this pair is its own row (copies left, buy right); on
-                      desktop `contents` dissolves the wrapper so both align inline. */}
-                      <div className="flex items-center justify-between gap-3 sm:contents">
-                        <div className="whitespace-nowrap sm:text-right">
-                          {price === undefined ? (
-                            <span className="text-muted-foreground">{card.shortfall} × --</span>
-                          ) : card.shortfall === 1 ? (
-                            <span className="font-medium">{fmt(price)}</span>
-                          ) : (
-                            <>
-                              <span className="text-muted-foreground">
-                                {card.shortfall} × {fmt(price)} ={" "}
-                              </span>
-                              <span className="font-medium">{fmt(price * card.shortfall)}</span>
-                            </>
-                          )}
-                        </div>
-                        <MarketplaceLink
-                          marketplace={marketplace}
-                          href={linkFor(card, printing)}
-                          title={`Buy on ${meta.label}`}
-                          aria-label={`Buy ${card.displayName} on ${meta.label}`}
-                          className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-md"
-                        >
-                          <ShoppingCartIcon className="size-4" />
-                        </MarketplaceLink>
+                      <div className="whitespace-nowrap sm:text-right">
+                        {price === undefined ? (
+                          <span className="text-muted-foreground">{card.shortfall} × --</span>
+                        ) : card.shortfall === 1 ? (
+                          <span className="font-medium">{fmt(price)}</span>
+                        ) : (
+                          <>
+                            <span className="text-muted-foreground">
+                              {card.shortfall} × {fmt(price)} ={" "}
+                            </span>
+                            <span className="font-medium">{fmt(price * card.shortfall)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
+                    <MarketplaceLink
+                      marketplace={marketplace}
+                      href={linkFor(card, printing)}
+                      title={`Buy on ${meta.label}`}
+                      aria-label={`Buy ${card.displayName} on ${meta.label}`}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-md"
+                    >
+                      <ShoppingCartIcon className="size-4" />
+                    </MarketplaceLink>
                   </div>
                 );
               })}
@@ -341,6 +360,13 @@ export function DeckMissingCardsDialog({
           <CopyTextButton label="Copy list" getText={listText} />
         </DialogFooter>
       </DialogContent>
+      <MissingCardDetailOverlay
+        printingIds={rowPrintingIds}
+        openPrintingId={detailPrintingId}
+        onOpenPrintingIdChange={setDetailPrintingId}
+        showImages={showImages}
+        onSearchAndClose={handleSearchAndClose}
+      />
       {showWishlistButton && (
         <AddToWishlistDialog
           open={wishlistPickerOpen}

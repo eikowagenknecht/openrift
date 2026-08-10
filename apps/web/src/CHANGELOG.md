@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Decks): **Card details from the missing list** — clicking a card in a deck's missing-cards list now opens its details over the list, with arrow keys stepping through the cards you still need, instead of leaving the page.
 - feat(Decks): **Tokens your deck needs** — deck and shared deck pages now list the tokens your cards create as one more section of the deck, and clicking one opens its card details.
 - feat(Decks): **Tell a deck which box it lives in** — pick a deck's storage collection and its cards count as available for that deck, even when the collection is off for deck building.
 - feat(Decks): **Deck value is what it costs, not what's pinned** — every price on the deck page now uses the cheapest printing in your languages, so pinning a premium art no longer inflates the value; the premium figure moved into the value popup.
@@ -18,6 +19,7 @@
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
 - fix(Decks): **Stats filter chip on phones** — filtering the deck by clicking a stats bar showed a chip that ran off the screen edge on narrow phones, so it now wraps onto two lines.
 - fix(Decks): **Split a card to the sideboard on phones** — long-pressing a deck row with several copies now offers a move-1 entry per zone, so you can send a single copy to the sideboard without a shift key.
+- fix(Decks): **Buy button in the missing-cards list** — on phones the cart sat at the bottom of each row instead of centered beside the card it belongs to.
 - fix(Decks): **Champion named once in the deck identity** — the legend and the champion no longer both spell out the same champion name on deck pages, tiles, and list rows.
 - fix(Decks): **Power cost in deck rows** — a two-domain card showed the colorless rune instead of the wild Power symbol the card art uses, and screen readers now read the cost once instead of once per pip.
 - fix(Decks): **Deck list view columns** — the list shows each card's power cost on phones again, and a row with locked copies or no price on file no longer pushes the columns after the name out of line with the rows above it.

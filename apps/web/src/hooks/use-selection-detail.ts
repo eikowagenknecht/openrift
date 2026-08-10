@@ -5,7 +5,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
 import { useSelectionStore } from "@/stores/selection-store";
 
-interface UseSelectionDetailParams {
+interface UseCardDetailNavigationParams {
   items: CardViewerItem[];
   printingsByCardId: Map<string, Printing[]>;
   onSearchAndClose: (query: string) => void;
@@ -14,26 +14,38 @@ interface UseSelectionDetailParams {
    * the mobile drawer pops its own history entry first.
    */
   onDismiss: () => void;
+  /** The printing currently shown, or null when nothing is selected. */
+  selectedCard: Printing | null;
+  /** Its position in `items`, or -1 when the selection is not a list item. */
+  selectedIndex: number;
+  /** Switch printing without moving the index (the printing picker). */
+  setSelectedCard: (printing: Printing) => void;
+  /** Move to a known list position (prev/next, arrow keys). */
+  navigateToIndex: (index: number, printing: Printing) => void;
 }
 
 /**
- * The wiring every card-detail surface needs: the selected printing, its
- * siblings, bounds-checked prev/next handlers, tag and printing callbacks, and
- * the position label. Kept in one place so the docked pane, the desktop modal
- * and the mobile drawer can never disagree about what a click does.
- * @returns The shared detail props for the current selection.
+ * The card-detail wiring itself, over a selection the caller supplies: sibling
+ * printings, bounds-checked prev/next handlers, tag and printing callbacks,
+ * arrow-key navigation, and the position label.
+ *
+ * Most surfaces want {@link useSelectionDetail}, which supplies the global
+ * selection store. This variant exists for a detail overlay that must not
+ * disturb the page's own selection — the missing-cards dialog opens one on top
+ * of itself, while the page underneath already has a store-driven overlay
+ * mounted, and two overlays reading one store would both go live.
+ * @returns The shared detail props for the given selection.
  */
-export function useSelectionDetail({
+export function useCardDetailNavigation({
   items,
   printingsByCardId,
   onSearchAndClose,
   onDismiss,
-}: UseSelectionDetailParams) {
-  const selectedCard = useSelectionStore((s) => s.selectedCard);
-  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
-  const detailOpen = useSelectionStore((s) => s.detailOpen);
-  const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
-  const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
+  selectedCard,
+  selectedIndex,
+  setSelectedCard,
+  navigateToIndex,
+}: UseCardDetailNavigationParams) {
   const applyTagFilter = useApplyTagFilter();
 
   const siblingPrintings =
@@ -135,7 +147,6 @@ export function useSelectionDetail({
 
   return {
     selectedCard,
-    detailOpen,
     siblingPrintings,
     handlePrevCard,
     handleNextCard,
@@ -145,4 +156,47 @@ export function useSelectionDetail({
     handleKeyDown,
     navLabel,
   };
+}
+
+interface UseSelectionDetailParams {
+  items: CardViewerItem[];
+  printingsByCardId: Map<string, Printing[]>;
+  onSearchAndClose: (query: string) => void;
+  /**
+   * How this surface dismisses itself. The pane and the modal close the store;
+   * the mobile drawer pops its own history entry first.
+   */
+  onDismiss: () => void;
+}
+
+/**
+ * {@link useCardDetailNavigation} over the global selection store — what the
+ * docked pane, the desktop modal and the mobile drawer all use, so they can
+ * never disagree about what a card click does.
+ * @returns The shared detail props for the current selection, plus its open state.
+ */
+export function useSelectionDetail({
+  items,
+  printingsByCardId,
+  onSearchAndClose,
+  onDismiss,
+}: UseSelectionDetailParams) {
+  const selectedCard = useSelectionStore((s) => s.selectedCard);
+  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
+  const detailOpen = useSelectionStore((s) => s.detailOpen);
+  const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
+  const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
+
+  const detail = useCardDetailNavigation({
+    items,
+    printingsByCardId,
+    onSearchAndClose,
+    onDismiss,
+    selectedCard,
+    selectedIndex,
+    setSelectedCard,
+    navigateToIndex,
+  });
+
+  return { ...detail, detailOpen };
 }
