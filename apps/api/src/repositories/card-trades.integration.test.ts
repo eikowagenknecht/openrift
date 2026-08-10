@@ -982,11 +982,22 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   it("action-needed splits a group holding both kinds of action", async () => {
     const { group } = await setupMatch(2);
+    await groupsRepo.addMember(group.id, OUTSIDER_ID, "member");
+    await shareWish(group.id, OUTSIDER_ID, 1);
     // One trade accepted: neither side has confirmed its half, so both owe one.
     const reserved = await request(group, 1);
     await acceptTrade(transact, reserved.id, GIVER_ID);
-    // A second request on top, which only the giver has to answer.
-    await request(group, 1);
+    // A second request on top, which only the giver has to answer. It comes from
+    // a third member because `uq_card_trades_live` is keyed on giver + receiver +
+    // printing, so the same receiver cannot stack one on their reserved trade.
+    await createTrade(repos, {
+      callerUserId: OUTSIDER_ID,
+      groupSlug: group.slug,
+      counterpartyUserId: GIVER_ID,
+      role: "receiver",
+      printingId: PRINTING_1.id,
+      quantity: 1,
+    });
 
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
     expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
@@ -995,7 +1006,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       settleCount: 1,
     });
 
-    // The receiver initiated the pending one, so only their unconfirmed half counts.
+    // The pending one is not the receiver's, so only their unconfirmed half counts.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
     expect(receiverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
       count: 1,

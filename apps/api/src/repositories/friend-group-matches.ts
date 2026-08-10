@@ -409,11 +409,16 @@ function promisedKey(userId: string, id: string): string {
 
 /**
  * Loads, for each demand owner, the quantities firm live trades already promise
- * to them: `reserved` rows, plus `completed` rows whose receiver-side sync is
- * still unapplied (the card is in hand, just not recorded yet — the same "live"
- * ladder as the card-trades repo's `liveAnnotationsForUser`). Pending rows are
- * deliberately absent: a pending request is a bid, not a promise, and several
- * members may bid on one card (ADR-019).
+ * to them: `reserved` or `completed` rows whose receiver-side sync is still
+ * unapplied (the card is coming, or is in hand but not recorded yet — the same
+ * "live" ladder as the card-trades repo's `liveAnnotationsForUser`). Pending
+ * rows are deliberately absent: a pending request is a bid, not a promise, and
+ * several members may bid on one card (ADR-019).
+ *
+ * The sync guard applies to `reserved` too, because a side settles while the
+ * trade is still reserved and only the second settle completes it. A receiver
+ * who has recorded their half owns the copy, so netting a promise on top of it
+ * would count the same card twice and hide their other suggestions.
  * @returns The promised quantities pooled per printing and per card.
  */
 async function loadPromisedIncoming(
@@ -434,12 +439,8 @@ async function loadPromisedIncoming(
       eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("quantity"),
     ])
     .where("receiverUserId", "in", ownerIds)
-    .where((eb) =>
-      eb.or([
-        eb("status", "=", "reserved"),
-        eb.and([eb("status", "=", "completed"), eb("receiverSyncAppliedAt", "is", null)]),
-      ]),
-    )
+    .where("status", "in", ["reserved", "completed"])
+    .where("receiverSyncAppliedAt", "is", null)
     .groupBy(["receiverUserId", "printingId", "cardId"])
     .execute();
   for (const row of rows) {
