@@ -52,9 +52,10 @@ export function PrintingPicker({
 
   if (languages.length < 2) {
     return (
-      <PickerFrame>
+      <div className="space-y-2">
+        <PickerHeading />
         <PrintingList printings={printings} current={current} onSelect={onSelect} />
-      </PickerFrame>
+      </div>
     );
   }
 
@@ -64,52 +65,54 @@ export function PrintingPicker({
   const activeLanguage = languages.includes(pickedLanguage) ? pickedLanguage : languages[0];
 
   return (
-    <PickerFrame>
-      <Tabs
-        value={activeLanguage}
-        onValueChange={(next) => setPicked({ language: String(next), forPrintingId: current.id })}
-      >
+    <Tabs
+      value={activeLanguage}
+      onValueChange={(next) => setPicked({ language: String(next), forPrintingId: current.id })}
+    >
+      {/* The heading shares the language strip's row instead of taking one of
+          its own, which the bare language codes leave room for. */}
+      <div className="flex items-center gap-3">
+        <PickerHeading />
         {/* Many languages overflow the 400px pane, so the strip scrolls on its
             own rather than widening the detail. */}
-        <div className="-mx-1 overflow-x-auto px-1">
+        <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">
           <TabsList variant="line">
             {languages.map((code) => (
-              <TabsTrigger key={code} value={code} title={languageLabels[code] ?? code}>
-                <span className="font-mono">{code}</span>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {byLanguage.get(code)?.length ?? 0}
-                </span>
+              <TabsTrigger
+                key={code}
+                value={code}
+                title={languageLabels[code] ?? code}
+                className="font-mono"
+              >
+                {code}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
-        {/* Only the open panel is rendered. Mounting one per language leaves
-            the closed ones in the accessibility tree, where a screen reader
-            reads every language's printings as if all were on screen.
+      </div>
+      {/* Only the open panel is rendered. Mounting one per language leaves
+          the closed ones in the accessibility tree, where a screen reader
+          reads every language's printings as if all were on screen.
 
-            The group is also the sibling set: labels disambiguate against
-            what's visible, which drops the language chip that would otherwise
-            repeat on every row of a single-language tab. */}
-        <TabsContent value={activeLanguage}>
-          <PrintingList
-            printings={byLanguage.get(activeLanguage) ?? []}
-            current={current}
-            onSelect={onSelect}
-          />
-        </TabsContent>
-      </Tabs>
-    </PickerFrame>
+          The group is also the sibling set: labels disambiguate against
+          what's visible, which drops the language chip that would otherwise
+          repeat on every row of a single-language tab. */}
+      <TabsContent value={activeLanguage}>
+        <PrintingList
+          printings={byLanguage.get(activeLanguage) ?? []}
+          current={current}
+          onSelect={onSelect}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }
 
-function PickerFrame({ children }: { children: React.ReactNode }) {
+function PickerHeading() {
   return (
-    <div className="space-y-2">
-      <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-        Printings
-      </h3>
-      {children}
-    </div>
+    <h3 className="text-muted-foreground shrink-0 text-xs font-medium tracking-wide uppercase">
+      Printings
+    </h3>
   );
 }
 
