@@ -567,42 +567,60 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Per-group count of trade requests awaiting the viewer's answer. Mirrors
-     * the single `accept-or-decline` case in `deriveActionNeeded`; `cancel` and
-     * `settle` are both deliberately excluded.
+     * Per-group counts of trades needing the viewer's action, split by which
+     * action it is: a request awaiting their answer, or a swap whose own half
+     * they haven't confirmed. Mirrors the two `action-needed` cases in
+     * `deriveActionNeeded` (`cancel` is deliberately excluded), so `count` is
+     * exactly the two split parts summed.
      *
-     * `settle` is out because a badge that lights up the moment a trade is
-     * accepted nags before a meetup is even possible, and pressure to press the
-     * confirm button early is what produced premature completions in the first
-     * place (ADR-019, amendment 2026-08-10). An outstanding swap is still
-     * visible in the group's Trades tab under Action needed; it just doesn't
-     * chase the viewer from the groups list.
-     * @returns One entry per group with at least one such request.
+     * The swap half is counted from the moment a trade is accepted, with no
+     * grace period. Two people who swap in person and never touch the app would
+     * otherwise be reminded by nothing at all, which leaves the giver's copies
+     * pinned out of every match view indefinitely. The two halves stay separate
+     * badges so this never reads as urgent: a request blocks someone else,
+     * while confirming your own half is yours to do whenever the swap happens.
+     * @returns One entry per group with at least one such trade.
      */
     async actionNeededCountsForUser(
       userId: string,
     ): Promise<CardTradeActionCountsResponse["byGroup"]> {
+      // Both predicates drive the row filter and their own count, so the split
+      // can never drift from the total the WHERE admits.
+      const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
+        (t.receiver_user_id = ${userId} and t.initiator = 'giver')
+        or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
+      ))`;
+      // `completed` is here for rows predating the 2026-08-10 amendment, which
+      // the migration revived only where a side was still outstanding.
+      const awaitingSettle = sql<boolean>`(t.status in ('reserved', 'completed') and (
+        (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
+        or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
+      ))`;
       const rows = await db
         .selectFrom("cardTrades as t")
         .innerJoin("friendGroups as g", "g.id", "t.groupId")
         .select(["t.groupId as groupId", "g.slug as groupSlug"])
-        .select((eb) => eb.fn.countAll<string>().as("count"))
+        .select([
+          sql<string>`count(*) filter (where ${awaitingResponse})`.as("respondCount"),
+          sql<string>`count(*) filter (where ${awaitingSettle})`.as("settleCount"),
+        ])
         .where((eb) =>
           eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
         )
-        .where(
-          sql<boolean>`(t.status = 'pending' and (
-            (t.receiver_user_id = ${userId} and t.initiator = 'giver')
-            or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
-          ))`,
-        )
+        .where(sql<boolean>`(${awaitingResponse} or ${awaitingSettle})`)
         .groupBy(["t.groupId", "g.slug"])
         .execute();
-      return rows.map((row) => ({
-        groupId: row.groupId,
-        groupSlug: row.groupSlug,
-        count: Number(row.count),
-      }));
+      return rows.map((row) => {
+        const respondCount = Number(row.respondCount);
+        const settleCount = Number(row.settleCount);
+        return {
+          groupId: row.groupId,
+          groupSlug: row.groupSlug,
+          count: respondCount + settleCount,
+          respondCount,
+          settleCount,
+        };
+      });
     },
 
     /**

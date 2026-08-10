@@ -14,17 +14,15 @@ export type TradeSection = "action-needed" | "active" | "history";
  * @returns The section the trade belongs in.
  */
 export function tradeSection(trade: CardTradeResponse): TradeSection {
-  // A request awaiting the viewer's answer is the only thing that blocks
-  // someone else, and the only thing the groups-list badge counts.
-  if (trade.actionNeeded === "accept-or-decline") {
+  // Things the viewer must act on: a request awaiting their answer, or a swap
+  // whose own half they haven't confirmed. The groups-list badge splits these
+  // two the same way, so a count the viewer taps always has rows behind it in
+  // this section.
+  if (trade.actionNeeded === "accept-or-decline" || trade.actionNeeded === "settle") {
     return "action-needed";
   }
-  // In flight: their own pending request, or a reservation whose swap is still
-  // outstanding on either side. Settling sits here rather than in action-needed
-  // on purpose — the swap is arranged and the rest happens whenever the two of
-  // them actually meet, and chasing people to press the button is what produced
-  // premature completions (ADR-019, amendment 2026-08-10).
-  if (trade.actionNeeded === "cancel" || trade.actionNeeded === "settle") {
+  // In flight: their own pending request awaiting the other side.
+  if (trade.actionNeeded === "cancel") {
     return "active";
   }
   // A settled side of a still-open reservation stays in flight; the viewer is

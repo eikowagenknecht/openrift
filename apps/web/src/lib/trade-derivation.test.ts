@@ -70,11 +70,12 @@ describe("tradeSection", () => {
     expect(tradeSection(stubTrade({ status: "pending", actionNeeded: "cancel" }))).toBe("active");
   });
 
-  it("buckets an unsettled reserved trade into active, not action-needed", () => {
-    // Accepting is the last thing that demands an answer. Pushing an arranged
-    // swap into action-needed would nag before a meetup is even possible, which
-    // is the pressure that produced premature completions.
-    expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: "settle" }))).toBe("active");
+  it("buckets an unsettled reserved trade into action-needed", () => {
+    // The groups-list badge counts exactly these in its swap half, so a count
+    // the viewer taps always has rows behind it in this section.
+    expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: "settle" }))).toBe(
+      "action-needed",
+    );
   });
 
   it("keeps a reserved trade the viewer already settled in active", () => {
@@ -278,7 +279,7 @@ describe("bucketMemberTrades", () => {
       ],
       "alice",
     );
-    expect(buckets.active.map((t) => t.id)).toEqual(["a1"]);
+    expect(buckets.actionNeeded.map((t) => t.id)).toEqual(["a1"]);
   });
 
   it("surfaces a reserved trade in the active bucket — the case the match overlay dropped", () => {
@@ -290,8 +291,8 @@ describe("bucketMemberTrades", () => {
       [forMember("alice", { id: "r1", status: "reserved", actionNeeded: "settle" })],
       "alice",
     );
-    expect(buckets.active.map((t) => t.id)).toEqual(["r1"]);
-    expect(buckets.actionNeeded).toHaveLength(0);
+    expect(buckets.actionNeeded.map((t) => t.id)).toEqual(["r1"]);
+    expect(buckets.active).toHaveLength(0);
     expect(buckets.history).toHaveLength(0);
   });
 

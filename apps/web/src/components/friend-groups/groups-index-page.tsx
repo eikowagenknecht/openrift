@@ -321,15 +321,18 @@ export function GroupsIndexPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {data.items.map((row) => {
               const badge = ROLE_BADGE[row.viewerRole];
-              // Only requests awaiting an answer. Settling your half of an
-              // agreed swap is no longer badged here, so this count is one kind
-              // of thing again and needs no split (ADR-019, amendment
-              // 2026-08-10).
-              const requestCount = actionCountByGroup.get(row.id)?.count ?? 0;
-              // Anything that asks the viewer to act (trade requests, join
+              const actions = actionCountByGroup.get(row.id);
+              // The two kinds of trade action are what the viewer does next, not
+              // one undifferentiated pile: answering a request is a decision
+              // someone else is blocked on, confirming your own half of a swap
+              // is yours to do whenever it happens. Each gets its own badge so a
+              // group with 40 unconfirmed swaps doesn't read as 40 decisions.
+              const respondCount = actions?.respondCount ?? 0;
+              const settleCount = actions?.settleCount ?? 0;
+              // Anything that asks the viewer to act (trade actions, join
               // requests to review) gets the StatTile accent ring so the
               // group that needs you stands out from across the grid.
-              const needsViewer = requestCount > 0 || row.pendingRequestCount > 0;
+              const needsViewer = (actions?.count ?? 0) > 0 || row.pendingRequestCount > 0;
               return (
                 <CardLink
                   key={row.id}
@@ -350,10 +353,22 @@ export function GroupsIndexPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Heading className="min-w-0 truncate">{row.name}</Heading>
                       <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
-                      {requestCount > 0 ? (
-                        <Badge className="ml-auto whitespace-nowrap">
-                          {requestCount} trade request{requestCount === 1 ? "" : "s"}
-                        </Badge>
+                      {respondCount > 0 || settleCount > 0 ? (
+                        // A decision the viewer owes someone else outranks their
+                        // own housekeeping, so the request badge keeps the
+                        // filled primary and the swap one steps down to the tint.
+                        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                          {respondCount > 0 ? (
+                            <Badge className="whitespace-nowrap">
+                              {respondCount} trade request{respondCount === 1 ? "" : "s"}
+                            </Badge>
+                          ) : null}
+                          {settleCount > 0 ? (
+                            <Badge variant="subtle" className="whitespace-nowrap">
+                              {settleCount} swap{settleCount === 1 ? "" : "s"} to confirm
+                            </Badge>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                     {row.pendingRequestCount > 0 ? (

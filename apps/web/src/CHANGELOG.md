@@ -16,7 +16,7 @@
 ### Other
 
 - feat(Decks): **Display options in one menu** — the deck toolbar's icon toggles (every copy, owned highlights, prices, your printings) now sit behind one options button, with labels.
-- feat(Groups): **Group cards name the waiting trades** — the groups list badge now says how many trade requests are waiting on your answer, instead of a vaguer "actions needed" count.
+- feat(Groups): **Group cards say what the actions are** — a group card now shows how many trade requests are waiting on your answer and, separately, how many agreed swaps you still have to confirm, instead of one vague "actions needed" count.
 - feat(Decks): **Cost to complete beside the deck value** — the price breakdown drops the owned total and shows what you are missing as a second column, split into deck and sideboard.
 - feat(Decks): **Lighter deck builder sidebar** — the ownership and price block is gone from the sidebar (the deck page header already carries those figures), and its charts now match the ones on the deck page.
 - feat(Decks): **Deck filters you can link to and filter on a phone** — the deck list now filters like the card browser, with match counts on every option, a filter sheet on phones, and the filters in the address bar so you can share or bookmark a filtered list.

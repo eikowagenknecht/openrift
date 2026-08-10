@@ -934,55 +934,74 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
 
-    // The giver is the non-initiator: they must accept or decline, so it counts.
+    // The giver is the non-initiator: they must accept or decline, so it counts
+    // — and it counts as a response owed, not a swap to confirm.
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({ count: 1 });
+    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
+      count: 1,
+      respondCount: 1,
+      settleCount: 0,
+    });
 
     // The receiver initiated, so their only action is "cancel" — not counted.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
     expect(receiverCounts.find((entry) => entry.groupId === group.id)).toBeUndefined();
 
-    // Accepting makes it reserved, where the action becomes "settle" — not
-    // counted for either side.
+    // Accepting makes it reserved, where the giver's action becomes "settle" —
+    // still counted, but in the swap half rather than the response half.
     await acceptTrade(transact, trade.id, GIVER_ID);
     const giverAfterAccept = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    expect(giverAfterAccept.find((entry) => entry.groupId === group.id)).toBeUndefined();
+    expect(giverAfterAccept.find((entry) => entry.groupId === group.id)).toMatchObject({
+      respondCount: 0,
+      settleCount: 1,
+    });
   });
 
-  it("action-needed ignores an unsettled reservation on both sides", async () => {
-    // The badge is requests awaiting an answer and nothing else. Lighting it up
-    // the moment a trade is accepted would nag before a meetup is even
-    // possible, which is the pressure that produced premature completions
-    // (ADR-019, amendment 2026-08-10). The swap stays visible in the group's
-    // Trades tab under Active.
+  it("action-needed counts an unsettled reservation from the moment it is accepted", async () => {
+    // No grace period on purpose: two people who swap in person and never touch
+    // the app would otherwise be reminded by nothing, leaving the giver's copies
+    // pinned out of every match view (ADR-019, amendment 2026-08-10).
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
     const inGroup = (counts: { groupId: string; count: number }[]) =>
       counts.find((entry) => entry.groupId === group.id);
 
-    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(GIVER_ID))).toBeUndefined();
-    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID))).toBeUndefined();
+    const giverReserved = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
+    const receiverReserved = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
+    expect(inGroup(giverReserved)).toMatchObject({ count: 1, respondCount: 0, settleCount: 1 });
+    expect(inGroup(receiverReserved)).toMatchObject({ count: 1, respondCount: 0, settleCount: 1 });
 
+    // Settling the giver's side clears only theirs; the receiver still owes one.
     await applyTradeSync(transact, trade.id, GIVER_ID);
-    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(GIVER_ID))).toBeUndefined();
-    expect(inGroup(await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID))).toBeUndefined();
+    const giverSettled = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
+    const receiverStill = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
+    expect(inGroup(giverSettled)).toBeUndefined();
+    expect(inGroup(receiverStill)).toMatchObject({ count: 1, respondCount: 0, settleCount: 1 });
   });
 
-  it("action-needed counts only the requests, alongside an unsettled reservation", async () => {
+  it("action-needed splits a group holding both kinds of action", async () => {
     const { group } = await setupMatch(2);
-    // One accepted trade, which contributes nothing to the badge.
+    // One trade accepted: neither side has confirmed its half, so both owe one.
     const reserved = await request(group, 1);
     await acceptTrade(transact, reserved.id, GIVER_ID);
     // A second request on top, which only the giver has to answer.
     await request(group, 1);
 
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
-    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({ count: 1 });
+    expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
+      count: 2,
+      respondCount: 1,
+      settleCount: 1,
+    });
 
-    // The receiver initiated the pending one, so nothing is waiting on them.
+    // The receiver initiated the pending one, so only their unconfirmed half counts.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
-    expect(receiverCounts.find((entry) => entry.groupId === group.id)).toBeUndefined();
+    expect(receiverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
+      count: 1,
+      respondCount: 0,
+      settleCount: 1,
+    });
   });
 
   // ── Pending offers consume supply ────────────────────────────────────────

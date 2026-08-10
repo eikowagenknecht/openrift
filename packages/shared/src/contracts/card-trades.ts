@@ -205,8 +205,12 @@ export const cardTradeActionCountsResponseSchema = z
       z.object({
         groupId: z.string(),
         groupSlug: z.string(),
-        /** Requests awaiting the viewer's accept or decline (`accept-or-decline`). */
+        /** `respondCount + settleCount`, the group's whole action-needed bucket. */
         count: z.number().int().nonnegative(),
+        /** Requests awaiting the viewer's accept or decline (`accept-or-decline`). */
+        respondCount: z.number().int().nonnegative(),
+        /** Swaps whose own half the viewer hasn't confirmed yet (`settle`). */
+        settleCount: z.number().int().nonnegative(),
       }),
     ),
   })
