@@ -259,12 +259,18 @@ export interface DeckBuildingCounts {
  * The locked bucket also keeps a per-reason breakdown so callers (the missing
  * cards dialog) can say *why* a copy is locked instead of assuming every
  * locked copy sits in an excluded collection.
+ *
+ * `exemptCollectionId` is the home collection of the deck being built: the box
+ * it physically lives in counts as available for that deck, whatever the
+ * collection's deck-building flag says. Loans and trade reservations still
+ * win — those copies aren't in the box.
  * @returns Per-printing `available` and `locked` count maps, plus the locked
  *   reason breakdown (`lockedLoaned`, `lockedReserved`, `lockedExcluded`).
  */
 export function aggregateDeckBuildingCounts(
   copies: readonly CopyResponse[],
   availabilityById: ReadonlyMap<string, boolean>,
+  exemptCollectionId?: string | null,
 ): DeckBuildingCounts {
   const available: Record<string, number> = {};
   const locked: Record<string, number> = {};
@@ -292,7 +298,8 @@ export function aggregateDeckBuildingCounts(
     // or stale collections cache) — better to count an in-flight copy than to
     // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:
     // personal collections default on, group collections are opt-in per member.
-    const isAvailable = availabilityById.get(copy.collectionId) ?? true;
+    const isAvailable =
+      copy.collectionId === exemptCollectionId || (availabilityById.get(copy.collectionId) ?? true);
     if (isAvailable) {
       // Includes opted-in group copies — they feed the viewer's deck inventory.
       available[copy.printingId] = (available[copy.printingId] ?? 0) + 1;
@@ -310,9 +317,18 @@ export function aggregateDeckBuildingCounts(
 /**
  * Splits owned copies into deck-building-available and locked-away buckets,
  * based on each copy's collection `availableForDeckbuilding` flag.
+ *
+ * Pass the current deck's `collectionId` as `exemptCollectionId` so the box the
+ * deck is stored in counts as available for it, even when that collection is
+ * excluded from deck building. Omit it on surfaces that aren't scoped to one
+ * deck (the catalog) or that measure someone else's deck against the viewer's
+ * collection (the shared-deck page).
  * @returns Both maps keyed by printingId, or undefined when disabled or still loading.
  */
-export function useDeckBuildingCounts(enabled: boolean): {
+export function useDeckBuildingCounts(
+  enabled: boolean,
+  exemptCollectionId?: string | null,
+): {
   data: DeckBuildingCounts | undefined;
 } {
   const userId = useUserId();
@@ -336,7 +352,7 @@ export function useDeckBuildingCounts(enabled: boolean): {
     availabilityById.set(col.id, col.availableForDeckbuilding);
   }
 
-  return { data: aggregateDeckBuildingCounts(copies, availabilityById) };
+  return { data: aggregateDeckBuildingCounts(copies, availabilityById, exemptCollectionId) };
 }
 
 function aggregateByCollection(

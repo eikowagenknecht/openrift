@@ -34,6 +34,7 @@ describe("toDeck", () => {
       coverPrintingId: "printing-9",
       coverPosition: 35,
       videoUrl: "https://youtu.be/abc123",
+      collectionId: "collection-7",
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -53,6 +54,7 @@ describe("toDeck", () => {
       coverPrintingId: "printing-9",
       coverPosition: 35,
       videoUrl: "https://youtu.be/abc123",
+      collectionId: "collection-7",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -76,6 +78,7 @@ describe("toDeck", () => {
       coverPrintingId: null,
       coverPosition: null,
       videoUrl: null,
+      collectionId: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -88,7 +91,7 @@ describe("toDeck", () => {
 // ---------------------------------------------------------------------------
 
 describe("toPublicDeck", () => {
-  it("strips owner-only fields (shareToken, isPublic, userId, isWanted)", () => {
+  it("strips owner-only fields (shareToken, isPublic, userId, isWanted, collectionId)", () => {
     const result = toPublicDeck({
       id: "deck-1",
       userId: "user-1",
@@ -106,6 +109,8 @@ describe("toPublicDeck", () => {
       coverPrintingId: null,
       coverPosition: null,
       videoUrl: null,
+      // Where the owner stores the deck must never reach a public viewer.
+      collectionId: "collection-7",
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -126,6 +131,7 @@ describe("toPublicDeck", () => {
     expect("shareToken" in result).toBe(false);
     expect("isPublic" in result).toBe(false);
     expect("userId" in result).toBe(false);
+    expect("collectionId" in result).toBe(false);
   });
 });
 
@@ -152,6 +158,7 @@ describe("toDeckSummary", () => {
       coverPrintingId: null,
       coverPosition: 50,
       videoUrl: null,
+      collectionId: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -190,6 +197,7 @@ describe("toDeckSummary", () => {
       coverPrintingId: null,
       coverPosition: null,
       videoUrl: null,
+      collectionId: null,
       createdAt: NOW,
       updatedAt: LATER,
     });

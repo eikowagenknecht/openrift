@@ -57,7 +57,8 @@ export function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwne
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-64 text-xs">
               Copies sitting in collections excluded from deck building. They don&apos;t count
-              toward missing. Move them or turn the collection back on to use them.
+              toward missing. Move them, turn the collection back on, or point this deck&apos;s
+              &ldquo;Stored in&rdquo; at that collection.
             </TooltipContent>
           </Tooltip>
         )}

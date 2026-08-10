@@ -36,6 +36,13 @@ const mockMarketplace = {
 
 const mockCopies = {
   buildableCountByCard: vi.fn(() => Promise.resolve(new Map<string, number>())),
+  buildableCountByCardForCollections: vi.fn(() =>
+    Promise.resolve(new Map<string, Map<string, number>>()),
+  ),
+};
+
+const mockCollections = {
+  getAccessForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockLoans = {
@@ -115,6 +122,7 @@ app.use("*", async (c, next) => {
     copies: mockCopies,
     loans: mockLoans,
     catalog: mockCatalog,
+    collections: mockCollections,
   } as never);
   await next();
 });
@@ -151,9 +159,12 @@ const dbDeck = {
   coverPrintingId: null,
   coverPosition: null,
   videoUrl: null,
+  collectionId: null,
   createdAt: now,
   updatedAt: now,
 };
+
+const COLLECTION_ID = "b0000000-0001-4000-a000-000000000001";
 
 /** Slim deck card row (for cardsForDeck — detail/PUT endpoints). */
 const dbDeckCard = {
@@ -192,6 +203,10 @@ describe("GET /api/v1/decks", () => {
     mockRepo.listForUser.mockReset();
     mockCopies.buildableCountByCard.mockReset();
     mockCopies.buildableCountByCard.mockResolvedValue(new Map<string, number>());
+    mockCopies.buildableCountByCardForCollections.mockReset();
+    mockCopies.buildableCountByCardForCollections.mockResolvedValue(
+      new Map<string, Map<string, number>>(),
+    );
     mockLoans.borrowedCountByCard.mockReset();
     mockLoans.borrowedCountByCard.mockResolvedValue(new Map<string, number>());
   });
@@ -245,6 +260,39 @@ describe("GET /api/v1/decks", () => {
       dbDeckCardFull,
       { ...dbDeckCardFull, id: "stash", cardId: "stashed-card", zone: "overflow", quantity: 3 },
     ]);
+    const res = await app.request("/api/v1/decks");
+    const json = await readJson(res);
+    expect(json.items[0].missingCount).toBe(4);
+  });
+
+  // The deck's home collection is the box it lives in: its copies count for
+  // this deck on top of the shared buildable pool, even though the collection
+  // is excluded from deck building everywhere else.
+  it("adds the home collection's copies to the deck's own stock", async () => {
+    const cardId = dbDeckCardFull.cardId;
+    mockRepo.listForUser.mockResolvedValue([{ ...dbDeck, collectionId: COLLECTION_ID }]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+    mockCopies.buildableCountByCard.mockResolvedValue(new Map([[cardId, 1]]));
+    mockCopies.buildableCountByCardForCollections.mockResolvedValue(
+      new Map([[COLLECTION_ID, new Map([[cardId, 3]])]]),
+    );
+    const res = await app.request("/api/v1/decks");
+    const json = await readJson(res);
+    expect(mockCopies.buildableCountByCardForCollections).toHaveBeenCalledWith(USER_ID, [
+      COLLECTION_ID,
+    ]);
+    // needed 4 − buildable 1 − home collection 3 = 0 missing.
+    expect(json.items[0].missingCount).toBe(0);
+  });
+
+  // Another deck's home collection must not leak into this deck's stock.
+  it("ignores home-collection stock for a deck without one", async () => {
+    const cardId = dbDeckCardFull.cardId;
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
+    mockCopies.buildableCountByCardForCollections.mockResolvedValue(
+      new Map([[COLLECTION_ID, new Map([[cardId, 4]])]]),
+    );
     const res = await app.request("/api/v1/decks");
     const json = await readJson(res);
     expect(json.items[0].missingCount).toBe(4);
@@ -371,6 +419,44 @@ describe("PATCH /api/v1/decks/:id", () => {
       body: JSON.stringify({ name: "X" }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it("sets the home collection when the user can reach it", async () => {
+    mockCollections.getAccessForUser.mockResolvedValue({ collection: { id: COLLECTION_ID } });
+    mockRepo.update.mockResolvedValue({ ...dbDeck, collectionId: COLLECTION_ID });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.collectionId).toBe(COLLECTION_ID);
+  });
+
+  it("returns 404 for a home collection the user cannot reach", async () => {
+    mockCollections.getAccessForUser.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(404);
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+
+  it("clears the home collection without an access check", async () => {
+    mockCollections.getAccessForUser.mockClear();
+    mockRepo.update.mockResolvedValue({ ...dbDeck, collectionId: null });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId: null }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockCollections.getAccessForUser).not.toHaveBeenCalled();
+    const json = await readJson(res);
+    expect(json.collectionId).toBeNull();
   });
 });
 

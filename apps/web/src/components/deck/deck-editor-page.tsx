@@ -3,6 +3,7 @@ import { formatHasSideboard, getOrientation, imageUrl, WellKnown } from "@openri
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  BoxIcon,
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
   FileTextIcon,
@@ -27,6 +28,7 @@ import { DeckCoverDialog } from "@/components/deck/deck-cover-dialog";
 import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
+import { DeckHomeCollectionDialog } from "@/components/deck/deck-home-collection-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckMobileDock } from "@/components/deck/deck-mobile-dock";
 import { DeckQuickAdd } from "@/components/deck/deck-quick-add";
@@ -172,6 +174,7 @@ function DeckEditorContent({
   const [coverOpen, setCoverOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -212,7 +215,12 @@ function DeckEditorContent({
   // Ownership data — split available vs locked so the deck builder respects
   // each collection's availableForDeckbuilding flag.
   const { data: session } = useSession();
-  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
+  // The deck's home collection overrides the exclusion for this deck: the box
+  // it's stored in is buildable here, and stays locked for every other deck.
+  const { data: deckCounts } = useDeckBuildingCounts(
+    Boolean(session?.user),
+    data.deck.collectionId,
+  );
   // Copies borrowed from friends (ADR-039) are in hand and buildable.
   const { data: borrowedCounts } = useBorrowedCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -615,6 +623,14 @@ function DeckEditorContent({
                       <ImageIcon className="size-4" />
                       Change cover art
                     </DropdownMenuItem>
+                    {/* A home collection points at a server collection, which a
+                        browser-local deck can't reference (ADR-035). */}
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => setHomeCollectionOpen(true)}>
+                        <BoxIcon className="size-4" />
+                        Stored in…
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={() =>
                         void navigate({
@@ -689,6 +705,7 @@ function DeckEditorContent({
       <DeckCompareDialog
         deckId={deckId}
         deckName={data.deck.name}
+        homeCollectionId={data.deck.collectionId}
         open={compareOpen}
         onOpenChange={setCompareOpen}
       />
@@ -699,6 +716,14 @@ function DeckEditorContent({
           currentVideoUrl={data.deck.videoUrl ?? null}
           open={descriptionOpen}
           onOpenChange={setDescriptionOpen}
+        />
+      )}
+      {!isLocal && (
+        <DeckHomeCollectionDialog
+          deckId={deckId}
+          currentCollectionId={data.deck.collectionId}
+          open={homeCollectionOpen}
+          onOpenChange={setHomeCollectionOpen}
         />
       )}
       {!isLocal && (

@@ -94,6 +94,10 @@ export const updateDeckSchema = z.object({
   // Video guide: a YouTube link shown as a chip next to the description on
   // the deck and share pages. Null clears it.
   videoUrl: z.string().max(300).refine(isVideoGuideUrl, "Must be a YouTube link").nullish(),
+  // Home collection: the box the deck physically lives in. Copies there stay
+  // buildable for this deck even when the collection is excluded from deck
+  // building. Null clears the link.
+  collectionId: z.uuid().nullish(),
 });
 
 export const updateDeckCardsSchema = z.object({
@@ -171,6 +175,8 @@ export const deckResponseSchema = z
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
     videoUrl: z.string().nullable(),
+    /** Owner-only: the collection the deck is stored in, or null. */
+    collectionId: z.string().nullable(),
   })
   .openapi("DeckResponse");
 

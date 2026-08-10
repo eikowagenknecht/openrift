@@ -590,6 +590,13 @@ export interface DecksTable {
   coverPosition: number | null;
   /** YouTube guide link (validated at the API boundary); null = none. */
   videoUrl: string | null;
+  /**
+   * FK → collections(id), SET NULL. The deck's home collection: the box it
+   * physically lives in. Copies there always count as buildable for this deck,
+   * even when the collection is excluded from deck building. Owner-only —
+   * never exposed on public/shared deck responses.
+   */
+  collectionId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 interface DeckCompareDialogProps {
   deckId: string;
   deckName: string;
+  /** The deck's home collection, whose copies count as buildable for it. */
+  homeCollectionId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -188,6 +190,7 @@ function DiffRow({ entry, owned }: { entry: DeckDiffEntry; owned: number | null 
 export function DeckCompareDialog({
   deckId,
   deckName,
+  homeCollectionId,
   open,
   onOpenChange,
 }: DeckCompareDialogProps) {
@@ -196,8 +199,9 @@ export function DeckCompareDialog({
   const ourCards = useDeckCards(deckId);
   const { data: session } = useSession();
   // Same source as the card browser's owned badge: copies in collections
-  // excluded from deck building don't count as buildable.
-  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
+  // excluded from deck building don't count as buildable, except the ones in
+  // this deck's own home collection.
+  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user), homeCollectionId);
   const available = deckCounts?.available ?? null;
 
   const [text, setText] = useState("");

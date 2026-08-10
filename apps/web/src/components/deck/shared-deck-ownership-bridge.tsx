@@ -32,6 +32,9 @@ export function SharedDeckOwnershipBridge({
   onResult,
 }: SharedDeckOwnershipBridgeProps) {
   const { allPrintings } = useCards();
+  // No home-collection exemption here: this measures someone else's deck
+  // against the viewer's own collection, and the deck's home collection is
+  // owner-only anyway (never part of a shared deck's payload).
   const { data: counts } = useDeckBuildingCounts(isLoggedIn);
   const { data: borrowedCounts } = useBorrowedCounts(isLoggedIn);
 

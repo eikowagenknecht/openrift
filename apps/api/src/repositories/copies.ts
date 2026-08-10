@@ -85,6 +85,22 @@ export function clampCopiesLimit(limit?: number): number {
 }
 
 /**
+ * Deck-building availability of a joined `collections as col` (with the
+ * viewer's `collection_deckbuilding_prefs as pref` left-joined): personal
+ * collections default on, group collections are opt-in per member. A deck's
+ * home collection (`exemptCollectionId`) counts for that deck even when the
+ * collection is excluded, because the deck physically lives in that box.
+ * @returns The SQL boolean expression.
+ */
+function deckbuildingAvailableSql(exemptCollectionId?: string) {
+  const base = sql<boolean>`coalesce(pref.available, col.group_id is null)`;
+  if (exemptCollectionId === undefined) {
+    return base;
+  }
+  return sql<boolean>`(${base} or col.id = ${exemptCollectionId})`;
+}
+
+/**
  * Read-only queries for user copy data.
  *
  * Copy ownership is derived from the collection (personal collections set
@@ -428,10 +444,14 @@ export function copiesRepo(db: Kysely<Database>) {
      * AND deck-building-available for them: `COALESCE(pref.available,
      * group_id IS NULL)` — personal collections default on, group collections
      * are opt-in per member.
+     *
+     * `exemptCollectionId` is a deck's home collection: the box that deck lives
+     * in counts for it even when it's excluded from deck building generally.
      * @returns Count per card+printing across the viewer's deck-available collections.
      */
     countByCardAndPrintingForDeckbuilding(
       userId: string,
+      exemptCollectionId?: string,
     ): Promise<{ cardId: string; printingId: string; count: number }[]> {
       return (
         db
@@ -450,7 +470,7 @@ export function copiesRepo(db: Kysely<Database>) {
             eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
           ])
           .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
-          .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
+          .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
           // ADR-039: a copy out on a loan is physically absent, so it never
           // counts toward deck-building inventory, whatever its collection says.
           .where(({ not, exists, selectFrom }) =>
@@ -476,9 +496,17 @@ export function copiesRepo(db: Kysely<Database>) {
      * live loan (ADR-039, physically absent) nor reserved for a live outgoing
      * trade (ADR-019). Borrowed-in copies are added separately (they aren't
      * copy rows — see `loansRepo.borrowedCountByCard`).
+     *
+     * `exemptCollectionId` is a deck's home collection, which stays buildable
+     * for that deck even when excluded from deck building. The `/decks`
+     * overview computes many decks at once and uses
+     * {@link buildableCountByCardForCollections} instead of calling this per deck.
      * @returns Map from card id to buildable copy count.
      */
-    async buildableCountByCard(userId: string): Promise<Map<string, number>> {
+    async buildableCountByCard(
+      userId: string,
+      exemptCollectionId?: string,
+    ): Promise<Map<string, number>> {
       const rows = await db
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
@@ -494,7 +522,7 @@ export function copiesRepo(db: Kysely<Database>) {
           eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
         ])
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
-        .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
+        .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
         // A copy out on a live loan is physically absent (ADR-039).
         .where(({ not, exists, selectFrom }) =>
           not(
@@ -518,6 +546,72 @@ export function copiesRepo(db: Kysely<Database>) {
         .groupBy("p.cardId")
         .execute();
       return new Map(rows.map((row) => [row.cardId, row.count]));
+    },
+
+    /**
+     * The extra buildable stock a deck gains from its home collection, keyed by
+     * collection then card. Counts only copies {@link buildableCountByCard}
+     * leaves out because their collection is excluded from deck building, so a
+     * caller can add the two without double counting. Loaned and trade-reserved
+     * copies stay excluded — a home collection overrides the exclusion, not
+     * physical absence. Lets the `/decks` overview resolve every deck's home
+     * collection in one query instead of one query per deck.
+     * @returns Map from collection id to a per-card count map.
+     */
+    async buildableCountByCardForCollections(
+      userId: string,
+      collectionIds: readonly string[],
+    ): Promise<Map<string, Map<string, number>>> {
+      if (collectionIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+        )
+        .select((eb) => [
+          "cp.collectionId" as const,
+          "p.cardId" as const,
+          eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
+        ])
+        .where("cp.collectionId", "in", [...new Set(collectionIds)])
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        // Only the copies the general availability rule leaves out: everything
+        // else is already in `buildableCountByCard`.
+        .where(deckbuildingAvailableSql(), "=", false)
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("loanCopies as lc")
+                .select("lc.copyId")
+                .whereRef("lc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("cardTradeCopies as ctc")
+                .select("ctc.copyId")
+                .whereRef("ctc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        .groupBy(["cp.collectionId", "p.cardId"])
+        .execute();
+      const byCollection = new Map<string, Map<string, number>>();
+      for (const row of rows) {
+        const cards = byCollection.get(row.collectionId) ?? new Map<string, number>();
+        cards.set(row.cardId, row.count);
+        byCollection.set(row.collectionId, cards);
+      }
+      return byCollection;
     },
 
     /**

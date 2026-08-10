@@ -110,6 +110,8 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       coverPrintingId: deck?.coverPrintingId ?? null,
       coverPosition: deck?.coverPosition ?? null,
       videoUrl: deck?.videoUrl ?? null,
+      // A browser-local deck has no server collections to be stored in.
+      collectionId: null,
       createdAt: deck?.createdAt ?? "",
       updatedAt: deck?.updatedAt ?? "",
     },
@@ -281,6 +283,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
       coverPrintingId?: string | null;
       coverPosition?: number | null;
       videoUrl?: string | null;
+      collectionId?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -317,6 +320,7 @@ export function useUpdateDeck() {
       coverPrintingId?: string | null;
       coverPosition?: number | null;
       videoUrl?: string | null;
+      collectionId?: string | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       if (!userId) {

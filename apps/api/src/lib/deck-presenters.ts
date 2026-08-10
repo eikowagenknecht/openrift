@@ -34,6 +34,8 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
     videoUrl: row.videoUrl,
+    // Owner-only: where the owner stores this deck. `toPublicDeck` omits it.
+    collectionId: row.collectionId,
   };
 }
 

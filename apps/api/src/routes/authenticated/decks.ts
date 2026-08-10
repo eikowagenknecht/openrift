@@ -180,6 +180,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   coverPrintingId: "coverPrintingId",
   coverPosition: "coverPosition",
   videoUrl: "videoUrl",
+  collectionId: "collectionId",
 };
 
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);
@@ -215,9 +216,15 @@ export const decksRouter = {
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
     // Bans invalidate a deck (CARD_BANNED), so the list's valid/invalid badge
     // needs them. One query covers every card across every deck in the response.
-    const [deckValueMap, banRows] = await Promise.all([
+    // The home-collection extras cover every deck's box in one query too: each
+    // deck adds only its own box's copies on top of the shared buildable pool.
+    const homeCollectionIds = deckRows
+      .map((row) => row.collectionId)
+      .filter((id): id is string => id !== null);
+    const [deckValueMap, banRows, homeExtrasByCollection] = await Promise.all([
       marketplace.deckValues(userId, favMarketplace),
       catalog.cardBansByCardIds([...new Set(allCards.map((card) => card.cardId))]),
+      copies.buildableCountByCardForCollections(userId, homeCollectionIds),
     ]);
     const bannedCardIds = new Set(
       banRows.filter((ban) => isBaseBanFormat(ban.formatId)).map((ban) => ban.cardId),
@@ -258,9 +265,16 @@ export const decksRouter = {
         }
         neededByCard.set(card.cardId, (neededByCard.get(card.cardId) ?? 0) + card.quantity);
       }
+      // Copies in the deck's home collection count for this deck even when the
+      // collection is excluded from deck building — that's the box it lives in.
+      const homeExtra =
+        row.collectionId === null ? undefined : homeExtrasByCollection.get(row.collectionId);
       let missingCount = 0;
       for (const [cardId, needed] of neededByCard) {
-        const have = (buildableByCard.get(cardId) ?? 0) + (borrowedByCard.get(cardId) ?? 0);
+        const have =
+          (buildableByCard.get(cardId) ?? 0) +
+          (homeExtra?.get(cardId) ?? 0) +
+          (borrowedByCard.get(cardId) ?? 0);
         missingCount += Math.max(0, needed - have);
       }
 
@@ -383,10 +397,16 @@ export const decksRouter = {
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   update: os.update.handler(async ({ input, context }) => {
-    const { decks, deckFormats, customTags } = context.repos;
+    const { decks, deckFormats, customTags, collections } = context.repos;
     const userId = context.userId;
     if (input.format !== undefined) {
       await assertKnownFormat(deckFormats, input.format);
+    }
+    // A home collection has to be one the user can actually reach; null clears
+    // it. Anything else would silently exempt a collection they can't see.
+    if (input.collectionId !== undefined && input.collectionId !== null) {
+      const access = await collections.getAccessForUser(input.collectionId, userId);
+      assertFound(access, "Collection not found");
     }
     // Decide which format the resulting deck will be under, so format_config
     // is validated against the right shape — input.format wins, falling back

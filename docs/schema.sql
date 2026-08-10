@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict oscrFXHuWiyhCUHpOssJAVvHlhIINouBFW6KkIgSyDldzM439vRDRhaPHCjOHEb
+\restrict OohZpune9ClZ9JnvCqYZOlzrrfIm10O851ja2Wr7MT9kmIrOaARLBL8byagA4Bt
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1238,6 +1238,7 @@ CREATE TABLE public.decks (
     cover_printing_id uuid,
     cover_position smallint,
     video_url text,
+    collection_id uuid,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
@@ -5530,6 +5531,14 @@ ALTER TABLE ONLY public.deck_plans
 
 
 --
+-- Name: decks decks_collection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT decks_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE SET NULL;
+
+
+--
 -- Name: decks decks_cover_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6253,5 +6262,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict oscrFXHuWiyhCUHpOssJAVvHlhIINouBFW6KkIgSyDldzM439vRDRhaPHCjOHEb
+\unrestrict OohZpune9ClZ9JnvCqYZOlzrrfIm10O851ja2Wr7MT9kmIrOaARLBL8byagA4Bt
 

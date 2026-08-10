@@ -271,6 +271,7 @@ function DeckOverviewForEditor({
           coverPrintingId: deck.coverPrintingId,
           coverPosition: deck.coverPosition,
           videoUrl: deck.videoUrl,
+          collectionId: deck.collectionId,
         }}
         cards={cards}
         customTagAssignments={customTagAssignments}
@@ -316,6 +317,7 @@ function DeckOverviewForEditor({
 }
 
 function DeckCardBrowserInner({ deckId }: { deckId: string }) {
+  const { data: deckDetail } = useDeckDetail(deckId);
   const showImages = useDisplayStore((state) => state.showImages);
   const isMobile = useIsMobile();
   const { allPrintings, sets } = useCards();
@@ -329,8 +331,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // collections excluded from deck building are "locked away" and don't feed the
   // deck (mirrors the ownership panel's available/locked split). Using the raw
   // owned total here would count those excluded copies as owned/available,
-  // contradicting the ownership panel that reports them as locked.
-  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
+  // contradicting the ownership panel that reports them as locked. The deck's
+  // home collection is the exception: the box it lives in feeds this deck.
+  const { data: deckCounts } = useDeckBuildingCounts(
+    Boolean(session?.user),
+    deckDetail.deck.collectionId,
+  );
   const ownedCountByPrinting = deckCounts?.available;
 
   const {
@@ -345,7 +351,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const { setSearch } = useFilterActions();
   const { getPreferredPrinting } = usePreferredPrinting();
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
-  const { data: deckDetail } = useDeckDetail(deckId);
   const isFreeform = deckDetail.deck.format === WellKnown.deckFormat.FREEFORM;
   // Custom-region has no ban list of its own — official-format bans don't
   // apply, so ban ribbons/dimming would only mislead.

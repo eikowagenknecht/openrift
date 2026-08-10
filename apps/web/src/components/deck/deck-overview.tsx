@@ -365,6 +365,12 @@ interface DeckOverviewProps {
     coverPosition?: number | null;
     /** YouTube guide link, rendered as a chip next to the description. */
     videoUrl?: string | null;
+    /**
+     * The deck's home collection. Its copies count as available for this deck
+     * even when the collection is excluded from deck building. Absent on the
+     * public share page — it's owner-only.
+     */
+    collectionId?: string | null;
   };
   cards: DeckBuilderCard[];
   /**
@@ -1278,7 +1284,11 @@ export function DeckOverview({
     <div className="@container flex flex-col gap-6 px-1 pt-3 pb-4">
       {hydrated && canPreferOwned && (
         <Suspense fallback={null}>
-          <OwnershipBandSourcesBridge cards={cards} onResult={setBandSources} />
+          <OwnershipBandSourcesBridge
+            cards={cards}
+            homeCollectionId={deck.collectionId}
+            onResult={setBandSources}
+          />
         </Suspense>
       )}
       <DeckHero
@@ -1602,14 +1612,16 @@ export function DeckOverview({
  */
 function OwnershipBandSourcesBridge({
   cards,
+  homeCollectionId,
   onResult,
 }: {
   cards: DeckBuilderCard[];
+  homeCollectionId?: string | null;
   onResult: React.Dispatch<React.SetStateAction<OwnershipBandSources | undefined>>;
 }) {
   const { printingsByCardId } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
-  const { data } = useDeckBuildingCounts(true);
+  const { data } = useDeckBuildingCounts(true, homeCollectionId);
   const sources = data
     ? collectOwnershipBandSources(
         cards,
