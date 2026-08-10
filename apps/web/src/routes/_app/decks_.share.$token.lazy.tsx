@@ -6,10 +6,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
+import { DeckOwnershipBridge } from "@/components/deck/deck-ownership-bridge";
 import { DeckPlanView } from "@/components/deck/deck-plan-view";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
-import { SharedDeckOwnershipBridge } from "@/components/deck/shared-deck-ownership-bridge";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { CardDetailSkeleton, SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -290,7 +290,7 @@ function SharedDeckContent() {
       */}
       {hydrated && (
         <Suspense fallback={null}>
-          <SharedDeckOwnershipBridge
+          <DeckOwnershipBridge
             builderCards={builderCards}
             isLoggedIn={isLoggedIn}
             marketplace={marketplace}

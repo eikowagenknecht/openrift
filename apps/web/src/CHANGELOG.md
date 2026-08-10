@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Decks): **Deck stats before you import** — the import preview now shows the deck's size, domains and format legality, plus how much of it you already own and what the rest would cost.
 - feat(Decks): **Deck import on phones** — the preview reads as a list of cards, matched rows tuck their controls behind a tap, and the import button stays in reach at the bottom.
 - feat(Decks): **Card details from the missing list** — clicking a card in a deck's missing-cards list now opens its details over the list, with arrow keys stepping through the cards you still need, instead of leaving the page.
 - feat(Decks): **Tokens your deck needs** — deck and shared deck pages now list the tokens your cards create as one more section of the deck, and clicking one opens its card details.

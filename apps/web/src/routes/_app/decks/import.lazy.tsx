@@ -1,6 +1,7 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import type {
   DeckFormat,
+  DeckFormatConfig,
   DeckResponse,
   DeckZone,
   Printing,
@@ -24,6 +25,7 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { DeckImportSummary } from "@/components/deck/deck-import-summary";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import {
   ImportStatusBadges,
@@ -73,6 +75,7 @@ import {
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useUserId } from "@/lib/auth-session";
+import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 import { dedupeMatchedEntries } from "@/lib/deck-import-cards";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
@@ -252,10 +255,16 @@ function DeckImportPage() {
     ...deckDetailQueryOptions(userId ?? "", replaceDeckId ?? ""),
     enabled: replaceTarget.mode === "server",
   });
-  const replaceDeckName =
+  // The deck being replaced, from whichever store holds it. Replace mode keeps
+  // the target's own name, format and format config, so the summary panel has
+  // to validate against those rather than the (hidden) format picker.
+  const replaceTargetDeck =
     replaceTarget.mode === "local"
-      ? localDecks[replaceTarget.deckId]?.name
-      : replaceDeckQuery.data?.deck.name;
+      ? localDecks[replaceTarget.deckId]
+      : replaceTarget.mode === "server"
+        ? replaceDeckQuery.data?.deck
+        : undefined;
+  const replaceDeckName = replaceTargetDeck?.name;
   const isReplaceMode = replaceTarget.mode !== "none";
 
   const queryClient = useQueryClient();
@@ -444,6 +453,11 @@ function DeckImportPage() {
   const importableEntries = matchedEntries.filter(
     (entry, index) => entry.resolvedCard && !skippedIndices.has(index),
   );
+  // The rows that would actually be created. Computed here rather than only at
+  // import time so the summary panel measures exactly what the button imports.
+  const importCards = dedupeMatchedEntries(importableEntries);
+  const summaryFormat = replaceTargetDeck?.format ?? deckFormat;
+  const summaryFormatConfig = replaceTargetDeck?.formatConfig ?? null;
   const visibleBuckets = matchedEntries
     .filter((_entry, index) => !skippedIndices.has(index))
     .map((entry) => classifyBucket(entry.status, entry.resolvedCard !== null));
@@ -453,8 +467,6 @@ function DeckImportPage() {
   const skippedCount = skippedIndices.size;
   const totalCards = importableEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
-  const buildCards = () => dedupeMatchedEntries(importableEntries);
-
   const executeReplace = () => {
     if (replaceTarget.mode === "none") {
       return;
@@ -462,13 +474,13 @@ function DeckImportPage() {
     const targetName = replaceDeckName ?? "deck";
     setIsImporting(true);
     if (replaceTarget.mode === "local") {
-      useLocalDecksStore.getState().setCards(replaceTarget.deckId, buildCards());
+      useLocalDecksStore.getState().setCards(replaceTarget.deckId, importCards);
       toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
       void navigate({ to: "/decks/$deckId", params: { deckId: replaceTarget.deckId } });
       return;
     }
     saveDeckCards.mutate(
-      { deckId: replaceTarget.deckId, cards: buildCards() },
+      { deckId: replaceTarget.deckId, cards: importCards },
       {
         onSuccess: () => {
           toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
@@ -487,12 +499,11 @@ function DeckImportPage() {
     const trimmedName = deckName.trim() || DEFAULT_IMPORT_DECK_NAME;
 
     setIsImporting(true);
-    const cards = buildCards();
 
     // Logged out: build a browser-local deck instead of a server deck.
     if (!userId) {
       const localId = useLocalDecksStore.getState().createDeck(deckFormat, trimmedName);
-      useLocalDecksStore.getState().setCards(localId, cards);
+      useLocalDecksStore.getState().setCards(localId, importCards);
       toast.success(`Imported deck "${trimmedName}" with ${totalCards} cards.`);
       void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
       return;
@@ -504,7 +515,7 @@ function DeckImportPage() {
         onSuccess: (data) => {
           const deck = data as DeckResponse;
           saveDeckCards.mutate(
-            { deckId: deck.id, cards },
+            { deckId: deck.id, cards: importCards },
             {
               onSuccess: () => {
                 toast.success(`Imported deck "${trimmedName}" with ${totalCards} cards.`);
@@ -571,6 +582,10 @@ function DeckImportPage() {
         importableCount={importableEntries.length}
         skippedCount={skippedCount}
         totalCards={totalCards}
+        importCards={importCards}
+        summaryFormat={summaryFormat}
+        summaryFormatConfig={summaryFormatConfig}
+        isLoggedIn={Boolean(userId)}
         isImporting={isImporting}
         replaceDeckName={isReplaceMode ? (replaceDeckName ?? "") : undefined}
         onResolve={handleResolve}
@@ -785,6 +800,10 @@ function PreviewStep({
   importableCount,
   skippedCount,
   totalCards,
+  importCards,
+  summaryFormat,
+  summaryFormatConfig,
+  isLoggedIn,
   isImporting,
   replaceDeckName,
   onResolve,
@@ -815,6 +834,12 @@ function PreviewStep({
   importableCount: number;
   skippedCount: number;
   totalCards: number;
+  /** The deduped rows the import would create, for the summary panel. */
+  importCards: ImportedDeckCard[];
+  /** Format the summary validates against — the target deck's in replace mode. */
+  summaryFormat: DeckFormat;
+  summaryFormatConfig: DeckFormatConfig | null;
+  isLoggedIn: boolean;
   isImporting: boolean;
   replaceDeckName?: string;
   onResolve: (index: number, card: ResolvedCard) => void;
@@ -897,6 +922,16 @@ function PreviewStep({
             </>
           ) : null}
         </PageDescription>
+
+        {/* What the import adds up to, before the row-by-row detail: size,
+            domains, format legality, and how much of it the importer owns. */}
+        <DeckImportSummary
+          cards={importCards}
+          format={summaryFormat}
+          formatConfig={summaryFormatConfig}
+          deckName={replaceDeckName || deckName.trim() || DEFAULT_IMPORT_DECK_NAME}
+          isLoggedIn={isLoggedIn}
+        />
 
         {/* Entry list */}
         <Accordion

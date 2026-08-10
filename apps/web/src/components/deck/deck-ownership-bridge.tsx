@@ -8,7 +8,7 @@ import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
-interface SharedDeckOwnershipBridgeProps {
+interface DeckOwnershipBridgeProps {
   builderCards: DeckBuilderCard[];
   isLoggedIn: boolean;
   marketplace: Marketplace;
@@ -16,21 +16,22 @@ interface SharedDeckOwnershipBridgeProps {
 }
 
 /**
- * Client-only sibling that computes `DeckOwnershipData` for the shared-deck
- * page and publishes it to the parent. Lives outside `DeckOverview` so the
- * shell stays mounted across hydration — only the `ownershipData` prop flips
+ * Client-only sibling that computes `DeckOwnershipData` for a deck the viewer
+ * doesn't own — the shared-deck page and the deck-import preview — and
+ * publishes it to the parent. Lives outside the rendering component so the
+ * shell stays mounted across hydration: only the `ownershipData` prop flips
  * from `undefined` to filled. Render this only when `useHydrated()` is
- * true, and wrap in a Suspense boundary since `useCards()` suspends on the
- * catalog fetch.
+ * true, and wrap in a Suspense boundary since `useCards()` and `usePrices()`
+ * both suspend on their fetches.
  *
  * @returns null — output flows through `onResult`.
  */
-export function SharedDeckOwnershipBridge({
+export function DeckOwnershipBridge({
   builderCards,
   isLoggedIn,
   marketplace,
   onResult,
-}: SharedDeckOwnershipBridgeProps) {
+}: DeckOwnershipBridgeProps) {
   const { allPrintings } = useCards();
   // No home-collection exemption here: this measures someone else's deck
   // against the viewer's own collection, and the deck's home collection is
