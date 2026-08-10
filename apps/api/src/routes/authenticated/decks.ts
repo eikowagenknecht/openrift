@@ -200,7 +200,8 @@ const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser
 export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
-    const { decks, marketplace, userPreferences, enums, copies, loans, catalog } = context.repos;
+    const { decks, deckFolders, marketplace, userPreferences, enums, copies, loans, catalog } =
+      context.repos;
     const userId = context.userId;
 
     const [deckRows, allCards, prefs, enumRows, buildableByCard, borrowedByCard] =
@@ -234,10 +235,14 @@ export const decksRouter = {
     const homeCollectionIds = deckRows
       .map((row) => row.collectionId)
       .filter((id): id is string => id !== null);
-    const [deckValueMap, banRows, homeExtrasByCollection] = await Promise.all([
+    const [deckValueMap, banRows, homeExtrasByCollection, folderIdsByDeck] = await Promise.all([
       marketplace.deckValues(userId, favMarketplace, preferredLanguages),
       catalog.cardBansByCardIds([...new Set(allCards.map((card) => card.cardId))]),
       copies.buildableCountByCardForCollections(userId, homeCollectionIds),
+      deckFolders.folderIdsByDeckIds(
+        deckRows.map((row) => row.id),
+        userId,
+      ),
     ]);
     const bannedCardIds = new Set(
       banRows.filter((ban) => isBaseBanFormat(ban.formatId)).map((ban) => ban.cardId),
@@ -376,6 +381,7 @@ export const decksRouter = {
         requiredTotal,
         totalValueCents: deckValueMap.get(row.id) ?? null,
         missingCount,
+        folderIds: folderIdsByDeck.get(row.id) ?? [],
       };
     });
 

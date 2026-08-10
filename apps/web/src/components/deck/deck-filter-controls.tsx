@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { DeckFolderResponse, Domain } from "@openrift/shared";
 
 import { FilterIconCluster, useClusterLabelsFit } from "@/components/filters/compact-filter-bar";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";
@@ -24,12 +24,14 @@ import { cn } from "@/lib/utils";
 export function hasUsableDeckFilters(
   availability: DeckListFilterAvailability,
   availableDomains: Domain[],
+  folders: DeckFolderResponse[] = [],
 ): boolean {
   return (
     availability.hasMixedFormat ||
     availability.hasMixedValidity ||
     availability.hasArchived ||
-    availableDomains.length > 1
+    availableDomains.length > 1 ||
+    folders.length > 0
   );
 }
 
@@ -37,6 +39,8 @@ export interface DeckFilterControlsProps {
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
   counts: DeckListFilterCounts;
+  /** The user's folders. Empty while signed out, which hides the control. */
+  folders?: DeckFolderResponse[];
   /** "chip" for the mobile drawer's panel language, "button" for the compact bar. */
   triggerStyle?: "chip" | "button";
   /** Render each control on its own row, as the drawer does. */
@@ -61,6 +65,7 @@ export function DeckFilterControls({
   availableDomains,
   availability,
   counts,
+  folders: folderList = [],
   triggerStyle = "button",
   stacked,
 }: DeckFilterControlsProps) {
@@ -70,11 +75,14 @@ export function DeckFilterControls({
     validity,
     domains,
     domainsExclude,
+    folders,
+    foldersExclude,
     showArchived,
     hasActiveFilters,
     cycleFormat,
     cycleValidity,
     cycleDomain,
+    cycleFolder,
     setShowArchived,
     clearAllFilters,
   } = useDeckListFilters();
@@ -87,11 +95,14 @@ export function DeckFilterControls({
   const showFormat = availability.hasMixedFormat;
   const showValidity = availability.hasMixedValidity;
   const showDomains = availableDomains.length > 1;
+  // One folder is still worth a control, unlike one format: it splits the list
+  // into "in it" and "not in it", which is a real narrowing.
+  const showFolders = folderList.length > 0;
 
   // Still render for an active filter the deck set has since made pointless —
   // a bookmarked `?domains=fury` on an all-Fury list hides every control, and
   // without this the reset button goes with them.
-  if (!hasUsableDeckFilters(availability, availableDomains) && !hasActiveFilters) {
+  if (!hasUsableDeckFilters(availability, availableDomains, folderList) && !hasActiveFilters) {
     return null;
   }
 
@@ -129,6 +140,18 @@ export function DeckFilterControls({
           excluded={formatsExclude}
           onCycle={cycleFormat}
           counts={counts.formats}
+        />
+      )}
+
+      {showFolders && (
+        <MultiSelectCombobox
+          label="Folder"
+          triggerStyle={triggerStyle}
+          options={folderList.map((folder) => ({ value: folder.id, label: folder.name }))}
+          selected={folders}
+          excluded={foldersExclude}
+          onCycle={cycleFolder}
+          counts={counts.folders}
         />
       )}
 

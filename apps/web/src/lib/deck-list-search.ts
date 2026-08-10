@@ -22,10 +22,17 @@ export const deckListSearchSchema = z.object({
    * playing it, several restrict to decks that play nothing outside the set.
    */
   domains: z.array(z.string()).optional().catch(undefined),
+  /**
+   * Folder ids, matched as a union — a deck in any of them passes. Not a subset
+   * test like domains: a deck legitimately sits in several folders, so
+   * "everything outside this set" would reject most of them.
+   */
+  folders: z.array(z.string()).optional().catch(undefined),
   // Negation companions (ADR-034), named to match the card browser's `*Ex`
   // params so the two surfaces' URLs read alike.
   formatsEx: z.array(z.string()).optional().catch(undefined),
   domainsEx: z.array(z.string()).optional().catch(undefined),
+  foldersEx: z.array(z.string()).optional().catch(undefined),
   /** Present and true when archived decks are shown alongside the rest. */
   archived: z.boolean().optional().catch(undefined),
 });

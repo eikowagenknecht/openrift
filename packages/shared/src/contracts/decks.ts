@@ -247,6 +247,13 @@ export const deckListItemResponseSchema = z
      * `null` for browser-local decks (ADR-035), which have no server inventory.
      */
     missingCount: z.number().int().nullable(),
+    /**
+     * Ids of the user's folders this deck is filed in (migration 231), in the
+     * folders' own display order. A deck may sit in several folders at once, so
+     * grouping by folder renders it once per folder. Always empty for
+     * browser-local decks (ADR-035), which have no server-side folders.
+     */
+    folderIds: z.array(z.string()),
   })
   .openapi("DeckListItemResponse");
 

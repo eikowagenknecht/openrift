@@ -59,6 +59,7 @@ export * from "./deck-check-ingest.js";
 export * from "./deck-check-keys.js";
 export * from "./deck-check-player.js";
 export * from "./deck-check.js";
+export * from "./deck-folders.js";
 export * from "./decks.js";
 export * from "./discord-bot.js";
 export * from "./feature-flags.js";

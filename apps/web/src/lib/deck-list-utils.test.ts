@@ -29,6 +29,7 @@ interface DeckOverrides {
   legendName?: string | null;
   championName?: string | null;
   legendDomains?: Domain[] | null;
+  folderIds?: string[];
 }
 
 function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
@@ -58,6 +59,7 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
     requiredTotal: 56,
     totalValueCents: overrides.totalValueCents ?? null,
     missingCount: overrides.missingCount ?? null,
+    folderIds: overrides.folderIds ?? [],
   };
   return enrichItem(base, {
     legendName: overrides.legendName ?? null,
@@ -73,6 +75,8 @@ const NO_FILTERS = {
   validity: "all" as const,
   domains: [],
   domainsExclude: [],
+  folders: [],
+  foldersExclude: [],
 };
 
 describe("filterDecks", () => {
@@ -111,6 +115,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "all",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
   });
@@ -127,6 +133,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "all",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(result.map((item) => item.deck.id)).toEqual(["b"]);
   });
@@ -143,6 +151,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "all",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
   });
@@ -156,6 +166,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "valid",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(validOnly.map((item) => item.deck.id)).toEqual(["a"]);
 
@@ -166,6 +178,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "invalid",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(invalidOnly.map((item) => item.deck.id)).toEqual(["b"]);
   });
@@ -229,6 +243,49 @@ describe("filterDecks", () => {
     expect(result.map((item) => item.deck.id)).toEqual(["a"]);
   });
 
+  describe("folders", () => {
+    const items = [
+      makeItem({ id: "a", folderIds: ["f1"] }),
+      makeItem({ id: "b", folderIds: ["f2"] }),
+      makeItem({ id: "c", folderIds: ["f1", "f2"] }),
+      makeItem({ id: "unfiled", folderIds: [] }),
+    ];
+
+    it("matches decks in the selected folder", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, folders: ["f1"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["a", "c"]);
+    });
+
+    it("reads several selected folders as a union, not a subset test", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, folders: ["f1", "f2"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["a", "b", "c"]);
+    });
+
+    it("rejects a deck in an excluded folder even when it is also in an included one", () => {
+      const result = filterDecks(items, {
+        ...NO_FILTERS,
+        folders: ["f1"],
+        foldersExclude: ["f2"],
+      });
+      expect(result.map((item) => item.deck.id)).toEqual(["a"]);
+    });
+
+    it("keeps unfiled decks when only an exclude is set", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, foldersExclude: ["f1"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["b", "unfiled"]);
+    });
+
+    it("drops unfiled decks when any folder is required", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, folders: ["f1", "f2"] });
+      expect(result.map((item) => item.deck.id)).not.toContain("unfiled");
+    });
+
+    it("returns everything when no folder filter is set", () => {
+      const result = filterDecks(items, NO_FILTERS);
+      expect(result).toHaveLength(4);
+    });
+  });
+
   it("returns everything when no filters are active", () => {
     const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
     const result = filterDecks(items, {
@@ -238,6 +295,8 @@ describe("filterDecks", () => {
       domainsExclude: [],
       validity: "all",
       domains: [],
+      folders: [],
+      foldersExclude: [],
     });
     expect(result).toHaveLength(2);
   });
@@ -349,10 +408,7 @@ describe("groupDecks", () => {
       makeItem({ id: "c", legendDomains: ["calm", "mind"] }),
     ];
     const groups = groupDecks(items, "domains", "asc", {
-      fury: "Fury",
-      body: "Body",
-      calm: "Calm",
-      mind: "Mind",
+      domains: { fury: "Fury", body: "Body", calm: "Calm", mind: "Mind" },
     });
     const byLabel = Object.fromEntries(groups.map((group) => [group.label, group]));
     // "Body / Fury" and "Body / Fury" collapse into one bucket regardless of input order.
@@ -393,6 +449,61 @@ describe("groupDecks", () => {
     expect(byKey["valid:constructed"].items.map((item) => item.deck.id)).toEqual(["a"]);
     expect(byKey["invalid:constructed"].items.map((item) => item.deck.id)).toEqual(["b"]);
     expect(byKey.freeform.items.map((item) => item.deck.id)).toEqual(["c"]);
+  });
+
+  describe("by folder", () => {
+    const FOLDER_LABELS = { f1: "Standard Brews", f2: "Jank", f3: "Retired" };
+
+    it("renders a deck under every folder it is filed in", () => {
+      const items = [
+        makeItem({ id: "a", folderIds: ["f1", "f2"] }),
+        makeItem({ id: "b", folderIds: ["f1"] }),
+      ];
+      const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
+      const byKey = Object.fromEntries(groups.map((group) => [group.key, group]));
+      expect(byKey["folder:f1"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
+      expect(byKey["folder:f2"].items.map((item) => item.deck.id)).toEqual(["a"]);
+    });
+
+    it("counts a multi-folder deck once per folder, so sections outnumber decks", () => {
+      const items = [makeItem({ id: "a", folderIds: ["f1", "f2", "f3"] })];
+      const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
+      const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+      expect(total).toBe(3);
+      expect(items).toHaveLength(1);
+    });
+
+    it("buckets unfiled decks under 'No folder' and pins it to the end", () => {
+      const items = [
+        makeItem({ id: "a", folderIds: [] }),
+        makeItem({ id: "b", folderIds: ["f2"] }),
+      ];
+      const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
+      expect(groups.at(-1)?.label).toBe("No folder");
+      expect(groups.at(-1)?.items.map((item) => item.deck.id)).toEqual(["a"]);
+    });
+
+    it("keeps 'No folder' last even when sorting descending", () => {
+      const items = [
+        makeItem({ id: "a", folderIds: [] }),
+        makeItem({ id: "b", folderIds: ["f2"] }),
+      ];
+      const groups = groupDecks(items, "folder", "desc", { folders: FOLDER_LABELS });
+      expect(groups.at(-1)?.label).toBe("No folder");
+    });
+
+    it("falls back to the folder id when no label is known", () => {
+      const items = [makeItem({ id: "a", folderIds: ["f9"] })];
+      const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
+      expect(groups[0].label).toBe("f9");
+    });
+
+    it("produces a single bucket when nothing is filed", () => {
+      const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
+      const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
+      expect(groups).toHaveLength(1);
+      expect(groups[0].label).toBe("No folder");
+    });
   });
 
   it("buckets decks with no legend under '(No legend)' at the end", () => {
@@ -512,6 +623,25 @@ describe("filterAvailabilityFrom", () => {
     ]);
     expect(mixedDomains.usefulGroupings.has("domains")).toBe(true);
   });
+
+  it("treats folder grouping as useful only once the decks land in different buckets", () => {
+    const noFolders = filterAvailabilityFrom([makeItem({ id: "a" }), makeItem({ id: "b" })]);
+    expect(noFolders.usefulGroupings.has("folder")).toBe(false);
+
+    // Everything in the same single folder is still one bucket.
+    const oneFolder = filterAvailabilityFrom([
+      makeItem({ id: "a", folderIds: ["f1"] }),
+      makeItem({ id: "b", folderIds: ["f1"] }),
+    ]);
+    expect(oneFolder.usefulGroupings.has("folder")).toBe(false);
+
+    // A filed deck plus an unfiled one is two buckets, so it becomes useful.
+    const someFiled = filterAvailabilityFrom([
+      makeItem({ id: "a", folderIds: ["f1"] }),
+      makeItem({ id: "b", folderIds: [] }),
+    ]);
+    expect(someFiled.usefulGroupings.has("folder")).toBe(true);
+  });
 });
 
 describe("filterCountsFrom", () => {
@@ -590,5 +720,38 @@ describe("filterCountsFrom", () => {
     expect(counts.formats.size).toBe(0);
     expect(counts.validity.size).toBe(0);
     expect(counts.domains.size).toBe(0);
+    expect(counts.folders.size).toBe(0);
+  });
+
+  describe("folder counts", () => {
+    const filed = [
+      makeItem({ id: "a", format: "constructed", folderIds: ["f1"] }),
+      makeItem({ id: "b", format: "freeform", folderIds: ["f2"] }),
+      makeItem({ id: "c", format: "constructed", folderIds: ["f1", "f2"] }),
+    ];
+
+    it("counts a deck under each of its folders", () => {
+      const counts = filterCountsFrom(filed, NO_FILTERS);
+      expect(counts.folders.get("f1")).toBe(2);
+      expect(counts.folders.get("f2")).toBe(2);
+    });
+
+    it("counts folders against the other dimensions, not against itself", () => {
+      const counts = filterCountsFrom(filed, { ...NO_FILTERS, folders: ["f1"] });
+      expect(counts.folders.get("f1")).toBe(2);
+      expect(counts.folders.get("f2")).toBe(2);
+    });
+
+    it("narrows folder counts by the other filters", () => {
+      const counts = filterCountsFrom(filed, { ...NO_FILTERS, formats: ["constructed"] });
+      expect(counts.folders.get("f1")).toBe(2);
+      expect(counts.folders.get("f2")).toBe(1);
+    });
+
+    it("narrows the other dimensions by the folder filter", () => {
+      const counts = filterCountsFrom(filed, { ...NO_FILTERS, folders: ["f2"] });
+      expect(counts.formats.get("freeform")).toBe(1);
+      expect(counts.formats.get("constructed")).toBe(1);
+    });
   });
 });

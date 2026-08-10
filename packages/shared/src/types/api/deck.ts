@@ -1,4 +1,8 @@
 import type {
+  deckFolderListResponseSchema,
+  deckFolderResponseSchema,
+} from "@openrift/shared/contracts/deck-folders";
+import type {
   deckCardResponseSchema,
   deckCloneResponseSchema,
   deckDetailResponseSchema,
@@ -42,6 +46,11 @@ export type DeckListResponse = z.infer<typeof deckListResponseSchema>;
 export type DeckSummaryResponse = z.infer<typeof deckSummaryResponseSchema>;
 
 export type DeckListItemResponse = z.infer<typeof deckListItemResponseSchema>;
+
+/** A user-authored deck folder (migration 231), with its deck count. */
+export type DeckFolderResponse = z.infer<typeof deckFolderResponseSchema>;
+
+export type DeckFolderListResponse = z.infer<typeof deckFolderListResponseSchema>;
 
 /** One outbound link on a deck (guide video, source site). */
 export type DeckLink = z.infer<typeof deckLinkSchema>;

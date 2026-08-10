@@ -670,6 +670,34 @@ export interface DeckMatchupSwapsTable {
 }
 
 /**
+ * User-authored folder for organising the deck list (migration 231). Flat, and
+ * many-to-many with decks via `deck_folder_entries` — a deck may sit in several
+ * folders at once. Unrelated to `decks.collectionId`, which is the physical
+ * deck box rather than a view grouping.
+ */
+export interface DeckFoldersTable {
+  id: Generated<string>;
+  userId: string;
+  /** CHECK: <> ''. Unique per user, case-insensitively. */
+  name: string;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * Deck ↔ folder membership. PK is (folderId, deckId); `userId` is denormalized
+ * so both FKs can be composite against `uq_deck_folders_id_user` and
+ * `uq_decks_id_user`, making cross-user membership unrepresentable.
+ */
+export interface DeckFolderEntriesTable {
+  folderId: string;
+  deckId: string;
+  userId: string;
+  createdAt: CreatedAt;
+}
+
+/**
  * Unified list table — replaces the old trade_lists and wish_lists.
  *
  * `intent` is the surface (wish / trade / organize). `kind` is the granularity
@@ -1910,6 +1938,10 @@ export interface Database {
   deckPlans: DeckPlansTable;
   deckMatchupPlans: DeckMatchupPlansTable;
   deckMatchupSwaps: DeckMatchupSwapsTable;
+
+  // Deck folders (migration 231)
+  deckFolders: DeckFoldersTable;
+  deckFolderEntries: DeckFolderEntriesTable;
   lists: ListsTable;
   listEntries: ListEntriesTable;
 

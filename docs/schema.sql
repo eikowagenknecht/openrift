@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict SdHL3kpIO2D27R6aq2kJFLn0qhjgWwQsIgLeI8IPuXsuZrsYud8ULtcnD5ze9fh
+\restrict 5J3qaZ3mlFnLtv8H8WVbjaSUuUUqGUqQsK4yrAM55uke5Whw1n3LYd2EfBPBwE5
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1139,6 +1139,33 @@ CREATE TABLE public.deck_check_keys (
     host_org_id uuid,
     CONSTRAINT chk_deck_check_keys_host CHECK ((((host_type = 'user'::text) AND (host_user_id IS NOT NULL) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_org_id IS NOT NULL) AND (host_user_id IS NULL)))),
     CONSTRAINT chk_deck_check_keys_label CHECK (((label IS NULL) OR (length(label) <= 120)))
+);
+
+
+--
+-- Name: deck_folder_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_folder_entries (
+    folder_id uuid NOT NULL,
+    deck_id uuid NOT NULL,
+    user_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: deck_folders; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_folders (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    name text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_deck_folders_name_not_empty CHECK ((name <> ''::text))
 );
 
 
@@ -2883,6 +2910,22 @@ ALTER TABLE ONLY public.deck_check_keys
 
 
 --
+-- Name: deck_folder_entries deck_folder_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folder_entries
+    ADD CONSTRAINT deck_folder_entries_pkey PRIMARY KEY (folder_id, deck_id);
+
+
+--
+-- Name: deck_folders deck_folders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folders
+    ADD CONSTRAINT deck_folders_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: deck_formats deck_formats_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3555,6 +3598,14 @@ ALTER TABLE ONLY public.deck_check_entries
 
 
 --
+-- Name: deck_folders uq_deck_folders_id_user; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folders
+    ADD CONSTRAINT uq_deck_folders_id_user UNIQUE (id, user_id);
+
+
+--
 -- Name: deck_matchup_swaps uq_deck_matchup_swaps_plan_card_direction; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3997,6 +4048,20 @@ CREATE INDEX idx_deck_check_keys_host_org ON public.deck_check_keys USING btree 
 --
 
 CREATE INDEX idx_deck_check_keys_host_user ON public.deck_check_keys USING btree (host_user_id) WHERE (host_user_id IS NOT NULL);
+
+
+--
+-- Name: idx_deck_folder_entries_deck; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_folder_entries_deck ON public.deck_folder_entries USING btree (deck_id);
+
+
+--
+-- Name: idx_deck_folders_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_folders_user_id ON public.deck_folders USING btree (user_id);
 
 
 --
@@ -4465,7 +4530,7 @@ CREATE UNIQUE INDEX uq_card_bans_active ON public.card_bans USING btree (card_id
 -- Name: uq_card_trades_live; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_card_trades_live ON public.card_trades USING btree (group_id, giver_user_id, receiver_user_id, printing_id) WHERE (status = ANY (ARRAY['pending'::text, 'reserved'::text]));
+CREATE UNIQUE INDEX uq_card_trades_live ON public.card_trades USING btree (group_id, giver_user_id, receiver_user_id, printing_id) WHERE ((status = 'pending'::text) OR ((status = 'reserved'::text) AND (giver_sync_applied_at IS NULL) AND (receiver_sync_applied_at IS NULL)));
 
 
 --
@@ -4480,6 +4545,13 @@ CREATE UNIQUE INDEX uq_collections_user_inbox ON public.collections USING btree 
 --
 
 CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, card_id, zone, preferred_printing_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: uq_deck_folders_user_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_deck_folders_user_name ON public.deck_folders USING btree (user_id, lower(name));
 
 
 --
@@ -4858,6 +4930,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH RO
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_entries FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: deck_folders trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_folders FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5514,6 +5593,14 @@ ALTER TABLE ONLY public.deck_check_keys
 
 
 --
+-- Name: deck_folders deck_folders_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folders
+    ADD CONSTRAINT deck_folders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: deck_matchup_plans deck_matchup_plans_card_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5671,6 +5758,22 @@ ALTER TABLE ONLY public.copies
 
 ALTER TABLE ONLY public.deck_cards
     ADD CONSTRAINT fk_deck_cards_zone FOREIGN KEY (zone) REFERENCES public.deck_zones(slug);
+
+
+--
+-- Name: deck_folder_entries fk_deck_folder_entries_deck_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folder_entries
+    ADD CONSTRAINT fk_deck_folder_entries_deck_user FOREIGN KEY (deck_id, user_id) REFERENCES public.decks(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_folder_entries fk_deck_folder_entries_folder_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_folder_entries
+    ADD CONSTRAINT fk_deck_folder_entries_folder_user FOREIGN KEY (folder_id, user_id) REFERENCES public.deck_folders(id, user_id) ON DELETE CASCADE;
 
 
 --
@@ -6309,5 +6412,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict SdHL3kpIO2D27R6aq2kJFLn0qhjgWwQsIgLeI8IPuXsuZrsYud8ULtcnD5ze9fh
+\unrestrict 5J3qaZ3mlFnLtv8H8WVbjaSUuUUqGUqQsK4yrAM55uke5Whw1n3LYd2EfBPBwE5
 

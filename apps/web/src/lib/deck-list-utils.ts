@@ -18,6 +18,20 @@ interface DeckListFilters {
   validity: DeckListValidity;
   domains: Domain[];
   domainsExclude: Domain[];
+  /** Folder ids, matched as a union. Empty means every folder. */
+  folders: string[];
+  foldersExclude: string[];
+}
+
+/**
+ * Display names for the grouping axes that key on ids or slugs. Every field is
+ * optional: a missing lookup falls back to the raw key, which is what
+ * `filterAvailabilityFrom` relies on when it only needs bucket identity.
+ */
+export interface DeckGroupLabels {
+  domains?: Record<string, string>;
+  formats?: Record<string, string>;
+  folders?: Record<string, string>;
 }
 
 interface DeckListEnrichedItem {
@@ -75,6 +89,26 @@ function deckMatchesFormat(
   return formats.includes(item.deck.format);
 }
 
+/**
+ * Folder filter. A deck carries several folders, so include is a union ("in any
+ * of these") rather than a subset test, matching how the format axis reads.
+ * Exclude is evaluated first and wins, as everywhere else.
+ * @returns Whether the deck matches the folder filter.
+ */
+function deckMatchesFolders(
+  item: DeckListItemWithNames,
+  folders: string[],
+  excluded: string[],
+): boolean {
+  if (excluded.length > 0 && item.folderIds.some((id) => excluded.includes(id))) {
+    return false;
+  }
+  if (folders.length === 0) {
+    return true;
+  }
+  return item.folderIds.some((id) => folders.includes(id));
+}
+
 function deckMatchesValidity(item: DeckListItemWithNames, filter: DeckListValidity): boolean {
   if (filter === "all") {
     return true;
@@ -115,7 +149,8 @@ export function filterDecks(
       deckMatchesSearch(item, trimmed) &&
       deckMatchesFormat(item, filters.formats, filters.formatsExclude) &&
       deckMatchesValidity(item, filters.validity) &&
-      deckMatchesDomains(item, filters.domains, filters.domainsExclude),
+      deckMatchesDomains(item, filters.domains, filters.domainsExclude) &&
+      deckMatchesFolders(item, filters.folders, filters.foldersExclude),
   );
 }
 
@@ -187,41 +222,58 @@ function domainComboOf(item: DeckListItemWithNames): Domain[] {
   );
 }
 
-function groupKeyAndLabel(
+/**
+ * The buckets a deck belongs to on the given axis.
+ *
+ * Every axis but `folder` yields exactly one bucket. `folder` yields one per
+ * folder the deck is filed in — a deck in two folders is rendered under both,
+ * which is the point of many-to-many membership — or the catch-all bucket when
+ * it is filed nowhere.
+ * @returns One entry per bucket the deck belongs to, never empty.
+ */
+function groupEntriesOf(
   item: DeckListItemWithNames,
   groupBy: DeckListGroupBy,
-  domainLabels?: Record<string, string>,
-  formatLabels?: Record<string, string>,
-): { key: string; label: string } {
+  labels?: DeckGroupLabels,
+): { key: string; label: string }[] {
   switch (groupBy) {
     case "format": {
       const slug = item.deck.format;
-      return { key: slug, label: formatLabels?.[slug] ?? slug };
+      return [{ key: slug, label: labels?.formats?.[slug] ?? slug }];
     }
     case "domains": {
       const combo = domainComboOf(item);
       if (combo.length === 0) {
-        return { key: "domains:none", label: "No domain" };
+        return [{ key: "domains:none", label: "No domain" }];
       }
-      const label = combo.map((slug) => domainLabels?.[slug] ?? slug).join(" / ");
-      return { key: `domains:${label}`, label };
+      const label = combo.map((slug) => labels?.domains?.[slug] ?? slug).join(" / ");
+      return [{ key: `domains:${label}`, label }];
     }
     case "legend": {
       const legend = item.legendName ?? "(No legend)";
-      return { key: `legend:${legend}`, label: legend };
+      return [{ key: `legend:${legend}`, label: legend }];
     }
     case "validity": {
       const slug = item.deck.format;
       if (slug === WellKnown.deckFormat.FREEFORM) {
-        return { key: slug, label: formatLabels?.[slug] ?? slug };
+        return [{ key: slug, label: labels?.formats?.[slug] ?? slug }];
       }
-      const formatLabel = formatLabels?.[slug] ?? slug;
+      const formatLabel = labels?.formats?.[slug] ?? slug;
       return item.isValid
-        ? { key: `valid:${slug}`, label: `Valid ${formatLabel}` }
-        : { key: `invalid:${slug}`, label: `Invalid ${formatLabel}` };
+        ? [{ key: `valid:${slug}`, label: `Valid ${formatLabel}` }]
+        : [{ key: `invalid:${slug}`, label: `Invalid ${formatLabel}` }];
+    }
+    case "folder": {
+      if (item.folderIds.length === 0) {
+        return [{ key: "folder:none", label: "No folder" }];
+      }
+      return item.folderIds.map((id) => ({
+        key: `folder:${id}`,
+        label: labels?.folders?.[id] ?? id,
+      }));
     }
     case "none": {
-      return { key: "all", label: "" };
+      return [{ key: "all", label: "" }];
     }
   }
 }
@@ -230,24 +282,27 @@ export function groupDecks(
   items: DeckListItemWithNames[],
   groupBy: DeckListGroupBy,
   dir: SortDir = "asc",
-  domainLabels?: Record<string, string>,
-  formatLabels?: Record<string, string>,
+  labels?: DeckGroupLabels,
 ): DeckListGroup[] {
   if (groupBy === "none") {
     return [{ key: "all", label: "", items }];
   }
   const map = new Map<string, DeckListGroup>();
   for (const item of items) {
-    const { key, label } = groupKeyAndLabel(item, groupBy, domainLabels, formatLabels);
-    let group = map.get(key);
-    if (!group) {
-      group = { key, label, items: [] };
-      map.set(key, group);
+    // Folder grouping returns several entries for one deck, so this is a nested
+    // loop rather than a single push — the deck lands in every bucket it's in.
+    for (const { key, label } of groupEntriesOf(item, groupBy, labels)) {
+      let group = map.get(key);
+      if (!group) {
+        group = { key, label, items: [] };
+        map.set(key, group);
+      }
+      group.items.push(item);
     }
-    group.items.push(item);
   }
-  // Sort groups by label. "(No legend)" / "No domain" / "Freeform" catch-all buckets
-  // are always pinned to the end regardless of direction — they aren't a real group.
+  // Sort groups by label. "(No legend)" / "No domain" / "No folder" / "Freeform"
+  // catch-all buckets are always pinned to the end regardless of direction —
+  // they aren't a real group.
   const groups = [...map.values()];
   const directionFactor = dir === "asc" ? 1 : -1;
   groups.sort((left, right) => {
@@ -284,6 +339,9 @@ export function availableDomainsFrom(items: DeckListItemWithNames[]): Domain[] {
   );
 }
 
+/** Every grouping axis except `none`, which is not a bucket. */
+const GROUPING_OPTIONS = ["format", "domains", "legend", "validity", "folder"] as const;
+
 /** Summary of which filter and grouping categories are useful given the current deck set. */
 export interface DeckListFilterAvailability {
   /** True when the deck set contains both formats — filtering by format adds value. */
@@ -306,6 +364,7 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
     domains: new Set<string>(),
     legend: new Set<string>(),
     validity: new Set<string>(),
+    folder: new Set<string>(),
   };
   for (const item of items) {
     formats.add(item.deck.format);
@@ -319,12 +378,14 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
     if (item.deck.archivedAt !== null) {
       hasArchived = true;
     }
-    for (const option of ["format", "domains", "legend", "validity"] as const) {
-      groupKeysByOption[option].add(groupKeyAndLabel(item, option).key);
+    for (const option of GROUPING_OPTIONS) {
+      for (const entry of groupEntriesOf(item, option)) {
+        groupKeysByOption[option].add(entry.key);
+      }
     }
   }
   const usefulGroupings = new Set<Exclude<DeckListGroupBy, "none">>();
-  for (const option of ["format", "domains", "legend", "validity"] as const) {
+  for (const option of GROUPING_OPTIONS) {
     if (groupKeysByOption[option].size > 1) {
       usefulGroupings.add(option);
     }
@@ -346,6 +407,8 @@ export interface DeckListFilterCounts {
   formats: Map<string, number>;
   validity: Map<"valid" | "invalid", number>;
   domains: Map<Domain, number>;
+  /** Keyed by folder id. A deck counts once per folder, so this sums past the deck count. */
+  folders: Map<string, number>;
 }
 
 /**
@@ -364,17 +427,19 @@ export function filterCountsFrom(
   const formats = new Map<string, number>();
   const validity = new Map<"valid" | "invalid", number>();
   const domains = new Map<Domain, number>();
+  const folders = new Map<string, number>();
 
   for (const item of items) {
     const matchesSearch = deckMatchesSearch(item, filters.search);
     const matchesFormat = deckMatchesFormat(item, filters.formats, filters.formatsExclude);
     const matchesValidity = deckMatchesValidity(item, filters.validity);
     const matchesDomain = deckMatchesDomains(item, filters.domains, filters.domainsExclude);
+    const matchesFolder = deckMatchesFolders(item, filters.folders, filters.foldersExclude);
 
-    if (matchesSearch && matchesValidity && matchesDomain) {
+    if (matchesSearch && matchesValidity && matchesDomain && matchesFolder) {
       formats.set(item.deck.format, (formats.get(item.deck.format) ?? 0) + 1);
     }
-    if (matchesSearch && matchesFormat && matchesDomain) {
+    if (matchesSearch && matchesFormat && matchesDomain && matchesFolder) {
       const bucket = item.isValid ? "valid" : "invalid";
       validity.set(bucket, (validity.get(bucket) ?? 0) + 1);
     }
@@ -383,12 +448,20 @@ export function filterCountsFrom(
     // against itself would zero out every option the user hasn't chosen. Same
     // identity basis the filter uses, and a deck counts once per identity
     // domain, so the column sums past the deck count.
-    if (matchesSearch && matchesFormat && matchesValidity) {
+    if (matchesSearch && matchesFormat && matchesValidity && matchesFolder) {
       for (const domain of domainComboOf(item)) {
         domains.set(domain, (domains.get(domain) ?? 0) + 1);
       }
     }
+    // Folders count against the other dimensions only, for the same reason
+    // domains do: the axis is a union, so counting it against itself would zero
+    // out every unpicked option. A deck in several folders counts in each.
+    if (matchesSearch && matchesFormat && matchesValidity && matchesDomain) {
+      for (const folderId of item.folderIds) {
+        folders.set(folderId, (folders.get(folderId) ?? 0) + 1);
+      }
+    }
   }
 
-  return { formats, validity, domains };
+  return { formats, validity, domains, folders };
 }

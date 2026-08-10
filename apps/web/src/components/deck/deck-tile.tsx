@@ -17,6 +17,7 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
+import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatBadge } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
@@ -222,7 +223,14 @@ export function typeCountSummary(typeCounts: { cardType: string; count: number }
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
-export function DeckTile({ item }: { item: DeckListItemResponse }) {
+export function DeckTile({
+  item,
+  folderLabels = {},
+}: {
+  item: DeckListItemResponse;
+  /** Folder id → name, for the deck's folder chips. Empty while signed out. */
+  folderLabels?: Record<string, string>;
+}) {
   const {
     deck,
     legendCardId,
@@ -343,6 +351,8 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             />
           </span>
         </div>
+
+        <DeckFolderChips folderIds={item.folderIds} folderLabels={folderLabels} />
 
         {/* Domain distribution */}
         {domainDistribution.length > 0 && <DeckDomainBar distribution={domainDistribution} />}

@@ -122,5 +122,9 @@ export function localDeckToListItem(
     totalValueCents: null,
     // Browser-local decks (ADR-035) have no server inventory to diff against.
     missingCount: null,
+    // Folders are a server-side, per-user feature (migration 231); a
+    // browser-local deck is never filed in one. The deck list hides the folder
+    // controls entirely while signed out.
+    folderIds: [],
   };
 }

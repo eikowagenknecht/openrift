@@ -6,11 +6,13 @@ import {
   ArchiveRestoreIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  FolderIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
   PrinterIcon,
   RefreshCwIcon,
+  SettingsIcon,
   Share2Icon,
   Trash2Icon,
 } from "lucide-react";
@@ -30,14 +32,17 @@ import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckFolders, useSetDeckFolders } from "@/hooks/use-deck-folders";
 import {
   deckDetailQueryOptions,
   useCloneDeck,
@@ -53,6 +58,7 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { DeckExportDialog } from "./deck-export-dialog";
 import { DeckRenameDialog } from "./deck-rename-dialog";
+import { ManageDeckFoldersDialog } from "./manage-deck-folders-dialog";
 import { ProxyExportDialog } from "./proxy-export-dialog";
 
 /**
@@ -76,6 +82,11 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [foldersOpen, setFoldersOpen] = useState(false);
+
+  const { data: folders } = useDeckFolders();
+  const setDeckFolders = useSetDeckFolders();
+  const folderList = folders ?? [];
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
@@ -119,6 +130,15 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const handleFormatChange = (event: React.MouseEvent, slug: string) => {
     stop(event);
     updateDeck.mutate({ deckId: deck.id, format: slug });
+  };
+
+  // Membership is replaced wholesale rather than patched, so the toggle sends
+  // the full set the deck should end up in.
+  const handleToggleFolder = (folderId: string) => {
+    const next = item.folderIds.includes(folderId)
+      ? item.folderIds.filter((id) => id !== folderId)
+      : [...item.folderIds, folderId];
+    setDeckFolders.mutate({ id: deck.id, folderIds: next });
   };
 
   return (
@@ -196,6 +216,38 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           )}
+          {/* "Add to" rather than "Move to": a deck can sit in several folders,
+              so toggling one on doesn't take it out of the others. */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <FolderIcon className="size-4" />
+              Add to folder
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {folderList.map((folder) => (
+                <DropdownMenuCheckboxItem
+                  key={folder.id}
+                  checked={item.folderIds.includes(folder.id)}
+                  onClick={(event: React.MouseEvent) => {
+                    stop(event);
+                    handleToggleFolder(folder.id);
+                  }}
+                >
+                  {folder.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {folderList.length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                onClick={(event: React.MouseEvent) => {
+                  stop(event);
+                  setFoldersOpen(true);
+                }}
+              >
+                <SettingsIcon className="size-4" />
+                Manage folders…
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem onClick={handleClone}>
             <CopyIcon className="size-4" />
             Duplicate
@@ -272,6 +324,8 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         open={renameOpen}
         onOpenChange={setRenameOpen}
       />
+
+      <ManageDeckFoldersDialog open={foldersOpen} onOpenChange={setFoldersOpen} />
     </>
   );
 }

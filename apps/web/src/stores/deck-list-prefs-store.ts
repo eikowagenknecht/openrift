@@ -9,7 +9,12 @@ export type SortDir = "asc" | "desc";
 
 type DeckListDensity = "grid" | "list";
 
-export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity";
+/**
+ * `folder` groups by the user's own folders. Unlike every other axis it is
+ * many-to-one: a deck in several folders renders under each of them, so the
+ * section counts sum past the deck total.
+ */
+export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity" | "folder";
 
 const DENSITY_OPTIONS: ReadonlySet<DeckListDensity> = new Set(["grid", "list"]);
 

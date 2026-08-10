@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { DeckFolderResponse, Domain } from "@openrift/shared";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -30,6 +30,7 @@ const GROUP_OPTIONS: SortGroupOption<DeckListGroupBy>[] = [
   { value: "domains", label: "Domains" },
   { value: "legend", label: "Legend" },
   { value: "validity", label: "Validity" },
+  { value: "folder", label: "Folder" },
 ];
 
 /**
@@ -89,12 +90,15 @@ export function DeckListToolbar({
   availableDomains,
   availability,
   counts,
+  folders,
   totalCount,
   filteredCount,
 }: {
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
   counts: DeckListFilterCounts;
+  /** The user's folders. Empty while signed out, which hides every folder control. */
+  folders: DeckFolderResponse[];
   totalCount: number;
   filteredCount: number;
 }) {
@@ -120,12 +124,18 @@ export function DeckListToolbar({
 
   // Hide group options that would yield a single bucket; keep "none" and the current selection
   // so the trigger always reflects state even if that grouping is no longer useful.
-  const visibleGroupOptions = GROUP_OPTIONS.filter(
-    (option) =>
+  // Folder is additionally gated on having any folder at all, so a signed-out
+  // list (which can have none) never offers it.
+  const visibleGroupOptions = GROUP_OPTIONS.filter((option) => {
+    if (option.value === "folder" && folders.length === 0) {
+      return false;
+    }
+    return (
       option.value === "none" ||
       option.value === groupBy ||
-      availability.usefulGroupings.has(option.value),
-  );
+      availability.usefulGroupings.has(option.value)
+    );
+  });
 
   const sortGroupControls = (
     <SortGroupControls
@@ -151,7 +161,8 @@ export function DeckListToolbar({
   const unitLabel = totalCount === 1 ? "deck" : "decks";
   // An active filter keeps the row alive even when the deck set has made every
   // control pointless, so there is always a way back to the full list.
-  const showFilters = hasUsableDeckFilters(availability, availableDomains) || hasActiveFilters;
+  const showFilters =
+    hasUsableDeckFilters(availability, availableDomains, folders) || hasActiveFilters;
 
   return (
     <div className="flex flex-col gap-2">
@@ -183,6 +194,7 @@ export function DeckListToolbar({
                   availableDomains={availableDomains}
                   availability={availability}
                   counts={counts}
+                  folders={folders}
                   triggerStyle="chip"
                   stacked
                 />
@@ -207,6 +219,7 @@ export function DeckListToolbar({
             availableDomains={availableDomains}
             availability={availability}
             counts={counts}
+            folders={folders}
           />
         </div>
       )}

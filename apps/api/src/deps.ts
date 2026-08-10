@@ -27,6 +27,7 @@ import { customTagCategoriesRepo } from "./repositories/custom-tag-categories.js
 import { customTagsRepo } from "./repositories/custom-tags.js";
 import { deckCheckKeysRepo } from "./repositories/deck-check-keys.js";
 import { deckCheckRepo } from "./repositories/deck-check.js";
+import { deckFoldersRepo } from "./repositories/deck-folders.js";
 import { deckFormatsRepo } from "./repositories/deck-formats.js";
 import { deckPlansRepo } from "./repositories/deck-plans.js";
 import { deckZonesRepo } from "./repositories/deck-zones.js";
@@ -127,6 +128,7 @@ export interface Repos {
   copies: ReturnType<typeof copiesRepo>;
   customTagCategories: ReturnType<typeof customTagCategoriesRepo>;
   customTags: ReturnType<typeof customTagsRepo>;
+  deckFolders: ReturnType<typeof deckFoldersRepo>;
   deckFormats: ReturnType<typeof deckFormatsRepo>;
   deckPlans: ReturnType<typeof deckPlansRepo>;
   deckZones: ReturnType<typeof deckZonesRepo>;
@@ -290,6 +292,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     copies: copiesRepo(db),
     customTagCategories: customTagCategoriesRepo(db),
     customTags: customTagsRepo(db),
+    deckFolders: deckFoldersRepo(db),
     deckFormats: deckFormatsRepo(db),
     deckPlans: deckPlansRepo(db),
     deckZones: deckZonesRepo(db),

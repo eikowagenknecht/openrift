@@ -13,6 +13,8 @@ export type {
   CopiesTable,
   Database,
   DeckCardsTable,
+  DeckFolderEntriesTable,
+  DeckFoldersTable,
   DeckPlansTable,
   DeckMatchupPlansTable,
   DeckMatchupSwapsTable,

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
+import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
@@ -41,7 +42,14 @@ function DomainDot({ domain }: { domain: string }) {
  * Compact one-row deck list entry — denser alternative to the tile grid.
  * @returns A deck list row.
  */
-export function DeckListRow({ item }: { item: DeckListItemResponse }) {
+export function DeckListRow({
+  item,
+  folderLabels = {},
+}: {
+  item: DeckListItemResponse;
+  /** Folder id → name, for the deck's folder chips. Empty while signed out. */
+  folderLabels?: Record<string, string>;
+}) {
   const {
     deck,
     legendCardId,
@@ -125,6 +133,14 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
           <DeckMetaLine item={item} leading={formatText} className="mt-0.5 md:hidden" />
         </div>
       </div>
+
+      {/* Folders sit alongside the box, on the same md+ tier: below that the row
+          is already fighting for the deck name's width. */}
+      <DeckFolderChips
+        folderIds={item.folderIds}
+        folderLabels={folderLabels}
+        className="hidden shrink-0 flex-nowrap md:flex"
+      />
 
       {/* The box sits between the name and the stat columns, sized to its own
           text: as free text it would only truncate in a fixed column, and the

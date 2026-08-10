@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckFolders } from "@/hooks/use-deck-folders";
 import { useDeckListFilters } from "@/hooks/use-deck-list-filters";
 import { decksQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
@@ -301,11 +302,25 @@ export function DeckListPage() {
   const titleHeight = useMeasuredHeight(titleSlot);
   const toolbarOffset = useHeaderHeight() + titleHeight - 1;
 
-  const { search, formats, formatsExclude, validity, domains, domainsExclude, showArchived } =
-    useDeckListFilters();
+  const {
+    search,
+    formats,
+    formatsExclude,
+    validity,
+    domains,
+    domainsExclude,
+    folders,
+    foldersExclude,
+    showArchived,
+  } = useDeckListFilters();
   const { sortField, sortDir, groupBy, groupDir } = useDeckListViewPrefs();
   const density = useDeckListPrefsStore((state) => state.density);
   const { labels: formatLabels } = useDeckFormatList();
+  // Folders are server-side and per-user, so a signed-out list has none — the
+  // toolbar and the deck chips both stand down rather than showing empty chrome.
+  const { data: deckFolders } = useDeckFolders();
+  const folderList = userId ? (deckFolders ?? []) : [];
+  const folderLabels = Object.fromEntries(folderList.map((folder) => [folder.id, folder.name]));
 
   const enriched = useEnrichedItems(deckItems);
   // Compute filter availability against the enriched set (before any filter is applied)
@@ -313,11 +328,24 @@ export function DeckListPage() {
   const availableDomains = availableDomainsFrom(enriched);
   const availability = filterAvailabilityFrom(enriched);
   const visible = partitionByArchived(enriched, showArchived);
-  const activeFilters = { search, formats, formatsExclude, validity, domains, domainsExclude };
+  const activeFilters = {
+    search,
+    formats,
+    formatsExclude,
+    validity,
+    domains,
+    domainsExclude,
+    folders,
+    foldersExclude,
+  };
   const filtered = filterDecks(visible, activeFilters);
   const counts = filterCountsFrom(visible, activeFilters);
   const sorted = sortDecks(filtered, sortField, sortDir);
-  const groups = groupDecks(sorted, groupBy, groupDir, labels.domains, formatLabels);
+  const groups = groupDecks(sorted, groupBy, groupDir, {
+    domains: labels.domains,
+    formats: formatLabels,
+    folders: folderLabels,
+  });
 
   const containerClass =
     density === "grid"
@@ -326,9 +354,9 @@ export function DeckListPage() {
 
   const renderItem = (item: DeckListItemWithNames) =>
     density === "grid" ? (
-      <DeckTile key={item.deck.id} item={item} />
+      <DeckTile key={item.deck.id} item={item} folderLabels={folderLabels} />
     ) : (
-      <DeckListRow key={item.deck.id} item={item} />
+      <DeckListRow key={item.deck.id} item={item} folderLabels={folderLabels} />
     );
 
   return (
@@ -434,6 +462,7 @@ export function DeckListPage() {
               availableDomains={availableDomains}
               availability={availability}
               counts={counts}
+              folders={folderList}
               totalCount={visible.length}
               filteredCount={filtered.length}
             />

@@ -18,6 +18,10 @@ export interface DeckListFilterValues {
   validity: DeckListValidity;
   domains: Domain[];
   domainsExclude: Domain[];
+  /** Folder ids to require; empty means every folder. */
+  folders: string[];
+  /** Folder ids to reject (ADR-034). */
+  foldersExclude: string[];
   showArchived: boolean;
   /** True when anything narrows the list. The archived toggle widens it, so it doesn't count. */
   hasActiveFilters: boolean;
@@ -29,6 +33,8 @@ export interface DeckListFilterActions {
   cycleFormat: (value: string) => void;
   /** Cycles one domain off → include → exclude → off. */
   cycleDomain: (value: string) => void;
+  /** Cycles one folder off → include → exclude → off. */
+  cycleFolder: (value: string) => void;
   /** Cycles all → valid → invalid → all, matching the card browser's flag badges. */
   cycleValidity: () => void;
   setValidity: (value: DeckListValidity) => void;
@@ -81,6 +87,8 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
   const domainsExclude = (search.domainsEx ?? []) as Domain[];
   const formats = search.formats ?? [];
   const formatsExclude = search.formatsEx ?? [];
+  const folders = search.folders ?? [];
+  const foldersExclude = search.foldersEx ?? [];
   const validity = search.validity ?? "all";
 
   return {
@@ -90,6 +98,8 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
     validity,
     domains,
     domainsExclude,
+    folders,
+    foldersExclude,
     showArchived: search.archived ?? false,
     hasActiveFilters:
       (search.search ?? "") !== "" ||
@@ -97,7 +107,9 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
       formatsExclude.length > 0 ||
       validity !== "all" ||
       domains.length > 0 ||
-      domainsExclude.length > 0,
+      domainsExclude.length > 0 ||
+      folders.length > 0 ||
+      foldersExclude.length > 0,
 
     setSearch: (value) => update({ search: value }),
     cycleFormat: (value) => {
@@ -107,6 +119,10 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
     cycleDomain: (value) => {
       const next = cycleIncludeExclude(domains, domainsExclude, value);
       update({ domains: next.included, domainsEx: next.excluded });
+    },
+    cycleFolder: (value) => {
+      const next = cycleIncludeExclude(folders, foldersExclude, value);
+      update({ folders: next.included, foldersEx: next.excluded });
     },
     setValidity: (value) => update({ validity: value === "all" ? undefined : value }),
     cycleValidity: () => {
@@ -122,6 +138,8 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
         validity: undefined,
         domains: undefined,
         domainsEx: undefined,
+        folders: undefined,
+        foldersEx: undefined,
       }),
   };
 }

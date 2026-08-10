@@ -50,6 +50,10 @@ const mockLoans = {
   borrowedCountByCard: vi.fn(() => Promise.resolve(new Map<string, number>())),
 };
 
+const mockDeckFolders = {
+  folderIdsByDeckIds: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
+};
+
 const mockCatalog = {
   cardBansByCardIds: vi.fn(() => Promise.resolve([] as { cardId: string; formatId: string }[])),
 };
@@ -115,6 +119,7 @@ app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
     decks: mockRepo,
+    deckFolders: mockDeckFolders,
     marketplace: mockMarketplace,
     userPreferences: mockUserPreferences,
     enums: mockEnums,

@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Decks): **Folders for your decks** — sort decks into folders you name yourself, group the list by them, and filter to one; a deck can sit in several folders at once.
 - feat(Trades): **Each side confirms its own half of a swap** — instead of one person marking the whole trade done, you say you handed the cards over or that you got them, and the trade closes once you both have.
 - feat(Decks): **Deck stats before you import** — the import preview now shows the deck's size, domains and format legality, plus how much of it you already own and what the rest would cost.
 - feat(Decks): **Deck import on phones** — the preview reads as a list of cards, matched rows tuck their controls behind a tap, and the import button stays in reach at the bottom.

@@ -161,10 +161,64 @@ describe("useDeckListFilters", () => {
       validity: "valid",
       domains: ["fury"],
       domainsEx: ["calm"],
+      folders: ["f1"],
+      foldersEx: ["f2"],
       archived: true,
     };
     const { result } = renderHook(() => useDeckListFilters());
     result.current.clearAllFilters();
     expect(resultingSearch()).toEqual({ archived: true });
+  });
+
+  describe("folders", () => {
+    it("defaults to no folder filter", () => {
+      const { result } = renderHook(() => useDeckListFilters());
+      expect(result.current).toMatchObject({ folders: [], foldersExclude: [] });
+    });
+
+    it("reads folders out of the URL", () => {
+      mockSearch = { folders: ["f1"], foldersEx: ["f2"] };
+      const { result } = renderHook(() => useDeckListFilters());
+      expect(result.current).toMatchObject({ folders: ["f1"], foldersExclude: ["f2"] });
+    });
+
+    it("cycles a folder off → include", () => {
+      const { result } = renderHook(() => useDeckListFilters());
+      result.current.cycleFolder("f1");
+      expect(resultingSearch()).toEqual({ folders: ["f1"] });
+    });
+
+    it("flips the sole include to an exclude", () => {
+      mockSearch = { folders: ["f1"] };
+      const { result } = renderHook(() => useDeckListFilters());
+      result.current.cycleFolder("f1");
+      expect(resultingSearch()).toEqual({ foldersEx: ["f1"] });
+    });
+
+    it("adds to an existing include set rather than replacing it", () => {
+      mockSearch = { folders: ["f1"] };
+      const { result } = renderHook(() => useDeckListFilters());
+      result.current.cycleFolder("f2");
+      expect(resultingSearch()).toEqual({ folders: ["f1", "f2"] });
+    });
+
+    it("drops the folders key once the axis empties", () => {
+      mockSearch = { foldersEx: ["f1"], archived: true };
+      const { result } = renderHook(() => useDeckListFilters());
+      result.current.cycleFolder("f1");
+      expect(resultingSearch()).toEqual({ archived: true });
+    });
+
+    it("counts a folder filter as an active filter", () => {
+      mockSearch = { folders: ["f1"] };
+      const { result } = renderHook(() => useDeckListFilters());
+      expect(result.current.hasActiveFilters).toBe(true);
+    });
+
+    it("counts a folder exclusion as an active filter", () => {
+      mockSearch = { foldersEx: ["f1"] };
+      const { result } = renderHook(() => useDeckListFilters());
+      expect(result.current.hasActiveFilters).toBe(true);
+    });
   });
 });

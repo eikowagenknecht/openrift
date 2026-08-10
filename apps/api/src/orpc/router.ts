@@ -59,6 +59,7 @@ import { contactMethodsRouter } from "../routes/authenticated/contact-methods.js
 import { copiesRouter } from "../routes/authenticated/copies.js";
 import { deckCheckKeysRouter } from "../routes/authenticated/deck-check-keys.js";
 import { deckCheckPlayerRouter } from "../routes/authenticated/deck-check-player.js";
+import { deckFoldersRouter } from "../routes/authenticated/deck-folders.js";
 import { decksRouter } from "../routes/authenticated/decks.js";
 import { friendGroupsRouter } from "../routes/authenticated/friend-groups.js";
 import { listsRouter } from "../routes/authenticated/lists.js";
@@ -154,6 +155,7 @@ const apiRouter = {
   deckCheckKeysRouter,
   deckCheckPlayerRouter,
   decksRouter,
+  deckFoldersRouter,
   friendGroupsRouter,
   listsRouter,
   loansRouter,
