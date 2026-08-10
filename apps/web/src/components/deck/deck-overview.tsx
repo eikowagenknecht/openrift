@@ -1240,8 +1240,10 @@ export function DeckOverview({
           onDirChange: setGroupDir,
         }}
       />
-      {optionsPopover}
       {displayModeToggle}
+      {/* After the view toggle, matching the phone row where the options
+          drawer follows the same switch. */}
+      {optionsPopover}
       {/* This surface has a detail pane but no card-browser toolbar, so the
           dock toggle lives here — otherwise the pane would only be reachable
           from the detail modal's footer link. Kept last so it sits at the far
