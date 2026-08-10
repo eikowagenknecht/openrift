@@ -1512,9 +1512,14 @@ function OwnershipBandSourcesBridge({
   const { printingsByCardId } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const { data } = useDeckBuildingCounts(true);
-  const available = data?.available;
-  const sources = available
-    ? collectOwnershipBandSources(cards, printingsByCardId, getPreferredPrinting, available)
+  const sources = data
+    ? collectOwnershipBandSources(
+        cards,
+        printingsByCardId,
+        getPreferredPrinting,
+        data.available,
+        data.locked,
+      )
     : undefined;
   useEffect(() => {
     onResult((previous) => (sameOwnershipBandSources(previous, sources) ? previous : sources));
@@ -2597,8 +2602,9 @@ function ZoneThumb({
       )}
       {/* Collection status, split by copy: green for the copies on hand in the
           printing shown, blue for copies in another printing of the same card,
-          and clear for the ones still missing. Sits on the card's bottom edge
-          so a zone reads as a row of progress ticks. */}
+          amber for copies locked away from deck building, and clear for the
+          ones still missing. Sits on the card's bottom edge so a zone reads as
+          a row of progress ticks. */}
       {band && (
         <span
           title={ownershipBandTitle(card.quantity, band)}
@@ -2616,6 +2622,9 @@ function ZoneThumb({
           )}
           {band.other > 0 && (
             <span className="bg-sky-500" style={{ flexGrow: band.other, flexBasis: 0 }} />
+          )}
+          {band.locked > 0 && (
+            <span className="bg-amber-500" style={{ flexGrow: band.locked, flexBasis: 0 }} />
           )}
           {band.missing > 0 && <span style={{ flexGrow: band.missing, flexBasis: 0 }} />}
         </span>

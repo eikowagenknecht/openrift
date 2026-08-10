@@ -13,9 +13,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export function ViolationBadge({
   formatLabel,
   violations,
+  progress,
 }: {
   formatLabel: string;
   violations: DeckViolation[];
+  /**
+   * Build progress ("48/56") shown after the format label while the deck is
+   * still incomplete — the hero folded its separate cards chip into this badge.
+   */
+  progress?: string;
 }) {
   return (
     <Popover>
@@ -25,6 +31,7 @@ export function ViolationBadge({
           className="shrink-0 cursor-pointer rounded-md dark:bg-amber-500/10"
         >
           {formatLabel}
+          {progress && <span className="tabular-nums">· {progress}</span>}
           <CircleAlertIcon className="size-3" />
         </Badge>
       </PopoverTrigger>

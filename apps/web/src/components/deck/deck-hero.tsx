@@ -1,6 +1,6 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
 import { legendDisplayName, WellKnown } from "@openrift/shared";
-import { AlertTriangleIcon, CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
+import { CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
@@ -162,8 +162,8 @@ function HeroFanSlot({
 /**
  * The deck's identity band at the top of the overview and the public share
  * page: domain glow, fanned legend/champion pair, and the deck's status as
- * compact chips (cards, ownership, missing, value). Replaces the old KPI tile
- * strip — same information, folded into the hero.
+ * compact chips (ownership, value — build progress lives on the format badge).
+ * Replaces the old KPI tile strip — same information, folded into the hero.
  * @returns The hero section.
  */
 export function DeckHero({
@@ -193,7 +193,6 @@ export function DeckHero({
   const fmtPrice = formatterForMarketplace(marketplace);
   const legendDomains = legend?.domains ?? [];
   const hasViolations = violations.length > 0;
-  const isComplete = requiredProgress === requiredTotal && !hasViolations;
 
   const legendThumb = legend ? getThumbnail(legend.cardId, legend.preferredPrintingId) : undefined;
   const championThumb = champion
@@ -204,16 +203,19 @@ export function DeckHero({
     ? legendDisplayName({ name: legend.cardName, types: legend.cardTypes, tags: legend.tags })
     : undefined;
 
-  // Owned chip counts the deck proper (required zones incl. runes, no
-  // sideboard) so its denominator matches the completion chip's "X / 56".
-  const ownedPct =
-    ownershipData && ownershipData.requiredZoneNeeded > 0
-      ? Math.min(
-          100,
-          Math.round((ownershipData.requiredZoneOwned / ownershipData.requiredZoneNeeded) * 100),
-        )
-      : undefined;
+  // The ownership chip's fraction counts the deck proper (required zones incl.
+  // runes, no sideboard) so its denominator matches the format badge's "X / 56"
+  // build figure. The missing part names the sideboard shortfall separately
+  // ("4 + 2 side missing") — the two scopes must never blur into one number.
   const missingCount = ownershipData?.missingCount ?? 0;
+  const requiredZoneMissing = ownershipData?.requiredZoneMissing ?? 0;
+  const sideboardMissing = ownershipData?.sideboardMissing ?? 0;
+  const missingLabel =
+    requiredZoneMissing > 0 && sideboardMissing > 0
+      ? `${requiredZoneMissing} + ${sideboardMissing} side missing`
+      : requiredZoneMissing > 0
+        ? `${requiredZoneMissing} missing`
+        : `${sideboardMissing} side missing`;
   const hasMissingValue =
     ownershipData?.missingValueCents !== undefined && ownershipData.missingValueCents > 0;
   // The main/side split only says something once the sideboard carries value —
@@ -230,7 +232,9 @@ export function DeckHero({
     ownershipData?.missingValueCents !== undefined &&
     ownershipData.missingAsDisplayedValueCents !== undefined &&
     ownershipData.missingValueCents !== ownershipData.missingAsDisplayedValueCents;
-  const hasValueBreakdown = hasValueSplit || missingDiffers;
+  // The cost to complete lives in this popover now (the missing chip that used
+  // to carry it merged into the ownership chip).
+  const hasValueBreakdown = hasValueSplit || hasMissingValue;
 
   // Rendered twice (mobile beside the chips, sm+ in the outer row) — plain
   // images, so the duplicate is cheap and the URLs load once.
@@ -290,10 +294,20 @@ export function DeckHero({
               <DomainIcon key={domain} domain={domain} />
             ))}
             {/* The hero owns the deck's format badge (the top bar dropped its
-                duplicate); on problems it opens the violation list, like the
-                completion chip. Empty decks read as drafts, not as failures. */}
+                duplicate); on problems it opens the violation list and carries
+                the build progress ("48/56") while the deck is incomplete — the
+                old separate cards chip folded in here. Empty decks read as
+                drafts, not as failures. */}
             {hasViolations && format !== WellKnown.deckFormat.FREEFORM && totalCards > 0 ? (
-              <ViolationBadge formatLabel={formatLabel} violations={violations} />
+              <ViolationBadge
+                formatLabel={formatLabel}
+                violations={violations}
+                progress={
+                  requiredTotal > 0 && requiredProgress < requiredTotal
+                    ? `${requiredProgress}/${requiredTotal}`
+                    : undefined
+                }
+              />
             ) : totalCards === 0 && format !== WellKnown.deckFormat.FREEFORM ? (
               <Badge variant="muted" className="rounded-md">
                 {formatLabel} · Draft
@@ -331,62 +345,30 @@ export function DeckHero({
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:contents">
               {totalCards > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {hasViolations ? (
-                    <Popover>
-                      <PopoverTrigger
-                        render={
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="xs"
-                            aria-label="Show deck issues"
-                            className={chipButtonClass("text-destructive")}
-                          />
-                        }
-                      >
-                        <AlertTriangleIcon className="size-3" />
-                        <span className="tabular-nums">
-                          {requiredProgress}/{requiredTotal} cards
-                        </span>
-                      </PopoverTrigger>
-                      <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
-                        <ul className="space-y-0.5">
-                          {/* Per-card codes repeat across cards, so the key needs the card. */}
-                          {violations.map((violation) => (
-                            <li
-                              key={`${violation.code}-${violation.cardId ?? "deck"}`}
-                              className="text-xs"
-                            >
-                              {violation.message}
-                            </li>
-                          ))}
-                        </ul>
-                      </PopoverContent>
-                    </Popover>
-                  ) : (
-                    <span
-                      className={cn(
-                        CHIP_CLASS,
-                        "tabular-nums",
-                        isComplete && "text-green-600 dark:text-green-500",
-                      )}
+                  {ownershipData && !signInHref && missingCount > 0 && onViewMissing && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={onViewMissing}
+                      className={chipButtonClass()}
                     >
-                      {isComplete && <CheckCircle2Icon className="size-3" />}
-                      {requiredProgress}/{requiredTotal} cards
-                      {!isComplete && (
-                        <span className="text-muted-foreground">
-                          · {requiredTotal - requiredProgress} more
-                        </span>
-                      )}
-                    </span>
-                  )}
-
-                  {ownershipData && !signInHref && ownedPct !== undefined && (
-                    <span className={cn(CHIP_CLASS, "tabular-nums")}>
-                      {ownedPct}% owned
-                      <span className="text-muted-foreground">
-                        · {ownershipData.requiredZoneOwned}/{ownershipData.requiredZoneNeeded}
+                      <PackageSearchIcon className="size-3 text-amber-700 dark:text-amber-500" />
+                      <span className="tabular-nums">
+                        {ownershipData.requiredZoneNeeded > 0 && (
+                          <>
+                            {ownershipData.requiredZoneOwned}/{ownershipData.requiredZoneNeeded}{" "}
+                            owned ·{" "}
+                          </>
+                        )}
+                        <span className="text-amber-700 dark:text-amber-500">{missingLabel}</span>
                       </span>
+                    </Button>
+                  )}
+                  {ownershipData && !signInHref && missingCount === 0 && (
+                    <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
+                      <CheckCircle2Icon className="size-3" />
+                      Fully owned
                     </span>
                   )}
                   {signInHref && (
@@ -401,27 +383,6 @@ export function DeckHero({
                       <LogInIcon className="size-3" />
                       Sign in to compare with your collection
                     </Button>
-                  )}
-
-                  {ownershipData && !signInHref && missingCount > 0 && onViewMissing && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={onViewMissing}
-                      className={chipButtonClass("text-amber-700 dark:text-amber-500")}
-                    >
-                      <PackageSearchIcon className="size-3" />
-                      <span className="tabular-nums">
-                        {missingCount} missing
-                        {hasMissingValue && ` · ${fmtPrice(ownershipData.missingValueCents ?? 0)}`}
-                      </span>
-                    </Button>
-                  )}
-                  {ownershipData && !signInHref && missingCount === 0 && (
-                    <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
-                      Fully owned
-                    </span>
                   )}
 
                   {ownershipData?.deckValueCents !== undefined &&
@@ -472,21 +433,21 @@ export function DeckHero({
                                 </div>
                               </>
                             )}
+                            {hasMissingValue && (
+                              <div className="flex justify-between gap-6">
+                                <dt className="text-muted-foreground">To complete</dt>
+                                <dd className="tabular-nums">
+                                  {fmtPrice(ownershipData.missingValueCents ?? 0)}
+                                </dd>
+                              </div>
+                            )}
                             {missingDiffers && (
-                              <>
-                                <div className="flex justify-between gap-6">
-                                  <dt className="text-muted-foreground">Missing, cheapest</dt>
-                                  <dd className="tabular-nums">
-                                    {fmtPrice(ownershipData.missingValueCents ?? 0)}
-                                  </dd>
-                                </div>
-                                <div className="flex justify-between gap-6">
-                                  <dt className="text-muted-foreground">Missing, as shown</dt>
-                                  <dd className="tabular-nums">
-                                    {fmtPrice(ownershipData.missingAsDisplayedValueCents ?? 0)}
-                                  </dd>
-                                </div>
-                              </>
+                              <div className="flex justify-between gap-6">
+                                <dt className="text-muted-foreground">At shown printings</dt>
+                                <dd className="tabular-nums">
+                                  {fmtPrice(ownershipData.missingAsDisplayedValueCents ?? 0)}
+                                </dd>
+                              </div>
                             )}
                           </dl>
                         </PopoverContent>

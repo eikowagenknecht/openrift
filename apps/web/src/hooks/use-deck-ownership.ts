@@ -94,6 +94,29 @@ function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
 }
 
 /**
+ * Tooltip sentence for a row's locked copies — the count capped to this zone's
+ * shortfall, the reasons drawn from the card-wide breakdown ("why is this
+ * locked"). Only meaningful when `entry.locked > 0`.
+ * @returns One sentence naming the locked copies and why they don't count.
+ */
+export function lockedReasonText(entry: CardOwnership): string {
+  const reasons: string[] = [];
+  if (entry.lockedLoaned > 0) {
+    reasons.push("out on loan");
+  }
+  if (entry.lockedReserved > 0) {
+    reasons.push("reserved for a trade");
+  }
+  if (entry.lockedExcluded > 0) {
+    reasons.push("in a collection excluded from deck building");
+  }
+  const why = reasons.length > 0 ? reasons.join(" or ") : "unavailable for deck building";
+  return entry.locked === 1
+    ? `1 more copy is locked: ${why}`
+    : `${entry.locked} more copies are locked: ${why}`;
+}
+
+/**
  * Zones whose cards make up the deck proper. Overflow is a free parking zone
  * (see `COPY_LIMIT_ZONES` in `use-deck-builder`) — cards stashed there aren't
  * part of the deck, so they're left out of every ownership and cost total.
@@ -132,6 +155,14 @@ export interface DeckOwnershipData {
   totalLocked: number;
   totalBorrowed: number;
   missingCount: number;
+  /**
+   * `missingCount` split by scope: shortfall inside the deck proper vs the
+   * sideboard. The hero's ownership chip renders them as "4 + 2 side missing"
+   * so the deck-proper fraction next to it can't read as contradicting the
+   * missing figure. Always sums to `missingCount`.
+   */
+  requiredZoneMissing: number;
+  sideboardMissing: number;
   deckValueCents: number | undefined;
   /** Deck value excluding the sideboard — legend, champion, runes, battlefields, main. */
   mainValueCents: number | undefined;
@@ -275,6 +306,8 @@ export function computeDeckOwnership(
   let totalLocked = 0;
   let totalBorrowed = 0;
   let missingCount = 0;
+  let requiredZoneMissing = 0;
+  let sideboardMissing = 0;
   let hasPrices = false;
   let deckValueCents = 0;
   let mainValueCents = 0;
@@ -418,6 +451,12 @@ export function computeDeckOwnership(
 
     if (shortfall > 0) {
       missingCount += shortfall;
+      // The only counted zone outside the deck proper is the sideboard.
+      if (REQUIRED_ZONE_SET.has(card.zone)) {
+        requiredZoneMissing += shortfall;
+      } else {
+        sideboardMissing += shortfall;
+      }
       missingCards.push(entry);
     }
 
@@ -451,6 +490,8 @@ export function computeDeckOwnership(
     totalLocked,
     totalBorrowed,
     missingCount,
+    requiredZoneMissing,
+    sideboardMissing,
     deckValueCents: hasPrices ? deckValueCents : undefined,
     mainValueCents: hasPrices ? mainValueCents : undefined,
     sideboardValueCents: hasPrices ? sideboardValueCents : undefined,

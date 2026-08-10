@@ -150,6 +150,7 @@ const dbDeck = {
   coverCardId: null,
   coverPrintingId: null,
   coverPosition: null,
+  videoUrl: null,
   createdAt: now,
   updatedAt: now,
 };

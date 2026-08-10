@@ -76,6 +76,7 @@ const dbDeck = {
   coverCardId: null,
   coverPrintingId: null,
   coverPosition: null,
+  videoUrl: null,
   createdAt: NOW,
   updatedAt: NOW,
 };

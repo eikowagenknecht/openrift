@@ -8,12 +8,13 @@ import { describe, expect, it, beforeEach } from "vitest";
 
 import {
   resetIdCounter,
+  stubCardOwnership,
   stubDeckBuilderCard,
   stubPriceLookup,
   stubPrinting,
 } from "@/test/factories";
 
-import { computeDeckOwnership } from "./use-deck-ownership";
+import { computeDeckOwnership, lockedReasonText } from "./use-deck-ownership";
 
 const EN_FIRST: readonly string[] = ["EN", "DE", "SC"];
 
@@ -28,6 +29,8 @@ describe("computeDeckOwnership", () => {
     expect(result.totalNeeded).toBe(0);
     expect(result.totalOwned).toBe(0);
     expect(result.missingCount).toBe(0);
+    expect(result.requiredZoneMissing).toBe(0);
+    expect(result.sideboardMissing).toBe(0);
     expect(result.missingCards).toHaveLength(0);
   });
 
@@ -89,6 +92,40 @@ describe("computeDeckOwnership", () => {
     // The deck-proper basis drops the sideboard but keeps the runes.
     expect(result.requiredZoneNeeded).toBe(15);
     expect(result.requiredZoneOwned).toBe(13);
+    // Both missing copies sit in the deck proper here.
+    expect(result.requiredZoneMissing).toBe(2);
+    expect(result.sideboardMissing).toBe(0);
+  });
+
+  it("splits the missing count between the deck proper and the sideboard", () => {
+    // The hero chip renders the split as "1 + 2 side missing"; the two figures
+    // must always sum to missingCount so the dialog and the chip agree.
+    const deckCards = [
+      stubDeckBuilderCard({ cardId: "unit-1", quantity: 3, zone: "main" }),
+      stubDeckBuilderCard({ cardId: "side-1", quantity: 2, zone: "sideboard" }),
+      // Overflow is parked, not part of the deck — must not count as missing.
+      stubDeckBuilderCard({ cardId: "spare-1", quantity: 4, zone: "overflow" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "printing-unit", cardId: "unit-1" }),
+      stubPrinting({ id: "printing-side", cardId: "side-1" }),
+      stubPrinting({ id: "printing-spare", cardId: "spare-1" }),
+    ];
+    const owned = { "printing-unit": 2, "printing-side": 0, "printing-spare": 0 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.requiredZoneMissing).toBe(1);
+    expect(result.sideboardMissing).toBe(2);
+    expect(result.missingCount).toBe(3);
+    expect(result.requiredZoneMissing + result.sideboardMissing).toBe(result.missingCount);
   });
 
   it("prices missing copies at the cheapest printing in the viewer's languages", () => {
@@ -809,5 +846,31 @@ describe("computeDeckOwnership (source-level regression)", () => {
     // trip the guard.
     const withoutComments = body![0].replaceAll(/\/\/.*$/gmu, "");
     expect(withoutComments).not.toMatch(/^\s*["']use memo["']\s*;/mu);
+  });
+});
+
+describe("lockedReasonText", () => {
+  it("words a single locked copy with its reason", () => {
+    expect(lockedReasonText(stubCardOwnership({ locked: 1, lockedExcluded: 1 }))).toBe(
+      "1 more copy is locked: in a collection excluded from deck building",
+    );
+    expect(lockedReasonText(stubCardOwnership({ locked: 1, lockedLoaned: 1 }))).toBe(
+      "1 more copy is locked: out on loan",
+    );
+    expect(lockedReasonText(stubCardOwnership({ locked: 1, lockedReserved: 1 }))).toBe(
+      "1 more copy is locked: reserved for a trade",
+    );
+  });
+
+  it("joins multiple reasons and pluralizes the count", () => {
+    expect(
+      lockedReasonText(stubCardOwnership({ locked: 2, lockedLoaned: 1, lockedExcluded: 1 })),
+    ).toBe("2 more copies are locked: out on loan or in a collection excluded from deck building");
+  });
+
+  it("falls back to a generic reason when the breakdown is empty", () => {
+    expect(lockedReasonText(stubCardOwnership({ locked: 1 }))).toBe(
+      "1 more copy is locked: unavailable for deck building",
+    );
   });
 });

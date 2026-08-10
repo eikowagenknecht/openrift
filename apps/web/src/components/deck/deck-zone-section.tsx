@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Pressable } from "@/components/ui/pressable";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -184,44 +185,49 @@ export function DeckZoneSection({
 
   // Get legend domains for active zone tint — return the stable array from the card
   // or undefined (not a new []) to avoid infinite re-renders from Zustand
-  const renderCardRow = (card: DeckBuilderCard) => (
-    <DeckCardPrintingMenu key={getDeckCardKey(card)} deckId={deckId} card={card}>
-      <DeckCardRow
-        card={card}
-        hasViolation={cardViolations.has(card.cardId)}
-        violationMessage={cardViolations.get(card.cardId)}
-        shortfall={ownership?.byCardZone.get(`${card.cardId}:${zone}`)?.shortfall}
-        controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
-        maxQuantity={maxCardQuantity}
-        draggable={DRAG_ZONES.has(zone)}
-        shiftHeld={zone === WellKnown.deckZone.RUNES ? undefined : shiftHeld}
-        onIncrement={
-          !isFreeform &&
-          ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= copyLimitFor(card)) ||
-            (zone === WellKnown.deckZone.RUNES && !canAddRune(card, allCards)))
-            ? undefined
-            : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
-        }
-        onDecrement={(event) => {
-          if (event.shiftKey) {
-            onHoverCard?.(null);
-            setQuantity(card.cardId, zone, 0, card.preferredPrintingId);
-          } else if (card.quantity <= 1) {
-            onHoverCard?.(null);
-            removeCard(card.cardId, zone, card.preferredPrintingId);
-          } else {
-            removeCard(card.cardId, zone, card.preferredPrintingId);
+  const renderCardRow = (card: DeckBuilderCard) => {
+    const entry = ownership?.byCardZone.get(`${card.cardId}:${zone}`);
+    return (
+      <DeckCardPrintingMenu key={getDeckCardKey(card)} deckId={deckId} card={card}>
+        <DeckCardRow
+          card={card}
+          hasViolation={cardViolations.has(card.cardId)}
+          violationMessage={cardViolations.get(card.cardId)}
+          shortfall={entry?.shortfall}
+          locked={entry?.locked}
+          lockedReason={entry && entry.locked > 0 ? lockedReasonText(entry) : undefined}
+          controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
+          maxQuantity={maxCardQuantity}
+          draggable={DRAG_ZONES.has(zone)}
+          shiftHeld={zone === WellKnown.deckZone.RUNES ? undefined : shiftHeld}
+          onIncrement={
+            !isFreeform &&
+            ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= copyLimitFor(card)) ||
+              (zone === WellKnown.deckZone.RUNES && !canAddRune(card, allCards)))
+              ? undefined
+              : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
           }
-        }}
-        onRemove={() => {
-          onHoverCard?.(null);
-          removeCard(card.cardId, zone, card.preferredPrintingId);
-        }}
-        onClick={() => handleCardClick(card)}
-        onHover={onHoverCard}
-      />
-    </DeckCardPrintingMenu>
-  );
+          onDecrement={(event) => {
+            if (event.shiftKey) {
+              onHoverCard?.(null);
+              setQuantity(card.cardId, zone, 0, card.preferredPrintingId);
+            } else if (card.quantity <= 1) {
+              onHoverCard?.(null);
+              removeCard(card.cardId, zone, card.preferredPrintingId);
+            } else {
+              removeCard(card.cardId, zone, card.preferredPrintingId);
+            }
+          }}
+          onRemove={() => {
+            onHoverCard?.(null);
+            removeCard(card.cardId, zone, card.preferredPrintingId);
+          }}
+          onClick={() => handleCardClick(card)}
+          onHover={onHoverCard}
+        />
+      </DeckCardPrintingMenu>
+    );
+  };
 
   const renderGroupedCards = () => {
     const grouped = Map.groupBy(cards, (card) => card.cardType);

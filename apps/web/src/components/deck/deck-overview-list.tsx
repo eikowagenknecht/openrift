@@ -8,7 +8,7 @@ import {
   legendDisplayName,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangleIcon, PlusIcon } from "lucide-react";
+import { AlertTriangleIcon, LockIcon, PlusIcon } from "lucide-react";
 
 import { EnergyGlyph, PowerDomainIcon } from "@/components/deck/deck-card-row";
 import type {
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CardOwnership, DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -789,6 +790,15 @@ function DeckListRow({
         >
           {entry.owned}/{entry.needed}
         </span>
+      )}
+      {showOwnership && entry && entry.locked > 0 && (
+        <Tooltip>
+          <TooltipTrigger className="text-muted-foreground flex shrink-0 items-center gap-0.5">
+            <LockIcon className="size-3" />
+            <span className="text-xs tabular-nums">{entry.locked}</span>
+          </TooltipTrigger>
+          <TooltipContent>{lockedReasonText(entry)}</TooltipContent>
+        </Tooltip>
       )}
 
       {price !== undefined && (

@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { AlertTriangleIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, LockIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,14 @@ interface DeckCardRowProps {
    * owned rows stay quiet.
    */
   shortfall?: number;
+  /**
+   * Copies the viewer holds but which are locked away from deck building
+   * (loan, trade reservation, excluded collection), capped to this row's
+   * shortfall. Rendered as a muted lock glyph with the count.
+   */
+  locked?: number;
+  /** Tooltip sentence for the lock glyph — from `lockedReasonText`. */
+  lockedReason?: string;
   dimmed?: boolean;
   controlMode?: ControlMode;
   /** Largest copy count in this row's zone — used to size the count column so names align. */
@@ -177,6 +185,8 @@ export function DeckCardRow({
   hasViolation,
   violationMessage,
   shortfall,
+  locked,
+  lockedReason,
   dimmed,
   controlMode = "quantity",
   maxQuantity,
@@ -261,6 +271,16 @@ export function DeckCardRow({
             You have {card.quantity - shortfall} of {card.quantity}{" "}
             {card.quantity === 1 ? "copy" : "copies"}
           </TooltipContent>
+        </Tooltip>
+      )}
+
+      {locked !== undefined && locked > 0 && (
+        <Tooltip>
+          <TooltipTrigger className="text-muted-foreground flex shrink-0 items-center gap-0.5">
+            <LockIcon className="size-3" />
+            <span className="text-2xs tabular-nums">{locked}</span>
+          </TooltipTrigger>
+          <TooltipContent>{lockedReason}</TooltipContent>
         </Tooltip>
       )}
 

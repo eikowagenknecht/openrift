@@ -153,7 +153,10 @@ export function buildOwnershipRows(
     }
     totals.exact += segments.exact;
     totals.other += segments.other;
-    totals.missing += segments.missing;
+    // Locked copies count as missing here so the column matches every other
+    // shortfall figure (hero chip, missing dialog); only the thumbnail band
+    // splits them out.
+    totals.missing += segments.missing + segments.locked;
   }
   return OWNERSHIP_LENS_SERIES.map((series) => ({
     key: series.key,
@@ -198,7 +201,12 @@ export function ownershipFocusKeys(
       continue;
     }
     const segments = segmentsByCardKey.get(getDeckCardKey(card));
-    if (segments && segments[ownershipClass] > 0) {
+    // Mirrors buildOwnershipRows: locked copies belong to the missing class.
+    const count =
+      ownershipClass === "missing"
+        ? (segments?.missing ?? 0) + (segments?.locked ?? 0)
+        : (segments?.[ownershipClass] ?? 0);
+    if (count > 0) {
       keys.add(getDeckCardKey(card));
     }
   }

@@ -105,10 +105,10 @@ describe("buildOwnershipRows", () => {
     card({ cardId: "c", quantity: 4, zone: "sideboard" }),
   ];
   const segments = new Map<string, OwnershipBandSegments>([
-    [getDeckCardKey(cards[0]), { exact: 2, other: 0, missing: 1 }],
-    [getDeckCardKey(cards[1]), { exact: 0, other: 2, missing: 0 }],
+    [getDeckCardKey(cards[0]), { exact: 2, other: 0, locked: 0, missing: 1 }],
+    [getDeckCardKey(cards[1]), { exact: 0, other: 2, locked: 0, missing: 0 }],
     // Sideboard entry must not count even though it has segments.
-    [getDeckCardKey(cards[2]), { exact: 4, other: 0, missing: 0 }],
+    [getDeckCardKey(cards[2]), { exact: 4, other: 0, locked: 0, missing: 0 }],
   ]);
 
   it("sums copies per class over the main deck and champion only", () => {
@@ -128,6 +128,17 @@ describe("buildOwnershipRows", () => {
   it("skips entries the segment map doesn't cover", () => {
     const rows = buildOwnershipRows([card({ cardId: "unknown", quantity: 5 })], segments);
     expect(rows.every((row) => row.total === 0)).toBe(true);
+  });
+
+  it("counts locked copies as missing", () => {
+    // The chart's Missing column must keep matching the shortfall figures
+    // (hero chip, missing dialog), which treat locked copies as missing.
+    const lockedCards = [card({ cardId: "a", quantity: 3 })];
+    const lockedSegments = new Map<string, OwnershipBandSegments>([
+      [getDeckCardKey(lockedCards[0]), { exact: 1, other: 0, locked: 1, missing: 1 }],
+    ]);
+    const rows = buildOwnershipRows(lockedCards, lockedSegments);
+    expect(rows.find((row) => row.key === "missing")?.total).toBe(2);
   });
 });
 
@@ -149,14 +160,23 @@ describe("focus key sets", () => {
 
   it("ownershipFocusKeys matches entries with at least one copy in the class", () => {
     const segments = new Map<string, OwnershipBandSegments>([
-      [getDeckCardKey(cards[0]), { exact: 2, other: 0, missing: 1 }],
-      [getDeckCardKey(cards[1]), { exact: 1, other: 0, missing: 0 }],
+      [getDeckCardKey(cards[0]), { exact: 2, other: 0, locked: 0, missing: 1 }],
+      [getDeckCardKey(cards[1]), { exact: 1, other: 0, locked: 0, missing: 0 }],
     ]);
     expect(ownershipFocusKeys(cards, segments, "missing")).toEqual(
       new Set([getDeckCardKey(cards[0])]),
     );
     expect(ownershipFocusKeys(cards, segments, "exact")).toEqual(
       new Set([getDeckCardKey(cards[0]), getDeckCardKey(cards[1])]),
+    );
+  });
+
+  it("ownershipFocusKeys counts a locked-only shortfall as missing", () => {
+    const segments = new Map<string, OwnershipBandSegments>([
+      [getDeckCardKey(cards[0]), { exact: 2, other: 0, locked: 1, missing: 0 }],
+    ]);
+    expect(ownershipFocusKeys(cards, segments, "missing")).toEqual(
+      new Set([getDeckCardKey(cards[0])]),
     );
   });
 });
