@@ -15,6 +15,7 @@
 ### Other
 
 - feat(Groups): **Group cards say what the actions are** — the groups list split its "actions needed" count into trade requests waiting on your answer and completed trades still to add to your collection.
+- feat(Decks): **Cost to complete beside the deck value** — the price breakdown drops the owned total and shows what you are missing as a second column, split into deck and sideboard.
 - feat(Decks): **Deck filters you can link to and filter on a phone** — the deck list now filters like the card browser, with match counts on every option, a filter sheet on phones, and the filters in the address bar so you can share or bookmark a filtered list.
 - feat(Cards): **Price history opens with the card** — the chart now shows by default, names the marketplace it plots and how far the price moved, and the buy buttons sit below it.
 - feat(Decks): **Import lists from TopDeck.gg** — decklists copied from TopDeck.gg now paste in directly, with each card landing in the right zone.

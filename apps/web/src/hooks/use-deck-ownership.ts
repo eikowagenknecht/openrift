@@ -175,7 +175,6 @@ export interface DeckOwnershipData {
   mainValueCents: number | undefined;
   /** Deck value of the sideboard zone alone. */
   sideboardValueCents: number | undefined;
-  ownedValueCents: number | undefined;
   /**
    * The deck priced at the printings it displays (the creator's pins /
    * canonical fallbacks). Shown in the value popover when it differs from the
@@ -187,6 +186,13 @@ export interface DeckOwnershipData {
    * languages (see {@link CardOwnership.cheapestPrice}).
    */
   missingValueCents: number | undefined;
+  /**
+   * `missingValueCents` split the same way `mainValueCents` /
+   * `sideboardValueCents` split the deck's own value, so the panel can show
+   * what completing the deck proper costs apart from the sideboard.
+   */
+  missingMainValueCents: number | undefined;
+  missingSideboardValueCents: number | undefined;
   /**
    * Cost of the missing copies at the deck's displayed printings (the
    * creator's pins). Shown alongside the cheapest figure when they differ.
@@ -326,8 +332,9 @@ export function computeDeckOwnership(
   let asDisplayedValueCents = 0;
   let mainValueCents = 0;
   let sideboardValueCents = 0;
-  let ownedValueCents = 0;
   let missingValueCents = 0;
+  let missingMainValueCents = 0;
+  let missingSideboardValueCents = 0;
   let missingAsDisplayedValueCents = 0;
 
   // Overflow rows are walked last so a stashed copy never claims an owned copy
@@ -485,10 +492,11 @@ export function computeDeckOwnership(
       deckValueCents += valuePerCopy * card.quantity;
       if (card.zone === WellKnown.deckZone.SIDEBOARD) {
         sideboardValueCents += valuePerCopy * card.quantity;
+        missingSideboardValueCents += valuePerCopy * shortfall;
       } else {
         mainValueCents += valuePerCopy * card.quantity;
+        missingMainValueCents += valuePerCopy * shortfall;
       }
-      ownedValueCents += valuePerCopy * ownedInZone;
       missingValueCents += valuePerCopy * shortfall;
     }
     if (displayPrice !== undefined) {
@@ -513,9 +521,10 @@ export function computeDeckOwnership(
     deckValueCents: hasPrices ? deckValueCents : undefined,
     mainValueCents: hasPrices ? mainValueCents : undefined,
     sideboardValueCents: hasPrices ? sideboardValueCents : undefined,
-    ownedValueCents: hasPrices ? ownedValueCents : undefined,
     asDisplayedValueCents: hasPrices ? asDisplayedValueCents : undefined,
     missingValueCents: hasPrices ? missingValueCents : undefined,
+    missingMainValueCents: hasPrices ? missingMainValueCents : undefined,
+    missingSideboardValueCents: hasPrices ? missingSideboardValueCents : undefined,
     missingAsDisplayedValueCents: hasPrices ? missingAsDisplayedValueCents : undefined,
     missingCards,
   };

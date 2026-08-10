@@ -379,7 +379,6 @@ describe("computeDeckOwnership", () => {
     // the cheaper DE printing ($3); the displayed EN printing only feeds the
     // "as displayed" totals.
     expect(result.deckValueCents).toBe(6);
-    expect(result.ownedValueCents).toBe(3);
     expect(result.missingValueCents).toBe(3);
     expect(result.asDisplayedValueCents).toBe(10);
     expect(result.missingAsDisplayedValueCents).toBe(5);
@@ -445,7 +444,6 @@ describe("computeDeckOwnership", () => {
     ]);
 
     expect(result.deckValueCents).toBe(200);
-    expect(result.ownedValueCents).toBe(200);
     expect(result.asDisplayedValueCents).toBe(15_000);
     const entry = result.byCardZone.get(`${cardId}:legend`);
     expect(entry?.cheapestPrice).toBe(200);
@@ -512,7 +510,6 @@ describe("computeDeckOwnership", () => {
     );
 
     expect(result.deckValueCents).toBeUndefined();
-    expect(result.ownedValueCents).toBeUndefined();
     expect(result.missingValueCents).toBeUndefined();
   });
 
@@ -734,7 +731,6 @@ describe("computeDeckOwnership", () => {
     expect(result.missingCount).toBe(3); // 0 + 2 + 1
     expect(result.missingCards).toHaveLength(2); // Beta and Gamma
     expect(result.deckValueCents).toBe(15); // 3*1 + 2*5 + 1*2
-    expect(result.ownedValueCents).toBe(3); // 3*1
     expect(result.missingValueCents).toBe(12); // 2*5 + 1*2
   });
 
@@ -760,6 +756,40 @@ describe("computeDeckOwnership", () => {
     expect(result.mainValueCents).toBe(32); // legend 1*20 + main 3*4
     expect(result.sideboardValueCents).toBe(6); // 2*3
     expect(result.deckValueCents).toBe(38);
+  });
+
+  // The panel splits the cost-to-complete the same way it splits deck value,
+  // so the two splits have to be independent: what's owned sits in the deck
+  // proper here, which moves the missing split away from the value split.
+  it("splits missing value into main deck and sideboard", () => {
+    const deckCards = [
+      stubDeckBuilderCard({ cardId: "l", quantity: 1, zone: "legend" }),
+      stubDeckBuilderCard({ cardId: "a", quantity: 3, zone: "main" }),
+      stubDeckBuilderCard({ cardId: "s", quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "pl", cardId: "l" }),
+      stubPrinting({ id: "pa", cardId: "a" }),
+      stubPrinting({ id: "ps", cardId: "s" }),
+    ];
+    const prices = stubPriceLookup({
+      pl: { tcgplayer: 20 },
+      pa: { tcgplayer: 4 },
+      ps: { tcgplayer: 3 },
+    });
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { pl: 1, pa: 1 },
+      "tcgplayer",
+      prices,
+      EN_FIRST,
+    );
+
+    expect(result.missingMainValueCents).toBe(8); // 2 of 3 main copies missing
+    expect(result.missingSideboardValueCents).toBe(6); // 2*3
+    expect(result.missingValueCents).toBe(14);
   });
 
   it("reports a zero sideboard value when the deck has no sideboard", () => {
@@ -808,7 +838,6 @@ describe("computeDeckOwnership", () => {
     expect(result.missingCards.map((entry) => entry.cardName)).toEqual(["Alpha"]);
     expect(result.deckValueCents).toBe(20); // 2 * 10, no 4 * 50
     expect(result.mainValueCents).toBe(20);
-    expect(result.ownedValueCents).toBe(10);
     expect(result.missingValueCents).toBe(10);
   });
 
