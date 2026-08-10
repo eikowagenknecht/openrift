@@ -26,6 +26,8 @@ If nothing matches, a brief "?" badge appears on the toolbar icon and nothing el
 
 A deck name rides along: the page's `h1` is passed as `&name=` and prefills the deck-name field on the review step.
 
+So does the page's own address, as `&source=`, which the review step offers as an outbound deck link on the imported deck. Deck links are restricted to the allowlist in `packages/shared/src/link-hosts.ts`, so `src/lib/source-link.ts` drops anything not on it (along with `utm_*`-style tracking tags) rather than sending a link the import page would refuse. The URL is read in the page by the content script, not from `tab.url`, so it needs no permission beyond the injection itself. The import page re-checks it against `deckLinkSchema` regardless — the param is whatever the address bar says — and shows it as a removable chip, since a deck's links are public on its share page. Replace mode ignores it and keeps the target deck's own links.
+
 The import page's `?code=` parameter sniffs the payload format itself (`parseDeckImportAuto` in `apps/web/src/lib/deck-import-parsers.ts`), so text lists and compact codes both work in the same deep link.
 
 ## Development

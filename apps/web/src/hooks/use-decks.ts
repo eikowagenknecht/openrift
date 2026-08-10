@@ -155,6 +155,7 @@ const createDeckFn = createServerFn({ method: "POST" })
       format: DeckFormat;
       isWanted?: boolean;
       isPublic?: boolean;
+      links?: DeckLink[];
     }) => input,
   )
   .middleware([withCookies])
@@ -174,6 +175,7 @@ export function useCreateDeck() {
       format: DeckFormat;
       isWanted?: boolean;
       isPublic?: boolean;
+      links?: DeckLink[];
     }) => createDeckFn({ data: body }),
     invalidates: userId ? [queryKeys.decks.all(userId)] : [],
   });

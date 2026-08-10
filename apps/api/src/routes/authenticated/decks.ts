@@ -396,6 +396,7 @@ export const decksRouter = {
       formatConfig,
       isWanted: input.isWanted ?? false,
       isPublic: input.isPublic ?? false,
+      links: input.links,
     });
     return toDeck(row);
   }),

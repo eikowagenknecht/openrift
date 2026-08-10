@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 
-import type { PageDeckExtract } from "../lib/deck-extract";
+import type { PageExtract } from "../lib/deck-extract";
 import { deckImportUrl } from "../lib/openrift-url";
 
 /** How long the "nothing found" badge stays on the toolbar icon. */
@@ -39,14 +39,16 @@ async function importDeckFromTab(tabId: number, tabIndex: number): Promise<void>
     target: { tabId },
     files: ["/content-scripts/extract.js"],
   });
-  const extract = results[0]?.result as PageDeckExtract | undefined;
+  const extract = results[0]?.result as PageExtract | undefined;
+  const deck = extract?.deck;
 
-  if (!extract || extract.kind === "none") {
+  if (!deck || deck.kind === "none") {
     showNotFoundBadge(tabId);
     return;
   }
-  const payload = extract.kind === "text" ? extract.list : extract.code;
-  await browser.tabs.create({ url: deckImportUrl(payload, extract.name), index: tabIndex + 1 });
+  const payload = deck.kind === "text" ? deck.list : deck.code;
+  const url = deckImportUrl(payload, { name: deck.name, source: extract?.sourceUrl });
+  await browser.tabs.create({ url, index: tabIndex + 1 });
 }
 
 export default defineBackground(() => {

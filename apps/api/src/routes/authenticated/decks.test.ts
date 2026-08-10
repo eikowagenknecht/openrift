@@ -417,6 +417,38 @@ describe("POST /api/v1/decks", () => {
     });
     expect(res.status).toBe(201);
   });
+
+  it("passes outbound links through to the repository", async () => {
+    mockRepo.create.mockResolvedValue(dbDeck);
+    const res = await app.request("/api/v1/decks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Fury Aggro",
+        format: "constructed",
+        links: [{ url: "https://riftdecks.com/deck/42" }],
+      }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ links: [{ url: "https://riftdecks.com/deck/42" }] }),
+    );
+  });
+
+  it("rejects a link on a host that is not allowlisted", async () => {
+    mockRepo.create.mockResolvedValue(dbDeck);
+    const res = await app.request("/api/v1/decks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Fury Aggro",
+        format: "constructed",
+        links: [{ url: "https://example.test/deck/42" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockRepo.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/v1/decks/:id", () => {

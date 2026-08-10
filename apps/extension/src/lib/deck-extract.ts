@@ -13,6 +13,17 @@ export type PageDeckExtract =
   | { kind: "none" };
 
 /**
+ * What the content script hands back: the decklist, plus the page's own
+ * address when it is one OpenRift accepts as a deck link (`source-link.ts`).
+ * The URL is read in the page, not from `tab.url`, so it needs no permission
+ * beyond the injection itself.
+ */
+export interface PageExtract {
+  deck: PageDeckExtract;
+  sourceUrl?: string;
+}
+
+/**
  * Decklist group labels mapped to OpenRift deck zones. Labels not listed here
  * are card-type groupings of the main deck (unit, spell, gear, ...), which all
  * fold into the main zone.

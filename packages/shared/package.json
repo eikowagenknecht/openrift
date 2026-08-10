@@ -17,6 +17,7 @@
     "./card-tokens": "./src/card-tokens.ts",
     "./scan": "./src/scan/index.ts",
     "./deck-code": "./src/deck-code.ts",
+    "./link-hosts": "./src/link-hosts.ts",
     "./deck-codecs": "./src/deck-codecs/index.ts",
     "./types": "./src/types/index.ts",
     "./logger": "./src/logger.ts"

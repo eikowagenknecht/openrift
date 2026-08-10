@@ -7,7 +7,7 @@ import type {
   Printing,
   PublicDeckDetailResponse,
 } from "@openrift/shared";
-import { WellKnown, legendDisplayName } from "@openrift/shared";
+import { WellKnown, legendDisplayName, linkHostLabel } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -15,6 +15,7 @@ import {
   ArrowLeftIcon,
   CheckCircle2Icon,
   ChevronRightIcon,
+  ExternalLinkIcon,
   FileUpIcon,
   Loader2Icon,
   SearchIcon,
@@ -52,7 +53,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,7 +238,12 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportMode, React.ReactNode> = {
 function DeckImportPage() {
   // Auth-optional (ADR-035): logged out, an import creates a browser-local deck.
   const userId = useUserId();
-  const { replaceDeckId, code: prefillCode, name: prefillName } = Route.useSearch();
+  const {
+    replaceDeckId,
+    code: prefillCode,
+    name: prefillName,
+    source: prefillSource,
+  } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const { formats: deckFormats, labels: deckFormatLabels } = useDeckFormatList();
@@ -282,7 +290,13 @@ function DeckImportPage() {
   const [expandedValues, setExpandedValues] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
+  const [sourceLinkDropped, setSourceLinkDropped] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // The page the deck came from, offered by the browser extension. Saved with
+  // a new deck as an outbound link unless the importer drops it. Replace mode
+  // keeps the target deck's own links, like its name and format.
+  const sourceLink = sourceLinkDropped || isReplaceMode ? undefined : prefillSource;
 
   const finishParse = (entries: DeckImportEntry[], warnings: string[]) => {
     setParseWarnings(warnings);
@@ -497,6 +511,9 @@ function DeckImportPage() {
 
   const executeCreate = () => {
     const trimmedName = deckName.trim() || DEFAULT_IMPORT_DECK_NAME;
+    // No title: the chip then reads the site's name, which is what the link
+    // is worth saying here ("RiftDecks"), not the deck's own name repeated.
+    const links = sourceLink ? [{ url: sourceLink }] : undefined;
 
     setIsImporting(true);
 
@@ -504,13 +521,16 @@ function DeckImportPage() {
     if (!userId) {
       const localId = useLocalDecksStore.getState().createDeck(deckFormat, trimmedName);
       useLocalDecksStore.getState().setCards(localId, importCards);
+      if (links) {
+        useLocalDecksStore.getState().updateDeck(localId, { links });
+      }
       toast.success(`Imported deck "${trimmedName}" with ${totalCards} cards.`);
       void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
       return;
     }
 
     createDeck.mutate(
-      { name: trimmedName, format: deckFormat },
+      { name: trimmedName, format: deckFormat, links },
       {
         onSuccess: (data) => {
           const deck = data as DeckResponse;
@@ -588,6 +608,8 @@ function DeckImportPage() {
         isLoggedIn={Boolean(userId)}
         isImporting={isImporting}
         replaceDeckName={isReplaceMode ? (replaceDeckName ?? "") : undefined}
+        sourceLink={sourceLink}
+        onDropSourceLink={() => setSourceLinkDropped(true)}
         onResolve={handleResolve}
         onZoneChange={handleZoneChange}
         onSkip={handleSkip}
@@ -806,6 +828,8 @@ function PreviewStep({
   isLoggedIn,
   isImporting,
   replaceDeckName,
+  sourceLink,
+  onDropSourceLink,
   onResolve,
   onZoneChange,
   onSkip,
@@ -842,6 +866,8 @@ function PreviewStep({
   isLoggedIn: boolean;
   isImporting: boolean;
   replaceDeckName?: string;
+  sourceLink?: string;
+  onDropSourceLink: () => void;
   onResolve: (index: number, card: ResolvedCard) => void;
   onZoneChange: (index: number, zone: DeckZone) => void;
   onSkip: (index: number) => void;
@@ -984,6 +1010,22 @@ function PreviewStep({
           <ImportToVerifyNote count={toVerifyCount} target="card" />
 
           <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
+
+          {/* The page the extension picked the deck up from. Shown rather than
+              attached silently, because the link is public on a shared deck. */}
+          {sourceLink !== undefined && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Save a link to</span>
+              <Badge variant="outline" title={sourceLink}>
+                <ExternalLinkIcon className="size-3" />
+                {linkHostLabel(sourceLink) ?? sourceLink}
+                <ChipRemoveButton
+                  aria-label="Don't save the source link"
+                  onClick={onDropSourceLink}
+                />
+              </Badge>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             {!isReplaceMode && (

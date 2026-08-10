@@ -47,6 +47,9 @@ export const createDeckSchema = z.object({
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
+  // Outbound links (see updateDeckSchema). Accepted at creation so an import
+  // that knows where the list came from can record it without a second call.
+  links: z.array(deckLinkSchema).max(MAX_DECK_LINKS).optional(),
 });
 
 /**

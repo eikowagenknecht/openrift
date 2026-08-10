@@ -179,10 +179,16 @@ export function decksRepo(db: Kysely<Database>) {
       formatConfig: DeckFormatConfig | null;
       isWanted: boolean;
       isPublic: boolean;
+      links?: DeckLink[];
     }): Promise<Selectable<DecksTable>> {
+      const { links, ...rest } = values;
       const row = await db
         .insertInto("decks")
-        .values({ ...values, formatConfig: serializeFormatConfig(values.formatConfig) })
+        .values({
+          ...rest,
+          formatConfig: serializeFormatConfig(values.formatConfig),
+          links: JSON.stringify(links ?? []),
+        })
         .returningAll()
         .executeTakeFirstOrThrow();
       return withParsedJsonb(row);

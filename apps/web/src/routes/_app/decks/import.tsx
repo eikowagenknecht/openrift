@@ -1,3 +1,4 @@
+import { deckLinkSchema } from "@openrift/shared/response-schemas";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
@@ -13,6 +14,8 @@ interface DeckImportSearch {
   code?: string;
   /** A deck name to prefill alongside `code` (e.g. the source page's deck title). */
   name?: string;
+  /** The page the deck came from, offered on the review step as a deck link. Allowlisted hosts only. */
+  source?: string;
 }
 
 export const Route = createFileRoute("/_app/decks/import")({
@@ -35,6 +38,13 @@ export const Route = createFileRoute("/_app/decks/import")({
       if (trimmed.length > 0) {
         result.name = trimmed;
       }
+    }
+    const source = search.source;
+    // The param is whatever the address bar says, so it goes through the same
+    // schema a typed-in deck link does (https, allowlisted host, length).
+    // Anything else is dropped rather than offered and then rejected on save.
+    if (typeof source === "string" && deckLinkSchema.safeParse({ url: source }).success) {
+      result.source = source;
     }
     return result;
   },
