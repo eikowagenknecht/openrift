@@ -202,9 +202,11 @@ describe.skipIf(!ctx)("cardTokensRepo derivation", () => {
   it("ignores non-EN printing text", async () => {
     const repo = cardTokensRepo(ctx!.db);
 
+    // FR, not DE: `printings.language` is an FK onto `languages`, and the
+    // migrations seed no German row.
     await seedPrinting(plainId, "CTK-003", {
       printedRulesText: "Play a Sprite unit token.",
-      language: "DE",
+      language: "FR",
     });
 
     await repo.recomputeForCard(plainId);
