@@ -4,6 +4,7 @@ import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { deckGlowStyle } from "@/components/deck/deck-hero";
 import { DeckOwnershipBody } from "@/components/deck/deck-ownership-panel";
 import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
@@ -74,26 +75,30 @@ function PanelIdentityHeader({
                 types: legend?.cardTypes ?? [],
                 tags: legend?.tags ?? [],
               })}
-              className="aspect-card absolute top-1/2 left-0 h-11 -translate-y-1/2 -rotate-7 rounded-sm object-cover shadow-sm"
+              style={{ borderRadius: CARD_BORDER_RADIUS }}
+              className="aspect-card absolute top-1/2 left-0 h-11 -translate-y-1/2 -rotate-7 object-cover shadow-sm"
               draggable={false}
             />
           ) : (
             <div
               aria-hidden="true"
-              className="aspect-card border-muted-foreground/25 absolute top-1/2 left-0 h-11 -translate-y-1/2 -rotate-7 rounded-sm border border-dashed"
+              style={{ borderRadius: CARD_BORDER_RADIUS }}
+              className="aspect-card border-muted-foreground/25 absolute top-1/2 left-0 h-11 -translate-y-1/2 -rotate-7 border border-dashed"
             />
           )}
           {championImage ? (
             <img
               src={imageUrl(championImage.imageId, "120w")}
               alt={champion?.cardName ?? "Champion"}
-              className="aspect-card absolute top-1/2 right-0 h-11 -translate-y-1/2 rotate-7 rounded-sm object-cover shadow-sm"
+              style={{ borderRadius: CARD_BORDER_RADIUS }}
+              className="aspect-card absolute top-1/2 right-0 h-11 -translate-y-1/2 rotate-7 object-cover shadow-sm"
               draggable={false}
             />
           ) : (
             <div
               aria-hidden="true"
-              className="aspect-card border-muted-foreground/25 absolute top-1/2 right-0 h-11 -translate-y-1/2 rotate-7 rounded-sm border border-dashed"
+              style={{ borderRadius: CARD_BORDER_RADIUS }}
+              className="aspect-card border-muted-foreground/25 absolute top-1/2 right-0 h-11 -translate-y-1/2 rotate-7 border border-dashed"
             />
           )}
         </div>

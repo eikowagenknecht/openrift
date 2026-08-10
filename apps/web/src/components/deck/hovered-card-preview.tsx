@@ -1,7 +1,7 @@
 import { useDndContext } from "@dnd-kit/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { CARD_ASPECT_INVERSE } from "@/components/cards/card-grid-constants";
+import { CARD_ASPECT_INVERSE, CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 /**
@@ -234,15 +234,17 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
         <img
           src={shownCard.thumbnailUrl}
           alt=""
-          className="w-full rounded-lg shadow-lg"
+          style={{ borderRadius: CARD_BORDER_RADIUS }}
+          className="w-full shadow-lg"
           onError={() => setFailedUrl(shownCard.thumbnailUrl)}
         />
         <img
           src={shownCard.fullUrl}
           alt=""
           onLoad={() => setFullLoaded(true)}
+          style={{ borderRadius: CARD_BORDER_RADIUS }}
           className={cn(
-            "absolute inset-0 w-full rounded-lg shadow-lg transition-opacity duration-150",
+            "absolute inset-0 w-full shadow-lg transition-opacity duration-150",
             fullLoaded ? "opacity-100" : "opacity-0",
           )}
         />

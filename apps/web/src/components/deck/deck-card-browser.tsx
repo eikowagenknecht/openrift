@@ -270,6 +270,7 @@ function DeckOverviewForEditor({
           coverCardId: deck.coverCardId,
           coverPrintingId: deck.coverPrintingId,
           coverPosition: deck.coverPosition,
+          videoUrl: deck.videoUrl,
         }}
         cards={cards}
         customTagAssignments={customTagAssignments}

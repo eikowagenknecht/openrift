@@ -51,6 +51,8 @@ export interface LocalDeck {
   coverCardId: string | null;
   coverPrintingId: string | null;
   coverPosition: number | null;
+  /** YouTube guide link (see the server's decks.video_url column). */
+  videoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +66,7 @@ interface LocalDeckPatch {
   coverCardId?: string | null;
   coverPrintingId?: string | null;
   coverPosition?: number | null;
+  videoUrl?: string | null;
 }
 
 interface LocalDecksState {
@@ -223,6 +226,7 @@ export function sanitizeDecks(raw: unknown): Record<string, LocalDeck> {
         candidate.coverPosition <= 100
           ? candidate.coverPosition
           : null,
+      videoUrl: typeof candidate.videoUrl === "string" ? candidate.videoUrl : null,
       createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : fallbackStamp,
       updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : fallbackStamp,
     };
@@ -251,6 +255,7 @@ export const useLocalDecksStore = create<LocalDecksState>()(
               coverCardId: null,
               coverPrintingId: null,
               coverPosition: null,
+              videoUrl: null,
               createdAt: stamp,
               updatedAt: stamp,
             },
@@ -288,6 +293,9 @@ export const useLocalDecksStore = create<LocalDecksState>()(
           }
           if (patch.coverPosition !== undefined) {
             next.coverPosition = patch.coverPosition;
+          }
+          if (patch.videoUrl !== undefined) {
+            next.videoUrl = patch.videoUrl;
           }
           return { decks: { ...state.decks, [id]: next } };
         }),

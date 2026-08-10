@@ -109,6 +109,7 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       coverCardId: deck?.coverCardId ?? null,
       coverPrintingId: deck?.coverPrintingId ?? null,
       coverPosition: deck?.coverPosition ?? null,
+      videoUrl: deck?.videoUrl ?? null,
       createdAt: deck?.createdAt ?? "",
       updatedAt: deck?.updatedAt ?? "",
     },
@@ -279,6 +280,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
       coverCardId?: string | null;
       coverPrintingId?: string | null;
       coverPosition?: number | null;
+      videoUrl?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -314,6 +316,7 @@ export function useUpdateDeck() {
       coverCardId?: string | null;
       coverPrintingId?: string | null;
       coverPosition?: number | null;
+      videoUrl?: string | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       if (!userId) {
@@ -354,6 +357,7 @@ export interface DeckMetaPatch {
   coverCardId?: string | null;
   coverPrintingId?: string | null;
   coverPosition?: number | null;
+  videoUrl?: string | null;
 }
 
 /**

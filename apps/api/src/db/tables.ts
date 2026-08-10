@@ -588,6 +588,8 @@ export interface DecksTable {
   coverPrintingId: string | null;
   /** CHECK: 0-100. Vertical crop focus (percent from the top); null = default. */
   coverPosition: number | null;
+  /** YouTube guide link (validated at the API boundary); null = none. */
+  videoUrl: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

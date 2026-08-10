@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-10
+
+### Highlights
+
+- feat(Decks): **Deck guides with card links** — the description is now a full guide editor: type [[ to link any card (hover shows it, click opens it), write with a live preview, and attach a YouTube video.
+
+### Other
+
+- feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
+- feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, and corners and edges now match the card browser.
+- fix(Decks): **Missing card images** — a card whose printing has no image now shows a named placeholder instead of disappearing from the deck.
+
 ## 2026-08-07
 
 ### Highlights

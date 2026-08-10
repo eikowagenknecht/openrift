@@ -179,6 +179,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   coverCardId: "coverCardId",
   coverPrintingId: "coverPrintingId",
   coverPosition: "coverPosition",
+  videoUrl: "videoUrl",
 };
 
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);

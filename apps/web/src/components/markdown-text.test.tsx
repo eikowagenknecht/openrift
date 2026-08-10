@@ -78,4 +78,64 @@ describe("MarkdownText", () => {
       expect(screen.getByText(/hello/u)).toBeInTheDocument();
     });
   });
+
+  describe("with headings", () => {
+    it("renders h1-h3 when enabled", () => {
+      const { container } = render(
+        <MarkdownText text={"# Strategy\n\n### Mulligans\n\nBody."} headings />,
+      );
+      expect(container.querySelector("h1")).toHaveTextContent("Strategy");
+      expect(container.querySelector("h3")).toHaveTextContent("Mulligans");
+    });
+  });
+
+  describe("with renderCardLink", () => {
+    it("routes [[Card Name]] spans through the callback", () => {
+      render(
+        <MarkdownText
+          text="Open with [[Shadow Assault]] when ahead."
+          renderCardLink={(name, children) => (
+            <span data-testid="card-link" data-name={name}>
+              {children}
+            </span>
+          )}
+        />,
+      );
+      const link = screen.getByTestId("card-link");
+      expect(link).toHaveAttribute("data-name", "Shadow Assault");
+      expect(link).toHaveTextContent("Shadow Assault");
+    });
+
+    it("keeps card names with special characters intact", () => {
+      render(
+        <MarkdownText
+          text="Try [[Kai'Sa, Daughter of the Void (Promo)]] too."
+          renderCardLink={(name, children) => (
+            <span data-testid="card-link" data-name={name}>
+              {children}
+            </span>
+          )}
+        />,
+      );
+      expect(screen.getByTestId("card-link")).toHaveAttribute(
+        "data-name",
+        "Kai'Sa, Daughter of the Void (Promo)",
+      );
+    });
+
+    it("leaves [[...]] literal without the callback", () => {
+      render(<MarkdownText text="Open with [[Shadow Assault]] when ahead." />);
+      expect(screen.getByText(/\[\[Shadow Assault\]\]/u)).toBeInTheDocument();
+    });
+
+    it("does not treat card hrefs as external links", () => {
+      render(
+        <MarkdownText
+          text="[[Shadow Assault]]"
+          renderCardLink={(_name, children) => <span data-testid="card-link">{children}</span>}
+        />,
+      );
+      expect(screen.queryByRole("link")).toBeNull();
+    });
+  });
 });

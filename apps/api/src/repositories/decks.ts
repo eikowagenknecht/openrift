@@ -337,6 +337,7 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `${source.name} (Copy)`,
             description: source.description,
+            videoUrl: source.videoUrl,
             format: source.format,
             // Carry format_config so a cloned Custom-Region deck stays locked
             // to the same region without forcing the user to re-pick.
@@ -498,6 +499,7 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `Copy of ${source.name}`,
             description: source.description,
+            videoUrl: source.videoUrl,
             format: source.format,
             formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
             isWanted: false,

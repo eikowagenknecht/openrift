@@ -33,6 +33,7 @@ describe("toDeck", () => {
       coverCardId: "card-9",
       coverPrintingId: "printing-9",
       coverPosition: 35,
+      videoUrl: "https://youtu.be/abc123",
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -51,6 +52,7 @@ describe("toDeck", () => {
       coverCardId: "card-9",
       coverPrintingId: "printing-9",
       coverPosition: 35,
+      videoUrl: "https://youtu.be/abc123",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -73,6 +75,7 @@ describe("toDeck", () => {
       coverCardId: null,
       coverPrintingId: null,
       coverPosition: null,
+      videoUrl: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -102,6 +105,7 @@ describe("toPublicDeck", () => {
       coverCardId: null,
       coverPrintingId: null,
       coverPosition: null,
+      videoUrl: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -115,6 +119,7 @@ describe("toPublicDeck", () => {
       coverCardId: null,
       coverPrintingId: null,
       coverPosition: null,
+      videoUrl: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -146,6 +151,7 @@ describe("toDeckSummary", () => {
       coverCardId: "card-9",
       coverPrintingId: null,
       coverPosition: 50,
+      videoUrl: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -183,6 +189,7 @@ describe("toDeckSummary", () => {
       coverCardId: null,
       coverPrintingId: null,
       coverPosition: null,
+      videoUrl: null,
       createdAt: NOW,
       updatedAt: LATER,
     });

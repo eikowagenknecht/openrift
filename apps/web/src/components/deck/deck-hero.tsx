@@ -2,11 +2,13 @@ import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
 import { legendDisplayName, WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { DomainIcon, FormatStateBadge } from "@/components/deck/deck-tile";
 import { ViolationBadge } from "@/components/deck/deck-validation-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
@@ -122,29 +124,33 @@ function HeroFanSlot({
   placeholder: string;
   className?: string;
 }) {
+  const placeholderBody = (
+    <div
+      aria-hidden="true"
+      style={{ borderRadius: CARD_BORDER_RADIUS }}
+      className={cn(
+        "aspect-card border-muted-foreground/25 bg-background/30 flex h-20 items-center justify-center border border-dashed sm:h-28",
+        className,
+      )}
+    >
+      <span className="text-muted-foreground/70 text-2xs tracking-wide uppercase">
+        {placeholder}
+      </span>
+    </div>
+  );
   if (!thumbnail) {
-    return (
-      <div
-        aria-hidden="true"
-        className={cn(
-          "aspect-card border-muted-foreground/25 bg-background/30 flex h-20 items-center justify-center rounded-md border border-dashed sm:h-28",
-          className,
-        )}
-      >
-        <span className="text-muted-foreground/70 text-2xs tracking-wide uppercase">
-          {placeholder}
-        </span>
-      </div>
-    );
+    return placeholderBody;
   }
   return (
-    <img
+    <ImgWithFallback
       src={thumbnail}
       alt={alt}
+      fallback={placeholderBody}
+      style={{ borderRadius: CARD_BORDER_RADIUS }}
       // Lift via `scale` only — the slot's position rides on translate/rotate
       // classes, which a hover translate would override.
       className={cn(
-        "aspect-card h-20 rounded-md object-cover shadow-md sm:h-28",
+        "aspect-card h-20 object-cover shadow-md sm:h-28",
         "transition-[scale,box-shadow] duration-200 hover:scale-105 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:scale-100",
         className,
       )}

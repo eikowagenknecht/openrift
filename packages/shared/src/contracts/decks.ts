@@ -10,6 +10,7 @@ import {
 import { idParamSchema, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
+import { isVideoGuideUrl } from "../video-guide-url.js";
 import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
@@ -38,7 +39,7 @@ const formatConfigSchema = z.record(z.string(), z.unknown()).nullable();
 
 export const createDeckSchema = z.object({
   name: deckFieldRules.name,
-  description: z.string().max(2000).nullish(),
+  description: z.string().max(8000).nullish(),
   format: deckFieldRules.format,
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
@@ -79,7 +80,7 @@ export type DeckOddsConfig = z.infer<typeof deckOddsConfigSchema>;
 // the /decks/{id}/share sub-resource, not by PATCH, so the two can't desync.
 export const updateDeckSchema = z.object({
   name: deckFieldRules.name.optional(),
-  description: z.string().max(2000).nullish(),
+  description: z.string().max(8000).nullish(),
   format: deckFieldRules.format.optional(),
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
@@ -90,6 +91,9 @@ export const updateDeckSchema = z.object({
   coverCardId: z.uuid().nullish(),
   coverPrintingId: z.uuid().nullish(),
   coverPosition: z.number().int().min(0).max(100).nullish(),
+  // Video guide: a YouTube link shown as a chip next to the description on
+  // the deck and share pages. Null clears it.
+  videoUrl: z.string().max(300).refine(isVideoGuideUrl, "Must be a YouTube link").nullish(),
 });
 
 export const updateDeckCardsSchema = z.object({
@@ -166,6 +170,7 @@ export const deckResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
+    videoUrl: z.string().nullable(),
   })
   .openapi("DeckResponse");
 

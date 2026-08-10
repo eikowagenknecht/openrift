@@ -23,6 +23,7 @@ import {
   AlertTriangleIcon,
   CircleCheckIcon,
   GalleryVerticalEndIcon,
+  ImageOffIcon,
   InfoIcon,
   LayersIcon,
   LayoutGridIcon,
@@ -37,7 +38,10 @@ import {
 } from "lucide-react";
 import { createContext, Suspense, useEffect, useState } from "react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
+import { DeckDescription, VideoGuideChip } from "@/components/deck/deck-description";
 import type {
   BrowserCardDragData,
   DeckCardDragData,
@@ -55,7 +59,6 @@ import { ColumnControls } from "@/components/filters/column-controls";
 import { DetailPaneToggle } from "@/components/filters/options-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
-import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
@@ -179,6 +182,11 @@ const NAME_STRIP_BANDS: Record<string, { y0: number; y1: number }> = {
   gear: { y0: 0.56, y1: 0.63 },
   legend: { y0: 0.67, y1: 0.74 },
   rune: { y0: 0.67, y1: 0.74 },
+  // Battlefields are landscape, so these are fractions of the SHORT axis.
+  // Eyeballed, not scanner-measured, with the portrait bar's absolute
+  // thickness rescaled to the landscape axis. Adjust by eye if the plaque
+  // drifts out of the window.
+  battlefield: { y0: 0.67, y1: 0.77 },
 };
 
 /**
@@ -188,6 +196,17 @@ const NAME_STRIP_BANDS: Record<string, { y0: number; y1: number }> = {
 function nameStripBand(cardType: string): { y0: number; y1: number } {
   return NAME_STRIP_BANDS[cardType] ?? NAME_STRIP_BANDS.unit;
 }
+
+/** Vertical gap between stack strips; must match the pile's `gap-1` class. */
+const STACK_GAP_PX = 4;
+
+/**
+ * Corner radius of a resting stack strip: the same absolute corner size as
+ * the canonical card radius (`CARD_BORDER_RADIUS`, 5% of the card width),
+ * expressed against the width so it doesn't collapse on a ~20px-tall slice
+ * the way the percentage pair's height component would.
+ */
+const STACK_STRIP_RADIUS = "calc(var(--deck-card-w) * 0.05)";
 
 /** Stable empty map for the thumbs when ownership bands are off or unloaded. */
 const NO_BANDS: ReadonlyMap<string, OwnershipBandSegments> = new Map();
@@ -339,6 +358,8 @@ interface DeckOverviewProps {
     coverCardId?: string | null;
     coverPrintingId?: string | null;
     coverPosition?: number | null;
+    /** YouTube guide link, rendered as a chip next to the description. */
+    videoUrl?: string | null;
   };
   cards: DeckBuilderCard[];
   /**
@@ -1209,8 +1230,18 @@ export function DeckOverview({
           readOnly={readOnly}
         />
       )}
-      {showOverviewContent && description && (
-        <MarkdownText text={description} className="text-muted-foreground text-sm" />
+      {showOverviewContent && (description || deck.videoUrl) && (
+        <div className="flex flex-col gap-3">
+          {description && (
+            <DeckDescription
+              text={description}
+              className="text-muted-foreground text-sm"
+              onHoverCard={onHoverCard}
+              onCardClick={onCardClick}
+            />
+          )}
+          {deck.videoUrl && <VideoGuideChip url={deck.videoUrl} />}
+        </div>
       )}
       {showOverviewContent && showIntroBanner && (
         <DeckBuilderIntroBanner format={deck.format} onDismiss={dismissIntro} />
@@ -1741,7 +1772,9 @@ function ZoneTile({
       style={style}
       className={cn(
         "relative flex flex-col gap-2 rounded-lg transition-all",
-        !readOnly && isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-4",
+        // Same ring + offset as the sidebar's zone rows (deck-zone-section),
+        // so the two drop-target markings read identically.
+        !readOnly && isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         !readOnly && dropDisabled && "opacity-40",
         className,
       )}
@@ -1844,16 +1877,15 @@ function ZoneTile({
         )
       ) : stacked && isLandscape && cards.length > 1 ? (
         <div className="flex flex-wrap items-start gap-1.5">
-          <BattlefieldCascade
+          <StackPile
             deckId={deckId}
-            cards={cards}
-            showAllCopies={showAllCopies}
+            entries={expandCopies(cards, showAllCopies)}
+            zone={zone}
             statsFocus={statsFocus}
             bandByCardKey={bandByCardKey}
             priceTextByCardKey={priceTextByCardKey}
             addRoomByCardKey={addRoomByCardKey}
             resolveHoverPrintingId={resolveHoverPrintingId}
-            zone={zone}
             getThumbnail={getThumbnail}
             readOnly={readOnly}
             onCardClick={onCardClick}
@@ -1903,9 +1935,6 @@ function ZoneTile({
         <div className="flex flex-wrap items-center gap-1.5">
           {expandCopies(cards, showAllCopies).map(({ card, copyIndex }) => {
             const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
-            if (!thumbnail) {
-              return null;
-            }
             return (
               <ZoneThumb
                 key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
@@ -1996,19 +2025,17 @@ function StackPile({
     state.selectedZone === zone ? (state.selectedCard?.cardId ?? null) : null,
   );
 
-  const items = entries.flatMap(({ card, copyIndex }) => {
-    const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
-    return thumbnail ? [{ card, copyIndex, thumbnail }] : [];
-  });
+  const items = entries.map(({ card, copyIndex }) => ({
+    card,
+    copyIndex,
+    thumbnail: getThumbnail(card.cardId, card.preferredPrintingId),
+  }));
 
-  // Landscape cards (battlefields parked in overflow) have no measured name
-  // strip and render whole; a single-card pile is just the card.
-  const rendersFull = (index: number) =>
-    items.length === 1 || items[index].card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
-  const variantFor = (index: number): "top" | "middle" | "bottom" =>
-    index === 0 ? "top" : index === items.length - 1 ? "bottom" : "middle";
+  // A single-card pile is just the card.
+  const singleCardPile = items.length === 1;
+  const variantFor = (index: number): "top" | "middle" => (index === 0 ? "top" : "middle");
   const isExpanded = (index: number) =>
-    !rendersFull(index) && (hoverIndex === index || items[index].card.cardId === selectedCardId);
+    !singleCardPile && (hoverIndex === index || items[index].card.cardId === selectedCardId);
 
   // The model mirrors the strips' geometry exactly (see StackStrip): rest
   // windows per variant, full height when expanded, 1px gaps between rows.
@@ -2023,32 +2050,29 @@ function StackPile({
       const landscape = card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
       const band = nameStripBand(card.cardType);
       const variant = variantFor(index);
-      const restFraction =
-        variant === "top" ? band.y1 : variant === "bottom" ? 1 - band.y0 : band.y1 - band.y0;
-      const height = rendersFull(index)
-        ? landscape
-          ? width * (63 / 88)
-          : width * CARD_HEIGHT_RATIO
-        : isExpanded(index)
-          ? width * CARD_HEIGHT_RATIO
-          : width * CARD_HEIGHT_RATIO * restFraction;
-      if (pointerY < top + height + 1) {
+      const restFraction = variant === "top" ? band.y1 : band.y1 - band.y0;
+      // A landscape pile is one landscape card wide, so its card height is
+      // width × 63/88; portrait piles keep the portrait ratio.
+      const cardHeightPx = landscape ? width * (63 / 88) : width * CARD_HEIGHT_RATIO;
+      const height =
+        singleCardPile || isExpanded(index) ? cardHeightPx : cardHeightPx * restFraction;
+      if (pointerY < top + height + STACK_GAP_PX) {
         found = index;
         break;
       }
-      top += height + 1;
+      top += height + STACK_GAP_PX;
     }
     setHoverIndex(found);
   };
 
   return (
     <div
-      className="flex flex-col gap-px"
+      className="flex flex-col gap-1"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => setHoverIndex(null)}
     >
       {items.map(({ card, copyIndex, thumbnail }, index) =>
-        rendersFull(index) ? (
+        singleCardPile ? (
           <ZoneThumb
             key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
             deckId={deckId}
@@ -2081,123 +2105,6 @@ function StackPile({
           />
         ),
       )}
-    </div>
-  );
-}
-
-/**
- * Stacks-mode battlefields: a physical cascade. The first card sits in front,
- * fully visible; each following card slides 20% of the card height further
- * down behind the one above, showing its bottom band. Hovering a buried card
- * lifts it to the front.
- * @returns The cascade block, or null when no card has art.
- */
-function BattlefieldCascade({
-  deckId,
-  cards,
-  showAllCopies,
-  statsFocus,
-  bandByCardKey,
-  priceTextByCardKey,
-  addRoomByCardKey,
-  resolveHoverPrintingId,
-  zone,
-  getThumbnail,
-  readOnly,
-  onCardClick,
-}: {
-  deckId: string;
-  cards: DeckBuilderCard[];
-  showAllCopies: boolean;
-  statsFocus: StatsFocus | null;
-  bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
-  priceTextByCardKey: ReadonlyMap<string, string>;
-  addRoomByCardKey: ReadonlyMap<string, number>;
-  resolveHoverPrintingId: (cardId: string, preferredPrintingId: string | null) => string | null;
-  zone: DeckZone;
-  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
-  readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
-}) {
-  // How far each buried card slides out, as a fraction of the landscape
-  // card's height (which equals --deck-card-w after rotation). Deep enough
-  // that the slid-out band reaches the battlefield's name line.
-  const offset = 0.33;
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  // A selected battlefield stays lifted while its detail pane is open.
-  const selectedCardId = useSelectionStore((state) =>
-    state.selectedZone === zone ? (state.selectedCard?.cardId ?? null) : null,
-  );
-  const entries = expandCopies(cards, showAllCopies).flatMap(({ card, copyIndex }) => {
-    const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
-    return thumbnail ? [{ card, copyIndex, thumbnail }] : [];
-  });
-
-  // Static hit-map over the RESTING layout: each card owns the band that is
-  // visible when nothing is lifted (the front card its whole face, buried
-  // cards their slid-out slivers). CSS :hover can't do this — the lifted
-  // card's full body covers the sliver above it, so an upward scan jumped
-  // from the bottom card straight to the front one.
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const cardHeight = rect.width * (63 / 88);
-    const pointerY = event.clientY - rect.top;
-    let found: number | null = null;
-    for (let index = 0; index < entries.length; index++) {
-      const top = cardHeight * offset * index;
-      if (pointerY >= top && pointerY < top + cardHeight) {
-        found = index;
-        break;
-      }
-    }
-    setHoverIndex(found);
-  };
-
-  if (entries.length === 0) {
-    return null;
-  }
-  return (
-    <div
-      className="relative max-w-full"
-      style={{
-        width: `calc(var(--deck-card-w) * ${88 / 63})`,
-        height: `calc(var(--deck-card-w) * ${1 + offset * (entries.length - 1)})`,
-      }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setHoverIndex(null)}
-    >
-      {entries.map(({ card, copyIndex, thumbnail }, index) => (
-        <div
-          key={`${getDeckCardKey(card)}-${copyIndex ?? "stack"}`}
-          // Lifting is state-driven (the hit-map above), so the buried card
-          // comes fully to the front — the cascade's version of the reveal.
-          className={cn(
-            "absolute inset-x-0 transition-transform duration-200 ease-out motion-reduce:transition-none",
-            (hoverIndex === index || card.cardId === selectedCardId) && "-translate-y-1",
-          )}
-          style={{
-            top: `calc(var(--deck-card-w) * ${offset * index})`,
-            zIndex:
-              hoverIndex === index || card.cardId === selectedCardId ? 40 : entries.length - index,
-          }}
-        >
-          <ZoneThumb
-            deckId={deckId}
-            card={card}
-            band={bandByCardKey.get(getDeckCardKey(card))}
-            priceText={priceTextByCardKey.get(getDeckCardKey(card))}
-            addRoom={addRoomByCardKey.get(getDeckCardKey(card)) ?? 0}
-            hoverPrintingId={resolveHoverPrintingId(card.cardId, card.preferredPrintingId)}
-            copyIndex={copyIndex}
-            dimmed={statsFocus !== null && !cardMatchesStatsFocus(card, statsFocus)}
-            zone={zone}
-            thumbnail={thumbnail}
-            isLandscape
-            readOnly={readOnly}
-            onCardClick={onCardClick}
-          />
-        </div>
-      ))}
     </div>
   );
 }
@@ -2521,7 +2428,8 @@ function ZoneThumb({
   /** Stats-chart focus active and this card isn't in it — render faded. */
   dimmed?: boolean;
   zone: DeckZone;
-  thumbnail: string;
+  /** Absent when the shown printing has no image — renders the name card. */
+  thumbnail?: string;
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   readOnly?: boolean;
@@ -2530,6 +2438,11 @@ function ZoneThumb({
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
   const editable = !readOnly;
+  const displayName = legendDisplayName({
+    name: card.cardName,
+    types: card.cardTypes,
+    tags: card.tags,
+  });
   // A pinned (non-default) printing is marked by a small pin in the thumb's
   // top-left corner — quiet enough to sit on the art, and clear of both the
   // ownership band along the bottom edge and the ×N badge at bottom-right.
@@ -2543,8 +2456,8 @@ function ZoneThumb({
 
   const dragData: DeckCardDragData = {
     type: "deck-card",
+    cardName: displayName,
     cardId: card.cardId,
-    cardName: legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags }),
     fromZone: zone,
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,
@@ -2556,10 +2469,11 @@ function ZoneThumb({
     disabled: !enableDrag,
   });
 
-  // A failed thumbnail collapses the thumb entirely — the same behavior as a
-  // card with no image (the zone list skips those before rendering ZoneThumb).
+  // A missing or failed thumbnail degrades to a name card in the same slot,
+  // keeping the stepper and printing menu reachable so the pick can be fixed.
   // Keyed by URL so a changed printing pick retries fresh.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showFallback = !thumbnail || thumbnail === failedUrl;
 
   // When onCardClick is provided, the thumb becomes a button: spread role +
   // tabIndex + click/key handlers together so the static analyzer sees a
@@ -2585,9 +2499,16 @@ function ZoneThumb({
     // count instead of sitting at one fixed step.
     <div
       ref={enableDrag ? setNodeRef : undefined}
-      style={isLandscape ? LANDSCAPE_THUMB_STYLE : PORTRAIT_THUMB_STYLE}
+      style={{
+        ...(isLandscape ? LANDSCAPE_THUMB_STYLE : PORTRAIT_THUMB_STYLE),
+        // The canonical proportional card radius, same as the /cards grid.
+        borderRadius: CARD_BORDER_RADIUS,
+      }}
       className={cn(
-        "group/thumb @container relative shrink-0 rounded-md",
+        "group/thumb @container relative shrink-0",
+        // The card-edge border only frames real art; the fallback name card
+        // draws its own dashed outline instead.
+        !showFallback && AFTER_BORDER,
         isLandscape ? LANDSCAPE_THUMB_CLASS : PORTRAIT_THUMB_CLASS,
         enableDrag && "cursor-grab active:cursor-grabbing",
         onCardClick && !enableDrag && "cursor-pointer",
@@ -2601,13 +2522,20 @@ function ZoneThumb({
       {...(enableDrag ? listeners : {})}
       {...(enableDrag ? attributes : {})}
     >
-      <img
-        src={thumbnail}
-        alt={legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags })}
-        className="h-full w-full rounded-md object-cover shadow-sm"
-        draggable={false}
-        onError={() => setFailedUrl(thumbnail)}
-      />
+      {showFallback ? (
+        <div className="border-muted-foreground/25 bg-muted/30 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[inherit] border border-dashed p-2 text-center">
+          <ImageOffIcon aria-hidden="true" className="text-muted-foreground/70 size-5 shrink-0" />
+          <span className="text-muted-foreground line-clamp-3 text-xs">{displayName}</span>
+        </div>
+      ) : (
+        <img
+          src={thumbnail}
+          alt={displayName}
+          className="h-full w-full rounded-[inherit] object-cover shadow-sm"
+          draggable={false}
+          onError={() => setFailedUrl(thumbnail)}
+        />
+      )}
       {hasCustomPrinting && (
         <span
           title="Pinned printing"
@@ -2674,7 +2602,14 @@ function ZoneThumb({
       {band && (
         <span
           title={ownershipBandTitle(card.quantity, band)}
-          className="absolute inset-x-0 bottom-0 flex h-0.5 overflow-hidden rounded-b-md"
+          // The bottom corners follow the card's horizontal radius (5% of the
+          // width, like CARD_BORDER_RADIUS) so the band stays inside the
+          // rounded corners; 100% vertical just curves the band's own 2px.
+          style={{
+            borderBottomLeftRadius: "5% 100%",
+            borderBottomRightRadius: "5% 100%",
+          }}
+          className="absolute inset-x-0 bottom-0 flex h-0.5 overflow-hidden"
         >
           {band.exact > 0 && (
             <span className="bg-green-500" style={{ flexGrow: band.exact, flexBasis: 0 }} />
@@ -2687,10 +2622,6 @@ function ZoneThumb({
       )}
     </div>
   );
-
-  if (thumbnail === failedUrl) {
-    return null;
-  }
 
   if (readOnly) {
     return thumbBody;
@@ -2705,11 +2636,14 @@ function ZoneThumb({
 
 /**
  * One buried card in a stacks-mode pile: a horizontal window onto the card's
- * name bar. Riftbound prints the name mid-card at a per-type height (unit /
- * spell / gear higher, legend / rune lower), so the window is cut from the
- * scanner's measured name bands rather than from the card's top edge the way
- * MTG stacks crop. Hovering raises the usual floating full-card preview;
- * click, drag, and the printing menu match the full thumbs.
+ * name bar, styled as its own small tile (rounded corners, hairline ring,
+ * gap to its neighbors). Riftbound prints the name mid-card at a per-type
+ * height (unit / spell / gear higher, legend / rune lower), so a top crop
+ * the way MTG stacks do would never show it; cutting the name bar keeps the
+ * pile legible, and the separated-tile styling makes it read as a stack of
+ * labeled dividers rather than one card sliced apart. Hovering raises the
+ * usual floating full-card preview; click, drag, and the printing menu match
+ * the full thumbs.
  * @returns The strip element.
  */
 function StackStrip({
@@ -2731,15 +2665,16 @@ function StackStrip({
   /** Stats-chart focus active and this card isn't in it — render faded. */
   dimmed?: boolean;
   /**
-   * Resting window, like a physical spread: the pile's "top" card shows its
-   * whole top half down through the name bar, "middle" cards the name bar
-   * alone, the "bottom" card the name bar plus its text box.
+   * Resting window: the pile's "top" card is the art anchor (its whole top
+   * half down through the name bar); every other card shows the name bar
+   * alone, so the pile reads as a cover card over a uniform index.
    */
-  variant: "top" | "middle" | "bottom";
+  variant: "top" | "middle";
   /** Unfold the full card (pile hover hit-testing, or the selected card). */
   expanded: boolean;
   zone: DeckZone;
-  thumbnail: string;
+  /** Absent when the shown printing has no image — renders the text strip. */
+  thumbnail?: string;
   readOnly?: boolean;
   onCardClick?: (card: DeckBuilderCard) => void;
 }) {
@@ -2788,51 +2723,63 @@ function StackStrip({
   // Resting window per variant, as fractions of the card's height; the pile
   // owns hover hit-testing (see StackPile), so the geometry is driven purely
   // by the `expanded` prop and the transitions animate the inline changes.
-  const restFraction =
-    variant === "top"
-      ? nameBand.y1
-      : variant === "bottom"
-        ? 1 - nameBand.y0
-        : nameBand.y1 - nameBand.y0;
-  const stripHeight = `calc(var(--deck-card-w) * ${CARD_HEIGHT_RATIO * restFraction})`;
-  const cardHeight = `calc(var(--deck-card-w) * ${CARD_HEIGHT_RATIO})`;
-  // The image anchors to the strip's bottom edge: at the name bar's lower
-  // edge for top/middle windows, at the card's true bottom for the bottom
-  // window — which is also the expanded anchor, so the card unfolds in place.
-  const imageBottomOffset =
-    variant === "bottom"
-      ? "0px"
-      : `calc(var(--deck-card-w) * ${-CARD_HEIGHT_RATIO * (1 - nameBand.y1)})`;
+  // Landscape battlefields span a portrait card's height in width, so their
+  // own height is exactly one --deck-card-w.
+  const isLandscape = card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
+  const stripWidth = isLandscape ? `calc(var(--deck-card-w) * ${88 / 63})` : "var(--deck-card-w)";
+  const heightRatio = isLandscape ? 1 : CARD_HEIGHT_RATIO;
+  const restFraction = variant === "top" ? nameBand.y1 : nameBand.y1 - nameBand.y0;
+  const stripHeight = `calc(var(--deck-card-w) * ${heightRatio * restFraction})`;
+  const cardHeight = `calc(var(--deck-card-w) * ${heightRatio})`;
+  // Resting corner size stays the canonical 5% of the card's width, which for
+  // a landscape strip is the wider landscape edge.
+  const restRadius = isLandscape
+    ? `calc(var(--deck-card-w) * ${(88 / 63) * 0.05})`
+    : STACK_STRIP_RADIUS;
+  // The image anchors to the strip's bottom edge, at the name bar's lower
+  // edge; expanding slides it to the card's true bottom as the strip grows.
+  const imageBottomOffset = `calc(var(--deck-card-w) * ${-heightRatio * (1 - nameBand.y1)})`;
 
   const stripBody =
-    thumbnail === failedUrl ? (
-      // A failed image degrades to a text strip so the pile keeps its slot.
+    !thumbnail || thumbnail === failedUrl ? (
+      // A missing or failed image degrades to a text strip so the pile keeps
+      // its slot and the card stays reachable.
       <div
-        style={{ width: "var(--deck-card-w)", height: stripHeight }}
+        style={{
+          width: stripWidth,
+          height: stripHeight,
+          borderRadius: restRadius,
+        }}
         className={cn(
-          "bg-muted/60 text-muted-foreground flex shrink-0 items-center truncate px-2 text-xs first:rounded-t-md",
+          "bg-muted/60 text-muted-foreground flex shrink-0 items-center gap-1 truncate px-2 text-xs",
           dimmed && "opacity-25",
         )}
       >
-        {displayName}
+        <span className="truncate">{displayName}</span>
+        {card.quantity > 1 && (copyIndex === null || copyIndex === undefined) && (
+          <span className="shrink-0 tabular-nums">×{card.quantity}</span>
+        )}
       </div>
     ) : (
       <div
         ref={enableDrag ? setNodeRef : undefined}
         style={{
-          width: "var(--deck-card-w)",
+          width: stripWidth,
           height: expanded ? cardHeight : stripHeight,
+          // The same absolute corner size in both states: unfolded it is the
+          // canonical proportional card radius from the /cards grid, resting
+          // it is that radius re-expressed against the width (the percentage
+          // pair's height component would collapse on a thin slice).
+          borderRadius: expanded ? CARD_BORDER_RADIUS : restRadius,
         }}
         className={cn(
+          // Each strip is its own rounded tile (card-edge border + shadow +
+          // the pile's gap), so the stack reads as labeled dividers, not one
+          // cut-up card.
           "relative shrink-0 overflow-hidden shadow-sm",
+          AFTER_BORDER,
           "transition-[height,border-radius] duration-200 ease-out motion-reduce:transition-none",
-          expanded
-            ? "z-10 rounded-md shadow-lg"
-            : variant === "top"
-              ? "rounded-t-md"
-              : variant === "bottom"
-                ? "rounded-b-md"
-                : undefined,
+          expanded && "z-10 shadow-lg",
           enableDrag && "cursor-grab active:cursor-grabbing",
           onCardClick && !enableDrag && "cursor-pointer",
           isDragging && card.quantity === 1 && "opacity-40",
@@ -2852,7 +2799,15 @@ function StackStrip({
           className="absolute left-0 w-full object-cover transition-[bottom] duration-200 ease-out motion-reduce:transition-none"
         />
         {card.quantity > 1 && (copyIndex === null || copyIndex === undefined) && (
-          <span className="bg-background/85 text-foreground absolute right-1 bottom-1 rounded px-1 text-xs leading-tight font-medium tabular-nums">
+          <span
+            className={cn(
+              "bg-background/85 text-foreground absolute right-1 rounded px-1.5 text-sm leading-tight font-medium tabular-nums",
+              // Centered only in the thin middle slices so the larger size
+              // never clips; the tall top anchor and the unfolded card keep
+              // the grid badge's bottom-right corner.
+              expanded || variant === "top" ? "bottom-1" : "top-1/2 -translate-y-1/2",
+            )}
+          >
             ×{card.quantity}
           </span>
         )}

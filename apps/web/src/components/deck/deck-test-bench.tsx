@@ -1,8 +1,9 @@
 import type { DeckOddsConfig, DeckZone } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { HandIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { PowerDomainIcon } from "@/components/deck/deck-card-row";
 import { SwapColumns } from "@/components/deck/swap-column-editor";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -40,6 +42,9 @@ import { useDeckOddsGroupsStore } from "@/stores/deck-odds-groups-store";
 
 /** Picker section order. */
 const GROUP_THEMES: readonly OddsGroupTheme[] = ["Curve", "Interaction", "Economy", "Card types"];
+
+/** Typing here must not trigger the bench's single-letter shortcuts. */
+const TEXT_ENTRY = 'input, textarea, select, [contenteditable], [role="dialog"]';
 
 /** Types offered in the custom-group form (the drawn main deck's types). */
 const CUSTOM_GROUP_TYPES: readonly string[] = [
@@ -447,16 +452,6 @@ export function DeckTestBench({
     }
   };
 
-  // Keyed on the real deck, not the experiment: cutting every main-deck card
-  // must not swap the whole tab for a placeholder with no way back.
-  if (mainRows.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        Add cards to the main deck to test opening hands.
-      </p>
-    );
-  }
-
   // Any swap invalidates a drawn hand — it came out of the old pool.
   const commitSwaps = (next: PlanSwapDraft[]) => {
     setSwaps(next);
@@ -484,6 +479,10 @@ export function DeckTestBench({
   };
 
   const drawHand = () => {
+    // Mirrors the button's disabled state for the keyboard path.
+    if (pool.length === 0) {
+      return;
+    }
     const shuffled = shuffle(pool);
     setBench({
       hand: shuffled.slice(0, OPENING_HAND_SIZE),
@@ -508,7 +507,9 @@ export function DeckTestBench({
   };
 
   const mulliganSelected = () => {
-    if (!bench || bench.mulliganUsed || selected.size === 0) {
+    // hasDrawn matters on the keyboard path: the button is hidden after a
+    // draw, but the shortcut would still fire.
+    if (!bench || bench.mulliganUsed || bench.hasDrawn || selected.size === 0) {
       return;
     }
     // Real procedure (rule 118): set the chosen cards aside, draw that many,
@@ -537,6 +538,49 @@ export function DeckTestBench({
     setSelected(new Set());
   };
 
+  // Single-letter shortcuts while the Test tab is mounted: N new hand,
+  // E exchange the selected cards, D draw a card. Modifier chords stay with
+  // the browser and the editor's own Ctrl+K / Ctrl+Z handlers. No dependency
+  // array on purpose: the handlers close over fresh state each render, so the
+  // listener re-binds per render instead of chasing their identities.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- see comment above
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest(TEXT_ENTRY)) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "n") {
+        event.preventDefault();
+        drawHand();
+      } else if (key === "e") {
+        event.preventDefault();
+        mulliganSelected();
+      } else if (key === "d") {
+        event.preventDefault();
+        drawNext();
+      }
+    };
+    globalThis.addEventListener("keydown", onKeyDown);
+    return () => {
+      globalThis.removeEventListener("keydown", onKeyDown);
+    };
+  });
+
+  // Keyed on the real deck, not the experiment: cutting every main-deck card
+  // must not swap the whole tab for a placeholder with no way back.
+  if (mainRows.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Add cards to the main deck to test opening hands.
+      </p>
+    );
+  }
+
   const pct = formatChancePct;
 
   return (
@@ -558,8 +602,9 @@ export function DeckTestBench({
                   onClick={() => toggleSelected(card.key)}
                   aria-pressed={isSelected}
                   aria-label={canExchange ? `${card.cardName} — select to exchange` : card.cardName}
+                  style={{ borderRadius: CARD_BORDER_RADIUS }}
                   className={cn(
-                    "rounded-md transition-transform",
+                    "transition-transform",
                     canExchange && "hover:-translate-y-1",
                     isSelected && "ring-primary ring-offset-background ring-2 ring-offset-2",
                   )}
@@ -568,11 +613,15 @@ export function DeckTestBench({
                     <img
                       src={thumbnail}
                       alt={card.cardName}
-                      className="aspect-card h-40 rounded-md object-cover shadow-sm sm:h-48"
+                      style={{ borderRadius: CARD_BORDER_RADIUS }}
+                      className="aspect-card h-40 object-cover shadow-sm sm:h-48"
                       draggable={false}
                     />
                   ) : (
-                    <span className="aspect-card border-muted-foreground/25 flex h-40 items-center justify-center rounded-md border border-dashed p-2 text-center text-xs sm:h-48">
+                    <span
+                      style={{ borderRadius: CARD_BORDER_RADIUS }}
+                      className="aspect-card border-muted-foreground/25 flex h-40 items-center justify-center border border-dashed p-2 text-center text-xs sm:h-48"
+                    >
                       {card.cardName}
                     </span>
                   )}
@@ -591,9 +640,20 @@ export function DeckTestBench({
             variant={bench ? "outline" : "default"}
             onClick={drawHand}
             disabled={pool.length === 0}
+            aria-keyshortcuts="N"
           >
             {bench ? <RotateCcwIcon className="size-4" /> : <HandIcon className="size-4" />}
             {bench ? "New hand" : "Draw a hand"}
+            <Kbd
+              className={cn(
+                "max-sm:hidden",
+                // The filled variant needs the chip re-inked or it floats as a
+                // light-gray island on the primary fill.
+                !bench && "bg-primary-foreground/20 text-primary-foreground",
+              )}
+            >
+              N
+            </Kbd>
           </Button>
           {bench && (
             <>
@@ -605,10 +665,12 @@ export function DeckTestBench({
                   variant="outline"
                   onClick={mulliganSelected}
                   disabled={bench.mulliganUsed || selected.size === 0}
+                  aria-keyshortcuts="E"
                 >
                   {bench.mulliganUsed
                     ? "Mulligan used"
                     : `Exchange ${selected.size > 0 ? selected.size : ""}`.trimEnd()}
+                  {!bench.mulliganUsed && <Kbd className="max-sm:hidden">E</Kbd>}
                 </Button>
               )}
               <Button
@@ -616,8 +678,10 @@ export function DeckTestBench({
                 variant="outline"
                 onClick={drawNext}
                 disabled={bench.library.length === 0}
+                aria-keyshortcuts="D"
               >
                 Draw a card
+                <Kbd className="max-sm:hidden">D</Kbd>
               </Button>
               <span className="text-muted-foreground text-xs tabular-nums">
                 {bench.library.length} left in deck

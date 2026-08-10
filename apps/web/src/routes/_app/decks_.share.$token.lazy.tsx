@@ -206,6 +206,7 @@ function SharedDeckContent() {
               coverCardId: data.deck.coverCardId,
               coverPrintingId: data.deck.coverPrintingId,
               coverPosition: data.deck.coverPosition,
+              videoUrl: data.deck.videoUrl,
             }}
             cards={builderCards}
             // Denormalized into the share response so anon viewers of a

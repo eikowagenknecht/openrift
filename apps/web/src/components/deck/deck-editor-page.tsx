@@ -11,9 +11,9 @@ import {
   LinkIcon,
   PencilIcon,
   PlayIcon,
+  PlusIcon,
   PrinterIcon,
   RefreshCwIcon,
-  SearchIcon,
   Share2Icon,
   UploadIcon,
   XIcon,
@@ -73,6 +73,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
@@ -571,13 +572,20 @@ function DeckEditorContent({
                 {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
               </div>
               <PageTopBarActions>
-                <PageTopBarIconButton
-                  aria-label="Add a card (Ctrl+K)"
-                  title="Add a card (Ctrl+K)"
-                  onClick={() => setQuickAddOpen(true)}
-                >
-                  <SearchIcon className="size-4" />
-                </PageTopBarIconButton>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <PageTopBarIconButton
+                        aria-label="Add a card"
+                        aria-keyshortcuts="Control+K"
+                        onClick={() => setQuickAddOpen(true)}
+                      />
+                    }
+                  >
+                    <PlusIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Add a card (Ctrl+K)</TooltipContent>
+                </Tooltip>
                 <DeckUndoControls deckId={deckId} />
                 <div className="hidden md:flex md:items-center md:gap-1">
                   <DeckExportDialog
@@ -688,6 +696,7 @@ function DeckEditorContent({
         <DeckDescriptionDialog
           deckId={deckId}
           currentDescription={data.deck.description ?? null}
+          currentVideoUrl={data.deck.videoUrl ?? null}
           open={descriptionOpen}
           onOpenChange={setDescriptionOpen}
         />

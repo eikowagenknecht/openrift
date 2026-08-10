@@ -45,6 +45,7 @@ export const publicDeckResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
+    videoUrl: z.string().nullable(),
   })
   .openapi("PublicDeckResponse");
 

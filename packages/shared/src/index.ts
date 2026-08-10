@@ -86,6 +86,8 @@ export { tokenizeCardText } from "./card-text.js";
 
 export { descriptionSnippet } from "./description-snippet.js";
 
+export { isVideoGuideUrl } from "./video-guide-url.js";
+
 export type { ImageVariant } from "./image-url.js";
 export { imageUrl } from "./image-url.js";
 

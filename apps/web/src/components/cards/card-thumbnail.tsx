@@ -140,7 +140,12 @@ const TILT_STYLE = {
   transformStyle: "preserve-3d",
 } as const;
 
-const AFTER_BORDER =
+/**
+ * The canonical card-edge treatment: a 1px inset border overlay drawn as an
+ * ::after so it hugs the host's border radius. Shared with the deck page's
+ * thumbs so every card surface carries the same edge.
+ */
+export const AFTER_BORDER =
   "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]";
 
 const SHELL_INNER_CLASS = cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2");

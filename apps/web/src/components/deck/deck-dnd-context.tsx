@@ -13,6 +13,7 @@ import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
@@ -460,10 +461,14 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
               <ImgWithFallback
                 src={dragImageUrl}
                 alt=""
-                className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
+                style={{ borderRadius: CARD_BORDER_RADIUS }}
+                className="absolute top-0 left-0 w-28 shadow-lg"
                 draggable={false}
                 fallback={
-                  <div className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center rounded-lg shadow-lg">
+                  <div
+                    style={{ borderRadius: CARD_BORDER_RADIUS }}
+                    className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center shadow-lg"
+                  >
                     <span className="text-muted-foreground px-1 text-center text-xs">
                       {dragInfo.cardName}
                     </span>
@@ -471,15 +476,24 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
                 }
               />
             ) : (
-              <div className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center rounded-lg shadow-lg">
+              <div
+                style={{ borderRadius: CARD_BORDER_RADIUS }}
+                className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center shadow-lg"
+              >
                 <span className="text-muted-foreground px-1 text-center text-xs">
                   {dragInfo.cardName}
                 </span>
               </div>
             )}
             <div
-              className="bg-background/80 absolute bottom-0 left-0 w-28 rounded-b-lg px-1.5 py-1 backdrop-blur-sm"
-              style={{ zIndex: 1 }}
+              // The label bar hugs the card's bottom corners: 5% of the fixed
+              // w-28 (7rem) ghost width, matching CARD_BORDER_RADIUS.
+              className="bg-background/80 absolute bottom-0 left-0 w-28 px-1.5 py-1 backdrop-blur-sm"
+              style={{
+                zIndex: 1,
+                borderBottomLeftRadius: "calc(7rem * 0.05)",
+                borderBottomRightRadius: "calc(7rem * 0.05)",
+              }}
             >
               <p className="truncate text-center text-xs font-medium">{dragInfo.cardName}</p>
             </div>

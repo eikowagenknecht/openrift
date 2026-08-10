@@ -33,6 +33,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
+    videoUrl: row.videoUrl,
   };
 }
 
@@ -68,6 +69,7 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
+    videoUrl: row.videoUrl,
   };
 }
 

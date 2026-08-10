@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict sFg1F9W5EeMUJecgNdOacZ3jBOKp8eWaTIasRCMg46BJOhFHnVtjg2g8PHRAJ2N
+\restrict oscrFXHuWiyhCUHpOssJAVvHlhIINouBFW6KkIgSyDldzM439vRDRhaPHCjOHEb
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1237,6 +1237,7 @@ CREATE TABLE public.decks (
     cover_card_id uuid,
     cover_printing_id uuid,
     cover_position smallint,
+    video_url text,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
@@ -6252,5 +6253,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict sFg1F9W5EeMUJecgNdOacZ3jBOKp8eWaTIasRCMg46BJOhFHnVtjg2g8PHRAJ2N
+\unrestrict oscrFXHuWiyhCUHpOssJAVvHlhIINouBFW6KkIgSyDldzM439vRDRhaPHCjOHEb
 
