@@ -79,6 +79,11 @@ export function DomainBar({
   );
 }
 
+// The same charts the overview's stats band draws, in the same treatment
+// (neutral columns with the domains on hover, totals above each bar) so the
+// sidebar doesn't read as a second, differently-styled set. What it leaves out
+// is the click-to-focus wiring: the focus filters the overview's card grid, and
+// there is no grid beside the sidebar to filter.
 function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
   return (
     <div className="space-y-3">
@@ -89,20 +94,21 @@ function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
         powerData={stats.powerCurve}
         powerStacks={stats.powerCurveStacks}
         averagePower={stats.averagePower}
+        revealDomainsOnHover
+        showTotals
         footnote="Counts the main deck only."
       />
-      <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+      <TypeBreakdown
+        data={stats.typeBreakdown}
+        domains={stats.typeBreakdownDomains}
+        revealDomainsOnHover
+        showTotals
+      />
     </div>
   );
 }
 
-export function DeckStatsPanel({
-  deckId,
-  children,
-}: {
-  deckId: string;
-  children?: React.ReactNode;
-}) {
+export function DeckStatsPanel({ deckId }: { deckId: string }) {
   // Start collapsed on mobile where the sidebar is hidden (display: none),
   // so Recharts doesn't render into a zero-sized container and warn.
   const defaultOpen = globalThis.matchMedia("(min-width: 768px)").matches;
@@ -129,9 +135,6 @@ export function DeckStatsPanel({
 
       <CollapsibleContent>
         <DeckStatsBody stats={stats} />
-        {/* The ownership breakdown folds in below the charts (one panel
-            instead of two stacked collapsibles in the sidebar). */}
-        {children && <div className="mt-3 border-t pt-3">{children}</div>}
       </CollapsibleContent>
     </Collapsible>
   );

@@ -16,9 +16,10 @@ interface DeckOwnershipPanelProps {
 
 /**
  * Owned/borrowed/missing/locked counts plus the price block and the missing-
- * cards button. Rendered by the deck import preview's summary panel and, in
- * the editor, inside the zone sidebar's merged Stats panel (below the charts)
- * rather than as its own collapsible.
+ * cards button. Rendered by the deck import preview's summary panel, where the
+ * figures have no other home. The deck editor deliberately does not use it: its
+ * hero already carries the owned chip, the value breakdown and the missing-
+ * cards entry point.
  * @returns The ownership breakdown.
  */
 export function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {

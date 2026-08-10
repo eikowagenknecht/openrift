@@ -796,9 +796,7 @@ function DeckEditorContent({
                   }}
                   onHoverCard={setHoveredSidebar}
                   ownershipData={ownershipData}
-                  marketplace={marketplace}
-                  onViewMissing={() => setMissingOpen(true)}
-                  hideStatsAndOwnership={activeZone === null}
+                  hideStats={activeZone === null}
                   overviewShowing={activeZone === null}
                   deckItems={deckItems}
                 />

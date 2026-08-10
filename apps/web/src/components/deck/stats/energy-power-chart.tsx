@@ -19,6 +19,14 @@ interface EnergyPowerChartProps {
   averagePower: number | null;
   /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
+  /**
+   * Neutral columns with the domain stacks revealed on hover, for the energy
+   * curve only — power keeps its stacks, since runes pay power and the domain
+   * split is that chart's whole story. Same split the deck overview draws.
+   */
+  revealDomainsOnHover?: boolean;
+  /** Print each column's total above its bar. */
+  showTotals?: boolean;
   /** Muted note rendered under the energy chart, e.g. to disclose which zones it counts. */
   footnote?: string;
 }
@@ -485,6 +493,8 @@ export function EnergyPowerChart({
   powerStacks,
   averagePower,
   singleColor,
+  revealDomainsOnHover,
+  showTotals,
   footnote,
 }: EnergyPowerChartProps) {
   if (energyData.length === 0 && powerData.length === 0) {
@@ -497,6 +507,8 @@ export function EnergyPowerChart({
         stacks={energyStacks}
         average={averageEnergy}
         singleColor={singleColor}
+        revealDomainsOnHover={revealDomainsOnHover}
+        showTotals={showTotals}
         footnote={footnote}
       />
       <PowerChart
@@ -504,6 +516,7 @@ export function EnergyPowerChart({
         stacks={powerStacks}
         average={averagePower}
         singleColor={singleColor}
+        showTotals={showTotals}
       />
     </div>
   );

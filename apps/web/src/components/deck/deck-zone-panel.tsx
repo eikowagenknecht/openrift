@@ -1,4 +1,4 @@
-import type { DeckFormat, DeckZone, Marketplace } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared";
 import { WellKnown, formatHasSideboard, imageUrl, legendDisplayName } from "@openrift/shared";
 import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { deckGlowStyle } from "@/components/deck/deck-hero";
-import { DeckOwnershipBody } from "@/components/deck/deck-ownership-panel";
 import { DeckStatsPanel, DomainBar } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
 import { Button } from "@/components/ui/button";
@@ -159,9 +158,12 @@ interface DeckZonePanelProps {
   onOverviewClick?: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   ownershipData?: DeckOwnershipData;
-  marketplace?: Marketplace;
-  onViewMissing?: () => void;
-  hideStatsAndOwnership?: boolean;
+  /**
+   * Hides the Stats panel. Set while the overview is showing, which draws its
+   * own (larger, cross-filtering) stats band — the sidebar copy would be a
+   * second set of the same charts on screen at once.
+   */
+  hideStats?: boolean;
   /**
    * True while the main area shows the overview (no zone active). The Overview
    * button hides then — it would be a no-op, and the identity header above it
@@ -179,9 +181,7 @@ export function DeckZonePanel({
   onOverviewClick,
   onHoverCard,
   ownershipData,
-  marketplace,
-  onViewMissing,
-  hideStatsAndOwnership,
+  hideStats,
   overviewShowing,
   deckItems,
 }: DeckZonePanelProps) {
@@ -263,17 +263,10 @@ export function DeckZonePanel({
           deckItems={deckItems}
         />
       ))}
-      {!hideStatsAndOwnership && (
-        <DeckStatsPanel deckId={deckId}>
-          {ownershipData && marketplace && onViewMissing && (
-            <DeckOwnershipBody
-              data={ownershipData}
-              marketplace={marketplace}
-              onViewMissing={onViewMissing}
-            />
-          )}
-        </DeckStatsPanel>
-      )}
+      {/* No ownership breakdown here: the overview's hero carries the
+          owned/missing counts, the value chip and the missing-cards entry, and
+          its Collection lens draws the same split. */}
+      {!hideStats && <DeckStatsPanel deckId={deckId} />}
     </div>
   );
 }

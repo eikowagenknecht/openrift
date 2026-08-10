@@ -99,31 +99,20 @@ async function apiAddCopiesToInbox(page: Page, printingId: string, count: number
 }
 
 function statsHeader(page: Page) {
-  // Both the sidebar Stats collapsible header and the Overview's stats summary
-  // read "Stats N cards". Scope to the sidebar panel: its trigger lives inside
-  // the collapsible card (div.rounded-lg.border) whose header holds an exact
-  // "Stats" label span.
-  return page
-    .locator("div.rounded-lg.border")
-    .filter({ has: page.getByText("Stats", { exact: true }) })
-    .getByRole("button")
-    .first();
-}
-
-function ownershipHeader(page: Page) {
-  return page.getByRole("button", { name: /^Ownership\b/u });
+  // The sidebar's Stats collapsible is frameless — its trigger is the only
+  // button whose accessible name starts with "Stats" and ends in a card count.
+  return page.getByRole("button", { name: /^Stats\b.*\bcards$/u }).first();
 }
 
 /**
- * The sidebar Stats and Ownership panels are only shown when a zone is active
- * (i.e. not the Overview). The deck editor now starts on Overview, so tests
- * that want to inspect the sidebar panels must click any zone first.
+ * The sidebar Stats panel only shows while a zone is active (the overview
+ * draws its own, larger stats band). The deck editor starts on Overview, so
+ * tests that inspect the sidebar panel must click a zone first.
  */
 async function activateSidebarPanels(page: Page): Promise<void> {
   // Pick Main Deck (exists for every format we test). Clicking any sidebar
-  // zone button switches away from Overview and reveals the Stats + Ownership
-  // panels below the zones. Retry in case the sidebar hasn't finished
-  // hydrating yet.
+  // zone button switches away from Overview and reveals the Stats panel below
+  // the zones. Retry in case the sidebar hasn't finished hydrating yet.
   await expect(async () => {
     await page
       .getByRole("button", { name: /^Main Deck/u })
@@ -137,11 +126,19 @@ async function activateSidebarPanels(page: Page): Promise<void> {
 
 /**
  * Navigate to the deck editor and switch the sidebar out of Overview mode so
- * the Stats and Ownership panels are visible for assertions.
+ * the Stats panel is visible for assertions.
  */
 async function gotoDeckWithPanels(page: Page, deckId: string): Promise<void> {
   await page.goto(`/decks/${deckId}`);
   await activateSidebarPanels(page);
+}
+
+/**
+ * The hero's ownership chip — the deck's single missing-cards entry point.
+ * @returns The chip locator.
+ */
+function missingChip(page: Page) {
+  return page.getByRole("button", { name: /\bmissing$/u }).first();
 }
 
 test.describe("deck editor panels", () => {
@@ -206,9 +203,25 @@ test.describe("deck editor panels", () => {
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
       await expect(page.getByRole("heading", { level: 4, name: "Power" })).toBeHidden();
     });
+
+    test("sidebar carries no ownership breakdown", async ({ page }) => {
+      userEmail = await createAndLogin(page, "stats-no-ownership");
+      const deckId = await apiCreateDeck(page, "No Sidebar Ownership");
+      await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
+      await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 1);
+
+      await gotoDeckWithPanels(page, deckId);
+      await expect(statsHeader(page)).toBeVisible({ timeout: 15_000 });
+
+      // The counts and the price block live on the overview's hero and its
+      // Collection lens now — the sidebar shows charts only.
+      await expect(page.getByText("Deck value")).toBeHidden();
+      await expect(page.getByText("Owned value")).toBeHidden();
+      await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
+    });
   });
 
-  test.describe("ownership panel visibility", () => {
+  test.describe("hero ownership chip", () => {
     let userEmail: string | undefined;
 
     test.afterEach(async () => {
@@ -218,126 +231,61 @@ test.describe("deck editor panels", () => {
       }
     });
 
-    test("empty deck renders 0% with 0 / 0", async ({ page }) => {
-      userEmail = await createAndLogin(page, "own-empty");
-      const deckId = await apiCreateDeck(page, "Empty Ownership");
-
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await expect(header).toContainText("0%");
-
-      await header.click();
-      await expect(page.getByText("Owned", { exact: true }).first()).toBeVisible();
-      await expect(page.getByText(/^0 \/ 0$/u)).toBeVisible();
-      // Missing row is suppressed when missingCount is 0.
-      await expect(page.getByText("Missing", { exact: true })).toBeHidden();
-      await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
-    });
-
-    test("zero owned shows 0% and a missing row", async ({ page }) => {
+    test("zero owned shows the full shortfall", async ({ page }) => {
       userEmail = await createAndLogin(page, "own-zero");
       const deckId = await apiCreateDeck(page, "Zero Owned");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await expect(header).toContainText("0%");
-
-      await header.click();
-      await expect(page.getByText(/^0 \/ 3$/u)).toBeVisible();
-      // "3 cards" appears both in the Stats header and the Missing row. Scope
-      // to the span in the Missing row by asserting a second match exists.
-      await expect(page.getByText(/^3 cards$/u)).toHaveCount(2);
-      await expect(page.getByRole("button", { name: "View missing cards" })).toBeVisible();
+      await page.goto(`/decks/${deckId}`);
+      const chip = missingChip(page);
+      await expect(chip).toBeVisible({ timeout: 15_000 });
+      await expect(chip).toContainText("0/3 owned");
+      await expect(chip).toContainText("3 missing");
     });
 
-    test("partial ownership shows rounded pct and per-zone Missing count", async ({ page }) => {
+    test("partial ownership counts only the shortfall", async ({ page }) => {
       userEmail = await createAndLogin(page, "own-partial");
       const deckId = await apiCreateDeck(page, "Partial Owned");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 2);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      // 2 / 3 → round(66.66…%) = 67%.
-      await expect(header).toContainText("67%");
-
-      await header.click();
-      await expect(page.getByText(/^2 \/ 3$/u)).toBeVisible();
-      await expect(page.getByText(/^1 card$/u)).toBeVisible();
+      await page.goto(`/decks/${deckId}`);
+      const chip = missingChip(page);
+      await expect(chip).toBeVisible({ timeout: 15_000 });
+      await expect(chip).toContainText("2/3 owned");
+      await expect(chip).toContainText("1 missing");
     });
 
-    test("full ownership shows 100% with no Missing row", async ({ page }) => {
+    test("full ownership swaps the chip for Fully owned", async ({ page }) => {
       userEmail = await createAndLogin(page, "own-full");
       const deckId = await apiCreateDeck(page, "Full Owned");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 3);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await expect(header).toContainText("100%");
-
-      await header.click();
-      await expect(page.getByText(/^3 \/ 3$/u)).toBeVisible();
-      await expect(page.getByText("Missing", { exact: true })).toBeHidden();
-      await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
-    });
-  });
-
-  test.describe("ownership panel values", () => {
-    let userEmail: string | undefined;
-
-    test.afterEach(async () => {
-      if (userEmail) {
-        await deleteUser(userEmail);
-        userEmail = undefined;
-      }
+      await page.goto(`/decks/${deckId}`);
+      await expect(page.getByText("Fully owned")).toBeVisible({ timeout: 15_000 });
+      await expect(missingChip(page)).toBeHidden();
     });
 
-    test("renders marketplace-formatted Deck/Owned/Missing values", async ({ page }) => {
+    test("value chip opens the breakdown popover", async ({ page }) => {
       userEmail = await createAndLogin(page, "own-values");
       const deckId = await apiCreateDeck(page, "Priced Deck");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 1);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await header.click();
+      await page.goto(`/decks/${deckId}`);
+      const valueChip = page.getByRole("button", { name: "Show value breakdown" });
+      await expect(valueChip).toBeVisible({ timeout: 15_000 });
 
-      // The default favorite marketplace may be CardTrader (EUR) or TCGplayer
-      // (USD) depending on seed order — accept either.
-      await expect(page.getByText(/(?:TCGplayer|CardTrader|Cardmarket) prices/u)).toBeVisible();
-
-      // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR).
+      // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR) —
+      // the default favorite marketplace varies by seed order.
       const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/u;
-      const deckRow = page.getByText("Deck value").locator("..");
-      const ownedRow = page.getByText("Owned value").locator("..");
-      const missingRow = page.getByText("Missing value").locator("..");
-      await expect(deckRow.getByText(priceRegex)).toBeVisible();
-      await expect(ownedRow.getByText(priceRegex)).toBeVisible();
-      // Missing row is visible because shortfall > 0 and Annie has prices.
-      await expect(missingRow.getByText(priceRegex)).toBeVisible();
-    });
+      await expect(valueChip.getByText(priceRegex)).toBeVisible();
 
-    test("hides Missing value row when there's no shortfall", async ({ page }) => {
-      userEmail = await createAndLogin(page, "own-values-full");
-      const deckId = await apiCreateDeck(page, "Priced Full");
-      await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 2 }]);
-      await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 2);
-
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await header.click();
-
-      await expect(page.getByText("Deck value")).toBeVisible();
-      await expect(page.getByText("Owned value")).toBeVisible();
-      await expect(page.getByText("Missing value")).toBeHidden();
+      await valueChip.click();
+      // Annie is short two copies, so the completion figure is present.
+      const completeRow = page.getByText("To complete").locator("..");
+      await expect(completeRow.getByText(priceRegex)).toBeVisible();
     });
   });
 
@@ -366,12 +314,9 @@ test.describe("deck editor panels", () => {
       ]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 1);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await header.click();
-
-      await page.getByRole("button", { name: "View missing cards" }).click();
+      await page.goto(`/decks/${deckId}`);
+      await expect(missingChip(page)).toBeVisible({ timeout: 15_000 });
+      await missingChip(page).click();
 
       const dialog = page.getByRole("dialog");
       // Total shortfall = 2 (Annie) + 2 (Tibbers) = 4.
@@ -418,25 +363,15 @@ test.describe("deck editor panels", () => {
       const deckId = await apiCreateDeck(page, "Missing Escape");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
 
-      await gotoDeckWithPanels(page, deckId);
-      const header = ownershipHeader(page);
-      await expect(header).toBeVisible({ timeout: 15_000 });
-      await header.click();
-      await page.getByRole("button", { name: "View missing cards" }).click();
+      await page.goto(`/decks/${deckId}`);
+      await expect(missingChip(page)).toBeVisible({ timeout: 15_000 });
+      await missingChip(page).click();
 
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
     });
-  });
-
-  // Skipped: a fresh user always has an Inbox auto-created on the first
-  // copies POST, and `useOwnedCount` returns an empty record (not undefined)
-  // when the user is signed in. That makes the "no ownership data" branch
-  // unreachable from e2e — covered by the unit test on `useDeckOwnership`.
-  test.describe.skip("no ownership data", () => {
-    test("panel is not rendered when ownershipData is undefined", () => {});
   });
 
   test.describe("mobile", () => {
@@ -449,7 +384,7 @@ test.describe("deck editor panels", () => {
       }
     });
 
-    test("both panels start collapsed and expand on tap", async ({ page }) => {
+    test("stats panel starts collapsed and expands on tap", async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
 
       userEmail = await createAndLogin(page, "mobile");
@@ -460,9 +395,9 @@ test.describe("deck editor panels", () => {
 
       // The mobile zones drawer is closed by default and the deck opens on
       // Overview, so the top-bar title reads "Zones". Click it to open the
-      // sidebar, then activate Main Deck to reveal the Stats + Ownership
-      // panels below the zones. Clicking the zone closes the drawer, so
-      // re-open it to inspect the panels.
+      // sidebar, then activate Main Deck to reveal the Stats panel below the
+      // zones. Clicking the zone closes the drawer, so re-open it to inspect
+      // the panel.
       await page
         .getByRole("button", { name: /^Zones/u })
         .first()
@@ -480,28 +415,13 @@ test.describe("deck editor panels", () => {
         .click();
 
       const stats = statsHeader(page);
-      const ownership = ownershipHeader(page);
       await expect(stats).toBeVisible();
-      await expect(ownership).toBeVisible();
 
-      // Scope the "Owned" row to the sidebar Ownership panel — the Overview
-      // also renders an "Owned" label, so a global .first() would resolve to
-      // that (hidden) copy instead of the panel's expanding row.
-      const ownedRow = page
-        .locator("div.rounded-lg.border")
-        .filter({ has: page.getByText("Ownership", { exact: true }) })
-        .getByText("Owned", { exact: true });
-
-      // Mobile defaults: stats collapsed (matchMedia >=768px is false),
-      // ownership always starts closed.
+      // Mobile default: stats collapsed (matchMedia >=768px is false).
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
-      await expect(ownedRow).toBeHidden();
 
       await stats.click();
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeVisible();
-
-      await ownership.click();
-      await expect(ownedRow).toBeVisible();
     });
   });
 });
