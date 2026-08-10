@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
@@ -30,6 +31,14 @@ vi.mock("@/hooks/use-enums", () => ({
     domainColors: {},
     rarityColors: {},
   }),
+  // Taxonomy order, deliberately not alphabetical, so the tab-order test proves
+  // the picker follows /init rather than sorting the codes itself.
+  useLanguageList: () => [
+    { code: "EN", name: "English", color: null },
+    { code: "JA", name: "Japanese", color: null },
+    { code: "DE", name: "German", color: null },
+  ],
+  useLanguageLabels: () => ({ EN: "English", JA: "Japanese", DE: "German" }),
 }));
 
 const { priceGetMock, priceHistoryMock } = vi.hoisted(() => ({
@@ -99,5 +108,81 @@ describe("PrintingPicker", () => {
     render(<PrintingPicker current={printing} printings={[printing]} onSelect={() => {}} />);
 
     expect(priceHistoryMock).toHaveBeenCalledWith(printing.id, "30d");
+  });
+
+  describe("language tabs", () => {
+    it("shows no tabs when every printing shares one language", () => {
+      const printings = [stubPrinting(), stubPrinting()];
+
+      render(<PrintingPicker current={printings[0]} printings={printings} onSelect={() => {}} />);
+
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    });
+
+    it("offers one tab per language, in taxonomy order", () => {
+      const printings = [
+        stubPrinting({ language: "DE" }),
+        stubPrinting({ language: "EN" }),
+        stubPrinting({ language: "JA" }),
+      ];
+
+      render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
+
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+        "EN1",
+        "JA1",
+        "DE1",
+      ]);
+    });
+
+    it("opens on the shown card's language", () => {
+      const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "DE" })];
+
+      render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
+
+      expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("DE");
+    });
+
+    it("shows only the active language's printings", async () => {
+      const user = userEvent.setup();
+      const english = stubPrinting({ language: "EN" });
+      const german = stubPrinting({ language: "DE" });
+
+      render(
+        <PrintingPicker current={english} printings={[english, german]} onSelect={() => {}} />,
+      );
+
+      // Scoped to the open panel, which is the only one that should exist —
+      // a closed language's rows must not linger in the accessibility tree.
+      expect(
+        within(screen.getByRole("tabpanel")).getAllByRole("button", { name: "owned" }),
+      ).toHaveLength(1);
+
+      await user.click(screen.getByRole("tab", { name: /DE/u }));
+
+      expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("DE");
+      expect(
+        within(screen.getByRole("tabpanel")).getAllByRole("button", { name: "owned" }),
+      ).toHaveLength(1);
+    });
+
+    it("keeps a language not present in the taxonomy reachable", () => {
+      const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "XX" })];
+
+      render(<PrintingPicker current={printings[0]} printings={printings} onSelect={() => {}} />);
+
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["EN1", "XX1"]);
+    });
+
+    it("falls back to the first tab when the shown card's language has no rows", () => {
+      // A surface can hand the picker a filtered sibling set that excludes the
+      // shown card's own language.
+      const current = stubPrinting({ language: "JA" });
+      const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "DE" })];
+
+      render(<PrintingPicker current={current} printings={printings} onSelect={() => {}} />);
+
+      expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("EN");
+    });
   });
 });

@@ -22,8 +22,8 @@ import {
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -336,14 +336,12 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
           actionsCell: <SharedCollectionCountCell countByPrintingId={countByPrintingId} />,
         }}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={detailPanePrintingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={handleSearchAndClose}
-          />
-        )}
+        <SelectionDetailOverlays
+          items={items}
+          printingsByCardId={detailPanePrintingsByCardId}
+          showImages={showImages}
+          onSearchAndClose={handleSearchAndClose}
+        />
       </CardViewer>
     </CardBrowserFilterProvider>
   );

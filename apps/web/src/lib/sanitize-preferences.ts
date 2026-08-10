@@ -206,6 +206,19 @@ export function sanitizeFiltersExpanded(data: unknown, fallback: boolean): boole
 }
 
 /**
+ * Reads the persisted docked-detail-pane flag. Blobs written before the pane
+ * became opt-in carry no such key, so those users land on the default (closed)
+ * and meet the card modal instead.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to keep when the blob carries no boolean.
+ * @returns Whether the card detail pane stays docked beside the grid.
+ */
+export function sanitizePaneDocked(data: unknown, fallback: boolean): boolean {
+  const raw = asRecord(data).paneDocked;
+  return typeof raw === "boolean" ? raw : fallback;
+}
+
+/**
  * Reads the persisted theme preference, migrating the legacy `theme` key that
  * held it before the store split stored preference from resolved theme.
  * @param data Raw persisted blob, any shape.

@@ -149,8 +149,8 @@ vi.mock("@/components/selection-detail-pane", () => ({
   ),
 }));
 
-vi.mock("@/components/selection-mobile-overlay", () => ({
-  SelectionMobileOverlay: () => null,
+vi.mock("@/components/selection-detail-overlays", () => ({
+  SelectionDetailOverlays: () => null,
 }));
 
 vi.mock("@/components/list/list-header", () => ({

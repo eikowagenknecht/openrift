@@ -15,8 +15,8 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Toggle } from "@/components/ui/toggle";
 import { useCardData, useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
@@ -359,14 +359,12 @@ export function CardBrowser() {
             ) : undefined,
           }}
         >
-          {isMobile && (
-            <SelectionMobileOverlay
-              items={items}
-              printingsByCardId={detailPanePrintingsByCardId}
-              showImages={showImages}
-              onSearchAndClose={searchAndClose}
-            />
-          )}
+          <SelectionDetailOverlays
+            items={items}
+            printingsByCardId={detailPanePrintingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={searchAndClose}
+          />
         </BrowserCardViewer>
       </CardBrowserFilterProvider>
       {inboxId && (

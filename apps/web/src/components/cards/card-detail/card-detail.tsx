@@ -1,36 +1,29 @@
 import type { Printing } from "@openrift/shared";
-import { WellKnown, getOrientation } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ExternalLinkIcon,
-  ShieldIcon,
-  XIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { CardText } from "@/components/cards/card-text";
-import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useIsAdmin } from "@/hooks/use-admin";
-import { useCardTilt } from "@/hooks/use-card-tilt";
-import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useEnumOrders } from "@/hooks/use-enums";
-import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
+import { getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
-import { getFilterIconPath } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-import { useDisplayStore } from "@/stores/display-store";
 
+import { CardDetailArt } from "./card-detail-art";
 import { CardDetailHeading } from "./card-detail-heading";
+import { CardDetailLinks } from "./card-detail-links";
+import { CardDetailStats } from "./card-detail-stats";
+import { CardDetailText } from "./card-detail-text";
 import { CardFooter } from "./card-footer";
-import { CardImage } from "./card-image";
-import { ErrataNotice } from "./errata-notice";
 import { PrintingNotesSection } from "./printing-notes-section";
 import { PrintingPicker } from "./printing-picker";
-import { StatChip } from "./stat-chip";
+
+/**
+ * Which arrangement the detail renders in. `pane` is the single-column stack
+ * used by the docked side pane, the mobile drawer and the standalone card
+ * page. `modal` is the two-column arrangement the desktop dialog uses, which
+ * collapses back to one column when the dialog itself is narrow.
+ */
+export type CardDetailLayout = "pane" | "modal";
 
 interface CardDetailProps {
   printing: Printing;
@@ -42,8 +35,41 @@ interface CardDetailProps {
   onKeywordClick?: (keyword: string) => void;
   printings?: Printing[];
   onSelectPrinting?: (printing: Printing) => void;
+  /** Defaults to the single-column `pane` arrangement. */
+  layout?: CardDetailLayout;
+  /**
+   * Surface-specific add controls (deck zone buttons, owned-count stepper, …).
+   * Rendered under the printing picker in both layouts, so an overlay never
+   * hides the controls that were on the card cell it covers.
+   */
+  actions?: ReactNode;
+  /**
+   * Position within the current list, e.g. `7 / 238`. Shown beside the modal's
+   * prev/next buttons; the pane has no room for it.
+   */
+  navLabel?: string;
 }
 
+function BanAlert({ printing }: { printing: Printing }) {
+  return (
+    <Alert variant="destructive" className="space-y-1.5">
+      {printing.card.bans.map((ban) => (
+        <div key={ban.formatId}>
+          <AlertTitle>
+            Banned in {ban.formatName} since {ban.bannedAt}
+          </AlertTitle>
+          {ban.reason && <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>}
+        </div>
+      ))}
+    </Alert>
+  );
+}
+
+/**
+ * The full card detail, rendered in one of two arrangements. Both are composed
+ * from the same parts so a field added to one is never missing from the other.
+ * @returns The card detail.
+ */
 export function CardDetail({
   printing,
   onClose,
@@ -54,37 +80,84 @@ export function CardDetail({
   onKeywordClick,
   printings,
   onSelectPrinting,
+  layout = "pane",
+  actions,
+  navLabel,
 }: CardDetailProps) {
   const { card } = printing;
   const domainColors = useDomainColors();
-  const { labels } = useEnumOrders();
   const setNumber = formatPublicCode(printing);
-  const orientation = getOrientation(card.types);
-  const isFoil = printing.finish === WellKnown.finish.FOIL;
-  const rarityIcon = getFilterIconPath("rarities", printing.rarity);
+  const hasBans = card.bans.length > 0;
+  const hasPicker =
+    printings !== undefined && printings.length > 0 && onSelectPrinting !== undefined;
+  const hasNav = onPrevCard !== undefined || onNextCard !== undefined;
 
-  const foilEffect = useDisplayStore((s) => s.foilEffect);
-  const cardTilt = useDisplayStore((s) => s.cardTilt);
+  const notes = <PrintingNotesSection printing={printing} />;
+  const footer = <CardFooter printing={printing} />;
+  const picker = hasPicker ? (
+    <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
+  ) : null;
+  const text = <CardDetailText printing={printing} onKeywordClick={onKeywordClick} />;
 
-  // Hook over the IS_COARSE_POINTER module constant so SSR and the first
-  // client render agree — `showShimmer` flips the foil overlay's animation
-  // class on coarse-pointer devices and would otherwise abort hydration.
-  const coarsePointer = useCoarsePointer();
+  if (layout === "modal") {
+    return (
+      // No domain tint here: the dialog itself carries it, so the gradient
+      // reaches the popup's rounded edges. Repeating it on this inner box would
+      // paint it inside the dialog's padding, framing it in a hard-edged border.
+      <div className="@container flex flex-col gap-4">
+        {/* pr-8 keeps the title clear of the dialog's own close button. */}
+        <CardDetailHeading
+          printing={printing}
+          setNumber={setNumber}
+          onTagClick={onTagClick}
+          titleClassName="pr-8"
+        />
 
-  const tiltMode = coarsePointer ? ("none" as const) : ("pointer" as const);
+        <div className="grid gap-5 @2xl:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <CardDetailArt printing={printing} showImages={showImages} />
+            {hasNav && (
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onPrevCard}
+                  disabled={!onPrevCard}
+                  aria-label="Previous card"
+                >
+                  <ChevronLeftIcon className="size-4" />
+                </Button>
+                {navLabel && (
+                  <span className="text-muted-foreground text-sm tabular-nums">{navLabel}</span>
+                )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onNextCard}
+                  disabled={!onNextCard}
+                  aria-label="Next card"
+                >
+                  <ChevronRightIcon className="size-4" />
+                </Button>
+              </div>
+            )}
+          </div>
 
-  // Destructure into locals so React Compiler's ref heuristic doesn't flag
-  // property access on the hook result — see the note in card-thumbnail.tsx.
-  const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
-    mode: tiltMode,
-    enabled: cardTilt && (!coarsePointer || isFoil),
-  });
+          <div className="min-w-0 space-y-4">
+            {hasBans && <BanAlert printing={printing} />}
+            <CardDetailStats printing={printing} />
+            {text}
+            {notes}
+            {footer}
+            {picker}
+            {actions}
+          </div>
+        </div>
 
-  const { data: isAdmin } = useIsAdmin();
-
-  const showFoil = isFoil && foilEffect;
-  // Detail pane always uses animated foil — shimmers when tilt unavailable.
-  const showShimmer = showFoil && (!cardTilt || coarsePointer);
+        <CardDetailLinks card={card} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -146,34 +219,13 @@ export function CardDetail({
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
-        {/* Ban banner */}
-        {card.bans.length > 0 && (
-          <Alert variant="destructive" className="space-y-1.5">
-            {card.bans.map((ban) => (
-              <div key={ban.formatId}>
-                <AlertTitle>
-                  Banned in {ban.formatName} since {ban.bannedAt}
-                </AlertTitle>
-                {ban.reason && <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>}
-              </div>
-            ))}
-          </Alert>
-        )}
+        {hasBans && <BanAlert printing={printing} />}
 
-        {/* Card image */}
-        <div ref={tiltContainerRef}>
-          <CardImage
-            innerRef={tiltInnerRef}
-            printing={printing}
-            orientation={orientation}
-            showImages={showImages}
-            showFoil={showFoil}
-            showShimmer={showShimmer}
-          />
-        </div>
+        <CardDetailArt printing={printing} showImages={showImages} />
+
         {/* Stats with mobile prev/next on the sides */}
         <div className="flex items-start gap-2">
-          {(onPrevCard || onNextCard) && (
+          {hasNav && (
             <Button
               variant="outline"
               size="icon"
@@ -185,54 +237,8 @@ export function CardDetail({
               <ChevronLeftIcon className="size-4" />
             </Button>
           )}
-          <div className="flex min-h-8 flex-1 flex-wrap items-center justify-center gap-1.5">
-            {card.energy !== null && card.energy > 0 && (
-              <StatChip label="Energy" value={card.energy} />
-            )}
-            {card.power !== null && card.power > 0 && (
-              <StatChip label="Power" value={card.power} icon="/images/power.svg" />
-            )}
-            {card.might !== null && (
-              <StatChip label="Might" value={card.might} icon="/images/might.svg" />
-            )}
-            {!card.domains.includes(WellKnown.domain.COLORLESS) &&
-              card.domains.map((d) => {
-                const domainIcon = getFilterIconPath("domains", d);
-                return domainIcon ? (
-                  <img
-                    key={d}
-                    src={domainIcon}
-                    alt={d}
-                    title={d}
-                    width={64}
-                    height={64}
-                    className="size-5"
-                  />
-                ) : null;
-              })}
-            {rarityIcon && (
-              <img
-                src={rarityIcon}
-                alt={printing.rarity}
-                title={printing.rarity}
-                width={28}
-                height={28}
-                className="size-5"
-              />
-            )}
-            {hasFinishIcon(printing.finish) && (
-              <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
-                <FinishIcon finish={printing.finish} />
-                {labels.finishes[printing.finish]}
-              </span>
-            )}
-            {printing.size !== WellKnown.cardSize.STANDARD && (
-              <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
-                {labels.cardSizes[printing.size]}
-              </span>
-            )}
-          </div>
-          {(onPrevCard || onNextCard) && (
+          <CardDetailStats printing={printing} />
+          {hasNav && (
             <Button
               variant="outline"
               size="icon"
@@ -246,104 +252,19 @@ export function CardDetail({
           )}
         </div>
 
-        {/* Text */}
-        <div className="space-y-3 pt-2">
-          {printing.printedRulesText && (
-            <div className="border-border/50 bg-muted/30 rounded-lg border px-3 py-2.5">
-              <p className="text-muted-foreground text-sm">
-                <CardText
-                  text={card.errata?.correctedRulesText ?? printing.printedRulesText}
-                  onKeywordClick={onKeywordClick}
-                />
-              </p>
-              {card.errata?.correctedRulesText &&
-                card.errata.correctedRulesText !== printing.printedRulesText && (
-                  <ErrataNotice
-                    printedText={printing.printedRulesText}
-                    source={card.errata.source}
-                    sourceUrl={card.errata.sourceUrl}
-                    effectiveDate={card.errata.effectiveDate}
-                    onKeywordClick={onKeywordClick}
-                  />
-                )}
-            </div>
-          )}
-
-          {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
-            <div
-              className="border-border/50 rounded-lg border px-3 py-2.5"
-              style={getDomainGradientStyle(card.domains, "18", domainColors)}
-            >
-              {printing.printedEffectText && (
-                <p className="text-muted-foreground text-sm">
-                  <CardText
-                    text={card.errata?.correctedEffectText ?? printing.printedEffectText}
-                    onKeywordClick={onKeywordClick}
-                  />
-                </p>
-              )}
-              {card.errata?.correctedEffectText &&
-                printing.printedEffectText &&
-                card.errata.correctedEffectText !== printing.printedEffectText && (
-                  <ErrataNotice
-                    printedText={printing.printedEffectText}
-                    source={card.errata.source}
-                    sourceUrl={card.errata.sourceUrl}
-                    effectiveDate={card.errata.effectiveDate}
-                    onKeywordClick={onKeywordClick}
-                  />
-                )}
-              {card.mightBonus !== null && card.mightBonus > 0 && (
-                <div className={cn(printing.printedEffectText && "mt-2")}>
-                  <StatChip
-                    label="Might Bonus"
-                    value={`+${card.mightBonus}`}
-                    icon="/images/might.svg"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {printing.flavorText && (
-            <p className="text-muted-foreground/70 px-1 text-sm italic">{printing.flavorText}</p>
-          )}
-        </div>
+        {text}
 
         {/* Distribution & printing notes (markers, channels, per-printing comment) */}
-        <PrintingNotesSection printing={printing} />
+        {notes}
 
-        {/* Footer */}
-        <CardFooter printing={printing} />
+        {footer}
 
-        {/* Printings */}
-        {printings && printings.length > 0 && onSelectPrinting && (
-          <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
-        )}
+        {picker}
 
-        {/* Card details link (only in side pane, not on standalone page) */}
-        {onClose && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link
-              to="/cards/$cardSlug"
-              params={{ cardSlug: card.slug }}
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
-            >
-              <ExternalLinkIcon className="size-3" />
-              View card details
-            </Link>
-            {isAdmin && (
-              <Link
-                to="/admin/cards/$cardSlug"
-                params={{ cardSlug: card.slug }}
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
-              >
-                <ShieldIcon className="size-3" />
-                Admin view
-              </Link>
-            )}
-          </div>
-        )}
+        {actions}
+
+        {/* Card details link (only in an overlay, not on the standalone page) */}
+        {onClose && <CardDetailLinks card={card} />}
       </div>
     </div>
   );

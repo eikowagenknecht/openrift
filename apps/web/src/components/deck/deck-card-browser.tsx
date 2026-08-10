@@ -18,8 +18,8 @@ import { DeckOverview } from "@/components/deck/deck-overview";
 import { DeckPlanEditor } from "@/components/deck/deck-plan-editor";
 import { DeckTableActions } from "@/components/deck/deck-table-actions";
 import { FormatTagPickBanner, needsFormatTagPick } from "@/components/deck/format-tag-pick-banner";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -586,10 +586,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     return (copyLimitTotalByCard.get(cardId) ?? 0) >= copyLimitFor(item.printing.card);
   };
 
-  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.cardId;
-    const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
-    const deckQty = deckQtyForCell(item.printing);
+  // Built here rather than inline in renderCard so the detail overlay can show
+  // the same add controls for the card it covers — a click mid-build must not
+  // take the +/- buttons away.
+  const deckStripFor = (printing: Printing) => {
+    const cardId = printing.cardId;
+    const deckQty = deckQtyForCell(printing);
     // Single-card zone strip controls key off "this card is in the active
     // zone", not "this card is anywhere in the deck": a champion unit can
     // simultaneously sit in main as regular copies without being the chosen
@@ -597,6 +599,39 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     const isInActiveSingleZone =
       isSingleCardZone &&
       deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
+
+    return (
+      <DeckAddStrip
+        printing={printing}
+        ownedCount={ownedCounts?.get(printing.id) ?? 0}
+        deckQuantity={deckQty}
+        maxReached={isMaxReached({ id: printing.id, printing })}
+        addLabel={
+          isSingleCardZone
+            ? singleCardZoneOccupied && !isInActiveSingleZone
+              ? "Switch"
+              : "Choose"
+            : undefined
+        }
+        removeLabel={isInActiveSingleZone ? "Remove" : undefined}
+        shiftHeld={shiftHeld}
+        remainingCount={
+          isFreeform
+            ? undefined
+            : activeZone === WellKnown.deckZone.RUNES
+              ? Math.max(0, RUNE_TARGET - runeTotal)
+              : copyRemainderFor(printing.card, copyLimitTotalByCard.get(cardId) ?? 0)
+        }
+        onQuickAdd={handleQuickAdd}
+        onRemove={handleRemove}
+      />
+    );
+  };
+
+  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
+    const cardId = item.printing.cardId;
+    const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
+    const deckQty = deckQtyForCell(item.printing);
 
     // On mobile, a tap adds the card (no hover to reach the + button);
     // long-press (or desktop right-click) opens the detail view via the context menu.
@@ -625,32 +660,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           },
         }}
         dragId={`browser-card-${item.printing.id}`}
-        strip={
-          <DeckAddStrip
-            printing={item.printing}
-            ownedCount={ownedCount}
-            deckQuantity={deckQty}
-            maxReached={isMaxReached(item)}
-            addLabel={
-              isSingleCardZone
-                ? singleCardZoneOccupied && !isInActiveSingleZone
-                  ? "Switch"
-                  : "Choose"
-                : undefined
-            }
-            removeLabel={isInActiveSingleZone ? "Remove" : undefined}
-            shiftHeld={shiftHeld}
-            remainingCount={
-              isFreeform
-                ? undefined
-                : activeZone === WellKnown.deckZone.RUNES
-                  ? Math.max(0, RUNE_TARGET - runeTotal)
-                  : copyRemainderFor(item.printing.card, copyLimitTotalByCard.get(cardId) ?? 0)
-            }
-            onQuickAdd={handleQuickAdd}
-            onRemove={handleRemove}
-          />
-        }
+        strip={deckStripFor(item.printing)}
         contextMenu={<DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)} />}
       />
     );
@@ -670,6 +680,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       printingsByCardId={printingsByCardId}
       showImages={showImages}
       onSearchAndClose={setSearch}
+      actions={deckStripFor}
     />
   );
 
@@ -717,14 +728,13 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           ),
         }}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={printingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={setSearch}
-          />
-        )}
+        <SelectionDetailOverlays
+          items={items}
+          printingsByCardId={printingsByCardId}
+          showImages={showImages}
+          onSearchAndClose={setSearch}
+          actions={deckStripFor}
+        />
       </BrowserCardViewer>
     </CardBrowserFilterProvider>
   );

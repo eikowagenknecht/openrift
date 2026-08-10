@@ -26,8 +26,8 @@ import {
 import { MarkdownText } from "@/components/markdown-text";
 import { ProductAddDialog } from "@/components/products/product-add-dialog";
 import { ProductContentsPreview } from "@/components/products/product-contents-preview";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -378,14 +378,12 @@ function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
           actionsCell: <ProductQuantityCell quantityByPrintingId={quantityByPrintingId} />,
         }}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={detailPanePrintingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={handleSearchAndClose}
-          />
-        )}
+        <SelectionDetailOverlays
+          items={items}
+          printingsByCardId={detailPanePrintingsByCardId}
+          showImages={showImages}
+          onSearchAndClose={handleSearchAndClose}
+        />
       </CardViewer>
     </CardBrowserFilterProvider>
   );

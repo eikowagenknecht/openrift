@@ -54,8 +54,8 @@ import {
   SectionHeaderActions,
   SectionHeaderTitle,
 } from "@/components/section-header";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -494,8 +494,10 @@ function DeckEditorContent({
     );
   };
 
-  // While the detail pane is open, the floating hover preview from the main
-  // (overview) thumbnails or list would compete with the pane. Suppress it.
+  // While a card is being shown (docked pane or modal), the floating hover
+  // preview from the main (overview) thumbnails or list would compete with it.
+  // Suppress it. `detailOpen` tracks the shown card, not the pane's presence,
+  // so a docked-but-empty pane leaves the preview alone.
   // Sidebar hover stays — it's the primary way to peek at a card without committing.
   const suppressHoverPreview =
     detailOpen && (hovered?.origin === "main" || hovered?.origin === "main-right");
@@ -827,8 +829,11 @@ function DeckEditorContent({
             <Footer />
           </div>
         </div>
-        {isMobile && (
-          <SelectionMobileOverlay
+        {/* Overview only: with a zone open, DeckCardBrowser mounts its own
+            overlay for the catalog grid, and a second one here would put two
+            copies of the same detail on screen. */}
+        {activeZone === null && (
+          <SelectionDetailOverlays
             items={deckItems}
             printingsByCardId={printingsByCardId}
             showImages={showImages}

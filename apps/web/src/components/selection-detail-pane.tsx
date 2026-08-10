@@ -1,10 +1,12 @@
 import type { Printing } from "@openrift/shared";
 import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
+import { useSelectionDetail } from "@/hooks/use-selection-detail";
+import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -18,83 +20,78 @@ interface SelectionDetailPaneProps {
   printingsByCardId: Map<string, Printing[]>;
   showImages: boolean;
   onSearchAndClose: (query: string) => void;
+  /**
+   * Surface-specific add controls for the shown card, mirrored from the card
+   * cell's strip. A function so the surface builds them from its own per-card
+   * state without having to subscribe to the selection itself.
+   */
+  actions?: (printing: Printing) => ReactNode;
 }
 
 /**
- * Desktop detail pane that subscribes to the selection store.
- * Renders nothing when no card is selected or detail is closed.
- * @returns The detail pane or null.
+ * Desktop detail pane that subscribes to the selection store. Rendered only
+ * while the pane is docked (the `paneDocked` display preference), and stays in
+ * place with an empty state when no card is selected — docking is a layout
+ * choice, so the column must not appear and vanish as cards are clicked.
+ * @returns The detail pane.
  */
 export function SelectionDetailPane({
   items,
   printingsByCardId,
   showImages,
   onSearchAndClose,
+  actions,
 }: SelectionDetailPaneProps) {
-  const selectedCard = useSelectionStore((s) => s.selectedCard);
-  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
-  const detailOpen = useSelectionStore((s) => s.detailOpen);
-  const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
   const closeDetail = useSelectionStore((s) => s.closeDetail);
-  const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
-  const applyTagFilter = useApplyTagFilter();
+  const paneDocked = useDisplayStore((s) => s.paneDocked);
+  const {
+    selectedCard,
+    siblingPrintings,
+    handlePrevCard,
+    handleNextCard,
+    handleTagClick,
+    handleKeywordClick,
+    handleSelectPrinting,
+  } = useSelectionDetail({
+    items,
+    printingsByCardId,
+    onSearchAndClose,
+    onDismiss: closeDetail,
+  });
 
-  if (!selectedCard || !detailOpen) {
+  if (!paneDocked) {
     return null;
   }
 
-  // Tags apply the structured filter (exact match) where the surface has one;
-  // the quoted `t:"…"` search fallback keeps multi-word tags a single term.
-  const handleTagClick = (tag: string) => {
-    if (applyTagFilter) {
-      applyTagFilter(tag);
-      closeDetail();
-    } else {
-      onSearchAndClose(`t:"${tag}"`);
-    }
-  };
-
-  const siblingPrintings = printingsByCardId.get(selectedCard.cardId) ?? [];
-
-  const handlePrevCard =
-    selectedIndex > 0
-      ? () => navigateToIndex(selectedIndex - 1, items[selectedIndex - 1].printing)
-      : undefined;
-
-  const handleNextCard =
-    selectedIndex >= 0 && selectedIndex < items.length - 1
-      ? () => navigateToIndex(selectedIndex + 1, items[selectedIndex + 1].printing)
-      : undefined;
-
-  // When a picked printing is also a grid tile (e.g. cards+set with multiple
-  // tiles per card), bump selectedIndex onto it so arrow-key navigation and
-  // grid highlighting both follow the picker. Otherwise leave the index alone
-  // so they keep tracking the original grid cell.
-  const handleSelectPrinting = (printing: Printing) => {
-    const idx = items.findIndex((item) => item.printing.id === printing.id);
-    if (idx === -1) {
-      setSelectedCard(printing);
-    } else {
-      navigateToIndex(idx, printing);
-    }
-  };
-
   return (
     <Pane className="@md:block">
-      <Suspense fallback={<CardDetailSkeleton />}>
-        <CardDetail
-          printing={selectedCard}
-          onClose={closeDetail}
-          showImages={showImages}
-          onPrevCard={handlePrevCard}
-          onNextCard={handleNextCard}
-          onTagClick={handleTagClick}
-          onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
-          printings={siblingPrintings}
-          onSelectPrinting={handleSelectPrinting}
-        />
-      </Suspense>
+      {selectedCard ? (
+        <Suspense fallback={<CardDetailSkeleton />}>
+          <CardDetail
+            printing={selectedCard}
+            onClose={closeDetail}
+            showImages={showImages}
+            onPrevCard={handlePrevCard}
+            onNextCard={handleNextCard}
+            onTagClick={handleTagClick}
+            onKeywordClick={handleKeywordClick}
+            printings={siblingPrintings}
+            onSelectPrinting={handleSelectPrinting}
+            actions={actions?.(selectedCard)}
+          />
+        </Suspense>
+      ) : (
+        <PaneEmptyState />
+      )}
     </Pane>
+  );
+}
+
+function PaneEmptyState() {
+  return (
+    <div className="text-muted-foreground flex h-40 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm">
+      Select a card to see its details
+    </div>
   );
 }
 

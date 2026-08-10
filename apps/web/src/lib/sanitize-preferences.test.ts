@@ -5,6 +5,7 @@ import {
   sanitizeDisplayMode,
   sanitizeFiltersExpanded,
   sanitizeOverrides,
+  sanitizePaneDocked,
   sanitizeServerResponse,
   sanitizeThemePreference,
 } from "./sanitize-preferences";
@@ -235,6 +236,24 @@ describe("sanitizeFiltersExpanded", () => {
     expect(sanitizeFiltersExpanded({ filtersExpanded: "yes" }, false)).toBe(false);
     expect(sanitizeFiltersExpanded({}, true)).toBe(true);
     expect(sanitizeFiltersExpanded(null, true)).toBe(true);
+  });
+});
+
+describe("sanitizePaneDocked", () => {
+  it("keeps a stored boolean", () => {
+    expect(sanitizePaneDocked({ paneDocked: true }, false)).toBe(true);
+    expect(sanitizePaneDocked({ paneDocked: false }, true)).toBe(false);
+  });
+
+  it("falls back for a non-boolean or a missing key", () => {
+    expect(sanitizePaneDocked({ paneDocked: "yes" }, false)).toBe(false);
+    expect(sanitizePaneDocked(null, false)).toBe(false);
+  });
+
+  it("leaves blobs written before the pane became opt-in on the default", () => {
+    // A pre-toggle blob carries displayMode and friends but no paneDocked, so
+    // those users land on the modal rather than inheriting a docked pane.
+    expect(sanitizePaneDocked({ displayMode: "grid", filtersExpanded: true }, false)).toBe(false);
   });
 });
 

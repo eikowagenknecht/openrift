@@ -8,6 +8,7 @@
 - feat(Decks): **Quick-add palette** — press Ctrl+K in the deck builder, type a card name, and Enter adds it straight to the right zone, sideboard and champion picks included.
 - feat(Decks): **Custom deck cover art** — pick any card in the deck as the backdrop of its hero, tile, and share image, with an adjustable crop.
 - feat(Decks): **Turn-1 and curve-out odds** — the stats band now shows how often your opening hand holds a turn-one play, and how often you can play something on every turn through turn 3.
+- feat(Cards): **Card details open in a window** — clicking a card now opens a wide window with the art and text side by side instead of shrinking the grid, and the new options-bar button docks the side panel for good if you prefer it.
 - feat(Decks): **Rarity and collection in the deck stats** — two new lens bars show the deck's rarity split and how much of it you own, and clicking a segment filters the cards like the other charts.
 - feat(Decks): **Shared decks get real tabs** — shared deck pages now use the same Deck, Test, and Plan tabs as your own decks instead of one long page.
 - feat(Decks): **Card art in the deck's list view** — every row now leads with a small art preview, next to the prices and owned counts it already showed.
@@ -15,6 +16,7 @@
 
 ### Other
 
+- feat(Cards): **Printings split by language** — a card printed in several languages now lists them under one tab per language, with the count on each tab, instead of one long mixed list.
 - feat(Decks): **Group deck views your way** — grid, stacks, and list can group cards by type, energy, domain, or what you own, with sorting inside each group.
 - feat(Decks): **Clearer stats charts** — each chart now has its own colors (domain colors stay on Power, where they matter most), the charts sit on one row when the screen fits them, and hairlines separate them.
 - feat(Decks): **Collapsible zones** — a zone can fold down to its header line to get long lists out of the way.

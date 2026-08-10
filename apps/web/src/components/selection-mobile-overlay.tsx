@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { Suspense, lazy, useEffect } from "react";
+import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import {
@@ -10,9 +11,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useSelectionDetail } from "@/hooks/use-selection-detail";
 import { getDomainTintStyle } from "@/lib/domain";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -27,6 +28,8 @@ interface SelectionMobileOverlayProps {
   printingsByCardId: Map<string, Printing[]>;
   showImages: boolean;
   onSearchAndClose: (query: string) => void;
+  /** Surface-specific add controls for the shown card. See SelectionDetailPane. */
+  actions?: (printing: Printing) => ReactNode;
 }
 
 /**
@@ -41,16 +44,35 @@ export function SelectionMobileOverlay({
   printingsByCardId,
   showImages,
   onSearchAndClose,
+  actions,
 }: SelectionMobileOverlayProps) {
-  const selectedCard = useSelectionStore((s) => s.selectedCard);
-  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
-  const detailOpen = useSelectionStore((s) => s.detailOpen);
-  const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
   const closeDetail = useSelectionStore((s) => s.closeDetail);
-  const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
-  const applyTagFilter = useApplyTagFilter();
+
+  const handleClose = () => {
+    if (history.state?.cardDetail) {
+      history.back();
+    } else {
+      closeDetail();
+    }
+  };
+
+  const {
+    selectedCard,
+    detailOpen,
+    siblingPrintings,
+    handlePrevCard,
+    handleNextCard,
+    handleTagClick,
+    handleKeywordClick,
+    handleSelectPrinting,
+  } = useSelectionDetail({
+    items,
+    printingsByCardId,
+    onSearchAndClose,
+    onDismiss: handleClose,
+  });
 
   useEffect(() => {
     if (!detailOpen || !isMobile) {
@@ -64,49 +86,6 @@ export function SelectionMobileOverlay({
   if (!isMobile || !selectedCard) {
     return null;
   }
-
-  const siblingPrintings = printingsByCardId.get(selectedCard.cardId) ?? [];
-
-  const handleClose = () => {
-    if (history.state?.cardDetail) {
-      history.back();
-    } else {
-      closeDetail();
-    }
-  };
-
-  // The store's selectedIndex can go stale against `items` (the list shrinks
-  // or reorders while the overlay is open), so both neighbors are bounds-checked
-  // against the current array, not just the index (OPENRIFT-SSR-22).
-  const prevItem = selectedIndex > 0 ? items[selectedIndex - 1] : undefined;
-  const handlePrevCard = prevItem
-    ? () => navigateToIndex(selectedIndex - 1, prevItem.printing)
-    : undefined;
-
-  const nextItem = selectedIndex >= 0 ? items[selectedIndex + 1] : undefined;
-  const handleNextCard = nextItem
-    ? () => navigateToIndex(selectedIndex + 1, nextItem.printing)
-    : undefined;
-
-  const handleSelectPrinting = (printing: Printing) => {
-    const idx = items.findIndex((item) => item.printing.id === printing.id);
-    if (idx === -1) {
-      setSelectedCard(printing);
-    } else {
-      navigateToIndex(idx, printing);
-    }
-  };
-
-  // Tags apply the structured filter (exact match) where the surface has one;
-  // the quoted `t:"…"` search fallback keeps multi-word tags a single term.
-  const handleTagClick = (tag: string) => {
-    if (applyTagFilter) {
-      applyTagFilter(tag);
-      handleClose();
-    } else {
-      onSearchAndClose(`t:"${tag}"`);
-    }
-  };
 
   return (
     <Drawer
@@ -136,9 +115,10 @@ export function SelectionMobileOverlay({
               onPrevCard={handlePrevCard}
               onNextCard={handleNextCard}
               onTagClick={handleTagClick}
-              onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
+              onKeywordClick={handleKeywordClick}
               printings={siblingPrintings}
               onSelectPrinting={handleSelectPrinting}
+              actions={actions?.(selectedCard)}
             />
           </Suspense>
         </div>

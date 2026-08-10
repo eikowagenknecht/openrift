@@ -37,8 +37,8 @@ import {
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { collectListPrintings, kindToView } from "@/components/list/list-entries";
 import { ListHeader } from "@/components/list/list-header";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { SharedTradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Button } from "@/components/ui/button";
 import { CountPillButton } from "@/components/ui/count-pill";
@@ -577,14 +577,12 @@ function SharedListGrid({
                     }
           }
         >
-          {isMobile && (
-            <SelectionMobileOverlay
-              items={items}
-              printingsByCardId={detailPanePrintingsByCardId}
-              showImages={showImages}
-              onSearchAndClose={handleSearchAndClose}
-            />
-          )}
+          <SelectionDetailOverlays
+            items={items}
+            printingsByCardId={detailPanePrintingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={handleSearchAndClose}
+          />
         </CardViewer>
         {exchange?.mode === "request" ? (
           <RequestFromTradelistDialog

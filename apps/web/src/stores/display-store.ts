@@ -13,6 +13,7 @@ import {
   sanitizeDisplayMode,
   sanitizeFiltersExpanded,
   sanitizeOverrides,
+  sanitizePaneDocked,
 } from "@/lib/sanitize-preferences";
 
 /** Whether the card browser renders a grid of cards or a table of rows. */
@@ -131,6 +132,14 @@ interface DisplayState {
   toggleCardsShowCounts: () => void;
   displayMode: DisplayMode;
   setDisplayMode: (value: "grid" | "table") => void;
+  /**
+   * Whether the card detail pane stays docked beside the grid. Off by default:
+   * a card click then opens the detail modal instead, so clicking never
+   * reflows the grid under the pointer. Device-local, shared by every
+   * card-browser surface.
+   */
+  paneDocked: boolean;
+  setPaneDocked: (value: boolean) => void;
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -255,6 +264,8 @@ export const useDisplayStore = create<DisplayState>()(
       toggleCardsShowCounts: () => set((state) => ({ cardsShowCounts: !state.cardsShowCounts })),
       displayMode: "grid" as const,
       setDisplayMode: (value) => set({ displayMode: value }),
+      paneDocked: false,
+      setPaneDocked: (value) => set({ paneDocked: value }),
     }),
     {
       name: "user-preferences",
@@ -264,6 +275,7 @@ export const useDisplayStore = create<DisplayState>()(
         filtersExpanded: state.filtersExpanded,
         cardsShowCounts: state.cardsShowCounts,
         displayMode: state.displayMode,
+        paneDocked: state.paneDocked,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -275,6 +287,7 @@ export const useDisplayStore = create<DisplayState>()(
           filtersExpanded: sanitizeFiltersExpanded(persisted, current.filtersExpanded),
           cardsShowCounts: sanitizeCardsShowCounts(persisted, current.cardsShowCounts),
           displayMode: sanitizeDisplayMode(persisted, current.displayMode),
+          paneDocked: sanitizePaneDocked(persisted, current.paneDocked),
         };
       },
     },

@@ -6,6 +6,7 @@ import { ActiveFilters } from "@/components/filters/active-filters";
 import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import {
   DesktopOptionsBar,
+  DetailPaneToggle,
   MobileFilterContent,
   MobileOptionsContent,
   MobileOptionsDrawer,
@@ -226,6 +227,9 @@ export function BrowserToolbar({
           groupByValue={groupByValue}
         />
         {extras}
+        {/* Last, so the pane toggle is the rightmost control on every surface —
+            surface extras vary, the dock button's position must not. */}
+        <DetailPaneToggle />
         <MobileOptionsDrawer doneLabel={mobileDoneLabel} className="sm:hidden">
           <MobileOptionsContent
             showCopies={showCopies}

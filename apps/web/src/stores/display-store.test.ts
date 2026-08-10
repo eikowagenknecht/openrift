@@ -273,5 +273,16 @@ describe("useDisplayStore", () => {
       useDisplayStore.getState().setDisplayMode("grid");
       expect(useDisplayStore.getState().displayMode).toBe("grid");
     });
+
+    it("paneDocked starts closed so a card click opens the modal", () => {
+      expect(useDisplayStore.getState().paneDocked).toBe(false);
+    });
+
+    it("setPaneDocked docks and undocks the detail pane", () => {
+      useDisplayStore.getState().setPaneDocked(true);
+      expect(useDisplayStore.getState().paneDocked).toBe(true);
+      useDisplayStore.getState().setPaneDocked(false);
+      expect(useDisplayStore.getState().paneDocked).toBe(false);
+    });
   });
 });

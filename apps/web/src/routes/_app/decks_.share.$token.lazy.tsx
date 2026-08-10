@@ -11,8 +11,8 @@ import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { SharedDeckOwnershipBridge } from "@/components/deck/shared-deck-ownership-bridge";
 import { Pane } from "@/components/layout/panes";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { CardDetailSkeleton, SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
@@ -250,20 +250,18 @@ function SharedDeckContent() {
         {!isMobile && (
           <Suspense fallback={pendingClick ? <SharedDetailSkeletonPane /> : null}>
             {hydrated && (
-              <SharedDeckDetailPaneBridge
-                cards={builderCards}
-                pendingClick={pendingClick}
-                onResolved={() => setPendingClick(null)}
-                showImages={showImages}
-              />
+              <SharedDeckDetailPaneBridge cards={builderCards} showImages={showImages} />
             )}
             {!hydrated && pendingClick && <SharedDetailSkeletonPane />}
           </Suspense>
         )}
       </div>
-      {isMobile && hydrated && (
+      {/* Every viewport: the overlay component picks the drawer or the dialog.
+          Gating this on isMobile left desktop clicks selecting a card with
+          nothing to show whenever the pane was undocked. */}
+      {hydrated && (
         <Suspense fallback={null}>
-          <SharedDeckMobileOverlayBridge
+          <SharedDeckOverlayBridge
             cards={builderCards}
             pendingClick={pendingClick}
             onResolved={() => setPendingClick(null)}
@@ -304,36 +302,24 @@ function SharedDeckContent() {
 }
 
 /**
- * Catalog-gated bridge that resolves a pending click to a Printing, opens the
- * detail pane, and renders it. Suspends on first call until the catalog query
- * resolves — parent supplies a fallback that shows a skeleton when a click is
- * pending so the user sees instant feedback on the share page.
- * @returns The desktop detail pane (returns its own null when nothing is selected).
+ * Catalog-gated bridge that renders the desktop detail pane. Suspends on first
+ * call until the catalog query resolves — parent supplies a fallback that shows
+ * a skeleton when a click is pending so the user sees instant feedback on the
+ * share page.
+ *
+ * Resolving the pending click is {@link SharedDeckOverlayBridge}'s job, not
+ * this one's: both bridges are mounted together on desktop, and two copies of
+ * that effect would select the card twice.
+ * @returns The desktop detail pane (returns its own null when undocked or nothing is selected).
  */
 function SharedDeckDetailPaneBridge({
   cards,
-  pendingClick,
-  onResolved,
   showImages,
 }: {
   cards: DeckBuilderCard[];
-  pendingClick: DeckBuilderCard | null;
-  onResolved: () => void;
   showImages: boolean;
 }) {
   const { items, printingsByCardId } = useDeckItems(cards);
-  const { getPreferredPrinting } = usePreferredPrinting();
-
-  useEffect(() => {
-    if (!pendingClick) {
-      return;
-    }
-    const printing = getPreferredPrinting(pendingClick.cardId, pendingClick.preferredPrintingId);
-    if (printing) {
-      useSelectionStore.getState().selectCard(printing, items, "card", pendingClick.zone);
-      onResolved();
-    }
-  }, [pendingClick, getPreferredPrinting, items, onResolved]);
 
   return (
     <SelectionDetailPane
@@ -349,11 +335,13 @@ function SharedDeckDetailPaneBridge({
 }
 
 /**
- * Mobile counterpart to {@link SharedDeckDetailPaneBridge}. Resolves a pending
- * click into a Printing on the share page, then renders the mobile drawer.
- * @returns The mobile detail drawer (returns its own null when nothing is selected).
+ * Resolves a pending click into a Printing on the share page and renders the
+ * detail overlay for the viewport. Mounted on every viewport: the overlay
+ * component picks the drawer or the dialog itself, and this is the single owner
+ * of the pending-click effect.
+ * @returns The detail overlay (returns its own null when nothing is selected).
  */
-function SharedDeckMobileOverlayBridge({
+function SharedDeckOverlayBridge({
   cards,
   pendingClick,
   onResolved,
@@ -379,7 +367,7 @@ function SharedDeckMobileOverlayBridge({
   }, [pendingClick, getPreferredPrinting, items, onResolved]);
 
   return (
-    <SelectionMobileOverlay
+    <SelectionDetailOverlays
       items={items}
       printingsByCardId={printingsByCardId}
       showImages={showImages}

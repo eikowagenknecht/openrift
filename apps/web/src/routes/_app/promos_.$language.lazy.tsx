@@ -35,8 +35,8 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { MarkdownText } from "@/components/markdown-text";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
@@ -575,14 +575,12 @@ function PromosPage() {
               />
             }
           >
-            {isMobile && (
-              <SelectionMobileOverlay
-                items={selectionItems}
-                printingsByCardId={printingsByCardId}
-                showImages={showImages}
-                onSearchAndClose={handleSearchAndClose}
-              />
-            )}
+            <SelectionDetailOverlays
+              items={selectionItems}
+              printingsByCardId={printingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={handleSearchAndClose}
+            />
           </CardBrowserLayout>
         </CardBrowserFilterProvider>
       </div>

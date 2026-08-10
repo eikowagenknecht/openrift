@@ -52,6 +52,7 @@ import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-ch
 import { LensBar } from "@/components/deck/stats/lens-bar";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ColumnControls } from "@/components/filters/column-controls";
+import { DetailPaneToggle } from "@/components/filters/options-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { MarkdownText } from "@/components/markdown-text";
@@ -1147,6 +1148,11 @@ export function DeckOverview({
           <TooltipContent>List view</TooltipContent>
         </Tooltip>
       </ToggleGroup>
+      {/* This surface has a detail pane but no card-browser toolbar, so the
+          dock toggle lives here — otherwise the pane would only be reachable
+          from the detail modal's footer link. Kept last so it sits at the far
+          right, the same end of the row it occupies on the browser toolbar. */}
+      <DetailPaneToggle />
     </div>
   );
 

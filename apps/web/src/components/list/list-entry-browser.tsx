@@ -26,8 +26,8 @@ import { buildListTradeIndex } from "@/components/list/list-trade-status";
 import { MoveCopiesToCollectionDialog } from "@/components/list/move-copies-to-collection-dialog";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
 import { TakeOffTradelistDialog } from "@/components/list/take-off-tradelist-dialog";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
 import { Toggle } from "@/components/ui/toggle";
 import { useFilterActions } from "@/hooks/use-card-filters";
@@ -387,14 +387,12 @@ export function ListEntryBrowser({
             ),
           }}
         >
-          {isMobile && (
-            <SelectionMobileOverlay
-              items={items}
-              printingsByCardId={detailPanePrintingsByCardId}
-              showImages={showImages}
-              onSearchAndClose={handleSearchAndClose}
-            />
-          )}
+          <SelectionDetailOverlays
+            items={items}
+            printingsByCardId={detailPanePrintingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={handleSearchAndClose}
+          />
           {mode === "select" && selected.size > 0 && (
             <FloatingActionBar
               selectedCount={selected.size}

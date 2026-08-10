@@ -2,6 +2,7 @@ import type { AvailableFilters, FilterCounts, GroupByField, SortOption } from "@
 import {
   CopyIcon,
   LayoutGridIcon,
+  PanelRightIcon,
   Rows3Icon,
   SquareIcon,
   SquareStackIcon,
@@ -22,6 +23,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -69,6 +71,41 @@ function groupByOptionsForView(view: "cards" | "printings" | "copies") {
   return view === "cards"
     ? defaultGroupByOptions.filter((option) => !isPrintingsOnlyGrouping(option.value))
     : defaultGroupByOptions;
+}
+
+/**
+ * Docks or undocks the card detail pane. Off by default, in which case a card
+ * click opens the detail modal instead — clicking then never reflows the grid
+ * under the pointer. Not rendered on phones, where the detail is always the
+ * fullscreen drawer and there is no pane to dock.
+ *
+ * Exported rather than placed inside {@link DesktopOptionsBar} because it sits
+ * at the far right of whatever row hosts it, after any surface-specific extras:
+ * `BrowserToolbar` renders it last, and the two surfaces with a detail pane but
+ * no toolbar at all (the deck overview and the public deck share, both via
+ * `DeckOverview`) end their own view-controls cluster with it.
+ * @returns The pane toggle, or null on mobile.
+ */
+export function DetailPaneToggle({ className }: { className?: string }) {
+  const paneDocked = useDisplayStore((state) => state.paneDocked);
+  const setPaneDocked = useDisplayStore((state) => state.setPaneDocked);
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return null;
+  }
+  const label = paneDocked ? "Hide the card detail panel" : "Show the card detail panel";
+  return (
+    <Toggle
+      variant="outline"
+      pressed={paneDocked}
+      onPressedChange={setPaneDocked}
+      className={cn(activeToggleClass, className)}
+      title={label}
+      aria-label={label}
+    >
+      <PanelRightIcon className="size-4" />
+    </Toggle>
+  );
 }
 
 function DisplayModeToggle({ compact, className }: { compact?: boolean; className?: string }) {

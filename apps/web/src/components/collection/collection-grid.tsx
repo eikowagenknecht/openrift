@@ -23,6 +23,7 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CollectionDetailActions } from "@/components/collection/collection-detail-actions";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { CollectionGridOverlays } from "@/components/collection/collection-grid-overlays";
 import { CollectionIntroBanner } from "@/components/collection/collection-intro-banner";
@@ -36,8 +37,8 @@ import { VariantLocationsPopoverHost } from "@/components/collection/variant-loc
 import { EmptyState } from "@/components/empty-state";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { LendCardDialog } from "@/components/loans/lend-card-dialog";
+import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -771,12 +772,22 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // ── Panes ───────────────────────────────────────────────────────────
 
+  // Only browse mode puts add controls on the tiles, so only browse mode puts
+  // them in the detail overlay.
+  const detailActions =
+    mode === "browse"
+      ? (printing: Printing) => (
+          <CollectionDetailActions printing={printing} collectionId={collectionId} />
+        )
+      : undefined;
+
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
       printingsByCardId={detailPanePrintingsByCardId}
       showImages={showImages}
       onSearchAndClose={searchAndClose}
+      actions={detailActions}
     />
   );
 
@@ -954,14 +965,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               />
             )}
 
-            {isMobile && (
-              <SelectionMobileOverlay
-                items={items}
-                printingsByCardId={detailPanePrintingsByCardId}
-                showImages={showImages}
-                onSearchAndClose={searchAndClose}
-              />
-            )}
+            <SelectionDetailOverlays
+              items={items}
+              printingsByCardId={detailPanePrintingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={searchAndClose}
+              actions={detailActions}
+            />
 
             <MoveDialog
               open={moveOpen}
