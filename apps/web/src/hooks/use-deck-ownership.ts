@@ -57,14 +57,15 @@ export interface CardOwnership {
    */
   displayPrinting: OwnershipPrinting | undefined;
   /**
-   * Cheapest priced printing that fills this card's shortfall, preferring the
-   * viewer's languages. A creator can pin a premium printing; the viewer
-   * completing the deck buys the cheapest copy they accept, so missing-cards
-   * pricing uses this instead of `displayPrice`. `undefined` when nothing is
-   * missing or no printing has a price.
+   * Cheapest priced printing of this card, preferring the viewer's languages
+   * (any language as fallback). A creator can pin a premium printing for
+   * looks; what the deck is worth to buy stays the cheapest copy the viewer
+   * accepts — so the headline value, the per-row prices, and the
+   * missing-cards pricing all use this instead of `displayPrice`.
+   * `undefined` when no printing has a price.
    */
-  completionPrice: number | undefined;
-  completionPrinting: OwnershipPrinting | undefined;
+  cheapestPrice: number | undefined;
+  cheapestPrinting: OwnershipPrinting | undefined;
 }
 
 interface OwnershipPrinting {
@@ -163,6 +164,12 @@ export interface DeckOwnershipData {
    */
   requiredZoneMissing: number;
   sideboardMissing: number;
+  /**
+   * The headline deck value: every card at its cheapest acceptable printing
+   * (viewer's languages first — see {@link CardOwnership.cheapestPrice}).
+   * Pinned premium printings never move this figure; their total is
+   * `asDisplayedValueCents`.
+   */
   deckValueCents: number | undefined;
   /** Deck value excluding the sideboard — legend, champion, runes, battlefields, main. */
   mainValueCents: number | undefined;
@@ -170,8 +177,14 @@ export interface DeckOwnershipData {
   sideboardValueCents: number | undefined;
   ownedValueCents: number | undefined;
   /**
+   * The deck priced at the printings it displays (the creator's pins /
+   * canonical fallbacks). Shown in the value popover when it differs from the
+   * cheapest-based headline.
+   */
+  asDisplayedValueCents: number | undefined;
+  /**
    * Cost to buy every missing copy the cheapest way, preferring the viewer's
-   * languages (see {@link CardOwnership.completionPrice}).
+   * languages (see {@link CardOwnership.cheapestPrice}).
    */
   missingValueCents: number | undefined;
   /**
@@ -310,6 +323,7 @@ export function computeDeckOwnership(
   let sideboardMissing = 0;
   let hasPrices = false;
   let deckValueCents = 0;
+  let asDisplayedValueCents = 0;
   let mainValueCents = 0;
   let sideboardValueCents = 0;
   let ownedValueCents = 0;
@@ -383,12 +397,14 @@ export function computeDeckOwnership(
       : undefined;
     const displayPrinting = resolvedPrinting ? toOwnershipPrinting(resolvedPrinting) : undefined;
 
-    // Cheapest way to fill this card's remaining copies. First tier: printings
-    // in the viewer's languages (`languageOrder` is their preference list when
-    // set, every language otherwise). Fallback tier: any priced printing.
-    let completionPrice: number | undefined;
-    let completionResolved: Printing | undefined;
-    if (shortfall > 0) {
+    // Cheapest acceptable printing of this card. First tier: printings in the
+    // viewer's languages (`languageOrder` is their preference list when set,
+    // every language otherwise). Fallback tier: any priced printing. This is
+    // the basis for the headline value, the per-row prices, and the
+    // missing-cards pricing — never the pinned printing's price.
+    let cheapestPrice: number | undefined;
+    let cheapestResolved: Printing | undefined;
+    {
       const pools = [
         candidates.filter((candidate) => languageOrder.includes(candidate.language)),
         candidates,
@@ -396,19 +412,17 @@ export function computeDeckOwnership(
       for (const pool of pools) {
         for (const candidate of pool) {
           const price = prices.get(candidate.id, marketplace);
-          if (price !== undefined && (completionPrice === undefined || price < completionPrice)) {
-            completionPrice = price;
-            completionResolved = candidate;
+          if (price !== undefined && (cheapestPrice === undefined || price < cheapestPrice)) {
+            cheapestPrice = price;
+            cheapestResolved = candidate;
           }
         }
-        if (completionPrice !== undefined) {
+        if (cheapestPrice !== undefined) {
           break;
         }
       }
     }
-    const completionPrinting = completionResolved
-      ? toOwnershipPrinting(completionResolved)
-      : undefined;
+    const cheapestPrinting = cheapestResolved ? toOwnershipPrinting(cheapestResolved) : undefined;
 
     const entry: CardOwnership = {
       cardId: card.cardId,
@@ -430,8 +444,8 @@ export function computeDeckOwnership(
       borrowed: borrowedInZone,
       displayPrice,
       displayPrinting,
-      completionPrice,
-      completionPrinting,
+      cheapestPrice,
+      cheapestPrinting,
     };
 
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);
@@ -460,23 +474,27 @@ export function computeDeckOwnership(
       missingCards.push(entry);
     }
 
+    // Value totals price every copy at the cheapest acceptable printing; the
+    // displayed printing (a pin, or the canonical fallback) only feeds the
+    // "as displayed" figures. Fall back to the displayed price when no
+    // printing is priced at all — cheapest already scans every candidate, so
+    // this only fires when the displayed printing is the lone priced one.
+    const valuePerCopy = cheapestPrice ?? displayPrice;
+    if (valuePerCopy !== undefined) {
+      hasPrices = true;
+      deckValueCents += valuePerCopy * card.quantity;
+      if (card.zone === WellKnown.deckZone.SIDEBOARD) {
+        sideboardValueCents += valuePerCopy * card.quantity;
+      } else {
+        mainValueCents += valuePerCopy * card.quantity;
+      }
+      ownedValueCents += valuePerCopy * ownedInZone;
+      missingValueCents += valuePerCopy * shortfall;
+    }
     if (displayPrice !== undefined) {
       hasPrices = true;
-      deckValueCents += displayPrice * card.quantity;
-      if (card.zone === WellKnown.deckZone.SIDEBOARD) {
-        sideboardValueCents += displayPrice * card.quantity;
-      } else {
-        mainValueCents += displayPrice * card.quantity;
-      }
-      ownedValueCents += displayPrice * ownedInZone;
+      asDisplayedValueCents += displayPrice * card.quantity;
       missingAsDisplayedValueCents += displayPrice * shortfall;
-    }
-    // Missing cost uses the cheapest acceptable printing; fall back to the
-    // displayed one when nothing cheaper is priced.
-    const completionPerCopy = completionPrice ?? displayPrice;
-    if (completionPerCopy !== undefined && shortfall > 0) {
-      hasPrices = true;
-      missingValueCents += completionPerCopy * shortfall;
     }
   }
 
@@ -496,6 +514,7 @@ export function computeDeckOwnership(
     mainValueCents: hasPrices ? mainValueCents : undefined,
     sideboardValueCents: hasPrices ? sideboardValueCents : undefined,
     ownedValueCents: hasPrices ? ownedValueCents : undefined,
+    asDisplayedValueCents: hasPrices ? asDisplayedValueCents : undefined,
     missingValueCents: hasPrices ? missingValueCents : undefined,
     missingAsDisplayedValueCents: hasPrices ? missingAsDisplayedValueCents : undefined,
     missingCards,

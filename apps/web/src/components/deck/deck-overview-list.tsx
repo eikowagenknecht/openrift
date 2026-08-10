@@ -179,11 +179,17 @@ export function DeckOverviewList({
     // No art gate on the printing itself: an owned printing with no image on
     // file still prices as the owned printing and still shows its set code.
     // The art gate lives in `resolveHoverPrintingId`, where an image is what's
-    // actually being asked for.
+    // actually being asked for. Without the owned override, the price is the
+    // cheapest acceptable printing's — the same basis as the hero's value chip
+    // — so the visible row prices sum to the headline even when a premium
+    // printing is pinned for display.
     const owned = ownedPrintingFor?.(card.cardId);
     return {
       printing: owned ?? entry?.displayPrinting,
-      price: owned && prices ? prices.get(owned.id, marketplace) : entry?.displayPrice,
+      price:
+        owned && prices
+          ? prices.get(owned.id, marketplace)
+          : (entry?.cheapestPrice ?? entry?.displayPrice),
       hoverPrintingId:
         resolveHoverPrintingId?.(card.cardId, card.preferredPrintingId) ?? card.preferredPrintingId,
     };

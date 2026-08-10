@@ -209,8 +209,8 @@ export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardO
     lockedExcluded: 0,
     borrowed: 0,
     displayPrice: undefined,
-    completionPrice: undefined,
-    completionPrinting: undefined,
+    cheapestPrice: undefined,
+    cheapestPrinting: undefined,
     displayPrinting: {
       id: nextId(),
       language: "EN",

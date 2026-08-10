@@ -67,7 +67,7 @@ describe("missingCardsToListEntries", () => {
   it("prefers the completion printing over the display printing for printing-kind lists", () => {
     const card = stubCardOwnership({
       shortfall: 1,
-      completionPrinting: {
+      cheapestPrinting: {
         id: "cheap-printing",
         language: "EN",
         shortCode: "OGN-002",

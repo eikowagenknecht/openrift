@@ -160,8 +160,8 @@ describe("computeDeckOwnership", () => {
     expect(result.missingValueCents).toBe(600);
     expect(result.missingAsDisplayedValueCents).toBe(10_000);
     const entry = result.byCardZone.get(`${cardId}:main`);
-    expect(entry?.completionPrice).toBe(300);
-    expect(entry?.completionPrinting?.id).toBe("cheap-en");
+    expect(entry?.cheapestPrice).toBe(300);
+    expect(entry?.cheapestPrinting?.id).toBe("cheap-en");
     // The deck's displayed value keeps the creator's pin.
     expect(entry?.displayPrice).toBe(5000);
   });
@@ -177,7 +177,7 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, ["EN"]);
 
-    expect(result.byCardZone.get(`${cardId}:main`)?.completionPrinting?.id).toBe("sc-priced");
+    expect(result.byCardZone.get(`${cardId}:main`)?.cheapestPrinting?.id).toBe("sc-priced");
     expect(result.missingValueCents).toBe(250);
   });
 
@@ -375,14 +375,13 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices, EN_FIRST);
 
-    // Resolved printing is EN (p1) at $5, need 2 copies
-    expect(result.deckValueCents).toBe(10);
-    // Own 1 copy at EN price
-    expect(result.ownedValueCents).toBe(5);
-    // Missing 1 copy: the viewer's language order accepts DE too, so the
-    // cheapest completion is the DE printing at $3; the displayed-printing
-    // figure keeps the EN price.
+    // The viewer's language order accepts DE, so every value figure prices at
+    // the cheaper DE printing ($3); the displayed EN printing only feeds the
+    // "as displayed" totals.
+    expect(result.deckValueCents).toBe(6);
+    expect(result.ownedValueCents).toBe(3);
     expect(result.missingValueCents).toBe(3);
+    expect(result.asDisplayedValueCents).toBe(10);
     expect(result.missingAsDisplayedValueCents).toBe(5);
   });
 
@@ -416,7 +415,41 @@ describe("computeDeckOwnership", () => {
       landscape: false,
     });
     expect(entry?.displayPrice).toBe(500);
-    expect(result.deckValueCents).toBe(500);
+    // The headline value still prices at the cheapest acceptable printing —
+    // SC is in the viewer's language order here, so the pin only moves the
+    // "as displayed" figure.
+    expect(result.deckValueCents).toBe(100);
+    expect(result.asDisplayedValueCents).toBe(500);
+  });
+
+  it("keeps a premium pin out of the headline value", () => {
+    // The user's report: pinning an expensive showcase legend for looks must
+    // not inflate the deck's value. The headline stays at the cheapest
+    // printing in the viewer's languages; the pin's total is only visible as
+    // asDisplayedValueCents.
+    const cardId = "legend-1";
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 1, zone: "legend", preferredPrintingId: "metal" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "metal", cardId, language: "EN" }),
+      stubPrinting({ id: "plain", cardId, language: "EN" }),
+    ];
+    const prices = stubPriceLookup({
+      metal: { tcgplayer: 15_000 },
+      plain: { tcgplayer: 200 },
+    });
+
+    const result = computeDeckOwnership(deckCards, printings, { plain: 1 }, "tcgplayer", prices, [
+      "EN",
+    ]);
+
+    expect(result.deckValueCents).toBe(200);
+    expect(result.ownedValueCents).toBe(200);
+    expect(result.asDisplayedValueCents).toBe(15_000);
+    const entry = result.byCardZone.get(`${cardId}:legend`);
+    expect(entry?.cheapestPrice).toBe(200);
+    expect(entry?.displayPrice).toBe(15_000);
   });
 
   it("falls back to canonical (EN-preferring) printing when no preferredPrintingId", () => {

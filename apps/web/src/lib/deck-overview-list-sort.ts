@@ -10,10 +10,11 @@ export interface DeckListSortContext {
   /** Rarity slugs in display order; unknown/absent rarities sort last. */
   rarityOrder: readonly string[];
   /**
-   * The price the row actually shows, when that isn't the entry's display
-   * price — with "show my printings" on, rows price the printing the viewer
-   * owns. Supply it and the price sort follows the visible numbers, including
-   * the rows it leaves unpriced; omit it and the sort reads `displayPrice`.
+   * The price the row actually shows — with "show my printings" on, rows
+   * price the printing the viewer owns; otherwise the cheapest acceptable
+   * printing. Supply it and the price sort follows the visible numbers,
+   * including the rows it leaves unpriced; omit it and the sort reads the
+   * entry's `cheapestPrice` (display price as last resort).
    */
   getRowPrice?: (card: DeckBuilderCard) => number | undefined;
   /**
@@ -65,7 +66,11 @@ export function sortDeckOverviewList(
     // undefined renders blank, so it must sort last rather than fall back to a
     // price the user can't see.
     const priceOf =
-      ctx.getRowPrice ?? ((card: DeckBuilderCard) => ctx.getEntry(card)?.displayPrice);
+      ctx.getRowPrice ??
+      ((card: DeckBuilderCard) => {
+        const entry = ctx.getEntry(card);
+        return entry?.cheapestPrice ?? entry?.displayPrice;
+      });
     return cards.toSorted((a, b) => {
       const ap = priceOf(a);
       const bp = priceOf(b);

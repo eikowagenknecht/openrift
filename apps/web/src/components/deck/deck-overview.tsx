@@ -298,7 +298,10 @@ function buildPriceTexts(
   for (const card of cards) {
     const owned = preferOwned ? ownershipData.ownedPrintingByCardId.get(card.cardId) : undefined;
     const entry = ownershipData.byCardZone.get(`${card.cardId}:${card.zone}`);
-    const cents = owned && priceMap ? priceMap.get(owned.id, marketplace) : entry?.displayPrice;
+    const cents =
+      owned && priceMap
+        ? priceMap.get(owned.id, marketplace)
+        : (entry?.cheapestPrice ?? entry?.displayPrice);
     if (cents !== undefined) {
       texts.set(getDeckCardKey(card), fmtPrice(cents));
     }
@@ -629,9 +632,11 @@ export function DeckOverview({
     rarityOrder: enumOrders.rarities,
     getRowPrice: (card) => {
       const owned = ownedPrintingFor(card.cardId);
-      return owned && priceMap
-        ? priceMap.get(owned.id, marketplace)
-        : getOwnershipEntry(card)?.displayPrice;
+      if (owned && priceMap) {
+        return priceMap.get(owned.id, marketplace);
+      }
+      const entry = getOwnershipEntry(card);
+      return entry?.cheapestPrice ?? entry?.displayPrice;
     },
     getRowRarity: (card) =>
       (ownedPrintingFor(card.cardId) ?? getOwnershipEntry(card)?.displayPrinting)?.rarity,

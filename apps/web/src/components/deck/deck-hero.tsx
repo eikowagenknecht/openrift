@@ -225,16 +225,16 @@ export function DeckHero({
     ownershipData?.mainValueCents !== undefined &&
     ownershipData.sideboardValueCents !== undefined &&
     ownershipData.sideboardValueCents > 0;
-  // Completing the deck can be cheaper than the creator's pinned printings —
-  // surface both figures in the breakdown when they differ.
-  const missingDiffers =
-    missingCount > 0 &&
-    ownershipData?.missingValueCents !== undefined &&
-    ownershipData.missingAsDisplayedValueCents !== undefined &&
-    ownershipData.missingValueCents !== ownershipData.missingAsDisplayedValueCents;
+  // The headline prices every card at its cheapest acceptable printing; a
+  // pinned premium printing only shows up here, as the "At shown printings"
+  // total in the popover.
+  const asDisplayedDiffers =
+    ownershipData?.deckValueCents !== undefined &&
+    ownershipData.asDisplayedValueCents !== undefined &&
+    ownershipData.asDisplayedValueCents !== ownershipData.deckValueCents;
   // The cost to complete lives in this popover now (the missing chip that used
   // to carry it merged into the ownership chip).
-  const hasValueBreakdown = hasValueSplit || hasMissingValue;
+  const hasValueBreakdown = hasValueSplit || hasMissingValue || asDisplayedDiffers;
 
   // Rendered twice (mobile beside the chips, sm+ in the outer row) — plain
   // images, so the duplicate is cheap and the URLs load once.
@@ -433,19 +433,19 @@ export function DeckHero({
                                 </div>
                               </>
                             )}
+                            {asDisplayedDiffers && (
+                              <div className="flex justify-between gap-6">
+                                <dt className="text-muted-foreground">At shown printings</dt>
+                                <dd className="tabular-nums">
+                                  {fmtPrice(ownershipData.asDisplayedValueCents ?? 0)}
+                                </dd>
+                              </div>
+                            )}
                             {hasMissingValue && (
                               <div className="flex justify-between gap-6">
                                 <dt className="text-muted-foreground">To complete</dt>
                                 <dd className="tabular-nums">
                                   {fmtPrice(ownershipData.missingValueCents ?? 0)}
-                                </dd>
-                              </div>
-                            )}
-                            {missingDiffers && (
-                              <div className="flex justify-between gap-6">
-                                <dt className="text-muted-foreground">At shown printings</dt>
-                                <dd className="tabular-nums">
-                                  {fmtPrice(ownershipData.missingAsDisplayedValueCents ?? 0)}
                                 </dd>
                               </div>
                             )}

@@ -39,7 +39,7 @@ export function missingCardsToListEntries(
   }
   if (kind === "printing") {
     return missing.flatMap((card) => {
-      const printing = card.completionPrinting ?? card.displayPrinting;
+      const printing = card.cheapestPrinting ?? card.displayPrinting;
       return printing ? [{ printingId: printing.id, quantity: card.shortfall }] : [];
     });
   }

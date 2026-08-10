@@ -186,7 +186,7 @@ export function DeckMissingCardsDialog({
   // shortfall) rather than the deck's displayed pin — see `CardOwnership`.
   const printingIds = open
     ? sorted.flatMap((card) => {
-        const printing = card.completionPrinting ?? card.displayPrinting;
+        const printing = card.cheapestPrinting ?? card.displayPrinting;
         return printing ? [printing.id] : [];
       })
     : [];
@@ -203,8 +203,8 @@ export function DeckMissingCardsDialog({
   const listText = () =>
     sorted
       .map((card) => {
-        const printing = card.completionPrinting ?? card.displayPrinting;
-        const price = card.completionPrice ?? card.displayPrice;
+        const printing = card.cheapestPrinting ?? card.displayPrinting;
+        const price = card.cheapestPrice ?? card.displayPrice;
         const code = printing?.shortCode;
         const cardName = straightenApostrophes(card.cardName);
         const namePart = code ? `${code} ${cardName}` : cardName;
@@ -249,9 +249,9 @@ export function DeckMissingCardsDialog({
               {cards.map((card) => {
                 // The viewer completes the deck by buying the cheapest
                 // acceptable printing, not the creator's (possibly premium)
-                // pin — see `CardOwnership.completionPrinting`.
-                const printing = card.completionPrinting ?? card.displayPrinting;
-                const price = card.completionPrice ?? card.displayPrice;
+                // pin — see `CardOwnership.cheapestPrinting`.
+                const printing = card.cheapestPrinting ?? card.displayPrinting;
+                const price = card.cheapestPrice ?? card.displayPrice;
                 return (
                   <div
                     key={`${card.cardId}:${card.zone}`}
