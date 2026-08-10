@@ -75,7 +75,75 @@ describe("parseTextFormat", () => {
     expect(zoneOf("MAINDECK:")).toBe("main");
     expect(zoneOf("Battlefield:")).toBe("battlefield");
     expect(zoneOf("Rune Pool:")).toBe("runes");
+    expect(zoneOf("Mainboard:")).toBe("main");
     expect(zoneOf("Overflow:")).toBe("overflow");
+  });
+
+  it("accepts the markdown strikethrough headers topdeck.gg writes", () => {
+    const zoneOf = (header: string) => parseTextFormat(`${header}\n1 Card`).entries[0].explicitZone;
+
+    expect(zoneOf("~~Legend~~")).toBe("legend");
+    expect(zoneOf("~~Champion~~")).toBe("champion");
+    expect(zoneOf("~~Mainboard~~")).toBe("main");
+    expect(zoneOf("~~Battlefields~~")).toBe("battlefield");
+    expect(zoneOf("~~Runes~~")).toBe("runes");
+    expect(zoneOf("~~Sideboard~~")).toBe("sideboard");
+  });
+
+  it("parses a full topdeck.gg export into its zones", () => {
+    const { entries, warnings } = parseTextFormat(
+      [
+        "~~Legend~~",
+        "1 Kennen, Heart of the Tempest",
+        "",
+        "~~Champion~~",
+        "1 Kennen, Storm of Shuriken",
+        "",
+        "~~Runes~~",
+        "9 Chaos Rune",
+        "3 Order Rune",
+        "",
+        "~~Battlefields~~",
+        "1 Minefield",
+        "",
+        "~~Mainboard~~",
+        "3 Fizz, Trickster",
+        "1 Invert Timelines",
+        "",
+        "~~Sideboard~~",
+        "2 Abandon",
+      ].join("\n"),
+    );
+
+    expect(warnings).toEqual([]);
+    expect(entries.map((entry) => [entry.cardName, entry.quantity, entry.explicitZone])).toEqual([
+      ["Kennen, Heart of the Tempest", 1, "legend"],
+      ["Kennen, Storm of Shuriken", 1, "champion"],
+      ["Chaos Rune", 9, "runes"],
+      ["Order Rune", 3, "runes"],
+      ["Minefield", 1, "battlefield"],
+      ["Fizz, Trickster", 3, "main"],
+      ["Invert Timelines", 1, "main"],
+      ["Abandon", 2, "sideboard"],
+    ]);
+    expect(entries[1].sourceSlot).toBe("chosenChampion");
+    expect(entries.at(-1)?.sourceSlot).toBe("sideboard");
+  });
+
+  it("clears the zone and warns on an unknown strikethrough header", () => {
+    const { entries, warnings } = parseTextFormat(
+      "~~Battlefields~~\n1 Minefield\n\n~~Maybeboard~~\n1 Gust",
+    );
+
+    expect(warnings).toEqual(["Unknown zone header: ~~Maybeboard~~"]);
+    expect(entries[1].explicitZone).toBeUndefined();
+  });
+
+  it("treats a lone tilde pair as a card line, not a header", () => {
+    const { entries, warnings } = parseTextFormat("~~~~");
+
+    expect(warnings).toEqual([]);
+    expect(entries[0]).toMatchObject({ cardName: "~~~~", quantity: 1 });
   });
 
   it("leaves the zone unset with no header so type inference decides", () => {

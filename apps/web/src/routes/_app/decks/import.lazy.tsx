@@ -187,6 +187,15 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportMode, React.ReactNode> = {
         className="text-foreground underline"
       >
         TCG Arena
+      </a>{" "}
+      and{" "}
+      <a
+        href="https://topdeck.gg"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline"
+      >
+        TopDeck.gg
       </a>
       .
     </>

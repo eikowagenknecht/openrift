@@ -21,7 +21,11 @@ const TEXT_ZONE_SECTIONS: readonly {
 }[] = [
   { zone: WellKnown.deckZone.LEGEND, header: "Legend", aliases: [] },
   { zone: WellKnown.deckZone.CHAMPION, header: "Champion", aliases: [] },
-  { zone: WellKnown.deckZone.MAIN, header: "MainDeck", aliases: ["main deck", "main"] },
+  {
+    zone: WellKnown.deckZone.MAIN,
+    header: "MainDeck",
+    aliases: ["main deck", "main", "mainboard"],
+  },
   { zone: WellKnown.deckZone.BATTLEFIELD, header: "Battlefields", aliases: ["battlefield"] },
   { zone: WellKnown.deckZone.RUNES, header: "Runes", aliases: ["rune pool"] },
   { zone: WellKnown.deckZone.SIDEBOARD, header: "Sideboard", aliases: [] },
@@ -85,6 +89,24 @@ export function encodeText(cards: TextEncodableCard[]): EncodeResult {
 }
 
 /**
+ * Zone headers come in two spellings: our own `Legend:` and the markdown
+ * strikethrough `~~Legend~~` that topdeck.gg exports. Both are recognised
+ * everywhere, so a list pasted from either tool reads the same.
+ *
+ * @returns The header text without its delimiters, or undefined when the line
+ * is not a header at all.
+ */
+function headerTextOf(line: string): string | undefined {
+  if (line.startsWith("~~") && line.endsWith("~~") && line.length > 4) {
+    return line.slice(2, -2).trim();
+  }
+  if (line.endsWith(":")) {
+    return line.slice(0, -1).trim();
+  }
+  return undefined;
+}
+
+/**
  * Parses the text format back into import entries. Lines are `{quantity}
  * {card name}` under an optional zone header; a bare line with no leading
  * count is treated as quantity 1 so plain name lists paste in unchanged.
@@ -102,9 +124,10 @@ export function parseTextFormat(code: string): DeckCodeParseResult {
       continue;
     }
 
-    // Check for zone header (e.g. "MainDeck:" or "Legend:")
-    if (line.endsWith(":")) {
-      const zone = HEADER_TO_ZONE[line.slice(0, -1).toLowerCase()];
+    // Check for zone header (e.g. "MainDeck:", "Legend:" or "~~Mainboard~~")
+    const headerText = headerTextOf(line);
+    if (headerText !== undefined) {
+      const zone = HEADER_TO_ZONE[headerText.toLowerCase()];
       if (zone) {
         currentZone = zone;
       } else {
