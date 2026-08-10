@@ -4,6 +4,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
+import { loanCounterpartyLabel } from "@/lib/loan-derivation";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -95,6 +96,34 @@ export function aggregateBorrowedCounts(loans: readonly LoanResponse[]): Record<
   return borrowed;
 }
 
+/**
+ * Who the viewer is borrowing each card from, keyed by cardId rather than
+ * printing: a deck row is a card, and it doesn't care that two of its copies
+ * came from different printings. Same filter as
+ * {@link aggregateBorrowedCounts}. Names are deduped and kept in loan order,
+ * so the tooltip lists a lender once however many loans they hold.
+ * @returns Lender display names keyed by cardId.
+ */
+export function aggregateBorrowedLendersByCard(
+  loans: readonly LoanResponse[],
+): Record<string, string[]> {
+  const lenders: Record<string, string[]> = {};
+  for (const loan of loans) {
+    if (loan.role !== "borrower" || loan.status !== "active" || loan.acknowledgedAt === null) {
+      continue;
+    }
+    if (loan.quantity - loan.returnedQuantity <= 0) {
+      continue;
+    }
+    const name = loanCounterpartyLabel(loan);
+    const names = (lenders[loan.cardId] ??= []);
+    if (!names.includes(name)) {
+      names.push(name);
+    }
+  }
+  return lenders;
+}
+
 // ── Query hooks ─────────────────────────────────────────────────────────────
 
 /**
@@ -165,6 +194,25 @@ export function useBorrowedCounts(enabled: boolean): { data: Record<string, numb
     return { data: undefined };
   }
   return { data: aggregateBorrowedCounts(data.items) };
+}
+
+/**
+ * Lender names per borrowed card, for the deck rows' borrow tooltip. Self-gates
+ * on the session rather than taking an `enabled` flag: every call site is a
+ * deck row deep inside the tree, where threading the flag down would be the
+ * only thing the prop existed for.
+ * @returns Lender names keyed by cardId, or undefined while loading/logged out.
+ */
+export function useBorrowedLenders(): { data: Record<string, string[]> | undefined } {
+  const userId = useUserId();
+  const { data } = useQuery({
+    ...loansQueryOptions(userId ?? ""),
+    enabled: userId !== null,
+  });
+  if (data === undefined) {
+    return { data: undefined };
+  }
+  return { data: aggregateBorrowedLendersByCard(data.items) };
 }
 
 // ── Mutation hooks ──────────────────────────────────────────────────────────

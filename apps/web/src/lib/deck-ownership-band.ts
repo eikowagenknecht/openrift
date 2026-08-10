@@ -4,18 +4,22 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 
 /**
- * How one deck entry's copies split by collection status, in copies. The four
+ * How one deck entry's copies split by collection status, in copies. The five
  * numbers always add up to the entry's quantity, and the band draws them as
- * proportional segments: green, then blue, then amber, then nothing for the
- * remainder. Locked copies (on loan, reserved, excluded collection) still
- * count as missing in every shortfall figure — the band just reveals which
- * missing copies the viewer technically holds.
+ * proportional segments: green, then blue, then violet, then amber, then
+ * nothing for the remainder. Locked copies (on loan, reserved, excluded
+ * collection) still count as missing in every shortfall figure — the band just
+ * reveals which missing copies the viewer technically holds. Borrowed copies
+ * are the opposite: in hand and already counted as buildable, so they must not
+ * paint as missing.
  */
 export interface OwnershipBandSegments {
   /** Copies covered by the printing shown on the thumbnail. */
   exact: number;
   /** Copies covered by other printings of the same card. */
   other: number;
+  /** Copies borrowed from a friend (ADR-039) — in hand, not owned. */
+  borrowed: number;
   /** Copies the viewer holds but locked away from deck building. */
   locked: number;
   /** Copies the viewer doesn't have at all. */
@@ -25,7 +29,12 @@ export interface OwnershipBandSegments {
 /**
  * Splits one entry's quantity across the copies on hand: the printing on
  * screen fills the band first, other printings of the same card fill what's
- * left, locked copies cover the shortfall next, and the rest is missing.
+ * left, then borrowed copies, then locked copies cover the shortfall, and the
+ * rest is missing.
+ *
+ * Borrowed sits ahead of locked because it is the only one of the two that
+ * counts as buildable — the band's order runs from "you can play this" down to
+ * "you can't", so the two must not swap.
  *
  * @returns The entry's segments, in copies.
  */
@@ -33,13 +42,21 @@ export function ownershipBandSegments(
   quantity: number,
   ownedOfDisplayed: number,
   ownedOfOthers: number,
+  borrowedOfCard = 0,
   lockedOfCard = 0,
 ): OwnershipBandSegments {
   const needed = Math.max(0, quantity);
   const exact = Math.min(needed, Math.max(0, ownedOfDisplayed));
   const other = Math.min(needed - exact, Math.max(0, ownedOfOthers));
-  const locked = Math.min(needed - exact - other, Math.max(0, lockedOfCard));
-  return { exact, other, locked, missing: needed - exact - other - locked };
+  const borrowed = Math.min(needed - exact - other, Math.max(0, borrowedOfCard));
+  const locked = Math.min(needed - exact - other - borrowed, Math.max(0, lockedOfCard));
+  return {
+    exact,
+    other,
+    borrowed,
+    locked,
+    missing: needed - exact - other - borrowed - locked,
+  };
 }
 
 /** Per-deck lookups the band allocation reads, all resolved from the catalog. */
@@ -50,6 +67,8 @@ export interface OwnershipBandSources {
   availableByCardId: Record<string, number>;
   /** Locked-away copies per card (any printing, any lock reason). */
   lockedByCardId: Record<string, number>;
+  /** Borrowed copies per card (any printing), from the loans feed. */
+  borrowedByCardId: Record<string, number>;
   /**
    * The printing each deck entry displays, keyed by {@link getDeckCardKey} —
    * the entry's pinned printing when it has one, otherwise the card's
@@ -75,6 +94,9 @@ interface PrintingRef {
  *   `getPreferredPrinting` from `usePreferredPrinting`.
  * @param availableByPrinting Deck-building-available copies per printing id.
  * @param lockedByPrinting Locked-away copies per printing id (any lock reason).
+ * @param borrowedByPrinting Borrowed copies per printing id, from the loans
+ *   feed. Empty for logged-out viewers, which simply yields no borrowed
+ *   segments.
  * @returns The lookups, ready to hand to {@link buildOwnershipBands}.
  */
 export function collectOwnershipBandSources(
@@ -83,27 +105,38 @@ export function collectOwnershipBandSources(
   resolvePrinting: (cardId: string, preferredPrintingId: string | null) => PrintingRef | undefined,
   availableByPrinting: Record<string, number>,
   lockedByPrinting: Record<string, number>,
+  borrowedByPrinting: Record<string, number> = {},
 ): OwnershipBandSources {
   const availableByCardId: Record<string, number> = {};
   const lockedByCardId: Record<string, number> = {};
+  const borrowedByCardId: Record<string, number> = {};
   const displayedPrintingIdByCardKey: Record<string, string> = {};
   for (const card of cards) {
     if (availableByCardId[card.cardId] === undefined) {
       let total = 0;
       let locked = 0;
+      let borrowed = 0;
       for (const printing of printingsByCardId.get(card.cardId) ?? []) {
         total += availableByPrinting[printing.id] ?? 0;
         locked += lockedByPrinting[printing.id] ?? 0;
+        borrowed += borrowedByPrinting[printing.id] ?? 0;
       }
       availableByCardId[card.cardId] = total;
       lockedByCardId[card.cardId] = locked;
+      borrowedByCardId[card.cardId] = borrowed;
     }
     const displayed = resolvePrinting(card.cardId, card.preferredPrintingId);
     if (displayed) {
       displayedPrintingIdByCardKey[getDeckCardKey(card)] = displayed.id;
     }
   }
-  return { availableByPrinting, availableByCardId, lockedByCardId, displayedPrintingIdByCardKey };
+  return {
+    availableByPrinting,
+    availableByCardId,
+    lockedByCardId,
+    borrowedByCardId,
+    displayedPrintingIdByCardKey,
+  };
 }
 
 /**
@@ -146,6 +179,7 @@ export function sameOwnershipBandSources(
     sameRecord(left.availableByPrinting, right.availableByPrinting) &&
     sameRecord(left.availableByCardId, right.availableByCardId) &&
     sameRecord(left.lockedByCardId, right.lockedByCardId) &&
+    sameRecord(left.borrowedByCardId, right.borrowedByCardId) &&
     sameRecord(left.displayedPrintingIdByCardKey, right.displayedPrintingIdByCardKey)
   );
 }
@@ -222,24 +256,35 @@ export function buildOwnershipBands(
   }
 
   // Pass 2 — whatever copies of the card are still unclaimed cover the
-  // remainders, in the same order. Locked copies fill after them, sharing one
-  // per-card pool so a locked copy isn't drawn twice across zones.
+  // remainders, in the same order. Borrowed copies fill after them and locked
+  // ones after that, each sharing one per-card pool so no copy is drawn twice
+  // across zones.
+  const claimedBorrowedByCard = new Map<string, number>();
   const claimedLockedByCard = new Map<string, number>();
   const bands = new Map<string, OwnershipBandSegments>();
   for (const card of ordered) {
     const key = getDeckCardKey(card);
     const cardLeft =
       (sources.availableByCardId[card.cardId] ?? 0) - (claimedByCard.get(card.cardId) ?? 0);
+    const borrowedLeft =
+      (sources.borrowedByCardId[card.cardId] ?? 0) - (claimedBorrowedByCard.get(card.cardId) ?? 0);
     const lockedLeft =
       (sources.lockedByCardId[card.cardId] ?? 0) - (claimedLockedByCard.get(card.cardId) ?? 0);
     const segments = ownershipBandSegments(
       card.quantity,
       exactByCardKey.get(key) ?? 0,
       cardLeft,
+      borrowedLeft,
       lockedLeft,
     );
     if (segments.other > 0) {
       claimedByCard.set(card.cardId, (claimedByCard.get(card.cardId) ?? 0) + segments.other);
+    }
+    if (segments.borrowed > 0) {
+      claimedBorrowedByCard.set(
+        card.cardId,
+        (claimedBorrowedByCard.get(card.cardId) ?? 0) + segments.borrowed,
+      );
     }
     if (segments.locked > 0) {
       claimedLockedByCard.set(
@@ -247,7 +292,7 @@ export function buildOwnershipBands(
         (claimedLockedByCard.get(card.cardId) ?? 0) + segments.locked,
       );
     }
-    if (segments.exact > 0 || segments.other > 0 || segments.locked > 0) {
+    if (segments.exact > 0 || segments.other > 0 || segments.borrowed > 0 || segments.locked > 0) {
       bands.set(key, segments);
     }
   }
@@ -259,10 +304,22 @@ export function buildOwnershipBands(
  * @returns One sentence naming the copies on hand.
  */
 export function ownershipBandTitle(quantity: number, segments: OwnershipBandSegments): string {
-  const { exact, other, locked } = segments;
+  const { exact, other, borrowed, locked } = segments;
   const needed = Math.max(0, quantity);
   const lockedSuffix =
     locked === 0 ? "" : locked === 1 ? ", 1 more is locked" : `, ${locked} more are locked`;
+  const borrowedSuffix =
+    borrowed === 0 ? "" : borrowed === 1 ? ", 1 is borrowed" : `, ${borrowed} are borrowed`;
+  // Borrowed copies are in hand but not owned, so they can't join an "own"
+  // sentence — they trail it, and stand alone when they're all there is. The
+  // `> 0` guard matters: an entry needing nothing has borrowed === needed === 0
+  // and must not read "you're borrowing all 0".
+  if (borrowed > 0 && borrowed === needed) {
+    return needed === 1 ? "You're borrowing this card" : `You're borrowing all ${needed}`;
+  }
+  if (exact === 0 && other === 0 && locked === 0 && borrowed > 0) {
+    return `You're borrowing ${borrowed} of ${needed}`;
+  }
   if (exact === needed) {
     return needed === 1 ? "You own this printing" : `You own all ${needed} in this printing`;
   }
@@ -272,18 +329,18 @@ export function ownershipBandTitle(quantity: number, segments: OwnershipBandSegm
       : `You own all ${needed} in another printing`;
   }
   if (exact > 0 && other > 0) {
-    return `You own ${exact} of ${needed} in this printing and ${other} in another${lockedSuffix}`;
+    return `You own ${exact} of ${needed} in this printing and ${other} in another${borrowedSuffix}${lockedSuffix}`;
   }
   if (exact > 0) {
-    return `You own ${exact} of ${needed} in this printing${lockedSuffix}`;
+    return `You own ${exact} of ${needed} in this printing${borrowedSuffix}${lockedSuffix}`;
   }
   if (other > 0) {
-    return `You own ${other} of ${needed} in another printing${lockedSuffix}`;
+    return `You own ${other} of ${needed} in another printing${borrowedSuffix}${lockedSuffix}`;
   }
   if (locked === needed) {
     return needed === 1
       ? "You own this card, but it's locked"
       : `You own all ${needed}, but they're locked`;
   }
-  return `You own ${locked} of ${needed}, but ${locked === 1 ? "it's" : "they're"} locked`;
+  return `You own ${locked} of ${needed}, but ${locked === 1 ? "it's" : "they're"} locked${borrowedSuffix}`;
 }

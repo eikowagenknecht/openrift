@@ -20,6 +20,7 @@ import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-dec
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useBorrowedLenders } from "@/hooks/use-loans";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -30,6 +31,7 @@ import {
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
 import { getTypeIconPath, getTypeIconPaths } from "@/lib/icons";
+import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -85,6 +87,9 @@ export function DeckZoneSection({
   const format = deckDetail.deck.format;
   const isFreeform = format === WellKnown.deckFormat.FREEFORM;
   const { getPreferredPrinting } = usePreferredPrinting();
+  // Names only — the counts come from the ownership entry, which has already
+  // allocated each borrowed copy to the zone that needs it.
+  const { data: borrowedLenders } = useBorrowedLenders();
 
   // Check if the currently dragged card is allowed in this zone
   const { active } = useDndContext();
@@ -196,6 +201,12 @@ export function DeckZoneSection({
           shortfall={entry?.shortfall}
           locked={entry?.locked}
           lockedReason={entry && entry.locked > 0 ? lockedReasonText(entry) : undefined}
+          borrowed={entry?.borrowed}
+          borrowedReason={
+            entry && entry.borrowed > 0
+              ? borrowedReasonText(entry.borrowed, borrowedLenders?.[card.cardId] ?? [])
+              : undefined
+          }
           controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
           maxQuantity={maxCardQuantity}
           draggable={DRAG_ZONES.has(zone)}

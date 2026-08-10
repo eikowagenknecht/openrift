@@ -61,6 +61,7 @@ export function cardMatchesStatsFocus(card: DeckBuilderCard, focus: StatsFocus):
 const OWNERSHIP_FOCUS_LABELS: Record<OwnershipClass, string> = {
   exact: "Cards owned as shown",
   other: "Cards owned in another printing",
+  borrowed: "Cards borrowed from friends",
   missing: "Cards with missing copies",
 };
 

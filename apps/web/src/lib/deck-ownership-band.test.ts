@@ -25,6 +25,7 @@ function sourcesFor(
   displayedPrintingIdByCardKey: Record<string, string>,
   availableByCardId?: Record<string, number>,
   lockedByCardId?: Record<string, number>,
+  borrowedByCardId?: Record<string, number>,
 ): OwnershipBandSources {
   return {
     availableByPrinting,
@@ -32,56 +33,162 @@ function sourcesFor(
       [CARD]: Object.values(availableByPrinting).reduce((sum, count) => sum + count, 0),
     },
     lockedByCardId: lockedByCardId ?? {},
+    borrowedByCardId: borrowedByCardId ?? {},
     displayedPrintingIdByCardKey,
   };
 }
 
 describe("ownershipBandSegments", () => {
   it("fills the band with the printing on screen first", () => {
-    expect(ownershipBandSegments(3, 3, 0)).toEqual({ exact: 3, other: 0, locked: 0, missing: 0 });
+    expect(ownershipBandSegments(3, 3, 0)).toEqual({
+      exact: 3,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
   });
 
   it("covers the remainder with other printings", () => {
-    expect(ownershipBandSegments(3, 2, 1)).toEqual({ exact: 2, other: 1, locked: 0, missing: 0 });
-    expect(ownershipBandSegments(3, 0, 2)).toEqual({ exact: 0, other: 2, locked: 0, missing: 1 });
+    expect(ownershipBandSegments(3, 2, 1)).toEqual({
+      exact: 2,
+      other: 1,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
+    expect(ownershipBandSegments(3, 0, 2)).toEqual({
+      exact: 0,
+      other: 2,
+      borrowed: 0,
+      locked: 0,
+      missing: 1,
+    });
   });
 
   it("leaves the copies the viewer lacks as missing", () => {
-    expect(ownershipBandSegments(4, 1, 0)).toEqual({ exact: 1, other: 0, locked: 0, missing: 3 });
-    expect(ownershipBandSegments(2, 0, 0)).toEqual({ exact: 0, other: 0, locked: 0, missing: 2 });
+    expect(ownershipBandSegments(4, 1, 0)).toEqual({
+      exact: 1,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 3,
+    });
+    expect(ownershipBandSegments(2, 0, 0)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 2,
+    });
   });
 
   it("never counts more copies than the entry needs", () => {
-    expect(ownershipBandSegments(2, 5, 5)).toEqual({ exact: 2, other: 0, locked: 0, missing: 0 });
-    expect(ownershipBandSegments(2, 1, 9)).toEqual({ exact: 1, other: 1, locked: 0, missing: 0 });
+    expect(ownershipBandSegments(2, 5, 5)).toEqual({
+      exact: 2,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
+    expect(ownershipBandSegments(2, 1, 9)).toEqual({
+      exact: 1,
+      other: 1,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
   });
 
   it("returns an empty split for an entry that needs nothing", () => {
-    expect(ownershipBandSegments(0, 3, 3)).toEqual({ exact: 0, other: 0, locked: 0, missing: 0 });
-    expect(ownershipBandSegments(-2, 3, 3)).toEqual({ exact: 0, other: 0, locked: 0, missing: 0 });
+    expect(ownershipBandSegments(0, 3, 3)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
+    expect(ownershipBandSegments(-2, 3, 3)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
   });
 
   it("ignores negative counts", () => {
-    expect(ownershipBandSegments(2, -1, -1)).toEqual({ exact: 0, other: 0, locked: 0, missing: 2 });
+    expect(ownershipBandSegments(2, -1, -1)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 2,
+    });
   });
 
   it("covers the shortfall with locked copies before calling it missing", () => {
-    expect(ownershipBandSegments(3, 2, 0, 1)).toEqual({
+    expect(ownershipBandSegments(3, 2, 0, 0, 1)).toEqual({
       exact: 2,
       other: 0,
+      borrowed: 0,
       locked: 1,
       missing: 0,
     });
-    expect(ownershipBandSegments(4, 0, 1, 1)).toEqual({
+    expect(ownershipBandSegments(4, 0, 1, 0, 1)).toEqual({
       exact: 0,
       other: 1,
+      borrowed: 0,
       locked: 1,
       missing: 2,
     });
-    expect(ownershipBandSegments(2, 0, 0, 5)).toEqual({
+    expect(ownershipBandSegments(2, 0, 0, 0, 5)).toEqual({
       exact: 0,
       other: 0,
+      borrowed: 0,
       locked: 2,
+      missing: 0,
+    });
+  });
+
+  it("covers the shortfall with borrowed copies before locked ones", () => {
+    // Borrowed copies are buildable and locked ones aren't, so the band has to
+    // spend the borrowed pool first — otherwise a card the viewer can actually
+    // sleeve would paint as unavailable.
+    expect(ownershipBandSegments(3, 1, 0, 1, 1)).toEqual({
+      exact: 1,
+      other: 0,
+      borrowed: 1,
+      locked: 1,
+      missing: 0,
+    });
+    expect(ownershipBandSegments(2, 0, 0, 1, 5)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 1,
+      locked: 1,
+      missing: 0,
+    });
+  });
+
+  // Regression: a deck built entirely from a friend's cards used to paint the
+  // whole band amber-missing while the shortfall figures said it was complete.
+  it("bands a fully-borrowed entry as borrowed, not missing", () => {
+    expect(ownershipBandSegments(2, 0, 0, 2)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 2,
+      locked: 0,
+      missing: 0,
+    });
+  });
+
+  it("never counts more borrowed copies than the entry needs", () => {
+    expect(ownershipBandSegments(2, 1, 0, 9)).toEqual({
+      exact: 1,
+      other: 0,
+      borrowed: 1,
+      locked: 0,
       missing: 0,
     });
   });
@@ -98,7 +205,13 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 2, other: 1, locked: 0, missing: 0 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 2,
+      other: 1,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
   });
 
   it("bands both halves of the same stack split by printing", () => {
@@ -123,12 +236,14 @@ describe("buildOwnershipBands", () => {
     expect(bands.get(`${CARD}|main|${STANDARD}`)).toEqual({
       exact: 2,
       other: 0,
+      borrowed: 0,
       locked: 0,
       missing: 0,
     });
     expect(bands.get(`${CARD}|main|${FOIL}`)).toEqual({
       exact: 1,
       other: 0,
+      borrowed: 0,
       locked: 0,
       missing: 0,
     });
@@ -151,6 +266,7 @@ describe("buildOwnershipBands", () => {
     expect(bands.get(`${CARD}|main|${FOIL}`)).toEqual({
       exact: 1,
       other: 0,
+      borrowed: 0,
       locked: 0,
       missing: 0,
     });
@@ -172,10 +288,17 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 2, other: 0, locked: 0, missing: 1 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 2,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 1,
+    });
     expect(bands.get(`${CARD}|main|${FOIL}`)).toEqual({
       exact: 1,
       other: 0,
+      borrowed: 0,
       locked: 0,
       missing: 0,
     });
@@ -190,7 +313,13 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 1, other: 0, locked: 0, missing: 2 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 1,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 2,
+    });
   });
 
   it("renders no band for a card the viewer owns none of", () => {
@@ -218,7 +347,13 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 2, other: 0, locked: 0, missing: 0 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 2,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
     expect(bands.has(`${CARD}|sideboard|`)).toBe(false);
   });
 
@@ -235,7 +370,13 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 1, other: 0, locked: 0, missing: 0 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 1,
+      other: 0,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
     expect(bands.has(`${CARD}|overflow|`)).toBe(false);
   });
 
@@ -246,11 +387,11 @@ describe("buildOwnershipBands", () => {
 
     expect(
       buildOwnershipBands([card], sources, ownedPrintings, true).get(`${CARD}|main|${STANDARD}`),
-    ).toEqual({ exact: 1, other: 0, locked: 0, missing: 0 });
+    ).toEqual({ exact: 1, other: 0, borrowed: 0, locked: 0, missing: 0 });
     // Toggle off, the thumbnail shows the pinned standard art again.
     expect(
       buildOwnershipBands([card], sources, ownedPrintings, false).get(`${CARD}|main|${STANDARD}`),
-    ).toEqual({ exact: 0, other: 1, locked: 0, missing: 0 });
+    ).toEqual({ exact: 0, other: 1, borrowed: 0, locked: 0, missing: 0 });
   });
 
   it("keeps the entry's own printing when the owned one has no art", () => {
@@ -265,6 +406,7 @@ describe("buildOwnershipBands", () => {
     expect(bands.get(`${CARD}|main|${STANDARD}`)).toEqual({
       exact: 1,
       other: 0,
+      borrowed: 0,
       locked: 0,
       missing: 0,
     });
@@ -274,7 +416,13 @@ describe("buildOwnershipBands", () => {
     const card = stubDeckBuilderCard({ cardId: CARD, quantity: 1 });
     const bands = buildOwnershipBands([card], sourcesFor({ [STANDARD]: 1 }, {}), undefined, false);
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 0, other: 1, locked: 0, missing: 0 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 0,
+      other: 1,
+      borrowed: 0,
+      locked: 0,
+      missing: 0,
+    });
   });
 
   it("returns an empty map for a deck with no cards", () => {
@@ -298,7 +446,13 @@ describe("buildOwnershipBands", () => {
 
     // Main claims both available copies plus the single locked one; the
     // sideboard entry is left with nothing at all, so it carries no band.
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 2, other: 0, locked: 1, missing: 0 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 2,
+      other: 0,
+      borrowed: 0,
+      locked: 1,
+      missing: 0,
+    });
     expect(bands.get(`${CARD}|sideboard|`)).toBeUndefined();
   });
 
@@ -311,7 +465,65 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    expect(bands.get(`${CARD}|main|`)).toEqual({ exact: 0, other: 0, locked: 1, missing: 1 });
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 0,
+      locked: 1,
+      missing: 1,
+    });
+  });
+
+  it("draws borrowed copies from one per-card pool across zones", () => {
+    const main = stubDeckBuilderCard({ cardId: CARD, quantity: 2, zone: "main" });
+    const side = stubDeckBuilderCard({ cardId: CARD, quantity: 2, zone: "sideboard" });
+    const bands = buildOwnershipBands(
+      [main, side],
+      sourcesFor(
+        {},
+        { [`${CARD}|main|`]: STANDARD, [`${CARD}|sideboard|`]: STANDARD },
+        { [CARD]: 0 },
+        undefined,
+        { [CARD]: 3 },
+      ),
+      undefined,
+      false,
+    );
+
+    // Two of the three borrowed copies cover the main deck; the third is all
+    // the sideboard entry gets, so it bands one borrowed and one missing.
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 2,
+      locked: 0,
+      missing: 0,
+    });
+    expect(bands.get(`${CARD}|sideboard|`)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 1,
+      locked: 0,
+      missing: 1,
+    });
+  });
+
+  it("gives a borrowed-only entry a band", () => {
+    const card = stubDeckBuilderCard({ cardId: CARD, quantity: 2 });
+    const bands = buildOwnershipBands(
+      [card],
+      sourcesFor({}, { [`${CARD}|main|`]: STANDARD }, { [CARD]: 0 }, undefined, { [CARD]: 2 }),
+      undefined,
+      false,
+    );
+
+    expect(bands.get(`${CARD}|main|`)).toEqual({
+      exact: 0,
+      other: 0,
+      borrowed: 2,
+      locked: 0,
+      missing: 0,
+    });
   });
 });
 
@@ -375,6 +587,11 @@ describe("sameOwnershipBandSources", () => {
     ).toBe(false);
     expect(sameOwnershipBandSources(base, sourcesFor({ [STANDARD]: 2 }, {}))).toBe(false);
     expect(sameOwnershipBandSources(base, { ...base, lockedByCardId: { [CARD]: 1 } })).toBe(false);
+    // A returned or newly-acknowledged loan changes only this lookup, so
+    // skipping it here would freeze the bands until something else moved.
+    expect(sameOwnershipBandSources(base, { ...base, borrowedByCardId: { [CARD]: 1 } })).toBe(
+      false,
+    );
   });
 
   it("handles the undefined ends", () => {
@@ -387,53 +604,85 @@ describe("sameOwnershipBandSources", () => {
 
 describe("ownershipBandTitle", () => {
   it("words a fully-owned entry", () => {
-    expect(ownershipBandTitle(1, { exact: 1, other: 0, locked: 0, missing: 0 })).toBe(
+    expect(ownershipBandTitle(1, { exact: 1, other: 0, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own this printing",
     );
-    expect(ownershipBandTitle(3, { exact: 3, other: 0, locked: 0, missing: 0 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 3, other: 0, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own all 3 in this printing",
     );
   });
 
   it("words an entry covered entirely by other printings", () => {
-    expect(ownershipBandTitle(1, { exact: 0, other: 1, locked: 0, missing: 0 })).toBe(
+    expect(ownershipBandTitle(1, { exact: 0, other: 1, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own this card in another printing",
     );
-    expect(ownershipBandTitle(2, { exact: 0, other: 2, locked: 0, missing: 0 })).toBe(
+    expect(ownershipBandTitle(2, { exact: 0, other: 2, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own all 2 in another printing",
     );
   });
 
   it("words a mixed entry", () => {
-    expect(ownershipBandTitle(3, { exact: 2, other: 1, locked: 0, missing: 0 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 2, other: 1, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own 2 of 3 in this printing and 1 in another",
     );
   });
 
   it("words a partly-owned entry", () => {
-    expect(ownershipBandTitle(3, { exact: 1, other: 0, locked: 0, missing: 2 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 1, other: 0, borrowed: 0, locked: 0, missing: 2 })).toBe(
       "You own 1 of 3 in this printing",
     );
-    expect(ownershipBandTitle(3, { exact: 0, other: 1, locked: 0, missing: 2 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 0, other: 1, borrowed: 0, locked: 0, missing: 2 })).toBe(
       "You own 1 of 3 in another printing",
     );
   });
 
   it("mentions locked copies", () => {
-    expect(ownershipBandTitle(3, { exact: 2, other: 0, locked: 1, missing: 0 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 2, other: 0, borrowed: 0, locked: 1, missing: 0 })).toBe(
       "You own 2 of 3 in this printing, 1 more is locked",
     );
-    expect(ownershipBandTitle(4, { exact: 1, other: 1, locked: 2, missing: 0 })).toBe(
+    expect(ownershipBandTitle(4, { exact: 1, other: 1, borrowed: 0, locked: 2, missing: 0 })).toBe(
       "You own 1 of 4 in this printing and 1 in another, 2 more are locked",
     );
-    expect(ownershipBandTitle(1, { exact: 0, other: 0, locked: 1, missing: 0 })).toBe(
+    expect(ownershipBandTitle(1, { exact: 0, other: 0, borrowed: 0, locked: 1, missing: 0 })).toBe(
       "You own this card, but it's locked",
     );
-    expect(ownershipBandTitle(2, { exact: 0, other: 0, locked: 2, missing: 0 })).toBe(
+    expect(ownershipBandTitle(2, { exact: 0, other: 0, borrowed: 0, locked: 2, missing: 0 })).toBe(
       "You own all 2, but they're locked",
     );
-    expect(ownershipBandTitle(3, { exact: 0, other: 0, locked: 1, missing: 2 })).toBe(
+    expect(ownershipBandTitle(3, { exact: 0, other: 0, borrowed: 0, locked: 1, missing: 2 })).toBe(
       "You own 1 of 3, but it's locked",
+    );
+  });
+
+  it("never says you own a borrowed copy", () => {
+    expect(ownershipBandTitle(1, { exact: 0, other: 0, borrowed: 1, locked: 0, missing: 0 })).toBe(
+      "You're borrowing this card",
+    );
+    expect(ownershipBandTitle(3, { exact: 0, other: 0, borrowed: 3, locked: 0, missing: 0 })).toBe(
+      "You're borrowing all 3",
+    );
+    expect(ownershipBandTitle(3, { exact: 0, other: 0, borrowed: 2, locked: 0, missing: 1 })).toBe(
+      "You're borrowing 2 of 3",
+    );
+  });
+
+  // An entry needing nothing has borrowed === needed === 0, which must not
+  // fall into the all-borrowed branch.
+  it("doesn't claim a borrow for an entry that needs nothing", () => {
+    expect(ownershipBandTitle(0, { exact: 0, other: 0, borrowed: 0, locked: 0, missing: 0 })).toBe(
+      "You own all 0 in this printing",
+    );
+  });
+
+  it("adds borrowed copies to an owned entry's sentence", () => {
+    expect(ownershipBandTitle(3, { exact: 2, other: 0, borrowed: 1, locked: 0, missing: 0 })).toBe(
+      "You own 2 of 3 in this printing, 1 is borrowed",
+    );
+    expect(ownershipBandTitle(4, { exact: 1, other: 1, borrowed: 2, locked: 0, missing: 0 })).toBe(
+      "You own 1 of 4 in this printing and 1 in another, 2 are borrowed",
+    );
+    expect(ownershipBandTitle(4, { exact: 0, other: 1, borrowed: 1, locked: 1, missing: 1 })).toBe(
+      "You own 1 of 4 in another printing, 1 is borrowed, 1 more is locked",
     );
   });
 });

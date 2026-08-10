@@ -8,7 +8,7 @@ import {
   legendDisplayName,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangleIcon, LockIcon, PlusIcon } from "lucide-react";
+import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
@@ -27,6 +27,7 @@ import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useBorrowedLenders } from "@/hooks/use-loans";
 import { pricesQueryOptions } from "@/hooks/use-prices";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -45,6 +46,7 @@ import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels
 import { getPipBackgroundStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
 
@@ -71,6 +73,8 @@ interface RowPrinting {
 interface ReservedCells {
   /** Some row has copies locked away from deck building. */
   lock: boolean;
+  /** Some row has copies borrowed from a friend. */
+  borrowed: boolean;
   /** Some row has a price on the selected marketplace. */
   price: boolean;
 }
@@ -222,8 +226,11 @@ export function DeckOverviewList({
 
   // Locked copies are rare and an unpriced printing rarer still, so both cells
   // are reserved per deck rather than always — see `ReservedCells`.
+  // Names only, built once for the whole list — see `DeckListRowProps`.
+  const { data: borrowedLenders } = useBorrowedLenders();
   const reserved: ReservedCells = {
     lock: showOwnership && cards.some((card) => (getEntry(card)?.locked ?? 0) > 0),
+    borrowed: showOwnership && cards.some((card) => (getEntry(card)?.borrowed ?? 0) > 0),
     price: cards.some((card) => resolveRowPrinting(card, getEntry(card)).price !== undefined),
   };
 
@@ -353,6 +360,7 @@ export function DeckOverviewList({
             domainColors={domainColors}
             showOwnership={showOwnership}
             reserved={reserved}
+            borrowedLenders={borrowedLenders}
             fmtPrice={fmtPrice}
             resolveRowPrinting={resolveRowPrinting}
             cardViolations={cardViolations}
@@ -373,6 +381,7 @@ export function DeckOverviewList({
                 domainColors={domainColors}
                 showOwnership={showOwnership}
                 reserved={reserved}
+                borrowedLenders={borrowedLenders}
                 fmtPrice={fmtPrice}
                 resolveRowPrinting={resolveRowPrinting}
                 violationMessage={cardViolations.get(card.cardId)}
@@ -570,6 +579,7 @@ function GroupedRows({
   domainColors,
   showOwnership,
   reserved,
+  borrowedLenders,
   fmtPrice,
   resolveRowPrinting,
   cardViolations,
@@ -590,6 +600,7 @@ function GroupedRows({
   domainColors: Record<string, string>;
   showOwnership: boolean;
   reserved: ReservedCells;
+  borrowedLenders?: Record<string, string[]>;
   fmtPrice: (cents: number) => string;
   /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
@@ -627,6 +638,7 @@ function GroupedRows({
                 domainColors={domainColors}
                 showOwnership={showOwnership}
                 reserved={reserved}
+                borrowedLenders={borrowedLenders}
                 fmtPrice={fmtPrice}
                 resolveRowPrinting={resolveRowPrinting}
                 violationMessage={cardViolations.get(card.cardId)}
@@ -685,6 +697,12 @@ interface DeckListRowProps {
   showOwnership: boolean;
   /** The optional cells this row holds space for, whether it fills them or not. */
   reserved: ReservedCells;
+  /**
+   * Lender names per cardId, for the borrow glyph's tooltip. Threaded rather
+   * than read per row: the aggregate is rebuilt on every call, so a hook here
+   * would recompute it once per row and hand every row a fresh object.
+   */
+  borrowedLenders?: Record<string, string[]>;
   fmtPrice: (cents: number) => string;
   /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
@@ -756,6 +774,7 @@ export function DeckListRow({
   domainColors,
   showOwnership,
   reserved,
+  borrowedLenders,
   fmtPrice,
   resolveRowPrinting,
   violationMessage,
@@ -887,6 +906,21 @@ export function DeckListRow({
                 <span className="text-xs tabular-nums">{entry.locked}</span>
               </TooltipTrigger>
               <TooltipContent>{lockedReasonText(entry)}</TooltipContent>
+            </Tooltip>
+          )}
+        </span>
+      )}
+      {reserved.borrowed && (
+        <span className="flex w-7 shrink-0 justify-end">
+          {entry && entry.borrowed > 0 && (
+            <Tooltip>
+              <TooltipTrigger className="text-muted-foreground flex items-center gap-0.5">
+                <HandHeartIcon className="size-3" />
+                <span className="text-xs tabular-nums">{entry.borrowed}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {borrowedReasonText(entry.borrowed, borrowedLenders?.[card.cardId] ?? [])}
+              </TooltipContent>
             </Tooltip>
           )}
         </span>

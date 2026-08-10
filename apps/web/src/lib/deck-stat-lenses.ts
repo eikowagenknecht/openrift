@@ -29,17 +29,19 @@ const LENS_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.CHAMPION,
 ]);
 
-/** The three collection-status classes, in band order. */
-export type OwnershipClass = "exact" | "other" | "missing";
+/** The four collection-status classes, in band order. */
+export type OwnershipClass = "exact" | "other" | "borrowed" | "missing";
 
 /**
  * Chart series for the ownership lens. Colors follow the app's collection
  * vocabulary: green for copies in the printing shown, sky for other printings,
- * amber for missing (the same amber as every "N missing" figure).
+ * violet for copies borrowed from a friend, amber for missing (the same amber
+ * as every "N missing" figure).
  */
 export const OWNERSHIP_LENS_SERIES: readonly (LensSeries & { key: OwnershipClass })[] = [
   { key: "exact", label: "This printing", color: "var(--color-green-500)" },
   { key: "other", label: "Another printing", color: "var(--color-sky-500)" },
+  { key: "borrowed", label: "Borrowed", color: "var(--color-violet-500)" },
   { key: "missing", label: "Missing", color: "var(--color-amber-500)" },
 ];
 
@@ -142,7 +144,7 @@ export function buildOwnershipRows(
   cards: readonly DeckBuilderCard[],
   segmentsByCardKey: ReadonlyMap<string, OwnershipBandSegments>,
 ): LensRow[] {
-  const totals: Record<OwnershipClass, number> = { exact: 0, other: 0, missing: 0 };
+  const totals: Record<OwnershipClass, number> = { exact: 0, other: 0, borrowed: 0, missing: 0 };
   for (const card of cards) {
     if (!LENS_ZONES.has(card.zone)) {
       continue;
@@ -153,6 +155,11 @@ export function buildOwnershipRows(
     }
     totals.exact += segments.exact;
     totals.other += segments.other;
+    // Borrowed copies get their own column rather than folding into either
+    // neighbour: they aren't owned, so they can't join "this printing", and
+    // they're in hand and buildable, so counting them as missing would
+    // contradict the shortfall figures.
+    totals.borrowed += segments.borrowed;
     // Locked copies count as missing here so the column matches every other
     // shortfall figure (hero chip, missing dialog); only the thumbnail band
     // splits them out.

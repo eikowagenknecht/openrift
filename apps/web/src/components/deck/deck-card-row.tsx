@@ -1,7 +1,14 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { WellKnown, legendDisplayName } from "@openrift/shared";
-import { AlertTriangleIcon, LockIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  HandHeartIcon,
+  LockIcon,
+  MinusIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
@@ -37,6 +44,15 @@ interface DeckCardRowProps {
   locked?: number;
   /** Tooltip sentence for the lock glyph — from `lockedReasonText`. */
   lockedReason?: string;
+  /**
+   * Copies of this row the viewer is borrowing from a friend (ADR-039). The
+   * opposite sign of `locked`: these are in hand and already counted as
+   * buildable, which is why they need their own glyph — they shrink the
+   * shortfall, so a fully-borrowed row would otherwise render nothing at all.
+   */
+  borrowed?: number;
+  /** Tooltip sentence for the borrow glyph — from `borrowedReasonText`. */
+  borrowedReason?: string;
   dimmed?: boolean;
   controlMode?: ControlMode;
   /** Largest copy count in this row's zone — used to size the count column so names align. */
@@ -254,6 +270,8 @@ export function DeckCardRow({
   shortfall,
   locked,
   lockedReason,
+  borrowed,
+  borrowedReason,
   dimmed,
   controlMode = "quantity",
   maxQuantity,
@@ -349,6 +367,16 @@ export function DeckCardRow({
             <span className="text-2xs tabular-nums">{locked}</span>
           </TooltipTrigger>
           <TooltipContent>{lockedReason}</TooltipContent>
+        </Tooltip>
+      )}
+
+      {borrowed !== undefined && borrowed > 0 && (
+        <Tooltip>
+          <TooltipTrigger className="text-muted-foreground flex shrink-0 items-center gap-0.5">
+            <HandHeartIcon className="size-3" />
+            <span className="text-2xs tabular-nums">{borrowed}</span>
+          </TooltipTrigger>
+          <TooltipContent>{borrowedReason}</TooltipContent>
         </Tooltip>
       )}
 

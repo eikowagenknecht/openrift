@@ -35,6 +35,26 @@ export function loanCounterpartyLabel(loan: LoanResponse): string {
   return loan.counterparty?.name ?? loan.counterpartyName ?? "Former member";
 }
 
+/**
+ * Tooltip sentence for a deck row's borrow glyph — the mirror of
+ * `lockedReasonText`. Borrowed copies are in hand and count as buildable, so
+ * without this the row says nothing at all about where they came from.
+ * Lenders may be empty when the loans feed hasn't loaded yet, which reads as
+ * the vaguer "from a friend" rather than an empty name.
+ * @returns One sentence naming the borrowed copies and who they came from.
+ */
+export function borrowedReasonText(count: number, lenders: readonly string[]): string {
+  const copies = count === 1 ? "1 copy is" : `${count} copies are`;
+  if (lenders.length === 0) {
+    return `${copies} borrowed from a friend`;
+  }
+  const names =
+    lenders.length === 1
+      ? lenders[0]
+      : `${lenders.slice(0, -1).join(", ")} and ${lenders.at(-1) ?? ""}`;
+  return `${copies} borrowed from ${names}`;
+}
+
 /** The Loans-page bucket a loan renders in. */
 export type LoanSection = "attention" | "lent" | "borrowed" | "history";
 

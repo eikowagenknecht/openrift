@@ -86,6 +86,7 @@ import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
 import { useHomeCollection } from "@/hooks/use-home-collection";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useMeasuredWidth } from "@/hooks/use-measured-width";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -1698,6 +1699,10 @@ function OwnershipBandSourcesBridge({
   const { printingsByCardId } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const { data } = useDeckBuildingCounts(true, homeCollectionId);
+  // Borrowed copies come from the loans feed, not the copies collection — they
+  // are never phantom copy rows (ADR-039). Undefined while it loads, which
+  // just means no borrowed segments yet.
+  const { data: borrowedCounts } = useBorrowedCounts(true);
   const sources = data
     ? collectOwnershipBandSources(
         cards,
@@ -1705,6 +1710,7 @@ function OwnershipBandSourcesBridge({
         getPreferredPrinting,
         data.available,
         data.locked,
+        borrowedCounts,
       )
     : undefined;
   useEffect(() => {
@@ -2860,9 +2866,9 @@ function ZoneThumb({
       )}
       {/* Collection status, split by copy: green for the copies on hand in the
           printing shown, blue for copies in another printing of the same card,
-          amber for copies locked away from deck building, and clear for the
-          ones still missing. Sits on the card's bottom edge so a zone reads as
-          a row of progress ticks. */}
+          violet for copies borrowed from a friend, amber for copies locked away
+          from deck building, and clear for the ones still missing. Sits on the
+          card's bottom edge so a zone reads as a row of progress ticks. */}
       {band && (
         <span
           title={ownershipBandTitle(card.quantity, band)}
@@ -2880,6 +2886,9 @@ function ZoneThumb({
           )}
           {band.other > 0 && (
             <span className="bg-sky-500" style={{ flexGrow: band.other, flexBasis: 0 }} />
+          )}
+          {band.borrowed > 0 && (
+            <span className="bg-violet-500" style={{ flexGrow: band.borrowed, flexBasis: 0 }} />
           )}
           {band.locked > 0 && (
             <span className="bg-amber-500" style={{ flexGrow: band.locked, flexBasis: 0 }} />

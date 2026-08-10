@@ -10,12 +10,16 @@ const DOMAIN_COLORS = { fury: "#ff0000" };
 
 function renderRow({
   locked = 0,
+  borrowed = 0,
   price,
   reserved,
+  borrowedLenders,
 }: {
   locked?: number;
+  borrowed?: number;
   price?: number;
-  reserved: { lock: boolean; price: boolean };
+  reserved: { lock: boolean; borrowed: boolean; price: boolean };
+  borrowedLenders?: Record<string, string[]>;
 }) {
   const card = stubDeckBuilderCard({
     cardId: "c-1",
@@ -27,12 +31,20 @@ function renderRow({
   const { container } = render(
     <DeckListRow
       card={card}
-      entry={stubCardOwnership({ cardId: "c-1", needed: 2, owned: 1, shortfall: 1, locked })}
+      entry={stubCardOwnership({
+        cardId: "c-1",
+        needed: 2,
+        owned: 1,
+        shortfall: 1,
+        locked,
+        borrowed,
+      })}
       rarityLabels={{}}
       domainLabels={{ fury: "Fury" }}
       domainColors={DOMAIN_COLORS}
       showOwnership
       reserved={reserved}
+      borrowedLenders={borrowedLenders}
       fmtPrice={(cents) => `$${cents / 100}`}
       resolveRowPrinting={() => ({ printing: undefined, price, hoverPrintingId: null })}
     />,
@@ -44,8 +56,9 @@ function renderRow({
   return row;
 }
 
-const BOTH = { lock: true, price: true };
-const NEITHER = { lock: false, price: false };
+const BOTH = { lock: true, borrowed: false, price: true };
+const NEITHER = { lock: false, borrowed: false, price: false };
+const WITH_BORROWED = { lock: true, borrowed: true, price: true };
 
 describe("DeckListRow", () => {
   // Regression: the row is right-packed around a flex-1 name, so a cell
@@ -70,6 +83,31 @@ describe("DeckListRow", () => {
     expect(renderRow({ price: 420, reserved: NEITHER }).children.length).toBe(
       renderRow({ price: 420, reserved: BOTH }).children.length - 2,
     );
+  });
+
+  it("gives borrowed and unborrowed rows the same cells once the list reserves it", () => {
+    expect(renderRow({ borrowed: 0, price: 420, reserved: WITH_BORROWED }).children.length).toBe(
+      renderRow({ borrowed: 2, price: 420, reserved: WITH_BORROWED }).children.length,
+    );
+  });
+
+  it("spends no width on the borrow cell when nothing in the deck is borrowed", () => {
+    expect(renderRow({ price: 420, reserved: BOTH }).children.length).toBe(
+      renderRow({ price: 420, reserved: WITH_BORROWED }).children.length - 1,
+    );
+  });
+
+  // The whole point of the glyph: borrowed copies already shrank the
+  // shortfall, so a row that needs nothing more would otherwise say nothing
+  // about the copies that are going back to their owner.
+  it("names the lender even when the row has no shortfall left", () => {
+    const row = renderRow({
+      borrowed: 2,
+      reserved: WITH_BORROWED,
+      borrowedLenders: { "c-1": ["Alice"] },
+    });
+    expect(row.textContent).toContain("2");
+    expect(row.querySelector('[data-slot="tooltip-trigger"]')).not.toBeNull();
   });
 
   // Regression: power was the one card stat gated behind `sm:`, so a phone

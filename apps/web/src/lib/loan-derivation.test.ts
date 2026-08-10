@@ -2,6 +2,7 @@ import type { LoanResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  borrowedReasonText,
   loanCounterpartyLabel,
   loanSection,
   loanStatusLabel,
@@ -95,5 +96,28 @@ describe("loanSection", () => {
 
   it("puts an ordinary active lent loan into lent", () => {
     expect(loanSection(stubLoan())).toBe("lent");
+  });
+});
+
+describe("borrowedReasonText", () => {
+  it("names a single lender", () => {
+    expect(borrowedReasonText(1, ["Alice"])).toBe("1 copy is borrowed from Alice");
+    expect(borrowedReasonText(3, ["Alice"])).toBe("3 copies are borrowed from Alice");
+  });
+
+  it("lists several lenders", () => {
+    expect(borrowedReasonText(2, ["Alice", "Bob"])).toBe(
+      "2 copies are borrowed from Alice and Bob",
+    );
+    expect(borrowedReasonText(3, ["Alice", "Bob", "Cait"])).toBe(
+      "3 copies are borrowed from Alice, Bob and Cait",
+    );
+  });
+
+  // The loans feed loads separately from the ownership counts, so the glyph can
+  // render a beat before any name is known.
+  it("falls back to an unnamed friend when no lender is known yet", () => {
+    expect(borrowedReasonText(1, [])).toBe("1 copy is borrowed from a friend");
+    expect(borrowedReasonText(2, [])).toBe("2 copies are borrowed from a friend");
   });
 });

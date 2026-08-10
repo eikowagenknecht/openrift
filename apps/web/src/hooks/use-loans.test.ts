@@ -12,7 +12,7 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
 vi.mock("@/lib/server-fns/orpc-client", () => ({ apiOrpcClient: () => ({}) }));
 
-const { aggregateBorrowedCounts } = await import("./use-loans");
+const { aggregateBorrowedCounts, aggregateBorrowedLendersByCard } = await import("./use-loans");
 
 function stubLoan(overrides: Partial<LoanResponse> = {}): LoanResponse {
   return {
@@ -60,5 +60,46 @@ describe("aggregateBorrowedCounts", () => {
 
   it("drops fully returned loans even while still active", () => {
     expect(aggregateBorrowedCounts([stubLoan({ quantity: 2, returnedQuantity: 2 })])).toEqual({});
+  });
+});
+
+describe("aggregateBorrowedLendersByCard", () => {
+  // Keyed by card, not printing: a deck row is a card, and it doesn't care
+  // that its two borrowed copies came from different printings.
+  it("collects lenders per card across printings", () => {
+    const loans = [
+      stubLoan({ cardId: "c1", printingId: "p1" }),
+      stubLoan({
+        cardId: "c1",
+        printingId: "p2",
+        counterparty: null,
+        counterpartyName: "Bob",
+      }),
+      stubLoan({ cardId: "c2", printingId: "p3" }),
+    ];
+    expect(aggregateBorrowedLendersByCard(loans)).toEqual({
+      c1: ["Alice", "Bob"],
+      c2: ["Alice"],
+    });
+  });
+
+  it("names a lender once however many loans they hold", () => {
+    const loans = [stubLoan({ cardId: "c1" }), stubLoan({ cardId: "c1" })];
+    expect(aggregateBorrowedLendersByCard(loans)).toEqual({ c1: ["Alice"] });
+  });
+
+  it("applies the same filter as the counts", () => {
+    const loans = [
+      stubLoan({ role: "lender" }),
+      stubLoan({ acknowledgedAt: null }),
+      stubLoan({ status: "returned" }),
+      stubLoan({ quantity: 2, returnedQuantity: 2 }),
+    ];
+    expect(aggregateBorrowedLendersByCard(loans)).toEqual({});
+  });
+
+  it("falls back to the placeholder for a deleted member", () => {
+    const loans = [stubLoan({ counterparty: null, counterpartyName: null })];
+    expect(aggregateBorrowedLendersByCard(loans)).toEqual({ c1: ["Former member"] });
   });
 });

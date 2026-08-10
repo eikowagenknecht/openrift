@@ -1,6 +1,12 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
 import { deckIdentityLabels, legendDisplayName } from "@openrift/shared";
-import { BoxIcon, CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
+import {
+  BoxIcon,
+  CheckCircle2Icon,
+  HandHeartIcon,
+  LogInIcon,
+  PackageSearchIcon,
+} from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
@@ -234,6 +240,7 @@ export function DeckHero({
   // build figure. The missing part names the sideboard shortfall separately
   // ("4 + 2 side missing") — the two scopes must never blur into one number.
   const missingCount = ownershipData?.missingCount ?? 0;
+  const borrowedCount = ownershipData?.totalBorrowed ?? 0;
   const requiredZoneMissing = ownershipData?.requiredZoneMissing ?? 0;
   const sideboardMissing = ownershipData?.sideboardMissing ?? 0;
   const missingLabel =
@@ -411,7 +418,19 @@ export function DeckHero({
                     {ownershipData && !signInHref && missingCount === 0 && (
                       <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
                         <CheckCircle2Icon className="size-3" />
-                        Fully owned
+                        {/* Borrowed copies close the shortfall without being
+                            owned, so a deck completed with a friend's cards
+                            must not claim ownership of them. */}
+                        {borrowedCount > 0 ? "Ready to play" : "Fully owned"}
+                      </span>
+                    )}
+                    {ownershipData && !signInHref && borrowedCount > 0 && (
+                      <span
+                        className={cn(CHIP_CLASS, "text-violet-700 dark:text-violet-400")}
+                        title="Copies you're borrowing from friends. They count as buildable while you have them, but they aren't part of your collection."
+                      >
+                        <HandHeartIcon className="size-3" />
+                        <span className="tabular-nums">{borrowedCount} borrowed</span>
                       </span>
                     )}
                     {signInHref && (
