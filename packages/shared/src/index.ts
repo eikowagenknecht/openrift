@@ -66,6 +66,7 @@ export {
   extractCardIdFromShortCode,
   formatPrintingLabel,
   centsToDollars,
+  deckIdentityLabels,
   deduplicateByCard,
   formatDateUTC,
   getOrientation,

@@ -34,6 +34,39 @@ export function legendDisplayName(card: Pick<Card, "name" | "types" | "tags">): 
 }
 
 /**
+ * Splits a deck's Legend/champion pair into the champion they share plus the
+ * two epithets, so a deck's identity line can name the champion once.
+ *
+ * In constructed the Legend's champion tag must match its champion unit, which
+ * makes the plain pairing read "Mel, Soul's Reflection · Mel, Newly Awakened".
+ * When both sides name the same champion this returns `character: "Mel"` with
+ * the epithets "Soul's Reflection" and "Newly Awakened". Otherwise (freeform
+ * decks, a half-built deck, a Legend without a tag) `character` stays unset and
+ * `legend` / `champion` keep their full names.
+ *
+ * @returns `{ character?, legend?, champion? }` — the shared champion when
+ * there is one, and the label to render for each side of the pair.
+ */
+export function deckIdentityLabels(
+  legend?: Pick<Card, "name" | "types" | "tags">,
+  champion?: Pick<Card, "name">,
+): { character?: string; legend?: string; champion?: string } {
+  const legendLabel = legend ? legendDisplayName(legend) : undefined;
+  const character =
+    legend !== undefined && legend.types.includes(WellKnown.cardType.LEGEND)
+      ? legend.tags[0]
+      : undefined;
+  // The champion unit stores the champion in its own name ("Mel, Newly
+  // Awakened"), so the prefix is what gets factored out. Matching on the name
+  // rather than on the unit's tags keeps the slice honest: no prefix, no split.
+  const prefix = character === undefined ? undefined : `${character}, `;
+  if (prefix === undefined || champion === undefined || !champion.name.startsWith(prefix)) {
+    return { legend: legendLabel, champion: champion?.name };
+  }
+  return { character, legend: legend?.name, champion: champion.name.slice(prefix.length) };
+}
+
+/**
  * Deduplicates an array, preserving insertion order.
  *
  * @returns A new array with duplicates removed.

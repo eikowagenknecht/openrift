@@ -16,6 +16,7 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Decks): **Champion named once in the deck identity** — the legend and the champion no longer both spell out the same champion name on deck pages, tiles, and list rows.
 - fix(Decks): **Power cost in deck rows** — a two-domain card showed the colorless rune instead of the wild Power symbol the card art uses, and screen readers now read the cost once instead of once per pip.
 - fix(Decks): **Deck list view columns** — the list shows each card's power cost on phones again, and a row with locked copies or no price on file no longer pushes the columns after the name out of line with the rows above it.
 - fix(Decks): **Domain strip in the deck builder sidebar** — the strip under the deck's name showed a wash of its legend's colors, so it now splits by how many cards each domain actually contributes, like the overview.

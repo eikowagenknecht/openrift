@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
-import { legendDisplayName, WellKnown } from "@openrift/shared";
+import { deckIdentityLabels, legendDisplayName, WellKnown } from "@openrift/shared";
 import { CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
@@ -93,19 +93,34 @@ function chipButtonClass(extra?: string) {
  */
 function SubtitlePivot({
   label,
+  roleLabel,
+  fullName,
   card,
   onCardClick,
 }: {
   label: string;
+  /**
+   * "Legend" or "Champion" — spoken with the full name, which the visible label
+   * may have shortened. Not `role`: that name reads as an ARIA role.
+   */
+  roleLabel: string;
+  fullName: string;
   card: DeckBuilderCard;
   onCardClick?: (card: DeckBuilderCard) => void;
 }) {
+  const spokenName = `${roleLabel}: ${fullName}`;
   if (!onCardClick) {
-    return <span className="truncate">{label}</span>;
+    return (
+      <span className="truncate" title={spokenName}>
+        {label}
+      </span>
+    );
   }
   return (
     <Pressable
       onClick={() => onCardClick(card)}
+      aria-label={spokenName}
+      title={spokenName}
       className="hover:text-foreground truncate hover:underline"
     >
       {label}
@@ -203,6 +218,14 @@ export function DeckHero({
     ? legendDisplayName({ name: legend.cardName, types: legend.cardTypes, tags: legend.tags })
     : undefined;
 
+  // The subtitle names the champion once when the Legend and the champion unit
+  // share one (always, in constructed) — "Mel Soul's Reflection · Newly
+  // Awakened" instead of repeating "Mel," on both halves.
+  const identity = deckIdentityLabels(
+    legend && { name: legend.cardName, types: legend.cardTypes, tags: legend.tags },
+    champion && { name: champion.cardName },
+  );
+
   // The ownership chip's fraction counts the deck proper (required zones incl.
   // runes, no sideboard) so its denominator matches the format badge's "X / 56"
   // build figure. The missing part names the sideboard shortfall separately
@@ -235,6 +258,31 @@ export function DeckHero({
   // The cost to complete lives in this popover now (the missing chip that used
   // to carry it merged into the ownership chip).
   const hasValueBreakdown = hasValueSplit || hasMissingValue || asDisplayedDiffers;
+
+  // The hero owns the deck's format badge (the top bar dropped its duplicate);
+  // on problems it opens the violation list and carries the build progress
+  // ("48/56") while the deck is incomplete — the old separate cards chip folded
+  // in here. Empty decks read as drafts, not as failures. It leads the chip row
+  // below the title, so the deck's state reads left to right with ownership and
+  // value; the domain icons sit up with the name instead.
+  const formatBadge =
+    hasViolations && format !== WellKnown.deckFormat.FREEFORM && totalCards > 0 ? (
+      <ViolationBadge
+        formatLabel={formatLabel}
+        violations={violations}
+        progress={
+          requiredTotal > 0 && requiredProgress < requiredTotal
+            ? `${requiredProgress}/${requiredTotal}`
+            : undefined
+        }
+      />
+    ) : totalCards === 0 && format !== WellKnown.deckFormat.FREEFORM ? (
+      <Badge variant="muted" className="rounded-md">
+        {formatLabel} · Draft
+      </Badge>
+    ) : (
+      <FormatStateBadge format={format} isValid={!hasViolations} />
+    );
 
   // Rendered twice (mobile beside the chips, sm+ in the outer row) — plain
   // images, so the duplicate is cheap and the URLs load once.
@@ -289,47 +337,41 @@ export function DeckHero({
       )}
       <div className="relative flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {legendDomains.map((domain) => (
-              <DomainIcon key={domain} domain={domain} />
-            ))}
-            {/* The hero owns the deck's format badge (the top bar dropped its
-                duplicate); on problems it opens the violation list and carries
-                the build progress ("48/56") while the deck is incomplete — the
-                old separate cards chip folded in here. Empty decks read as
-                drafts, not as failures. */}
-            {hasViolations && format !== WellKnown.deckFormat.FREEFORM && totalCards > 0 ? (
-              <ViolationBadge
-                formatLabel={formatLabel}
-                violations={violations}
-                progress={
-                  requiredTotal > 0 && requiredProgress < requiredTotal
-                    ? `${requiredProgress}/${requiredTotal}`
-                    : undefined
-                }
-              />
-            ) : totalCards === 0 && format !== WellKnown.deckFormat.FREEFORM ? (
-              <Badge variant="muted" className="rounded-md">
-                {formatLabel} · Draft
-              </Badge>
-            ) : (
-              <FormatStateBadge format={format} isValid={!hasViolations} />
-            )}
-          </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-baseline gap-2">
               <p className="font-heading truncate text-2xl font-bold">{name}</p>
+              {/* The domains ride with the name, not on a row of their own.
+                  `self-center` because the row aligns on the text baseline,
+                  which an image would meet with its bottom edge. */}
+              {legendDomains.length > 0 && (
+                <span className="flex shrink-0 items-center gap-1 self-center">
+                  {legendDomains.map((domain) => (
+                    <DomainIcon key={domain} domain={domain} />
+                  ))}
+                </span>
+              )}
               {byline && <span className="text-muted-foreground shrink-0 text-sm">{byline}</span>}
             </div>
             {(legend || champion) && (
               <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
+                {identity.character !== undefined && (
+                  <span className="text-foreground shrink-0 font-medium">{identity.character}</span>
+                )}
                 {legend && (
-                  <SubtitlePivot label={legendName ?? ""} card={legend} onCardClick={onCardClick} />
+                  <SubtitlePivot
+                    label={identity.legend ?? ""}
+                    roleLabel="Legend"
+                    fullName={legendName ?? ""}
+                    card={legend}
+                    onCardClick={onCardClick}
+                  />
                 )}
                 {legend && champion && <span aria-hidden="true">·</span>}
                 {champion && (
                   <SubtitlePivot
-                    label={champion.cardName}
+                    label={identity.champion ?? ""}
+                    roleLabel="Champion"
+                    fullName={champion.cardName}
                     card={champion}
                     onCardClick={onCardClick}
                   />
@@ -343,50 +385,14 @@ export function DeckHero({
               the pair lives in the outer row instead. */}
           <div className="flex items-center gap-3 sm:contents">
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:contents">
-              {totalCards > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {ownershipData && !signInHref && missingCount > 0 && onViewMissing && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={onViewMissing}
-                      className={chipButtonClass()}
-                    >
-                      <PackageSearchIcon className="size-3 text-amber-700 dark:text-amber-500" />
-                      <span className="tabular-nums">
-                        {ownershipData.requiredZoneNeeded > 0 && (
-                          <>
-                            {ownershipData.requiredZoneOwned}/{ownershipData.requiredZoneNeeded}{" "}
-                            owned ·{" "}
-                          </>
-                        )}
-                        <span className="text-amber-700 dark:text-amber-500">{missingLabel}</span>
-                      </span>
-                    </Button>
-                  )}
-                  {ownershipData && !signInHref && missingCount === 0 && (
-                    <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
-                      <CheckCircle2Icon className="size-3" />
-                      Fully owned
-                    </span>
-                  )}
-                  {signInHref && (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className={chipButtonClass()}
-                      // The visible label is the Button's children, which the lint rules can't see through the render prop.
-                      // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- text label is inside the Button children
-                      render={<a href={signInHref} />}
-                    >
-                      <LogInIcon className="size-3" />
-                      Sign in to compare with your collection
-                    </Button>
-                  )}
-
-                  {ownershipData?.deckValueCents !== undefined &&
-                    (signInHref && onViewMissing ? (
+              {/* The format badge always leads this row, so an empty deck still
+                  shows its format even though the ownership and value chips
+                  have nothing to say yet. */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {formatBadge}
+                {totalCards > 0 && (
+                  <>
+                    {ownershipData && !signInHref && missingCount > 0 && onViewMissing && (
                       <Button
                         type="button"
                         variant="outline"
@@ -394,72 +400,118 @@ export function DeckHero({
                         onClick={onViewMissing}
                         className={chipButtonClass()}
                       >
+                        <PackageSearchIcon className="size-3 text-amber-700 dark:text-amber-500" />
                         <span className="tabular-nums">
-                          {fmtPrice(ownershipData.deckValueCents)}
+                          {ownershipData.requiredZoneNeeded > 0 && (
+                            <>
+                              {ownershipData.requiredZoneOwned}/{ownershipData.requiredZoneNeeded}{" "}
+                              owned ·{" "}
+                            </>
+                          )}
+                          <span className="text-amber-700 dark:text-amber-500">{missingLabel}</span>
                         </span>
-                        <span className="text-muted-foreground">· view prices</span>
                       </Button>
-                    ) : hasValueBreakdown ? (
-                      <Popover>
-                        <PopoverTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="xs"
-                              aria-label="Show value breakdown"
-                              className={chipButtonClass("tabular-nums")}
-                            />
-                          }
+                    )}
+                    {ownershipData && !signInHref && missingCount === 0 && (
+                      <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
+                        <CheckCircle2Icon className="size-3" />
+                        Fully owned
+                      </span>
+                    )}
+                    {signInHref && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className={chipButtonClass()}
+                        // The visible label is the Button's children, which the lint rules can't see through the render prop.
+                        // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- text label is inside the Button children
+                        render={<a href={signInHref} />}
+                      >
+                        <LogInIcon className="size-3" />
+                        Sign in to compare with your collection
+                      </Button>
+                    )}
+
+                    {ownershipData?.deckValueCents !== undefined &&
+                      (signInHref && onViewMissing ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={onViewMissing}
+                          className={chipButtonClass()}
                         >
+                          <span className="tabular-nums">
+                            {fmtPrice(ownershipData.deckValueCents)}
+                          </span>
+                          <span className="text-muted-foreground">· view prices</span>
+                        </Button>
+                      ) : hasValueBreakdown ? (
+                        <Popover>
+                          <PopoverTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                aria-label="Show value breakdown"
+                                className={chipButtonClass("tabular-nums")}
+                              />
+                            }
+                          >
+                            {fmtPrice(ownershipData.deckValueCents)}
+                            <span className="text-muted-foreground">value</span>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="bottom"
+                            align="start"
+                            className="w-auto min-w-44 p-2"
+                          >
+                            <dl className="flex flex-col gap-1 text-xs">
+                              {hasValueSplit && (
+                                <>
+                                  <div className="flex justify-between gap-6">
+                                    <dt className="text-muted-foreground">Main deck</dt>
+                                    <dd className="tabular-nums">
+                                      {fmtPrice(ownershipData.mainValueCents ?? 0)}
+                                    </dd>
+                                  </div>
+                                  <div className="flex justify-between gap-6">
+                                    <dt className="text-muted-foreground">Sideboard</dt>
+                                    <dd className="tabular-nums">
+                                      {fmtPrice(ownershipData.sideboardValueCents ?? 0)}
+                                    </dd>
+                                  </div>
+                                </>
+                              )}
+                              {asDisplayedDiffers && (
+                                <div className="flex justify-between gap-6">
+                                  <dt className="text-muted-foreground">At shown printings</dt>
+                                  <dd className="tabular-nums">
+                                    {fmtPrice(ownershipData.asDisplayedValueCents ?? 0)}
+                                  </dd>
+                                </div>
+                              )}
+                              {hasMissingValue && (
+                                <div className="flex justify-between gap-6">
+                                  <dt className="text-muted-foreground">To complete</dt>
+                                  <dd className="tabular-nums">
+                                    {fmtPrice(ownershipData.missingValueCents ?? 0)}
+                                  </dd>
+                                </div>
+                              )}
+                            </dl>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <span className={cn(CHIP_CLASS, "tabular-nums")}>
                           {fmtPrice(ownershipData.deckValueCents)}
                           <span className="text-muted-foreground">value</span>
-                        </PopoverTrigger>
-                        <PopoverContent side="bottom" align="start" className="w-auto min-w-44 p-2">
-                          <dl className="flex flex-col gap-1 text-xs">
-                            {hasValueSplit && (
-                              <>
-                                <div className="flex justify-between gap-6">
-                                  <dt className="text-muted-foreground">Main deck</dt>
-                                  <dd className="tabular-nums">
-                                    {fmtPrice(ownershipData.mainValueCents ?? 0)}
-                                  </dd>
-                                </div>
-                                <div className="flex justify-between gap-6">
-                                  <dt className="text-muted-foreground">Sideboard</dt>
-                                  <dd className="tabular-nums">
-                                    {fmtPrice(ownershipData.sideboardValueCents ?? 0)}
-                                  </dd>
-                                </div>
-                              </>
-                            )}
-                            {asDisplayedDiffers && (
-                              <div className="flex justify-between gap-6">
-                                <dt className="text-muted-foreground">At shown printings</dt>
-                                <dd className="tabular-nums">
-                                  {fmtPrice(ownershipData.asDisplayedValueCents ?? 0)}
-                                </dd>
-                              </div>
-                            )}
-                            {hasMissingValue && (
-                              <div className="flex justify-between gap-6">
-                                <dt className="text-muted-foreground">To complete</dt>
-                                <dd className="tabular-nums">
-                                  {fmtPrice(ownershipData.missingValueCents ?? 0)}
-                                </dd>
-                              </div>
-                            )}
-                          </dl>
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      <span className={cn(CHIP_CLASS, "tabular-nums")}>
-                        {fmtPrice(ownershipData.deckValueCents)}
-                        <span className="text-muted-foreground">value</span>
-                      </span>
-                    ))}
-                </div>
-              )}
+                        </span>
+                      ))}
+                  </>
+                )}
+              </div>
 
               {actions && <div className="flex flex-wrap items-center gap-2 pt-1.5">{actions}</div>}
             </div>

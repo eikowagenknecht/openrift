@@ -20,6 +20,7 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
+import { DeckIdentityLine } from "./deck-identity-line";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
@@ -338,13 +339,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             )}
             <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
           </div>
-          {(legendCard || championCard || tagSummary) && (
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">
-              {[[legendCard?.name, championCard?.name].filter(Boolean).join(" / "), tagSummary]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          )}
+          <DeckIdentityLine
+            legendCard={legendCard}
+            championCard={championCard}
+            tagSummary={tagSummary}
+            className="mt-0.5"
+          />
           {deck.descriptionSnippet && (
             <p className="text-muted-foreground/80 mt-0.5 truncate text-xs">
               {deck.descriptionSnippet}

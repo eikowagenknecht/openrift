@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { Printing } from "./types/index";
+import type { CardType, Printing } from "./types/index";
 import {
   boundsOf,
   compareWithLanguagePreference,
+  deckIdentityLabels,
   deduplicateByCard,
   formatPrintingLabel,
   centsToDollars,
@@ -88,6 +89,62 @@ describe("legendDisplayName", () => {
 
   it("returns the bare name for non-Legend cards even when tagged", () => {
     expect(legendDisplayName({ name: "Recall", types: ["spell"], tags: ["Azir"] })).toBe("Recall");
+  });
+});
+
+describe("deckIdentityLabels", () => {
+  const melLegend = { name: "Soul’s Reflection", types: ["legend" as CardType], tags: ["Mel"] };
+
+  it("factors out the champion both cards name", () => {
+    expect(deckIdentityLabels(melLegend, { name: "Mel, Newly Awakened" })).toEqual({
+      character: "Mel",
+      legend: "Soul’s Reflection",
+      champion: "Newly Awakened",
+    });
+  });
+
+  it("keeps full names when the pair names different champions", () => {
+    expect(deckIdentityLabels(melLegend, { name: "Viktor, Innovator" })).toEqual({
+      legend: "Mel, Soul’s Reflection",
+      champion: "Viktor, Innovator",
+    });
+  });
+
+  it("keeps the full name when the champion unit is the bare champion", () => {
+    expect(deckIdentityLabels(melLegend, { name: "Mel" })).toEqual({
+      legend: "Mel, Soul’s Reflection",
+      champion: "Mel",
+    });
+  });
+
+  it("splits on the tag, not the first comma", () => {
+    expect(
+      deckIdentityLabels(
+        { name: "Dark Child, Starter", types: ["legend"], tags: ["Annie"] },
+        { name: "Annie, Child of Fire" },
+      ),
+    ).toEqual({
+      character: "Annie",
+      legend: "Dark Child, Starter",
+      champion: "Child of Fire",
+    });
+  });
+
+  it("leaves a tagless Legend alone", () => {
+    expect(
+      deckIdentityLabels({ name: "Nameless Legend", types: ["legend"], tags: [] }, { name: "Mel" }),
+    ).toEqual({ legend: "Nameless Legend", champion: "Mel" });
+  });
+
+  it("handles a half-built deck with only one side", () => {
+    expect(deckIdentityLabels(melLegend, undefined)).toEqual({
+      legend: "Mel, Soul’s Reflection",
+      champion: undefined,
+    });
+    expect(deckIdentityLabels(undefined, { name: "Mel, Newly Awakened" })).toEqual({
+      legend: undefined,
+      champion: "Mel, Newly Awakened",
+    });
   });
 });
 

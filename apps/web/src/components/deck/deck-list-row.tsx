@@ -16,6 +16,7 @@ import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
+import { DeckIdentityLine } from "./deck-identity-line";
 import { FormatStateBadge } from "./deck-tile";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
@@ -55,8 +56,6 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
   const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
-  const identity = [legendCard?.name, championCard?.name].filter(Boolean).join(" / ");
-  const subtitle = [identity, tagSummary].filter(Boolean).join(" · ");
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0
@@ -95,7 +94,11 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
             )}
             <span className="truncate font-medium">{deck.name}</span>
           </div>
-          {subtitle && <div className="text-muted-foreground truncate text-xs">{subtitle}</div>}
+          <DeckIdentityLine
+            legendCard={legendCard}
+            championCard={championCard}
+            tagSummary={tagSummary}
+          />
         </div>
       </div>
 
