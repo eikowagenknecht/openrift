@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
@@ -77,6 +78,58 @@ export function useSelectionDetail({
 
   const handleKeywordClick = (keyword: string) => onSearchAndClose(`k:${keyword}`);
 
+  /**
+   * Arrow-key navigation for an overlay that holds focus, mirroring the grid's
+   * own handler: left/right step through the list, up/down cycle the card's
+   * sibling printings. `useGridKeyboardNav` listens on the window and does not
+   * reach inside a focus-trapped dialog, so the overlay has to carry this
+   * itself; stopping propagation keeps the two from double-stepping wherever
+   * the event would have escaped.
+   */
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName.toLowerCase() ?? "";
+    if (tag === "input" || tag === "textarea" || tag === "select") {
+      return;
+    }
+    // The language tabs own left/right for their own roving focus.
+    if (target?.closest('[role="tablist"]')) {
+      return;
+    }
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const step = event.key === "ArrowLeft" ? handlePrevCard : handleNextCard;
+      if (!step) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      step();
+      return;
+    }
+
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      if (siblingPrintings.length < 2 || selectedCard === null) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const idx = siblingPrintings.findIndex((p) => p.id === selectedCard.id);
+      const next =
+        event.key === "ArrowUp"
+          ? idx > 0
+            ? idx - 1
+            : siblingPrintings.length - 1
+          : idx < siblingPrintings.length - 1
+            ? idx + 1
+            : 0;
+      handleSelectPrinting(siblingPrintings[next]);
+    }
+  };
+
   const navLabel =
     selectedIndex >= 0 && items.length > 0 ? `${selectedIndex + 1} / ${items.length}` : undefined;
 
@@ -89,6 +142,7 @@ export function useSelectionDetail({
     handleTagClick,
     handleKeywordClick,
     handleSelectPrinting,
+    handleKeyDown,
     navLabel,
   };
 }

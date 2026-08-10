@@ -44,6 +44,16 @@ export function SelectionDetailPane({
 }: SelectionDetailPaneProps) {
   const closeDetail = useSelectionStore((s) => s.closeDetail);
   const paneDocked = useDisplayStore((s) => s.paneDocked);
+  const setPaneDocked = useDisplayStore((s) => s.setPaneDocked);
+
+  // The X closes the panel, not just the card in it. Clearing the selection
+  // alone left the empty pane sitting there, and undocking alone would have
+  // handed the still-selected card straight to the modal.
+  const handleClose = () => {
+    setPaneDocked(false);
+    closeDetail();
+  };
+
   const {
     selectedCard,
     siblingPrintings,
@@ -69,7 +79,7 @@ export function SelectionDetailPane({
         <Suspense fallback={<CardDetailSkeleton />}>
           <CardDetail
             printing={selectedCard}
-            onClose={closeDetail}
+            onClose={handleClose}
             showImages={showImages}
             onPrevCard={handlePrevCard}
             onNextCard={handleNextCard}

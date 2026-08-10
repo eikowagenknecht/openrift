@@ -48,6 +48,12 @@ interface CardDetailProps {
    * prev/next buttons; the pane has no room for it.
    */
   navLabel?: string;
+  /**
+   * Modal only: an overlay-owned control (the dock link) placed opposite the
+   * card-page link, so the dialog ends in one footer row rather than a stray
+   * link under the columns and a separate line beneath it.
+   */
+  footerSlot?: ReactNode;
 }
 
 function BanAlert({ printing }: { printing: Printing }) {
@@ -83,6 +89,7 @@ export function CardDetail({
   layout = "pane",
   actions,
   navLabel,
+  footerSlot,
 }: CardDetailProps) {
   const { card } = printing;
   const domainColors = useDomainColors();
@@ -154,7 +161,12 @@ export function CardDetail({
           </div>
         </div>
 
-        <CardDetailLinks card={card} />
+        {/* One footer row: leaving the dialog on the left, changing how it is
+            shown on the right. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
+          <CardDetailLinks card={card} />
+          {footerSlot}
+        </div>
       </div>
     );
   }

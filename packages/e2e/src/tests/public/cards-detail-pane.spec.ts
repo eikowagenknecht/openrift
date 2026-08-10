@@ -2,6 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { waitForCatalogLoaded } from "../../helpers/catalog.js";
+import { dockDetailPane } from "../../helpers/detail-pane.js";
 
 // The detail pane is opened via a deep link (`/cards?printingId=<id>`) rather
 // than a grid click. On the virtualized, useHydrated-gated /cards grid the tile
@@ -25,6 +26,9 @@ const ANNIE_PRINTING_ID = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
  * @returns The detail pane locator.
  */
 async function openPaneViaDeepLink(page: Page): Promise<Locator> {
+  // The pane is opt-in (`paneDocked`), so without this the deep link opens the
+  // detail modal and there is no <aside> to find.
+  await dockDetailPane(page);
   await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
   const pane = page.locator("aside", {
     has: page.getByRole("button", { name: /close card details/iu }),
@@ -95,10 +99,10 @@ test.describe("card detail pane", () => {
     });
   });
 
-  test("clicking 'View card details' navigates to /cards/:slug", async ({ page }) => {
+  test("clicking 'Open card page' navigates to /cards/:slug", async ({ page }) => {
     const pane = await openPaneViaDeepLink(page);
 
-    await pane.getByRole("link", { name: /view card details/iu }).click();
+    await pane.getByRole("link", { name: /open card page/iu }).click();
 
     await expect(page).toHaveURL(/\/cards\/annie-fiery$/u);
     await expect(page.getByRole("heading", { level: 1, name: new RegExp(ANNIE, "u") })).toBeVisible(

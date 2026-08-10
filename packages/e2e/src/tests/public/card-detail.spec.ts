@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
+import { dockDetailPane } from "../../helpers/detail-pane.js";
 
 const SEED_CARD_SLUG = "annie-fiery";
 const SEED_CARD_NAME = "Annie, Fiery";
@@ -166,9 +167,11 @@ test.describe("card detail route — essentials", () => {
 
   // Open the pane via deep-link (the /cards grid tile click is not drivable in
   // the harness), then intercept the detail server fn and click through the
-  // pane's "View card details" link — that client-side navigation runs the
-  // /cards/$slug loader in the browser, where page.route can fail it.
+  // pane's "Open card page" link — that client-side navigation runs the
+  // /cards/$slug loader in the browser, where page.route can fail it. The pane
+  // is opt-in, so it has to be docked before the app boots.
   test("a 500 from the detail server fn renders the route error fallback", async ({ page }) => {
+    await dockDetailPane(page);
     await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
     const pane = page.locator("aside", {
       has: page.getByRole("button", { name: /close card details/iu }),
@@ -187,12 +190,13 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await pane.getByRole("link", { name: /view card details/iu }).click();
+    await pane.getByRole("link", { name: /open card page/iu }).click();
 
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("a slow detail server fn shows the skeleton before the heading", async ({ page }) => {
+    await dockDetailPane(page);
     await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
     const pane = page.locator("aside", {
       has: page.getByRole("button", { name: /close card details/iu }),
@@ -206,7 +210,7 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await pane.getByRole("link", { name: /view card details/iu }).click();
+    await pane.getByRole("link", { name: /open card page/iu }).click();
 
     // CardDetailPending renders Skeleton elements (data-slot="skeleton")
     // before the loader resolves and the real h1 mounts. TanStack's

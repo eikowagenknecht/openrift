@@ -1,10 +1,13 @@
 import type { Printing } from "@openrift/shared";
+import { XIcon } from "lucide-react";
 import { Suspense, lazy, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -64,6 +67,7 @@ export function SelectionDetailModal({
     handleTagClick,
     handleKeywordClick,
     handleSelectPrinting,
+    handleKeyDown,
     navLabel,
   } = useSelectionDetail({
     items,
@@ -128,7 +132,18 @@ export function SelectionDetailModal({
       <DialogContent
         className="sm:max-w-[860px]"
         style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
+        onKeyDown={handleKeyDown}
+        // The stock close is named just "Close"; the pane and the mobile drawer
+        // both say "Close card details", and one name across all three is what
+        // lets a user (or a locator) find it the same way everywhere.
+        showCloseButton={false}
       >
+        <DialogClose
+          render={<Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />}
+          aria-label="Close card details"
+        >
+          <XIcon className="size-4" />
+        </DialogClose>
         <DialogHeader className="sr-only">
           <DialogTitle>Card details</DialogTitle>
           <DialogDescription>Details for the selected card</DialogDescription>
@@ -146,14 +161,19 @@ export function SelectionDetailModal({
             onSelectPrinting={handleSelectPrinting}
             actions={actions?.(selectedCard)}
             navLabel={navLabel}
+            footerSlot={
+              <span className="text-muted-foreground text-xs">
+                Want this to stay open?{" "}
+                <Pressable
+                  onClick={handleDock}
+                  className="text-foreground underline underline-offset-3"
+                >
+                  Dock it beside the grid
+                </Pressable>
+              </span>
+            }
           />
         </Suspense>
-        <p className="text-muted-foreground border-t pt-3 text-center text-xs">
-          Want this to stay open?{" "}
-          <Pressable onClick={handleDock} className="text-foreground underline underline-offset-3">
-            Dock it beside the grid
-          </Pressable>
-        </p>
       </DialogContent>
     </Dialog>
   );

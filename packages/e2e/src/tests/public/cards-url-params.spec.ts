@@ -162,7 +162,9 @@ test.describe("card browser URL params", () => {
     await expect.poll(() => page.url()).not.toContain("priceMin=");
   });
 
-  test("?printingId=<id> opens the detail pane and strips the param", async ({ page }) => {
+  // The heading is the same in the modal (the default) and the docked pane, so
+  // this asserts the deep link resolves without pinning either surface.
+  test("?printingId=<id> opens the card detail and strips the param", async ({ page }) => {
     // Annie, Fiery OGS-001 EN normal printing from the seed
     const printingId = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
     await page.goto(`/cards?printingId=${printingId}`);

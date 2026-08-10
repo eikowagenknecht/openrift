@@ -210,15 +210,17 @@ test.describe("promos", () => {
   });
 
   test.describe("selection", () => {
-    test("clicking a grid card opens the detail pane", async ({ page }) => {
+    test("clicking a grid card opens the card detail", async ({ page }) => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
 
       const firstCard = page.locator(".aspect-card").first();
       await expect(firstCard).toBeVisible();
 
-      // Clicking a card selects it and opens the side detail pane rather than
-      // navigating; the pane exposes a "Close card details" control.
+      // Clicking a card selects it and opens the card detail rather than
+      // navigating. Which surface that is depends on the docked-pane
+      // preference (modal by default), and all three name their close control
+      // "Close card details".
       await expect(async () => {
         await firstCard.click();
         await expect(page.getByRole("button", { name: /close card details/iu })).toBeVisible({
@@ -228,7 +230,7 @@ test.describe("promos", () => {
       await expect(page).toHaveURL(/\/promos\/EN$/u);
     });
 
-    test("clicking a table row opens the detail pane", async ({ page }) => {
+    test("clicking a table row opens the card detail", async ({ page }) => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
 

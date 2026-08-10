@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,10 +13,13 @@ vi.mock("@/hooks/use-apply-tag-filter", () => ({
 }));
 
 vi.mock("@/components/cards/card-detail", () => ({
-  CardDetail: ({ actions }: { actions?: ReactNode }) => (
+  CardDetail: ({ actions, onClose }: { actions?: ReactNode; onClose?: () => void }) => (
     <div>
       <div>Card detail stub</div>
       {actions}
+      <button type="button" onClick={onClose}>
+        Close card details
+      </button>
     </div>
   ),
 }));
@@ -79,6 +83,27 @@ describe("SelectionDetailPane", () => {
     renderPane(items);
 
     expect(await screen.findByText("Card detail stub")).toBeInTheDocument();
+    expect(screen.queryByText("Select a card to see its details")).not.toBeInTheDocument();
+  });
+
+  // The X reads as "close this panel". Clearing the card alone left the empty
+  // pane sitting there; undocking alone would have handed the still-selected
+  // card straight to the modal.
+  it("closes the whole dock when the card's close button is used", async () => {
+    const user = userEvent.setup();
+    const items = [stubCardViewerItem()];
+    useDisplayStore.setState({ paneDocked: true });
+    useSelectionStore.setState({
+      selectedCard: items[0].printing,
+      selectedIndex: 0,
+      detailOpen: true,
+    });
+    renderPane(items);
+
+    await user.click(await screen.findByRole("button", { name: "Close card details" }));
+
+    expect(useDisplayStore.getState().paneDocked).toBe(false);
+    expect(useSelectionStore.getState().selectedCard).toBeNull();
     expect(screen.queryByText("Select a card to see its details")).not.toBeInTheDocument();
   });
 });

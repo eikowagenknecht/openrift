@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CSSProperties, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,22 +21,53 @@ vi.mock("@/hooks/use-apply-tag-filter", () => ({
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
     open === false ? null : <div>{children}</div>,
-  DialogContent: ({ children }: { children?: ReactNode; style?: CSSProperties }) => (
-    <div>{children}</div>
+  // Spreads the rest so the modal's own onKeyDown reaches the DOM — the whole
+  // point of the arrow-key tests below.
+  DialogContent: ({
+    children,
+    ...props
+  }: { children?: ReactNode; style?: CSSProperties } & Record<string, unknown>) => (
+    <div {...props}>{children}</div>
   ),
   DialogDescription: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  // Renders as a plain button so the close control keeps its accessible name,
+  // which is the thing the app and the e2e locators share.
+  DialogClose: ({
+    children,
+    render: _render,
+    ...props
+  }: { children?: ReactNode; render?: ReactNode } & Record<string, unknown>) => (
+    <button type="button" {...props}>
+      {children}
+    </button>
+  ),
 }));
 
 // The real CardDetail is lazy-loaded and heavy; the stub surfaces only what
 // these tests assert on.
 vi.mock("@/components/cards/card-detail", () => ({
-  CardDetail: ({ navLabel, actions }: { navLabel?: string; actions?: ReactNode }) => (
+  CardDetail: ({
+    navLabel,
+    actions,
+    footerSlot,
+  }: {
+    navLabel?: string;
+    actions?: ReactNode;
+    footerSlot?: ReactNode;
+  }) => (
     <div>
       <div>Card detail stub</div>
       {navLabel ? <div>{navLabel}</div> : null}
       {actions}
+      {/* A stand-in for the language tabs, which own left/right themselves. */}
+      <div role="tablist">
+        <button type="button" role="tab">
+          EN
+        </button>
+      </div>
+      {footerSlot}
     </div>
   ),
 }));
@@ -136,6 +167,55 @@ describe("SelectionDetailModal", () => {
     renderModal(items, (printing) => <div>actions for {printing.id}</div>);
 
     expect(await screen.findByText(`actions for ${items[0].printing.id}`)).toBeInTheDocument();
+  });
+
+  describe("keyboard navigation", () => {
+    // The grid's window listener never reaches inside the focus-trapped
+    // dialog, so arrow keys did nothing at all once the modal was open.
+    it("steps to the next and previous card with the arrow keys", async () => {
+      const items = [stubCardViewerItem(), stubCardViewerItem(), stubCardViewerItem()];
+      useSelectionStore.setState({
+        selectedCard: items[1].printing,
+        selectedIndex: 1,
+        detailOpen: true,
+      });
+      renderModal(items);
+      // Dispatched from inside the dialog, which is where the focus trap keeps
+      // it in the real thing.
+      const inside = await screen.findByText("Card detail stub");
+
+      fireEvent.keyDown(inside, { key: "ArrowRight" });
+      expect(useSelectionStore.getState().selectedIndex).toBe(2);
+      expect(useSelectionStore.getState().selectedCard).toBe(items[2].printing);
+
+      fireEvent.keyDown(inside, { key: "ArrowLeft" });
+      fireEvent.keyDown(inside, { key: "ArrowLeft" });
+      expect(useSelectionStore.getState().selectedIndex).toBe(0);
+      expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
+    });
+
+    it("stays put at the ends of the list", async () => {
+      const items = [stubCardViewerItem(), stubCardViewerItem()];
+      selectFirst(items);
+      renderModal(items);
+      const inside = await screen.findByText("Card detail stub");
+
+      fireEvent.keyDown(inside, { key: "ArrowLeft" });
+
+      expect(useSelectionStore.getState().selectedIndex).toBe(0);
+    });
+
+    it("leaves left/right to the language tabs when the key comes from them", async () => {
+      const items = [stubCardViewerItem(), stubCardViewerItem()];
+      selectFirst(items);
+      renderModal(items);
+
+      fireEvent.keyDown(await screen.findByRole("tab"), { key: "ArrowRight" });
+
+      // The tab strip's own roving focus owns this key; hijacking it would
+      // move the card out from under the user mid-tab-change.
+      expect(useSelectionStore.getState().selectedIndex).toBe(0);
+    });
   });
 
   it("closes on a browser back navigation", async () => {
