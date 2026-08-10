@@ -77,8 +77,12 @@ FROM oven/bun:1.3.14-alpine AS web
 
 WORKDIR /app
 COPY --from=build /app/apps/web/.output .output
+# Startup readiness gate — see the header of the script for why compose's
+# `depends_on: service_healthy` is not enough on daemon-driven restarts.
+COPY --from=build /app/scripts/wait-for-api.sh /usr/local/bin/wait-for-api
 EXPOSE 3001
 
+ENTRYPOINT ["wait-for-api"]
 CMD ["bun", "run", ".output/server/index.mjs"]
 
 # ─── Stage 4: Discord bot (card lookups over the public API) ────────────────
@@ -97,6 +101,11 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/discord-bot ./apps/discord-bot
+# Same gate as the web stage: the bot logs in to Discord and immediately starts
+# answering lookups against the API, so a daemon-driven restart put it in the
+# same race.
+COPY --from=build /app/scripts/wait-for-api.sh /usr/local/bin/wait-for-api
+ENTRYPOINT ["wait-for-api"]
 CMD ["bun", "run", "apps/discord-bot/src/index.ts"]
 
 # ─── Stage 5: Proxy (nginx — reverse proxy + static asset serving) ──────────

@@ -59,6 +59,25 @@ When the `api` container starts:
 2. **Cron jobs** register for price refresh (non-blocking timers)
 3. **Hono server** starts listening on port 3000
 
+#### Ordering across containers
+
+`docker-compose.yml` gates `web` and `bot` on `api` with `condition: service_healthy`, so a deploy never starts the SSR server against an API that is still migrating.
+
+That condition is only evaluated by `docker compose up`. When the **daemon** starts containers on its own — a host reboot, `systemctl restart docker`, or a `restart: unless-stopped` policy firing after a crash — it follows the restart policy and ignores dependency order entirely. The SSR server then came up next to a still-migrating API and threw connect errors on its first requests (Sentry `OPENRIFT-SSR-1T`, which recurred for months: four events 13 seconds after one host boot).
+
+So the `web` and `bot` images also carry an in-container gate, `scripts/wait-for-api.sh`, wired as their `ENTRYPOINT`. It polls `${API_INTERNAL_URL}/api/health` and only then `exec`s the real command, which keeps the app as PID 1 so `stop_grace_period` and graceful shutdown still work. It runs on every container start, so it covers the daemon-driven cases compose cannot.
+
+The gate **fails open**: after `API_WAIT_TIMEOUT` it starts anyway rather than parking the site in maintenance indefinitely. A permanently unhealthy API is a separate incident, and while the SSR server is not listening nginx already serves `maintenance.html` (the `@maintenance` fallback in `nginx/web.conf`).
+
+| Variable                 | Default                 | Description                            |
+| ------------------------ | ----------------------- | -------------------------------------- |
+| `API_WAIT_TIMEOUT`       | `120`                   | Total seconds to wait before giving up |
+| `API_WAIT_INTERVAL`      | `2`                     | Seconds between probes                 |
+| `API_WAIT_PROBE_TIMEOUT` | `3`                     | Per-probe timeout                      |
+| `API_HEALTH_URL`         | from `API_INTERNAL_URL` | Overrides the probed URL outright      |
+
+`web`'s healthcheck carries `start_period: 150s` to cover the wait plus SSR boot; without it a slow API would get the container marked unhealthy while the gate is doing its job.
+
 ## Environment Variables
 
 ### Cron Configuration

@@ -62,14 +62,25 @@ services:
     # Healthy, not just started: the SSR server serving requests into a
     # still-booting API produced connection-refused bursts on every deploy
     # and host reboot (OPENRIFT-SSR-1T/1Y/1Z).
+    #
+    # This condition only covers `docker compose up`. When the daemon starts
+    # containers itself (host reboot, `systemctl restart docker`, a restart
+    # policy firing after a crash) it ignores dependency order, which is how
+    # OPENRIFT-SSR-1T kept recurring — four events 13s after a host boot. The
+    # image's wait-for-api entrypoint closes that gap from inside the container.
     depends_on:
       api:
         condition: service_healthy
+    # start_period covers the entrypoint's wait for the API (up to
+    # API_WAIT_TIMEOUT, default 120s) plus SSR boot. Without it, a reboot where
+    # the API is slow to migrate would mark web unhealthy while the gate is
+    # doing exactly what it should.
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
+      start_period: 150s
     environment:
       PORT: "3001"
       API_INTERNAL_URL: "http://api:3000"
