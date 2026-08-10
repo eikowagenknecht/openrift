@@ -15,10 +15,7 @@ const WARN_CLASS = "text-amber-600 dark:text-amber-500";
  * Column widths for the `columns` rendering. Fixed so the numbers line up down
  * the whole list instead of shifting whenever a deck has nothing missing.
  */
-const COLUMN_WIDTH: Record<DeckMetaPartKey, string> = {
-  // A collection name is free text, so this one truncates instead of sizing to
-  // its content — a long box name may not push the numbers out of alignment.
-  box: "w-24 truncate",
+const COLUMN_WIDTH: Partial<Record<DeckMetaPartKey, string>> = {
   missing: "w-20",
   value: "w-16",
   updated: "w-24",
@@ -31,7 +28,7 @@ const COLUMN_WIDTH: Record<DeckMetaPartKey, string> = {
  * `inline` joins the stats with separators and lets the box and the date wrap
  * onto their own lines, for the grid tile and for list rows on phones.
  * `columns` right-aligns each part in a fixed-width cell, for list rows from
- * `sm` up.
+ * `sm` up — minus the box, which the row places next to the deck name.
  * @returns The stat line.
  */
 export function DeckMetaLine({
@@ -56,10 +53,14 @@ export function DeckMetaLine({
   const parts = deckMetaParts(item, (cents) => priceFormatter(cents / 100), box?.name);
 
   if (variant === "columns") {
+    // The box is free text among fixed-width numbers, so a column of its own
+    // could only truncate. The list row renders it beside the deck name, where
+    // it can take the width it needs.
+    const columnParts = parts.filter((part) => part.key !== "box");
     return (
       <div className={cn("text-muted-foreground flex items-center gap-2 text-xs", className)}>
         {leading && <span className="w-32 shrink-0 truncate text-right">{leading}</span>}
-        {parts.map((part) => (
+        {columnParts.map((part) => (
           <span
             key={part.key}
             title={part.title}

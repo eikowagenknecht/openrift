@@ -15,6 +15,22 @@ export interface DeckMetaPart {
 }
 
 /**
+ * Where the deck is stored, worded as a fact rather than a bare name: these
+ * surfaces carry no headers, so the preposition is what stops the box reading
+ * as another deck's name. Its own export because the list row places it beside
+ * the deck name instead of in the stat columns, while the tile and the phone
+ * row take it from {@link deckMetaParts} like every other fact.
+ * @returns The box part, with `text` null when the deck lives nowhere.
+ */
+export function deckBoxPart(boxName?: string | null): DeckMetaPart {
+  return {
+    key: "box",
+    text: boxName ? `in ${boxName}` : null,
+    title: boxName ? `Stored in ${boxName}` : undefined,
+  };
+}
+
+/**
  * The deck-list stat sequence, in the order the deck hero established: where
  * the deck is stored, then the actionable ownership gap before the price, with
  * the date trailing. Both the grid tile and the list row render this array, so
@@ -36,13 +52,7 @@ export function deckMetaParts(
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
   return [
-    {
-      key: "box",
-      // "in X" rather than a bare name: these facts carry no headers, so the
-      // preposition is what stops the box reading as another deck's name.
-      text: boxName ? `in ${boxName}` : null,
-      title: boxName ? `Stored in ${boxName}` : undefined,
-    },
+    deckBoxPart(boxName),
     {
       key: "missing",
       text: missingCount !== null && missingCount > 0 ? `${missingCount} missing` : null,

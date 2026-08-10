@@ -6,7 +6,9 @@ import { cardLinkVariants } from "@/components/ui/card-link";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList } from "@/hooks/use-enums";
+import { useHomeCollection } from "@/hooks/use-home-collection";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { deckBoxPart } from "@/lib/deck-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
@@ -60,6 +62,8 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const legendDomains = legendCard?.domains;
 
   const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
+  const box = useHomeCollection(deck.collectionId);
+  const boxPart = deckBoxPart(box?.name);
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0
@@ -121,6 +125,18 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
           <DeckMetaLine item={item} leading={formatText} className="mt-0.5 md:hidden" />
         </div>
       </div>
+
+      {/* The box sits between the name and the stat columns, sized to its own
+          text: as free text it would only truncate in a fixed column, and the
+          name block's flex-1 pushes it up against the columns anyway. */}
+      {boxPart.text && (
+        <span
+          title={boxPart.title}
+          className="text-muted-foreground hidden min-w-0 truncate text-xs md:block"
+        >
+          {boxPart.text}
+        </span>
+      )}
 
       {/* The format rides in the stat cluster as text, not as a badge: a chip
           here is shrink-0 chrome that costs the deck name its width. */}
