@@ -69,6 +69,7 @@ function buildFixture() {
       types: [type],
       superTypes: r() > 0.8 ? ["champion"] : [],
       domains: [pick(DOMAINS, r), ...(r() > 0.7 ? [pick(DOMAINS, r)] : [])],
+      tokenCardIds: [],
       might: Math.floor(r() * 10) - 1,
       energy: Math.floor(r() * 8) + 1,
       power: r() > 0.5 ? Math.floor(r() * 6) : null,

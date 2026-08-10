@@ -70,6 +70,7 @@ function buildFixture(): Printing[] {
       types: [type],
       superTypes: [],
       domains: [pick(DOMAINS, r)],
+      tokenCardIds: [],
       might: Math.floor(r() * 10) - 1,
       energy: Math.floor(r() * 8) + 1,
       power: r() > 0.5 ? Math.floor(r() * 6) : null,

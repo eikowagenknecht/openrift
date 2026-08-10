@@ -67,6 +67,7 @@ const dbCard = {
   types: ["unit"],
   superTypes: ["Elite"],
   domains: ["fury"],
+  tokenCardIds: [],
   might: 4,
   energy: 5,
   power: 6,

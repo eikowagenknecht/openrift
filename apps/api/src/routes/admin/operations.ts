@@ -68,4 +68,13 @@ export const adminOperationsRouter = {
     const { marketplace, catalog } = context.repos;
     await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCatalogViews()]);
   }),
+
+  recomputeCardTokens: os.recomputeCardTokens.handler(async ({ context }) => {
+    const { cardTokens, catalog } = context.repos;
+    // Derive first: `mv_card_aggregates` reads `card_tokens`, so refreshing the
+    // other way round would publish the previous derivation.
+    const result = await cardTokens.recomputeAll();
+    await catalog.refreshCardAggregates();
+    return result;
+  }),
 };

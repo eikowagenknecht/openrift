@@ -1820,6 +1820,16 @@ interface CardCardTypesTable {
   position: number;
 }
 
+/**
+ * Token cards a card tells the player to create (migration 228). Derived from
+ * EN text; `manual` rows survive the recompute.
+ */
+interface CardTokensTable {
+  cardId: string;
+  tokenCardId: string;
+  source: "derived" | "manual";
+}
+
 // ─── Materialized views (migration 085) ─────────────────────────────────────
 
 interface MvLatestPrintingPricesView {
@@ -1843,6 +1853,8 @@ interface MvCardAggregatesView {
   domains: string[];
   superTypes: string[];
   types: string[];
+  /** Token card ids, ordered by token name (migration 228). */
+  tokenCardIds: string[];
 }
 
 // ─── Views (migration 096) ───────────────────────────────────────────────────
@@ -2021,6 +2033,7 @@ export interface Database {
   cardDomains: CardDomainsTable;
   cardSuperTypes: CardSuperTypesTable;
   cardCardTypes: CardCardTypesTable;
+  cardTokens: CardTokensTable;
 
   // Printing events (migration 071)
   printingEvents: PrintingEventsTable;

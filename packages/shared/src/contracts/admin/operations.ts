@@ -22,12 +22,17 @@ export const clearPricesResponseSchema = z
   })
   .openapi("ClearPricesResponse");
 
+export const recomputeCardTokensResponseSchema = z
+  .object({ totalCards: z.number(), withTokens: z.number() })
+  .openapi("RecomputeCardTokensResponse");
+
 /**
  * oRPC contract for the admin operations (mounted under `/api/admin/v1`,
  * admin-gated by the mount): clear a marketplace's price data, fire-and-forget
- * price refreshes (202 + run handle, polled via job-runs), and a
- * materialized-view refresh. All procedures are session-gated (UNAUTHORIZED +
- * FORBIDDEN from `authedRoute`); no domain error codes are declared.
+ * price refreshes (202 + run handle, polled via job-runs), a
+ * materialized-view refresh, and a full card-token re-derivation. All
+ * procedures are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`);
+ * no domain error codes are declared.
  */
 export const adminOperationsContract = {
   clearPrices: authedRoute
@@ -64,6 +69,9 @@ export const adminOperationsContract = {
     tags: [TAG],
     successStatus: 204,
   }),
+  recomputeCardTokens: authedRoute
+    .route({ method: "POST", path: `${BASE}/recompute-card-tokens`, tags: [TAG] })
+    .output(recomputeCardTokensResponseSchema),
 };
 
 export type AdminOperationsContract = typeof adminOperationsContract;

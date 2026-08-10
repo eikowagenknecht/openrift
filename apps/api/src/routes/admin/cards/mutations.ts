@@ -389,6 +389,10 @@ export const adminCardMutationsRouter = {
 
     await mut.updateCardById(cardId, { keywords });
 
+    // Errata text can add or remove a token reference just like printing text.
+    await context.repos.cardTokens.recomputeForCard(cardId);
+    await context.repos.catalog.refreshCardAggregates();
+
     await recordAdminEvent(context.repos, context.userId, {
       action: "errata.upsert",
       entityType: "errata",
@@ -419,6 +423,10 @@ export const adminCardMutationsRouter = {
       .filter((v, i, a) => a.indexOf(v) === i);
 
     await mut.updateCardById(cardId, { keywords });
+
+    // Dropping errata can drop the only text that referenced a token.
+    await context.repos.cardTokens.recomputeForCard(cardId);
+    await context.repos.catalog.refreshCardAggregates();
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "errata.delete",
@@ -704,9 +712,11 @@ export const adminCardMutationsRouter = {
       throw error;
     }
 
-    // Recompute card-level keywords when printing text changes
+    // Recompute card-level derivations when printing text changes
     if (field === "printedRulesText" || field === "printedEffectText") {
       await keywords.recomputeForPrintingCard(printingId);
+      await context.repos.cardTokens.recomputeForPrintingCard(printingId);
+      await context.repos.catalog.refreshCardAggregates();
     }
 
     await auditEvent(auditValue);

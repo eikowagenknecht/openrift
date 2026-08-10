@@ -36,6 +36,7 @@ function makePrinting(overrides: Partial<Printing> = {}): Printing {
       types: ["unit"],
       superTypes: [],
       domains: ["fury"],
+      tokenCardIds: [],
       energy: 3,
       might: 2,
       power: 4,

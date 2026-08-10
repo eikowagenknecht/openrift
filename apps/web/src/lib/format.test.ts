@@ -64,6 +64,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
       types: ["unit"],
       superTypes: [],
       domains: [],
+      tokenCardIds: [],
       energy: 0,
       might: 0,
       power: 0,

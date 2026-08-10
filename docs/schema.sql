@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OohZpune9ClZ9JnvCqYZOlzrrfIm10O851ja2Wr7MT9kmIrOaARLBL8byagA4Bt
+\restrict y06V9SREZ4DKqXinHoi4umh4pqU0VrWqOwP97Vc6UF8MuMhkkdaAXtLJchMNvpu
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -811,6 +811,18 @@ CREATE TABLE public.card_sizes (
 CREATE TABLE public.card_super_types (
     card_id uuid NOT NULL,
     super_type_slug text NOT NULL
+);
+
+
+--
+-- Name: card_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_tokens (
+    card_id uuid NOT NULL,
+    token_card_id uuid NOT NULL,
+    source text DEFAULT 'derived'::text NOT NULL,
+    CONSTRAINT chk_card_tokens_source CHECK ((source = ANY (ARRAY['derived'::text, 'manual'::text])))
 );
 
 
@@ -1829,7 +1841,11 @@ CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
           WHERE (cst.card_id = c.id)), '{}'::text[]) AS super_types,
     COALESCE(( SELECT array_agg(cct.type_slug ORDER BY cct."position") AS array_agg
            FROM public.card_card_types cct
-          WHERE (cct.card_id = c.id)), '{}'::text[]) AS types
+          WHERE (cct.card_id = c.id)), '{}'::text[]) AS types,
+    COALESCE(( SELECT array_agg(ct.token_card_id ORDER BY tc.name) AS array_agg
+           FROM (public.card_tokens ct
+             JOIN public.cards tc ON ((tc.id = ct.token_card_id)))
+          WHERE (ct.card_id = c.id)), '{}'::uuid[]) AS token_card_ids
    FROM public.cards c
   WITH NO DATA;
 
@@ -2688,6 +2704,14 @@ ALTER TABLE ONLY public.card_sizes
 
 ALTER TABLE ONLY public.card_super_types
     ADD CONSTRAINT card_super_types_pkey PRIMARY KEY (card_id, super_type_slug);
+
+
+--
+-- Name: card_tokens card_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_tokens
+    ADD CONSTRAINT card_tokens_pkey PRIMARY KEY (card_id, token_card_id);
 
 
 --
@@ -3791,6 +3815,13 @@ CREATE INDEX idx_card_custom_tags_custom_tag_id ON public.card_custom_tags USING
 --
 
 CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (domain_slug);
+
+
+--
+-- Name: idx_card_tokens_token_card_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_tokens_token_card_id ON public.card_tokens USING btree (token_card_id);
 
 
 --
@@ -5219,6 +5250,22 @@ ALTER TABLE ONLY public.card_super_types
 
 
 --
+-- Name: card_tokens card_tokens_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_tokens
+    ADD CONSTRAINT card_tokens_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_tokens card_tokens_token_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_tokens
+    ADD CONSTRAINT card_tokens_token_card_id_fkey FOREIGN KEY (token_card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
 -- Name: card_trade_copies card_trade_copies_copy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6262,5 +6309,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OohZpune9ClZ9JnvCqYZOlzrrfIm10O851ja2Wr7MT9kmIrOaARLBL8byagA4Bt
+\unrestrict y06V9SREZ4DKqXinHoi4umh4pqU0VrWqOwP97Vc6UF8MuMhkkdaAXtLJchMNvpu
 

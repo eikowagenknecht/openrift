@@ -44,6 +44,7 @@ const stubCardValue: CatalogResponseCardValue = {
   types: ["unit"],
   superTypes: [],
   domains: [],
+  tokenCardIds: [],
   might: 1,
   energy: 1,
   power: 1,

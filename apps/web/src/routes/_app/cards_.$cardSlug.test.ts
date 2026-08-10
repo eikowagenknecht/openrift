@@ -11,6 +11,7 @@ const card: CardDetailResponse["card"] = {
   types: ["unit"],
   superTypes: [],
   domains: ["fury"],
+  tokenCardIds: [],
   energy: 3,
   might: 4,
   power: 0,

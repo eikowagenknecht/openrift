@@ -284,6 +284,10 @@ describe("acceptPrinting", () => {
         ...repos.keywords,
         recomputeForPrintingCard: vi.fn(async () => {}),
       },
+      cardTokens: {
+        recomputeForCard: vi.fn(async () => {}),
+        recomputeForPrintingCard: vi.fn(async () => {}),
+      },
     };
   }
 
@@ -447,6 +451,10 @@ describe("acceptPrinting", () => {
       },
       keywords: {
         ...repos.keywords,
+        recomputeForPrintingCard: vi.fn(async () => {}),
+      },
+      cardTokens: {
+        recomputeForCard: vi.fn(async () => {}),
         recomputeForPrintingCard: vi.fn(async () => {}),
       },
     };

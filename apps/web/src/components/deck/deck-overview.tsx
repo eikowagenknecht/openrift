@@ -51,6 +51,13 @@ import { DRAG_SOURCE_ZONES } from "@/components/deck/deck-dnd-context";
 import { DeckHero } from "@/components/deck/deck-hero";
 import { DeckOverviewList, DECK_OVERVIEW_SORT_OPTIONS } from "@/components/deck/deck-overview-list";
 import { DeckTestBench } from "@/components/deck/deck-test-bench";
+import {
+  LANDSCAPE_THUMB_CLASS,
+  LANDSCAPE_THUMB_STYLE,
+  PORTRAIT_THUMB_CLASS,
+  PORTRAIT_THUMB_STYLE,
+} from "@/components/deck/deck-thumb-metrics";
+import { DeckTokensSection } from "@/components/deck/deck-tokens-section";
 import { FormatConfigCard } from "@/components/deck/format-config-card";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
 import { LensBar } from "@/components/deck/stats/lens-bar";
@@ -157,17 +164,6 @@ const DECK_GRID_GAP = 6;
 // Width until the container has been measured. Small enough that a phone
 // always gets two cards per row, so the SSR paint never shows a giant card.
 const UNMEASURED_CARD_WIDTH = "min(11rem, 40vw)";
-// Portrait thumbs are one card wide; landscape (battlefield) art is rotated, so
-// it spans a card's *height* instead — keeping both orientations on the same
-// scale, the way the old fixed ladder swapped its axes.
-const PORTRAIT_THUMB_STYLE: React.CSSProperties = { width: "var(--deck-card-w)" };
-const LANDSCAPE_THUMB_STYLE: React.CSSProperties = {
-  width: "calc(var(--deck-card-w) * 88 / 63)",
-};
-/** Aspect classes matching the two thumb styles above. */
-const PORTRAIT_THUMB_CLASS = "aspect-card max-w-full";
-const LANDSCAPE_THUMB_CLASS = "aspect-[88/63] max-w-full";
-
 /** Card height as a multiple of its width — the stacks math needs the number. */
 const CARD_HEIGHT_RATIO = 88 / 63;
 
@@ -1590,6 +1586,14 @@ export function DeckOverview({
                 )}
               </div>
             </div>
+          )}
+          {/* Below both display modes, so list and grid share one insertion.
+              Derived from the catalog, which suspends, so it waits for
+              hydration exactly like the ownership-band bridge above. */}
+          {hydrated && (
+            <Suspense fallback={null}>
+              <DeckTokensSection cards={cards} getThumbnail={resolveThumbnail} />
+            </Suspense>
           )}
         </div>
       )}

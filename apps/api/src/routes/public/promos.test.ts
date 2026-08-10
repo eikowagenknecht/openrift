@@ -54,6 +54,7 @@ const dbCard = {
   types: ["Unit"],
   superTypes: ["Champion"],
   domains: ["Chaos"],
+  tokenCardIds: [],
   might: 5,
   energy: 5,
   power: null,

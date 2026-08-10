@@ -19,6 +19,7 @@ type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "u
   domains: Domain[];
   superTypes: SuperType[];
   types: CardType[];
+  tokenCardIds: string[];
 };
 
 /** Active ban row returned by the catalog. */
@@ -170,6 +171,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.tokenCardIds",
           "mca.types",
         ])
         .orderBy("cards.name")
@@ -419,6 +421,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.tokenCardIds",
           "mca.types",
         ])
         .where("cards.slug", "=", slug)
@@ -599,6 +602,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "cards.comment",
           "mca.domains",
           "mca.superTypes",
+          "mca.tokenCardIds",
           "mca.types",
         ])
         .where("cards.id", "in", ids)

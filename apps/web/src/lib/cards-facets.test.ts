@@ -32,6 +32,7 @@ function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogRes
     types: [type],
     superTypes: [],
     domains: [],
+    tokenCardIds: [],
     might: null,
     energy: null,
     power: null,

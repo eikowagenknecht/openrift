@@ -384,6 +384,7 @@ export async function acceptPrinting(
     );
 
     await trxRepos.keywords.recomputeForPrintingCard(insertedId);
+    await trxRepos.cardTokens.recomputeForPrintingCard(insertedId);
 
     if (printingFields.imageUrl) {
       insertedImageId = await trxRepos.printingImages.insertImage(

@@ -19,6 +19,7 @@ export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
     types: ["unit"],
     superTypes: ["champion"],
     domains: ["chaos"],
+    tokenCardIds: [],
     might: 5,
     energy: 5,
     power: null,

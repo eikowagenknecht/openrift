@@ -12,6 +12,7 @@ import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
 import { cardBansRepo } from "./repositories/card-bans.js";
 import { cardErrataRepo } from "./repositories/card-errata.js";
+import { cardTokensRepo } from "./repositories/card-tokens.js";
 import { cardTradesRepo } from "./repositories/card-trades.js";
 import { cardTypesRepo } from "./repositories/card-types.js";
 import { catalogDeleteGuardsRepo } from "./repositories/catalog-delete-guards.js";
@@ -111,6 +112,7 @@ export interface Repos {
   artVariants: ReturnType<typeof artVariantsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
   cardErrata: ReturnType<typeof cardErrataRepo>;
+  cardTokens: ReturnType<typeof cardTokensRepo>;
   cardTrades: ReturnType<typeof cardTradesRepo>;
   deckCheck: ReturnType<typeof deckCheckRepo>;
   deckCheckKeys: ReturnType<typeof deckCheckKeysRepo>;
@@ -274,6 +276,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     artVariants: artVariantsRepo(db),
     cardBans: cardBansRepo(db),
     cardErrata: cardErrataRepo(db),
+    cardTokens: cardTokensRepo(db),
     cardTrades: cardTradesRepo(db),
     deckCheck: deckCheckRepo(db),
     deckCheckKeys: deckCheckKeysRepo(db),

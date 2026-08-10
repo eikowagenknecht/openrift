@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useCacheStatus, usePurgeCache } from "@/hooks/use-cache-purge";
+import { useRecomputeCardTokens } from "@/hooks/use-recompute-card-tokens";
 import { useRefreshMatviews } from "@/hooks/use-refresh-matviews";
 import { useClearSsrCache } from "@/hooks/use-status";
 
@@ -26,6 +27,7 @@ export function CachePage() {
   const purge = usePurgeCache();
   const clearSsrCache = useClearSsrCache();
   const refreshMatviews = useRefreshMatviews();
+  const recomputeCardTokens = useRecomputeCardTokens();
 
   async function handlePurge() {
     try {
@@ -40,6 +42,17 @@ export function CachePage() {
     try {
       await refreshMatviews.mutateAsync();
       toast.success("Materialized views refreshed");
+    } catch {
+      // Reported by the global mutation error toast (see reportMutationError).
+    }
+  }
+
+  async function handleRecomputeCardTokens() {
+    try {
+      const result = await recomputeCardTokens.mutateAsync();
+      toast.success(
+        `${result.withTokens} of ${result.totalCards} cards reference at least one token`,
+      );
     } catch {
       // Reported by the global mutation error toast (see reportMutationError).
     }
@@ -95,6 +108,32 @@ export function CachePage() {
               <RefreshCwIcon className="size-4" />
             )}
             Refresh materialized views
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Card Tokens</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground text-sm">
+            Re-reads every card&apos;s English rules text and rebuilds the list of tokens each one
+            tells the player to create, which is what the deck pages show under Tokens. Card and
+            errata edits already update the card they touch, so this is for the first backfill and
+            after a bulk set import. Manually corrected entries are left alone.
+          </p>
+          <Button
+            variant="outline"
+            onClick={handleRecomputeCardTokens}
+            disabled={recomputeCardTokens.isPending}
+          >
+            {recomputeCardTokens.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="size-4" />
+            )}
+            Re-derive card tokens
           </Button>
         </CardContent>
       </Card>

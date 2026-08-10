@@ -65,6 +65,7 @@ function makePrinting(
       types: [type ?? "unit"],
       superTypes: [],
       domains: ["fury"],
+      tokenCardIds: [],
       energy: 1,
       might: 1,
       power: 1,

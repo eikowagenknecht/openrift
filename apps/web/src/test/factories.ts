@@ -78,6 +78,7 @@ export function stubCard(overrides: Partial<Card> = {}): Card {
     types: [type],
     superTypes: [],
     domains: [],
+    tokenCardIds: [],
     might: 1,
     energy: 1,
     power: 1,

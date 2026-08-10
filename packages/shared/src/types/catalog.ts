@@ -100,6 +100,12 @@ export interface Card {
   types: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
+  /**
+   * Token cards this card tells the player to create, ordered by token name.
+   * Derived from EN rules text but stored as card ids, so it reads the same in
+   * every language (migration 228).
+   */
+  tokenCardIds: string[];
   might: number | null;
   energy: number | null;
   power: number | null;

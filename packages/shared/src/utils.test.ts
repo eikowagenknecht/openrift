@@ -52,6 +52,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
       types: ["unit"],
       superTypes: [],
       domains: [],
+      tokenCardIds: [],
       might: null,
       energy: null,
       power: null,

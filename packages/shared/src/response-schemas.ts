@@ -146,6 +146,7 @@ export const catalogCardResponseSchema = z.object({
     .openapi({ example: ["Unit"] }),
   superTypes: z.array(superTypeSchema).openapi({ example: ["Champion"] }),
   domains: z.array(domainSchema).openapi({ example: ["Chaos"] }),
+  tokenCardIds: z.array(z.string()).openapi({ example: ["019cfc3b-0389-744b-837c-792fd586300f"] }),
   might: z.number().nullable().openapi({ example: 5 }),
   energy: z.number().nullable().openapi({ example: 5 }),
   power: z.number().nullable().openapi({ example: null }),
