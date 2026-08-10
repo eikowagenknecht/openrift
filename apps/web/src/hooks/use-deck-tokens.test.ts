@@ -5,16 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetIdCounter, stubCard, stubDeckBuilderCard, stubPrinting } from "@/test/factories";
 
 let cardsById: Record<string, Card> = {};
-const printingByCardId = new Map<string, Printing>();
+const printingsByCardId = new Map<string, Printing[]>();
 
 vi.mock("@/hooks/use-cards", () => ({
-  useCards: () => ({ cardsById }),
+  useCards: () => ({ cardsById, printingsByCardId }),
 }));
 
-vi.mock("@/hooks/use-preferred-printing", () => ({
-  usePreferredPrinting: () => ({
-    getPreferredPrinting: (cardId: string) => printingByCardId.get(cardId),
-  }),
+vi.mock("@/hooks/use-effective-language-order", () => ({
+  useEffectiveLanguageOrder: () => ["FR", "EN"],
 }));
 
 const { useDeckTokens } = await import("./use-deck-tokens");
@@ -22,19 +20,28 @@ const { useDeckTokens } = await import("./use-deck-tokens");
 beforeEach(() => {
   resetIdCounter();
   cardsById = {};
-  printingByCardId.clear();
+  printingsByCardId.clear();
 });
 
-/** Register a token card in the catalog, with a printing so it can render. */
-function registerToken(cardId: string, name: string): void {
+/**
+ * A printing with front art, so the art preference can pick it.
+ *
+ * @returns The printing.
+ */
+function illustrated(cardId: string, language = "EN"): Printing {
+  return stubPrinting({ cardId, language, images: [{ face: "front", imageId: `${cardId}-art` }] });
+}
+
+/** Register a token card in the catalog, with the printings it has on file. */
+function registerToken(cardId: string, name: string, printings?: Printing[]): void {
   cardsById[cardId] = stubCard({ name, superTypes: ["token"] });
-  printingByCardId.set(cardId, stubPrinting({ cardId }));
+  printingsByCardId.set(cardId, printings ?? [illustrated(cardId)]);
 }
 
 /** Register an ordinary card that calls for the given tokens. */
 function registerSource(cardId: string, name: string, tokenCardIds: string[]): void {
   cardsById[cardId] = stubCard({ name, tokenCardIds });
-  printingByCardId.set(cardId, stubPrinting({ cardId }));
+  printingsByCardId.set(cardId, [illustrated(cardId)]);
 }
 
 describe("useDeckTokens", () => {
@@ -139,5 +146,31 @@ describe("useDeckTokens", () => {
     );
 
     expect(result.current).toEqual([]);
+  });
+
+  it("skips the viewer's language when that printing has no art on file", () => {
+    const untranslated = stubPrinting({ cardId: "gold", language: "FR", images: [] });
+    registerToken("gold", "Gold", [untranslated, illustrated("gold", "EN")]);
+    registerSource("draven", "Draven", ["gold"]);
+
+    const { result } = renderHook(() =>
+      useDeckTokens([stubDeckBuilderCard({ cardId: "draven", cardName: "Draven" })]),
+    );
+
+    expect(result.current[0].printing.language).toBe("EN");
+  });
+
+  it("falls back to the language preference when no printing has art", () => {
+    registerToken("gold", "Gold", [
+      stubPrinting({ cardId: "gold", language: "EN", images: [] }),
+      stubPrinting({ cardId: "gold", language: "FR", images: [] }),
+    ]);
+    registerSource("draven", "Draven", ["gold"]);
+
+    const { result } = renderHook(() =>
+      useDeckTokens([stubDeckBuilderCard({ cardId: "draven", cardName: "Draven" })]),
+    );
+
+    expect(result.current[0].printing.language).toBe("FR");
   });
 });

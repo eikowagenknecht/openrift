@@ -69,7 +69,7 @@ function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
         powerData={stats.powerCurve}
         powerStacks={stats.powerCurveStacks}
         averagePower={stats.averagePower}
-        footnote="Counts the main deck and champion only."
+        footnote="Counts the main deck only."
       />
       <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
     </div>

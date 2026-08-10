@@ -13,6 +13,13 @@ export type DeckOverviewTab = "overview" | "plan" | "test";
 /** Which chart the stats band's third slot shows when space is tight. */
 export type StatsLens = "types" | "rarity" | "ownership";
 
+/**
+ * A section of the overview grid that folds to its header row. The deck's zones
+ * plus the derived Tokens band, which is not a zone (a token can't be a deck
+ * entry) but carries the same header and folds the same way.
+ */
+export type CollapsibleDeckSection = DeckZone | "tokens";
+
 interface DeckBuilderUiState {
   activeZone: DeckZone | null;
   runesByDomain: Map<string, DeckBuilderCard[]>;
@@ -23,11 +30,11 @@ interface DeckBuilderUiState {
    */
   overviewTab: DeckOverviewTab;
   /**
-   * Zones the overview grid renders collapsed to their header row. Session
+   * Sections the overview grid renders collapsed to their header row. Session
    * state, lifted out of the overview so a trip into a zone browser (which
    * unmounts the overview) doesn't reopen everything.
    */
-  collapsedZones: ReadonlySet<DeckZone>;
+  collapsedZones: ReadonlySet<CollapsibleDeckSection>;
   /**
    * The stats band's third-slot chart while the band is too narrow to show
    * all five charts side by side. Session state, same reasoning as
@@ -38,7 +45,7 @@ interface DeckBuilderUiState {
   setActiveZone: (zone: DeckZone | null) => void;
   setRunesByDomain: (runesByDomain: Map<string, DeckBuilderCard[]>) => void;
   setOverviewTab: (tab: DeckOverviewTab) => void;
-  toggleZoneCollapsed: (zone: DeckZone) => void;
+  toggleZoneCollapsed: (zone: CollapsibleDeckSection) => void;
   setStatsLens: (lens: StatsLens) => void;
   reset: () => void;
 }
@@ -47,7 +54,7 @@ export const useDeckBuilderUiStore = create<DeckBuilderUiState>()((set) => ({
   activeZone: null,
   runesByDomain: new Map(),
   overviewTab: "overview",
-  collapsedZones: new Set<DeckZone>(),
+  collapsedZones: new Set<CollapsibleDeckSection>(),
   statsLens: "types",
   setActiveZone: (zone) => set({ activeZone: zone }),
   setRunesByDomain: (runesByDomain) => set({ runesByDomain }),
@@ -68,7 +75,7 @@ export const useDeckBuilderUiStore = create<DeckBuilderUiState>()((set) => ({
       activeZone: null,
       runesByDomain: new Map(),
       overviewTab: "overview",
-      collapsedZones: new Set<DeckZone>(),
+      collapsedZones: new Set<CollapsibleDeckSection>(),
       statsLens: "types",
     }),
 }));

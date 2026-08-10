@@ -71,6 +71,14 @@ describe("useDeckBuilderUiStore", () => {
     expect(useDeckBuilderUiStore.getState().collapsedZones).toEqual(new Set(["sideboard"]));
   });
 
+  it("folds the tokens band alongside the zones", () => {
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("tokens");
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("main");
+    expect(useDeckBuilderUiStore.getState().collapsedZones).toEqual(new Set(["tokens", "main"]));
+    useDeckBuilderUiStore.getState().toggleZoneCollapsed("tokens");
+    expect(useDeckBuilderUiStore.getState().collapsedZones).toEqual(new Set(["main"]));
+  });
+
   it("reset expands every zone", () => {
     useDeckBuilderUiStore.getState().toggleZoneCollapsed("main");
     useDeckBuilderUiStore.getState().reset();

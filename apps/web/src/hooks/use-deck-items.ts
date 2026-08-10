@@ -3,6 +3,7 @@ import { WellKnown } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
@@ -40,12 +41,18 @@ interface UseDeckItemsResult {
  * id so cells stay distinct within the list. Cards whose printing can't be
  * resolved (e.g. share-page during catalog hydration) are skipped.
  *
+ * The deck's tokens follow the zones, matching where the overview renders them.
+ * They carry no zone — a token is never a deck entry — so their ids are
+ * `token:${printingId}` and the selection store's zone-scoped thumb highlight
+ * stays off the deck's own cards while a token is open.
+ *
  * @returns The deck's printings as CardViewerItems plus the catalog map.
  */
 export function useDeckItems(cards: DeckBuilderCard[]): UseDeckItemsResult {
   "use memo";
   const { printingsByCardId } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
+  const tokens = useDeckTokens(cards);
 
   const items: CardViewerItem[] = [];
   for (const zone of ZONE_ORDER) {
@@ -58,6 +65,10 @@ export function useDeckItems(cards: DeckBuilderCard[]): UseDeckItemsResult {
       }
       items.push({ id: `${zone}:${printing.id}`, printing, zone });
     }
+  }
+
+  for (const token of tokens) {
+    items.push({ id: `token:${token.printing.id}`, printing: token.printing });
   }
 
   return { items, printingsByCardId };

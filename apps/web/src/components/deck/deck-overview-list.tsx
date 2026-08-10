@@ -9,6 +9,7 @@ import {
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, LockIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import type {
@@ -142,6 +143,12 @@ interface DeckOverviewListProps {
    * the hide-empty layout.
    */
   onZoneClick?: (zone: DeckZone) => void;
+  /**
+   * The deck's tokens, rendered as one more block of the multicolumn flow after
+   * the zones. Passed in rather than derived here because it suspends on the
+   * catalog, which the host has already gated behind hydration.
+   */
+  tokensSlot?: React.ReactNode;
 }
 
 /**
@@ -169,6 +176,7 @@ export function DeckOverviewList({
   resolveHoverPrintingId,
   draggable = false,
   onZoneClick,
+  tokensSlot,
 }: DeckOverviewListProps) {
   const isRowDimmed = (card: DeckBuilderCard) =>
     statsFocus !== null && statsFocus !== undefined && !cardMatchesStatsFocus(card, statsFocus);
@@ -405,12 +413,20 @@ export function DeckOverviewList({
   // and rows stay together), so columns are only as balanced as the zone
   // sizes allow — that's the intended trade.
   return (
-    <div className="w-full columns-[30rem] gap-x-10">{zones.map((entry) => renderZone(entry))}</div>
+    <div className="w-full columns-[30rem] gap-x-10">
+      {zones.map((entry) => renderZone(entry))}
+      {tokensSlot}
+    </div>
   );
 }
 
-// A zone never splits across columns — header and rows stay together.
-const ZONE_SECTION_CLASS = "mb-6 flex break-inside-avoid flex-col gap-1.5 rounded transition-all";
+/**
+ * One block of the list's multicolumn flow. A section never splits across
+ * columns — its header and rows stay together. Exported for the tokens band,
+ * which is not a zone but sits in the same flow and has to fold the same way.
+ */
+export const DECK_LIST_SECTION_CLASS =
+  "mb-6 flex break-inside-avoid flex-col gap-1.5 rounded transition-all";
 
 /**
  * Trailing add row for a zone, edit mode only: a dashed full-width target that
@@ -484,7 +500,7 @@ function ZoneSection({
       </DroppableZoneSection>
     );
   }
-  return <section className={ZONE_SECTION_CLASS}>{children}</section>;
+  return <section className={DECK_LIST_SECTION_CLASS}>{children}</section>;
 }
 
 function DroppableZoneSection({
@@ -526,7 +542,7 @@ function DroppableZoneSection({
     <section
       ref={setNodeRef}
       className={cn(
-        ZONE_SECTION_CLASS,
+        DECK_LIST_SECTION_CLASS,
         isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-4",
         dropDisabled && "opacity-40",
       )}
@@ -624,6 +640,38 @@ function GroupedRows({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * The wide art crop a list row leads with, of the printing that row stands for.
+ *
+ * Three states land in the same neutral box: no printing resolved, a printing
+ * with no image on file, and an image record whose file is missing on the
+ * server (which happens — a printing can be catalogued before its art is
+ * rehosted). Without the load handler that last case leaves the browser's
+ * broken-image glyph sitting in the row, which is what the empty box exists to
+ * avoid. Exported so the tokens band's rows degrade identically.
+ *
+ * @returns The art strip.
+ */
+export function DeckListRowArt({ src }: { src?: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showArt = src !== undefined && src !== failedUrl;
+
+  return (
+    <span className="bg-muted/40 h-6 w-10 shrink-0 overflow-hidden rounded-sm border">
+      {showArt && (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          onError={() => setFailedUrl(src)}
+          className="h-full w-full object-cover object-[50%_18%]"
+        />
+      )}
+    </span>
   );
 }
 
@@ -771,19 +819,7 @@ export function DeckListRow({
       {...interactiveProps}
       {...dragProps}
     >
-      {/* Wide art strip cropped from the printing the row stands for; the
-          empty box keeps rows aligned when a printing has no image on file. */}
-      <span className="bg-muted/40 h-6 w-10 shrink-0 overflow-hidden rounded-sm border">
-        {printing?.imageId && (
-          <img
-            src={imageUrl(printing.imageId, "120w")}
-            alt=""
-            loading="lazy"
-            draggable={false}
-            className="h-full w-full object-cover object-[50%_18%]"
-          />
-        )}
-      </span>
+      <DeckListRowArt src={printing?.imageId ? imageUrl(printing.imageId, "120w") : undefined} />
 
       <span
         aria-hidden

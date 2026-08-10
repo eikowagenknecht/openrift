@@ -138,7 +138,11 @@ import {
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import type { DeckOverviewTab, StatsLens } from "@/stores/deck-builder-ui-store";
+import type {
+  CollapsibleDeckSection,
+  DeckOverviewTab,
+  StatsLens,
+} from "@/stores/deck-builder-ui-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -821,7 +825,7 @@ export function DeckOverview({
         title={withHeading ? "Collection" : undefined}
         rows={ownershipRows}
         series={OWNERSHIP_LENS_SERIES}
-        footnote="Counts the main deck and champion against your collection."
+        footnote="Counts the main deck against your collection."
         onSegmentClick={(value) => {
           if (!ownershipSegmentsByCardKey) {
             return;
@@ -854,7 +858,7 @@ export function DeckOverview({
         // Domain color is Power's story (runes pay power); here the split
         // only shows on the hovered column, so the two curves read apart.
         revealDomainsOnHover
-        footnote="Counts the main deck and champion only. Click a bar to see its cards."
+        footnote="Counts the main deck. Click a bar to see its cards."
         showTotals
         onBarClick={(value) => applyStatsFocus({ kind: "energy", value })}
         focusValue={statsFocus?.kind === "energy" ? statsFocus.value : null}
@@ -1276,6 +1280,25 @@ export function DeckOverview({
     </>
   );
 
+  // An empty deck has no list to render, so it falls back to the grid's empty
+  // zone tiles whatever the stored mode says.
+  const showList = totalCards > 0 && displayMode === "list";
+
+  // Built once for both display modes, which each drop it into their own flow:
+  // the list hands it to DeckOverviewList as a block of the multicolumn run,
+  // the grid appends it inside the measured container. Derived from the
+  // catalog, which suspends, so it waits for hydration exactly like the
+  // ownership-band bridge does.
+  const tokensSection = hydrated ? (
+    <Suspense fallback={null}>
+      <DeckTokensSection
+        cards={cards}
+        variant={showList ? "list" : "grid"}
+        onHoverCard={onHoverCard}
+      />
+    </Suspense>
+  ) : null;
+
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-3 pb-4">
       {hydrated && canPreferOwned && (
@@ -1393,7 +1416,7 @@ export function DeckOverview({
               </span>
             </div>
           )}
-          {totalCards > 0 && displayMode === "list" ? (
+          {showList ? (
             <DeckOverviewList
               cards={cards}
               format={deck.format}
@@ -1419,6 +1442,7 @@ export function DeckOverview({
               // Drag between zones, same as the thumbnail grid. The list drops
               // it on phones itself, so this only has to exclude read-only.
               draggable={!readOnly}
+              tokensSlot={tokensSection}
             />
           ) : (
             // The measured container for the whole surface: every zone below
@@ -1585,15 +1609,11 @@ export function DeckOverview({
                   />
                 )}
               </div>
+              {/* Inside the measured container, as the last band: the token
+                  thumbs size themselves from the --deck-card-w it publishes,
+                  so they land on the same ladder as every zone above. */}
+              {tokensSection}
             </div>
-          )}
-          {/* Below both display modes, so list and grid share one insertion.
-              Derived from the catalog, which suspends, so it waits for
-              hydration exactly like the ownership-band bridge above. */}
-          {hydrated && (
-            <Suspense fallback={null}>
-              <DeckTokensSection cards={cards} getThumbnail={resolveThumbnail} />
-            </Suspense>
           )}
         </div>
       )}
@@ -1819,8 +1839,8 @@ interface ZoneTileProps {
   allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
-  /** Zones currently collapsed to their header row. */
-  collapsedZones: ReadonlySet<DeckZone>;
+  /** Sections currently collapsed to their header row (zones and the tokens band). */
+  collapsedZones: ReadonlySet<CollapsibleDeckSection>;
   /** Toggles a zone's collapsed state (wired to the builder UI store). */
   onToggleCollapsed: (zone: DeckZone) => void;
   zoneViolations: DeckViolation[];

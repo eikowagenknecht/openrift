@@ -16,7 +16,16 @@ vi.mock("@/hooks/use-cards", () => ({
         return acc;
       }, new Map()),
     ),
+    // The tokens appended after the zones are looked up here, by card id.
+    cardsById: Object.fromEntries(
+      [...printings.values()].map((printing) => [printing.cardId, printing.card]),
+    ),
   }),
+}));
+
+// The tokens appended after the zones resolve their own printing, by language.
+vi.mock("@/hooks/use-effective-language-order", () => ({
+  useEffectiveLanguageOrder: () => ["EN"],
 }));
 
 vi.mock("@/hooks/use-preferred-printing", () => ({
@@ -129,5 +138,35 @@ describe("useDeckItems", () => {
       "spell-2",
       "gear-1",
     ]);
+  });
+
+  it("appends the deck's tokens after the zones, zone-less and deduped", () => {
+    registerPrinting("main-1", { card: { tokenCardIds: ["token-1"] } });
+    registerPrinting("main-2", { card: { tokenCardIds: ["token-1"] } });
+    const token = registerPrinting("token-1");
+
+    const { result } = renderHook(() =>
+      useDeckItems([
+        stubDeckBuilderCard({ cardId: "main-1", zone: "main" }),
+        stubDeckBuilderCard({ cardId: "main-2", zone: "main" }),
+      ]),
+    );
+
+    expect(result.current.items.map((item) => ({ id: item.id, zone: item.zone }))).toEqual([
+      { id: expect.stringMatching(/^main:/u), zone: "main" },
+      { id: expect.stringMatching(/^main:/u), zone: "main" },
+      { id: `token:${token.id}`, zone: undefined },
+    ]);
+  });
+
+  it("leaves a deck whose cards create no tokens with zone items only", () => {
+    registerPrinting("main-1");
+
+    const { result } = renderHook(() =>
+      useDeckItems([stubDeckBuilderCard({ cardId: "main-1", zone: "main" })]),
+    );
+
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.items[0]?.zone).toBe("main");
   });
 });
