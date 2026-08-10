@@ -395,8 +395,15 @@ function PullRow({
         <Popover>
           <PopoverTrigger
             render={
-              <Button variant="ghost" size="xs" className="shrink-0 text-xs">
-                Swap
+              // Counting them rather than saying "Swap" tells you whether the
+              // row has a real choice behind it before you open anything.
+              <Button
+                variant="ghost"
+                size="xs"
+                className="shrink-0 text-xs"
+                aria-label={`Take a different copy of ${pull.cardName}`}
+              >
+                {pull.alternatives.length} {pull.alternatives.length === 1 ? "other" : "others"}
               </Button>
             }
           />
