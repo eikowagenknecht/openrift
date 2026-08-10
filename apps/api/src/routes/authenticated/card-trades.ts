@@ -87,7 +87,10 @@ export const cardTradesRouter = {
 
   sync: os.sync.handler(({ input, context }): Promise<CardTradeResponse> => {
     const { applyTradeSync } = context.services;
-    return applyTradeSync(context.transact, input.id, context.userId, input.targetCollectionId);
+    return applyTradeSync(context.transact, input.id, context.userId, {
+      targetCollectionId: input.targetCollectionId,
+      copyIds: input.copyIds,
+    });
   }),
 
   skipSync: os.skipSync.handler(({ input, context }): Promise<CardTradeResponse> => {

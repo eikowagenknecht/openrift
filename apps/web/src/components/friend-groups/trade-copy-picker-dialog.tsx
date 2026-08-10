@@ -21,7 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { tradeCopyOptionsQueryOptions, useAcceptTrade } from "@/hooks/use-card-trades";
+import {
+  tradeCopyOptionsQueryOptions,
+  useAcceptTrade,
+  useApplyTradeSync,
+} from "@/hooks/use-card-trades";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useRequiredUserId } from "@/lib/auth-session";
 
@@ -225,25 +229,38 @@ function selectionHint(selected: number, quantity: number): string {
   return quantity === 1 ? "1 copy picked." : `${quantity} copies picked.`;
 }
 
+/**
+ * The copies the picker opens on: the ones already pinned to the trade when it
+ * has any (the settle picker, where they are the current answer), otherwise the
+ * first `quantity` in the server's pin order, which is byte-for-byte what an
+ * accept without a choice would promise.
+ * @returns The initially checked copy ids.
+ */
+function defaultSelection(options: CardTradeCopyOptionsResponse): Set<string> {
+  const pinned = options.copies.filter((copy) => copy.pinned);
+  const preselected = pinned.length > 0 ? pinned : options.copies.slice(0, options.quantity);
+  return new Set(preselected.map((copy) => copy.id));
+}
+
 function CopyPickerBody({
-  cardName,
+  title,
+  description,
+  confirmLabel,
   options,
   pending,
   onConfirm,
   onCancel,
 }: {
-  cardName: string;
+  title: string;
+  description: string;
+  confirmLabel: string;
   options: CardTradeCopyOptionsResponse;
   pending: boolean;
   onConfirm: (copyIds: string[]) => void;
   onCancel: () => void;
 }) {
   const { quantity, copies } = options;
-  // The server hands back its own pin order, so the first `quantity` copies are
-  // byte-for-byte what an accept without a choice would promise.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(copies.slice(0, quantity).map((copy) => copy.id)),
-  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => defaultSelection(options));
 
   const ready = selectedIds.size === quantity;
 
@@ -255,17 +272,14 @@ function CopyPickerBody({
         }
         // Always send the ids, even when they still match the preselection. The
         // order was computed when the picker opened, so naming the copies makes
-        // a supply change since then fail loudly instead of quietly promising a
+        // a supply change since then fail loudly instead of quietly acting on a
         // different copy than the one on screen.
         onConfirm(copies.filter((copy) => selectedIds.has(copy.id)).map((copy) => copy.id));
       }}
     >
       <DialogHeader>
-        <DialogTitle>{quantity === 1 ? "Which copy?" : `Which ${quantity} copies?`}</DialogTitle>
-        <DialogDescription>
-          You have {copies.length} copies of {cardName} this trade could take. Pick the{" "}
-          {quantity === 1 ? "one" : quantity} you want to hand over. The rest stay yours.
-        </DialogDescription>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
 
       <ul className="-mx-1 flex max-h-72 flex-col gap-1 overflow-y-auto">
@@ -314,7 +328,7 @@ function CopyPickerBody({
             Cancel
           </Button>
           <Button type="submit" disabled={pending || !ready}>
-            Accept
+            {confirmLabel}
           </Button>
         </div>
       </DialogFooter>
@@ -332,6 +346,7 @@ function CopyPickerBody({
  */
 export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
   const choice = flow.choice;
+  const quantity = choice?.options.quantity ?? 1;
   return (
     <Dialog
       open={choice !== null}
@@ -344,9 +359,139 @@ export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
       <DialogContent className="sm:max-w-lg">
         {choice === null ? null : (
           <CopyPickerBody
-            cardName={choice.target.cardName}
+            title={quantity === 1 ? "Which copy?" : `Which ${quantity} copies?`}
+            description={`You have ${choice.options.copies.length} copies of ${choice.target.cardName} this trade could take. Pick the ${quantity === 1 ? "one" : quantity} you want to hand over. The rest stay yours.`}
+            confirmLabel="Accept"
             options={choice.options}
             pending={flow.accepting}
+            onConfirm={(copyIds) => flow.confirm(copyIds)}
+            onCancel={() => flow.cancel()}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** A settle paused on the giver's copy choice. */
+interface TradeSettleChoice {
+  options: CardTradeCopyOptionsResponse;
+}
+
+/**
+ * A settle in progress, shared between the row's "Choose which copies…" menu
+ * item and the settle picker.
+ */
+export interface TradeSettleCopyFlow {
+  /** Opens the picker, reading the trade's candidate copies first. */
+  start: () => void;
+  /** The paused settle the picker is showing, or null when it is closed. */
+  choice: TradeSettleChoice | null;
+  /** Settles the giver's half, removing the chosen copies. */
+  confirm: (copyIds: string[]) => void;
+  /** Drops the choice without settling. */
+  cancel: () => void;
+  /** True while the settle mutation itself is in flight. */
+  settling: boolean;
+}
+
+/**
+ * Drives one reserved trade's "Choose which copies…" item: reads which copies
+ * the settle could remove, then prompts.
+ *
+ * Unlike the accept flow this never short-circuits on `choiceMatters`. The item
+ * is pressed deliberately, and a giver who opened it to see *which* copies are
+ * about to go deserves the list even when there is nothing to swap.
+ * @returns The settle-choice flow for one row.
+ */
+export function useTradeSettleCopyFlow({
+  tradeId,
+  groupSlug,
+  onSettled,
+}: {
+  tradeId: string;
+  groupSlug: string;
+  onSettled?: () => void;
+}) {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  const applySync = useApplyTradeSync();
+  const [choice, setChoice] = useState<TradeSettleChoice | null>(null);
+
+  function finish(): void {
+    setChoice(null);
+    onSettled?.();
+  }
+
+  const flow: TradeSettleCopyFlow = {
+    choice,
+    settling: applySync.isPending,
+
+    start: () => {
+      void (async () => {
+        try {
+          const options = await queryClient.fetchQuery(
+            tradeCopyOptionsQueryOptions(userId, tradeId),
+          );
+          setChoice({ options });
+        } catch {
+          // The read failed, so there is nothing to choose between. Drop back
+          // to the row's plain "remove the pinned copies" button rather than
+          // opening an empty dialog; the global query error handling has
+          // already reported it.
+          finish();
+        }
+      })();
+    },
+
+    confirm: (copyIds) => {
+      applySync.mutate({ tradeId, groupSlug, copyIds }, { onSettled: finish });
+    },
+
+    cancel: () => {
+      if (applySync.isPending) {
+        return;
+      }
+      finish();
+    },
+  };
+  return flow;
+}
+
+/**
+ * Lets the giver correct which physical copies a settle removes, so the card
+ * that actually changed hands is the one that leaves the collection — not
+ * whichever copy the accept happened to pin weeks earlier. Mount it next to a
+ * "Handed over" button wired to the same `useTradeSettleCopyFlow`.
+ * @returns The settle picker dialog.
+ */
+export function TradeSettleCopyPickerDialog({
+  flow,
+  cardName,
+}: {
+  flow: TradeSettleCopyFlow;
+  cardName: string;
+}) {
+  const choice = flow.choice;
+  const quantity = choice?.options.quantity ?? 1;
+  const noun = quantity === 1 ? "copy" : `${quantity} copies`;
+  return (
+    <Dialog
+      open={choice !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          flow.cancel();
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-lg">
+        {choice === null ? null : (
+          <CopyPickerBody
+            title={quantity === 1 ? "Which copy did you hand over?" : `Which ${quantity} copies?`}
+            description={`Pick the ${noun} of ${cardName} that changed hands. ${quantity === 1 ? "It leaves" : "They leave"} your collection for good, and the rest stay yours.`}
+            confirmLabel={`Remove ${noun}`}
+            options={choice.options}
+            pending={flow.settling}
             onConfirm={(copyIds) => flow.confirm(copyIds)}
             onCancel={() => flow.cancel()}
           />

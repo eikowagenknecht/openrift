@@ -190,11 +190,13 @@ describe("toCardTradeCopyOption", () => {
           isAltered: false,
           links,
         }),
+        true,
       ),
     ).toEqual({
       id: "copy-9",
       collectionId: "col-7",
       collectionName: "Piltover Binder",
+      pinned: true,
       condition: "lightly-played",
       grader: "bgs",
       grade: 9.5,
@@ -207,7 +209,7 @@ describe("toCardTradeCopyOption", () => {
   });
 
   it("reports hasRecordedDetails false for a plain copy", () => {
-    expect(toCardTradeCopyOption(copy()).hasRecordedDetails).toBe(false);
+    expect(toCardTradeCopyOption(copy(), false).hasRecordedDetails).toBe(false);
   });
 });
 
@@ -249,6 +251,65 @@ describe("toCardTradeCopyOptions", () => {
       choiceMatters: false,
       copies: [],
     });
+  });
+
+  it("marks nothing pinned without a pin list", () => {
+    const result = toCardTradeCopyOptions({
+      tradeId: "trade-1",
+      quantity: 1,
+      copies: [copy({ id: "a" }), copy({ id: "b" })],
+    });
+    expect(result.copies.every((row) => !row.pinned)).toBe(true);
+  });
+
+  it("floats the pinned copies above the alternatives", () => {
+    // The pinned copy is the graded one, which pin order would otherwise bury
+    // behind both plain candidates.
+    const result = toCardTradeCopyOptions({
+      tradeId: "trade-1",
+      quantity: 1,
+      copies: [
+        copy({ id: "plain-a" }),
+        copy({ id: "graded", grader: "psa", grade: 10 }),
+        copy({ id: "plain-b" }),
+      ],
+      pinnedCopyIds: ["graded"],
+    });
+    expect(result.copies.map((row) => row.id)).toEqual(["graded", "plain-a", "plain-b"]);
+    expect(result.copies.map((row) => row.pinned)).toEqual([true, false, false]);
+  });
+
+  it("keeps the alternatives plainest-first behind several pins", () => {
+    const result = toCardTradeCopyOptions({
+      tradeId: "trade-1",
+      quantity: 2,
+      copies: [
+        copy({ id: "alt-noted", notesPublic: "signed" }),
+        copy({ id: "pin-b" }),
+        copy({ id: "alt-plain" }),
+        copy({ id: "pin-a", grader: "psa", grade: 10 }),
+      ],
+      pinnedCopyIds: ["pin-a", "pin-b"],
+    });
+    expect(result.copies.map((row) => row.id)).toEqual([
+      "pin-b",
+      "pin-a",
+      "alt-plain",
+      "alt-noted",
+    ]);
+  });
+
+  it("ignores a pin id with no candidate row", () => {
+    // The settle picker reads pins and candidates separately, so a copy that
+    // vanished between the two must not conjure a row.
+    const result = toCardTradeCopyOptions({
+      tradeId: "trade-1",
+      quantity: 1,
+      copies: [copy({ id: "a" })],
+      pinnedCopyIds: ["gone"],
+    });
+    expect(result.copies.map((row) => row.id)).toEqual(["a"]);
+    expect(result.copies[0].pinned).toBe(false);
   });
 });
 

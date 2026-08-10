@@ -6,9 +6,10 @@ import {
   ClockIcon,
   EllipsisVerticalIcon,
   FolderPlusIcon,
+  LayersIcon,
   XIcon,
 } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -57,7 +58,12 @@ import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { AddToCollectionDialog } from "./add-to-collection-dialog";
 import { TradeCardmarketExportDialog } from "./trade-cardmarket-export-dialog";
-import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
+import {
+  TradeCopyPickerDialog,
+  TradeSettleCopyPickerDialog,
+  useTradeAcceptFlow,
+  useTradeSettleCopyFlow,
+} from "./trade-copy-picker-dialog";
 import {
   CardMetaLine,
   TradeDirectionIcon,
@@ -88,7 +94,37 @@ function syncVariables(
 }
 
 /**
- * The receiver's side of a completed trade: one press files the copies into the
+ * The overflow menu that sits beside a settle button. One trigger per row: on
+ * phones it is pinned to the card's top-right corner, so a second menu would
+ * land on top of the first.
+ * @returns The menu.
+ */
+function SettleOverflowMenu({ disabled, children }: { disabled: boolean; children: ReactNode }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          // On phones the action bar is already carrying Skip and the primary
+          // button, so the menu lifts out of it to the card's top-right
+          // corner; from sm up it rejoins the button row.
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            disabled={disabled}
+            aria-label="More trade actions"
+            className="absolute top-2 right-2 sm:static"
+          />
+        }
+      >
+        <EllipsisVerticalIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">{children}</DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * The receiver's side of a reserved trade: one press files the copies into the
  * remembered target (the inbox until the viewer picks otherwise), with an
  * overflow menu to send them somewhere else. Picking somewhere else is
  * remembered, so the button then reads "Add to <that collection>" everywhere.
@@ -100,9 +136,12 @@ function syncVariables(
 function AddIncomingTradeButtons({
   trade,
   cardName,
+  cancelItem,
 }: {
   trade: CardTradeResponse;
   cardName: string;
+  /** The row's "Cancel trade" item, or null once the trade is past cancelling. */
+  cancelItem: ReactNode;
 }) {
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
@@ -123,30 +162,13 @@ function AddIncomingTradeButtons({
       <Button size="sm" className="max-w-44 min-w-0" disabled={acting} onClick={addToTarget}>
         <span className="truncate">Add to {target.label}</span>
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            // On phones the action bar is already carrying Skip and the primary
-            // button, so the menu lifts out of it to the card's top-right
-            // corner; from sm up it rejoins the button row.
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              disabled={acting}
-              aria-label="More add options"
-              className="absolute top-2 right-2 sm:static"
-            />
-          }
-        >
-          <EllipsisVerticalIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setPickerOpen(true)}>
-            <FolderPlusIcon className="size-4" />
-            Add to another collection…
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <SettleOverflowMenu disabled={acting}>
+        <DropdownMenuItem onClick={() => setPickerOpen(true)}>
+          <FolderPlusIcon className="size-4" />
+          Add to another collection…
+        </DropdownMenuItem>
+        {cancelItem}
+      </SettleOverflowMenu>
       <AddToCollectionDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
@@ -155,6 +177,69 @@ function AddIncomingTradeButtons({
         cardName={cardName}
         quantity={trade.quantity}
       />
+    </>
+  );
+}
+
+/**
+ * The giver's side of a reserved trade: one press removes the copies the accept
+ * pinned, with an overflow menu to say the ones that actually changed hands were
+ * others.
+ *
+ * The pinned copies are only ever a guess at that. A giver-initiated offer pins
+ * without asking them at all, and even a picked pin was picked before the swap,
+ * so the copy that travelled can easily have come out of a different binder —
+ * one the group may never have seen. Nothing here re-pins: the rows are about to
+ * be deleted, so the menu is a correction to what leaves, not to what is
+ * promised.
+ * @returns The remove button, its overflow menu and the picker dialog.
+ */
+function RemoveOutgoingTradeButtons({
+  trade,
+  cardName,
+  cancelItem,
+}: {
+  trade: CardTradeResponse;
+  cardName: string;
+  /** The row's "Cancel trade" item, or null once the trade is past cancelling. */
+  cancelItem: ReactNode;
+}) {
+  const acting = useTradeActionStore((state) => state.pending.has(trade.id));
+  const begin = useTradeActionStore((state) => state.begin);
+  const settle = useTradeActionStore((state) => state.settle);
+  const applySync = useApplyTradeSync();
+  const flow = useTradeSettleCopyFlow({
+    tradeId: trade.id,
+    groupSlug: trade.groupSlug,
+    onSettled: () => settle(trade.id),
+  });
+
+  function removePinned(): void {
+    begin(trade.id);
+    applySync.mutate(
+      { tradeId: trade.id, groupSlug: trade.groupSlug },
+      { onSettled: () => settle(trade.id) },
+    );
+  }
+
+  return (
+    <>
+      <Button size="sm" disabled={acting} onClick={removePinned}>
+        Handed over, remove {trade.quantity}
+      </Button>
+      <SettleOverflowMenu disabled={acting}>
+        <DropdownMenuItem
+          onClick={() => {
+            begin(trade.id);
+            flow.start();
+          }}
+        >
+          <LayersIcon className="size-4" />
+          Choose which copies…
+        </DropdownMenuItem>
+        {cancelItem}
+      </SettleOverflowMenu>
+      <TradeSettleCopyPickerDialog flow={flow} cardName={cardName} />
     </>
   );
 }
@@ -176,7 +261,6 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
   const acceptFlow = useTradeAcceptFlow({ onSettled: () => settle(trade.id) });
   const decline = useDeclineTrade();
   const cancel = useCancelTrade();
-  const applySync = useApplyTradeSync();
   const skipSync = useSkipTradeSync();
 
   const card = cardsById[trade.cardId];
@@ -205,6 +289,15 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
   }
 
   const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug };
+
+  // Handed to whichever settle-side component the row renders, so the cancel
+  // action shares that side's single overflow menu.
+  const cancelItem = cancellable ? (
+    <DropdownMenuItem variant="destructive" onClick={() => run(cancel, actionArgs)}>
+      <XIcon className="size-4" />
+      Cancel trade
+    </DropdownMenuItem>
+  ) : null;
 
   return (
     // On phones the row stacks: the card identity sits on top, and an action bar
@@ -295,6 +388,9 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
             // second of those completes the trade (ADR-019, amendment
             // 2026-08-10). The skip variant settles the same half without
             // touching the collection, for someone whose data is already right.
+            // Both sides carry one overflow menu, which is also where the
+            // cancel item goes; the side components own it so the row never
+            // renders two triggers into the same corner.
             <>
               <Button
                 size="sm"
@@ -305,38 +401,18 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
                 {incoming ? "Got them, don't add" : "Handed over, keep mine"}
               </Button>
               {incoming ? (
-                <AddIncomingTradeButtons trade={trade} cardName={cardName} />
+                <AddIncomingTradeButtons
+                  trade={trade}
+                  cardName={cardName}
+                  cancelItem={cancelItem}
+                />
               ) : (
-                <Button size="sm" disabled={acting} onClick={() => run(applySync, actionArgs)}>
-                  Handed over, remove {trade.quantity}
-                </Button>
+                <RemoveOutgoingTradeButtons
+                  trade={trade}
+                  cardName={cardName}
+                  cancelItem={cancelItem}
+                />
               )}
-              {cancellable ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      // On phones the action bar is already carrying the primary
-                      // button, so the menu lifts out of it to the card's
-                      // top-right corner; from sm up it rejoins the button row.
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        disabled={acting}
-                        aria-label="More trade actions"
-                        className="absolute top-2 right-2 sm:static"
-                      />
-                    }
-                  >
-                    <EllipsisVerticalIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem variant="destructive" onClick={() => run(cancel, actionArgs)}>
-                      <XIcon className="size-4" />
-                      Cancel trade
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
             </>
           ) : null}
         </div>

@@ -7,6 +7,7 @@ import type {
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import type { TradeCopyRow } from "../lib/card-trade-presenters.js";
 import { sortCopiesForPinning, toCardTradeCopyOptions } from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
 import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
@@ -450,13 +451,44 @@ async function resolvePinnedCopyIds(
 }
 
 /**
- * The physical copies a pending trade could draw on, for the giver's picker.
- * Giver-only: the rows carry the owner's private notes, and the giver is the
- * only party who gets to choose which copy leaves their binder.
+ * The copies the giver could put behind a trade they have not settled yet: the
+ * ones currently pinned, plus every other free copy of the printing in their
+ * own collections.
  *
- * Reads the same reservable supply the accept path pins from, so the picker can
- * never offer a copy the accept would then refuse.
- * @returns The candidates in default pin order, plus whether to prompt at all.
+ * The candidate set is deliberately wider than the accept path's. That one is
+ * scoped to what the group can see, because a pin promises a copy into a live
+ * trade. This one runs after the cards have physically changed hands, so it is
+ * recording which copy left — and that is routinely one the group never saw,
+ * which is the whole reason the giver is correcting the pick.
+ * @returns The pinned copies followed by the free alternatives.
+ */
+async function listSettleCandidateCopies(
+  repos: Repos,
+  trade: CardTrade,
+  pinnedCopyIds: readonly string[],
+): Promise<TradeCopyRow[]> {
+  // Sequential: the settle path calls this with transaction-bound repos, which
+  // share one connection. `listFreePersonalMetadataForPrinting` excludes every
+  // trade-pinned copy, so the two reads cannot overlap.
+  const pinned = await repos.copies.listMetadataByIds(pinnedCopyIds);
+  const free = await repos.copies.listFreePersonalMetadataForPrinting(
+    trade.giverUserId,
+    trade.printingId,
+  );
+  return [...pinned, ...free];
+}
+
+/**
+ * The physical copies a trade could draw on, for the giver's picker. Giver-only:
+ * the rows carry the owner's private notes, and the giver is the only party who
+ * gets to choose which copy leaves their binder.
+ *
+ * On a pending trade this is the accept picker's candidate set — the same
+ * reservable supply the accept path pins from, so the picker can never offer a
+ * copy the accept would then refuse. On a reserved trade the giver has not
+ * settled yet, so it is the settle picker's set instead
+ * (see {@link listSettleCandidateCopies}).
+ * @returns The candidates in default order, plus whether to prompt at all.
  */
 export async function listTradeCopyOptions(
   repos: Repos,
@@ -471,15 +503,26 @@ export async function listTradeCopyOptions(
       "Only the giver can see the copies behind this trade",
     );
   }
-  assertTradeStatus(trade, "pending", "This trade is no longer pending");
 
-  const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
-    groupId: trade.groupId,
-    giverUserId: trade.giverUserId,
-    printingId: trade.printingId,
+  if (trade.status === "pending") {
+    const { unreservedCopyIds } = await repos.friendGroupMatches.giverPrintingSupply({
+      groupId: trade.groupId,
+      giverUserId: trade.giverUserId,
+      printingId: trade.printingId,
+    });
+    const copies = await repos.copies.listMetadataByIds(unreservedCopyIds);
+    return toCardTradeCopyOptions({ tradeId: trade.id, quantity: trade.quantity, copies });
+  }
+
+  assertGiverUnsettled(trade);
+  const pinnedCopyIds = await repos.cardTrades.listReservedCopyIds(tradeId);
+  const copies = await listSettleCandidateCopies(repos, trade, pinnedCopyIds);
+  return toCardTradeCopyOptions({
+    tradeId: trade.id,
+    quantity: trade.quantity,
+    copies,
+    pinnedCopyIds,
   });
-  const copies = await repos.copies.listMetadataByIds(unreservedCopyIds);
-  return toCardTradeCopyOptions({ tradeId: trade.id, quantity: trade.quantity, copies });
 }
 
 /**
@@ -723,6 +766,19 @@ function assertSettleable(trade: CardTrade): void {
   }
 }
 
+/**
+ * Guards the reads and choices that only make sense while the giver's own half
+ * is still open. Once they have settled, the copies are gone and there is
+ * nothing left to pick between.
+ * @returns Nothing.
+ */
+function assertGiverUnsettled(trade: CardTrade): void {
+  assertSettleable(trade);
+  if (trade.giverSyncAppliedAt !== null) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "You have already settled your half");
+  }
+}
+
 /** Adds `quantity` copies of the trade's printing for the receiver and decrements their wish. */
 async function applyReceiverSync(
   trxRepos: Repos,
@@ -779,6 +835,50 @@ async function applyReceiverSync(
 }
 
 /**
+ * Decides which copies the giver's settle actually removes.
+ *
+ * `chosenCopyIds` is the giver saying the card that left their hands was not
+ * the one the accept pinned — a plain copy gets promised, then the copy that
+ * physically travels comes out of a different binder. It is honoured only once
+ * every id is confirmed to still be a settle candidate under the row lock, so
+ * an id belonging to someone else, to another printing, or to a copy another
+ * trade has since claimed is refused rather than deleted.
+ *
+ * Substituting is safe where re-pinning would not be: these rows are about to
+ * be hard-deleted, not promised, so the swapped-in copy never needs to have
+ * been visible to the group.
+ * @returns Exactly `trade.quantity` copy ids to dispose.
+ */
+async function resolveSettleCopyIds(
+  trxRepos: Repos,
+  trade: CardTrade,
+  pinnedCopyIds: string[],
+  chosenCopyIds: string[],
+): Promise<string[]> {
+  const unique = new Set(chosenCopyIds);
+  if (unique.size !== chosenCopyIds.length) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "Choose each copy only once");
+  }
+  if (unique.size !== trade.quantity) {
+    const noun = trade.quantity === 1 ? "copy" : "copies";
+    throw new AppError(409, ERROR_CODES.CONFLICT, `Choose exactly ${trade.quantity} ${noun}`);
+  }
+
+  // Lock the chosen rows before reading the candidate set, so a concurrent
+  // accept or dispose of one of them serializes against this settle and the
+  // read below sees whatever that transaction committed. A copy that lost the
+  // race is either gone from `locked` or no longer a candidate. Locking the
+  // whole candidate set instead would take rows this settle never touches.
+  const locked = new Set(await trxRepos.copies.lockByIds(chosenCopyIds));
+  const candidates = await listSettleCandidateCopies(trxRepos, trade, pinnedCopyIds);
+  const allowed = new Set(candidates.map((copy) => copy.id));
+  if (chosenCopyIds.some((id) => !locked.has(id) || !allowed.has(id))) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "One of those copies is no longer available");
+  }
+  return chosenCopyIds;
+}
+
+/**
  * Settles the caller's own half of a swap, with the data change. Giver: dispose
  * the reserved copies (releasing the reservation first, atomically), which is
  * "I handed them over". Receiver: add the copies and decrement the wish entry,
@@ -786,26 +886,44 @@ async function applyReceiverSync(
  *
  * Each side asserts only its own half, so nothing here claims the swap happened
  * for the other party. The second settle promotes the trade to `completed`.
+ *
+ * `copyIds` is the giver's correction to which copies leave
+ * (see {@link resolveSettleCopyIds}); `targetCollectionId` is the receiver's
+ * target collection. Each is ignored on the other side's settle.
  * @returns The trade as a viewer-oriented DTO.
  */
 export function applyTradeSync(
   transact: Transact,
   tradeId: string,
   byUserId: string,
-  targetCollectionId?: string,
+  options: { targetCollectionId?: string; copyIds?: string[] } = {},
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
     assertSettleable(trade);
+    // The copies at stake are the giver's own, so a receiver has no say over
+    // which ones the swap took. Refused rather than ignored.
+    if (options.copyIds !== undefined && role !== "giver") {
+      throw new AppError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Only the giver can choose which copies to log",
+      );
+    }
 
     if (role === "giver") {
       // Claim the giver's side first (guarded UPDATE): a concurrent double-apply
       // matches zero rows here and 409s, so the dispose below runs exactly once.
       await claimGiverSyncSide(trxRepos, tradeId);
-      const copyIds = await trxRepos.cardTrades.listReservedCopyIds(tradeId);
+      const pinnedCopyIds = await trxRepos.cardTrades.listReservedCopyIds(tradeId);
+      const copyIds =
+        options.copyIds === undefined
+          ? pinnedCopyIds
+          : await resolveSettleCopyIds(trxRepos, trade, pinnedCopyIds, options.copyIds);
       // Release the reservation rows so the dispose guard passes, then dispose
-      // through the shared service body (emits a `removed` event and
-      // cascade-removes the copies' copy-kind tradelist entries).
+      // through the shared service body (emits a `removed` event, sweeps the
+      // giver's now-unfillable pending trades, and cascade-removes the copies'
+      // copy-kind tradelist entries).
       await trxRepos.cardTrades.deleteCopiesForTrade(tradeId);
       if (copyIds.length > 0) {
         await disposeCopiesInTransaction(trxRepos, trade.giverUserId, copyIds, {
@@ -816,7 +934,7 @@ export function applyTradeSync(
       // Claim the receiver's side first, so a concurrent double-apply cannot add
       // the copies twice or double-decrement the wish.
       await claimReceiverSyncSide(trxRepos, tradeId);
-      await applyReceiverSync(trxRepos, trade, targetCollectionId);
+      await applyReceiverSync(trxRepos, trade, options.targetCollectionId);
     }
 
     await trxRepos.cardTrades.markCompletedWhenBothSettled(tradeId, byUserId);

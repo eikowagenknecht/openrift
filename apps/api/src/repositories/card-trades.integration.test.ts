@@ -1317,6 +1317,107 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
+  // ── Settle-time copy choice ────────────────────────────────────────────────
+  // The candidate set here is every free copy the giver owns of the printing,
+  // and this suite's copies accumulate across tests, so these assert membership
+  // and per-copy outcomes rather than candidate counts.
+
+  /** @returns Whether the copy row still exists. */
+  async function copyExists(copyId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom("copies")
+      .select("id")
+      .where("id", "=", copyId)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  it("offers a reserved trade's pins first, then the giver's unshared copies", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    const unlisted = await unlistedGiverCopy();
+
+    const options = await listTradeCopyOptions(repos, trade.id, GIVER_ID);
+
+    expect(options.copies[0]).toMatchObject({ id: copyIds[0], pinned: true });
+    // The copy that physically travelled can be one the group never saw, which
+    // is the case the accept picker's group-scoped supply cannot cover.
+    const alternatives = options.copies.filter((row) => !row.pinned).map((row) => row.id);
+    expect(alternatives).toContain(unlisted);
+  });
+
+  it("removes the copy the giver says changed hands, leaving the pinned one alone", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    const unlisted = await unlistedGiverCopy();
+
+    await applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [unlisted] });
+
+    expect(await copyExists(unlisted)).toBe(false);
+    expect(await copyExists(copyIds[0])).toBe(true);
+    // The pins are released either way, so the untouched copy goes back into
+    // the group's supply instead of staying hidden.
+    expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
+    const row = await repos.cardTrades.getById(trade.id);
+    expect(row?.giverSyncAppliedAt).not.toBeNull();
+    expect(row?.status).toBe("reserved");
+  });
+
+  it("refuses a settle choice of the wrong size", async () => {
+    const { group, copyIds } = await setupMatch(2);
+    const trade = await request(group, 2);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+
+    await expect(
+      applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [copyIds[0]] }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await copyExists(copyIds[0])).toBe(true);
+    expect(await copyExists(copyIds[1])).toBe(true);
+  });
+
+  it("refuses a settle choice naming someone else's copy", async () => {
+    const { group, copyIds } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    const receiverCollectionId = await collectionFor(RECEIVER_ID);
+    const theirs = await db
+      .insertInto("copies")
+      .values({ printingId: PRINTING_1.id, collectionId: receiverCollectionId })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    await expect(
+      applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [theirs.id] }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await copyExists(theirs.id)).toBe(true);
+    expect(await copyExists(copyIds[0])).toBe(true);
+  });
+
+  it("refuses a settle choice from the receiver, whose side owns no copies", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    const unlisted = await unlistedGiverCopy();
+
+    await expect(
+      applyTradeSync(transact, trade.id, RECEIVER_ID, { copyIds: [unlisted] }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await copyExists(unlisted)).toBe(true);
+  });
+
+  it("has nothing to choose once the giver has settled", async () => {
+    const { group } = await setupMatch(1);
+    const trade = await request(group, 1);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    await applyTradeSync(transact, trade.id, GIVER_ID);
+
+    await expect(listTradeCopyOptions(repos, trade.id, GIVER_ID)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
   // ── liveAnnotationsForUser ─────────────────────────────────────────────────
   // Every test in this file trades PRINTING_1 and cleanup only runs in afterAll,
   // so the annotation buckets accumulate. Each case therefore reads one bucket

@@ -383,6 +383,57 @@ export function copiesRepo(db: Kysely<Database>) {
         .then((rows) => rows.map((row) => withParsedLinks(row)));
     },
 
+    /**
+     * The user's own free copies of one printing, with the same per-copy
+     * metadata as {@link listMetadataByIds}. Free means neither out on a live
+     * loan (ADR-039, physically absent) nor pinned to a live trade (ADR-019,
+     * committed elsewhere) — the two exclusions the buildable counts use.
+     *
+     * Personal collections only (`col.userId`): a copy sitting in a group
+     * collection is not the user's alone to dispose of. Group *sharing* is not
+     * a filter here, unlike the trade supply this complements — the settle
+     * picker records which copy physically left, and that can be one out of a
+     * binder the group never saw.
+     * @returns One row per free copy, in no particular order.
+     */
+    listFreePersonalMetadataForPrinting(
+      userId: string,
+      printingId: string,
+    ): Promise<CopyMetadataRow[]> {
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          "col.name as collectionName",
+          ...COPY_METADATA_COLUMNS,
+        ])
+        .where("cp.printingId", "=", printingId)
+        .where("col.userId", "=", userId)
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("loanCopies as lc")
+                .select("lc.copyId")
+                .whereRef("lc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom("cardTradeCopies as ctc")
+                .select("ctc.copyId")
+                .whereRef("ctc.copyId", "=", "cp.id"),
+            ),
+          ),
+        )
+        .execute()
+        .then((rows) => rows.map((row) => withParsedLinks(row)));
+    },
+
     /** Moves copies to a target collection; caller verified write access. */
     async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
       if (copyIds.length === 0) {

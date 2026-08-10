@@ -44,9 +44,22 @@ export const setCardTradeQuantitySchema = z.object({
   quantity: z.number().int().min(1),
 });
 
-/** Receiver-sync target collection; omitted defaults to the receiver's inbox. */
+/**
+ * What the settling party wants done with their own half.
+ *
+ * `targetCollectionId` is the receiver's target collection; omitted, it
+ * defaults to the receiver's inbox.
+ *
+ * `copyIds` is the giver's choice of which physical copies actually left their
+ * hands, which is not necessarily what the accept pinned: a plain copy may have
+ * been promised while the one that changed hands came out of another binder.
+ * It must list exactly `quantity` distinct ids from the trade's current
+ * candidate set, which is what `copyOptions` returns for a reserved trade.
+ * Omitted, the pinned copies are the ones removed. Only the giver may send it.
+ */
 export const cardTradeSyncSchema = z.object({
   targetCollectionId: z.uuid().optional(),
+  copyIds: z.array(z.uuid()).min(1).max(100).optional(),
 });
 
 /**
@@ -106,10 +119,10 @@ export const cardTradeListResponseSchema = z
   .openapi("CardTradeListResponse");
 
 /**
- * One physical copy the giver could promise to a pending trade. All candidates
- * are the same printing, so finish, art variant and language never differ
- * between them; what can differ is the per-copy metadata below plus which
- * collection the copy sits in.
+ * One physical copy the giver could put behind a trade. All candidates are the
+ * same printing, so finish, art variant and language never differ between them;
+ * what can differ is the per-copy metadata below plus which collection the copy
+ * sits in.
  */
 export const cardTradeCopyOptionSchema = z
   .object({
@@ -117,6 +130,12 @@ export const cardTradeCopyOptionSchema = z
     collectionId: z.string(),
     /** Display name of the collection holding the copy. */
     collectionName: z.string(),
+    /**
+     * True when this copy is already pinned to the trade. Always false while
+     * the trade is pending (nothing is pinned yet); on a reserved trade the
+     * pinned copies are what a settle removes unless the giver picks others.
+     */
+    pinned: z.boolean(),
     ...copyMetadataResponseShape,
     /** Owner-visible note. The route is giver-only, so this never leaves the owner. */
     notesPrivate: z.string().nullable(),
@@ -130,19 +149,30 @@ export const cardTradeCopyOptionSchema = z
   .openapi("CardTradeCopyOption");
 
 /**
- * The copies a pending trade could draw on, giver-only. `copies` is in the
- * server's default pin order (plainest first), so `copies.slice(0, quantity)`
- * is exactly what an accept without `copyIds` would promise.
+ * The copies a trade could draw on, giver-only. Serves both ends of the
+ * lifecycle, and the candidate set differs between them:
+ *
+ * - **pending**, for the accept picker: the reservable supply this group can
+ *   see. `copies` is in the server's default pin order (plainest first), so
+ *   `copies.slice(0, quantity)` is exactly what an accept without `copyIds`
+ *   would promise, and nothing is `pinned` yet.
+ * - **reserved**, for the settle picker: the copies pinned to this trade plus
+ *   every other free copy of the printing in the giver's own collections,
+ *   group-shared or not. The card physically changed hands already, so what is
+ *   being recorded is which copy left, not what the group could see. Pinned
+ *   copies sort first and are what a settle removes by default.
  */
 export const cardTradeCopyOptionsResponseSchema = z
   .object({
     tradeId: z.string(),
-    /** How many copies the accept will pin. */
+    /** How many copies the trade takes. */
     quantity: z.number().int().positive(),
     /**
      * True when the giver has a real choice worth surfacing: more candidates
      * than the trade needs, and at least two of them differ in metadata a
-     * person would care about. False means the client must not prompt.
+     * person would care about. The accept flow must not prompt when it is
+     * false. The settle picker ignores it — it is opened deliberately, and
+     * showing which copies are about to go is the point.
      */
     choiceMatters: z.boolean(),
     copies: z.array(cardTradeCopyOptionSchema),
@@ -227,10 +257,10 @@ const TAG = "CardTrades";
  * `accept`, `decline`, `cancel`, `sync`, `skipSync` → NOT_FOUND
  * (trade) + CONFLICT (wrong state or already resolved); `setQuantity` → also
  * adds BAD_REQUEST (quantity below minimum); `copyOptions` → NOT_FOUND (trade)
- * + CONFLICT (not pending) + FORBIDDEN (viewer is not the giver). `accept` also
- * uses CONFLICT for a rejected `copyIds` choice, and FORBIDDEN when a
- * non-giver sends one. The lifecycle mutations take the trade id as a path
- * param.
+ * + CONFLICT (neither pending nor open to settle) + FORBIDDEN (viewer is not
+ * the giver). `accept` and `sync` also use CONFLICT for a rejected `copyIds`
+ * choice, and FORBIDDEN when a non-giver sends one. The lifecycle mutations
+ * take the trade id as a path param.
  */
 export const cardTradesContract = {
   create: authedRoute
@@ -257,7 +287,7 @@ export const cardTradesContract = {
     .input(idParamSchema)
     .errors({
       NOT_FOUND: { message: "Trade not found" },
-      CONFLICT: { message: "Trade is not pending" },
+      CONFLICT: { message: "Trade has no copies to choose from" },
     })
     .output(cardTradeCopyOptionsResponseSchema),
   accept: authedRoute

@@ -264,6 +264,7 @@ describe("GET /api/v1/trades/:id/copy-options", () => {
           id: COPY_ID,
           collectionId: "a0000000-0001-4000-a000-000000000050",
           collectionName: "Trade Binder",
+          pinned: false,
           condition: null,
           grader: null,
           grade: null,
@@ -379,12 +380,34 @@ describe("POST /api/v1/trades/:id/sync", () => {
       body: JSON.stringify({ targetCollectionId }),
     });
     expect(res.status).toBe(200);
-    expect(mockApplyTradeSync).toHaveBeenCalledWith(
-      expect.anything(),
-      TRADE_ID,
-      USER_ID,
+    expect(mockApplyTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
       targetCollectionId,
-    );
+      copyIds: undefined,
+    });
+  });
+
+  it("forwards the giver's chosen copies", async () => {
+    mockApplyTradeSync.mockResolvedValue(tradeResponse);
+    const copyIds = ["a0000000-0001-4000-a000-000000000011"];
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockApplyTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
+      targetCollectionId: undefined,
+      copyIds,
+    });
+  });
+
+  it("rejects a copy id that is not a uuid", async () => {
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyIds: ["not-a-uuid"] }),
+    });
+    expect(res.status).toBe(400);
   });
 });
 

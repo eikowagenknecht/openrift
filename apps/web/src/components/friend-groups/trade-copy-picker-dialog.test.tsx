@@ -7,6 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const acceptMutate = vi.fn((_variables: unknown, options?: { onSettled?: () => void }) => {
   options?.onSettled?.();
 });
+const syncMutate = vi.fn((_variables: unknown, options?: { onSettled?: () => void }) => {
+  options?.onSettled?.();
+});
 
 // Mutated per test before rendering; read lazily inside the mocked queryFn.
 let currentOptions: CardTradeCopyOptionsResponse;
@@ -14,6 +17,7 @@ let optionsFail = false;
 
 vi.mock("@/hooks/use-card-trades", () => ({
   useAcceptTrade: () => ({ mutate: acceptMutate, isPending: false }),
+  useApplyTradeSync: () => ({ mutate: syncMutate, isPending: false }),
   tradeCopyOptionsQueryOptions: (userId: string, tradeId: string) => ({
     queryKey: ["trades", userId, "copy-options", tradeId],
     queryFn: async () => {
@@ -38,13 +42,19 @@ vi.mock("@/hooks/use-enums", () => ({
   }),
 }));
 
-const { TradeCopyPickerDialog, useTradeAcceptFlow } = await import("./trade-copy-picker-dialog");
+const {
+  TradeCopyPickerDialog,
+  TradeSettleCopyPickerDialog,
+  useTradeAcceptFlow,
+  useTradeSettleCopyFlow,
+} = await import("./trade-copy-picker-dialog");
 
 function makeCopy(id: string, overrides: Partial<CardTradeCopyOption> = {}): CardTradeCopyOption {
   return {
     id,
     collectionId: `col-${id}`,
     collectionName: `Binder ${id}`,
+    pinned: false,
     condition: null,
     grader: null,
     grade: null,
@@ -109,6 +119,7 @@ async function startAccept() {
 
 beforeEach(() => {
   acceptMutate.mockClear();
+  syncMutate.mockClear();
   settled.mockClear();
   optionsFail = false;
   currentOptions = {
@@ -243,6 +254,136 @@ describe("useTradeAcceptFlow", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(acceptMutate).not.toHaveBeenCalled();
+    expect(settled).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Settle picker
+// ---------------------------------------------------------------------------
+
+function SettleHarness() {
+  const flow = useTradeSettleCopyFlow({
+    tradeId: "trade-1",
+    groupSlug: "bothfeld",
+    onSettled: settled,
+  });
+  return (
+    <>
+      <button type="button" onClick={() => flow.start()}>
+        Choose copies
+      </button>
+      <TradeSettleCopyPickerDialog flow={flow} cardName="Fury Rune" />
+    </>
+  );
+}
+
+function renderSettleFlow() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <SettleHarness />
+    </QueryClientProvider>,
+  );
+}
+
+async function startSettleChoice() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Choose copies" }));
+  return user;
+}
+
+describe("TradeSettleCopyPickerDialog", () => {
+  beforeEach(() => {
+    // What a reserved trade returns: the pinned copy first, then the free
+    // alternatives from the giver's other collections.
+    currentOptions = {
+      tradeId: "trade-1",
+      quantity: 1,
+      choiceMatters: true,
+      copies: [{ ...GRADED, pinned: true }, PLAIN_A, PLAIN_B],
+    };
+  });
+
+  it("opens on the copies the trade has pinned, not the plainest ones", async () => {
+    renderSettleFlow();
+    await startSettleChoice();
+
+    await screen.findByRole("dialog");
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[0]).toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
+    expect(checkboxes[2]).not.toBeChecked();
+  });
+
+  it("settles with the copy the giver says actually changed hands", async () => {
+    renderSettleFlow();
+    const user = await startSettleChoice();
+
+    await screen.findByRole("dialog");
+    const checkboxes = screen.getAllByRole("checkbox");
+    // The graded copy stayed home; the one out of Bulk Box is what travelled.
+    await user.click(checkboxes[0]);
+    await user.click(checkboxes[2]);
+    await user.click(screen.getByRole("button", { name: "Remove copy" }));
+
+    expect(syncMutate).toHaveBeenCalledTimes(1);
+    expect(syncMutate.mock.calls[0][0]).toEqual({
+      tradeId: "trade-1",
+      groupSlug: "bothfeld",
+      copyIds: ["copy-b"],
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(settled).toHaveBeenCalled();
+  });
+
+  it("blocks confirm until the pick matches the trade's quantity", async () => {
+    renderSettleFlow();
+    const user = await startSettleChoice();
+
+    await screen.findByRole("dialog");
+    await user.click(screen.getAllByRole("checkbox")[0]);
+
+    expect(screen.getByRole("button", { name: "Remove copy" })).toBeDisabled();
+    expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();
+    expect(syncMutate).not.toHaveBeenCalled();
+  });
+
+  it("prompts even when there is nothing to swap, so the giver can see what goes", async () => {
+    currentOptions = {
+      tradeId: "trade-1",
+      quantity: 1,
+      choiceMatters: false,
+      copies: [{ ...PLAIN_A, pinned: true }],
+    };
+    renderSettleFlow();
+    await startSettleChoice();
+
+    await screen.findByRole("dialog");
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(syncMutate).not.toHaveBeenCalled();
+  });
+
+  it("settles the row without removing anything when the read fails", async () => {
+    optionsFail = true;
+    renderSettleFlow();
+    await startSettleChoice();
+
+    await waitFor(() => expect(settled).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(syncMutate).not.toHaveBeenCalled();
+  });
+
+  it("settles the row without removing anything when the picker is dismissed", async () => {
+    renderSettleFlow();
+    const user = await startSettleChoice();
+
+    await screen.findByRole("dialog");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(syncMutate).not.toHaveBeenCalled();
     expect(settled).toHaveBeenCalled();
   });
 });

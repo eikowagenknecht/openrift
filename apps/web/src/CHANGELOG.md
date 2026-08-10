@@ -18,6 +18,7 @@
 
 - feat(Decks): **Display options in one menu** — the deck toolbar's icon toggles (every copy, owned highlights, prices, your printings) now sit behind one options button, with labels.
 - feat(Decks): **Imports remember where the deck came from** — sending a deck over with the browser extension now offers the page it came from as a deck link, ready to save or drop on the review step.
+- feat(Trades): **Say which copy you handed over** — confirming your half of a swap now offers a "Choose which copies…" option, so the copy that leaves your collection is the one that actually changed hands, from any of your collections.
 - feat(Groups): **Group cards say what the actions are** — a group card now shows how many trade requests are waiting on your answer and, separately, how many agreed swaps you still have to confirm, instead of one vague "actions needed" count.
 - feat(Decks): **Cost to complete beside the deck value** — the price breakdown drops the owned total and shows what you are missing as a second column, split into deck and sideboard.
 - feat(Decks): **Lighter deck builder sidebar** — the ownership and price block is gone from the sidebar (the deck page header already carries those figures), and its charts now match the ones on the deck page.

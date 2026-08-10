@@ -91,12 +91,13 @@ const acceptTradeFn = createServerFn({ method: "POST" })
   );
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
-  .validator((input: { tradeId: string; targetCollectionId?: string }) => input)
+  .validator((input: { tradeId: string; targetCollectionId?: string; copyIds?: string[] }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
     apiOrpcClient(cardTradesContract, context.cookie).sync({
       id: data.tradeId,
       targetCollectionId: data.targetCollectionId,
+      copyIds: data.copyIds,
     }),
   );
 
@@ -178,8 +179,9 @@ export function useLiveTradesByPrinting() {
 }
 
 /**
- * The candidate copies behind one pending trade, in the server's default pin
- * order, for the giver's copy picker.
+ * The candidate copies behind one trade, in the server's default order, for the
+ * giver's copy pickers — the reservable supply while it is pending (accept), the
+ * pinned copies plus the giver's other free copies once it is reserved (settle).
  *
  * Deliberately not a mounted `useQuery`: the route re-reads the giver's supply,
  * which for a member with a dynamic trade list assembles the whole rule
@@ -307,15 +309,26 @@ export function useCancelTrade() {
   });
 }
 
+/**
+ * Settles the viewer's own half of a swap, with the data change. A receiver
+ * passes `targetCollectionId` to file the incoming copies somewhere other than
+ * their inbox; a giver passes `copyIds` when the copies that physically left
+ * are not the ones the accept pinned. Omitting both takes the defaults.
+ * @returns The apply-sync mutation.
+ */
 export function useApplyTradeSync() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
     CardTradeResponse,
-    { tradeId: string; targetCollectionId?: string; groupSlug?: string }
+    { tradeId: string; targetCollectionId?: string; copyIds?: string[]; groupSlug?: string }
   >({
     mutationFn: (data) =>
       applyTradeSyncFn({
-        data: { tradeId: data.tradeId, targetCollectionId: data.targetCollectionId },
+        data: {
+          tradeId: data.tradeId,
+          targetCollectionId: data.targetCollectionId,
+          copyIds: data.copyIds,
+        },
       }),
     invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });

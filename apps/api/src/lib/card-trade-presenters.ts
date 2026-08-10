@@ -11,9 +11,10 @@ import type {
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
 
 /**
- * One candidate copy behind a pending trade, as `copies.listMetadataByIds`
- * reads it. Every candidate is the same printing and comes from the giver's
- * reservable supply, so none of them is altered, reserved or out on a loan.
+ * One candidate copy behind a trade, as `copies.listMetadataByIds` reads it.
+ * Every candidate is the same printing. On a pending trade they all come from
+ * the giver's reservable supply, so none is reserved or out on a loan; on a
+ * reserved one the copies pinned to that trade are candidates too.
  */
 export interface TradeCopyRow {
   id: string;
@@ -129,11 +130,12 @@ export function cardTradeChoiceMatters(copies: readonly TradeCopyRow[], quantity
  * Maps one candidate copy row to its response shape.
  * @returns The serialized copy option.
  */
-export function toCardTradeCopyOption(copy: TradeCopyRow): CardTradeCopyOption {
+export function toCardTradeCopyOption(copy: TradeCopyRow, pinned: boolean): CardTradeCopyOption {
   return {
     id: copy.id,
     collectionId: copy.collectionId,
     collectionName: copy.collectionName,
+    pinned,
     condition: copy.condition,
     grader: copy.grader,
     grade: copy.grade,
@@ -146,22 +148,32 @@ export function toCardTradeCopyOption(copy: TradeCopyRow): CardTradeCopyOption {
 }
 
 /**
- * Maps a pending trade's candidate copies to the giver-facing options payload.
- * `copies` comes back in default pin order, so `copies.slice(0, quantity)` is
- * what an accept without an explicit choice would promise.
+ * Maps a trade's candidate copies to the giver-facing options payload.
+ *
+ * With no `pinnedCopyIds` (the pending/accept case) `copies` comes back in
+ * default pin order, so `copies.slice(0, quantity)` is what an accept without
+ * an explicit choice would promise. On a reserved trade the pinned copies sort
+ * ahead of the rest, since they are the current answer the settle picker opens
+ * on; the alternatives keep the plainest-first order behind them.
  * @returns The serialized copy-options response.
  */
 export function toCardTradeCopyOptions(input: {
   tradeId: string;
   quantity: number;
   copies: readonly TradeCopyRow[];
+  pinnedCopyIds?: readonly string[];
 }): CardTradeCopyOptionsResponse {
-  const ordered = sortCopiesForPinning(input.copies);
+  const pinned = new Set(input.pinnedCopyIds);
+  const byPinWeight = sortCopiesForPinning(input.copies);
+  const ordered = [
+    ...byPinWeight.filter((copy) => pinned.has(copy.id)),
+    ...byPinWeight.filter((copy) => !pinned.has(copy.id)),
+  ];
   return {
     tradeId: input.tradeId,
     quantity: input.quantity,
     choiceMatters: cardTradeChoiceMatters(ordered, input.quantity),
-    copies: ordered.map((copy) => toCardTradeCopyOption(copy)),
+    copies: ordered.map((copy) => toCardTradeCopyOption(copy, pinned.has(copy.id))),
   };
 }
 
