@@ -1019,11 +1019,12 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(first.status).toBe("pending");
     expect(first.initiator).toBe("giver");
 
-    // The giver's single copy is spoken for, so a second offer of it is refused
-    // and the reported count is the netted one.
+    // The giver's single copy is spoken for, so a second offer of it is refused.
+    // The match view already hides committed copies, so the re-run match check in
+    // `createTrade` is what rejects it, ahead of the supply count.
     await expect(offer(group, OUTSIDER_ID, 1)).rejects.toMatchObject({
       status: 409,
-      message: "Only 0 copies are still available",
+      message: "That card is no longer available to trade",
     });
 
     // Cancelling releases the commitment and the copy can be offered again.
@@ -1073,9 +1074,11 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     const offered = await offer(first.group, RECEIVER_ID, 1);
     expect(offered.status).toBe("pending");
+    // Committed copies drop out of every group's match view, not just the one
+    // holding the offer, so the second group's match check is what refuses this.
     await expect(offer(second, RECEIVER_ID, 1)).rejects.toMatchObject({
       status: 409,
-      message: "Only 0 copies are still available",
+      message: "That card is no longer available to trade",
     });
 
     await cancelTrade(transact, offered.id, GIVER_ID);

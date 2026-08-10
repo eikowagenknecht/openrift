@@ -23,7 +23,7 @@ import { PrintingPicker } from "./printing-picker";
  * page. `modal` is the two-column arrangement the desktop dialog uses, which
  * collapses back to one column when the dialog itself is narrow.
  */
-export type CardDetailLayout = "pane" | "modal";
+type CardDetailLayout = "pane" | "modal";
 
 interface CardDetailProps {
   printing: Printing;

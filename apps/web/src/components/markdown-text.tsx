@@ -23,7 +23,7 @@ const CARD_HREF_PREFIX = "#card=";
  * Percent-encoding keeps names with parentheses inside the link target.
  * @returns The text with card spans expanded.
  */
-export function expandCardLinks(text: string): string {
+function expandCardLinks(text: string): string {
   return text.replaceAll(
     /\[\[(?<name>[^[\]\n]{1,80})\]\]/gu,
     (_match, name: string) =>

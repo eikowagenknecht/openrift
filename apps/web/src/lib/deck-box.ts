@@ -48,7 +48,7 @@ export interface DeckBoxGroup {
 }
 
 /** A card the deck still needs whose remaining copies can't be moved. */
-export interface DeckBoxBlocked {
+interface DeckBoxBlocked {
   cardId: string;
   cardName: string;
   count: number;
@@ -57,7 +57,7 @@ export interface DeckBoxBlocked {
 }
 
 /** A card already sitting in the box, with the copies that are in there. */
-export interface DeckBoxSettled {
+interface DeckBoxSettled {
   cardId: string;
   cardName: string;
   count: number;
@@ -69,7 +69,7 @@ export interface DeckBoxSettled {
  * Copies in the box that no deck stored there calls for — what a sweep offers
  * to move back out.
  */
-export interface DeckBoxExtra {
+interface DeckBoxExtra {
   cardId: string;
   cardName: string;
   copies: DeckBoxCopy[];

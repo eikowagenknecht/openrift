@@ -1046,32 +1046,37 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Records the giver resolved their side's sync. Guards on completed + unset so
-     * a concurrent double-apply matches zero rows. Does NOT bump `updated_at`.
-     * @returns Rows affected (0 if not completed or already resolved).
+     * Records the giver resolved their side's sync. Guards on settleable + unset
+     * so a concurrent double-apply matches zero rows. Does NOT bump `updated_at`.
+     *
+     * A side settles while the trade is still `reserved`; `completed` stays in the
+     * guard for rows that reached it with a side outstanding, which is what
+     * `assertSettleable` admits too.
+     * @returns Rows affected (0 if not settleable or already resolved).
      */
     async setGiverSyncApplied(id: string): Promise<number> {
       const result = await db
         .updateTable("cardTrades")
         .set({ giverSyncAppliedAt: sql`now()` })
         .where("id", "=", id)
-        .where("status", "=", "completed")
+        .where("status", "in", ["reserved", "completed"])
         .where("giverSyncAppliedAt", "is", null)
         .executeTakeFirst();
       return Number(result.numUpdatedRows);
     },
 
     /**
-     * Records the receiver resolved their side's sync. Guards on completed + unset
+     * Records the receiver resolved their side's sync. Guards on settleable + unset
      * so a concurrent double-apply matches zero rows. Does NOT bump `updated_at`.
-     * @returns Rows affected (0 if not completed or already resolved).
+     * Same status window as {@link setGiverSyncApplied}.
+     * @returns Rows affected (0 if not settleable or already resolved).
      */
     async setReceiverSyncApplied(id: string): Promise<number> {
       const result = await db
         .updateTable("cardTrades")
         .set({ receiverSyncAppliedAt: sql`now()` })
         .where("id", "=", id)
-        .where("status", "=", "completed")
+        .where("status", "in", ["reserved", "completed"])
         .where("receiverSyncAppliedAt", "is", null)
         .executeTakeFirst();
       return Number(result.numUpdatedRows);

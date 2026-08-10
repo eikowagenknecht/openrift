@@ -44,6 +44,7 @@ import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { setupTestDb } from "../test/integration-setup.js";
+import { CARD_TOKEN_SOURCES } from "./tables.js";
 import type { Database } from "./types.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -57,6 +58,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * is unique per table.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
+  chk_card_tokens_source: CARD_TOKEN_SOURCES,
   chk_card_trades_initiator: cardTradeSideSchema.options,
   chk_card_trades_status: CARD_TRADE_STATUSES,
   chk_collection_events_action: activityActionSchema.options,

@@ -690,7 +690,7 @@ export interface DeckFoldersTable {
  * so both FKs can be composite against `uq_deck_folders_id_user` and
  * `uq_decks_id_user`, making cross-user membership unrepresentable.
  */
-export interface DeckFolderEntriesTable {
+interface DeckFolderEntriesTable {
   folderId: string;
   deckId: string;
   userId: string;
@@ -1854,13 +1854,20 @@ interface CardCardTypesTable {
 }
 
 /**
+ * Where a `card_tokens` row came from. Mirrors `chk_card_tokens_source`
+ * (migration 228); exported as a value so the enum-CHECK parity test can
+ * compare the two.
+ */
+export const CARD_TOKEN_SOURCES = ["derived", "manual"] as const;
+
+/**
  * Token cards a card tells the player to create (migration 228). Derived from
  * EN text; `manual` rows survive the recompute.
  */
 interface CardTokensTable {
   cardId: string;
   tokenCardId: string;
-  source: "derived" | "manual";
+  source: (typeof CARD_TOKEN_SOURCES)[number];
 }
 
 // ─── Materialized views (migration 085) ─────────────────────────────────────

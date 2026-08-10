@@ -17,7 +17,7 @@ const RANGE_LABELS: Record<TimeRange, string> = {
  * inside another interactive element; otherwise prefer `PriceTrend`.
  * @returns The badge, or null when the price did not move.
  */
-export function TrendBadge({ pctChange, className }: { pctChange: number; className?: string }) {
+function TrendBadge({ pctChange, className }: { pctChange: number; className?: string }) {
   if (pctChange === 0) {
     return null;
   }
