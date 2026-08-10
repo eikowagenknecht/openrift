@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import type * as ReactRouter from "@tanstack/react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CSSProperties, ReactNode } from "react";
@@ -12,6 +13,21 @@ vi.mock("@/hooks/use-domain-colors", () => ({
 
 vi.mock("@/hooks/use-apply-tag-filter", () => ({
   useApplyTagFilter: () => null,
+}));
+
+// The overlay's history entry goes through the router (see
+// use-overlay-history-entry), which has no provider in a bare render. The stub
+// applies the entry to jsdom's history the way the real router would, so the
+// close and back-button assertions below still exercise the real thing.
+const routerStub = {
+  navigate: vi.fn(({ state }: { state: (prev: object) => object }) => {
+    history.pushState(state(history.state ?? {}), "");
+  }),
+  latestLocation: { href: "/decks/deck-1" },
+};
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof ReactRouter>()),
+  useRouter: () => routerStub,
 }));
 
 const isMobile = vi.fn(() => false);
@@ -206,6 +222,8 @@ describe("MissingCardDetailOverlay", () => {
     const { rerender } = renderOverlay(printings, printings[0].id);
     await screen.findByText(`showing ${printings[0].id}`);
     const afterOpen = pushState.mock.calls.length;
+    // Guards the assertion below from passing on a count that never moved.
+    expect(afterOpen).toBeGreaterThan(0);
 
     // A fresh callback identity each render is the normal case for an inline
     // arrow at the call site. Pushing an entry per render would leave the back

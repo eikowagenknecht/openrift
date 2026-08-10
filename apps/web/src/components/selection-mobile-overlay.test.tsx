@@ -1,3 +1,4 @@
+import type * as ReactRouter from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CSSProperties, ReactNode } from "react";
@@ -17,6 +18,14 @@ vi.mock("@/hooks/use-domain-colors", () => ({
 
 vi.mock("@/hooks/use-apply-tag-filter", () => ({
   useApplyTagFilter: () => null,
+}));
+
+// The drawer's history entry goes through the router (see
+// use-overlay-history-entry), which has no provider in a bare render.
+const routerStub = { navigate: vi.fn(), latestLocation: { href: "/cards" } };
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof ReactRouter>()),
+  useRouter: () => routerStub,
 }));
 
 // BaseUI's Drawer needs a real pointer environment; pass-through stubs keep the

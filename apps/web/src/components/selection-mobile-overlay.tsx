@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy } from "react";
 import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
@@ -13,6 +13,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import {
+  closeOverlayHistoryEntry,
+  useOverlayHistoryEntry,
+} from "@/hooks/use-overlay-history-entry";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
 import { getDomainTintStyle } from "@/lib/domain";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -35,7 +39,7 @@ interface SelectionMobileOverlayProps {
 /**
  * Fullscreen mobile card-detail drawer driven by the selection store.
  * BaseUI Drawer provides the backdrop, scroll-lock, and swipe-to-close;
- * a history.pushState entry keeps the Android back-button closing the drawer.
+ * a pushed history entry keeps the Android back-button closing the drawer.
  * Renders nothing on desktop or when no card is selected.
  * @returns The mobile detail drawer or null.
  */
@@ -50,13 +54,7 @@ export function SelectionMobileOverlay({
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
 
-  const handleClose = () => {
-    if (history.state?.cardDetail) {
-      history.back();
-    } else {
-      closeDetail();
-    }
-  };
+  const handleClose = () => closeOverlayHistoryEntry("cardDetail", closeDetail);
 
   const {
     selectedCard,
@@ -74,14 +72,11 @@ export function SelectionMobileOverlay({
     onDismiss: handleClose,
   });
 
-  useEffect(() => {
-    if (!detailOpen || !isMobile) {
-      return;
-    }
-    history.pushState({ cardDetail: true }, "");
-    globalThis.addEventListener("popstate", closeDetail);
-    return () => globalThis.removeEventListener("popstate", closeDetail);
-  }, [detailOpen, isMobile, closeDetail]);
+  useOverlayHistoryEntry({
+    active: detailOpen && isMobile,
+    stateKey: "cardDetail",
+    onPop: closeDetail,
+  });
 
   if (!isMobile || !selectedCard) {
     return null;

@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { XIcon } from "lucide-react";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import {
+  closeOverlayHistoryEntry,
+  useOverlayHistoryEntry,
+} from "@/hooks/use-overlay-history-entry";
 import { useCardDetailNavigation } from "@/hooks/use-selection-detail";
 import { getDomainTintStyle } from "@/lib/domain";
 
@@ -98,12 +102,10 @@ function MissingCardDetail({
   const selectedCard = pickedPrinting ?? rowPrinting ?? null;
 
   const handleClose = () => {
-    if (history.state?.missingCardDetail) {
-      history.back();
-      return;
-    }
-    setPicked(null);
-    onOpenPrintingIdChange(null);
+    closeOverlayHistoryEntry("missingCardDetail", () => {
+      setPicked(null);
+      onOpenPrintingIdChange(null);
+    });
   };
 
   const {
@@ -133,25 +135,15 @@ function MissingCardDetail({
     },
   });
 
-  // Read through a ref so the entry is pushed once on open. Depending on the
-  // callback directly would push a fresh entry on every render the caller
-  // hands over a new closure, and the back button would then need as many
-  // presses as the overlay had rendered.
-  const closeRef = useRef(onOpenPrintingIdChange);
-  useEffect(() => {
-    closeRef.current = onOpenPrintingIdChange;
-  }, [onOpenPrintingIdChange]);
-
   // A history entry keeps the browser (and Android) back button closing the
   // detail and returning to the missing list, rather than leaving the page with
   // both dialogs open. Its own state key, so the page's store-driven overlay
   // never reads this entry as one of its own.
-  useEffect(() => {
-    history.pushState({ missingCardDetail: true }, "");
-    const handlePop = () => closeRef.current(null);
-    globalThis.addEventListener("popstate", handlePop);
-    return () => globalThis.removeEventListener("popstate", handlePop);
-  }, []);
+  useOverlayHistoryEntry({
+    active: true,
+    stateKey: "missingCardDetail",
+    onPop: () => onOpenPrintingIdChange(null),
+  });
 
   if (selectedCard === null) {
     return null;

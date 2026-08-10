@@ -1,3 +1,4 @@
+import type * as ReactRouter from "@tanstack/react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CSSProperties, ReactNode } from "react";
@@ -14,6 +15,15 @@ vi.mock("@/hooks/use-domain-colors", () => ({
 
 vi.mock("@/hooks/use-apply-tag-filter", () => ({
   useApplyTagFilter: () => null,
+}));
+
+// The modal's history entry goes through the router (see
+// use-overlay-history-entry), which has no provider in a bare render.
+const navigateMock = vi.fn();
+const routerStub = { navigate: navigateMock, latestLocation: { href: "/cards" } };
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof ReactRouter>()),
+  useRouter: () => routerStub,
 }));
 
 // BaseUI's Dialog portals and traps focus; pass-through stubs keep the test on
@@ -80,6 +90,7 @@ const resetDisplayStore = createStoreResetter(useDisplayStore);
 beforeEach(() => {
   resetSelectionStore();
   resetDisplayStore();
+  navigateMock.mockReset();
 });
 
 afterEach(() => {

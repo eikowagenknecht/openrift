@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { XIcon } from "lucide-react";
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { Suspense, lazy, useRef } from "react";
 import type { ReactNode } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
@@ -16,6 +16,11 @@ import {
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import {
+  closeOverlayHistoryEntry,
+  hasOverlayHistoryEntry,
+  useOverlayHistoryEntry,
+} from "@/hooks/use-overlay-history-entry";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
 import { getDomainTintStyle } from "@/lib/domain";
 import { useDisplayStore } from "@/stores/display-store";
@@ -84,36 +89,26 @@ export function SelectionDetailModal({
 
   // A history entry keeps the browser back button closing the dialog, matching
   // the mobile drawer.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    history.pushState({ cardDetail: true }, "");
-    const handlePop = () => {
+  useOverlayHistoryEntry({
+    active: open,
+    stateKey: "cardDetail",
+    onPop: () => {
       if (dockingRef.current) {
         dockingRef.current = false;
         return;
       }
       closeDetail();
-    };
-    globalThis.addEventListener("popstate", handlePop);
-    return () => globalThis.removeEventListener("popstate", handlePop);
-  }, [open, closeDetail]);
+    },
+  });
 
   if (!open) {
     return null;
   }
 
-  const handleClose = () => {
-    if (history.state?.cardDetail) {
-      history.back();
-    } else {
-      closeDetail();
-    }
-  };
+  const handleClose = () => closeOverlayHistoryEntry("cardDetail", closeDetail);
 
   const handleDock = () => {
-    if (history.state?.cardDetail) {
+    if (hasOverlayHistoryEntry("cardDetail")) {
       dockingRef.current = true;
       history.back();
     }
