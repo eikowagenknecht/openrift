@@ -1,19 +1,17 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
-import { deckIdentityLabels, legendDisplayName, WellKnown } from "@openrift/shared";
+import { deckIdentityLabels, legendDisplayName } from "@openrift/shared";
 import { CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
-import { DomainIcon, FormatStateBadge } from "@/components/deck/deck-tile";
-import { ViolationBadge } from "@/components/deck/deck-validation-banner";
-import { Badge } from "@/components/ui/badge";
+import { DomainIcon } from "@/components/deck/deck-tile";
 import { Button } from "@/components/ui/button";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useDeckFormatList } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainColor } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
@@ -203,8 +201,6 @@ export function DeckHero({
   actions,
 }: DeckHeroProps) {
   const domainColors = useDomainColors();
-  const { labels: formatLabels } = useDeckFormatList();
-  const formatLabel = formatLabels[format] ?? format;
   const fmtPrice = formatterForMarketplace(marketplace);
   const legendDomains = legend?.domains ?? [];
   const hasViolations = violations.length > 0;
@@ -264,25 +260,18 @@ export function DeckHero({
   // ("48/56") while the deck is incomplete — the old separate cards chip folded
   // in here. Empty decks read as drafts, not as failures. It leads the chip row
   // below the title, so the deck's state reads left to right with ownership and
-  // value; the domain icons sit up with the name instead.
-  const formatBadge =
-    hasViolations && format !== WellKnown.deckFormat.FREEFORM && totalCards > 0 ? (
-      <ViolationBadge
-        formatLabel={formatLabel}
-        violations={violations}
-        progress={
-          requiredTotal > 0 && requiredProgress < requiredTotal
-            ? `${requiredProgress}/${requiredTotal}`
-            : undefined
-        }
-      />
-    ) : totalCards === 0 && format !== WellKnown.deckFormat.FREEFORM ? (
-      <Badge variant="muted" className="rounded-md">
-        {formatLabel} · Draft
-      </Badge>
-    ) : (
-      <FormatStateBadge format={format} isValid={!hasViolations} />
-    );
+  // value; the domain icons sit up with the name instead. The deck tiles and
+  // list rows render the same component, so the states never drift.
+  const formatBadge = (
+    <DeckFormatBadge
+      format={format}
+      totalCards={totalCards}
+      requiredProgress={requiredProgress}
+      requiredTotal={requiredTotal}
+      isValid={!hasViolations}
+      violations={violations}
+    />
+  );
 
   // Rendered twice (mobile beside the chips, sm+ in the outer row) — plain
   // images, so the duplicate is cheap and the URLs load once.

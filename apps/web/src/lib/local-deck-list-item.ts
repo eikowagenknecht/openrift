@@ -1,5 +1,10 @@
 import type { Card, CardType, DeckListItemResponse, Domain } from "@openrift/shared";
-import { descriptionSnippet, validateDeck, WellKnown } from "@openrift/shared";
+import {
+  descriptionSnippet,
+  requiredZoneProgress,
+  validateDeck,
+  WellKnown,
+} from "@openrift/shared";
 
 import { toDeckBuilderCard, toRuleEngineCard } from "@/lib/deck-builder-card";
 import type { LocalDeck } from "@/stores/local-decks-store";
@@ -43,6 +48,11 @@ export function localDeckToListItem(
   const totalCards = builderCards
     .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
     .reduce((sum, card) => sum + card.quantity, 0);
+
+  const { progress: requiredProgress, total: requiredTotal } = requiredZoneProgress(
+    builderCards,
+    localDeck.format,
+  );
 
   const typeCountMap = new Map<CardType, number>();
   const domainCountMap = new Map<Domain, number>();
@@ -104,6 +114,8 @@ export function localDeckToListItem(
     typeCounts,
     domainDistribution,
     isValid,
+    requiredProgress,
+    requiredTotal,
     totalValueCents: null,
     // Browser-local decks (ADR-035) have no server inventory to diff against.
     missingCount: null,

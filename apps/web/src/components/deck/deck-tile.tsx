@@ -1,26 +1,25 @@
 import type { DeckListItemResponse, PrintingImage } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
+import { ArchiveIcon, PinIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { cardLinkVariants } from "@/components/ui/card-link";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
+import { useCustomTagList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
+import { DeckFormatBadge } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
+import { DeckMetaLine } from "./deck-meta-line";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
@@ -220,43 +219,6 @@ export function typeCountSummary(typeCounts: { cardType: string; count: number }
 }
 
 /**
- * The deck tile's format badge: plain for Freeform, green check when the deck
- * passes its format's rules, amber alert otherwise.
- * @returns The badge element.
- */
-export function FormatStateBadge({ format, isValid }: { format: string; isValid: boolean }) {
-  const { labels: formatLabels } = useDeckFormatList();
-  const formatLabel = formatLabels[format] ?? format;
-  if (format === WellKnown.deckFormat.FREEFORM) {
-    return (
-      <Badge variant="outline" className="text-xs">
-        {formatLabel}
-      </Badge>
-    );
-  }
-  if (isValid) {
-    return (
-      <Badge
-        variant="outline"
-        className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
-      >
-        <CheckIcon className="size-3" />
-        {formatLabel}
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="outline"
-      className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
-    >
-      <CircleAlertIcon className="size-3" />
-      {formatLabel}
-    </Badge>
-  );
-}
-
-/**
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
@@ -265,17 +227,16 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     deck,
     legendCardId,
     championCardId,
-    totalCards,
     typeCounts,
     domainDistribution,
     isValid,
-    totalValueCents,
-    missingCount,
+    totalCards,
+    requiredProgress,
+    requiredTotal,
   } = item;
   const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
   const { all: customTags } = useCustomTagList();
-  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
   const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
   const championCard = championCardId ? getPreferredPrinting(championCardId)?.card : undefined;
@@ -287,8 +248,6 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
 
   const domainColors = useDomainColors();
   const legendDomains = legendCard?.domains;
-  const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
-  const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
   const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
 
@@ -307,11 +266,18 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
         cardLinkVariants(),
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep tiles consistent.
-        "ring-foreground/10 focus-visible:ring-ring/50 group flex flex-col overflow-hidden rounded-lg ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+        "ring-foreground/10 focus-visible:ring-ring/50 group relative flex flex-col overflow-hidden rounded-lg ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
       )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
     >
+      {/* The menu rides above the art rather than sitting in the footer flow:
+          there it competed with the stats for width and got clipped by the
+          tile's overflow-hidden on narrow columns. */}
+      <div className="bg-background/60 absolute top-2 right-2 z-10 rounded-md backdrop-blur-sm">
+        {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
+      </div>
+
       <FannedPreview
         legendImage={legendImage}
         championImage={championImage}
@@ -353,18 +319,28 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
         </div>
 
         {/* Domain icons, type counts + format badge */}
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1">
-            {legendDomains?.map((domain) => (
-              <DomainIcon key={domain} domain={domain} />
-            ))}
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="flex shrink-0 items-center gap-1">
+              {legendDomains?.map((domain) => (
+                <DomainIcon key={domain} domain={domain} />
+              ))}
+            </span>
+            {/* Truncates rather than pushing the format badge out of the tile:
+                a deck with four card types outruns a three-column layout. */}
             {typeSummary && (
-              <span className="text-muted-foreground text-2xs ml-1">{typeSummary}</span>
+              <span className="text-muted-foreground text-2xs ml-1 truncate">{typeSummary}</span>
             )}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex shrink-0 items-center gap-1">
             {isLocal && <LocalDeckBadge className="text-2xs" />}
-            <FormatStateBadge format={deck.format} isValid={isValid} />
+            <DeckFormatBadge
+              format={deck.format}
+              totalCards={totalCards}
+              requiredProgress={requiredProgress}
+              requiredTotal={requiredTotal}
+              isValid={isValid}
+            />
           </span>
         </div>
 
@@ -372,32 +348,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
         {domainDistribution.length > 0 && <DeckDomainBar distribution={domainDistribution} />}
 
         {/* Footer */}
-        <div className="text-muted-foreground mt-auto flex items-center gap-1.5 pt-1 text-xs">
-          <span>
-            {createdDate}
-            {updatedDate !== createdDate && ` (updated ${updatedDate})`}
-          </span>
-          <span>·</span>
-          <span>{totalCards} cards</span>
-          {totalValueCents !== null && totalValueCents > 0 && (
-            <>
-              <span>·</span>
-              <span>
-                {formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader")(
-                  totalValueCents / 100,
-                )}
-              </span>
-            </>
-          )}
-          {missingCount !== null && missingCount > 0 && (
-            <>
-              <span>·</span>
-              <span className="text-amber-600 dark:text-amber-500">{missingCount} missing</span>
-            </>
-          )}
-          <span className="flex-1" />
-          {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
-        </div>
+        <DeckMetaLine item={item} className="mt-auto pt-1" />
       </div>
     </Link>
   );

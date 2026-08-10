@@ -12,11 +12,13 @@
 
 ### Other
 
+- feat(Decks): **Deck filters you can link to and filter on a phone** — the deck list now filters like the card browser, with match counts on every option, a filter sheet on phones, and the filters in the address bar so you can share or bookmark a filtered list.
 - feat(Cards): **Price history opens with the card** — the chart now shows by default, names the marketplace it plots and how far the price moved, and the buy buttons sit below it.
 - feat(Decks): **Import lists from TopDeck.gg** — decklists copied from TopDeck.gg now paste in directly, with each card landing in the right zone.
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Decks): **Tidier deck list** — tiles and rows now show the same build state and figures as the deck page, the list lines its columns up and leaves the deck name more room, and nothing gets clipped on narrow tiles.
 - fix(Decks): **Stats filter chip on phones** — filtering the deck by clicking a stats bar showed a chip that ran off the screen edge on narrow phones, so it now wraps onto two lines.
 - fix(Decks): **Split a card to the sideboard on phones** — long-pressing a deck row with several copies now offers a move-1 entry per zone, so you can send a single copy to the sideboard without a shift key.
 - fix(Decks): **Buy button in the missing-cards list** — on phones the cart sat at the bottom of each row instead of centered beside the card it belongs to.

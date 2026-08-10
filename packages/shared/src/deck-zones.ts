@@ -61,3 +61,31 @@ export function zoneExpected(zone: DeckZone, format: DeckFormat): number | undef
   }
   return ZONE_EXPECTED[zone];
 }
+
+/** Zones that count toward the deck's "X / Y" completion figure. */
+export const REQUIRED_ZONES: readonly DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.MAIN,
+];
+
+/**
+ * The deck's completion figure across the format's required zones — e.g.
+ * 54 of 56 for Constructed, 52 of 54 for Custom-Region (single battlefield).
+ * Lives here rather than in the web app because the deck-list endpoint reports
+ * the same figure, so the badge on a tile and the badge on the deck page can
+ * never disagree.
+ * @returns The summed progress and the format's required total.
+ */
+export function requiredZoneProgress(
+  cards: readonly { zone: DeckZone; quantity: number }[],
+  format: DeckFormat,
+): { progress: number; total: number } {
+  const progress = cards
+    .filter((card) => REQUIRED_ZONES.includes(card.zone))
+    .reduce((sum, card) => sum + card.quantity, 0);
+  const total = REQUIRED_ZONES.reduce((sum, zone) => sum + (zoneExpected(zone, format) ?? 0), 0);
+  return { progress, total };
+}

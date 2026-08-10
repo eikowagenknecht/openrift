@@ -202,9 +202,12 @@ const LABEL_FIT_BUFFER = 8;
  * the bar, the strip, or any child (fonts, counts). The setState bails when
  * the boolean is unchanged, so re-measures settle immediately.
  *
+ * Exported for the deck list's filter row, which runs the same icon cluster and
+ * so needs the same verdict.
+ *
  * @returns Refs for the bar and the measuring strip, plus the fit verdict.
  */
-function useClusterLabelsFit() {
+export function useClusterLabelsFit() {
   const barRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [labelsFit, setLabelsFit] = useState(false);

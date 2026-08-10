@@ -15,107 +15,54 @@ afterEach(() => {
 });
 
 describe("useDeckListPrefsStore", () => {
-  it("starts with sensible defaults", () => {
-    const state = useDeckListPrefsStore.getState();
-    expect(state.search).toBe("");
-    expect(state.density).toBe("grid");
-    expect(state.formatFilter).toBe("all");
-    expect(state.validityFilter).toBe("all");
-    expect(state.domainFilter).toEqual([]);
-    expect(state.showArchived).toBe(false);
+  it("starts in grid density", () => {
+    expect(useDeckListPrefsStore.getState().density).toBe("grid");
   });
 
-  describe("setDomainFilter", () => {
-    it("sets the selection", () => {
-      useDeckListPrefsStore.getState().setDomainFilter(["fury"]);
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["fury"]);
-    });
-
-    it("replaces the entire selection", () => {
-      const store = useDeckListPrefsStore.getState();
-      store.setDomainFilter(["fury"]);
-      store.setDomainFilter(["calm", "mind"]);
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["calm", "mind"]);
-    });
-
-    it("clears when given an empty array", () => {
-      const store = useDeckListPrefsStore.getState();
-      store.setDomainFilter(["body"]);
-      store.setDomainFilter([]);
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual([]);
-    });
-  });
-
-  describe("resetFilters", () => {
-    it("clears search and filters but keeps display preferences", () => {
-      const store = useDeckListPrefsStore.getState();
-      store.setSearch("aatrox");
-      store.setFormatFilter("constructed");
-      store.setValidityFilter("invalid");
-      store.setDomainFilter(["fury"]);
-      store.setDensity("list");
-
-      useDeckListPrefsStore.getState().resetFilters();
-
-      const after = useDeckListPrefsStore.getState();
-      expect(after.search).toBe("");
-      expect(after.formatFilter).toBe("all");
-      expect(after.validityFilter).toBe("all");
-      expect(after.domainFilter).toEqual([]);
-      // Display preferences are preserved.
-      expect(after.density).toBe("list");
-    });
+  it("switches density", () => {
+    useDeckListPrefsStore.getState().setDensity("list");
+    expect(useDeckListPrefsStore.getState().density).toBe("list");
   });
 
   describe("persistence merge", () => {
     it("rejects an unknown density value and keeps current", () => {
       const store = useDeckListPrefsStore;
       const current = store.getState();
-      const persisted = {
-        density: "grid-of-doom",
-        formatFilter: "all",
-        validityFilter: "all",
-        domainFilter: [],
-        showArchived: false,
-      };
       const merge = store.persist?.getOptions()?.merge;
-      const result = merge?.(persisted, current);
+      const result = merge?.({ density: "grid-of-doom" }, current);
       if (result) {
         expect(result.density).toBe(current.density);
       }
     });
 
-    it("filters non-string entries from persisted domainFilter", () => {
+    it("accepts a valid persisted blob", () => {
       const store = useDeckListPrefsStore;
-      const current = store.getState();
-      const persisted = {
-        domainFilter: ["fury", 42, null, "body"],
-      };
       const merge = store.persist?.getOptions()?.merge;
-      const result = merge?.(persisted, current);
+      const result = merge?.({ density: "list" }, store.getState());
       if (result) {
-        expect(result.domainFilter).toEqual(["fury", "body"]);
+        expect(result.density).toBe("list");
       }
     });
 
-    it("accepts a fully valid persisted blob", () => {
+    it("ignores the filter keys left behind by the pre-URL store", () => {
+      // Filters moved into the URL. An old blob still carries them, and it must
+      // merge cleanly rather than reviving state the store no longer owns.
       const store = useDeckListPrefsStore;
-      const current = store.getState();
-      const persisted = {
-        density: "list",
-        formatFilter: "constructed",
-        validityFilter: "valid",
-        domainFilter: ["fury"],
-        showArchived: true,
-      };
       const merge = store.persist?.getOptions()?.merge;
-      const result = merge?.(persisted, current);
+      const result = merge?.(
+        {
+          density: "list",
+          formatFilter: "constructed",
+          validityFilter: "valid",
+          domainFilter: ["fury"],
+          showArchived: true,
+        },
+        store.getState(),
+      );
       if (result) {
         expect(result.density).toBe("list");
-        expect(result.formatFilter).toBe("constructed");
-        expect(result.validityFilter).toBe("valid");
-        expect(result.domainFilter).toEqual(["fury"]);
-        expect(result.showArchived).toBe(true);
+        expect(result).not.toHaveProperty("formatFilter");
+        expect(result).not.toHaveProperty("domainFilter");
       }
     });
   });

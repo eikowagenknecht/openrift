@@ -6,6 +6,7 @@ import {
   availableDomainsFrom,
   enrichItem,
   filterAvailabilityFrom,
+  filterCountsFrom,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -52,6 +53,8 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
     typeCounts: [],
     domainDistribution: overrides.domains ?? [],
     isValid: overrides.isValid ?? true,
+    requiredProgress: overrides.totalCards ?? 40,
+    requiredTotal: 56,
     totalValueCents: overrides.totalValueCents ?? null,
     missingCount: overrides.missingCount ?? null,
   };
@@ -62,6 +65,15 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
   });
 }
 
+const NO_FILTERS = {
+  search: "",
+  formats: [],
+  formatsExclude: [],
+  validity: "all" as const,
+  domains: [],
+  domainsExclude: [],
+};
+
 describe("filterDecks", () => {
   it("matches search against name, legend, and champion", () => {
     const items = [
@@ -70,9 +82,7 @@ describe("filterDecks", () => {
       makeItem({ id: "c", name: "Random", legendName: null, championName: "Aatrox" }),
     ];
     const search = (query: string) =>
-      filterDecks(items, { search: query, format: "all", validity: "all", domains: [] }).map(
-        (item) => item.deck.id,
-      );
+      filterDecks(items, { ...NO_FILTERS, search: query }).map((item) => item.deck.id);
     expect(search("aatrox")).toEqual(["a", "c"]);
     expect(search("sett")).toEqual(["b"]);
     expect(search("AGGRO")).toEqual(["a"]);
@@ -85,9 +95,7 @@ describe("filterDecks", () => {
       makeItem({ id: "b", name: "Brawl", legendName: "Sett" }),
     ];
     const search = (query: string) =>
-      filterDecks(items, { search: query, format: "all", validity: "all", domains: [] }).map(
-        (item) => item.deck.id,
-      );
+      filterDecks(items, { ...NO_FILTERS, search: query }).map((item) => item.deck.id);
     expect(search("kai’sa")).toEqual(["a"]);
     expect(search("kai'sa")).toEqual(["a"]);
     expect(search("kaisa")).toEqual(["a"]);
@@ -97,7 +105,9 @@ describe("filterDecks", () => {
     const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
     const result = filterDecks(items, {
       search: "'",
-      format: "all",
+      formats: [],
+      formatsExclude: [],
+      domainsExclude: [],
       validity: "all",
       domains: [],
     });
@@ -111,18 +121,38 @@ describe("filterDecks", () => {
     ];
     const result = filterDecks(items, {
       search: "",
-      format: "freeform",
+      formats: ["freeform"],
+      formatsExclude: [],
+      domainsExclude: [],
       validity: "all",
       domains: [],
     });
     expect(result.map((item) => item.deck.id)).toEqual(["b"]);
   });
 
+  it("matches any of several formats", () => {
+    const items = [
+      makeItem({ id: "a", format: "constructed" }),
+      makeItem({ id: "b", format: "freeform" }),
+    ];
+    const result = filterDecks(items, {
+      search: "",
+      formats: ["freeform", "constructed"],
+      formatsExclude: [],
+      domainsExclude: [],
+      validity: "all",
+      domains: [],
+    });
+    expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
+  });
+
   it("filters by validity", () => {
     const items = [makeItem({ id: "a", isValid: true }), makeItem({ id: "b", isValid: false })];
     const validOnly = filterDecks(items, {
       search: "",
-      format: "all",
+      formats: [],
+      formatsExclude: [],
+      domainsExclude: [],
       validity: "valid",
       domains: [],
     });
@@ -130,14 +160,19 @@ describe("filterDecks", () => {
 
     const invalidOnly = filterDecks(items, {
       search: "",
-      format: "all",
+      formats: [],
+      formatsExclude: [],
+      domainsExclude: [],
       validity: "invalid",
       domains: [],
     });
     expect(invalidOnly.map((item) => item.deck.id)).toEqual(["b"]);
   });
 
-  it("requires all selected domains to be present (intersection)", () => {
+  describe("domains", () => {
+    // Deliberately the card browser's rule (`matchesDomains` in
+    // @openrift/shared): one pick means "plays this", several mean "plays
+    // nothing outside these".
     const items = [
       makeItem({
         id: "a",
@@ -149,12 +184,47 @@ describe("filterDecks", () => {
       makeItem({ id: "b", domains: [{ domain: "fury", count: 12 }] }),
       makeItem({ id: "c", domains: [{ domain: "calm", count: 20 }] }),
     ];
-    const result = filterDecks(items, {
-      search: "",
-      format: "all",
-      validity: "all",
-      domains: ["fury", "body"],
+
+    it("takes any deck playing the domain when one is picked", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, domains: ["fury"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
     });
+
+    it("restricts to decks playing nothing outside the set when several are picked", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, domains: ["fury", "body"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
+
+      const furyOnly = filterDecks(items, { ...NO_FILTERS, domains: ["fury", "calm"] });
+      expect(furyOnly.map((item) => item.deck.id)).toEqual(["b", "c"]);
+    });
+
+    it("measures a deck's identity, not every domain in its list", () => {
+      // The legend defines identity; Colorless is dropped, or the near-universal
+      // splash of it would fail every subset test.
+      const legendDeck = makeItem({
+        id: "legend",
+        legendDomains: ["fury"],
+        domains: [
+          { domain: "fury", count: 20 },
+          { domain: "colorless", count: 6 },
+        ],
+      });
+      const result = filterDecks([legendDeck], { ...NO_FILTERS, domains: ["fury", "body"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["legend"]);
+    });
+
+    it("rejects a deck playing an excluded domain", () => {
+      const result = filterDecks(items, { ...NO_FILTERS, domainsExclude: ["fury"] });
+      expect(result.map((item) => item.deck.id)).toEqual(["c"]);
+    });
+  });
+
+  it("rejects a deck in an excluded format", () => {
+    const items = [
+      makeItem({ id: "a", format: "constructed" }),
+      makeItem({ id: "b", format: "freeform" }),
+    ];
+    const result = filterDecks(items, { ...NO_FILTERS, formatsExclude: ["freeform"] });
     expect(result.map((item) => item.deck.id)).toEqual(["a"]);
   });
 
@@ -162,7 +232,9 @@ describe("filterDecks", () => {
     const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
     const result = filterDecks(items, {
       search: "  ",
-      format: "all",
+      formats: [],
+      formatsExclude: [],
+      domainsExclude: [],
       validity: "all",
       domains: [],
     });
@@ -335,7 +407,7 @@ describe("groupDecks", () => {
 
 describe("availableDomainsFrom", () => {
   it("returns the union of domains across all decks, sorted", () => {
-    const items: DeckListItemResponse[] = [
+    const items = [
       makeItem({ domains: [{ domain: "fury", count: 5 }] }),
       makeItem({
         domains: [
@@ -346,6 +418,21 @@ describe("availableDomainsFrom", () => {
       makeItem({ domains: [{ domain: "calm", count: 1 }] }),
     ];
     expect(availableDomainsFrom(items)).toEqual(["body", "calm", "fury"]);
+  });
+
+  it("offers a legend deck's identity rather than every domain it splashes", () => {
+    // The options have to be on the same basis the filter matches on, or an
+    // option could be one the filter would then ignore.
+    const items = [
+      makeItem({
+        legendDomains: ["fury"],
+        domains: [
+          { domain: "fury", count: 20 },
+          { domain: "colorless", count: 6 },
+        ],
+      }),
+    ];
+    expect(availableDomainsFrom(items)).toEqual(["fury"]);
   });
 
   it("returns an empty array when no decks have domains", () => {
@@ -423,5 +510,84 @@ describe("filterAvailabilityFrom", () => {
       makeItem({ id: "b", legendDomains: ["calm", "mind"] }),
     ]);
     expect(mixedDomains.usefulGroupings.has("domains")).toBe(true);
+  });
+});
+
+describe("filterCountsFrom", () => {
+  const decks = [
+    makeItem({
+      id: "a",
+      format: "constructed",
+      isValid: true,
+      domains: [{ domain: "fury", count: 8 }],
+    }),
+    makeItem({
+      id: "b",
+      format: "constructed",
+      isValid: false,
+      domains: [
+        { domain: "fury", count: 4 },
+        { domain: "calm", count: 6 },
+      ],
+    }),
+    makeItem({
+      id: "c",
+      format: "freeform",
+      isValid: true,
+      domains: [{ domain: "calm", count: 9 }],
+    }),
+  ];
+
+  it("counts every option when nothing is filtered", () => {
+    const counts = filterCountsFrom(decks, NO_FILTERS);
+    expect(counts.formats.get("constructed")).toBe(2);
+    expect(counts.formats.get("freeform")).toBe(1);
+    expect(counts.validity.get("valid")).toBe(2);
+    expect(counts.validity.get("invalid")).toBe(1);
+    expect(counts.domains.get("fury")).toBe(2);
+    expect(counts.domains.get("calm")).toBe(2);
+  });
+
+  it("counts a dimension against the other filters, not its own", () => {
+    // Filtering to freeform must not collapse the format counts to freeform
+    // alone, or picking another format would look impossible.
+    const counts = filterCountsFrom(decks, { ...NO_FILTERS, formats: ["freeform"] });
+    expect(counts.formats.get("constructed")).toBe(2);
+    expect(counts.formats.get("freeform")).toBe(1);
+    // The other dimensions do narrow to the freeform deck.
+    expect(counts.validity.get("valid")).toBe(1);
+    expect(counts.validity.get("invalid")).toBeUndefined();
+  });
+
+  it("narrows the domain counts by the other filters", () => {
+    const counts = filterCountsFrom(decks, { ...NO_FILTERS, validity: "invalid" });
+    expect(counts.domains.get("fury")).toBe(1);
+    expect(counts.domains.get("calm")).toBe(1);
+  });
+
+  it("counts domains against the other dimensions, not against itself", () => {
+    // Same rule as format and legality: counting the axis against its own
+    // selection would zero out every option the user hasn't picked, which is
+    // exactly the reading a facet count is supposed to prevent.
+    const counts = filterCountsFrom(decks, { ...NO_FILTERS, domains: ["fury"] });
+    expect(counts.domains.get("fury")).toBe(2);
+    expect(counts.domains.get("calm")).toBe(2);
+  });
+
+  it("applies the search to every dimension", () => {
+    const named = [
+      makeItem({ id: "a", name: "Fury Aggro", format: "constructed" }),
+      makeItem({ id: "b", name: "Calm Control", format: "freeform" }),
+    ];
+    const counts = filterCountsFrom(named, { ...NO_FILTERS, search: "aggro" });
+    expect(counts.formats.get("constructed")).toBe(1);
+    expect(counts.formats.get("freeform")).toBeUndefined();
+  });
+
+  it("returns empty maps for an empty deck set", () => {
+    const counts = filterCountsFrom([], NO_FILTERS);
+    expect(counts.formats.size).toBe(0);
+    expect(counts.validity.size).toBe(0);
+    expect(counts.domains.size).toBe(0);
   });
 });

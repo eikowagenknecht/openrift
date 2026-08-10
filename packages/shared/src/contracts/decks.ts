@@ -223,6 +223,13 @@ export const deckListItemResponseSchema = z
     typeCounts: z.array(z.object({ cardType: cardTypeSchema, count: z.number() })),
     domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),
     isValid: z.boolean(),
+    /**
+     * Completion across the format's required zones, the same figure the deck
+     * page's format badge carries. Excludes the sideboard, so it is not
+     * `totalCards` under another name.
+     */
+    requiredProgress: z.number().int(),
+    requiredTotal: z.number().int(),
     totalValueCents: z.number().int().nullable(),
     /**
      * Number of cards the viewer is missing to build this deck, matching the

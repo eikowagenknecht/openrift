@@ -2,6 +2,7 @@ import type {
   CardType,
   DeckDetailResponse,
   DeckExportResponse,
+  DeckFormat,
   DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
@@ -10,7 +11,13 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, isBaseBanFormat, validateDeck, ERROR_CODES } from "@openrift/shared";
+import {
+  WellKnown,
+  isBaseBanFormat,
+  requiredZoneProgress,
+  validateDeck,
+  ERROR_CODES,
+} from "@openrift/shared";
 import { decksContract } from "@openrift/shared/contracts/decks";
 import type { updateDeckPlanSchema } from "@openrift/shared/contracts/decks";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
@@ -258,6 +265,13 @@ export const decksRouter = {
         .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
         .reduce((sum, card) => sum + card.quantity, 0);
 
+      // Completion across the format's required zones — the "48/56" the deck
+      // page's format badge carries. Excludes the sideboard, unlike totalCards.
+      const { progress: requiredProgress, total: requiredTotal } = requiredZoneProgress(
+        cards.map((card) => ({ zone: card.zone as DeckZone, quantity: card.quantity })),
+        row.format as DeckFormat,
+      );
+
       // Missing count: needed minus buildable minus borrowed-in, per card.
       // Sums over every zone the deck editor's ownership panel counts (all but
       // overflow, which is a parking zone — see `computeDeckOwnership`), so the
@@ -358,6 +372,8 @@ export const decksRouter = {
         typeCounts,
         domainDistribution,
         isValid,
+        requiredProgress,
+        requiredTotal,
         totalValueCents: deckValueMap.get(row.id) ?? null,
         missingCount,
       };

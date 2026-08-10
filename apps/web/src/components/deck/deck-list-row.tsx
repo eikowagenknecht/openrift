@@ -8,16 +8,15 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
-import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
+import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
-import { FormatStateBadge } from "./deck-tile";
+import { DeckMetaLine } from "./deck-meta-line";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
@@ -41,19 +40,24 @@ function DomainDot({ domain }: { domain: string }) {
  * @returns A deck list row.
  */
 export function DeckListRow({ item }: { item: DeckListItemResponse }) {
-  const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents, missingCount } =
-    item;
+  const {
+    deck,
+    legendCardId,
+    championCardId,
+    isValid,
+    totalCards,
+    requiredProgress,
+    requiredTotal,
+  } = item;
   const isLocal = isLocalDeckId(deck.id);
   const { getPreferredPrinting } = usePreferredPrinting();
   const { all: customTags } = useCustomTagList();
-  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
   const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
   const championCard = championCardId ? getPreferredPrinting(championCardId)?.card : undefined;
 
   const domainColors = useDomainColors();
   const legendDomains = legendCard?.domains;
-  const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
   const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
 
@@ -61,6 +65,18 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
     legendDomains && legendDomains.length > 0
       ? getDomainGradientStyle(legendDomains, "10", domainColors)
       : undefined;
+
+  // One element for both renderings, so the phone line and the columns can't
+  // disagree about the deck's state.
+  const formatText = (
+    <DeckFormatText
+      format={deck.format}
+      totalCards={totalCards}
+      requiredProgress={requiredProgress}
+      requiredTotal={requiredTotal}
+      isValid={isValid}
+    />
+  );
 
   return (
     <Link
@@ -99,27 +115,24 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
             championCard={championCard}
             tagSummary={tagSummary}
           />
+          {/* Below md there isn't width for both the columns and a readable
+              name, so the same facts wrap under the name instead — which is
+              also what stops phones losing them entirely, as they used to. */}
+          <DeckMetaLine item={item} leading={formatText} className="mt-0.5 md:hidden" />
         </div>
       </div>
 
-      <div className="text-muted-foreground hidden items-center gap-3 text-xs sm:flex">
-        <span className="tabular-nums">{totalCards} cards</span>
-        {totalValueCents !== null && totalValueCents > 0 && (
-          <span className="tabular-nums">
-            {formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader")(totalValueCents / 100)}
-          </span>
-        )}
-        {missingCount !== null && missingCount > 0 && (
-          <span className="text-amber-600 tabular-nums dark:text-amber-500">
-            {missingCount} missing
-          </span>
-        )}
-        <span className="tabular-nums">{updatedDate}</span>
-      </div>
+      {/* The format rides in the stat cluster as text, not as a badge: a chip
+          here is shrink-0 chrome that costs the deck name its width. */}
+      <DeckMetaLine
+        item={item}
+        variant="columns"
+        leading={formatText}
+        className="hidden shrink-0 md:flex"
+      />
 
       <div className="flex shrink-0 items-center gap-1">
-        {isLocal && <LocalDeckBadge className="hidden sm:inline-flex" />}
-        <FormatStateBadge format={deck.format} isValid={isValid} />
+        {isLocal && <LocalDeckBadge className="hidden md:inline-flex" />}
         {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
       </div>
     </Link>

@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckListFilters } from "@/hooks/use-deck-list-filters";
 import { decksQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
@@ -50,6 +51,7 @@ import {
   availableDomainsFrom,
   enrichItem,
   filterAvailabilityFrom,
+  filterCountsFrom,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -299,27 +301,21 @@ export function DeckListPage() {
   const titleHeight = useMeasuredHeight(titleSlot);
   const toolbarOffset = useHeaderHeight() + titleHeight - 1;
 
-  const search = useDeckListPrefsStore((state) => state.search);
+  const { search, formats, formatsExclude, validity, domains, domainsExclude, showArchived } =
+    useDeckListFilters();
   const { sortField, sortDir, groupBy, groupDir } = useDeckListViewPrefs();
   const density = useDeckListPrefsStore((state) => state.density);
-  const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
-  const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
-  const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
-  const showArchived = useDeckListPrefsStore((state) => state.showArchived);
   const { labels: formatLabels } = useDeckFormatList();
 
   const enriched = useEnrichedItems(deckItems);
   // Compute filter availability against the enriched set (before any filter is applied)
   // so a chip group doesn't disappear just because the user filtered everything out.
-  const availableDomains = availableDomainsFrom(deckItems);
+  const availableDomains = availableDomainsFrom(enriched);
   const availability = filterAvailabilityFrom(enriched);
   const visible = partitionByArchived(enriched, showArchived);
-  const filtered = filterDecks(visible, {
-    search,
-    format: formatFilter,
-    validity: validityFilter,
-    domains: domainFilter,
-  });
+  const activeFilters = { search, formats, formatsExclude, validity, domains, domainsExclude };
+  const filtered = filterDecks(visible, activeFilters);
+  const counts = filterCountsFrom(visible, activeFilters);
   const sorted = sortDecks(filtered, sortField, sortDir);
   const groups = groupDecks(sorted, groupBy, groupDir, labels.domains, formatLabels);
 
@@ -437,6 +433,7 @@ export function DeckListPage() {
             <DeckListToolbar
               availableDomains={availableDomains}
               availability={availability}
+              counts={counts}
               totalCount={visible.length}
               filteredCount={filtered.length}
             />

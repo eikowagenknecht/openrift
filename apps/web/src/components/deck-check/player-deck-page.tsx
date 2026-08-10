@@ -14,7 +14,8 @@ import { DeckCheckCardZonesSkeleton } from "@/components/deck-check/deck-check-s
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
-import { FormatStateBadge, typeCountSummary } from "@/components/deck/deck-tile";
+import { FormatStateBadge } from "@/components/deck/deck-format-badge";
+import { typeCountSummary } from "@/components/deck/deck-tile";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { TournamentSectionFrame } from "@/components/tournaments/tournament-detail-frame";
 import { Badge } from "@/components/ui/badge";

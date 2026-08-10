@@ -1,19 +1,23 @@
 import type { DeckListItemResponse, Domain } from "@openrift/shared";
-import { foldForSearch, squashForSearch, WellKnown } from "@openrift/shared";
+import {
+  foldForSearch,
+  matchesDomains,
+  noneExcluded,
+  squashForSearch,
+  WellKnown,
+} from "@openrift/shared";
 
-import type {
-  DeckListFormatFilter,
-  DeckListGroupBy,
-  DeckListSortField,
-  DeckListValidityFilter,
-  SortDir,
-} from "@/stores/deck-list-prefs-store";
+import type { DeckListValidity } from "@/hooks/use-deck-list-filters";
+import type { DeckListGroupBy, DeckListSortField, SortDir } from "@/stores/deck-list-prefs-store";
 
 interface DeckListFilters {
   search: string;
-  format: DeckListFormatFilter;
-  validity: DeckListValidityFilter;
+  /** Deck-format slugs, matched as a union. Empty means every format. */
+  formats: string[];
+  formatsExclude: string[];
+  validity: DeckListValidity;
   domains: Domain[];
+  domainsExclude: Domain[];
 }
 
 interface DeckListEnrichedItem {
@@ -57,14 +61,21 @@ function deckMatchesSearch(item: DeckListItemWithNames, query: string): boolean 
   );
 }
 
-function deckMatchesFormat(item: DeckListItemWithNames, filter: DeckListFormatFilter): boolean {
-  if (filter === "all") {
+function deckMatchesFormat(
+  item: DeckListItemWithNames,
+  formats: string[],
+  excluded: string[],
+): boolean {
+  if (excluded.includes(item.deck.format)) {
+    return false;
+  }
+  if (formats.length === 0) {
     return true;
   }
-  return item.deck.format === filter;
+  return formats.includes(item.deck.format);
 }
 
-function deckMatchesValidity(item: DeckListItemWithNames, filter: DeckListValidityFilter): boolean {
+function deckMatchesValidity(item: DeckListItemWithNames, filter: DeckListValidity): boolean {
   if (filter === "all") {
     return true;
   }
@@ -74,12 +85,24 @@ function deckMatchesValidity(item: DeckListItemWithNames, filter: DeckListValidi
   return !item.isValid;
 }
 
-function deckMatchesDomains(item: DeckListItemWithNames, required: Domain[]): boolean {
-  if (required.length === 0) {
-    return true;
-  }
-  const present = new Set(item.domainDistribution.map((entry) => entry.domain));
-  return required.every((domain) => present.has(domain));
+/**
+ * Domain filter, reading exactly as the card browser's does (`matchesDomains`
+ * in `@openrift/shared`): one domain picks any deck playing it, several
+ * restrict to decks that play nothing outside the set.
+ *
+ * It measures the deck's *identity* domains, not its raw distribution — the
+ * same `domainComboOf` the grouping uses, which prefers the legend and drops
+ * Colorless. Nearly every deck runs some Colorless, so a subset test against
+ * the distribution would reject almost everything.
+ * @returns Whether the deck matches the domain filter.
+ */
+function deckMatchesDomains(
+  item: DeckListItemWithNames,
+  required: Domain[],
+  excluded: Domain[],
+): boolean {
+  const identity = domainComboOf(item);
+  return matchesDomains(required, identity) && noneExcluded(excluded, identity);
 }
 
 export function filterDecks(
@@ -90,9 +113,9 @@ export function filterDecks(
   return items.filter(
     (item) =>
       deckMatchesSearch(item, trimmed) &&
-      deckMatchesFormat(item, filters.format) &&
+      deckMatchesFormat(item, filters.formats, filters.formatsExclude) &&
       deckMatchesValidity(item, filters.validity) &&
-      deckMatchesDomains(item, filters.domains),
+      deckMatchesDomains(item, filters.domains, filters.domainsExclude),
   );
 }
 
@@ -244,14 +267,16 @@ export function groupDecks(
 }
 
 /**
- * Returns the union of domains observed across all decks (for the filter chip set).
- * @returns A sorted array of every domain that appears in at least one deck's distribution.
+ * The domains the filter can offer: every domain in some deck's identity, on
+ * the same `domainComboOf` basis the filter and the grouping measure, so an
+ * option can never be one the filter would ignore.
+ * @returns A sorted array of every identity domain across the decks.
  */
-export function availableDomainsFrom(items: DeckListItemResponse[]): Domain[] {
+export function availableDomainsFrom(items: DeckListItemWithNames[]): Domain[] {
   const set = new Set<Domain>();
   for (const item of items) {
-    for (const entry of item.domainDistribution) {
-      set.add(entry.domain);
+    for (const domain of domainComboOf(item)) {
+      set.add(domain);
     }
   }
   return [...set].sort((left, right) =>
@@ -310,4 +335,60 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
     hasArchived,
     usefulGroupings,
   };
+}
+
+/**
+ * How many decks each filter option would match, for the counts the filter
+ * controls show beside their options — the deck list's answer to the card
+ * browser's faceted counts.
+ */
+export interface DeckListFilterCounts {
+  formats: Map<string, number>;
+  validity: Map<"valid" | "invalid", number>;
+  domains: Map<Domain, number>;
+}
+
+/**
+ * Counts every filter option in one pass.
+ *
+ * Each dimension is counted against the decks that pass the *other* filters,
+ * so the numbers answer "what would I get if I picked this" rather than "how
+ * many exist overall". That is what makes a zero worth showing: the option is
+ * live, it just has nothing left under the current selection.
+ * @returns Per-option counts for format, validity and domains.
+ */
+export function filterCountsFrom(
+  items: DeckListItemWithNames[],
+  filters: DeckListFilters,
+): DeckListFilterCounts {
+  const formats = new Map<string, number>();
+  const validity = new Map<"valid" | "invalid", number>();
+  const domains = new Map<Domain, number>();
+
+  for (const item of items) {
+    const matchesSearch = deckMatchesSearch(item, filters.search);
+    const matchesFormat = deckMatchesFormat(item, filters.formats, filters.formatsExclude);
+    const matchesValidity = deckMatchesValidity(item, filters.validity);
+    const matchesDomain = deckMatchesDomains(item, filters.domains, filters.domainsExclude);
+
+    if (matchesSearch && matchesValidity && matchesDomain) {
+      formats.set(item.deck.format, (formats.get(item.deck.format) ?? 0) + 1);
+    }
+    if (matchesSearch && matchesFormat && matchesDomain) {
+      const bucket = item.isValid ? "valid" : "invalid";
+      validity.set(bucket, (validity.get(bucket) ?? 0) + 1);
+    }
+    // Domains count against the other dimensions only, like format and
+    // legality do — the axis reads as a union at one pick, so counting it
+    // against itself would zero out every option the user hasn't chosen. Same
+    // identity basis the filter uses, and a deck counts once per identity
+    // domain, so the column sums past the deck count.
+    if (matchesSearch && matchesFormat && matchesValidity) {
+      for (const domain of domainComboOf(item)) {
+        domains.set(domain, (domains.get(domain) ?? 0) + 1);
+      }
+    }
+  }
+
+  return { formats, validity, domains };
 }

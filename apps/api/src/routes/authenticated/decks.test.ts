@@ -226,6 +226,25 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].totalCards).toBe(4);
     expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
+    // Build figure for the tile's format badge: the four main-deck cards
+    // against Constructed's 56 required-zone cards.
+    expect(json.items[0].requiredProgress).toBe(4);
+    expect(json.items[0].requiredTotal).toBe(56);
+  });
+
+  it("counts only the required zones in the build figure", async () => {
+    mockRepo.listForUser.mockResolvedValue([dbDeck]);
+    mockRepo.allCardsForUser.mockResolvedValue([
+      dbDeckCardFull,
+      { ...dbDeckCardFull, id: "a0000000-0001-4000-a000-000000000021", zone: "sideboard" },
+      { ...dbDeckCardFull, id: "a0000000-0001-4000-a000-000000000022", zone: "overflow" },
+    ]);
+    const res = await app.request("/api/v1/decks");
+    const json = await readJson(res);
+    // totalCards keeps the sideboard, the build figure doesn't — the two
+    // numbers are deliberately different.
+    expect(json.items[0].totalCards).toBe(8);
+    expect(json.items[0].requiredProgress).toBe(4);
   });
 
   // The tile's value must be priced on the same basis as the deck page, which

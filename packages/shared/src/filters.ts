@@ -234,16 +234,20 @@ function notExcluded<T>(excluded: T[], value: T): boolean {
  * Negation for an array dimension: rejects when any of the row's values is excluded.
  * @returns `true` when none of the row's values are excluded.
  */
-function noneExcluded<T>(excluded: T[], values: readonly T[]): boolean {
+export function noneExcluded<T>(excluded: T[], values: readonly T[]): boolean {
   return excluded.length === 0 || !values.some((v) => excluded.includes(v));
 }
 
 /**
  * Domain filter: 0 selected = all, 1 selected = any card with that domain,
  * 2+ selected = card's domains must all be within the selected set.
- * @returns Whether the card matches the domain filter.
+ *
+ * Exported because the deck list filters by domain too, over a deck's identity
+ * domains rather than a card's. Sharing the rule is what keeps two filters that
+ * look identical from reading differently.
+ * @returns Whether the row matches the domain filter.
  */
-function matchesDomains<T>(allowed: T[], values: T[]): boolean {
+export function matchesDomains<T>(allowed: T[], values: T[]): boolean {
   if (allowed.length === 0) {
     return true;
   }

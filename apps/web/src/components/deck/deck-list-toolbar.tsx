@@ -1,20 +1,21 @@
 import type { Domain } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
+import { MobileOptionsDrawer } from "@/components/filters/options-bar";
 import { SearchInput } from "@/components/filters/search-input";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
-import { Button } from "@/components/ui/button";
-import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useDeckFormatList } from "@/hooks/use-enums";
-import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
-import { getFilterIconPath } from "@/lib/icons";
-import { cn } from "@/lib/utils";
+import { useDeckListFilters } from "@/hooks/use-deck-list-filters";
+import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
+import type { DeckListFilterAvailability, DeckListFilterCounts } from "@/lib/deck-list-utils";
 import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
 import { useDeckListPrefsStore, useDeckListViewPrefs } from "@/stores/deck-list-prefs-store";
+
+import { DeckActiveFilters } from "./deck-active-filters";
+import { DeckFilterControls, hasUsableDeckFilters } from "./deck-filter-controls";
 
 const SORT_OPTIONS: SortGroupOption<DeckListSortField>[] = [
   { value: "updated", label: "Updated" },
@@ -31,19 +32,71 @@ const GROUP_OPTIONS: SortGroupOption<DeckListGroupBy>[] = [
   { value: "validity", label: "Validity" },
 ];
 
+/**
+ * Grid / list switch, shared by the bar and the mobile drawer.
+ * @returns The density toggle group.
+ */
+function DensityToggle({ className }: { className?: string }) {
+  const density = useDeckListPrefsStore((state) => state.density);
+  const setDensity = useDeckListPrefsStore((state) => state.setDensity);
+  return (
+    <ToggleGroup
+      className={className}
+      variant="outline"
+      size="sm"
+      spacing={0}
+      value={[density]}
+      onValueChange={([next]) => {
+        if (next === "grid" || next === "list") {
+          setDensity(next);
+        }
+      }}
+      aria-label="Density"
+    >
+      <Tooltip>
+        <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
+          <LayoutGridIcon className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>Grid view</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
+          <ListIcon className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>List view</TooltipContent>
+      </Tooltip>
+    </ToggleGroup>
+  );
+}
+
+/**
+ * A labelled block inside the mobile drawer, matching the card browser's own
+ * drawer sections.
+ * @returns The labelled section.
+ */
+function DrawerSection({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 export function DeckListToolbar({
   availableDomains,
   availability,
+  counts,
   totalCount,
   filteredCount,
 }: {
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
+  counts: DeckListFilterCounts;
   totalCount: number;
   filteredCount: number;
 }) {
-  const search = useDeckListPrefsStore((state) => state.search);
-  const setSearch = useDeckListPrefsStore((state) => state.setSearch);
+  const { search, setSearch, hasActiveFilters } = useDeckListFilters();
   const {
     sortField,
     setSortField,
@@ -54,22 +107,14 @@ export function DeckListToolbar({
     groupDir,
     setGroupDir,
   } = useDeckListViewPrefs();
-  const density = useDeckListPrefsStore((state) => state.density);
-  const setDensity = useDeckListPrefsStore((state) => state.setDensity);
-  const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
-  const setFormatFilter = useDeckListPrefsStore((state) => state.setFormatFilter);
-  const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
-  const setValidityFilter = useDeckListPrefsStore((state) => state.setValidityFilter);
-  const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
-  const setDomainFilter = useDeckListPrefsStore((state) => state.setDomainFilter);
-  const showArchived = useDeckListPrefsStore((state) => state.showArchived);
-  const setShowArchived = useDeckListPrefsStore((state) => state.setShowArchived);
-  const resetFilters = useDeckListPrefsStore((state) => state.resetFilters);
-  const { formats } = useDeckFormatList();
-  const formatSlugs = new Set(formats.map((entry) => entry.slug));
 
-  const hasActiveFilter =
-    search !== "" || formatFilter !== "all" || validityFilter !== "all" || domainFilter.length > 0;
+  // The search box owns a local value and commits to the URL on a debounce, so
+  // typing leaves one history entry per pause rather than per keystroke. Same
+  // hook the card browser's search bar uses.
+  const [localSearch, setLocalSearch] = useSearchUrlSync({
+    urlValue: search,
+    onCommit: setSearch,
+  });
 
   // Hide group options that would yield a single bucket; keep "none" and the current selection
   // so the trigger always reflects state even if that grouping is no longer useful.
@@ -80,194 +125,87 @@ export function DeckListToolbar({
       availability.usefulGroupings.has(option.value),
   );
 
-  const showFilterRow =
-    availability.hasMixedFormat ||
-    availability.hasMixedValidity ||
-    availableDomains.length > 1 ||
-    availability.hasArchived ||
-    hasActiveFilter;
+  const sortGroupControls = (
+    <SortGroupControls
+      sortOptions={SORT_OPTIONS}
+      sortBy={sortField}
+      sortDir={sortDir}
+      onSortByChange={setSortField}
+      onSortDirChange={setSortDir}
+      group={{
+        options: visibleGroupOptions,
+        value: groupBy,
+        dir: groupDir,
+        onValueChange: setGroupBy,
+        onDirChange: setGroupDir,
+      }}
+    />
+  );
 
   const countLabel =
-    hasActiveFilter && filteredCount !== totalCount
+    hasActiveFilters && filteredCount !== totalCount
       ? `${filteredCount} / ${totalCount}`
       : String(totalCount);
   const unitLabel = totalCount === 1 ? "deck" : "decks";
+  // An active filter keeps the row alive even when the deck set has made every
+  // control pointless, so there is always a way back to the full list.
+  const showFilters = hasUsableDeckFilters(availability, availableDomains) || hasActiveFilters;
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Row 1: search + sort/group + density */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          value={search}
-          onValueChange={setSearch}
+          value={localSearch}
+          onValueChange={setLocalSearch}
           placeholder="Search decks..."
           ariaLabel="Search decks"
           trailing={`${countLabel} ${unitLabel}`}
           className="min-w-[200px] flex-1"
         />
 
-        <SortGroupControls
-          sortOptions={SORT_OPTIONS}
-          sortBy={sortField}
-          sortDir={sortDir}
-          onSortByChange={setSortField}
-          onSortDirChange={setSortDir}
-          group={{
-            options: visibleGroupOptions,
-            value: groupBy,
-            dir: groupDir,
-            onValueChange: setGroupBy,
-            onDirChange: setGroupDir,
-          }}
-        />
+        {/* Below md the controls live in the drawer, so the bar keeps only the
+            search box and the two triggers — the same split the card browser
+            makes at its own breakpoint. */}
+        <div className="hidden items-center gap-3 md:flex">
+          {sortGroupControls}
+          <DensityToggle className="ml-auto" />
+        </div>
 
-        <ToggleGroup
-          className="ml-auto"
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={[density]}
-          onValueChange={([next]) => {
-            if (next === "grid" || next === "list") {
-              setDensity(next);
-            }
-          }}
-          aria-label="Density"
-        >
-          <Tooltip>
-            <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
-              <LayoutGridIcon className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>Grid view</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
-              <ListIcon className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>List view</TooltipContent>
-          </Tooltip>
-        </ToggleGroup>
+        <div className="ml-auto flex items-center gap-2 md:hidden">
+          <DensityToggle />
+          <MobileOptionsDrawer doneLabel={hasActiveFilters ? "Show decks" : undefined}>
+            <DrawerSection label="Sort & group">{sortGroupControls}</DrawerSection>
+            {showFilters && (
+              <DrawerSection label="Filter">
+                <DeckFilterControls
+                  availableDomains={availableDomains}
+                  availability={availability}
+                  counts={counts}
+                  triggerStyle="chip"
+                  stacked
+                />
+              </DrawerSection>
+            )}
+          </MobileOptionsDrawer>
+        </div>
       </div>
 
-      {/* Row 2: filter chips (only render when there's at least one useful filter) */}
-      {showFilterRow && (
-        <div className="flex flex-wrap items-center gap-2">
-          {availability.hasMixedFormat && (
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground text-xs">Format:</span>
-              <ToggleGroup
-                variant="outline"
-                size="sm"
-                spacing={0}
-                value={[formatFilter]}
-                onValueChange={([next]) => {
-                  if (next === "all" || formatSlugs.has(next)) {
-                    setFormatFilter(next);
-                  }
-                }}
-                aria-label="Format filter"
-              >
-                <ToggleGroupItem value="all">All</ToggleGroupItem>
-                {formats.map((entry) => (
-                  <ToggleGroupItem key={entry.slug} value={entry.slug}>
-                    {entry.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-          )}
+      {/* The controls show their own selections, so the chips would duplicate
+          them wherever the controls are visible. Below md they're the only
+          readout there is. */}
+      {hasActiveFilters && (
+        <div className="md:hidden">
+          <DeckActiveFilters />
+        </div>
+      )}
 
-          {availability.hasMixedValidity && (
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground text-xs">Validity:</span>
-              <ToggleGroup
-                variant="outline"
-                size="sm"
-                spacing={0}
-                value={[validityFilter]}
-                onValueChange={([next]) => {
-                  if (next === "all" || next === "valid" || next === "invalid") {
-                    setValidityFilter(next);
-                  }
-                }}
-                aria-label="Validity filter"
-              >
-                {(["all", "valid", "invalid"] as const).map((value) => (
-                  <ToggleGroupItem key={value} value={value} className="capitalize">
-                    {value}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-          )}
-
-          {availableDomains.length > 1 && (
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground text-xs">Domains:</span>
-              <ToggleGroup
-                multiple
-                variant="outline"
-                size="sm"
-                spacing={0}
-                value={domainFilter}
-                onValueChange={(next) => setDomainFilter(next as Domain[])}
-                aria-label="Domain filter"
-              >
-                {availableDomains.map((domain) => {
-                  const isColorless = domain === WellKnown.domain.COLORLESS;
-                  const domainIcon = getFilterIconPath("domains", domain);
-                  return (
-                    <Tooltip key={domain}>
-                      <TooltipTrigger
-                        render={
-                          <ToggleGroupItem value={domain} aria-label={`Filter by ${domain}`} />
-                        }
-                      >
-                        {domainIcon && (
-                          <img
-                            src={domainIcon}
-                            alt=""
-                            className={cn("size-4", isColorless && "brightness-0 dark:invert")}
-                          />
-                        )}
-                      </TooltipTrigger>
-                      <TooltipContent>{domain}</TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </ToggleGroup>
-            </div>
-          )}
-
-          {availability.hasArchived && (
-            <div className="flex items-center gap-1">
-              <Toggle
-                variant="outline"
-                size="sm"
-                pressed={showArchived}
-                onPressedChange={setShowArchived}
-                // Persistent primary fill for the active state, matching the prior variant="default" look.
-                className={cn(
-                  "h-7 px-2.5 text-xs",
-                  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground",
-                )}
-              >
-                {showArchived ? "Hide archived" : "Show archived"}
-              </Toggle>
-            </div>
-          )}
-
-          {hasActiveFilter && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={resetFilters}
-            >
-              Reset filters
-            </Button>
-          )}
+      {showFilters && (
+        <div className="hidden md:block">
+          <DeckFilterControls
+            availableDomains={availableDomains}
+            availability={availability}
+            counts={counts}
+          />
         </div>
       )}
     </div>
