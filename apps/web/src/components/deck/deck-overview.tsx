@@ -40,6 +40,7 @@ import { createContext, Suspense, useEffect, useState } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
+import { DeckBoxTab } from "@/components/deck/deck-box-tab";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckDescription, VideoGuideChip } from "@/components/deck/deck-description";
 import type {
@@ -700,7 +701,14 @@ export function DeckOverview({
   // or a value left over from a tab that no longer exists — falls back to the
   // deck view rather than rendering an empty page.
   const showPlanTab = planSlot !== undefined;
-  const tabAvailable = tab === "overview" || tab === "test" || (tab === "plan" && showPlanTab);
+  // The Box tab needs a box to fill and a viewer who owns the copies, so it
+  // stays off the share page and off decks that live nowhere.
+  const showBoxTab = homeCollection !== undefined && !readOnly;
+  const tabAvailable =
+    tab === "overview" ||
+    tab === "test" ||
+    (tab === "plan" && showPlanTab) ||
+    (tab === "box" && showBoxTab);
   const activeTab = tabAvailable ? tab : "overview";
   // Where the Plan tab's content parks its action row: the trailing end of the
   // tab strip, the same slot the Deck tab fills with its view controls.
@@ -1334,7 +1342,11 @@ export function DeckOverview({
         signInHref={signInHref}
         onViewMissing={onViewMissing}
         onCardClick={onCardClick}
-        box={homeCollection && { id: homeCollection.id, name: homeCollection.name }}
+        box={
+          showBoxTab && homeCollection
+            ? { name: homeCollection.name, onOpen: () => setTab("box") }
+            : undefined
+        }
         byline={heroByline}
         actions={heroActions}
       />
@@ -1342,6 +1354,7 @@ export function DeckOverview({
         tab={activeTab}
         onTabChange={setTab}
         showPlanTab={showPlanTab}
+        showBoxTab={showBoxTab}
         trailingMobile={activeTab === "overview" ? mobileViewControls : undefined}
         trailing={
           activeTab === "overview" ? (
@@ -1382,6 +1395,17 @@ export function DeckOverview({
 
       {activeTab === "plan" && (
         <PlanTabActionsContext value={planActionsSlot}>{planSlot}</PlanTabActionsContext>
+      )}
+
+      {/* Reads the live copies feed, which has no server snapshot, so it waits
+          for hydration like the ownership bridge does. */}
+      {activeTab === "box" && hydrated && homeCollection && (
+        <DeckBoxTab
+          cards={cards}
+          homeCollectionId={homeCollection.id}
+          homeCollectionName={homeCollection.name}
+          onViewMissing={onViewMissing}
+        />
       )}
 
       {activeTab === "test" && (
@@ -1721,12 +1745,15 @@ function TabStrip({
   tab,
   onTabChange,
   showPlanTab,
+  showBoxTab,
   trailing,
   trailingMobile,
 }: {
   tab: DeckOverviewTab;
   onTabChange: (tab: DeckOverviewTab) => void;
   showPlanTab: boolean;
+  /** Only a deck with a home collection has a box to fill. */
+  showBoxTab: boolean;
   /** Right-aligned controls sharing the row (view toggles on the Deck tab). */
   trailing?: React.ReactNode;
   /**
@@ -1782,6 +1809,16 @@ function TabStrip({
           onClick={() => onTabChange("plan")}
         >
           Plan
+        </Pressable>
+      )}
+      {showBoxTab && (
+        <Pressable
+          role="tab"
+          aria-selected={tab === "box"}
+          className={tabClass(tab === "box")}
+          onClick={() => onTabChange("box")}
+        >
+          Box
         </Pressable>
       )}
       {inlineTrailing && (

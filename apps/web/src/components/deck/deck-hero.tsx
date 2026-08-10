@@ -1,6 +1,5 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
 import { deckIdentityLabels, legendDisplayName } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
 import { BoxIcon, CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
@@ -46,10 +45,11 @@ interface DeckHeroProps {
   /** When set, the legend/champion names in the subtitle open the card detail. */
   onCardClick?: (card: DeckBuilderCard) => void;
   /**
-   * The collection this deck is physically stored in. Owner-only — the public
-   * share page never resolves one, so the chip stays off there.
+   * The collection this deck is physically stored in, and the way into the Box
+   * tab that fills it. Owner-only — the public share page never resolves one,
+   * so the chip stays off there.
    */
-  box?: { id: string; name: string };
+  box?: { name: string; onOpen: () => void };
   /** Owner attribution rendered next to the deck name ("by …"). */
   byline?: React.ReactNode;
   /** Action row rendered under the status chips — the share page's copy CTA. */
@@ -511,12 +511,11 @@ export function DeckHero({
                     a box assigned, and where it lives is worth saying then too. */}
                 {box && (
                   <Button
+                    type="button"
                     variant="outline"
                     size="xs"
                     className={chipButtonClass()}
-                    render={
-                      <Link to="/collections/$collectionId" params={{ collectionId: box.id }} />
-                    }
+                    onClick={() => box.onOpen()}
                   >
                     <BoxIcon className="size-3" />
                     <span className="max-w-40 truncate">{box.name}</span>

@@ -4,11 +4,12 @@ import { create } from "zustand";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 /**
- * The deck overview dashboard's tabs: Deck | Test | Plan. The deck's charts
- * live inside the Deck tab (clicking a bar dims the grid right below it), so
- * there is no separate Stats tab.
+ * The deck overview dashboard's tabs: Deck | Test | Plan | Box. The deck's
+ * charts live inside the Deck tab (clicking a bar dims the grid right below
+ * it), so there is no separate Stats tab. Box only appears once the deck names
+ * the collection it is stored in.
  */
-export type DeckOverviewTab = "overview" | "plan" | "test";
+export type DeckOverviewTab = "overview" | "plan" | "test" | "box";
 
 /** Which chart the stats band's third slot shows when space is tight. */
 export type StatsLens = "types" | "rarity" | "ownership";
