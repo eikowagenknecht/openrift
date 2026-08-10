@@ -56,15 +56,17 @@ import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-ch
 import { LensBar } from "@/components/deck/stats/lens-bar";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ColumnControls } from "@/components/filters/column-controls";
-import { DetailPaneToggle } from "@/components/filters/options-bar";
+import { DetailPaneToggle, MobileOptionsDrawer } from "@/components/filters/options-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { InfoHint } from "@/components/ui/info-hint";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
@@ -1030,8 +1032,46 @@ export function DeckOverview({
     </div>
   ) : null;
 
+  // The grid / stacks / list switch. Shared by both control clusters below:
+  // it is the one view control that stays on the row on phones, since it
+  // changes what the cards look like rather than how they are ordered.
+  const displayModeToggle = (
+    <ToggleGroup
+      variant="outline"
+      spacing={0}
+      value={[displayMode]}
+      onValueChange={([next]) => {
+        if (next === "grid" || next === "stacks" || next === "list") {
+          setDisplayMode(next);
+        }
+      }}
+      aria-label="Deck view"
+    >
+      <Tooltip>
+        <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
+          <LayoutGridIcon className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>Grid view</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger render={<ToggleGroupItem value="stacks" aria-label="Stacks view" />}>
+          <GalleryVerticalEndIcon className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>Stacks view</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
+          <ListIcon className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>List view</TooltipContent>
+      </Tooltip>
+    </ToggleGroup>
+  );
+
   // View controls (columns, list sort, grid/list toggle) — rendered on the
-  // right side of the tab strip / section nav row, deck view only.
+  // right side of the tab strip / section nav row, deck view only. Desktop
+  // only: the full cluster runs about 520px wide, wider than a phone screen,
+  // so phones get `mobileViewControls` below instead.
   const viewControls = totalCards > 0 && (
     <div className="flex items-center gap-2">
       {displayMode !== "list" && (
@@ -1139,42 +1179,94 @@ export function DeckOverview({
           </TooltipContent>
         </Tooltip>
       )}
-      <ToggleGroup
-        variant="outline"
-        spacing={0}
-        value={[displayMode]}
-        onValueChange={([next]) => {
-          if (next === "grid" || next === "stacks" || next === "list") {
-            setDisplayMode(next);
-          }
-        }}
-        aria-label="Deck view"
-      >
-        <Tooltip>
-          <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
-            <LayoutGridIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>Grid view</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger render={<ToggleGroupItem value="stacks" aria-label="Stacks view" />}>
-            <GalleryVerticalEndIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>Stacks view</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
-            <ListIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>List view</TooltipContent>
-        </Tooltip>
-      </ToggleGroup>
+      {displayModeToggle}
       {/* This surface has a detail pane but no card-browser toolbar, so the
           dock toggle lives here — otherwise the pane would only be reachable
           from the detail modal's footer link. Kept last so it sits at the far
           right, the same end of the row it occupies on the browser toolbar. */}
       <DetailPaneToggle />
     </div>
+  );
+
+  // The same controls for phones, minus the ones that only make sense in a
+  // wide row: everything but the display-mode switch moves into the options
+  // drawer the card browser already uses, so the tab strip keeps one row and
+  // the icon-only toggles get their labels back.
+  const mobileOptionSwitches = [
+    displayMode !== "list" && (
+      <OptionSwitchRow
+        key="copies"
+        label="Show every copy"
+        description="One thumbnail per physical copy instead of a ×N badge."
+        checked={showAllCopies}
+        onCheckedChange={setShowAllCopies}
+      />
+    ),
+    displayMode !== "list" && canPreferOwned && (
+      <OptionSwitchRow
+        key="bands"
+        label="Highlight owned copies"
+        description="Green: this printing. Blue: another printing."
+        checked={showBands}
+        onCheckedChange={setShowOwnershipBands}
+      />
+    ),
+    displayMode !== "list" && ownershipData !== undefined && (
+      <OptionSwitchRow
+        key="prices"
+        label="Show prices"
+        checked={showPrices}
+        onCheckedChange={setShowPrices}
+      />
+    ),
+    canPreferOwned && (
+      <OptionSwitchRow
+        key="owned-printings"
+        label="Show my printings"
+        description="Swap each card's art for the printing you own."
+        checked={preferOwned}
+        onCheckedChange={setPreferOwnedPrintings}
+      />
+    ),
+  ].filter(Boolean);
+
+  const mobileViewControls = totalCards > 0 && (
+    <>
+      {displayModeToggle}
+      <MobileOptionsDrawer>
+        {displayMode !== "list" && (
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="text-muted-foreground w-18 text-xs font-medium">Columns</p>
+            <ColumnControls
+              compact
+              maxColumns={columnOverride}
+              autoColumns={autoColumns}
+              minColumns={physicalMin}
+              maxColumnsLimit={physicalMax}
+              onMaxColumnsChange={setColumns}
+            />
+          </div>
+        )}
+        <SortGroupControls
+          compact
+          sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
+          sortBy={listSortBy}
+          sortDir={listSortDir}
+          onSortByChange={setSortBy}
+          onSortDirChange={setSortDir}
+          group={{
+            options: groupOptions,
+            value: groupBy,
+            dir: groupDir,
+            onValueChange: setGroupBy,
+            onDirChange: setGroupDir,
+          }}
+        />
+        {mobileOptionSwitches.length > 0 && (
+          <div className="flex flex-col gap-4 border-t pt-4">{mobileOptionSwitches}</div>
+        )}
+      </MobileOptionsDrawer>
+    </>
   );
 
   return (
@@ -1211,6 +1303,7 @@ export function DeckOverview({
         tab={activeTab}
         onTabChange={setTab}
         showPlanTab={showPlanTab}
+        trailingMobile={activeTab === "overview" ? mobileViewControls : undefined}
         trailing={
           activeTab === "overview" ? (
             viewControls
@@ -1540,17 +1633,52 @@ const SECTION_SCROLL_MARGIN = "calc(var(--sticky-top, 57px) + 3.5rem)";
  * editor itself, so every tab is a real destination.
  * @returns The tab strip.
  */
+/**
+ * One labelled switch in the phone options drawer, standing in for a
+ * tooltip-only icon toggle from the desktop control row.
+ * @returns The switch row.
+ */
+function OptionSwitchRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  /** Optional second line, for options whose label doesn't carry the meaning. */
+  description?: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Label className="justify-between gap-3 leading-normal font-normal">
+      <span className="flex flex-col gap-0.5">
+        <span>{label}</span>
+        {description && <span className="text-muted-foreground text-xs">{description}</span>}
+      </span>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} className="shrink-0" />
+    </Label>
+  );
+}
+
 function TabStrip({
   tab,
   onTabChange,
   showPlanTab,
   trailing,
+  trailingMobile,
 }: {
   tab: DeckOverviewTab;
   onTabChange: (tab: DeckOverviewTab) => void;
   showPlanTab: boolean;
   /** Right-aligned controls sharing the row (view toggles on the Deck tab). */
   trailing?: React.ReactNode;
+  /**
+   * Phone replacement for {@link trailing}: a cluster narrow enough to share
+   * the tab row. Supplied, it renders instead of `trailing` on phones and the
+   * second row disappears; omitted, `trailing` keeps its own row below.
+   */
+  trailingMobile?: React.ReactNode;
 }) {
   const isMobile = useIsMobile();
   const tabClass = (active: boolean) =>
@@ -1560,12 +1688,18 @@ function TabStrip({
         ? "border-primary text-foreground"
         : "text-muted-foreground hover:text-foreground border-transparent",
     );
+  // Phones share the row when the caller hands over a compact cluster, and
+  // otherwise put the trailing controls on their own row below the tabs —
+  // sharing the row with the full cluster makes the strip wider than the
+  // screen. The Plan tab has no compact form (its save / clear actions are
+  // labelled buttons), so it keeps the second row. Whichever branch runs, each
+  // node renders once (the Plan tab's trailing is a portal target, so it must
+  // never duplicate).
+  const inlineTrailing = isMobile ? trailingMobile : trailing;
+  const belowTrailing = isMobile && !trailingMobile ? trailing : null;
   // Same vocabulary as the share page's section nav — the two surfaces must not
   // name the same things differently. The charts have no tab of their own: they
   // sit inside the Deck tab, above the grid their bars filter.
-  // Phones get the trailing controls on their own row below the tabs — sharing
-  // the row makes the strip wider than the screen. Rendered once either way
-  // (the Plan tab's trailing is a portal target, so it must never duplicate).
   const strip = (
     // items-end keeps the tab underlines glued to the rule; the fixed height
     // reserves the trailing controls' room on every tab, so switching from
@@ -1597,17 +1731,17 @@ function TabStrip({
           Plan
         </Pressable>
       )}
-      {trailing && !isMobile && (
-        <div className="ml-auto flex items-center gap-2 pb-1.5">{trailing}</div>
+      {inlineTrailing && (
+        <div className="ml-auto flex items-center gap-2 pb-1.5">{inlineTrailing}</div>
       )}
     </div>
   );
 
-  if (isMobile && trailing) {
+  if (belowTrailing) {
     return (
       <div className="flex flex-col gap-2">
         {strip}
-        <div className="flex items-center justify-end gap-2">{trailing}</div>
+        <div className="flex items-center justify-end gap-2">{belowTrailing}</div>
       </div>
     );
   }
