@@ -7,19 +7,19 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { deckGlowStyle } from "@/components/deck/deck-hero";
 import { DeckOwnershipBody } from "@/components/deck/deck-ownership-panel";
-import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
+import { DeckStatsPanel, DomainBar } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
 import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { requiredZoneProgress } from "@/lib/deck-zone-labels";
-import { getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
@@ -46,6 +46,7 @@ function PanelIdentityHeader({
   onOverviewClick?: () => void;
 }) {
   const domainColors = useDomainColors();
+  const stats = useDeckStats(cards);
   const { getPreferredFrontImage } = usePreferredPrinting();
   const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
   const champion = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
@@ -120,13 +121,18 @@ function PanelIdentityHeader({
           </p>
         </div>
       </div>
-      {legendDomains.length > 0 && (
-        <div
-          aria-hidden="true"
-          className="relative h-0.5"
-          style={getDomainGradientStyle(legendDomains, "cc", domainColors)}
-        />
-      )}
+      {/* The deck's real domain split, the same strip the overview hero carries.
+          A legend-colored gradient used to sit here, which washed every deck
+          into its identity colors regardless of what the list holds. No
+          tooltips: the header itself is a button, so the segments stay
+          decoration. */}
+      <DomainBar
+        data={stats.domainDistribution}
+        total={stats.totalCards}
+        colors={domainColors}
+        interactive={false}
+        className="relative h-0.5"
+      />
     </>
   );
 

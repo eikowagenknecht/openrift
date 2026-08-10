@@ -17,11 +17,18 @@ export function DomainBar({
   total,
   colors,
   className,
+  interactive = true,
 }: {
   data: DomainCount[];
   total: number;
   colors: Record<string, string>;
   className?: string;
+  /**
+   * Hover tooltips naming each domain and its count. Turn them off where the
+   * bar is decoration on an already-clickable surface (the editor sidebar's
+   * identity header is a button, so it can't nest tooltip triggers).
+   */
+  interactive?: boolean;
 }) {
   const { labels } = useEnumOrders();
 
@@ -29,31 +36,44 @@ export function DomainBar({
     return null;
   }
 
+  const segments = data.filter((entry) => entry.count > 0);
+  const barClass = cn("flex h-2.5 flex-1 overflow-hidden rounded-full", className);
+
+  if (!interactive) {
+    return (
+      <div aria-hidden="true" className={barClass}>
+        {segments.map((entry) => (
+          <span
+            key={entry.domain}
+            className="h-full"
+            style={{
+              width: `${(entry.count / total) * 100}%`,
+              backgroundColor: getDomainColor(entry.domain, colors),
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
-      <div className={cn("flex h-2.5 flex-1 overflow-hidden rounded-full", className)}>
-        {data.map((entry) => {
-          const count = entry.count;
-          if (count === 0) {
-            return null;
-          }
-          const percentage = (count / total) * 100;
-          return (
-            <Tooltip key={entry.domain}>
-              <TooltipTrigger
-                className="h-full"
-                render={<span />}
-                style={{
-                  width: `${percentage}%`,
-                  backgroundColor: getDomainColor(entry.domain, colors),
-                }}
-              />
-              <TooltipContent side="bottom">
-                {labels.domains[entry.domain]}: {count}
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
+      <div className={barClass}>
+        {segments.map((entry) => (
+          <Tooltip key={entry.domain}>
+            <TooltipTrigger
+              className="h-full"
+              render={<span />}
+              style={{
+                width: `${(entry.count / total) * 100}%`,
+                backgroundColor: getDomainColor(entry.domain, colors),
+              }}
+            />
+            <TooltipContent side="bottom">
+              {labels.domains[entry.domain]}: {entry.count}
+            </TooltipContent>
+          </Tooltip>
+        ))}
       </div>
     </TooltipProvider>
   );
