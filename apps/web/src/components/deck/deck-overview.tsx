@@ -1772,6 +1772,22 @@ function expandCopies(
   );
 }
 
+/**
+ * Gates the floating hover preview by display mode. Stacks mode has its own
+ * hover language — a pile expands the card under the cursor in place — so the
+ * docked preview panel would be a second, competing answer to the same gesture.
+ * The piles themselves never wire it up; this keeps the zones that don't stack
+ * (a single-card Legend or Chosen Champion, a short Runes row) consistent with
+ * them instead of being the only thumbs in the view that pop a preview.
+ * @returns The hover handler, or undefined in stacks mode.
+ */
+export function overviewHoverHandler(
+  stacked: boolean,
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void,
+): ((cardId: string | null, preferredPrintingId?: string | null) => void) | undefined {
+  return stacked ? undefined : onHoverCard;
+}
+
 interface ZoneTileProps {
   deckId: string;
   /** Deck card key → collection-status band; empty when bands are off. */
@@ -1851,6 +1867,7 @@ function ZoneTile({
   const isEmpty = cards.length === 0;
   const isComplete = !hasViolation && expected !== undefined && quantity === expected;
   const isLandscape = LANDSCAPE_ZONES.has(zone);
+  const hoverCard = overviewHoverHandler(stacked, onHoverCard);
 
   // Grouped zones split along the user's axis and sort inside each group
   // (curve order by default); single-card zones keep the API-provided order
@@ -2069,7 +2086,7 @@ function ZoneTile({
           groupBy={groupBy}
           stacked={stacked}
           isLandscape={isLandscape}
-          onHoverCard={onHoverCard}
+          onHoverCard={hoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
           onCardClick={onCardClick}
@@ -2092,7 +2109,7 @@ function ZoneTile({
                 zone={zone}
                 thumbnail={thumbnail}
                 isLandscape={isLandscape}
-                onHoverCard={onHoverCard}
+                onHoverCard={hoverCard}
                 readOnly={readOnly}
                 onCardClick={onCardClick}
               />

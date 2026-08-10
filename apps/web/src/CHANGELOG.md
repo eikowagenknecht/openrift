@@ -12,7 +12,7 @@
 
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
-- feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, and corners and edges now match the card browser.
+- feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
 - fix(Cards): **Steadier card details** — the window no longer opens oversized before snapping down, and stepping between printings keeps the price chart's place instead of collapsing the layout for a moment.
 - fix(Decks): **Deck tab bar on phones** — the row of view buttons ran off the screen edge, so the tabs now carry the grid, stacks, and list switch plus an options sheet, with the plan's save and clear buttons on that same row.
 - fix(Decks): **Missing card images** — a card whose printing has no image now shows a named placeholder instead of disappearing from the deck.
