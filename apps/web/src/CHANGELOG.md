@@ -19,6 +19,7 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Decks): **Bigger grid and list buttons** — the view switch in the deck search row was smaller than the controls beside it and is now the same height.
 - fix(Decks): **Optional deck name on import** — the field starts empty with "Imported Deck" as a placeholder, so there is nothing to clear before importing.
 - fix(Decks): **Jump to cards that need attention** — the "need attention" count in the import summary now scrolls straight to the first row that still needs work.
 - fix(Decks): **Import rows name the zone once** — every row of the import preview spelled out its zone twice, as text and again in the dropdown beside it.

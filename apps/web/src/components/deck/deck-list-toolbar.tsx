@@ -40,10 +40,12 @@ function DensityToggle({ className }: { className?: string }) {
   const density = useDeckListPrefsStore((state) => state.density);
   const setDensity = useDeckListPrefsStore((state) => state.setDensity);
   return (
+    // Default size, not sm: everything else in this row (search box, sort
+    // trigger, mobile options button) is h-8, and a 28px toggle beside them
+    // reads as an afterthought.
     <ToggleGroup
       className={className}
       variant="outline"
-      size="sm"
       spacing={0}
       value={[density]}
       onValueChange={([next]) => {
