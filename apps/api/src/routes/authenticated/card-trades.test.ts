@@ -181,14 +181,23 @@ describe("GET /api/v1/trades", () => {
 describe("GET /api/v1/trades/action-counts", () => {
   it("returns 200 with the total summed across groups", async () => {
     mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
-      { groupId: "g1", groupSlug: "alpha", count: 2 },
-      { groupId: "g2", groupSlug: "beta", count: 3 },
+      { groupId: "g1", groupSlug: "alpha", count: 2, respondCount: 2, syncCount: 0 },
+      { groupId: "g2", groupSlug: "beta", count: 3, respondCount: 1, syncCount: 2 },
     ]);
     const res = await app.request("/api/v1/trades/action-counts");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.total).toBe(5);
     expect(json.byGroup).toHaveLength(2);
+  });
+
+  it("carries each group's per-action-type split through to the response", async () => {
+    mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
+      { groupId: "g1", groupSlug: "alpha", count: 44, respondCount: 12, syncCount: 32 },
+    ]);
+    const res = await app.request("/api/v1/trades/action-counts");
+    const json = await readJson(res);
+    expect(json.byGroup[0]).toMatchObject({ count: 44, respondCount: 12, syncCount: 32 });
   });
 
   it("returns total 0 when no groups need action", async () => {

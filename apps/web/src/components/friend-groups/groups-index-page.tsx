@@ -163,7 +163,7 @@ export function GroupsIndexPage() {
   const { data } = useFriendGroups();
   const { data: actionCounts } = useTradeActionCounts();
   const actionCountByGroup = new Map(
-    (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry.count]),
+    (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry]),
   );
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
@@ -321,11 +321,17 @@ export function GroupsIndexPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {data.items.map((row) => {
               const badge = ROLE_BADGE[row.viewerRole];
-              const actionCount = actionCountByGroup.get(row.id) ?? 0;
+              const actions = actionCountByGroup.get(row.id);
+              // The two kinds of trade action are what the viewer does next, not
+              // one undifferentiated pile: answering a request is a decision,
+              // filing a completed trade is bookkeeping. Each gets its own badge
+              // so a group with 40 unfiled trades doesn't read as 40 decisions.
+              const respondCount = actions?.respondCount ?? 0;
+              const syncCount = actions?.syncCount ?? 0;
               // Anything that asks the viewer to act (trade actions, join
               // requests to review) gets the StatTile accent ring so the
               // group that needs you stands out from across the grid.
-              const needsViewer = actionCount > 0 || row.pendingRequestCount > 0;
+              const needsViewer = (actions?.count ?? 0) > 0 || row.pendingRequestCount > 0;
               return (
                 <CardLink
                   key={row.id}
@@ -346,10 +352,22 @@ export function GroupsIndexPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Heading className="min-w-0 truncate">{row.name}</Heading>
                       <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
-                      {actionCount > 0 ? (
-                        <Badge className="ml-auto whitespace-nowrap">
-                          {actionCount} action{actionCount === 1 ? "" : "s"} needed
-                        </Badge>
+                      {respondCount > 0 || syncCount > 0 ? (
+                        // A decision the viewer owes someone else outranks their
+                        // own bookkeeping, so the request badge keeps the filled
+                        // primary and the collection one steps down to the tint.
+                        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                          {respondCount > 0 ? (
+                            <Badge className="whitespace-nowrap">
+                              {respondCount} trade request{respondCount === 1 ? "" : "s"}
+                            </Badge>
+                          ) : null}
+                          {syncCount > 0 ? (
+                            <Badge variant="subtle" className="whitespace-nowrap">
+                              {syncCount} collection update{syncCount === 1 ? "" : "s"}
+                            </Badge>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                     {row.pendingRequestCount > 0 ? (

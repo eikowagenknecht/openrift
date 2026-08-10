@@ -199,7 +199,12 @@ export const cardTradeActionCountsResponseSchema = z
       z.object({
         groupId: z.string(),
         groupSlug: z.string(),
+        /** `respondCount + syncCount`, the group's whole action-needed bucket. */
         count: z.number().int().nonnegative(),
+        /** Requests awaiting the viewer's accept or decline (`accept-or-decline`). */
+        respondCount: z.number().int().nonnegative(),
+        /** Completed trades whose own-side collection sync is unapplied (`apply-sync`). */
+        syncCount: z.number().int().nonnegative(),
       }),
     ),
   })

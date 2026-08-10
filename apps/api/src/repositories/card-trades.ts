@@ -540,42 +540,51 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Per-group counts of trades needing the viewer's action: a pending request
-     * awaiting their response, or a completed trade whose own-side sync they
-     * haven't applied. Mirrors the two `action-needed` cases in
-     * `deriveActionNeeded` (`cancel` / `complete` are deliberately excluded).
+     * Per-group counts of trades needing the viewer's action, split by which
+     * action it is: a pending request awaiting their response, or a completed
+     * trade whose own-side sync they haven't applied. Mirrors the two
+     * `action-needed` cases in `deriveActionNeeded` (`cancel` / `complete` are
+     * deliberately excluded), so `count` is exactly the two split parts summed.
      * @returns One entry per group with at least one such trade.
      */
     async actionNeededCountsForUser(
       userId: string,
     ): Promise<CardTradeActionCountsResponse["byGroup"]> {
+      // The two predicates drive both the row filter and the per-type counts, so
+      // the split can never drift from the total the WHERE admits.
+      const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
+        (t.receiver_user_id = ${userId} and t.initiator = 'giver')
+        or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
+      ))`;
+      const awaitingSync = sql<boolean>`(t.status = 'completed' and (
+        (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
+        or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
+      ))`;
       const rows = await db
         .selectFrom("cardTrades as t")
         .innerJoin("friendGroups as g", "g.id", "t.groupId")
         .select(["t.groupId as groupId", "g.slug as groupSlug"])
-        .select((eb) => eb.fn.countAll<string>().as("count"))
+        .select([
+          sql<string>`count(*) filter (where ${awaitingResponse})`.as("respondCount"),
+          sql<string>`count(*) filter (where ${awaitingSync})`.as("syncCount"),
+        ])
         .where((eb) =>
           eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
         )
-        .where(
-          sql<boolean>`(
-            (t.status = 'pending' and (
-              (t.receiver_user_id = ${userId} and t.initiator = 'giver')
-              or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
-            ))
-            or (t.status = 'completed' and (
-              (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
-              or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
-            ))
-          )`,
-        )
+        .where(sql<boolean>`(${awaitingResponse} or ${awaitingSync})`)
         .groupBy(["t.groupId", "g.slug"])
         .execute();
-      return rows.map((row) => ({
-        groupId: row.groupId,
-        groupSlug: row.groupSlug,
-        count: Number(row.count),
-      }));
+      return rows.map((row) => {
+        const respondCount = Number(row.respondCount);
+        const syncCount = Number(row.syncCount);
+        return {
+          groupId: row.groupId,
+          groupSlug: row.groupSlug,
+          count: respondCount + syncCount,
+          respondCount,
+          syncCount,
+        };
+      });
     },
 
     /**
