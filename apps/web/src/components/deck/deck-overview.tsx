@@ -1402,17 +1402,27 @@ export function DeckOverview({
         <div id="deck-cards" style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}>
           {statsFocus && (
             <div className="mb-3 flex">
-              <span className="border-primary/40 bg-primary/10 inline-flex items-center gap-1.5 rounded-full border py-1 pr-2 pl-3 text-sm">
-                {statsFocusLabel(statsFocus, enumLabels.cardTypes, enumLabels.rarities)}
-                <span className="text-muted-foreground tabular-nums">
-                  · {statsFocusCount(cards, statsFocus)} in deck
-                </span>
-                {focusOpeningChance !== null && (
-                  <span className="text-muted-foreground tabular-nums">
-                    · {formatChancePct(focusOpeningChance)} in your opening hand
+              {/* Narrow screens stack the label above its numbers rather than
+                  overflowing one long pill — the leading "·" separators only
+                  show once the parts share a row. */}
+              <span className="border-primary/40 bg-primary/10 flex max-w-full items-center gap-1.5 rounded-2xl border py-1 pr-2 pl-3 text-sm sm:rounded-full">
+                <span className="flex min-w-0 flex-col gap-x-1.5 sm:flex-row sm:items-center">
+                  <span>
+                    {statsFocusLabel(statsFocus, enumLabels.cardTypes, enumLabels.rarities)}
                   </span>
-                )}
-                <ChipRemoveButton aria-label="Show all cards" onClick={() => setStatsFocus(null)} />
+                  <span className="text-muted-foreground tabular-nums">
+                    <span className="hidden sm:inline">· </span>
+                    {statsFocusCount(cards, statsFocus)} in deck
+                    {focusOpeningChance !== null && (
+                      <> · {formatChancePct(focusOpeningChance)} in your opening hand</>
+                    )}
+                  </span>
+                </span>
+                <ChipRemoveButton
+                  aria-label="Show all cards"
+                  className="shrink-0"
+                  onClick={() => setStatsFocus(null)}
+                />
               </span>
             </div>
           )}
