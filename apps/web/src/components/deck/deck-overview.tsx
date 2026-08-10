@@ -1401,6 +1401,7 @@ export function DeckOverview({
           for hydration like the ownership bridge does. */}
       {activeTab === "box" && hydrated && homeCollection && (
         <DeckBoxTab
+          deckId={deck.id}
           cards={cards}
           homeCollectionId={homeCollection.id}
           homeCollectionName={homeCollection.name}

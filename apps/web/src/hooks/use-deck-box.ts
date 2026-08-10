@@ -1,7 +1,9 @@
+import { WellKnown } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
+import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useConditionList } from "@/hooks/use-enums";
 import { useUserId } from "@/lib/auth-session";
@@ -21,6 +23,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
  *   box to fill.
  */
 export function useDeckBox(
+  deckId: string,
   cards: readonly DeckBuilderCard[],
   homeCollectionId: string | null | undefined,
   overrides?: ReadonlyMap<string, string>,
@@ -28,7 +31,7 @@ export function useDeckBox(
   const userId = useUserId();
   const enabled = Boolean(userId) && Boolean(homeCollectionId);
   const copiesCollection = useCopiesCollection();
-  const { printingsByCardId } = useCards();
+  const { printingsByCardId, printingsById } = useCards();
   const languageOrder = useEffectiveLanguageOrder();
   const conditions = useConditionList();
 
@@ -41,8 +44,32 @@ export function useDeckBox(
     [enabled, copiesCollection],
   );
 
+  // Another deck may live in the same box. Its cards belong there too, so the
+  // sweep has to know what they are before calling anything surplus.
+  const sharingDeckIds =
+    collections
+      ?.find((collection) => collection.id === homeCollectionId)
+      ?.homeDecks.filter((deck) => deck.id !== deckId)
+      .map((deck) => deck.id) ?? [];
+  const sharingDecks = useQueries({
+    queries: sharingDeckIds.map((id) => ({
+      ...deckDetailQueryOptions(userId ?? "", id),
+      enabled,
+    })),
+  });
+
   if (!homeCollectionId || !copies || !collections) {
     return undefined;
+  }
+
+  const otherDeckNeeds = new Map<string, number>();
+  for (const query of sharingDecks) {
+    for (const card of query.data?.cards ?? []) {
+      if (card.zone === WellKnown.deckZone.OVERFLOW) {
+        continue;
+      }
+      otherDeckNeeds.set(card.cardId, (otherDeckNeeds.get(card.cardId) ?? 0) + card.quantity);
+    }
   }
 
   return computeDeckBoxPlan({
@@ -50,7 +77,9 @@ export function useDeckBox(
     copies,
     homeCollectionId,
     printingsByCardId,
+    printingsById,
     collectionNameById: new Map(collections.map((collection) => [collection.id, collection.name])),
+    otherDeckNeeds,
     languageOrder,
     conditionOrder: conditions.map((condition) => condition.slug),
     overrides,

@@ -35,6 +35,7 @@ function inputFor({
   preferredPrintingId = null,
   zone = "main",
   overrides,
+  otherDeckNeeds,
 }: {
   printings: Printing[];
   copies: CopyResponse[];
@@ -44,6 +45,7 @@ function inputFor({
   preferredPrintingId?: string | null;
   zone?: string;
   overrides?: ReadonlyMap<string, string>;
+  otherDeckNeeds?: ReadonlyMap<string, number>;
 }): DeckBoxInput {
   return {
     cards: [
@@ -58,7 +60,9 @@ function inputFor({
     copies,
     homeCollectionId: BOX,
     printingsByCardId: new Map([[cardId, printings]]),
+    printingsById: Object.fromEntries(printings.map((printing) => [printing.id, printing])),
     collectionNameById: COLLECTION_NAMES,
+    otherDeckNeeds,
     languageOrder: ["EN", "DE"],
     conditionOrder: CONDITIONS,
     overrides,
@@ -68,15 +72,14 @@ function inputFor({
 describe("computeDeckBoxPlan", () => {
   it("counts copies already in the box as settled", () => {
     const printing = stubPrinting({ cardId: "card-1", shortCode: "OGS-005" });
-    const plan = computeDeckBoxPlan(
-      inputFor({
-        printings: [printing],
-        copies: [stubCopy({ printingId: printing.id, collectionId: BOX })],
-      }),
-    );
+    const copy = stubCopy({ printingId: printing.id, collectionId: BOX });
+    const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [copy] }));
     expect(plan.neededTotal).toBe(1);
     expect(plan.inBoxTotal).toBe(1);
-    expect(plan.settled).toEqual([{ cardId: "card-1", cardName: "Fire Dragon", count: 1 }]);
+    expect(plan.settled).toHaveLength(1);
+    expect(plan.settled[0]?.count).toBe(1);
+    // The settled copies come along so a row can be taken back out again.
+    expect(plan.settled[0]?.copies.map((entry) => entry.copyId)).toEqual([copy.id]);
     expect(plan.groups).toEqual([]);
     expect(plan.missingCount).toBe(0);
   });
@@ -321,6 +324,7 @@ describe("computeDeckBoxPlan", () => {
       copies: [],
       homeCollectionId: BOX,
       printingsByCardId: new Map(),
+      printingsById: {},
       collectionNameById: COLLECTION_NAMES,
       languageOrder: ["EN"],
       conditionOrder: CONDITIONS,
@@ -332,6 +336,76 @@ describe("computeDeckBoxPlan", () => {
       settled: [],
       blocked: [],
       missingCount: 0,
+      extras: [],
+      extraCount: 0,
     });
+  });
+});
+
+describe("computeDeckBoxPlan extras", () => {
+  it("reports a card in the box that the deck doesn't run", () => {
+    const deckPrinting = stubPrinting({ cardId: "card-1" });
+    const strayPrinting = stubPrinting({ cardId: "card-2", card: { name: "Ice Golem" } });
+    const stray = stubCopy({ printingId: strayPrinting.id, collectionId: BOX });
+    const plan = computeDeckBoxPlan({
+      ...inputFor({
+        printings: [deckPrinting],
+        copies: [stubCopy({ printingId: deckPrinting.id, collectionId: BOX }), stray],
+      }),
+      printingsById: {
+        [deckPrinting.id]: deckPrinting,
+        [strayPrinting.id]: strayPrinting,
+      },
+    });
+    expect(plan.extraCount).toBe(1);
+    expect(plan.extras).toEqual([
+      {
+        cardId: "card-2",
+        cardName: "Ice Golem",
+        copies: [expect.objectContaining({ copyId: stray.id })],
+      },
+    ]);
+  });
+
+  it("reports copies past what the deck needs, offering the nicest ones", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const worn = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "played" });
+    const mint = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "mint" });
+    const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [worn, mint] }));
+    // The deck keeps the beater; the mint copy is what the sweep offers.
+    expect(plan.settled[0]?.copies[0]?.copyId).toBe(worn.id);
+    expect(plan.extras[0]?.copies.map((copy) => copy.copyId)).toEqual([mint.id]);
+  });
+
+  it("leaves a second deck's cards in a shared box alone", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [printing],
+        copies: [
+          stubCopy({ printingId: printing.id, collectionId: BOX }),
+          stubCopy({ printingId: printing.id, collectionId: BOX }),
+        ],
+        otherDeckNeeds: new Map([["card-1", 1]]),
+      }),
+    );
+    expect(plan.extras).toEqual([]);
+  });
+
+  it("never sweeps a lent-out copy, which isn't in the box to begin with", () => {
+    const deckPrinting = stubPrinting({ cardId: "card-1" });
+    const strayPrinting = stubPrinting({ cardId: "card-2" });
+    const plan = computeDeckBoxPlan({
+      ...inputFor({
+        printings: [deckPrinting],
+        copies: [stubCopy({ printingId: strayPrinting.id, collectionId: BOX, onLoan: true })],
+      }),
+      printingsById: {
+        [deckPrinting.id]: deckPrinting,
+        [strayPrinting.id]: strayPrinting,
+      },
+    });
+    expect(plan.extras).toEqual([]);
+    expect(plan.extraCount).toBe(0);
   });
 });

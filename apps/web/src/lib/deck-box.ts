@@ -56,11 +56,23 @@ export interface DeckBoxBlocked {
   reason: "loan" | "trade";
 }
 
-/** A card already sitting in the box, and how many of its copies are there. */
+/** A card already sitting in the box, with the copies that are in there. */
 export interface DeckBoxSettled {
   cardId: string;
   cardName: string;
   count: number;
+  /** The copies themselves, so one can be taken back out again. */
+  copies: DeckBoxCopy[];
+}
+
+/**
+ * Copies in the box that no deck stored there calls for — what a sweep offers
+ * to move back out.
+ */
+export interface DeckBoxExtra {
+  cardId: string;
+  cardName: string;
+  copies: DeckBoxCopy[];
 }
 
 export interface DeckBoxPlan {
@@ -73,6 +85,9 @@ export interface DeckBoxPlan {
   blocked: DeckBoxBlocked[];
   /** Copies the viewer owns nowhere, so no move can supply them. */
   missingCount: number;
+  extras: DeckBoxExtra[];
+  /** How many copies the extras add up to, for the section's heading. */
+  extraCount: number;
 }
 
 export interface DeckBoxInput {
@@ -80,7 +95,18 @@ export interface DeckBoxInput {
   copies: readonly CopyResponse[];
   homeCollectionId: string;
   printingsByCardId: ReadonlyMap<string, Printing[]>;
+  /**
+   * The whole catalog by printing id. The sweep has to name cards the deck
+   * doesn't run, which `printingsByCardId` alone can't reach.
+   */
+  printingsById: Readonly<Record<string, Printing>>;
   collectionNameById: ReadonlyMap<string, string>;
+  /**
+   * Copies per card that *other* decks stored in the same box need. Two decks
+   * may share one box, and the sweep must not offer to move out the other
+   * deck's cards.
+   */
+  otherDeckNeeds?: ReadonlyMap<string, number>;
   /** Viewer's language preference, best first — the second-strongest pick rule. */
   languageOrder: readonly string[];
   /** Condition slugs best first (mint → poor), as `/init` orders them. */
@@ -189,7 +215,9 @@ export function computeDeckBoxPlan({
   copies,
   homeCollectionId,
   printingsByCardId,
+  printingsById,
   collectionNameById,
+  otherDeckNeeds,
   languageOrder,
   conditionOrder,
   overrides,
@@ -216,27 +244,42 @@ export function computeDeckBoxPlan({
     }
   }
 
-  const inBoxByCard = new Map<string, number>();
+  const inBoxByCard = new Map<string, CopyResponse[]>();
   const blockedByCard = new Map<string, { loan: number; trade: number }>();
   const candidatesByCard = new Map<string, CopyResponse[]>();
   for (const copy of copies) {
-    const printing = printingById.get(copy.printingId);
-    if (!printing || !neededByCard.has(printing.cardId)) {
-      continue;
-    }
-    const cardId = printing.cardId;
-    if (copy.onLoan || copy.reserved) {
-      const bucket = blockedByCard.get(cardId) ?? { loan: 0, trade: 0 };
+    const deckPrinting = printingById.get(copy.printingId);
+    const isDeckCard = deckPrinting !== undefined && neededByCard.has(deckPrinting.cardId);
+    if (isDeckCard && (copy.onLoan || copy.reserved)) {
+      const bucket = blockedByCard.get(deckPrinting.cardId) ?? { loan: 0, trade: 0 };
       if (copy.onLoan) {
         bucket.loan += 1;
       } else {
         bucket.trade += 1;
       }
-      blockedByCard.set(cardId, bucket);
+      blockedByCard.set(deckPrinting.cardId, bucket);
       continue;
     }
     if (copy.collectionId === homeCollectionId) {
-      inBoxByCard.set(cardId, (inBoxByCard.get(cardId) ?? 0) + 1);
+      // The box's whole contents, not just this deck's cards: the sweep reports
+      // the ones no deck stored here calls for. A lent-out or reserved copy is
+      // left out — it isn't in the box to be swept.
+      if (copy.onLoan || copy.reserved) {
+        continue;
+      }
+      const cardId = printingsById[copy.printingId]?.cardId;
+      if (cardId === undefined) {
+        continue;
+      }
+      const bucket = inBoxByCard.get(cardId);
+      if (bucket) {
+        bucket.push(copy);
+      } else {
+        inBoxByCard.set(cardId, [copy]);
+      }
+      continue;
+    }
+    if (!isDeckCard) {
       continue;
     }
     // A group binder's copies belong to the group, so moving one into a
@@ -244,11 +287,11 @@ export function computeDeckBoxPlan({
     if (copy.groupId !== null) {
       continue;
     }
-    const bucket = candidatesByCard.get(cardId);
+    const bucket = candidatesByCard.get(deckPrinting.cardId);
     if (bucket) {
       bucket.push(copy);
     } else {
-      candidatesByCard.set(cardId, [copy]);
+      candidatesByCard.set(deckPrinting.cardId, [copy]);
     }
   }
 
@@ -261,11 +304,29 @@ export function computeDeckBoxPlan({
 
   for (const [cardId, needed] of neededByCard) {
     const cardName = nameByCard.get(cardId) ?? "";
-    const inBox = Math.min(inBoxByCard.get(cardId) ?? 0, needed);
+    const comparator = candidateComparator(
+      pinnedByCard.get(cardId) ?? null,
+      printingById,
+      languageOrder,
+      conditionOrder,
+    );
+    // Rank the box's copies the same way a pull does, so the ones that stay are
+    // the ones this deck would have chosen and any surplus the sweep offers is
+    // the nicest copy, not an arbitrary one.
+    const boxCopies = (inBoxByCard.get(cardId) ?? []).toSorted(comparator);
+    const inBox = Math.min(boxCopies.length, needed);
     neededTotal += needed;
     inBoxTotal += inBox;
     if (inBox > 0) {
-      settled.push({ cardId, cardName, count: inBox });
+      settled.push({
+        cardId,
+        cardName,
+        count: inBox,
+        copies: boxCopies.slice(0, inBox).flatMap((copy) => {
+          const printing = printingById.get(copy.printingId);
+          return printing ? [toBoxCopy(copy, printing, collectionNameById)] : [];
+        }),
+      });
     }
 
     const shortfall = needed - inBox;
@@ -273,14 +334,7 @@ export function computeDeckBoxPlan({
       continue;
     }
 
-    const ranked = (candidatesByCard.get(cardId) ?? []).toSorted(
-      candidateComparator(
-        pinnedByCard.get(cardId) ?? null,
-        printingById,
-        languageOrder,
-        conditionOrder,
-      ),
-    );
+    const ranked = (candidatesByCard.get(cardId) ?? []).toSorted(comparator);
     // Hand-picked copies lead, in slot order, so a swap sticks even as the
     // ranking around it changes.
     const chosen: CopyResponse[] = [];
@@ -351,6 +405,40 @@ export function computeDeckBoxPlan({
     missingCount += uncovered;
   }
 
+  // The sweep: everything in the box past what the decks stored there call for.
+  // A card no deck here runs has an allowance of zero, so all of its copies are
+  // surplus.
+  const extras: DeckBoxExtra[] = [];
+  let extraCount = 0;
+  for (const [cardId, boxCopies] of inBoxByCard) {
+    const allowance = (neededByCard.get(cardId) ?? 0) + (otherDeckNeeds?.get(cardId) ?? 0);
+    if (boxCopies.length <= allowance) {
+      continue;
+    }
+    const ranked = boxCopies.toSorted(
+      candidateComparator(
+        pinnedByCard.get(cardId) ?? null,
+        printingById,
+        languageOrder,
+        conditionOrder,
+      ),
+    );
+    const surplus = ranked.slice(allowance).flatMap((copy) => {
+      const printing = printingById.get(copy.printingId) ?? printingsById[copy.printingId];
+      return printing ? [toBoxCopy(copy, printing, collectionNameById)] : [];
+    });
+    if (surplus.length === 0) {
+      continue;
+    }
+    extraCount += surplus.length;
+    extras.push({
+      cardId,
+      cardName:
+        nameByCard.get(cardId) ?? printingsById[boxCopies[0]?.printingId ?? ""]?.card.name ?? "",
+      copies: surplus,
+    });
+  }
+
   const groups: DeckBoxGroup[] = [...pullsByCollection.entries()]
     .map(([collectionId, pulls]) => ({
       collectionId,
@@ -371,5 +459,7 @@ export function computeDeckBoxPlan({
     settled: settled.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
     blocked: blocked.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
     missingCount,
+    extras: extras.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
+    extraCount,
   };
 }
