@@ -148,6 +148,6 @@ export function entriesFromSharedDeck(cards: PublicDeckCardResponse[]): DeckImpo
     quantity: card.quantity,
     sourceSlot: sourceSlotForZone(card.zone),
     explicitZone: card.zone,
-    rawFields: { Name: card.cardName, Zone: ZONE_LABELS[card.zone] },
+    rawFields: { "Parsed Name": card.cardName, Zone: ZONE_LABELS[card.zone] },
   }));
 }

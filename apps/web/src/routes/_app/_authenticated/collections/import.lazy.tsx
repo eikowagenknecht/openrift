@@ -361,7 +361,9 @@ function InputStep({
           value={rawText}
           onChange={(event) => onTextChange(event.target.value)}
           placeholder="Paste CSV data or a plain text list here..."
-          className="min-h-[200px] font-mono text-xs"
+          // text-base below md: iOS Safari zooms the viewport when a focused
+          // field is under 16px, and there is no maximum-scale to stop it.
+          className="min-h-[200px] font-mono text-base md:text-xs"
         />
 
         <div className="flex flex-wrap items-center gap-3">

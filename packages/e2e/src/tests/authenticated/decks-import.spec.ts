@@ -365,8 +365,11 @@ test.describe("deck import", () => {
       // "ready" badge and no needs-attention row.
       await expect(page.getByText(/\d+ ready/u)).toBeVisible();
 
-      // Defaults: deck name pre-filled, format = Constructed.
-      await expect(page.getByLabel("Deck name")).toHaveValue("Imported Deck");
+      // Defaults: deck name empty with the fallback as its placeholder (so it
+      // never has to be cleared), format = Constructed.
+      const deckNameField = page.getByLabel("Deck name");
+      await expect(deckNameField).toHaveValue("");
+      await expect(deckNameField).toHaveAttribute("placeholder", "Imported Deck");
       await expect(page.locator("#preview-deck-format")).toContainText("Constructed");
 
       // Back returns to step 1 with the textarea preserved.
@@ -395,7 +398,8 @@ test.describe("deck import", () => {
       const createRequest = await createPromise;
       await savePromise;
 
-      // createDeckFn payload includes the default name + constructed format.
+      // createDeckFn payload falls back to the placeholder name (the field was
+      // left empty) and the constructed format.
       // TanStack Start 1.167 serialises server-fn bodies through seroval as
       // an encoded AST; decodeServerFnData walks it back to a plain object.
       const body = decodeServerFnData<{ name?: string; format?: string }>(
@@ -421,19 +425,25 @@ test.describe("deck import", () => {
       }
     });
 
-    test("Import button is disabled when the deck name is cleared", async ({ page }) => {
+    test("an empty deck name keeps Import enabled and a typed name wins", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await advanceToPreviewWithPiltover(page);
 
+      // The name is optional: an empty field imports under the placeholder.
       const importButton = page.getByRole("button", { name: /^Import \d+ cards?$/u });
+      await expect(page.getByLabel("Deck name")).toHaveValue("");
       await expect(importButton).toBeEnabled();
 
-      await page.getByLabel("Deck name").fill("");
-      await expect(importButton).toBeDisabled();
+      await page.getByLabel("Deck name").fill("Named By Hand");
 
-      // Restoring a name re-enables it.
-      await page.getByLabel("Deck name").fill("Restored");
-      await expect(importButton).toBeEnabled();
+      const createPromise = page.waitForRequest(
+        (request) => request.method() === "POST" && isServerFn("createDeckFn")(request.url()),
+      );
+      await importButton.click();
+      const createRequest = await createPromise;
+
+      const body = decodeServerFnData<{ name?: string }>(createRequest.postDataJSON());
+      expect(body.name).toBe("Named By Hand");
     });
 
     test("selecting Freeform sends format=freeform in the createDeck payload", async ({ page }) => {
@@ -482,6 +492,20 @@ test.describe("deck import", () => {
         timeout: 15_000,
       });
     }
+
+    test("the needs-attention badge jumps to the first row that needs attention", async ({
+      page,
+    }) => {
+      userEmail = await createAndLogin(page);
+      await advanceFromMixedText(page);
+
+      // The badge is a control, not a label: it scrolls the list back to the
+      // first unresolved row, which is ordered among the matched ones.
+      const jump = page.getByRole("button", { name: /Jump to the first of 1 row/u });
+      await expect(jump).toHaveText("1 need attention");
+      await jump.click();
+      await expect(page.getByText("Totally Fake Card Name")).toBeInViewport();
+    });
 
     test("skipping an unresolved entry adds a skipped badge without losing ready count", async ({
       page,
@@ -539,6 +563,11 @@ test.describe("deck import", () => {
         .filter({ has: page.getByText("Main", { exact: true }) })
         .first();
       await expect(mainDeckZonePicker).toBeVisible({ timeout: 15_000 });
+
+      // Each row names its zone once, in the picker only. The sample's two
+      // entries both land in Main, so a second copy printed beside the card
+      // name would double this count.
+      await expect(page.getByText("Main", { exact: true })).toHaveCount(2);
       await mainDeckZonePicker.click();
       await page.getByRole("option", { name: "Sideboard" }).click();
       await expect(

@@ -53,12 +53,25 @@ function AccordionContent({ className, children, ...props }: AccordionPrimitive.
   return (
     <AccordionPrimitive.Panel
       data-slot="accordion-content"
-      className="data-open:animate-accordion-down data-closed:animate-accordion-up overflow-hidden text-sm"
+      // custom: height transition on the panel, replacing the scaffold's
+      // `data-open:animate-accordion-down data-closed:animate-accordion-up`.
+      // Those keyframes come from tw-animate-css and animate to
+      // `var(--radix-accordion-content-height, …, auto)` — variables Base UI
+      // never sets (its own is `--accordion-panel-height`), so the target was
+      // always `auto`. Worse, a keyframe animation cannot reverse: interrupting
+      // an open by clicking again starts the up animation from its own `from:`
+      // (full height), so the panel snapped to full and animated down from
+      // there. Tall panels made that unmissable. A transition interpolates from
+      // the current computed height, so an interrupted open reverses smoothly.
+      // custom: h-/data-*-style classes moved here from the inner div — Base UI
+      // puts data-starting-style/data-ending-style on the panel element, so on
+      // the inner div they never matched anything.
+      className="h-(--accordion-panel-height) overflow-hidden text-sm transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none"
       {...props}
     >
       <div
         className={cn(
-          "[&_a]:hover:text-foreground h-(--accordion-panel-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
+          "[&_a]:hover:text-foreground pt-0 pb-2.5 [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
           className,
         )}
       >

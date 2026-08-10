@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Decks): **Deck import on phones** — the preview reads as a list of cards, matched rows tuck their controls behind a tap, and the import button stays in reach at the bottom.
 - feat(Decks): **Card details from the missing list** — clicking a card in a deck's missing-cards list now opens its details over the list, with arrow keys stepping through the cards you still need, instead of leaving the page.
 - feat(Decks): **Tokens your deck needs** — deck and shared deck pages now list the tokens your cards create as one more section of the deck, and clicking one opens its card details.
 - feat(Decks): **Tell a deck which box it lives in** — pick a deck's storage collection and its cards count as available for that deck, even when the collection is off for deck building.
@@ -18,6 +19,11 @@
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
 - feat(Decks): **Cleaner stacks view** — piles read as a cover card over uniform name strips, battlefields stack the same way, corners and edges match the card browser, and hovering never pops the side preview.
+- fix(Decks): **Optional deck name on import** — the field starts empty with "Imported Deck" as a placeholder, so there is nothing to clear before importing.
+- fix(Decks): **Jump to cards that need attention** — the "need attention" count in the import summary now scrolls straight to the first row that still needs work.
+- fix(Decks): **Import rows name the zone once** — every row of the import preview spelled out its zone twice, as text and again in the dropdown beside it.
+- fix(App): **No zoom when pasting on iPhone** — tapping the paste box on an import screen no longer zooms the whole page in.
+- fix(App): **Smoother expanding sections** — clicking an expanding section again while it opens now reverses it instead of jumping to full height first.
 - fix(Decks): **Tidier deck list** — tiles and rows now show the same build state and figures as the deck page, the list lines its columns up and leaves the deck name more room, and nothing gets clipped on narrow tiles.
 - fix(Decks): **Stats filter chip on phones** — filtering the deck by clicking a stats bar showed a chip that ran off the screen edge on narrow phones, so it now wraps onto two lines.
 - fix(Decks): **Split a card to the sideboard on phones** — long-pressing a deck row with several copies now offers a move-1 entry per zone, so you can send a single copy to the sideboard without a shift key.

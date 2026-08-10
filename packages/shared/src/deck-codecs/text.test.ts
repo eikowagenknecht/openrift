@@ -55,14 +55,14 @@ describe("parseTextFormat", () => {
         quantity: 1,
         sourceSlot: "mainDeck",
         explicitZone: "legend",
-        rawFields: { Name: "Garen", Zone: "Legend" },
+        rawFields: { "Parsed Name": "Garen", Zone: "Legend" },
       },
       {
         cardName: "Fireball",
         quantity: 2,
         sourceSlot: "sideboard",
         explicitZone: "sideboard",
-        rawFields: { Name: "Fireball", Zone: "Sideboard" },
+        rawFields: { "Parsed Name": "Fireball", Zone: "Sideboard" },
       },
     ]);
   });

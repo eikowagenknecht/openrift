@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
+  ArrowLeftIcon,
   CheckCircle2Icon,
   ChevronRightIcon,
   FileUpIcon,
@@ -23,7 +24,6 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Heading } from "@/components/heading";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import {
   ImportStatusBadges,
@@ -32,12 +32,12 @@ import {
 } from "@/components/import/import-preview-chrome";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import {
-  SectionHeader,
-  SectionHeaderActions,
-  SectionHeaderDescription,
-  SectionHeaderGroup,
-  SectionHeaderTitle,
-} from "@/components/section-header";
+  PageDescription,
+  PageTopBar,
+  PageTopBarIconButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -71,6 +71,7 @@ import {
   useSaveDeckCards,
 } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useUserId } from "@/lib/auth-session";
 import { dedupeMatchedEntries } from "@/lib/deck-import-cards";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
@@ -88,12 +89,24 @@ import type { ImportBucket } from "@/lib/import-summary";
 import { classifyBucket } from "@/lib/import-summary";
 import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 export const Route = createLazyFileRoute("/_app/decks/import")({
   component: DeckImportPage,
 });
+
+// Used when the deck-name field is left empty. It is the field's placeholder, so
+// an importer who doesn't care about the name never has to clear a prefilled one.
+const DEFAULT_IMPORT_DECK_NAME = "Imported Deck";
+
+/**
+ * DOM id of a preview row, so the summary badges can scroll one into view.
+ * @returns The row element's id.
+ */
+function entryRowId(index: number): string {
+  return `deck-import-entry-${index}`;
+}
 
 // Problems first, matching the collection import flow: when zone and name tie,
 // surface the entries that still need attention before the resolved ones.
@@ -250,7 +263,7 @@ function DeckImportPage() {
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
   const [importMode, setImportMode] = useState<DeckImportMode>("auto");
-  const [deckName, setDeckName] = useState("Imported Deck");
+  const [deckName, setDeckName] = useState("");
   const [deckFormat, setDeckFormat] = useState<DeckFormat>(deckFormats[0]?.slug ?? "");
   const [matchedEntries, setMatchedEntries] = useState<DeckMatchedEntry[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
@@ -471,11 +484,7 @@ function DeckImportPage() {
   };
 
   const executeCreate = () => {
-    const trimmedName = deckName.trim();
-    if (!trimmedName) {
-      toast.error("Please enter a deck name.");
-      return;
-    }
+    const trimmedName = deckName.trim() || DEFAULT_IMPORT_DECK_NAME;
 
     setIsImporting(true);
     const cards = buildCards();
@@ -632,10 +641,16 @@ function InputStep({
 }) {
   const isReplaceMode = replaceDeckName !== undefined;
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-      <div>
-        <Heading level={2}>{isReplaceMode ? "Replace deck contents" : "Import Deck"}</Heading>
-        <p className="text-muted-foreground text-sm">
+    <>
+      <PageTopBarSticky maxWidth="2xl">
+        <PageTopBar>
+          <PageTopBarTitle>
+            {isReplaceMode ? "Replace deck contents" : "Import Deck"}
+          </PageTopBarTitle>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto w-full max-w-2xl space-y-6 pt-3", PAGE_PADDING_NO_TOP)}>
+        <PageDescription>
           {isReplaceMode ? (
             <>
               Paste a text list, deck code, TTS string, or share link to replace the cards in
@@ -664,84 +679,86 @@ function InputStep({
               .
             </>
           )}
-        </p>
-      </div>
+        </PageDescription>
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="import-mode">Format</Label>
-          <Select
-            value={importMode}
-            onValueChange={(value) => {
-              if (value !== null) {
-                onImportModeChange(value as DeckImportMode);
-              }
-            }}
-            items={IMPORT_MODE_LABELS}
-          >
-            <SelectTrigger id="import-mode" className="mb-0 w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {IMPORT_MODE_ORDER.map((mode) => (
-                <SelectItem key={mode} value={mode}>
-                  {IMPORT_MODE_LABELS[mode]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="import-mode">Format</Label>
+            <Select
+              value={importMode}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  onImportModeChange(value as DeckImportMode);
+                }
+              }}
+              items={IMPORT_MODE_LABELS}
+            >
+              <SelectTrigger id="import-mode" className="mb-0 w-full sm:w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {IMPORT_MODE_ORDER.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {IMPORT_MODE_LABELS[mode]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <p className="text-muted-foreground text-sm">{IMPORT_DESCRIPTIONS[importMode]}</p>
-        <Textarea
-          value={rawText}
-          onChange={(event) => onTextChange(event.target.value)}
-          placeholder={IMPORT_PLACEHOLDERS[importMode]}
-          className={cn(
-            "font-mono text-xs",
-            importMode === "piltover" ? "min-h-[120px]" : "min-h-[320px]",
-          )}
-        />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            onClick={() => onParse(rawText)}
-            disabled={rawText.trim().length === 0 || isParsing}
-          >
-            {isParsing ? (
-              <Loader2Icon className="mr-2 size-4 animate-spin" />
-            ) : (
-              <UploadIcon className="mr-2 size-4" />
+          <p className="text-muted-foreground text-sm">{IMPORT_DESCRIPTIONS[importMode]}</p>
+          <Textarea
+            value={rawText}
+            onChange={(event) => onTextChange(event.target.value)}
+            placeholder={IMPORT_PLACEHOLDERS[importMode]}
+            className={cn(
+              // text-base below md: iOS Safari zooms the viewport when a focused
+              // field is under 16px, and there is no maximum-scale to stop it.
+              "font-mono text-base md:text-xs",
+              importMode === "piltover" ? "min-h-[120px]" : "min-h-[240px] sm:min-h-[320px]",
             )}
-            Parse
-          </Button>
-
-          <div className="text-muted-foreground text-sm">or</div>
-
-          <Button variant="outline" onClick={() => fileRef.current?.click()}>
-            <FileUpIcon className="mr-2 size-4" />
-            Upload file
-          </Button>
-          <Input
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv,.txt,text/plain"
-            onChange={onFileUpload}
-            className="hidden"
           />
-        </div>
-      </div>
 
-      {parseWarnings.length > 0 && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {parseWarnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={() => onParse(rawText)}
+              disabled={rawText.trim().length === 0 || isParsing}
+            >
+              {isParsing ? (
+                <Loader2Icon className="mr-2 size-4 animate-spin" />
+              ) : (
+                <UploadIcon className="mr-2 size-4" />
+              )}
+              Parse
+            </Button>
+
+            <div className="text-muted-foreground text-sm">or</div>
+
+            <Button variant="outline" onClick={() => fileRef.current?.click()}>
+              <FileUpIcon className="mr-2 size-4" />
+              Upload file
+            </Button>
+            <Input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv,.txt,text/plain"
+              onChange={onFileUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {parseWarnings.length > 0 && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {parseWarnings.map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -811,151 +828,189 @@ function PreviewStep({
   onBack: () => void;
 }) {
   const isReplaceMode = replaceDeckName !== undefined;
-  const canImport = importableCount > 0 && (isReplaceMode || deckName.trim().length > 0);
+  const canImport = importableCount > 0;
+  const isMobile = useIsMobile();
+
+  // Rows are ordered by zone then name, so the ones needing attention are spread
+  // through the list. The badge below the list is the fastest way back to them.
+  const jumpToFirstNeedsAttention = () => {
+    const index = matchedEntries.findIndex(
+      (entry, entryIndex) =>
+        !skippedIndices.has(entryIndex) &&
+        classifyBucket(entry.status, entry.resolvedCard !== null) === "need-attention",
+    );
+    if (index === -1) {
+      return;
+    }
+    // block: "center" keeps the row clear of the sticky header and top bar
+    // without having to track their measured heights here.
+    document
+      .querySelector(`#${entryRowId(index)}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  // Built once and placed in exactly one of two slots (inline on desktop, the
+  // sticky bar on phones), so the label and disabled logic can't drift apart.
+  const importButton = (
+    <Button
+      variant={isReplaceMode ? "destructive" : "default"}
+      onClick={onImport}
+      disabled={!canImport || isImporting}
+      className="w-full sm:w-auto"
+    >
+      {isImporting ? (
+        <>
+          <Loader2Icon className="mr-2 size-4 animate-spin" />
+          {isReplaceMode ? "Replacing..." : "Importing..."}
+        </>
+      ) : isReplaceMode ? (
+        <>
+          Replace with {totalCards} {totalCards === 1 ? "card" : "cards"}
+        </>
+      ) : (
+        <>
+          Import {totalCards} {totalCards === 1 ? "card" : "cards"}
+        </>
+      )}
+    </Button>
+  );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-      <SectionHeader>
-        <SectionHeaderGroup>
-          <SectionHeaderTitle>
-            {isReplaceMode ? "Replace Preview" : "Import Preview"}
-          </SectionHeaderTitle>
-          <SectionHeaderDescription>
-            {matchedEntries.length} card{matchedEntries.length === 1 ? "" : "s"} parsed
-            {sourceNote ? ` (${sourceNote})` : null}
-            {isReplaceMode && replaceDeckName ? (
-              <>
-                {" "}
-                — replacing contents of{" "}
-                <strong className="text-foreground">&ldquo;{replaceDeckName}&rdquo;</strong>
-              </>
-            ) : null}
-          </SectionHeaderDescription>
-        </SectionHeaderGroup>
-        <SectionHeaderActions>
-          <Button variant="outline" size="sm" onClick={onBack}>
-            Back
-          </Button>
-        </SectionHeaderActions>
-      </SectionHeader>
-
-      {/* Entry list */}
-      <Accordion
-        multiple
-        value={expandedValues}
-        onValueChange={(value) => onExpandedValuesChange(value as string[])}
-        className="divide-border divide-y rounded-md border"
-      >
-        {matchedEntries.map((entry, index) => (
-          <DeckImportEntryRow
-            key={`${entry.entry.shortCode ?? entry.entry.cardName ?? ""}-${entry.zone}-${index}`}
-            entry={entry}
-            allPrintings={allPrintings}
-            index={index}
-            zoneOrder={zoneOrder}
-            zoneLabels={zoneLabels}
-            isSkipped={skippedIndices.has(index)}
-            onResolve={onResolve}
-            onZoneChange={onZoneChange}
-            onSkip={onSkip}
-            onUnskip={onUnskip}
-          />
-        ))}
-      </Accordion>
-
-      {/* Parse warnings */}
-      {parseWarnings.length > 0 && (
-        <Alert variant="warning">
-          <AlertTitle>
-            {parseWarnings.length} warning{parseWarnings.length === 1 ? "" : "s"} while parsing
-          </AlertTitle>
-          <AlertDescription>
-            {parseWarnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Summary + deck options + import button */}
-      <div className="bg-muted/50 space-y-4 rounded-md border p-4">
-        <ImportStatusBadges
-          readyCount={readyCount}
-          toVerifyCount={toVerifyCount}
-          needsAttentionCount={needsAttentionCount}
-          skippedCount={skippedCount}
-        />
-
-        <ImportToVerifyNote count={toVerifyCount} target="card" />
-
-        <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
-
-        <div className="flex flex-wrap items-end gap-3">
-          {!isReplaceMode && (
+    <>
+      <PageTopBarSticky maxWidth="3xl">
+        <PageTopBar>
+          <PageTopBarIconButton aria-label="Back" className="mr-1 -ml-2" onClick={onBack}>
+            <ArrowLeftIcon />
+          </PageTopBarIconButton>
+          <PageTopBarTitle>{isReplaceMode ? "Replace Preview" : "Import Preview"}</PageTopBarTitle>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto w-full max-w-3xl space-y-4 pt-3", PAGE_PADDING_NO_TOP)}>
+        <PageDescription>
+          {matchedEntries.length} card{matchedEntries.length === 1 ? "" : "s"} parsed
+          {sourceNote ? ` (${sourceNote})` : null}
+          {isReplaceMode && replaceDeckName ? (
             <>
-              <div className="space-y-1.5">
-                <Label htmlFor="preview-deck-name">Deck name</Label>
-                <Input
-                  id="preview-deck-name"
-                  value={deckName}
-                  onChange={(event) => onDeckNameChange(event.target.value)}
-                  className="w-[200px]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="preview-deck-format">Format</Label>
-                <Select
-                  value={deckFormat}
-                  onValueChange={(value) => {
-                    if (value !== null) {
-                      onDeckFormatChange(value);
-                    }
-                  }}
-                >
-                  <SelectTrigger id="preview-deck-format" className="mb-0 w-[140px]">
-                    <SelectValue>{(value: string) => deckFormatLabels[value] ?? value}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {deckFormats.map((entry) => (
-                      <SelectItem key={entry.slug} value={entry.slug}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {" "}
+              — replacing contents of{" "}
+              <strong className="text-foreground">&ldquo;{replaceDeckName}&rdquo;</strong>
             </>
-          )}
+          ) : null}
+        </PageDescription>
 
-          <Button
-            variant={isReplaceMode ? "destructive" : "default"}
-            onClick={onImport}
-            disabled={!canImport || isImporting}
-          >
-            {isImporting ? (
+        {/* Entry list */}
+        <Accordion
+          multiple
+          value={expandedValues}
+          onValueChange={(value) => onExpandedValuesChange(value as string[])}
+          className="divide-border divide-y rounded-md border"
+        >
+          {matchedEntries.map((entry, index) => (
+            <DeckImportEntryRow
+              key={`${entry.entry.shortCode ?? entry.entry.cardName ?? ""}-${entry.zone}-${index}`}
+              entry={entry}
+              allPrintings={allPrintings}
+              index={index}
+              zoneOrder={zoneOrder}
+              zoneLabels={zoneLabels}
+              isSkipped={skippedIndices.has(index)}
+              onResolve={onResolve}
+              onZoneChange={onZoneChange}
+              onSkip={onSkip}
+              onUnskip={onUnskip}
+            />
+          ))}
+        </Accordion>
+
+        {/* Parse warnings */}
+        {parseWarnings.length > 0 && (
+          <Alert variant="warning">
+            <AlertTitle>
+              {parseWarnings.length} warning{parseWarnings.length === 1 ? "" : "s"} while parsing
+            </AlertTitle>
+            <AlertDescription>
+              {parseWarnings.map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Summary + deck options + import button */}
+        <div className="bg-muted/50 space-y-4 rounded-md border p-4">
+          <ImportStatusBadges
+            readyCount={readyCount}
+            toVerifyCount={toVerifyCount}
+            needsAttentionCount={needsAttentionCount}
+            skippedCount={skippedCount}
+            onJumpToNeedsAttention={jumpToFirstNeedsAttention}
+          />
+
+          <ImportToVerifyNote count={toVerifyCount} target="card" />
+
+          <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            {!isReplaceMode && (
               <>
-                <Loader2Icon className="mr-2 size-4 animate-spin" />
-                {isReplaceMode ? "Replacing..." : "Importing..."}
-              </>
-            ) : isReplaceMode ? (
-              <>
-                Replace with {totalCards} {totalCards === 1 ? "card" : "cards"}
-              </>
-            ) : (
-              <>
-                Import {totalCards} {totalCards === 1 ? "card" : "cards"}
+                <div className="space-y-1.5">
+                  <Label htmlFor="preview-deck-name">Deck name</Label>
+                  <Input
+                    id="preview-deck-name"
+                    value={deckName}
+                    onChange={(event) => onDeckNameChange(event.target.value)}
+                    placeholder={DEFAULT_IMPORT_DECK_NAME}
+                    className="w-full sm:w-[200px]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="preview-deck-format">Format</Label>
+                  <Select
+                    value={deckFormat}
+                    onValueChange={(value) => {
+                      if (value !== null) {
+                        onDeckFormatChange(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="preview-deck-format" className="mb-0 w-full sm:w-[140px]">
+                      <SelectValue>
+                        {(value: string) => deckFormatLabels[value] ?? value}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deckFormats.map((entry) => (
+                        <SelectItem key={entry.slug} value={entry.slug}>
+                          {entry.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
-          </Button>
-          {needsAttentionCount > 0 && !isImporting && (
-            <span className="text-muted-foreground text-sm">
-              (skips {needsAttentionCount} unmatched)
-            </span>
-          )}
+
+            {/* On phones the button lives in the sticky bar below instead, so a
+                long entry list can't bury it. One or the other is rendered
+                (rather than a CSS-hidden pair) so only one Import control ever
+                exists in the DOM. */}
+            {!isMobile && importButton}
+            {needsAttentionCount > 0 && !isImporting && (
+              <span className="text-muted-foreground text-sm">
+                (skips {needsAttentionCount} unmatched)
+              </span>
+            )}
+          </div>
         </div>
+
+        {isMobile && (
+          <div className="bg-background/80 mx-safe-neg px-safe pb-safe sticky bottom-0 z-20 pt-2 backdrop-blur-lg">
+            {importButton}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -993,83 +1048,156 @@ function DeckImportEntryRow({
   onUnskip: (index: number) => void;
 }) {
   const [showSearch, setShowSearch] = useState(false);
-  const { icon: StatusIcon, className: statusColor } =
-    BUCKET_CONFIG[classifyBucket(entry.status, entry.resolvedCard !== null)];
+  const bucket = classifyBucket(entry.status, entry.resolvedCard !== null);
+  const { icon: StatusIcon, className: statusColor } = BUCKET_CONFIG[bucket];
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const displayName =
     entry.resolvedCard?.cardName ?? entry.entry.cardName ?? entry.entry.shortCode ?? "Unknown";
+  // These are the only controls on the preview step, so on touch they go up to
+  // the app's standard 32px control height instead of the desktop compact size.
+  const isMobile = useIsMobile();
+  // A matched row needs nothing done to it, and on a phone its three controls
+  // are most of the row's width. Fold them away with the raw fields so the list
+  // reads as a list of cards; rows that still need work keep theirs in reach.
+  // A skipped row keeps them too, so undoing the skip never takes two taps.
+  const foldActions = isMobile && bucket === "ready" && !isSkipped;
+
+  // The row's title is the card we landed on, which for a corrected name or a
+  // code-only source (deck codes, TTS) is not what the source said. Naming the
+  // match keeps the panel from reading as a contradiction. An exact name match
+  // needs no note — the source values already say it.
+  const sourceName = entry.entry.cardName?.trim();
+  const resolved = entry.resolvedCard;
+  const matchedNote =
+    resolved && (!sourceName || sourceName.toLowerCase() !== resolved.cardName.toLowerCase()) ? (
+      <>
+        Matched to <span className="text-foreground font-medium">{resolved.cardName}</span> (
+        {resolved.shortCode})
+      </>
+    ) : null;
+
+  const actions = (
+    <>
+      {entry.suggestedName && (
+        <span className="text-muted-foreground text-xs">
+          Did you mean <em>{entry.suggestedName}</em>?
+        </span>
+      )}
+      {showSearch ? (
+        <CardSearch
+          allPrintings={allPrintings}
+          onSelect={(card) => {
+            onResolve(index, card);
+            setShowSearch(false);
+          }}
+        />
+      ) : null}
+      <Button
+        variant="ghost"
+        size={isMobile ? "icon" : "xs"}
+        onClick={() => setShowSearch(!showSearch)}
+        aria-label={showSearch ? "Close search" : "Search catalog"}
+      >
+        {showSearch ? <XCircleIcon className="size-3.5" /> : <SearchIcon className="size-3.5" />}
+      </Button>
+      <ZonePicker
+        zone={entry.zone}
+        zoneOrder={zoneOrder}
+        zoneLabels={zoneLabels}
+        isMobile={isMobile}
+        onZoneChange={(zone) => onZoneChange(index, zone)}
+      />
+      {isSkipped ? (
+        <Button variant="ghost" size={isMobile ? "default" : "xs"} onClick={() => onUnskip(index)}>
+          Unskip
+        </Button>
+      ) : (
+        <Button variant="ghost" size={isMobile ? "default" : "xs"} onClick={() => onSkip(index)}>
+          Skip
+        </Button>
+      )}
+    </>
+  );
+
+  const hasDetails = rawFieldEntries.length > 0 || matchedNote !== null;
+  const hasPanel = hasDetails || foldActions;
+
+  // The same icon in both arrangements below: `group` sits on whichever element
+  // is the accordion trigger, so the rotation follows the panel either way.
+  const chevronIcon = (
+    <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
+  );
+
+  const row = (
+    <ImportRowShell
+      chevron={
+        foldActions ? (
+          <span className="text-muted-foreground">{chevronIcon}</span>
+        ) : (
+          <AccordionPrimitive.Header className="flex">
+            {/* -m-2 p-2 grows the hit area to 32px without moving anything: the
+                padding and the negative margin cancel in the layout box. */}
+            <AccordionPrimitive.Trigger
+              className="group text-muted-foreground hover:text-foreground -m-2 shrink-0 p-2 outline-none"
+              disabled={!hasPanel}
+              aria-label="Toggle import details"
+            >
+              {chevronIcon}
+            </AccordionPrimitive.Trigger>
+          </AccordionPrimitive.Header>
+        )
+      }
+      statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
+      quantity={entry.entry.quantity}
+      code={entry.entry.shortCode}
+      name={displayName}
+      actions={foldActions ? null : actions}
+      trailing={
+        // Which zone a card lands in is the one thing the folded row would
+        // otherwise stop reporting. Once open, the picker below says it, so
+        // the label steps aside rather than stating the zone twice.
+        //
+        // Hidden by CSS off the trigger's own open state, never by unmounting:
+        // this label sits inside the row-wide trigger, and a subtree that
+        // changes on every click makes a click mid-transition read as a fresh
+        // open instead of a reverse.
+        foldActions ? (
+          <span className="text-muted-foreground text-xs group-data-[panel-open]:hidden">
+            {zoneLabels[entry.zone]}
+          </span>
+        ) : null
+      }
+    />
+  );
 
   return (
     <AccordionItem
+      id={entryRowId(index)}
       value={String(index)}
       className={cn("not-last:border-b-0", isSkipped && "opacity-40")}
     >
-      <ImportRowShell
-        chevron={
-          <AccordionPrimitive.Header className="flex">
-            <AccordionPrimitive.Trigger
-              className="group text-muted-foreground hover:text-foreground shrink-0 outline-none"
-              disabled={rawFieldEntries.length === 0}
-              aria-label="Toggle raw fields"
-            >
-              <ChevronRightIcon className="size-4 transition-transform group-data-[panel-open]:rotate-90" />
-            </AccordionPrimitive.Trigger>
-          </AccordionPrimitive.Header>
-        }
-        statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
-        quantity={entry.entry.quantity}
-        code={entry.entry.shortCode}
-        name={displayName}
-        nameSuffix={zoneLabels[entry.zone]}
-        actions={
-          <>
-            {entry.suggestedName && (
-              <span className="text-muted-foreground text-xs">
-                Did you mean <em>{entry.suggestedName}</em>?
-              </span>
-            )}
-            {showSearch ? (
-              <CardSearch
-                allPrintings={allPrintings}
-                onSelect={(card) => {
-                  onResolve(index, card);
-                  setShowSearch(false);
-                }}
-              />
-            ) : null}
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => setShowSearch(!showSearch)}
-              aria-label={showSearch ? "Close search" : "Search catalog"}
-            >
-              {showSearch ? (
-                <XCircleIcon className="size-3.5" />
-              ) : (
-                <SearchIcon className="size-3.5" />
-              )}
-            </Button>
-            <ZonePicker
-              zone={entry.zone}
-              zoneOrder={zoneOrder}
-              zoneLabels={zoneLabels}
-              onZoneChange={(zone) => onZoneChange(index, zone)}
-            />
-            {isSkipped ? (
-              <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
-                Unskip
-              </Button>
-            ) : (
-              <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
-                Skip
-              </Button>
-            )}
-          </>
-        }
-      />
-      {rawFieldEntries.length > 0 && (
-        <AccordionContent className="bg-muted/30 border-border border-t px-4 py-2">
-          <ImportRowRawFields entries={rawFieldEntries} />
+      {/* With the controls folded away the row holds nothing else clickable, so
+          the whole row becomes the trigger — a chevron-sized target is a poor
+          one on a phone. Rows that keep their controls can't do this: the
+          buttons and the zone select would end up nested inside the trigger. */}
+      {foldActions ? (
+        <AccordionPrimitive.Header className="flex">
+          <AccordionPrimitive.Trigger className="group focus-visible:ring-ring hover:bg-muted/40 w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-inset">
+            {row}
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
+      ) : (
+        row
+      )}
+      {/* No top border on the panel: the list already draws a divider between
+          rows, and a second line there splits one entry into what looks like
+          two. The muted fill is enough to mark the panel as part of its row. */}
+      {hasPanel && (
+        <AccordionContent className="bg-muted/30 px-4 py-2">
+          <div className="space-y-2">
+            {foldActions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+            {hasDetails && <ImportRowRawFields entries={rawFieldEntries} matched={matchedNote} />}
+          </div>
         </AccordionContent>
       )}
     </AccordionItem>
@@ -1084,11 +1212,14 @@ function ZonePicker({
   zone,
   zoneOrder,
   zoneLabels,
+  isMobile,
   onZoneChange,
 }: {
   zone: DeckZone;
   zoneOrder: DeckZone[];
   zoneLabels: Record<DeckZone, string>;
+  /** Touch sizing for the trigger and its options; owned by the calling row. */
+  isMobile: boolean;
   onZoneChange: (zone: DeckZone) => void;
 }) {
   // Overflow is not user-assignable
@@ -1100,12 +1231,15 @@ function ZonePicker({
       onValueChange={(value) => onZoneChange(value as DeckZone)}
       items={Object.fromEntries(assignableZones.map((zoneKey) => [zoneKey, zoneLabels[zoneKey]]))}
     >
-      <SelectTrigger size="sm" className="h-7 w-auto text-xs">
+      <SelectTrigger
+        size={isMobile ? "default" : "sm"}
+        className={cn("w-auto", !isMobile && "h-7 text-xs")}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="w-auto">
         {assignableZones.map((zoneKey) => (
-          <SelectItem key={zoneKey} value={zoneKey} className="py-1.5">
+          <SelectItem key={zoneKey} value={zoneKey} className={isMobile ? "py-2.5" : "py-1.5"}>
             {zoneLabels[zoneKey]}
           </SelectItem>
         ))}
@@ -1131,6 +1265,9 @@ function CardSearch({
     <ImportCatalogSearch<ResolvedCard>
       ariaLabel="Search cards"
       placeholder="Search cards..."
+      // Full width on phones: the cluster is already indented under the card
+      // name, so the default 176px box leaves too little room to read a result.
+      inputClassName="h-8 w-full sm:h-7 sm:w-44"
       getResults={(query) => deduplicateToCards(allPrintings, query).slice(0, MAX_SEARCH_RESULTS)}
       getKey={(card) => card.cardId}
       renderItem={(card) => (

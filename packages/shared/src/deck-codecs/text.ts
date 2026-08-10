@@ -150,7 +150,7 @@ export function parseTextFormat(code: string): DeckCodeParseResult {
       // Only set explicitZone when a zone header was provided by the user.
       // Without it, inferZone() assigns the correct zone based on card type.
       explicitZone: currentZone,
-      rawFields: { Name: cardName, Zone: ZONE_LABELS[effectiveZone] },
+      rawFields: { "Parsed Name": cardName, Zone: ZONE_LABELS[effectiveZone] },
     });
   }
 

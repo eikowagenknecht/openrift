@@ -69,7 +69,7 @@ export function ImportEntryRow({
             className="text-muted-foreground hover:text-foreground shrink-0"
             chevronClassName="text-inherit"
             onClick={() => onToggleExpand(index)}
-            aria-label={isExpanded ? "Collapse raw fields" : "Expand raw fields"}
+            aria-label={isExpanded ? "Collapse import details" : "Expand import details"}
           />
         }
         statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
@@ -124,7 +124,7 @@ export function ImportEntryRow({
         }
       />
       {isExpanded && rawFieldEntries.length > 0 && (
-        <div className="bg-muted/30 border-border border-t px-4 py-2">
+        <div className="bg-muted/30 px-4 py-2">
           <ImportRowRawFields entries={rawFieldEntries} />
         </div>
       )}

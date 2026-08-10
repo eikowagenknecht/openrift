@@ -2,12 +2,17 @@ import { CheckCircle2Icon, ChevronRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Pressable } from "@/components/ui/pressable";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 
 /**
  * The status badge row shown above the import button on every import preview
  * (collections, decks, lists). Counts of zero are omitted, except `ready` which
  * always shows so the row is never empty.
+ *
+ * The badge row sits below the entry list, so with `onJumpToNeedsAttention` the
+ * needs-attention count becomes the way back to the first row that needs work —
+ * those rows are ordered among all the others, not gathered at the top.
  * @returns The badge row.
  */
 export function ImportStatusBadges({
@@ -15,19 +20,37 @@ export function ImportStatusBadges({
   toVerifyCount,
   needsAttentionCount,
   skippedCount,
+  onJumpToNeedsAttention,
 }: {
   readyCount: number;
   toVerifyCount: number;
   needsAttentionCount: number;
   skippedCount: number;
+  /** Makes the needs-attention badge a button that scrolls to the first such row. */
+  onJumpToNeedsAttention?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant="success">{readyCount} ready</Badge>
       {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
-      {needsAttentionCount > 0 && (
-        <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
-      )}
+      {needsAttentionCount > 0 &&
+        (onJumpToNeedsAttention ? (
+          <Badge
+            variant="destructive"
+            render={<Pressable />}
+            // The badge's own hover rules only target anchors, so a button
+            // rendering needs its feedback spelled out.
+            className="hover:bg-destructive/20 dark:hover:bg-destructive/30"
+            aria-label={`Jump to the first of ${needsAttentionCount} ${
+              needsAttentionCount === 1 ? "row" : "rows"
+            } that need attention`}
+            onClick={onJumpToNeedsAttention}
+          >
+            {needsAttentionCount} need attention
+          </Badge>
+        ) : (
+          <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
+        ))}
       {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
     </div>
   );

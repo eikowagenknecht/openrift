@@ -76,6 +76,7 @@ export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 const STICKY_MAX_WIDTH = {
   md: "max-w-md",
   "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
   "5xl": "max-w-5xl",
   "6xl": "max-w-6xl",

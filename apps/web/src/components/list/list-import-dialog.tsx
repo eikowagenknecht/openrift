@@ -116,7 +116,9 @@ function InputStep({
           value={rawText}
           onChange={(event) => onTextChange(event.target.value)}
           placeholder={"1 Teemo, Scout\n3 Jinx, Rebel"}
-          className="min-h-[200px] font-mono text-xs"
+          // text-base below md: iOS Safari zooms the viewport when a focused
+          // field is under 16px, and there is no maximum-scale to stop it.
+          className="min-h-[200px] font-mono text-base md:text-xs"
         />
 
         <div className="flex flex-wrap items-center justify-end gap-3">
