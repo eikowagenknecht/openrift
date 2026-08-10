@@ -78,6 +78,10 @@ export const collectionResponseSchema = z
     groupSlug: z.string().nullable(),
     groupName: z.string().nullable(),
     viewerCanAdmin: z.boolean(),
+    // The caller's decks that are stored in this collection (their deck box).
+    // Owner-scoped: a group member never sees another member's deck here.
+    // Usually empty or one entry, but two decks may share a box.
+    homeDecks: z.array(z.object({ id: z.string(), name: z.string() })),
   })
   .openapi("CollectionResponse");
 

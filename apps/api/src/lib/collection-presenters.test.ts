@@ -44,7 +44,30 @@ describe("toCollection", () => {
       groupName: null,
       viewerCanAdmin: true,
       sidebarHidden: false,
+      homeDecks: [],
     });
+  });
+
+  it("names the decks stored in the collection", () => {
+    const row = {
+      id: "col-1",
+      userId: "user-1",
+      groupId: null,
+      name: "Deckbox 1",
+      description: null,
+      availableForDeckbuilding: false,
+      isInbox: false,
+      sortOrder: 1,
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+    };
+    expect(
+      toCollection(row, undefined, [{ id: "deck-1", name: "Sunfire Aggro" }]).homeDecks,
+    ).toEqual([{ id: "deck-1", name: "Sunfire Aggro" }]);
+    // A caller that doesn't resolve deck boxes reports none rather than guessing.
+    expect(toCollection(row).homeDecks).toEqual([]);
   });
 
   it("presents the viewer's sidebar-hidden preference, defaulting to visible", () => {

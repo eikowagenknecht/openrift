@@ -211,6 +211,8 @@ export const deckSummaryResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
+    /** Owner-only: the collection the deck is stored in, or null. */
+    collectionId: z.string().nullable(),
   })
   .openapi("DeckSummaryResponse");
 

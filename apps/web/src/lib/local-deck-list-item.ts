@@ -107,6 +107,9 @@ export function localDeckToListItem(
       coverPosition: localDeck.coverPosition,
       createdAt: localDeck.createdAt,
       updatedAt: localDeck.updatedAt,
+      // A browser-local deck can't reference a server collection (ADR-035),
+      // so it never has a deck box.
+      collectionId: null,
     },
     legendCardId: legend?.cardId ?? null,
     championCardId: champion?.cardId ?? null,

@@ -15,6 +15,7 @@ import type { Updateable } from "kysely";
 import type { CollectionsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
 import { assertFound } from "../../lib/assertions.js";
+import type { HomeDeck } from "../../lib/collection-presenters.js";
 import { toCollection } from "../../lib/collection-presenters.js";
 import { toCopy } from "../../lib/copy-presenters.js";
 import { getFavoriteMarketplace } from "../../lib/preferences.js";
@@ -35,6 +36,29 @@ const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
 const os = implement(collectionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
+ * Which of the caller's decks live in which collection, so a collection can
+ * present itself as a deck box. Scoped to the caller, so a group member never
+ * learns where another member stores their decks.
+ * @returns Deck names keyed by the collection they are stored in.
+ */
+async function homeDecksByCollection(
+  repos: ApiContext["repos"],
+  userId: string,
+): Promise<Map<string, HomeDeck[]>> {
+  const rows = await repos.decks.listHomeCollectionDecks(userId);
+  const byCollection = new Map<string, HomeDeck[]>();
+  for (const row of rows) {
+    const bucket = byCollection.get(row.collectionId);
+    if (bucket) {
+      bucket.push({ id: row.id, name: row.name });
+    } else {
+      byCollection.set(row.collectionId, [{ id: row.id, name: row.name }]);
+    }
+  }
+  return byCollection;
+}
+
+/**
  * Authenticated collections contract (mounted at `/api/v1/collections`).
  * Not-found / forbidden / conflict states are thrown as `AppError` and mapped
  * by the handler's appErrorInterceptor.
@@ -46,11 +70,16 @@ export const collectionsRouter = {
     const userId = context.userId;
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const rows = await repos.collections.listAccessibleForUser(userId);
-    const values = await repos.marketplace.collectionValues(
-      rows.map((row) => row.id),
-      favMarketplace,
-    );
-    return { items: rows.map((row) => toCollection(row, values.get(row.id))) };
+    const [values, homeDecks] = await Promise.all([
+      repos.marketplace.collectionValues(
+        rows.map((row) => row.id),
+        favMarketplace,
+      ),
+      homeDecksByCollection(repos, userId),
+    ]);
+    return {
+      items: rows.map((row) => toCollection(row, values.get(row.id), homeDecks.get(row.id))),
+    };
   }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -115,7 +144,12 @@ export const collectionsRouter = {
     assertFound(access, "Not found");
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const value = await repos.marketplace.singleCollectionValue(input.id, favMarketplace);
-    return toCollection({ ...access.collection, viewerCanAdmin: access.viewerCanAdmin }, value);
+    const homeDecks = await homeDecksByCollection(repos, userId);
+    return toCollection(
+      { ...access.collection, viewerCanAdmin: access.viewerCanAdmin },
+      value,
+      homeDecks.get(input.id),
+    );
   }),
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
@@ -130,15 +164,22 @@ export const collectionsRouter = {
     const updates = buildPatchUpdates<Updateable<CollectionsTable>>(input, patchFields);
     const row = await collections.updateById(input.id, updates);
     assertFound(row, "Not found");
-    return toCollection({
-      ...row,
-      // Deck-building availability is per-viewer and untouched by this
-      // admin-gated edit; carry over the value resolved during access check.
-      availableForDeckbuilding: access.collection.availableForDeckbuilding,
-      groupSlug: access.collection.groupSlug,
-      groupName: access.collection.groupName,
-      viewerCanAdmin: access.viewerCanAdmin,
-    });
+    // A rename doesn't touch which decks live here, but the response is a full
+    // collection — resolve them so it doesn't read as "no decks".
+    const homeDecks = await homeDecksByCollection(context.repos, userId);
+    return toCollection(
+      {
+        ...row,
+        // Deck-building availability is per-viewer and untouched by this
+        // admin-gated edit; carry over the value resolved during access check.
+        availableForDeckbuilding: access.collection.availableForDeckbuilding,
+        groupSlug: access.collection.groupSlug,
+        groupName: access.collection.groupName,
+        viewerCanAdmin: access.viewerCanAdmin,
+      },
+      undefined,
+      homeDecks.get(input.id),
+    );
   }),
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────

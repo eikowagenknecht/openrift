@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
+import { DeckBoxMarker } from "./deck-box-marker";
 import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
@@ -110,11 +111,18 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
             )}
             <span className="truncate font-medium">{deck.name}</span>
           </div>
-          <DeckIdentityLine
-            legendCard={legendCard}
-            championCard={championCard}
-            tagSummary={tagSummary}
-          />
+          {/* The box shares the subtitle line rather than taking one of its
+              own: the row is one line tall on desktop and the identity text
+              yields width before the box name does. */}
+          <div className="flex min-w-0 items-baseline gap-2">
+            <DeckIdentityLine
+              legendCard={legendCard}
+              championCard={championCard}
+              tagSummary={tagSummary}
+              className="min-w-0"
+            />
+            <DeckBoxMarker collectionId={deck.collectionId} className="max-w-32 shrink-0" />
+          </div>
           {/* Below md there isn't width for both the columns and a readable
               name, so the same facts wrap under the name instead — which is
               also what stops phones losing them entirely, as they used to. */}

@@ -44,6 +44,14 @@ const mockCopiesRepo = {
   listForCollection: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+// Which of the caller's decks are stored in which collection — the source of
+// each response's `homeDecks`.
+const mockDecksRepo = {
+  listHomeCollectionDecks: vi.fn(() =>
+    Promise.resolve([] as { id: string; name: string; collectionId: string }[]),
+  ),
+};
+
 const mockUserPreferencesRepo = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
@@ -72,6 +80,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     collections: mockCollectionsRepo,
     copies: mockCopiesRepo,
+    decks: mockDecksRepo,
     marketplace: mockMarketplaceRepo,
     userPreferences: mockUserPreferencesRepo,
     friendGroups: mockFriendGroupsRepo,
@@ -192,6 +201,21 @@ describe("GET /api/v1/collections", () => {
     expect(json.items[0].name).toBe("Inbox");
     expect(json.items[2].groupSlug).toBe("friday-night");
     expect(json.items[2].viewerCanAdmin).toBe(false);
+  });
+
+  // A collection that is some deck's box says so, and only on that collection.
+  it("names the decks stored in each collection", async () => {
+    mockCollectionsRepo.listAccessibleForUser.mockResolvedValue([
+      { ...dbInbox, groupSlug: null, groupName: null, viewerCanAdmin: true, copyCount: 0 },
+      { ...dbCollection, groupSlug: null, groupName: null, viewerCanAdmin: true, copyCount: 0 },
+    ]);
+    mockDecksRepo.listHomeCollectionDecks.mockResolvedValue([
+      { id: "deck-1", name: "Sunfire Aggro", collectionId: dbCollection.id },
+    ]);
+    const res = await app.request("/api/v1/collections");
+    const json = await readJson(res);
+    expect(json.items[0].homeDecks).toEqual([]);
+    expect(json.items[1].homeDecks).toEqual([{ id: "deck-1", name: "Sunfire Aggro" }]);
   });
 
   it("no longer calls ensureInbox (moved to account creation)", async () => {

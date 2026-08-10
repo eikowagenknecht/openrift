@@ -24,6 +24,7 @@ function stubCollection(overrides: Partial<CollectionResponse> = {}): Collection
     groupSlug: null,
     groupName: null,
     viewerCanAdmin: true,
+    homeDecks: [],
     ...overrides,
   };
 }

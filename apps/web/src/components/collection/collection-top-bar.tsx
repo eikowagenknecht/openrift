@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
+  BoxIcon,
   CameraIcon,
   EllipsisVerticalIcon,
   LayersIcon,
@@ -18,15 +19,22 @@ import {
   PageTopBarIconButton,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { deckBoxLabel } from "@/lib/deck-box-label";
 
 interface CollectionTopBarProps {
   title: string;
+  /**
+   * The viewer's decks stored in this collection. Rendered as a chip next to
+   * the title so the box says which deck it holds, and links to it.
+   */
+  homeDecks: { id: string; name: string }[];
   onToggleSidebar: () => void;
   mode: "browse" | "select";
   valueCents: number | null | undefined;
@@ -66,6 +74,7 @@ interface CollectionTopBarProps {
 
 export function CollectionTopBar({
   title,
+  homeDecks,
   onToggleSidebar,
   mode,
   valueCents,
@@ -99,11 +108,32 @@ export function CollectionTopBar({
   // never over the empty state, which offers its own pair.
   const canAdd = Boolean(addTarget) && mode === "browse" && showAddActions;
   const showAddMenuItems = canAdd && !addActionsInBar;
+  const boxLabel = deckBoxLabel(homeDecks);
+  const singleHomeDeck = homeDecks.length === 1 ? homeDecks[0] : undefined;
 
   return (
     <PageTopBar>
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
+
+        {/* One deck gets a link straight to it; several would need a menu the
+            bar has no room for, so they only get named. */}
+        {boxLabel && (
+          <Badge variant="muted" className="shrink-0 gap-1 self-center">
+            <BoxIcon className="size-3" />
+            {singleHomeDeck ? (
+              <Link
+                to="/decks/$deckId"
+                params={{ deckId: singleHomeDeck.id }}
+                className="max-w-32 truncate underline-offset-2 hover:underline"
+              >
+                {boxLabel}
+              </Link>
+            ) : (
+              <span className="max-w-32 truncate">{boxLabel}</span>
+            )}
+          </Badge>
+        )}
 
         <CollectionValueSummary
           valueCents={valueCents}

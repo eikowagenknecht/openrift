@@ -23,6 +23,15 @@ interface CreateCollectionDialogProps {
   groupSlug?: string;
   /** Display name for the group, used in the dialog title/description. */
   groupName?: string;
+  /** Overrides the heading, for callers creating a collection for one purpose (a deck box). */
+  title?: string;
+  /** Overrides the explanatory line under the heading. */
+  description?: string;
+  /**
+   * Creates the collection excluded from deck building. A deck box wants this:
+   * its cards should only count for the deck stored in it.
+   */
+  availableForDeckbuilding?: boolean;
 }
 
 /**
@@ -36,6 +45,9 @@ export function CreateCollectionDialog({
   onCreated,
   groupSlug,
   groupName,
+  title,
+  description,
+  availableForDeckbuilding,
 }: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
   const createCollection = useCreateCollection();
@@ -54,7 +66,11 @@ export function CreateCollectionDialog({
       return;
     }
     createCollection.mutate(
-      { name: trimmed, ...(groupSlug ? { groupSlug } : {}) },
+      {
+        name: trimmed,
+        ...(groupSlug ? { groupSlug } : {}),
+        ...(availableForDeckbuilding === undefined ? {} : { availableForDeckbuilding }),
+      },
       {
         onSuccess: (collection) => {
           onCreated?.(collection.id);
@@ -68,11 +84,14 @@ export function CreateCollectionDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isShared ? "New shared collection" : "New collection"}</DialogTitle>
+          <DialogTitle>
+            {title ?? (isShared ? "New shared collection" : "New collection")}
+          </DialogTitle>
           <DialogDescription>
-            {isShared
-              ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards. Group admins can rename or delete it.`
-              : "A collection holds physical copies you own. You can rename or delete it later."}
+            {description ??
+              (isShared
+                ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards. Group admins can rename or delete it.`
+                : "A collection holds physical copies you own. You can rename or delete it later.")}
           </DialogDescription>
         </DialogHeader>
         <form

@@ -683,6 +683,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const collectionTopBar = (
     <CollectionTopBar
       title={title}
+      // Only a single collection can be a deck's box; the "All cards" and list
+      // aggregates have no one collection to speak for.
+      homeDecks={currentCollection?.homeDecks ?? []}
       onToggleSidebar={toggleSidebar}
       mode={mode}
       valueCents={valueCents}

@@ -5,6 +5,7 @@ import type { CollectionResponse, ListIntent, ListResponse } from "@openrift/sha
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  BoxIcon,
   ChartBarIcon,
   ChevronRightIcon,
   HistoryIcon,
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useCollections, useReorderCollections } from "@/hooks/use-collections";
 import { useLists, useReorderLists } from "@/hooks/use-lists";
+import { deckBoxLabel } from "@/lib/deck-box-label";
 import { splitSidebarRows } from "@/lib/sidebar-visibility";
 import type { SidebarGroupKey } from "@/stores/sidebar-fold-store";
 import { moreKey, useSidebarFoldStore } from "@/stores/sidebar-fold-store";
@@ -451,6 +453,9 @@ function PersonalCollectionsGroup({
                       isActive={activeId === col.id}
                       // Keep the row highlighted while the cursor is over the desktop grip (which overlays the button); max-md:pr-8 reserves room for the mobile grip on the right.
                       className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground max-md:pr-8"
+                      // A deck box says so on hover; the row itself has no width
+                      // to spare for the deck's name next to the count badge.
+                      title={deckBoxLabel(col.homeDecks)}
                       render={
                         <Link
                           to="/collections/$collectionId"
@@ -459,7 +464,11 @@ function PersonalCollectionsGroup({
                         />
                       }
                     >
-                      <BookOpenIcon className={SIDEBAR_ROW_ICON_CLASS} />
+                      {col.homeDecks.length > 0 ? (
+                        <BoxIcon className={SIDEBAR_ROW_ICON_CLASS} />
+                      ) : (
+                        <BookOpenIcon className={SIDEBAR_ROW_ICON_CLASS} />
+                      )}
                       <span className="flex-1 truncate">{col.name}</span>
                       {col.copyCount > 0 && (
                         <Badge variant="ghost" className="text-2xs ml-auto">
@@ -526,6 +535,9 @@ function SharedCollectionsGroup({
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={activeId === col.id}
+                // Group binders can no longer be picked as a deck box, but a
+                // deck linked to one before that rule still lives here.
+                title={deckBoxLabel(col.homeDecks)}
                 render={
                   <Link
                     to="/collections/$collectionId"
@@ -534,7 +546,7 @@ function SharedCollectionsGroup({
                   />
                 }
               >
-                <BookOpenIcon />
+                {col.homeDecks.length > 0 ? <BoxIcon /> : <BookOpenIcon />}
                 <span className="flex-1 truncate">{col.name}</span>
                 {col.copyCount > 0 && (
                   <Badge variant="ghost" className="text-2xs ml-auto">

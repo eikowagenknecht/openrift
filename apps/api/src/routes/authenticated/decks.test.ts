@@ -474,7 +474,9 @@ describe("PATCH /api/v1/decks/:id", () => {
   });
 
   it("sets the home collection when the user can reach it", async () => {
-    mockCollections.getAccessForUser.mockResolvedValue({ collection: { id: COLLECTION_ID } });
+    mockCollections.getAccessForUser.mockResolvedValue({
+      collection: { id: COLLECTION_ID, groupId: null },
+    });
     mockRepo.update.mockResolvedValue({ ...dbDeck, collectionId: COLLECTION_ID });
     const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
       method: "PATCH",
@@ -494,6 +496,22 @@ describe("PATCH /api/v1/decks/:id", () => {
       body: JSON.stringify({ collectionId: COLLECTION_ID }),
     });
     expect(res.status).toBe(404);
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+
+  // A group binder is communal — filling a deck from one would hand personal
+  // copies to the group, so it can't be a deck box.
+  it("rejects a group collection as the home collection", async () => {
+    mockRepo.update.mockClear();
+    mockCollections.getAccessForUser.mockResolvedValue({
+      collection: { id: COLLECTION_ID, groupId: "d0000000-0001-4000-a000-000000000001" },
+    });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(400);
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
 

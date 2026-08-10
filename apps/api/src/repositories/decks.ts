@@ -103,6 +103,25 @@ export function decksRepo(db: Kysely<Database>) {
       return rows.map((row) => withParsedFormatConfig(row));
     },
 
+    /**
+     * The user's decks that name a home collection, so the collections list can
+     * mark which of them are deck boxes. Archived decks are included — an
+     * archived deck still physically sits in its box.
+     * @returns Deck id, name, and the collection it is stored in, ordered by name.
+     */
+    listHomeCollectionDecks(
+      userId: string,
+    ): Promise<{ id: string; name: string; collectionId: string }[]> {
+      return db
+        .selectFrom("decks")
+        .select(["id", "name", "collectionId"])
+        .where("userId", "=", userId)
+        .where("collectionId", "is not", null)
+        .orderBy((eb) => eb.fn("lower", ["name"]))
+        .$narrowType<{ collectionId: string }>()
+        .execute();
+    },
+
     /** @returns A single deck by ID scoped to a user, or `undefined`. */
     async getByIdForUser(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
       const row = await db

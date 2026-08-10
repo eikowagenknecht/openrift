@@ -54,6 +54,9 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
+    // Owner-only, like on the full deck: the list only ever renders the
+    // caller's own decks.
+    collectionId: row.collectionId,
   };
 }
 

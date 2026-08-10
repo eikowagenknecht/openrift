@@ -1,6 +1,7 @@
 import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
 import { deckIdentityLabels, legendDisplayName } from "@openrift/shared";
-import { CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { BoxIcon, CheckCircle2Icon, LogInIcon, PackageSearchIcon } from "lucide-react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
@@ -44,6 +45,11 @@ interface DeckHeroProps {
   onViewMissing?: () => void;
   /** When set, the legend/champion names in the subtitle open the card detail. */
   onCardClick?: (card: DeckBuilderCard) => void;
+  /**
+   * The collection this deck is physically stored in. Owner-only — the public
+   * share page never resolves one, so the chip stays off there.
+   */
+  box?: { id: string; name: string };
   /** Owner attribution rendered next to the deck name ("by …"). */
   byline?: React.ReactNode;
   /** Action row rendered under the status chips — the share page's copy CTA. */
@@ -197,6 +203,7 @@ export function DeckHero({
   signInHref,
   onViewMissing,
   onCardClick,
+  box,
   byline,
   actions,
 }: DeckHeroProps) {
@@ -499,6 +506,21 @@ export function DeckHero({
                         </span>
                       ))}
                   </>
+                )}
+                {/* Outside the card-count guard: an empty deck can already have
+                    a box assigned, and where it lives is worth saying then too. */}
+                {box && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    className={chipButtonClass()}
+                    render={
+                      <Link to="/collections/$collectionId" params={{ collectionId: box.id }} />
+                    }
+                  >
+                    <BoxIcon className="size-3" />
+                    <span className="max-w-40 truncate">{box.name}</span>
+                  </Button>
                 )}
               </div>
 

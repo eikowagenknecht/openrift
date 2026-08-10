@@ -429,6 +429,17 @@ export const decksRouter = {
     if (input.collectionId !== undefined && input.collectionId !== null) {
       const access = await collections.getAccessForUser(input.collectionId, userId);
       assertFound(access, "Collection not found");
+      // A deck box is a box you own. A group binder is communal, and pulling
+      // personal copies into one hands them to the group, so it can't be the
+      // box a deck is filled from. Decks linked to one before this rule keep
+      // working; they just can't be re-pointed at another group binder.
+      if (access.collection.groupId !== null) {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          "A deck box must be one of your own collections",
+        );
+      }
     }
     // Decide which format the resulting deck will be under, so format_config
     // is validated against the right shape — input.format wins, falling back

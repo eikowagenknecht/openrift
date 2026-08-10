@@ -35,10 +35,12 @@ function renderTopBar(overrides: {
   addActionsInBar: boolean;
   hasCards?: boolean;
   showAddActions?: boolean;
+  homeDecks?: { id: string; name: string }[];
 }) {
   render(
     <CollectionTopBar
       title="Binder"
+      homeDecks={[]}
       onToggleSidebar={() => {}}
       mode="browse"
       valueCents={1234}

@@ -33,7 +33,17 @@ export type CollectionViewRow = Selectable<CollectionsTable> & {
   viewerCanAdmin?: boolean;
 };
 
-export function toCollection(row: CollectionViewRow, value?: CollectionValue): CollectionResponse {
+/** A deck stored in this collection, as named by {@link CollectionResponse.homeDecks}. */
+export interface HomeDeck {
+  id: string;
+  name: string;
+}
+
+export function toCollection(
+  row: CollectionViewRow,
+  value?: CollectionValue,
+  homeDecks?: readonly HomeDeck[],
+): CollectionResponse {
   return {
     id: row.id,
     name: row.name,
@@ -53,6 +63,9 @@ export function toCollection(row: CollectionViewRow, value?: CollectionValue): C
     groupSlug: row.groupSlug ?? null,
     groupName: row.groupName ?? null,
     viewerCanAdmin: row.viewerCanAdmin ?? row.userId !== null,
+    // Callers that don't resolve deck boxes present the collection as holding
+    // none, rather than claiming a deck it can't confirm.
+    homeDecks: homeDecks ? [...homeDecks] : [],
   };
 }
 

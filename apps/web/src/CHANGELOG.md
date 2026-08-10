@@ -7,7 +7,7 @@
 - feat(Decks): **Deck import on phones** — the preview reads as a list of cards, matched rows tuck their controls behind a tap, and the import button stays in reach at the bottom.
 - feat(Decks): **Card details from the missing list** — clicking a card in a deck's missing-cards list now opens its details over the list, with arrow keys stepping through the cards you still need, instead of leaving the page.
 - feat(Decks): **Tokens your deck needs** — deck and shared deck pages now list the tokens your cards create as one more section of the deck, and clicking one opens its card details.
-- feat(Decks): **Tell a deck which box it lives in** — pick a deck's storage collection and its cards count as available for that deck, even when the collection is off for deck building.
+- feat(Decks): **Tell a deck which box it lives in** — pick or create the box a deck is stored in, see it on the deck page, its tiles and the collection itself, and its cards count as available for that deck even when the collection is off for deck building.
 - feat(Decks): **Deck value is what it costs, not what's pinned** — every price on the deck page now uses the cheapest printing in your languages, so pinning a premium art no longer inflates the value; the premium figure moved into the value popup.
 - feat(Decks): **Deck guides with card links** — the description is now a full guide editor: type [[ to link any card (hover shows it, click opens it), write with a live preview, and attach a YouTube video.
 

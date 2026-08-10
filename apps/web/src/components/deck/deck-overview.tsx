@@ -81,6 +81,7 @@ import { canAddRune, useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
+import { useHomeCollection } from "@/hooks/use-home-collection";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useMeasuredWidth } from "@/hooks/use-measured-width";
@@ -497,6 +498,9 @@ export function DeckOverview({
   // default grid — otherwise a stored "list" pref would flip the tree after
   // hydration and trip a mismatch on the SSR'd public share page.
   const hydrated = useHydrated();
+  // The box this deck lives in. Undefined for a viewer who doesn't own the
+  // deck — the share page carries no collectionId to resolve.
+  const homeCollection = useHomeCollection(deck.collectionId);
   // Drives the phone-specific layout swaps (stats band below the cards, the
   // tab strip's second control row). SSR-safe: false on the server.
   const isMobile = useIsMobile();
@@ -1330,6 +1334,7 @@ export function DeckOverview({
         signInHref={signInHref}
         onViewMissing={onViewMissing}
         onCardClick={onCardClick}
+        box={homeCollection && { id: homeCollection.id, name: homeCollection.name }}
         byline={heroByline}
         actions={heroActions}
       />
