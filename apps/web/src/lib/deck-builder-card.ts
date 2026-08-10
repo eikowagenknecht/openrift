@@ -139,6 +139,35 @@ export function getAllowedMoveTargets(
   );
 }
 
+export interface DeckMoveRow {
+  zone: DeckZone;
+  /** True when the row moves a single copy instead of the whole stack. */
+  splitOne: boolean;
+}
+
+/**
+ * The rows the "Move to" menu shows for one deck row. Pointer devices split a
+ * stack with shift-click, so one row per zone is enough. Touch has no modifier
+ * key, so a stack of several copies gets a second, explicit "move 1" row per
+ * zone — otherwise splitting a copy off is impossible on a phone, where drag
+ * is disabled too.
+ *
+ * @returns The move rows in zone order, each flagged whole-stack or single-copy.
+ */
+export function buildMoveRows(
+  targets: readonly DeckZone[],
+  quantity: number,
+  offerSplitRows: boolean,
+): DeckMoveRow[] {
+  if (!offerSplitRows || quantity <= 1) {
+    return targets.map((zone) => ({ zone, splitOne: false }));
+  }
+  return targets.flatMap((zone) => [
+    { zone, splitOne: false },
+    { zone, splitOne: true },
+  ]);
+}
+
 /**
  * Checks whether a card is allowed in a given zone based on its type/supertypes.
  *

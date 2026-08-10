@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDeckQuantityByCell,
+  buildMoveRows,
   cellPreferredPrintingId,
   getAllowedMoveTargets,
   isCardAllowedInZone,
@@ -566,5 +567,36 @@ describe("getAllowedMoveTargets", () => {
 
     const strandedCard = { ...mainCard, zone: "sideboard" as DeckZone };
     expect(getAllowedMoveTargets(strandedCard, "custom-region")).toEqual(["main", "overflow"]);
+  });
+});
+
+describe("buildMoveRows", () => {
+  const targets: DeckZone[] = ["sideboard", "overflow"];
+
+  it("keeps one row per zone on pointer devices, where shift-click splits", () => {
+    expect(buildMoveRows(targets, 3, false)).toEqual([
+      { zone: "sideboard", splitOne: false },
+      { zone: "overflow", splitOne: false },
+    ]);
+  });
+
+  it("adds a single-copy row per zone on touch, where there is no shift key", () => {
+    expect(buildMoveRows(targets, 3, true)).toEqual([
+      { zone: "sideboard", splitOne: false },
+      { zone: "sideboard", splitOne: true },
+      { zone: "overflow", splitOne: false },
+      { zone: "overflow", splitOne: true },
+    ]);
+  });
+
+  it("omits the single-copy row for a lone copy, where moving 1 moves everything anyway", () => {
+    expect(buildMoveRows(targets, 1, true)).toEqual([
+      { zone: "sideboard", splitOne: false },
+      { zone: "overflow", splitOne: false },
+    ]);
+  });
+
+  it("returns nothing when the card has no move targets", () => {
+    expect(buildMoveRows([], 3, true)).toEqual([]);
   });
 });

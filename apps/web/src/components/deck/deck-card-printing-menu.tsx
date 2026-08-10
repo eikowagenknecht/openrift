@@ -15,8 +15,9 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getAllowedMoveTargets } from "@/lib/deck-builder-card";
+import { buildMoveRows, getAllowedMoveTargets } from "@/lib/deck-builder-card";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -32,10 +33,13 @@ interface DeckCardPrintingMenuProps {
  * (the only way to move cards on mobile, where drag is disabled) and
  * available printings with thumbnails and a hover preview. Click a printing
  * to convert every copy in this row; shift-click to split off a single copy.
+ * On mobile a multi-copy row gets an extra "move 1" entry per zone, since
+ * there is no shift key to split with.
  * @returns The wrapped children with the context menu attached.
  */
 export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintingMenuProps) {
   const { changePreferredPrinting, moveCard, moveOneCard } = useDeckBuilderActions(deckId);
+  const isMobile = useIsMobile();
   const { printingsByCardId } = useCards();
   const languages = useDisplayStore((state) => state.languages);
   const allPrintings = printingsByCardId.get(card.cardId) ?? [];
@@ -53,6 +57,8 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
 
   const { data: deckDetail } = useDeckDetail(deckId);
   const moveTargets = getAllowedMoveTargets(card, deckDetail.deck.format);
+  const splitRowsShown = isMobile && card.quantity > 1;
+  const moveRows = buildMoveRows(moveTargets, card.quantity, isMobile);
 
   if (printings.length === 0 && moveTargets.length === 0) {
     return children;
@@ -73,8 +79,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, null, count);
   };
 
-  const handleMove = (targetZone: (typeof moveTargets)[number], event: MouseEvent) => {
-    const splitOne = event.shiftKey && card.quantity > 1;
+  const handleMove = (targetZone: (typeof moveTargets)[number], splitOne: boolean) => {
     if (splitOne) {
       moveOneCard(card.cardId, card.zone, targetZone, card.preferredPrintingId);
     } else {
@@ -104,15 +109,20 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
               )}
             </div>
             <div className="flex flex-col gap-0.5">
-              {moveTargets.map((targetZone) => (
+              {moveRows.map((row) => (
                 <ContextMenuItem
-                  key={targetZone}
+                  key={`${row.zone}:${row.splitOne}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    handleMove(targetZone, event);
+                    handleMove(row.zone, row.splitOne || (event.shiftKey && card.quantity > 1));
                   }}
                 >
-                  {ZONE_LABELS[targetZone]}
+                  {ZONE_LABELS[row.zone]}
+                  {splitRowsShown && (
+                    <span className="text-muted-foreground/70 ml-1">
+                      {row.splitOne ? "· move 1" : `· move all ${card.quantity}`}
+                    </span>
+                  )}
                 </ContextMenuItem>
               ))}
             </div>
