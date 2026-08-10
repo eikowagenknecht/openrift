@@ -1,5 +1,5 @@
-import type { Printing, TimeRange } from "@openrift/shared";
-import { Suspense, lazy, useState } from "react";
+import type { Printing } from "@openrift/shared";
+import { Suspense, lazy } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePrices } from "@/hooks/use-prices";
@@ -7,17 +7,23 @@ import { useDisplayStore } from "@/stores/display-store";
 
 import { PricingSection } from "./pricing";
 
-const PriceSparkline = lazy(async () => {
-  const m = await import("@/components/cards/price-sparkline");
-  return { default: m.PriceSparkline };
+const PriceHistoryChart = lazy(async () => {
+  const m = await import("@/components/cards/price-history-chart");
+  return { default: m.PriceHistoryChart };
 });
 
-function SparklineSkeleton() {
-  return <Skeleton data-testid="sparkline-skeleton" className="h-12 w-full rounded-lg" />;
+function ChartSkeleton() {
+  // Shaped like the chart it stands in for (toolbar row + plot), so resolving
+  // the lazy chunk doesn't resize the detail panel under the cursor.
+  return (
+    <div data-testid="price-chart-skeleton" className="space-y-3">
+      <Skeleton className="h-8 w-full rounded-lg" />
+      <Skeleton className="aspect-[2.5/1] w-full rounded-lg" />
+    </div>
+  );
 }
 
 export function CardFooter({ printing }: { printing: Printing }) {
-  const [priceRange, setPriceRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favorite = marketplaceOrder[0] ?? "cardtrader";
   const prices = usePrices();
@@ -29,12 +35,14 @@ export function CardFooter({ printing }: { printing: Printing }) {
         <img src="/images/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
         {printing.artist}
       </p>
-      <PricingSection printing={printing} range={priceRange} />
+      {/* Chart above the buy row: the chart is what the price means, the chips
+          are where to act on it. */}
       {hasPrice && (
-        <Suspense fallback={<SparklineSkeleton />}>
-          <PriceSparkline printingId={printing.id} onRangeChange={setPriceRange} />
+        <Suspense fallback={<ChartSkeleton />}>
+          <PriceHistoryChart printingId={printing.id} />
         </Suspense>
       )}
+      <PricingSection printing={printing} />
     </div>
   );
 }

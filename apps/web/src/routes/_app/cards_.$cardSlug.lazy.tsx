@@ -7,7 +7,7 @@ import {
   imageUrl,
   isBaseBanFormat,
   legendDisplayName,
-  MARKETPLACE_SHORT_LABELS,
+  marketplaceLabel,
   preferredPrinting,
   snapshotHeadline,
   WellKnown,
@@ -33,6 +33,7 @@ import { CardText } from "@/components/cards/card-text";
 import { FallbackArtBadges } from "@/components/cards/fallback-art-badges";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
+import { PriceTrend } from "@/components/cards/price-trend";
 import { SuggestImageNotice } from "@/components/cards/suggest-image-notice";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
@@ -44,6 +45,7 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card as CardPanel } from "@/components/ui/card";
@@ -51,6 +53,7 @@ import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -897,6 +900,16 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
     ? ALL_MARKETPLACES.filter((mp) => rangeData[mp]?.available)
     : [];
 
+  // Normalized the same way the chart plots them (market for TCG/CM, the
+  // Zero-eligible low for CardTrader) so the trend matches the drawn line.
+  const plottedValues = (rangeData?.[source]?.snapshots ?? []).reduce<number[]>((values, s) => {
+    const value = "market" in s ? s.market : s.zeroLow;
+    if (value !== null) {
+      values.push(value);
+    }
+    return values;
+  }, []);
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -935,6 +948,12 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+        {/* Names the plotted series and how it moved, from the same values the
+            chart draws. The toggle at the end of the row is logos only. */}
+        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+          {marketplaceLabel(source)}
+          <PriceTrend values={plottedValues} range={effectiveRange} />
+        </span>
         <ToggleGroup
           variant="outline"
           size="sm"
@@ -951,10 +970,22 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
         >
           {marketplaceOrder.map((mp) => {
             const available = data?.[mp]?.available ?? false;
+            const label = marketplaceLabel(mp);
             return (
-              <ToggleGroupItem key={mp} value={mp} disabled={!available && Boolean(data)}>
-                {MARKETPLACE_SHORT_LABELS[mp]}
-              </ToggleGroupItem>
+              <Tooltip key={mp}>
+                <TooltipTrigger
+                  render={
+                    <ToggleGroupItem
+                      value={mp}
+                      disabled={!available && Boolean(data)}
+                      aria-label={label}
+                    />
+                  }
+                >
+                  <MarketplaceIcon marketplace={mp} />
+                </TooltipTrigger>
+                <TooltipContent>{label}</TooltipContent>
+              </Tooltip>
             );
           })}
         </ToggleGroup>

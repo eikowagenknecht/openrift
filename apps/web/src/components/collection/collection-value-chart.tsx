@@ -1,12 +1,14 @@
 import type { CompletionScopePreference, Marketplace, TimeRange } from "@openrift/shared";
-import { MARKETPLACE_SHORT_LABELS } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 
+import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionValueHistory } from "@/hooks/use-collection-value-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
@@ -118,9 +120,14 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
           className="ml-auto"
         >
           {marketplaceOrder.map((mp) => (
-            <ToggleGroupItem key={mp} value={mp}>
-              {MARKETPLACE_SHORT_LABELS[mp]}
-            </ToggleGroupItem>
+            <Tooltip key={mp}>
+              <TooltipTrigger
+                render={<ToggleGroupItem value={mp} aria-label={marketplaceLabel(mp)} />}
+              >
+                <MarketplaceIcon marketplace={mp} />
+              </TooltipTrigger>
+              <TooltipContent>{marketplaceLabel(mp)}</TooltipContent>
+            </Tooltip>
           ))}
         </ToggleGroup>
       </div>

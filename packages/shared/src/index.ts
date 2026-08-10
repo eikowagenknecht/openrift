@@ -50,7 +50,6 @@ export {
   cardmarketLangParam,
   cardtraderAffiliateUrl,
   MARKETPLACE_LINKS,
-  MARKETPLACE_SHORT_LABELS,
   marketplaceLabel,
 } from "./marketplace.js";
 

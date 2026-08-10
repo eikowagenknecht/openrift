@@ -1,14 +1,16 @@
 import type { AnySnapshot, Marketplace, TimeRange } from "@openrift/shared";
-import { MARKETPLACE_SHORT_LABELS } from "@openrift/shared";
-import { ChevronUpIcon, Loader2Icon } from "lucide-react";
+import { marketplaceLabel } from "@openrift/shared";
+import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
-import { Button } from "@/components/ui/button";
+import { PriceTrend } from "@/components/cards/price-trend";
+import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
@@ -70,7 +72,6 @@ interface PriceHistoryChartProps {
   printingId: string;
   range?: TimeRange;
   onRangeChange?: (range: TimeRange) => void;
-  onCollapse?: () => void;
   /** Date string to highlight on the chart (e.g. from table row hover). */
   highlightedDate?: string | null;
   /** Called when the user hovers a point on the chart (date string or null on leave). */
@@ -87,7 +88,6 @@ export function PriceHistoryChart({
   printingId,
   range: controlledRange,
   onRangeChange,
-  onCollapse,
   highlightedDate,
   onDateHover,
   source: controlledSource,
@@ -147,6 +147,12 @@ export function PriceHistoryChart({
   }));
 
   const hasLow = snapshots.some((s) => s.low !== null);
+  const plottedValues = snapshots.reduce<number[]>((values, s) => {
+    if (s.value !== null) {
+      values.push(s.value);
+    }
+    return values;
+  }, []);
 
   const btnSize = "sm" as const;
 
@@ -174,6 +180,12 @@ export function PriceHistoryChart({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          {/* Names the plotted series in full. The toggle beside it is logos
+              only, so this is where the source is actually spelled out. */}
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+            {marketplaceLabel(source)}
+            <PriceTrend values={plottedValues} range={effectiveRange} />
+          </span>
           <ToggleGroup
             variant="outline"
             size={btnSize}
@@ -190,24 +202,34 @@ export function PriceHistoryChart({
           >
             {marketplaceOrder.map((s) => {
               const available = data?.[s]?.available ?? false;
+              const label = marketplaceLabel(s);
               return (
-                <ToggleGroupItem key={s} value={s} disabled={!available && Boolean(data)}>
-                  {MARKETPLACE_SHORT_LABELS[s]}
-                </ToggleGroupItem>
+                <Tooltip key={s}>
+                  <TooltipTrigger
+                    render={
+                      <ToggleGroupItem
+                        value={s}
+                        disabled={!available && Boolean(data)}
+                        aria-label={label}
+                      />
+                    }
+                  >
+                    <MarketplaceIcon marketplace={s} />
+                  </TooltipTrigger>
+                  <TooltipContent>{label}</TooltipContent>
+                </Tooltip>
               );
             })}
           </ToggleGroup>
-          {onCollapse && (
-            <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
-              <ChevronUpIcon className="size-3.5" />
-            </Button>
-          )}
         </div>
       )}
 
       {/* Chart */}
+      {/* Chart-shaped rather than a short spinner row: this is the card
+          detail's default view now, so a stubby placeholder would snap the
+          whole panel taller the moment the history lands. */}
       {isLoading && (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex aspect-[2.5/1] w-full items-center justify-center">
           <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
         </div>
       )}

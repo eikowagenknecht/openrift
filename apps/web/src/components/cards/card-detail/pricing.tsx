@@ -1,7 +1,7 @@
 import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
 import { MARKETPLACE_LINKS, snapshotHeadline } from "@openrift/shared";
-import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
+import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,8 +13,6 @@ import { useDisplayStore } from "@/stores/display-store";
 
 interface MarketplaceConfig {
   label: string;
-  icon: string;
-  iconClassName: string;
   formatValue: (v: number) => string;
   getUrl: (productId: number, language?: string | null) => string;
   isAffiliate?: boolean;
@@ -23,30 +21,31 @@ interface MarketplaceConfig {
 const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
   tcgplayer: {
     label: "TCGplayer",
-    icon: "/images/external/tcgplayer-38x28.webp",
-    iconClassName: "invert dark:invert-0",
     formatValue: formatPrice,
     getUrl: MARKETPLACE_LINKS.tcgplayer.productUrl,
     isAffiliate: true,
   },
   cardmarket: {
     label: "Cardmarket",
-    icon: "/images/external/cardmarket-20x28.webp",
-    iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
     getUrl: MARKETPLACE_LINKS.cardmarket.productUrl,
   },
   cardtrader: {
     label: "CardTrader",
-    icon: "/images/external/cardtrader-20x28.webp",
-    iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
     getUrl: MARKETPLACE_LINKS.cardtrader.productUrl,
     isAffiliate: true,
   },
 };
 
-export function PricingSection({ printing, range }: { printing: Printing; range: TimeRange }) {
+export function PricingSection({
+  printing,
+  range = "30d",
+}: {
+  printing: Printing;
+  /** Which history window backs the fallback price. Defaults to 30 days. */
+  range?: TimeRange;
+}) {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const { data: history } = usePriceHistory(printing.id, range);
   const prices = usePrices();
@@ -86,13 +85,8 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
     return null;
   }
 
-  const favorite = marketplaceOrder[0] ?? "cardtrader";
-
   return (
     <div className="flex items-center justify-end gap-1.5">
-      {chips[0]?.marketplace === favorite && (
-        <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
-      )}
       <span className="text-muted-foreground text-sm">Buy on</span>
       {chips.map(({ marketplace, value, url }) => {
         const config = MARKETPLACE_CONFIG[marketplace];
@@ -101,12 +95,9 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
             key={marketplace}
             marketplace={marketplace}
             label={config.label}
-            icon={config.icon}
-            iconClassName={config.iconClassName}
             value={value}
             url={url}
             formatValue={config.formatValue}
-            isFavorite={marketplace === favorite}
             isAffiliate={config.isAffiliate}
           />
         );
@@ -115,98 +106,34 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
   );
 }
 
-const RANGE_LABELS: Record<TimeRange, string> = {
-  "7d": "7 days",
-  "30d": "30 days",
-  "90d": "90 days",
-  all: "all time",
-};
-
-function PriceTrend({
-  printingId,
-  range = "30d",
-  marketplace,
-}: {
-  printingId: string;
-  range?: TimeRange;
-  marketplace: Marketplace;
-}) {
-  const { data } = usePriceHistory(printingId, range);
-  const snapshots = data?.[marketplace]?.snapshots;
-  if (!snapshots || snapshots.length < 2) {
-    return null;
-  }
-
-  const first = snapshotHeadline(snapshots[0]);
-  // oxlint-disable-next-line no-non-null-assertion -- length >= 2 is checked above
-  const last = snapshotHeadline(snapshots.at(-1)!);
-  if (first === 0) {
-    return null;
-  }
-
-  const pctChange = ((last - first) / first) * 100;
-  const rounded = Math.round(pctChange);
-
-  if (rounded === 0) {
-    return null;
-  }
-
-  const isUp = rounded > 0;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <span
-          className={cn(
-            "inline-flex items-center gap-0.5 text-xs font-medium",
-            isUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
-          )}
-        >
-          {isUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
-          {Math.abs(rounded)}%
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        {isUp ? "+" : ""}
-        {rounded}% over {RANGE_LABELS[range]}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 function PriceChip({
   marketplace,
   label,
-  icon,
   value,
   url,
   formatValue = formatPrice,
-  iconClassName,
-  isFavorite,
   isAffiliate,
 }: {
   marketplace: Marketplace;
   label: string;
-  icon?: string;
   value: number;
   url: string | null;
   formatValue?: (v: number) => string;
-  iconClassName?: string;
-  isFavorite?: boolean;
   isAffiliate?: boolean;
 }) {
   const content = (
     <>
-      {icon ? (
-        <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
-      ) : (
-        <span className="text-muted-foreground text-xs font-normal">{label}</span>
-      )}
+      <MarketplaceIcon marketplace={marketplace} alt={label} />
       {formatValue(value)}
     </>
   );
 
-  const variant = isFavorite ? "outline" : "ghost";
+  // Every chip gets the same variant on purpose. Highlighting the favorite as
+  // outline against ghost siblings is the visual grammar of a segmented control
+  // with one item active, which had users clicking these to switch the price
+  // chart's source and landing on the marketplace instead. The favorite is
+  // still signalled by coming first.
+  const variant = "outline" as const;
   const chipClassName = cn("font-semibold", priceColorClass(value));
 
   return (

@@ -102,13 +102,3 @@ export const MARKETPLACE_LINKS: Record<Marketplace, MarketplaceLinks> = {
 export function marketplaceLabel(name: string): string {
   return MARKETPLACE_LINKS[name as Marketplace]?.label ?? name;
 }
-
-/**
- * Compact marketplace labels for tight UI like chart legends and price-source
- * toggles. The Record type keeps this exhaustive as marketplaces are added.
- */
-export const MARKETPLACE_SHORT_LABELS: Record<Marketplace, string> = {
-  tcgplayer: "TCG",
-  cardmarket: "CM",
-  cardtrader: "CT",
-};

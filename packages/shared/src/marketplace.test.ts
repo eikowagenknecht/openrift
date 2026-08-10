@@ -5,10 +5,8 @@ import {
   cardmarketLangParam,
   cardtraderAffiliateUrl,
   MARKETPLACE_LINKS,
-  MARKETPLACE_SHORT_LABELS,
   marketplaceLabel,
 } from "./marketplace.js";
-import { ALL_MARKETPLACES } from "./types/index.js";
 
 describe("affiliateUrl", () => {
   it("wraps the target URL in the TCGplayer partner redirect", () => {
@@ -95,20 +93,6 @@ describe("MARKETPLACE_LINKS", () => {
     expect(MARKETPLACE_LINKS.cardmarket.searchUrl("Viktor, Herald")).toContain(
       "searchString=Viktor%2C%20Herald",
     );
-  });
-});
-
-describe("MARKETPLACE_SHORT_LABELS", () => {
-  it("has a compact label for every marketplace", () => {
-    for (const marketplace of ALL_MARKETPLACES) {
-      expect(MARKETPLACE_SHORT_LABELS[marketplace]).toBeTruthy();
-    }
-  });
-
-  it("uses the expected abbreviations", () => {
-    expect(MARKETPLACE_SHORT_LABELS.tcgplayer).toBe("TCG");
-    expect(MARKETPLACE_SHORT_LABELS.cardmarket).toBe("CM");
-    expect(MARKETPLACE_SHORT_LABELS.cardtrader).toBe("CT");
   });
 });
 

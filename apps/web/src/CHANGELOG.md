@@ -11,6 +11,7 @@
 
 ### Other
 
+- feat(Cards): **Price history opens with the card** — the chart now shows by default, names the marketplace it plots and how far the price moved, and the buy buttons sit below it.
 - feat(Decks): **Import lists from TopDeck.gg** — decklists copied from TopDeck.gg now paste in directly, with each card landing in the right zone.
 - feat(Decks): **Clearer ownership counts** — the header shows one owned-and-missing chip that counts the sideboard separately, and cards with copies locked away from deck building now show a lock icon explaining why they don't count.
 - feat(Decks): **Test bench keyboard shortcuts** — draw a hand (N), exchange cards (E), and draw (D) from the keyboard, with the keys shown on the buttons.
