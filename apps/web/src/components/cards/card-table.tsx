@@ -90,7 +90,7 @@ const DataRow = memo(function DataRow({
       superTypeLabels={superTypeLabels}
       rarityLabels={rarityLabels}
       setNameBySlug={setNameBySlug}
-      onRowClick={(p) => useCardRowActionsStore.getState().handlers.onRowClick?.(p)}
+      onRowClick={(p) => useCardRowActionsStore.getState().handlers.onRowClick?.(p, itemId)}
       actionsCell={actionsCell}
     />
   );

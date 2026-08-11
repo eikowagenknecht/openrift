@@ -10,6 +10,8 @@
 ### Other
 
 - feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, and arrow keys or a swipe step through the rest of that member's cards.
+- fix(Collection): **Details follow the selected card** — moving or removing the card you have open now moves the detail panel on to the card that takes its place, instead of leaving the old one on screen.
+- fix(Collection): **Clicking a copy selects that copy** — in copies view, clicking one of several copies of a card now highlights the one you clicked rather than jumping to the first.
 
 ## 2026-08-10
 

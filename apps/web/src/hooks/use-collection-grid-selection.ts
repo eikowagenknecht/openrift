@@ -155,9 +155,13 @@ export function useCollectionGridSelection({
     }
   });
 
-  const handleGridCardClick = (printing: Printing) => {
+  // `itemId` is what pins the click to the tile it came from: copies view is one
+  // tile per physical copy, so a card with several copies has several tiles
+  // carrying the same printing, and a printing lookup would always land on the
+  // first of them.
+  const handleGridCardClick = (printing: Printing, itemId?: string) => {
     useAddModeStore.getState().closeVariants();
-    useSelectionStore.getState().selectCard(printing, items, findBy);
+    useSelectionStore.getState().selectCard(printing, items, findBy, { itemId });
   };
 
   const handleSiblingClick = (printing: Printing) => {
@@ -302,7 +306,7 @@ export function useCollectionGridSelection({
           setLastSelectedItemId(itemId);
           return;
         }
-        handleGridCardClick(printing);
+        handleGridCardClick(printing, itemId);
         return;
       }
       // Select mode: shift-click extends the range, regular click toggles.

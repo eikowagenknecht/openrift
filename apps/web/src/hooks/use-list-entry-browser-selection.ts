@@ -193,6 +193,12 @@ export function useListEntryBrowserSelection({
   // also clears any stale highlight left over from a prior card-browser page.
   const selectedCard = useSelectionStore((s) => s.selectedCard);
   const selectedIndex = useSelectionStore((s) => s.selectedIndex);
+  // Mirrors BrowserCardViewer again: an entry removed under the open detail
+  // view has to move the pane along with the highlight, not strand it on the
+  // entry that just left.
+  useEffect(() => {
+    useSelectionStore.getState().reconcileSelection(items);
+  }, [items]);
   const indexAnchor =
     selectedIndex >= 0 && selectedIndex < items.length ? items[selectedIndex] : undefined;
   const gridSelectedId =

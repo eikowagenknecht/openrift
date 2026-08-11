@@ -36,7 +36,11 @@ export type CardRowSurface = "catalog" | "collection" | "deck" | "list";
 
 /** Handlers every card-browser surface can offer. */
 interface BaseRowHandlers {
-  onRowClick?: (printing: Printing) => void;
+  /**
+   * Table row click. `itemId` identifies the clicked row, which matters where
+   * one printing spans several rows (collections copies view).
+   */
+  onRowClick?: (printing: Printing, itemId?: string) => void;
   onSiblingClick?: (printing: Printing) => void;
   /**
    * Add one copy/entry of `printing`, or `quantity` of them when the caller
@@ -163,6 +167,10 @@ export const useCardRowActionsStore = create<CardRowActionsState>()((set) => ({
 // memoized children (e.g. CardThumbnail) where a fresh closure each render
 // would bail the memo. Each call resolves the latest registered handler via
 // getState(), so behavior tracks the active CardBrowser/CollectionGrid.
+// Grid cells pass this straight to their click handler, which calls it with a
+// mouse event as the second argument — hence the single declared parameter, so
+// the event can never be mistaken for a row's `itemId`. The table, which does
+// know its row id, calls the handler directly.
 export function dispatchRowClick(printing: Printing): void {
   useCardRowActionsStore.getState().handlers.onRowClick?.(printing);
 }

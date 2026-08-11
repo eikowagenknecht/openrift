@@ -362,7 +362,7 @@ function SharedDeckOverlayBridge({
     }
     const printing = getPreferredPrinting(pendingClick.cardId, pendingClick.preferredPrintingId);
     if (printing) {
-      useSelectionStore.getState().selectCard(printing, items, "card", pendingClick.zone);
+      useSelectionStore.getState().selectCard(printing, items, "card", { zone: pendingClick.zone });
       onResolved();
     }
   }, [pendingClick, getPreferredPrinting, items, onResolved]);

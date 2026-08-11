@@ -59,11 +59,33 @@ describe("useSelectionStore", () => {
         { id: "sideboard:p1", printing, zone: "sideboard" as const },
       ];
 
-      useSelectionStore.getState().selectCard(printing, items, "card", "sideboard");
+      useSelectionStore.getState().selectCard(printing, items, "card", { zone: "sideboard" });
 
       const state = useSelectionStore.getState();
       expect(state.selectedIndex).toBe(1);
       expect(state.selectedZone).toBe("sideboard");
+    });
+
+    it("anchors on the clicked copy when several tiles share a printing", () => {
+      const printing = stubPrinting({ id: "p1", cardId: "c1", card: { name: "Alpha" } });
+      const items = [
+        { id: "copy-1", printing },
+        { id: "copy-2", printing },
+        { id: "copy-3", printing },
+      ];
+
+      useSelectionStore.getState().selectCard(printing, items, "printing", { itemId: "copy-3" });
+
+      expect(useSelectionStore.getState().selectedIndex).toBe(2);
+    });
+
+    it("falls back to the printing lookup when the item id is not in the list", () => {
+      const printing = stubPrinting({ id: "p1", cardId: "c1" });
+      const items = [{ id: "copy-1", printing }];
+
+      useSelectionStore.getState().selectCard(printing, items, "printing", { itemId: "gone" });
+
+      expect(useSelectionStore.getState().selectedIndex).toBe(0);
     });
 
     it("leaves selectedZone null when zone is omitted (catalog path)", () => {
@@ -113,6 +135,153 @@ describe("useSelectionStore", () => {
       expect(state.selectedCard?.id).toBe("p2");
       expect(state.selectedIndex).toBe(0);
       expect(state.detailOpen).toBe(true);
+    });
+  });
+
+  describe("reconcileSelection", () => {
+    const alpha = () => stubPrinting({ id: "p1", cardId: "c1", card: { name: "Alpha" } });
+    const beta = () => stubPrinting({ id: "p2", cardId: "c2", card: { name: "Beta" } });
+    const gamma = () => stubPrinting({ id: "p3", cardId: "c3", card: { name: "Gamma" } });
+
+    it("moves the selection onto the card that took the removed one's place", () => {
+      const [a, b, c] = [alpha(), beta(), gamma()];
+      const items = [
+        { id: "p1", printing: a },
+        { id: "p2", printing: b },
+        { id: "p3", printing: c },
+      ];
+      useSelectionStore.getState().selectCard(b, items, "printing");
+
+      useSelectionStore.getState().reconcileSelection([
+        { id: "p1", printing: a },
+        { id: "p3", printing: c },
+      ]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p3");
+      expect(state.selectedIndex).toBe(1);
+      expect(state.detailOpen).toBe(true);
+    });
+
+    it("falls back to the new last card when the removed one was at the end", () => {
+      const [a, b] = [alpha(), beta()];
+      const items = [
+        { id: "p1", printing: a },
+        { id: "p2", printing: b },
+      ];
+      useSelectionStore.getState().selectCard(b, items, "printing");
+
+      useSelectionStore.getState().reconcileSelection([{ id: "p1", printing: a }]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p1");
+      expect(state.selectedIndex).toBe(0);
+    });
+
+    it("clears the selection when the list empties", () => {
+      const a = alpha();
+      useSelectionStore.getState().selectCard(a, [{ id: "p1", printing: a }], "printing");
+
+      useSelectionStore.getState().reconcileSelection([]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard).toBeNull();
+      expect(state.selectedIndex).toBe(-1);
+      expect(state.detailOpen).toBe(false);
+    });
+
+    it("follows the selected card when the list reorders", () => {
+      const [a, b] = [alpha(), beta()];
+      const items = [
+        { id: "p1", printing: a },
+        { id: "p2", printing: b },
+      ];
+      useSelectionStore.getState().selectCard(a, items, "printing");
+
+      useSelectionStore.getState().reconcileSelection([
+        { id: "p2", printing: b },
+        { id: "p1", printing: a },
+      ]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p1");
+      expect(state.selectedIndex).toBe(1);
+    });
+
+    it("leaves an unchanged list alone", () => {
+      const [a, b] = [alpha(), beta()];
+      const items = [
+        { id: "p1", printing: a },
+        { id: "p2", printing: b },
+      ];
+      useSelectionStore.getState().selectCard(b, items, "printing");
+
+      useSelectionStore.getState().reconcileSelection(items);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p2");
+      expect(state.selectedIndex).toBe(1);
+    });
+
+    it("keeps a picked sibling printing that has no tile of its own", () => {
+      const a = alpha();
+      const sibling = stubPrinting({ id: "p1-alt", cardId: "c1", card: { name: "Alpha" } });
+      const items = [{ id: "p1", printing: a }];
+      useSelectionStore.getState().selectCard(a, items, "card");
+      useSelectionStore.getState().setSelectedCard(sibling);
+
+      useSelectionStore.getState().reconcileSelection(items);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p1-alt");
+      expect(state.selectedIndex).toBe(0);
+    });
+
+    it("keeps the selection on a card whose other copy was removed", () => {
+      const a = alpha();
+      const items = [
+        { id: "copy-1", printing: a },
+        { id: "copy-2", printing: a },
+      ];
+      useSelectionStore.getState().selectCard(a, items, "printing", { itemId: "copy-2" });
+
+      useSelectionStore.getState().reconcileSelection([{ id: "copy-1", printing: a }]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p1");
+      expect(state.selectedIndex).toBe(0);
+    });
+
+    it("stays within the selected zone on the deck overview", () => {
+      const a = alpha();
+      const b = beta();
+      const items = [
+        { id: "main:p1", printing: a, zone: "main" as const },
+        { id: "sideboard:p1", printing: a, zone: "sideboard" as const },
+        { id: "sideboard:p2", printing: b, zone: "sideboard" as const },
+      ];
+      useSelectionStore.getState().selectCard(a, items, "card", { zone: "sideboard" });
+
+      // The main-deck copy leaves, shifting both sideboard entries up one.
+      useSelectionStore.getState().reconcileSelection([
+        { id: "sideboard:p1", printing: a, zone: "sideboard" as const },
+        { id: "sideboard:p2", printing: b, zone: "sideboard" as const },
+      ]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard?.id).toBe("p1");
+      expect(state.selectedIndex).toBe(0);
+      expect(state.selectedZone).toBe("sideboard");
+    });
+
+    it("ignores an empty selection", () => {
+      const a = alpha();
+
+      useSelectionStore.getState().reconcileSelection([{ id: "p1", printing: a }]);
+
+      const state = useSelectionStore.getState();
+      expect(state.selectedCard).toBeNull();
+      expect(state.selectedIndex).toBe(-1);
     });
   });
 
