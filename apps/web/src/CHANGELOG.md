@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-11
+
+### Other
+
+- feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, without a detour through the card browser.
+
 ## 2026-08-10
 
 ### Highlights

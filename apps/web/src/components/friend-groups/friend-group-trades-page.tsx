@@ -15,6 +15,7 @@ import {
 import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
+import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
 import { EmptyState } from "@/components/empty-state";
 import { ActionBand } from "@/components/ui/action-band";
 import { Button } from "@/components/ui/button";
@@ -64,14 +65,19 @@ export function TradesPageContent({
   data: FriendGroupDetailResponse;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      <TradesPulse slug={slug} data={data} />
-      <TradesSection
-        groupId={data.group.id}
-        suggestions={<SuggestedSection slug={slug} data={data} />}
-        memberLists={<MemberListsSection slug={slug} data={data} />}
-      />
-    </div>
+    // Card names across the sections below open the detail overlay the provider
+    // mounts; there is no grid here, so the browsers' selection store (and its
+    // dockable pane) is not what drives it. See CardDetailOverlayProvider.
+    <CardDetailOverlayProvider>
+      <div className="flex flex-col gap-8">
+        <TradesPulse slug={slug} data={data} />
+        <TradesSection
+          groupId={data.group.id}
+          suggestions={<SuggestedSection slug={slug} data={data} />}
+          memberLists={<MemberListsSection slug={slug} data={data} />}
+        />
+      </div>
+    </CardDetailOverlayProvider>
   );
 }
 

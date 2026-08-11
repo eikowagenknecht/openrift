@@ -11,6 +11,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Button } from "@/components/ui/button";
@@ -369,7 +370,14 @@ function MatchRow({
           className="flex min-w-0 flex-1 flex-col gap-0.5"
           title={`Their list: ${match.counterpartyListName}`}
         >
-          <span className="truncate font-medium">{match.cardName}</span>
+          <CardDetailNameButton
+            // Only the resolved catalog printing can be shown, so an unknown
+            // one keeps the name as plain text rather than a dead control.
+            printingId={match.printing ? match.printingId : undefined}
+            className="max-w-full self-start truncate font-medium"
+          >
+            {match.cardName}
+          </CardDetailNameButton>
           <MatchRowMeta match={match} />
           <MatchCopyMetadataLine match={match} />
           <MatchSourceLine direction={match.direction} listNames={[match.viewerListName]} />

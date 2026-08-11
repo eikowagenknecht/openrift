@@ -13,6 +13,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -328,9 +329,17 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
         <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate font-medium">
+          {/* The quantity rides along inside the control: an inline-block button
+              nested in a truncating span gets clipped without an ellipsis, so
+              the truncation has to live on the button itself. Only the resolved
+              catalog printing can be shown, so an unknown one keeps the line as
+              plain text rather than a dead control. */}
+          <CardDetailNameButton
+            printingId={printing?.id}
+            className="max-w-full self-start truncate font-medium"
+          >
             {trade.quantity}× {cardName}
-          </span>
+          </CardDetailNameButton>
           {printing ? (
             <CardMetaLine
               shortCode={printing.shortCode}

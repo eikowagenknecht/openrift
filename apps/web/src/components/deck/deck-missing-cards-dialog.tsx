@@ -5,7 +5,7 @@ import { CheckIcon, CopyIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "luci
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import { MissingCardDetailOverlay } from "@/components/deck/missing-card-detail-overlay";
+import { CardDetailOverlay } from "@/components/cards/card-detail-overlay";
 import { AddToWishlistDialog } from "@/components/list/add-to-wishlist-dialog";
 import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
@@ -171,7 +171,7 @@ export function DeckMissingCardsDialog({
   const [wishlistOpen, setWishlistOpen] = useState(false);
   // Which row's card detail is stacked on top, by printing id. The raw setter
   // is handed to the overlay, which needs a stable identity for its history
-  // entry — see MissingCardDetailOverlay.
+  // entry — see CardDetailOverlay.
   const [detailPrintingId, setDetailPrintingId] = useState<string | null>(null);
   const navigate = useNavigate();
   const fmt = formatterForMarketplace(marketplace);
@@ -360,12 +360,15 @@ export function DeckMissingCardsDialog({
           <CopyTextButton label="Copy list" getText={listText} />
         </DialogFooter>
       </DialogContent>
-      <MissingCardDetailOverlay
+      <CardDetailOverlay
         printingIds={rowPrintingIds}
         openPrintingId={detailPrintingId}
         onOpenPrintingIdChange={setDetailPrintingId}
         showImages={showImages}
         onSearchAndClose={handleSearchAndClose}
+        // Its own key: the page underneath already mounts a store-driven
+        // overlay, and neither may read the other's history entry as its own.
+        historyKey="missingCardDetail"
       />
       {showWishlistButton && (
         <AddToWishlistDialog

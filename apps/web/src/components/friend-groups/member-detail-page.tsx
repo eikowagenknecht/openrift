@@ -1,6 +1,7 @@
 import type { ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -63,83 +64,87 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           { label: member.userName ?? "Member" },
         ]}
       />
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-        <header className="flex items-center gap-4">
-          <UserAvatar
-            image={member.userImage}
-            name={member.userName}
-            gravatarHash={member.gravatarHash}
-            size="lg"
-            className="size-14"
-          />
-          <div className="flex flex-col gap-1">
-            <Heading level={1}>{member.userName ?? "Unknown user"}</Heading>
-            <Badge variant="outline" className="w-fit text-xs">
-              {ROLE_LABEL[member.role]}
-            </Badge>
-            <ContactMethodChips methods={member.contactMethods} />
-          </div>
-        </header>
-
-        <MemberTradesSection groupId={groupDetail.group.id} counterpartyUserId={userId} />
-
-        {hasMatches ? (
-          <section className="flex flex-col gap-3">
-            <SectionHeading>Possible trades</SectionHeading>
-            <MatchTradeList
-              incoming={incomingMatches}
-              outgoing={outgoingMatches}
-              groupSlug={slug}
-              showCounterparty={false}
+      {/* Card names in the trade and match rows below open the detail overlay
+          the provider mounts — the same as on the group's Trades page. */}
+      <CardDetailOverlayProvider>
+        <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
+          <header className="flex items-center gap-4">
+            <UserAvatar
+              image={member.userImage}
+              name={member.userName}
+              gravatarHash={member.gravatarHash}
+              size="lg"
+              className="size-14"
             />
-          </section>
-        ) : null}
+            <div className="flex flex-col gap-1">
+              <Heading level={1}>{member.userName ?? "Unknown user"}</Heading>
+              <Badge variant="outline" className="w-fit text-xs">
+                {ROLE_LABEL[member.role]}
+              </Badge>
+              <ContactMethodChips methods={member.contactMethods} />
+            </div>
+          </header>
 
-        {hasCollections ? (
-          <section className="flex flex-col gap-3">
-            <SectionHeading>Collections</SectionHeading>
-            <CardList>
-              {sortedCollections.map((share) => (
-                <li key={share.collectionId}>
-                  <SharedCollectionRow slug={slug} share={share} />
-                </li>
-              ))}
-            </CardList>
-          </section>
-        ) : null}
+          <MemberTradesSection groupId={groupDetail.group.id} counterpartyUserId={userId} />
 
-        {hasShares
-          ? LIST_SECTIONS.map(({ intent, heading }) => {
-              const sectionShares = sortedShares.filter((share) => share.listIntent === intent);
-              if (sectionShares.length === 0) {
-                return null;
-              }
-              return (
-                <section key={intent} className="flex flex-col gap-3">
-                  <SectionHeading>{heading}</SectionHeading>
-                  <div className="flex flex-col gap-2">
-                    {sectionShares.map((share) => (
-                      <SharedListRow
-                        key={share.listId}
-                        slug={slug}
-                        member={member}
-                        share={share}
-                        showMember={false}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })
-          : null}
+          {hasMatches ? (
+            <section className="flex flex-col gap-3">
+              <SectionHeading>Possible trades</SectionHeading>
+              <MatchTradeList
+                incoming={incomingMatches}
+                outgoing={outgoingMatches}
+                groupSlug={slug}
+                showCounterparty={false}
+              />
+            </section>
+          ) : null}
 
-        {!hasShares && !hasCollections ? (
-          <p className="text-muted-foreground">
-            {member.userName ?? "This member"} hasn&apos;t shared any collections or lists with this
-            group yet.
-          </p>
-        ) : null}
-      </div>
+          {hasCollections ? (
+            <section className="flex flex-col gap-3">
+              <SectionHeading>Collections</SectionHeading>
+              <CardList>
+                {sortedCollections.map((share) => (
+                  <li key={share.collectionId}>
+                    <SharedCollectionRow slug={slug} share={share} />
+                  </li>
+                ))}
+              </CardList>
+            </section>
+          ) : null}
+
+          {hasShares
+            ? LIST_SECTIONS.map(({ intent, heading }) => {
+                const sectionShares = sortedShares.filter((share) => share.listIntent === intent);
+                if (sectionShares.length === 0) {
+                  return null;
+                }
+                return (
+                  <section key={intent} className="flex flex-col gap-3">
+                    <SectionHeading>{heading}</SectionHeading>
+                    <div className="flex flex-col gap-2">
+                      {sectionShares.map((share) => (
+                        <SharedListRow
+                          key={share.listId}
+                          slug={slug}
+                          member={member}
+                          share={share}
+                          showMember={false}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })
+            : null}
+
+          {!hasShares && !hasCollections ? (
+            <p className="text-muted-foreground">
+              {member.userName ?? "This member"} hasn&apos;t shared any collections or lists with
+              this group yet.
+            </p>
+          ) : null}
+        </div>
+      </CardDetailOverlayProvider>
     </>
   );
 }

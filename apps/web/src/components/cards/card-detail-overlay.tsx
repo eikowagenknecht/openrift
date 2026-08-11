@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { OverlayHistoryKey } from "@/hooks/use-overlay-history-entry";
 import {
   closeOverlayHistoryEntry,
   useOverlayHistoryEntry,
@@ -36,52 +37,63 @@ const CardDetail = lazy(async () => {
   return { default: m.CardDetail };
 });
 
-interface MissingCardDetailOverlayProps {
+interface CardDetailOverlayProps {
   /**
-   * Printing ids of the dialog's rows, in the order they are listed. This is
-   * the prev/next sequence, so the overlay steps through the missing cards
-   * rather than the whole catalog.
+   * Printing ids of the host's rows, in the order they are listed. This is the
+   * prev/next sequence, so the overlay steps through those rows rather than the
+   * whole catalog. Pass an empty array for a surface that opens one card at a
+   * time — prev/next and the position label then stay out of the detail.
    */
   printingIds: string[];
   /** Which row's detail is open, or null when closed. */
   openPrintingId: string | null;
   onOpenPrintingIdChange: (printingId: string | null) => void;
   showImages: boolean;
-  /** Runs a catalog search for a clicked tag or keyword, closing the dialogs. */
+  /** Runs a catalog search for a clicked tag or keyword, closing the overlay. */
   onSearchAndClose: (query: string) => void;
+  /**
+   * Which history flag this overlay owns. A host that stacks it on another
+   * overlay needs a key of its own, so neither reads the other's entry as one
+   * of theirs.
+   */
+  historyKey: OverlayHistoryKey;
 }
 
 /**
- * Card detail opened from a missing-cards row, stacked on top of that dialog so
- * closing it returns to the list.
+ * A card detail overlay a surface drives itself, by printing id: the fullscreen
+ * drawer on phones, the two-column dialog on desktop.
  *
  * Unlike every card-browser surface this does not touch the global selection
- * store: both pages that host the missing-cards dialog already mount a
- * store-driven `SelectionDetailOverlays`, and a second reader of that store
- * would put two copies of the detail on screen at once.
+ * store, which makes it the one to reach for where that store is unavailable or
+ * already spoken for: a page that mounts no `SelectionDetailOverlays` at all
+ * (the trades surfaces, which have no grid and so no docked pane to fall back
+ * to when a card click finds the modal standing down), or a dialog stacked on a
+ * page that does mount one, where a second reader of that store would put two
+ * copies of the detail on screen at once (the deck's missing-cards dialog).
  * @returns The detail overlay for this viewport, or null while closed.
  */
-export function MissingCardDetailOverlay(props: MissingCardDetailOverlayProps) {
+export function CardDetailOverlay(props: CardDetailOverlayProps) {
   if (props.openPrintingId === null) {
     return null;
   }
-  // The catalog read suspends. Both hosts have it cached by the time a missing
-  // list exists (the ownership data is derived from it), so this resolves in
-  // the same commit; the null fallback only ever covers a cold cache.
+  // The catalog read suspends. Every host has it cached by the time it can show
+  // a card row at all, so this resolves in the same commit; the null fallback
+  // only ever covers a cold cache.
   return (
     <Suspense fallback={null}>
-      <MissingCardDetail {...props} />
+      <CardDetailOverlayContent {...props} />
     </Suspense>
   );
 }
 
-function MissingCardDetail({
+function CardDetailOverlayContent({
   printingIds,
   openPrintingId,
   onOpenPrintingIdChange,
   showImages,
   onSearchAndClose,
-}: MissingCardDetailOverlayProps) {
+  historyKey,
+}: CardDetailOverlayProps) {
   const { printingsById, printingsByCardId } = useCards();
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
@@ -102,7 +114,7 @@ function MissingCardDetail({
   const selectedCard = pickedPrinting ?? rowPrinting ?? null;
 
   const handleClose = () => {
-    closeOverlayHistoryEntry("missingCardDetail", () => {
+    closeOverlayHistoryEntry(historyKey, () => {
       setPicked(null);
       onOpenPrintingIdChange(null);
     });
@@ -136,12 +148,11 @@ function MissingCardDetail({
   });
 
   // A history entry keeps the browser (and Android) back button closing the
-  // detail and returning to the missing list, rather than leaving the page with
-  // both dialogs open. Its own state key, so the page's store-driven overlay
-  // never reads this entry as one of its own.
+  // detail and returning to whatever it was opened from, rather than leaving
+  // the page with everything still open.
   useOverlayHistoryEntry({
     active: true,
-    stateKey: "missingCardDetail",
+    stateKey: historyKey,
     onPop: () => onOpenPrintingIdChange(null),
   });
 
@@ -170,7 +181,7 @@ function MissingCardDetail({
             <DrawerDescription>Details for the selected card</DrawerDescription>
           </DrawerHeader>
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <Suspense fallback={<MissingCardDetailPaneSkeleton />}>
+            <Suspense fallback={<CardDetailPaneSkeleton />}>
               <CardDetail
                 printing={selectedCard}
                 onClose={handleClose}
@@ -216,7 +227,7 @@ function MissingCardDetail({
           <DialogTitle>Card details</DialogTitle>
           <DialogDescription>Details for the selected card</DialogDescription>
         </DialogHeader>
-        <Suspense fallback={<MissingCardDetailModalSkeleton />}>
+        <Suspense fallback={<CardDetailModalSkeleton />}>
           <CardDetail
             printing={selectedCard}
             layout="modal"
@@ -242,7 +253,7 @@ function MissingCardDetail({
  * then snaps it down.
  * @returns The modal-shaped loading skeleton.
  */
-function MissingCardDetailModalSkeleton() {
+function CardDetailModalSkeleton() {
   return (
     <div className="@container flex flex-col gap-4">
       <div className="space-y-1.5">
@@ -269,7 +280,7 @@ function MissingCardDetailModalSkeleton() {
  * Single-column placeholder for the drawer, matching the pane arrangement.
  * @returns The pane-shaped loading skeleton.
  */
-function MissingCardDetailPaneSkeleton() {
+function CardDetailPaneSkeleton() {
   return (
     <div className="bg-background rounded-lg px-3">
       <div className="border-border/30 border-b p-4">

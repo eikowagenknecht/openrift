@@ -106,7 +106,7 @@ vi.mock("@/components/cards/card-detail", () => ({
   ),
 }));
 
-const { MissingCardDetailOverlay } = await import("./missing-card-detail-overlay");
+const { CardDetailOverlay } = await import("./card-detail-overlay");
 
 function seedCatalog(count: number): Printing[] {
   const printings = Array.from({ length: count }, (_, i) => stubPrinting({ id: `printing-${i}` }));
@@ -121,12 +121,13 @@ function renderOverlay(
   onOpenPrintingIdChange = vi.fn(),
 ) {
   const result = render(
-    <MissingCardDetailOverlay
+    <CardDetailOverlay
       printingIds={printings.map((p) => p.id)}
       openPrintingId={openPrintingId}
       onOpenPrintingIdChange={onOpenPrintingIdChange}
       showImages={false}
       onSearchAndClose={() => {}}
+      historyKey="missingCardDetail"
     />,
   );
   return { ...result, onOpenPrintingIdChange };
@@ -136,7 +137,7 @@ beforeEach(() => {
   isMobile.mockReturnValue(false);
 });
 
-describe("MissingCardDetailOverlay", () => {
+describe("CardDetailOverlay", () => {
   it("renders nothing while no row is open", () => {
     const printings = seedCatalog(3);
     renderOverlay(printings, null);
@@ -162,15 +163,26 @@ describe("MissingCardDetailOverlay", () => {
     expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
   });
 
-  it("counts position against the missing list, not the whole catalog", async () => {
-    // The catalog holds five printings; only three are missing rows.
+  it("counts position against the host's rows, not the whole catalog", async () => {
+    // The catalog holds five printings; only three of them are host rows.
     const printings = seedCatalog(5);
     renderOverlay(printings.slice(0, 3), printings[1].id);
 
     expect(await screen.findByText("2 / 3")).toBeInTheDocument();
   });
 
-  it("steps through the missing rows with the arrow keys", async () => {
+  it("leaves out prev/next for a host that opens one card at a time", async () => {
+    const printings = seedCatalog(3);
+    const { onOpenPrintingIdChange } = renderOverlay([], printings[1].id);
+    const inside = await screen.findByText(`showing ${printings[1].id}`);
+
+    fireEvent.keyDown(inside, { key: "ArrowRight" });
+
+    expect(screen.queryByText(/\//u)).not.toBeInTheDocument();
+    expect(onOpenPrintingIdChange).not.toHaveBeenCalled();
+  });
+
+  it("steps through the host's rows with the arrow keys", async () => {
     const printings = seedCatalog(3);
     const { onOpenPrintingIdChange } = renderOverlay(printings, printings[1].id);
     const inside = await screen.findByText(`showing ${printings[1].id}`);
@@ -190,10 +202,10 @@ describe("MissingCardDetailOverlay", () => {
     expect(onOpenPrintingIdChange).not.toHaveBeenCalled();
   });
 
-  it("returns to the missing list when closed", async () => {
+  it("unwinds its own history entry when closed", async () => {
     const user = userEvent.setup();
     const printings = seedCatalog(2);
-    // Closing unwinds its own history entry rather than calling the parent
+    // Closing unwinds its own history entry rather than calling the host
     // straight away, so the entry can't outlive the overlay and swallow the
     // next back press. jsdom does not traverse session history, so the popstate
     // that carries the close in the browser is asserted separately below.
@@ -230,12 +242,13 @@ describe("MissingCardDetailOverlay", () => {
     // button needing as many presses as the overlay had rendered.
     for (let i = 0; i < 3; i++) {
       rerender(
-        <MissingCardDetailOverlay
+        <CardDetailOverlay
           printingIds={printings.map((p) => p.id)}
           openPrintingId={printings[0].id}
           onOpenPrintingIdChange={() => {}}
           showImages={false}
           onSearchAndClose={() => {}}
+          historyKey="missingCardDetail"
         />,
       );
     }
