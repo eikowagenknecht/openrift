@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { TakeWishlistFollowUpDialog } from "@/components/collection/take-wishlist-followup-dialog";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -20,6 +21,7 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { ScanAddAllDialog } from "@/components/scan/scan-add-all-dialog";
 import type { ScanFlight } from "@/components/scan/scan-flight-layer";
 import { ScanFlightLayer } from "@/components/scan/scan-flight-layer";
 import { ScanGhostPreview } from "@/components/scan/scan-ghost-preview";
@@ -47,6 +49,8 @@ import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useLanguageLabels } from "@/hooks/use-enums";
 import { useScanLayout } from "@/hooks/use-scan-layout";
 import { useScanAssets } from "@/hooks/use-scan-serving";
+import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import { useWishEntries } from "@/hooks/use-wish-entries";
 import type { AimHint } from "@/lib/scan-aim-hint";
 import { createAimHintSmoother, deriveAimHint } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
@@ -534,6 +538,12 @@ export function ScanPage() {
   async function handleRemoveOne(row: ScanSessionRow) {
     const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
     if (!copyId) {
+      // An identify-only reading has no copy behind it: the undo is a plain
+      // count decrement, nothing to ask the API.
+      if (row.identifiedCount > 0) {
+        useScanSessionStore.getState().removeIdentified(row.printing.id);
+        return;
+      }
       toast.info("Still saving that card, try again in a moment");
       return;
     }
@@ -550,6 +560,13 @@ export function ScanPage() {
   async function handleSwitchPrinting(row: ScanSessionRow, to: Printing) {
     const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
     if (!copyId) {
+      // An identify-only reading moves between printings entirely in the
+      // store — the finish switch is what corrects a foil pull's value.
+      if (row.identifiedCount > 0) {
+        useScanSessionStore.getState().removeIdentified(row.printing.id);
+        void addPrinting(to);
+        return;
+      }
       toast.info("Still saving that card, try again in a moment");
       return;
     }
@@ -590,6 +607,83 @@ export function ScanPage() {
       // The global mutation onError already toasted. The rows stay, because
       // they are the only handle left on copies that are still in the
       // collection.
+    }
+  }
+
+  // "Scan first, decide later": the dialog that commits an identify-only
+  // session to a collection, and the wishlist follow-ups queued by a commit
+  // (one dialog per wished card, answered in turn).
+  const [addAllOpen, setAddAllOpen] = useState(false);
+  const [wishFollowUps, setWishFollowUps] = useState<
+    { printing: Printing; entries: WishEntryFlat[]; taken: number }[]
+  >([]);
+  const wish = useWishEntries(true);
+  const sessionRows = useScanSessionStore((state) => state.rows);
+  const identifiedCards = [...sessionRows.values()].reduce(
+    (sum, row) => sum + row.identifiedCount,
+    0,
+  );
+
+  /**
+   * Commit every identify-only reading to the chosen collection. Each reading
+   * becomes a batched optimistic add; a failed add puts the reading back so
+   * nothing is silently lost.
+   *
+   * @returns Nothing; the tray rows convert in place.
+   */
+  async function handleAddAll(collectionId: string) {
+    const rowsNow = [...useScanSessionStore.getState().rows.values()];
+    const jobs: { printing: Printing; tempId: string; result: Promise<{ id: string }> }[] = [];
+    for (const row of rowsNow) {
+      for (let i = 0; i < row.identifiedCount; i++) {
+        const { tempId, result } = batchedAdd.add(row.printing.id, collectionId);
+        useScanSessionStore.getState().convertIdentifiedToPending(row.printing.id, tempId);
+        jobs.push({ printing: row.printing, tempId, result });
+      }
+    }
+    if (jobs.length === 0) {
+      return;
+    }
+    const outcomes = await Promise.allSettled(jobs.map((job) => job.result));
+    let failed = 0;
+    const addedByPrinting = new Map<string, { printing: Printing; taken: number }>();
+    for (const [i, outcome] of outcomes.entries()) {
+      const job = jobs[i];
+      if (outcome.status === "fulfilled") {
+        useScanSessionStore.getState().confirmAdd(job.printing.id, job.tempId, outcome.value.id);
+        const counted = addedByPrinting.get(job.printing.id);
+        if (counted) {
+          counted.taken += 1;
+        } else {
+          addedByPrinting.set(job.printing.id, { printing: job.printing, taken: 1 });
+        }
+      } else {
+        failed += 1;
+        useScanSessionStore.getState().revertConvertToPending(job.printing.id, job.tempId);
+      }
+    }
+    const added = jobs.length - failed;
+    const collectionName =
+      collections.find((collection) => collection.id === collectionId)?.name ?? "your collection";
+    if (added > 0) {
+      toast.success(`Added ${added} ${added === 1 ? "card" : "cards"} to ${collectionName}`);
+    }
+    if (failed > 0) {
+      // Partial-progress warning after a batched loop; the global mutation
+      // toast already carries the server's error message.
+      toast.warning(
+        `${failed} ${failed === 1 ? "card" : "cards"} could not be added and stayed in the list`,
+      );
+    }
+    const followUps = [...addedByPrinting.values()]
+      .map(({ printing, taken }) => ({
+        printing,
+        taken,
+        entries: wish.entriesForPrinting(printing.cardId, printing.id),
+      }))
+      .filter((item) => item.entries.length > 0);
+    if (followUps.length > 0) {
+      setWishFollowUps(followUps);
     }
   }
 
@@ -864,6 +958,7 @@ export function ScanPage() {
       onRemoveOne={handleRemoveOne}
       onChangePrinting={setSwapRow}
       onRemoveAll={() => void handleRemoveAll()}
+      onAddAll={identifyOnly ? () => setAddAllOpen(true) : undefined}
       collecting={!identifyOnly}
       unidentified={unidentified}
       onIdentifyMissed={handleIdentifyMissed}
@@ -941,6 +1036,26 @@ export function ScanPage() {
         candidates={identify?.candidates ?? []}
         onPick={handleIdentifyPick}
         onDismiss={handleIdentifyDismiss}
+      />
+      <ScanAddAllDialog
+        open={addAllOpen}
+        onOpenChange={setAddAllOpen}
+        collections={collections}
+        count={identifiedCards}
+        onConfirm={(collectionId) => void handleAddAll(collectionId)}
+      />
+      <TakeWishlistFollowUpDialog
+        printing={wishFollowUps[0]?.printing ?? null}
+        entries={wishFollowUps[0]?.entries ?? []}
+        takenQuantity={wishFollowUps[0]?.taken ?? 0}
+        verb="added"
+        onOpenChange={(open) => {
+          // Answering or dismissing one follow-up surfaces the next wished
+          // card from the same commit.
+          if (!open) {
+            setWishFollowUps((queue) => queue.slice(1));
+          }
+        }}
       />
     </>
   );

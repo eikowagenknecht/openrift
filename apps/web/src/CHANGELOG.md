@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Collection): **Scan now, add later** — a "Just identify" session can be committed afterwards: one button adds everything it counted to a collection of your choice, and offers to tick off matching wishlist entries.
+- feat(Collection): **See what a pack was worth as you scan** — every scanned card now shows its price, wishlist heart and owned count, with a session total and best pull (duplicates count even in Just identify mode).
 - feat(Trades): **Check the pile at the table** — a new button on each member's trades opens the swap card by card, with art big enough to match against what's in your hand, and settles only the copies that actually turned up. Anything they forgot stays an open trade for next time.
 - feat(Trades): **Choose the copy you handed over** — confirming your half of a swap now asks which copy left whenever your copies differ or sit in different collections, instead of removing whichever one was pinned.
 

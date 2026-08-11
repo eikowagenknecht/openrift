@@ -22,6 +22,8 @@ interface TakeWishlistFollowUpDialogProps {
   entries: WishEntryFlat[];
   /** How many copies were just taken — the amount to subtract from the wish. */
   takenQuantity: number;
+  /** How the copies arrived, for the description ("took" a box card, "added" a scan). */
+  verb?: "took" | "added";
   onOpenChange: (open: boolean) => void;
 }
 
@@ -39,6 +41,7 @@ export function TakeWishlistFollowUpDialog({
   printing,
   entries,
   takenQuantity,
+  verb = "took",
   onOpenChange,
 }: TakeWishlistFollowUpDialogProps) {
   const open = printing !== null;
@@ -87,10 +90,13 @@ export function TakeWishlistFollowUpDialog({
           <AlertDialogDescription>
             {single ? (
               <>
-                You took {cardName}, which is on your wishlist &ldquo;{entries[0]?.listName}&rdquo;.
+                You {verb} {cardName}, which is on your wishlist &ldquo;{entries[0]?.listName}
+                &rdquo;.
               </>
             ) : (
-              <>You took {cardName}, which is on several of your wishlists.</>
+              <>
+                You {verb} {cardName}, which is on several of your wishlists.
+              </>
             )}
           </AlertDialogDescription>
           {!single && (
