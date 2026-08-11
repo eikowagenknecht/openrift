@@ -130,7 +130,7 @@ describe("CollectionShareDialog", () => {
     expect(screen.getByText("Share with friend groups")).toBeInTheDocument();
   });
 
-  // Regression (OPENRIFT-SSR-21): the panel shares a *personal* binder with a
+  // Regression: the panel shares a *personal* binder with a
   // group, and its `groupShares` query 404s on a pooled collection by design.
   // Rendering it for a group collection threw out of the suspense query and
   // killed the whole route.

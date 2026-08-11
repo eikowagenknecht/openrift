@@ -33,8 +33,9 @@ function isServerFault(error: unknown): boolean {
  * message is the bare "Output validation failed" and whose `cause` holds the
  * per-issue detail. Without this, both the Sentry event and the log line say
  * only "Output validation failed" — enough to know an endpoint 500s, not enough
- * to know which field did it, which is how OPENRIFT-API-B sat undiagnosable for
- * a month. Only the path and the schema's own message are lifted out;
+ * to know which field did it, which is how an output-validation 500 once sat
+ * undiagnosable for a month. Only the path and the schema's own message are
+ * lifted out;
  * `cause.data` (the whole rejected payload, i.e. the caller's data) is
  * deliberately left behind.
  * @returns The issue summaries, or undefined when the error carries none.

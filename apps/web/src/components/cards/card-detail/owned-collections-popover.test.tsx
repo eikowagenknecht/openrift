@@ -76,7 +76,7 @@ describe("OwnedCollectionsPopover", () => {
   });
 
   // Regression: /decks/share/$token rendered the card detail pane without a
-  // FilterSearchProvider, so every card click crashed here (OPENRIFT-SSR-17).
+  // FilterSearchProvider, so every card click crashed here.
   // The share page provides an empty filter value; that must be enough for
   // the popover's whole hook chain.
   it("renders the owned badge under an empty filter context like the share page provides", () => {

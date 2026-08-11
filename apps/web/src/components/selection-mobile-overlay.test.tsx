@@ -101,7 +101,7 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
     expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
   });
 
-  it("offers no neighbor navigation when the stored index is stale (OPENRIFT-SSR-22)", async () => {
+  it("offers no neighbor navigation when the stored index is stale", async () => {
     // The list shrank while the overlay was open: selectedIndex points past the
     // current items, so items[selectedIndex - 1] is undefined and the old
     // handler crashed with a TypeError on click.

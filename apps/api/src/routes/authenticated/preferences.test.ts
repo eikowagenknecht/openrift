@@ -97,7 +97,7 @@ describe("GET /api/v1/preferences", () => {
     expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
   });
 
-  // Regression for OPENRIFT-API-B: a stored value the response schema rejects
+  // Regression: a stored value the response schema rejects
   // (written before an enum narrowed, say) used to reach oRPC's output
   // validation and 500 the whole response. The web loads preferences on every
   // page, so that bricked the app for the affected user. Drop the key instead.

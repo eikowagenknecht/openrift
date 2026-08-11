@@ -8,8 +8,8 @@
  * reconnect, not a query — so it reaches Sentry's `onunhandledrejection`
  * integration as an unhandled rejection with no stacktrace. Meanwhile the
  * request path handled it correctly: `healthRepo.healthCheck` catches the
- * failure and `/api/health` answers 503 `db_unreachable` (see
- * OPENRIFT-API-7, where the 503 and the Sentry error are the same moment).
+ * failure and `/api/health` answers 503 `db_unreachable` at the same moment
+ * the Sentry error arrives.
  *
  * A genuinely unreachable database is not silenced by this: the healthcheck
  * keeps returning 503, which marks the container unhealthy and is the

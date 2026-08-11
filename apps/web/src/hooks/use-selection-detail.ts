@@ -53,7 +53,7 @@ export function useCardDetailNavigation({
 
   // The store's selectedIndex can go stale against `items` (the list shrinks
   // or reorders while the detail is open), so both neighbors are bounds-checked
-  // against the current array, not just the index (OPENRIFT-SSR-22).
+  // against the current array, not just the index.
   const prevItem = selectedIndex > 0 ? items[selectedIndex - 1] : undefined;
   const handlePrevCard = prevItem
     ? () => navigateToIndex(selectedIndex - 1, prevItem.printing)

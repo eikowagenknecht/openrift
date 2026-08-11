@@ -2,19 +2,14 @@
 # Startup readiness gate: block until the API answers its health endpoint, then
 # exec the real command.
 #
-# Compose already expresses this with `depends_on: api: condition:
-# service_healthy`, but that condition is only evaluated by `docker compose up`.
-# When the Docker daemon starts containers on its own — host reboot, `systemctl
-# restart docker`, or any `restart: unless-stopped` restart after a crash — it
-# follows the restart policy and ignores dependency ordering entirely. The SSR
-# server then came up next to a still-migrating API and its first requests threw
-# connect errors (OPENRIFT-SSR-1T: four events 13s after a host boot, more on
-# later container restarts). This gate runs on every container start, so it
-# covers the daemon-driven cases compose cannot.
+# Compose's `depends_on: condition: service_healthy` only applies to
+# `docker compose up`. When the daemon starts containers itself (host reboot,
+# `systemctl restart docker`, a restart policy after a crash) it ignores
+# dependency ordering, and the SSR server comes up next to a still-migrating
+# API. This gate runs on every container start.
 #
-# Fail-open on timeout: if the API never reports healthy we start anyway rather
-# than park the site in maintenance forever. A genuinely broken API is a
-# different incident, and the deploy path still gates properly via `--wait`.
+# Fail-open on timeout: a permanently unhealthy API is a separate incident, and
+# the deploy path still gates via `--wait`.
 set -eu
 
 url="${API_HEALTH_URL:-${API_INTERNAL_URL:-http://api:3000}/api/health}"

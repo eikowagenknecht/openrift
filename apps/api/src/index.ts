@@ -79,12 +79,12 @@ if (config.sentryDsn) {
     // Drop unhandled rejections that are just transient DNS/connectivity blips
     // against the database. postgres.js rejects a background reconnect promise
     // nobody awaits, so it arrives here as an unhandled rejection with no
-    // stacktrace, while the request path already answered 503 db_unreachable
-    // (OPENRIFT-API-7). Only unhandled rejections are considered — anything
-    // thrown on a real request path still reports, transient or not, because
-    // there a caller saw the failure. A database that is actually gone still
-    // surfaces: /api/health keeps returning 503 and the container goes
-    // unhealthy. Dropped events are logged, so Loki keeps all of them.
+    // stacktrace, while the request path already answered 503 db_unreachable.
+    // Only unhandled rejections are considered — anything thrown on a real
+    // request path still reports, transient or not, because there a caller saw
+    // the failure. A database that is actually gone still surfaces:
+    // /api/health keeps returning 503 and the container goes unhealthy.
+    // Dropped events are logged, so Loki keeps all of them.
     beforeSend: (event, hint) => {
       if (!isDroppableTransientRejection(event, hint)) {
         return event;

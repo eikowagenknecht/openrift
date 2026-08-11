@@ -63,7 +63,7 @@ When the `api` container starts:
 
 `docker-compose.yml` gates `web` and `bot` on `api` with `condition: service_healthy`, so a deploy never starts the SSR server against an API that is still migrating.
 
-That condition is only evaluated by `docker compose up`. When the **daemon** starts containers on its own — a host reboot, `systemctl restart docker`, or a `restart: unless-stopped` policy firing after a crash — it follows the restart policy and ignores dependency order entirely. The SSR server then came up next to a still-migrating API and threw connect errors on its first requests (Sentry `OPENRIFT-SSR-1T`, which recurred for months: four events 13 seconds after one host boot).
+That condition is only evaluated by `docker compose up`. When the **daemon** starts containers on its own (a host reboot, `systemctl restart docker`, or a `restart: unless-stopped` policy firing after a crash) it follows the restart policy and ignores dependency order. The SSR server then comes up next to a still-migrating API and throws connect errors on its first requests, which is what happened after a host reboot.
 
 So the `web` and `bot` images also carry an in-container gate, `scripts/wait-for-api.sh`, wired as their `ENTRYPOINT`. It polls `${API_INTERNAL_URL}/api/health` and only then `exec`s the real command, which keeps the app as PID 1 so `stop_grace_period` and graceful shutdown still work. It runs on every container start, so it covers the daemon-driven cases compose cannot.
 

@@ -107,8 +107,8 @@ export function CollectionShareDialog({
               The group panel shares a *personal* binder with a group, so it is
               meaningless for a pooled collection the group already owns. Its
               `groupShares` query 404s on those by design, which used to throw
-              out of the suspense query and take the whole route down
-              (OPENRIFT-SSR-21). The boundary keeps any future failure here
+              out of the suspense query and take the whole route down.
+              The boundary keeps any future failure here
               contained to the panel: it is optional chrome, and losing it must
               never cost the viewer their share link.
             */}

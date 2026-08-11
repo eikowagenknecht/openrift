@@ -117,7 +117,7 @@ const fetchParticipants = createServerFn({ method: "GET" })
   .handler(async ({ context, data: id }): Promise<TournamentParticipantListResponse> => {
     // Map the deleted-tournament 404 to the sentinel like the other fetchers,
     // so a stale tab polling a gone tournament doesn't spam Sentry with raw
-    // ORPCErrors (OPENRIFT-SSR-1K).
+    // ORPCErrors.
     const { error, data } = await safe(
       apiOrpcClient(tournamentsContract, context.cookie).listParticipants({ id }),
     );

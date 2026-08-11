@@ -36,7 +36,7 @@ describe("listGroupSharesQueryOptions", () => {
   });
 
   it("throws Error('NOT_FOUND') when the group-shares API returns 404", async () => {
-    // Regression for Sentry issue OPENRIFT-SSR-1K: the server sends a typed
+    // Regression: the server sends a typed
     // (defined) NOT_FOUND error body ("List not found" — stale or foreign list
     // id); the handler must map it to the sentinel instead of letting the raw
     // ORPCError escape the server-fn boundary unhandled.

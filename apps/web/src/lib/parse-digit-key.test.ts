@@ -29,7 +29,7 @@ describe("parseDigitKey", () => {
     expect(parseDigitKey("")).toBeNull();
   });
 
-  // Regression for OPENRIFT-SSR-26: synthetic keyup events from autofill
+  // Regression: synthetic keyup events from autofill
   // extensions arrive without a `key`, which used to crash on `.length`.
   it("returns null when key is undefined", () => {
     expect(parseDigitKey(undefined)).toBeNull();

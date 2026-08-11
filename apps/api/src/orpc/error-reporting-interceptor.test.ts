@@ -75,7 +75,7 @@ describe("reporting error interceptor: server-fault classification", () => {
   });
 
   it("reports the offending field paths of an output-validation failure", async () => {
-    // Regression for OPENRIFT-API-B: the wrapping ORPCError's message is the
+    // Regression: the wrapping ORPCError's message is the
     // bare "Output validation failed", so without lifting the cause's issues
     // neither Sentry nor the log says which field 500'd the endpoint.
     await runThrowing(

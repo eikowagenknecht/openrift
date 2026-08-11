@@ -14,8 +14,8 @@ describe("dropExpectedClientErrors", () => {
   });
 
   test("drops a 401 ORPCError (expired session via migrated endpoints)", () => {
-    // Regression for Sentry issue OPENRIFT-SSR-1K's "Error: Unauthorized"
-    // events: ORPCError keeps `name: "Error"`, so the old name-based ApiError
+    // Regression for the reported "Error: Unauthorized" events: ORPCError
+    // keeps `name: "Error"`, so the old name-based ApiError
     // check let it through even though it is the same expected lifecycle state.
     const exception = Object.assign(new Error("Unauthorized"), {
       code: "UNAUTHORIZED",
@@ -25,8 +25,8 @@ describe("dropExpectedClientErrors", () => {
     expect(dropExpectedClientErrors(event, { originalException: exception })).toBeNull();
   });
 
-  test("drops a 404 ORPCError (the bulk of OPENRIFT-SSR-1K)", () => {
-    // Regression: 646 of that issue's 828 events were "Tournament not found"
+  test("drops a 404 ORPCError (the bulk of the reported noise)", () => {
+    // Regression: 646 of 828 reported events were "Tournament not found"
     // rethrown by the oRPC client inside a server function. The message is
     // human text, so `ignoreErrors: ["NOT_FOUND"]` never matched it.
     const exception = Object.assign(new Error("Tournament not found"), {

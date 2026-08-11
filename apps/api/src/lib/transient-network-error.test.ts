@@ -31,7 +31,7 @@ describe("isTransientNetworkError", () => {
     expect(isTransientNetworkError(error)).toBe(true);
   });
 
-  it("matches the bare Bun DNSException shape from OPENRIFT-API-7", () => {
+  it("matches the bare Bun DNSException shape seen in production", () => {
     // Bun surfaces this with no `code` and no stacktrace, so the message is
     // the only thing to match on.
     const error = new Error("getaddrinfo ESERVFAIL");
@@ -85,7 +85,7 @@ describe("isTransientNetworkError", () => {
 // ── isDroppableTransientRejection ─────────────────────────────────────────────
 
 describe("isDroppableTransientRejection", () => {
-  it("drops the OPENRIFT-API-7 event shape", () => {
+  it("drops the production DNS-blip event shape", () => {
     const error = new Error("getaddrinfo ESERVFAIL");
     error.name = "DNSException";
     expect(isDroppableTransientRejection(rejectionEvent(), hintFor(error))).toBe(true);

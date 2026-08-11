@@ -24,7 +24,7 @@ const preferenceFields = Object.entries(userPreferencesResponseSchema.shape);
  * accepts is dropped rather than allowed through to fail oRPC's output
  * validation. That failure is a 500 on the whole response, and since the web
  * loads preferences on every page, one stale value (a preference written before
- * an enum narrowed, say) bricks the app for that user — OPENRIFT-API-B. Dropping
+ * an enum narrowed, say) bricks the app for that user. Dropping
  * the key instead falls back to `PREFERENCE_DEFAULTS` on the client, and the
  * warn log names the field so the stored data can be corrected.
  * @returns The user preferences in the {@link UserPreferencesResponse} shape.

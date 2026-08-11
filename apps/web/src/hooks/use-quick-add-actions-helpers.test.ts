@@ -179,8 +179,7 @@ describe("decideRemoval", () => {
 
   // Regression: an optimistic temp row (id `temp-<uuid>`) for an in-flight
   // add must not be picked by the minus button — dispose would 400 on the
-  // API (invalid uuid) or race the add-success swap. See Sentry
-  // OPENRIFT-SSR-R.
+  // API (invalid uuid) or race the add-success swap.
   it("excludes optimistic temp rows when picking the newest", () => {
     const copies = [
       copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1"),

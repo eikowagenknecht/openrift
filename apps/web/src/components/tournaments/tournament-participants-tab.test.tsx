@@ -306,7 +306,7 @@ describe("TournamentParticipantsTab fixed tables", () => {
 describe("TournamentParticipantsTab deck-check query gating", () => {
   it("disables the entries query when deck submission is off", () => {
     // The deck-check endpoint 404s for tournaments without deck submission, so
-    // an enabled query would poll a raw error every 5s (OPENRIFT-SSR-1K).
+    // an enabled query would poll a raw error every 5s.
     renderTab(makeDetail({ deckSubmission: "none" }));
     expect(useTournamentDeckCheckEntries).toHaveBeenCalledWith("tournament-1", false);
   });

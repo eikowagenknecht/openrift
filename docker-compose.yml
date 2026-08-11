@@ -59,15 +59,10 @@ services:
   # TanStack Start SSR server (internal only — not exposed to host).
   web:
     image: ghcr.io/openriftapp/openrift-web:${IMAGE_TAG:-latest}
-    # Healthy, not just started: the SSR server serving requests into a
-    # still-booting API produced connection-refused bursts on every deploy
-    # and host reboot (OPENRIFT-SSR-1T/1Y/1Z).
-    #
-    # This condition only covers `docker compose up`. When the daemon starts
-    # containers itself (host reboot, `systemctl restart docker`, a restart
-    # policy firing after a crash) it ignores dependency order, which is how
-    # OPENRIFT-SSR-1T kept recurring — four events 13s after a host boot. The
-    # image's wait-for-api entrypoint closes that gap from inside the container.
+    # Healthy, not just started: an SSR server talking to a still-migrating API
+    # throws connect errors. Only applies to `docker compose up`; the daemon
+    # ignores depends_on when it starts containers itself, so the image also
+    # carries a wait-for-api entrypoint.
     depends_on:
       api:
         condition: service_healthy

@@ -489,7 +489,7 @@ describe("TournamentOverviewTab", () => {
   });
 
   it("renders for a plain participant without the staff-only roster query", () => {
-    // Regression for OPENRIFT-SSR-20/21: the roster endpoint 403s for
+    // Regression: the roster endpoint 403s for
     // non-staff, so the overview must not subscribe to it for them.
     participantsForbidden = true;
     render(<TournamentOverviewTab id="t-1" detail={makeDetail({ myRoles: ["participant"] })} />);

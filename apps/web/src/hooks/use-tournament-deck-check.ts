@@ -30,7 +30,7 @@ const fetchEntries = createServerFn({ method: "GET" })
   .handler(async ({ context, data: tournamentId }): Promise<DeckCheckEventDetailResponse> => {
     // Map the 404 (deleted tournament, or deck submission disabled) to the
     // Sentry-ignored sentinel like the use-tournaments fetchers, so the 5s
-    // entry poll doesn't spam raw ORPCErrors (OPENRIFT-SSR-1K).
+    // entry poll doesn't spam raw ORPCErrors.
     const { error, data } = await safe(
       apiOrpcClient(tournamentDeckCheckContract, context.cookie).listEntries({ tournamentId }),
     );

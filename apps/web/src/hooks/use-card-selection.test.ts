@@ -100,8 +100,8 @@ describe("useCardSelection", () => {
 
   // Regression: optimistic rows from useBatchedAddCopies live in the grid
   // with a `temp-` prefixed id until the add API returns. Selecting one and
-  // disposing/moving used to 400 the API with an invalid uuid (Sentry
-  // OPENRIFT-SSR-R). The hook now drops temp ids at every entry point.
+  // disposing/moving used to 400 the API with an invalid uuid. The hook now
+  // drops temp ids at every entry point.
   describe("temp copy ids are excluded from selection", () => {
     it("toggleSelect ignores a temp id", () => {
       const { result } = renderHook(() => useCardSelection());

@@ -316,7 +316,7 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   });
 
   it("excludes non-roster participants (requested/invited/no_show) from the run surface", async () => {
-    // Regression for OPENRIFT-API-B: a self-registration through the open
+    // Regression: a self-registration through the open
     // submission link creates a `requested` participant, and the run surface
     // (players, standings, winners) must not serve it — the pod response
     // schemas only accept the active/dropped roster, so a leaked row 500s

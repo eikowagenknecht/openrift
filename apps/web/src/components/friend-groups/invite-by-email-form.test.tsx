@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-// Regression coverage for OPENRIFT-SSR-1B: the Send invite handler used to
+// Regression coverage: the Send invite handler used to
 // `await invite.mutateAsync(...)` without a catch, so an expected API failure
 // (404 "No user with that email") escaped the click handler as an unhandled
 // rejection. The real hook wraps a server fn; replace it with a plain

@@ -41,8 +41,8 @@ function personalCopy(printingId: string): CopyResponse {
 // disposeCopies.mutateAsync, whose callers are fire-and-forget (the onDecrement
 // IIFE in route-decrement.ts and the popover's onRemoveFromCollection click
 // prop), so a rejection that escapes the hook became an uncaught promise
-// (Sentry OPENRIFT-SSR-1F). The hook must swallow it; the user-facing toast is
-// fired by the global mutation onError handler.
+// rejection. The hook must swallow it; the user-facing toast is fired by the
+// global mutation onError handler.
 describe("useQuickAddActions swallows expected dispose failures", () => {
   const resetAddMode = createStoreResetter(useAddModeStore);
 

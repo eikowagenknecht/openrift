@@ -164,7 +164,7 @@ describe("deletePrinting", () => {
   });
 
   it("blocks the delete with a typed 409 naming the referencing user data", async () => {
-    // Regression for OPENRIFT-API-3: copies referencing the printing used to
+    // Regression: copies referencing the printing used to
     // surface as a raw PostgresError 500 instead of a clean CONFLICT.
     const deletePrintingById = vi.fn(async () => {});
     const repos = {

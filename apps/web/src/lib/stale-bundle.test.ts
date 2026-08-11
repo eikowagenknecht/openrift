@@ -704,7 +704,7 @@ describe("reloadIfStaleServerFnError", () => {
   });
 });
 
-// Regression coverage for OPENRIFT-SSR-16: a bare `throw undefined` during
+// Regression coverage: a bare `throw undefined` during
 // React rendering escapes every error boundary and unmounts the tree (white
 // page). React reports it through hydrateRoot's onUncaughtError — and because
 // client.tsx supplies that callback, React's default reportGlobalError never

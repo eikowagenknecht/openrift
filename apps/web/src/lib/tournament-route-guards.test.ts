@@ -33,7 +33,7 @@ describe("loadTournamentDetail", () => {
   });
 
   it("converts the NOT_FOUND sentinel into the router's notFound", async () => {
-    // Regression for OPENRIFT-SSR-1K: a deleted or unknown tournament must
+    // Regression: a deleted or unknown tournament must
     // render the 404 page, not the generic error screen.
     const ensureQueryData = vi.fn().mockRejectedValue(new Error("NOT_FOUND"));
     const queryClient = { ensureQueryData } as unknown as QueryClient;
