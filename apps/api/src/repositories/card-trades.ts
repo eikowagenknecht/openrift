@@ -32,6 +32,19 @@ export interface NewCardTrade {
   expiresAt: Date;
 }
 
+/**
+ * The half of a swap a partial settle splits off (ADR-019, amendment
+ * 2026-08-10). Everything but the quantity and the settle timestamps is
+ * inherited from the row being split, so the two halves stay one agreed swap.
+ */
+export interface NewCardTradeSplit {
+  from: CardTrade;
+  quantity: number;
+  /** Which side is settling, i.e. whose timestamp the new row is stamped with. */
+  role: CardTradeRole;
+  lastActorUserId: string;
+}
+
 export interface TradeListFilters {
   groupId?: string;
   status?: CardTradeStatus;
@@ -346,6 +359,94 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+    },
+
+    /**
+     * Shrinks a settleable trade by `quantity`, reserving that much for a split
+     * half. Guarded so it doubles as the split's concurrency control: the
+     * caller's own side must still be unsettled, and enough quantity must be
+     * left over for the remainder to keep `chk_card_trades_quantity`. Two
+     * concurrent partial settles therefore serialize on this row, and the
+     * loser matches zero rows rather than driving the quantity negative.
+     *
+     * Does NOT bump `updated_at`: the swap did not change, it split.
+     * @returns Rows affected (0 when the caller's side is settled, the trade is
+     * no longer settleable, or `quantity` does not leave a positive remainder).
+     */
+    async reserveQuantityForSplit(
+      id: string,
+      quantity: number,
+      role: CardTradeRole,
+    ): Promise<number> {
+      const settledColumn =
+        role === "giver" ? ("giverSyncAppliedAt" as const) : ("receiverSyncAppliedAt" as const);
+      const result = await db
+        .updateTable("cardTrades")
+        .set({ quantity: sql`quantity - ${quantity}` })
+        .where("id", "=", id)
+        .where("status", "in", ["reserved", "completed"])
+        .where(settledColumn, "is", null)
+        .where("quantity", ">", quantity)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
+    /**
+     * Inserts the settled half of a split (ADR-019, amendment 2026-08-10).
+     *
+     * The caller's settle timestamp goes in on this first statement, which is
+     * what keeps the row outside `uq_card_trades_live` — two reserved halves of
+     * one swap would otherwise collide on it, and the original keeps the live
+     * slot. The other side's timestamp is inherited: once they have settled,
+     * both halves are theirs, and the new row is immediately completable.
+     * @returns The created row.
+     */
+    createSettledSplit(values: NewCardTradeSplit): Promise<CardTrade> {
+      const { from, role } = values;
+      const settledNow = sql<Date>`now()`;
+      return db
+        .insertInto("cardTrades")
+        .values({
+          groupId: from.groupId,
+          giverUserId: from.giverUserId,
+          receiverUserId: from.receiverUserId,
+          initiator: from.initiator,
+          printingId: from.printingId,
+          cardId: from.cardId,
+          quantity: values.quantity,
+          // Inherits the accept rather than performing one, so it sends no
+          // request or reserved email and keeps the original's accepted_at.
+          status: "reserved",
+          acceptedAt: from.acceptedAt,
+          expiresAt: from.expiresAt,
+          receiverWishEntryId: from.receiverWishEntryId,
+          lastActorUserId: values.lastActorUserId,
+          giverSyncAppliedAt: role === "giver" ? settledNow : from.giverSyncAppliedAt,
+          receiverSyncAppliedAt: role === "receiver" ? settledNow : from.receiverSyncAppliedAt,
+          // Both halves were announced by the original's emails.
+          requestEmailSentAt: from.requestEmailSentAt,
+          reservedEmailSentAt: from.reservedEmailSentAt,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    },
+
+    /**
+     * Hands `copyIds` from one trade's reservations to another's. The split
+     * moves pins rather than dropping them: a split half with no pins would
+     * leave the giver nothing to dispose when they settle it.
+     * @returns Nothing.
+     */
+    async reassignCopies(fromTradeId: string, toTradeId: string, copyIds: string[]): Promise<void> {
+      if (copyIds.length === 0) {
+        return;
+      }
+      await db
+        .updateTable("cardTradeCopies")
+        .set({ tradeId: toTradeId })
+        .where("tradeId", "=", fromTradeId)
+        .where("copyId", "in", copyIds)
+        .execute();
     },
 
     /** @returns The raw trade row, or `undefined` if not found. */

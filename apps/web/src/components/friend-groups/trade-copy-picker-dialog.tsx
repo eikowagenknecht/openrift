@@ -232,13 +232,14 @@ function selectionHint(selected: number, quantity: number): string {
 /**
  * The copies the picker opens on: the ones already pinned to the trade when it
  * has any (the settle picker, where they are the current answer), otherwise the
- * first `quantity` in the server's pin order, which is byte-for-byte what an
- * accept without a choice would promise.
+ * server's pin order, which is byte-for-byte what an accept without a choice
+ * would promise. Either way it stops at `quantity`, which on a partial settle
+ * is below the trade's own and so below the number of pins.
  * @returns The initially checked copy ids.
  */
-function defaultSelection(options: CardTradeCopyOptionsResponse): Set<string> {
+function defaultSelection(options: CardTradeCopyOptionsResponse, quantity: number): Set<string> {
   const pinned = options.copies.filter((copy) => copy.pinned);
-  const preselected = pinned.length > 0 ? pinned : options.copies.slice(0, options.quantity);
+  const preselected = (pinned.length > 0 ? pinned : options.copies).slice(0, quantity);
   return new Set(preselected.map((copy) => copy.id));
 }
 
@@ -247,6 +248,7 @@ function CopyPickerBody({
   description,
   confirmLabel,
   options,
+  quantity,
   pending,
   onConfirm,
   onCancel,
@@ -255,12 +257,16 @@ function CopyPickerBody({
   description: string;
   confirmLabel: string;
   options: CardTradeCopyOptionsResponse;
+  /** How many copies to pick. Below `options.quantity` on a partial settle. */
+  quantity: number;
   pending: boolean;
   onConfirm: (copyIds: string[]) => void;
   onCancel: () => void;
 }) {
-  const { quantity, copies } = options;
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => defaultSelection(options));
+  const { copies } = options;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() =>
+    defaultSelection(options, quantity),
+  );
 
   const ready = selectedIds.size === quantity;
 
@@ -363,6 +369,7 @@ export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
             description={`You have ${choice.options.copies.length} copies of ${choice.target.cardName} this trade could take. Pick the ${quantity === 1 ? "one" : quantity} you want to hand over. The rest stay yours.`}
             confirmLabel="Accept"
             options={choice.options}
+            quantity={quantity}
             pending={flow.accepting}
             onConfirm={(copyIds) => flow.confirm(copyIds)}
             onCancel={() => flow.cancel()}
@@ -374,20 +381,23 @@ export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
 }
 
 /** A settle paused on the giver's copy choice. */
-interface TradeSettleChoice {
+export interface TradeSettleChoice {
   options: CardTradeCopyOptionsResponse;
+  /**
+   * How many copies this settle removes. Below `options.quantity` when only
+   * part of the swap changed hands, in which case the rest of the row splits
+   * off and stays in flight.
+   */
+  quantity: number;
 }
 
 /**
- * A settle in progress, shared between the row's "Handed over" button, its
- * "Choose which copies…" menu item and the settle picker.
+ * A paused settle, as the picker dialog drives it. Deliberately narrower than
+ * the flow below: a caller that already knows the row needs a choice (the
+ * at-the-table batch, which asked before it started settling) has a choice to
+ * hand over but nothing to start.
  */
-export interface TradeSettleCopyFlow {
-  /**
-   * Settles the giver's half. Reads the trade's candidate copies first and
-   * prompts when they differ from one another; `force` prompts either way.
-   */
-  start: (options?: { force?: boolean }) => void;
+export interface TradeSettleChoiceControl {
   /** The paused settle the picker is showing, or null when it is closed. */
   choice: TradeSettleChoice | null;
   /** Settles the giver's half, removing the chosen copies. */
@@ -396,6 +406,18 @@ export interface TradeSettleCopyFlow {
   cancel: () => void;
   /** True while the settle mutation itself is in flight. */
   settling: boolean;
+}
+
+/**
+ * A settle in progress, shared between the row's "Handed over" button, its
+ * "Choose which copies…" menu item and the settle picker.
+ */
+export interface TradeSettleCopyFlow extends TradeSettleChoiceControl {
+  /**
+   * Settles the giver's half. Reads the trade's candidate copies first and
+   * prompts when they differ from one another; `force` prompts either way.
+   */
+  start: (options?: { force?: boolean }) => void;
 }
 
 /**
@@ -419,10 +441,17 @@ export interface TradeSettleCopyFlow {
 export function useTradeSettleCopyFlow({
   tradeId,
   groupSlug,
+  quantity,
   onSettled,
 }: {
   tradeId: string;
   groupSlug: string;
+  /**
+   * How many of the row's copies actually changed hands. Omitted, the whole row
+   * settles; below the row's own quantity, the rest splits off and stays in
+   * flight for the next meet-up.
+   */
+  quantity?: number;
   onSettled?: () => void;
 }) {
   const userId = useRequiredUserId();
@@ -440,7 +469,7 @@ export function useTradeSettleCopyFlow({
    * corrected the pick — left off, the server removes the ones it pinned.
    */
   function settle(copyIds?: string[]): void {
-    applySync.mutate({ tradeId, groupSlug, copyIds }, { onSettled: finish });
+    applySync.mutate({ tradeId, groupSlug, copyIds, quantity }, { onSettled: finish });
   }
 
   const flow: TradeSettleCopyFlow = {
@@ -468,7 +497,7 @@ export function useTradeSettleCopyFlow({
           return;
         }
         if (force || options.choiceMatters) {
-          setChoice({ options });
+          setChoice({ options, quantity: quantity ?? options.quantity });
           return;
         }
         settle();
@@ -500,11 +529,11 @@ export function TradeSettleCopyPickerDialog({
   flow,
   cardName,
 }: {
-  flow: TradeSettleCopyFlow;
+  flow: TradeSettleChoiceControl;
   cardName: string;
 }) {
   const choice = flow.choice;
-  const quantity = choice?.options.quantity ?? 1;
+  const quantity = choice?.quantity ?? 1;
   const noun = quantity === 1 ? "copy" : `${quantity} copies`;
   return (
     <Dialog
@@ -522,6 +551,7 @@ export function TradeSettleCopyPickerDialog({
             description={`Pick the ${noun} of ${cardName} that changed hands. ${quantity === 1 ? "It leaves" : "They leave"} your collection for good, and the rest stay yours.`}
             confirmLabel={`Remove ${noun}`}
             options={choice.options}
+            quantity={quantity}
             pending={flow.settling}
             onConfirm={(copyIds) => flow.confirm(copyIds)}
             onCancel={() => flow.cancel()}

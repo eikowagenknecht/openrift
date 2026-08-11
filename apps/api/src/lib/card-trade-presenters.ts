@@ -71,6 +71,31 @@ export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopy
 }
 
 /**
+ * Which of a trade's pins move onto the half a partial settle splits off
+ * (ADR-019, amendment 2026-08-10).
+ *
+ * `disposingCopyIds` is the giver's settle set, and any pin covering one of
+ * those has to be in the answer: the copy is about to be hard-deleted, and
+ * `card_trade_copies.copy_id` cascades, so a pin left behind on the remainder
+ * would vanish with it and quietly leave the remainder short. Those go first,
+ * then the count is filled from the rest in the order given, which the caller
+ * has already put plainest-first. That ordering is the whole rule on the
+ * receiver's side, where nothing is being disposed and the receiver has no say
+ * over which of the giver's copies left.
+ * @returns Up to `quantity` of `pinnedPlainestFirst`.
+ */
+export function selectSplitPins(
+  pinnedPlainestFirst: readonly string[],
+  quantity: number,
+  disposingCopyIds: readonly string[] = [],
+): string[] {
+  const disposing = new Set(disposingCopyIds);
+  const leaving = pinnedPlainestFirst.filter((copyId) => disposing.has(copyId));
+  const staying = pinnedPlainestFirst.filter((copyId) => !disposing.has(copyId));
+  return [...leaving, ...staying].slice(0, quantity);
+}
+
+/**
  * Whether a copy carries anything worth showing: a condition, a grade, an
  * alteration, a note, or a link. Mirrors `copyHasRecordedDetails` in
  * `apps/web/src/components/collection/copy-indicators.ts` so the server and the

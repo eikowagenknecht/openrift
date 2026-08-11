@@ -7,10 +7,27 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 // The overlay is exercised by its own test; here it only has to report which
-// printing the provider handed it.
+// printing the provider handed it and which sequence came with it. The "next"
+// control stands in for the detail's own prev/next.
 vi.mock("@/components/cards/card-detail-overlay", () => ({
-  CardDetailOverlay: ({ openPrintingId }: { openPrintingId: string | null }) =>
-    openPrintingId === null ? null : <div>overlay for {openPrintingId}</div>,
+  CardDetailOverlay: ({
+    openPrintingId,
+    printingIds,
+    onOpenPrintingIdChange,
+  }: {
+    openPrintingId: string | null;
+    printingIds: string[];
+    onOpenPrintingIdChange: (printingId: string | null) => void;
+  }) =>
+    openPrintingId === null ? null : (
+      <div>
+        <span>overlay for {openPrintingId}</span>
+        <span>sequence {printingIds.length === 0 ? "none" : printingIds.join(",")}</span>
+        <button type="button" onClick={() => onOpenPrintingIdChange(printingIds[1] ?? null)}>
+          next
+        </button>
+      </div>
+    ),
 }));
 
 const { CardDetailNameButton, CardDetailOverlayProvider } = await import("./card-detail-opener");
@@ -35,6 +52,68 @@ describe("CardDetailNameButton", () => {
         <CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>
       </CardDetailOverlayProvider>,
     );
+
+    expect(screen.queryByText(/overlay for/u)).not.toBeInTheDocument();
+  });
+
+  it("hands the row's sequence to the overlay", async () => {
+    const user = userEvent.setup();
+    render(
+      <CardDetailOverlayProvider>
+        <CardDetailNameButton printingId="printing-1" sequence={["printing-1", "printing-2"]}>
+          Yasuo
+        </CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+
+    expect(screen.getByText("sequence printing-1,printing-2")).toBeInTheDocument();
+  });
+
+  it("gives the overlay no sequence for a row that names none", async () => {
+    const user = userEvent.setup();
+    render(
+      <CardDetailOverlayProvider>
+        <CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+
+    expect(screen.getByText("sequence none")).toBeInTheDocument();
+  });
+
+  it("keeps the sequence while stepping to another card", async () => {
+    // Checking a stack of cards one by one is the point of the sequence, so it
+    // has to survive every step rather than only the row that opened it.
+    const user = userEvent.setup();
+    render(
+      <CardDetailOverlayProvider>
+        <CardDetailNameButton printingId="printing-1" sequence={["printing-1", "printing-2"]}>
+          Yasuo
+        </CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+    await user.click(screen.getByRole("button", { name: "next" }));
+
+    expect(screen.getByText(/overlay for printing-2/u)).toBeInTheDocument();
+    expect(screen.getByText("sequence printing-1,printing-2")).toBeInTheDocument();
+  });
+
+  it("closes when the overlay reports no printing", async () => {
+    const user = userEvent.setup();
+    render(
+      <CardDetailOverlayProvider>
+        <CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+    // With no sequence the stand-in reports null, the same as a real dismissal.
+    await user.click(screen.getByRole("button", { name: "next" }));
 
     expect(screen.queryByText(/overlay for/u)).not.toBeInTheDocument();
   });

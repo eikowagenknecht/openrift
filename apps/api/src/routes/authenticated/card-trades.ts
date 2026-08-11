@@ -90,11 +90,14 @@ export const cardTradesRouter = {
     return applyTradeSync(context.transact, input.id, context.userId, {
       targetCollectionId: input.targetCollectionId,
       copyIds: input.copyIds,
+      quantity: input.quantity,
     });
   }),
 
   skipSync: os.skipSync.handler(({ input, context }): Promise<CardTradeResponse> => {
     const { skipTradeSync } = context.services;
-    return skipTradeSync(context.transact, input.id, context.userId);
+    return skipTradeSync(context.transact, input.id, context.userId, {
+      quantity: input.quantity,
+    });
   }),
 };

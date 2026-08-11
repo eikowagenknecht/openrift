@@ -4,11 +4,12 @@
 
 ### Highlights
 
+- feat(Trades): **Check the pile at the table** — a new button on each member's trades opens the swap card by card, with art big enough to match against what's in your hand, and settles only the copies that actually turned up. Anything they forgot stays an open trade for next time.
 - feat(Trades): **Choose the copy you handed over** — confirming your half of a swap now asks which copy left whenever your copies differ or sit in different collections, instead of removing whichever one was pinned.
 
 ### Other
 
-- feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, without a detour through the card browser.
+- feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, and arrow keys or a swipe step through the rest of that member's cards.
 
 ## 2026-08-10
 

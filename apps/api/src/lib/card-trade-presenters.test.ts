@@ -6,6 +6,7 @@ import {
   cardTradeChoiceMatters,
   copyHasRecordedDetails,
   copyPinWeight,
+  selectSplitPins,
   sortCopiesForPinning,
   toCardTradeCopyOption,
   toCardTradeCopyOptions,
@@ -55,6 +56,52 @@ describe("copyPinWeight", () => {
       links: [{ url: "https://example.com/front.jpg" }],
     });
     expect(copyPinWeight(loaded)).toBe(11);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectSplitPins
+// ---------------------------------------------------------------------------
+
+describe("selectSplitPins", () => {
+  it("takes the plainest pins when nothing is being disposed", () => {
+    // The receiver's split: no copies leave, so the order given decides.
+    expect(selectSplitPins(["plain", "noted", "graded"], 2)).toEqual(["plain", "noted"]);
+  });
+
+  it("always moves the pin of a copy this settle deletes", () => {
+    // Left on the remainder, the cascade on `copy_id` would take it away with
+    // the copy and leave the remainder pinned to two copies for a quantity of
+    // two, but one of those pins already gone.
+    expect(selectSplitPins(["plain", "noted", "graded"], 1, ["graded"])).toEqual(["graded"]);
+  });
+
+  it("tops the count up plainest-first around a substituted copy", () => {
+    // The giver promised three, then handed over one that was never pinned. Its
+    // pin cannot move because there isn't one, so the count comes off the
+    // plainest of the rest.
+    expect(selectSplitPins(["plain", "noted", "graded"], 2, ["elsewhere"])).toEqual([
+      "plain",
+      "noted",
+    ]);
+  });
+
+  it("puts the disposed pins first, then fills from the rest", () => {
+    expect(selectSplitPins(["plain", "noted", "graded"], 2, ["graded"])).toEqual([
+      "graded",
+      "plain",
+    ]);
+  });
+
+  it("never returns more than the split quantity", () => {
+    expect(selectSplitPins(["a", "b", "c"], 2, ["a", "b", "c"])).toEqual(["a", "b"]);
+  });
+
+  it("returns what there is when the trade is pinned short", () => {
+    // A giver who already settled has released their pins, so a receiver
+    // splitting afterwards finds nothing to move.
+    expect(selectSplitPins([], 2)).toEqual([]);
+    expect(selectSplitPins(["only"], 2)).toEqual(["only"]);
   });
 });
 

@@ -53,13 +53,30 @@ export const setCardTradeQuantitySchema = z.object({
  * `copyIds` is the giver's choice of which physical copies actually left their
  * hands, which is not necessarily what the accept pinned: a plain copy may have
  * been promised while the one that changed hands came out of another binder.
- * It must list exactly `quantity` distinct ids from the trade's current
- * candidate set, which is what `copyOptions` returns for a reserved trade.
- * Omitted, the pinned copies are the ones removed. Only the giver may send it.
+ * It must list exactly as many distinct ids as this settle covers, from the
+ * trade's current candidate set, which is what `copyOptions` returns for a
+ * reserved trade. Omitted, the pinned copies are the ones removed. Only the
+ * giver may send it.
+ *
+ * `quantity` settles part of the row: the swap was for three, two changed
+ * hands, the third is coming next time. The rest splits off as a trade of its
+ * own and stays in flight, so nothing has to claim the remainder happened.
+ * Omitted, the whole row settles. It is capped at the row's own quantity, and
+ * naming exactly that is the same as omitting it.
  */
 export const cardTradeSyncSchema = z.object({
   targetCollectionId: z.uuid().optional(),
   copyIds: z.array(z.uuid()).min(1).max(100).optional(),
+  quantity: z.number().int().min(1).optional(),
+});
+
+/**
+ * Settling a half without the data change. `quantity` splits the row the same
+ * way {@link cardTradeSyncSchema} does, which is also how a receiver closes a
+ * remainder that never arrived once cancelling is past.
+ */
+export const cardTradeSkipSyncSchema = z.object({
+  quantity: z.number().int().min(1).optional(),
 });
 
 /**
@@ -333,7 +350,7 @@ export const cardTradesContract = {
     .output(cardTradeResponseSchema),
   skipSync: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/sync/skip", tags: [TAG] })
-    .input(idParamSchema)
+    .input(withParams(idParamSchema, cardTradeSkipSyncSchema))
     .errors({
       NOT_FOUND: { message: "Trade not found" },
       CONFLICT: { message: "Sync not available" },

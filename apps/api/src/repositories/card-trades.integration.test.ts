@@ -1560,4 +1560,217 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("returns nothing for a user with no live trades", async () => {
     expect(await repos.cardTrades.liveAnnotationsForUser(BYSTANDER_ID)).toEqual([]);
   });
+
+  // ADR-019, amendment 2026-08-10: settling part of a swap splits the row and
+  // settles the split half, leaving the remainder in flight. Two of the three
+  // cards changed hands and the third is coming next time.
+  describe("partial settle", () => {
+    /** @returns The trades of this printing between the pair, newest last. */
+    async function tradesBetweenParties() {
+      return db
+        .selectFrom("cardTrades")
+        .selectAll()
+        .where("giverUserId", "=", GIVER_ID)
+        .where("receiverUserId", "=", RECEIVER_ID)
+        .orderBy("createdAt")
+        .execute();
+    }
+
+    it("receiver settles part, and the rest stays in flight", async () => {
+      const { group, wishEntryId } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      const before = await countReceiverCopiesOfP1();
+      const settled = await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+
+      // Only the card that actually arrived is claimed.
+      expect(await countReceiverCopiesOfP1()).toBe(before + 1);
+      expect(settled.quantity).toBe(1);
+      expect(settled.id).not.toBe(trade.id);
+
+      const remainder = await repos.cardTrades.getById(trade.id);
+      expect(remainder).toMatchObject({
+        quantity: 2,
+        status: "reserved",
+        receiverSyncAppliedAt: null,
+        giverSyncAppliedAt: null,
+      });
+
+      // Both halves point at the same wish entry, so their decrements sum to
+      // the original's quantity rather than double-counting it.
+      const wish = await db
+        .selectFrom("listEntries")
+        .select("quantity")
+        .where("id", "=", wishEntryId)
+        .executeTakeFirst();
+      expect(wish?.quantity).toBe(2);
+    });
+
+    it("moves pins onto the split half instead of dropping them", async () => {
+      const { group } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+      expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(3);
+
+      const settled = await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+
+      // The remainder keeps enough pins for the giver to dispose when they
+      // settle it; the split half carries the one it took.
+      expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(2);
+      expect(await repos.cardTrades.listReservedCopyIds(settled.id)).toHaveLength(1);
+    });
+
+    it("giver settles part, disposing only that many copies", async () => {
+      const { group, copyIds } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await applyTradeSync(transact, trade.id, GIVER_ID, { quantity: 2 });
+
+      const surviving = await db
+        .selectFrom("copies")
+        .select("id")
+        .where("id", "in", copyIds)
+        .execute();
+      expect(surviving).toHaveLength(1);
+      expect(await repos.cardTrades.getById(trade.id)).toMatchObject({
+        quantity: 1,
+        giverSyncAppliedAt: null,
+      });
+      expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
+    });
+
+    it("keeps the remainder pinned to copies that still exist", async () => {
+      // `card_trade_copies.copy_id` cascades, so a pin left on the remainder
+      // for a copy this settle deletes would vanish with it and leave the
+      // remainder under-pinned. The chosen copy's pin has to move.
+      const { group, copyIds } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await applyTradeSync(transact, trade.id, GIVER_ID, {
+        quantity: 1,
+        copyIds: [copyIds[2]],
+      });
+
+      const remainderPins = await repos.cardTrades.listReservedCopyIds(trade.id);
+      expect(remainderPins).toHaveLength(2);
+      expect(remainderPins).not.toContain(copyIds[2]);
+      const surviving = await db
+        .selectFrom("copies")
+        .select("id")
+        .where("id", "in", copyIds)
+        .execute();
+      expect(surviving.map((row) => row.id).toSorted()).toEqual(
+        [copyIds[0], copyIds[1]].toSorted(),
+      );
+    });
+
+    it("completes the split half when the other side already settled in full", async () => {
+      const { group } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      // The giver handed over all three; the receiver only got one of them.
+      await applyTradeSync(transact, trade.id, GIVER_ID);
+      const settled = await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+
+      expect(settled.status).toBe("completed");
+      // The remainder is the legal half-settled state: giver done, receiver not.
+      expect(await repos.cardTrades.getById(trade.id)).toMatchObject({
+        quantity: 2,
+        status: "reserved",
+        receiverSyncAppliedAt: null,
+      });
+    });
+
+    it("lets the receiver close a remainder that never arrived, without claiming it", async () => {
+      const { group, wishEntryId } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+      const before = await countReceiverCopiesOfP1();
+      await skipTradeSync(transact, trade.id, RECEIVER_ID);
+
+      expect(await countReceiverCopiesOfP1()).toBe(before);
+      const wish = await db
+        .selectFrom("listEntries")
+        .select("quantity")
+        .where("id", "=", wishEntryId)
+        .executeTakeFirst();
+      expect(wish?.quantity).toBe(2);
+    });
+
+    it("settles the whole row when the quantity is the row's own", async () => {
+      const { group } = await setupMatch(2);
+      const trade = await request(group, 2);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      const settled = await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 2 });
+
+      // No split: naming the full quantity is the same as naming none.
+      expect(settled.id).toBe(trade.id);
+      expect(await tradesBetweenParties()).toHaveLength(1);
+    });
+
+    it("409s on a quantity past what is left of the row", async () => {
+      const { group } = await setupMatch(3);
+      const trade = await request(group, 2);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await expect(
+        applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 3 }),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("409s once the caller's side is settled, rather than splitting again", async () => {
+      const { group } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await applyTradeSync(transact, trade.id, RECEIVER_ID);
+      await expect(
+        applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 }),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("settles down to the last card across several partials", async () => {
+      const { group, wishEntryId } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      const before = await countReceiverCopiesOfP1();
+      await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+      await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+      await applyTradeSync(transact, trade.id, RECEIVER_ID);
+
+      expect(await countReceiverCopiesOfP1()).toBe(before + 3);
+      const wish = await db
+        .selectFrom("listEntries")
+        .select("quantity")
+        .where("id", "=", wishEntryId)
+        .executeTakeFirst();
+      // The repo deletes a wish entry that reaches zero.
+      expect(wish).toBeUndefined();
+      // Three settled halves, none of which violated the live-trade uniqueness
+      // index: the original held the slot, each split was born settled.
+      expect(await tradesBetweenParties()).toHaveLength(3);
+    });
+
+    it("leaves the remainder cancellable while both sides are unsettled", async () => {
+      const { group } = await setupMatch(3);
+      const trade = await request(group, 3);
+      await acceptTrade(transact, trade.id, GIVER_ID);
+
+      await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
+      // "The rest never arrived" needs no state of its own: the remainder still
+      // has two null settle timestamps, so the ordinary cancel window is open.
+      await cancelTrade(transact, trade.id, RECEIVER_ID);
+
+      expect(await repos.cardTrades.getById(trade.id)).toMatchObject({ status: "cancelled" });
+      expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(0);
+    });
+  });
 });

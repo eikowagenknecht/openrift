@@ -8,7 +8,11 @@ import type {
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { TradeCopyRow } from "../lib/card-trade-presenters.js";
-import { sortCopiesForPinning, toCardTradeCopyOptions } from "../lib/card-trade-presenters.js";
+import {
+  selectSplitPins,
+  sortCopiesForPinning,
+  toCardTradeCopyOptions,
+} from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
 import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
 import type { CardTrade } from "../repositories/card-trades.js";
@@ -847,11 +851,15 @@ async function applyReceiverSync(
  * Substituting is safe where re-pinning would not be: these rows are about to
  * be hard-deleted, not promised, so the swapped-in copy never needs to have
  * been visible to the group.
- * @returns Exactly `trade.quantity` copy ids to dispose.
+ *
+ * `quantity` is how many copies this settle covers, which is the split half's
+ * quantity on a partial settle rather than the whole row's.
+ * @returns Exactly `quantity` copy ids to dispose.
  */
 async function resolveSettleCopyIds(
   trxRepos: Repos,
   trade: CardTrade,
+  quantity: number,
   pinnedCopyIds: string[],
   chosenCopyIds: string[],
 ): Promise<string[]> {
@@ -859,9 +867,9 @@ async function resolveSettleCopyIds(
   if (unique.size !== chosenCopyIds.length) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "Choose each copy only once");
   }
-  if (unique.size !== trade.quantity) {
-    const noun = trade.quantity === 1 ? "copy" : "copies";
-    throw new AppError(409, ERROR_CODES.CONFLICT, `Choose exactly ${trade.quantity} ${noun}`);
+  if (unique.size !== quantity) {
+    const noun = quantity === 1 ? "copy" : "copies";
+    throw new AppError(409, ERROR_CODES.CONFLICT, `Choose exactly ${quantity} ${noun}`);
   }
 
   // Lock the chosen rows before reading the candidate set, so a concurrent
@@ -879,6 +887,85 @@ async function resolveSettleCopyIds(
 }
 
 /**
+ * Splits `quantity` off a trade so the caller can settle that much of it
+ * (ADR-019, amendment 2026-08-10). The remainder stays in flight, carrying the
+ * rest of the quantity and the rest of the pins, so "they'll bring the other
+ * two next time" needs no state of its own.
+ *
+ * The guarded decrement is the entire concurrency story: it takes the row lock,
+ * refuses a caller whose side is already settled, and refuses a quantity that
+ * would leave no remainder. Two partial settles racing therefore serialize on
+ * it, and the loser is told its side is resolved rather than driving the
+ * quantity negative. The insert that follows carries the caller's settle
+ * timestamp from the first statement, which keeps the new row outside
+ * `uq_card_trades_live` while the original holds the live slot.
+ * @returns The split half, already stamped as settled on the caller's side.
+ */
+async function splitTradeForSettle(
+  trxRepos: Repos,
+  trade: CardTrade,
+  role: CardTradeRole,
+  byUserId: string,
+  quantity: number,
+  disposingCopyIds?: string[],
+): Promise<CardTrade> {
+  if ((await trxRepos.cardTrades.reserveQuantityForSplit(trade.id, quantity, role)) === 0) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
+  }
+  const split = await trxRepos.cardTrades.createSettledSplit({
+    from: trade,
+    quantity,
+    role,
+    lastActorUserId: byUserId,
+  });
+
+  // Empty once the giver has settled and released them, which is the normal
+  // shape of a receiver splitting after the fact.
+  const pinnedCopyIds = await trxRepos.cardTrades.listReservedCopyIds(trade.id);
+  if (pinnedCopyIds.length > 0) {
+    const pinned = await trxRepos.copies.listMetadataByIds(pinnedCopyIds);
+    const plainestFirst = sortCopiesForPinning(pinned).map((copy) => copy.id);
+    const moving = selectSplitPins(plainestFirst, quantity, disposingCopyIds);
+    await trxRepos.cardTrades.reassignCopies(trade.id, split.id, moving);
+  }
+  return split;
+}
+
+/**
+ * Resolves which row a settle lands on and claims the caller's side of it.
+ * That is the trade itself for a full settle, or a freshly split half below it.
+ *
+ * The two paths guard a double-apply differently and both have to: a full
+ * settle claims its side with a guarded UPDATE, while a split's row is born
+ * settled and leans on the guarded decrement instead.
+ * @returns The row to apply the caller's half of the swap to.
+ */
+async function claimSettleTarget(
+  trxRepos: Repos,
+  trade: CardTrade,
+  role: CardTradeRole,
+  byUserId: string,
+  quantity: number | undefined,
+  disposingCopyIds?: string[],
+): Promise<CardTrade> {
+  const settling = quantity ?? trade.quantity;
+  if (settling > trade.quantity) {
+    const noun = trade.quantity === 1 ? "copy" : "copies";
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      `This trade is down to ${trade.quantity} ${noun}`,
+    );
+  }
+  if (settling === trade.quantity) {
+    const claimSide = role === "giver" ? claimGiverSyncSide : claimReceiverSyncSide;
+    await claimSide(trxRepos, trade.id);
+    return trade;
+  }
+  return splitTradeForSettle(trxRepos, trade, role, byUserId, settling, disposingCopyIds);
+}
+
+/**
  * Settles the caller's own half of a swap, with the data change. Giver: dispose
  * the reserved copies (releasing the reservation first, atomically), which is
  * "I handed them over". Receiver: add the copies and decrement the wish entry,
@@ -889,14 +976,17 @@ async function resolveSettleCopyIds(
  *
  * `copyIds` is the giver's correction to which copies leave
  * (see {@link resolveSettleCopyIds}); `targetCollectionId` is the receiver's
- * target collection. Each is ignored on the other side's settle.
- * @returns The trade as a viewer-oriented DTO.
+ * target collection. Each is ignored on the other side's settle. `quantity`
+ * settles part of the row, splitting the rest off to stay in flight
+ * (see {@link splitTradeForSettle}); omitted, the whole row settles.
+ * @returns The settled half as a viewer-oriented DTO — the split one on a
+ * partial settle, not the remainder.
  */
 export function applyTradeSync(
   transact: Transact,
   tradeId: string,
   byUserId: string,
-  options: { targetCollectionId?: string; copyIds?: string[] } = {},
+  options: { targetCollectionId?: string; copyIds?: string[]; quantity?: number } = {},
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
@@ -911,20 +1001,47 @@ export function applyTradeSync(
       );
     }
 
+    let settledId: string;
     if (role === "giver") {
-      // Claim the giver's side first (guarded UPDATE): a concurrent double-apply
-      // matches zero rows here and 409s, so the dispose below runs exactly once.
-      await claimGiverSyncSide(trxRepos, tradeId);
+      // Resolved before the claim, because a split has to know which pins cover
+      // the copies it disposes. Nothing is written yet: this reads and locks
+      // the chosen copies, and the claim below is still what makes the dispose
+      // run exactly once — a concurrent double-apply matches zero rows there.
       const pinnedCopyIds = await trxRepos.cardTrades.listReservedCopyIds(tradeId);
-      const copyIds =
+      const chosenCopyIds =
         options.copyIds === undefined
-          ? pinnedCopyIds
-          : await resolveSettleCopyIds(trxRepos, trade, pinnedCopyIds, options.copyIds);
+          ? undefined
+          : await resolveSettleCopyIds(
+              trxRepos,
+              trade,
+              options.quantity ?? trade.quantity,
+              pinnedCopyIds,
+              options.copyIds,
+            );
+      const target = await claimSettleTarget(
+        trxRepos,
+        trade,
+        role,
+        byUserId,
+        options.quantity,
+        chosenCopyIds,
+      );
+      settledId = target.id;
+      // Without a choice the pins are what goes. A split moved some of them, so
+      // re-read; settling the whole row leaves them where the read above found
+      // them.
+      let copyIds = chosenCopyIds;
+      if (copyIds === undefined) {
+        copyIds =
+          target.id === tradeId
+            ? pinnedCopyIds
+            : await trxRepos.cardTrades.listReservedCopyIds(target.id);
+      }
       // Release the reservation rows so the dispose guard passes, then dispose
       // through the shared service body (emits a `removed` event, sweeps the
       // giver's now-unfillable pending trades, and cascade-removes the copies'
       // copy-kind tradelist entries).
-      await trxRepos.cardTrades.deleteCopiesForTrade(tradeId);
+      await trxRepos.cardTrades.deleteCopiesForTrade(target.id);
       if (copyIds.length > 0) {
         await disposeCopiesInTransaction(trxRepos, trade.giverUserId, copyIds, {
           skipReservationGuard: true,
@@ -933,12 +1050,15 @@ export function applyTradeSync(
     } else {
       // Claim the receiver's side first, so a concurrent double-apply cannot add
       // the copies twice or double-decrement the wish.
-      await claimReceiverSyncSide(trxRepos, tradeId);
-      await applyReceiverSync(trxRepos, trade, options.targetCollectionId);
+      const target = await claimSettleTarget(trxRepos, trade, role, byUserId, options.quantity);
+      settledId = target.id;
+      // The split half carries its own quantity and the same wish entry, so the
+      // two halves' decrements sum to the original's.
+      await applyReceiverSync(trxRepos, target, options.targetCollectionId);
     }
 
-    await trxRepos.cardTrades.markCompletedWhenBothSettled(tradeId, byUserId);
-    return reloadDto(trxRepos, tradeId, byUserId);
+    await trxRepos.cardTrades.markCompletedWhenBothSettled(settledId, byUserId);
+    return reloadDto(trxRepos, settledId, byUserId);
   });
 }
 
@@ -949,27 +1069,30 @@ export function applyTradeSync(
  *
  * The giver's skip still releases the reservation — the copy physically left,
  * so the stale copy reappears as available until they fix it manually.
- * @returns The trade as a viewer-oriented DTO.
+ *
+ * `quantity` skips part of the row, splitting the rest off to stay in flight.
+ * It is also how a receiver closes a remainder that never arrived once cancel
+ * is past: settling the half without touching their collection.
+ * @returns The settled half as a viewer-oriented DTO.
  */
 export function skipTradeSync(
   transact: Transact,
   tradeId: string,
   byUserId: string,
+  options: { quantity?: number } = {},
 ): Promise<CardTradeResponse> {
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
     assertSettleable(trade);
 
+    const target = await claimSettleTarget(trxRepos, trade, role, byUserId, options.quantity);
     if (role === "giver") {
-      await claimGiverSyncSide(trxRepos, tradeId);
       // The copy physically left; release the claim so the stale copy reappears
       // as available until the giver fixes their data manually.
-      await trxRepos.cardTrades.deleteCopiesForTrade(tradeId);
-    } else {
-      await claimReceiverSyncSide(trxRepos, tradeId);
+      await trxRepos.cardTrades.deleteCopiesForTrade(target.id);
     }
 
-    await trxRepos.cardTrades.markCompletedWhenBothSettled(tradeId, byUserId);
-    return reloadDto(trxRepos, tradeId, byUserId);
+    await trxRepos.cardTrades.markCompletedWhenBothSettled(target.id, byUserId);
+    return reloadDto(trxRepos, target.id, byUserId);
   });
 }

@@ -74,6 +74,7 @@ import {
   TradeStatusBadge,
   TradeValueSummary,
 } from "./trade-row-parts";
+import { TradeTableSheetButton } from "./trade-table-sheet";
 
 /**
  * The apply-sync mutation variables for one trade. The target collection is only
@@ -258,7 +259,16 @@ function RemoveOutgoingTradeButtons({
  * seven times; the odd row out keeps its badge and is the only chip in the list.
  * @returns The trade row element.
  */
-function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: boolean }) {
+function TradeRow({
+  trade,
+  hideBadge,
+  sequence,
+}: {
+  trade: CardTradeResponse;
+  hideBadge?: boolean;
+  /** The printing ids of the block this row sits in, for the detail's prev/next. */
+  sequence?: string[];
+}) {
   const { cardsById, printingsById } = useCards();
   const { labels } = useEnumOrders();
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
@@ -327,6 +337,7 @@ function TradeRow({ trade, hideBadge }: { trade: CardTradeResponse; hideBadge?: 
               plain text rather than a dead control. */}
           <CardDetailNameButton
             printingId={printing?.id}
+            sequence={sequence}
             className="max-w-full self-start truncate font-medium"
           >
             {trade.quantity}× {cardName}
@@ -656,6 +667,15 @@ function CounterpartyTradeGroup({
   // their trades — the fold is a display cap, not a filter.
   const fold = useCappedRows(trades);
   const shared = dominantTradeBadge(trades);
+  // Opening one row's card detail steps through the rest of this member's
+  // block, so a stack of cards handed over at the table can be checked against
+  // the agreed list one card at a time. Only the rows on screen, and only
+  // distinct printings: the detail is addressed by printing id, so a card the
+  // block lists twice (history keeps a completed row per swap) has no second
+  // position to step to. A block down to one printing passes nothing, which
+  // keeps the position label off a detail with nowhere to go.
+  const stepPrintingIds = [...new Set(fold.rows.map((trade) => trade.printingId))];
+  const sequence = stepPrintingIds.length > 1 ? stepPrintingIds : undefined;
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
@@ -686,6 +706,7 @@ function CounterpartyTradeGroup({
           </span>
           <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
         </CollapsibleTrigger>
+        <TradeTableSheetButton counterpartyName={counterparty.name} trades={trades} />
         <CardmarketExportButton counterpartyName={counterparty.name} trades={trades} />
         <BulkTradeActions trades={trades} mode={bulk} />
       </div>
@@ -696,6 +717,7 @@ function CounterpartyTradeGroup({
               key={trade.id}
               trade={trade}
               hideBadge={shared !== null && sameTradeBadge(tradeBadge(trade), shared)}
+              sequence={sequence}
             />
           ))}
           {fold.foldable ? <TradeShowMoreRow fold={fold} /> : null}

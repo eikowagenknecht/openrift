@@ -383,6 +383,7 @@ describe("POST /api/v1/trades/:id/sync", () => {
     expect(mockApplyTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
       targetCollectionId,
       copyIds: undefined,
+      quantity: undefined,
     });
   });
 
@@ -398,6 +399,7 @@ describe("POST /api/v1/trades/:id/sync", () => {
     expect(mockApplyTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
       targetCollectionId: undefined,
       copyIds,
+      quantity: undefined,
     });
   });
 
@@ -416,6 +418,30 @@ describe("POST /api/v1/trades/:id/sync/skip", () => {
     mockSkipTradeSync.mockResolvedValue(tradeResponse);
     const res = await app.request(`/api/v1/trades/${TRADE_ID}/sync/skip`, { method: "POST" });
     expect(res.status).toBe(200);
-    expect(mockSkipTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID);
+    expect(mockSkipTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
+      quantity: undefined,
+    });
+  });
+
+  it("passes a partial quantity through", async () => {
+    mockSkipTradeSync.mockResolvedValue(tradeResponse);
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/sync/skip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: 2 }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockSkipTradeSync).toHaveBeenCalledWith(expect.anything(), TRADE_ID, USER_ID, {
+      quantity: 2,
+    });
+  });
+
+  it("rejects a quantity below one", async () => {
+    const res = await app.request(`/api/v1/trades/${TRADE_ID}/sync/skip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: 0 }),
+    });
+    expect(res.status).toBe(400);
   });
 });

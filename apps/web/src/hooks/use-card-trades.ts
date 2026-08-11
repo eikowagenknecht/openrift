@@ -91,21 +91,32 @@ const acceptTradeFn = createServerFn({ method: "POST" })
   );
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
-  .validator((input: { tradeId: string; targetCollectionId?: string; copyIds?: string[] }) => input)
+  .validator(
+    (input: {
+      tradeId: string;
+      targetCollectionId?: string;
+      copyIds?: string[];
+      quantity?: number;
+    }) => input,
+  )
   .middleware([withCookies])
   .handler(({ context, data }) =>
     apiOrpcClient(cardTradesContract, context.cookie).sync({
       id: data.tradeId,
       targetCollectionId: data.targetCollectionId,
       copyIds: data.copyIds,
+      quantity: data.quantity,
     }),
   );
 
 const skipTradeSyncFn = createServerFn({ method: "POST" })
-  .validator((input: string) => input)
+  .validator((input: { tradeId: string; quantity?: number }) => input)
   .middleware([withCookies])
-  .handler(({ context, data: tradeId }) =>
-    apiOrpcClient(cardTradesContract, context.cookie).skipSync({ id: tradeId }),
+  .handler(({ context, data }) =>
+    apiOrpcClient(cardTradesContract, context.cookie).skipSync({
+      id: data.tradeId,
+      quantity: data.quantity,
+    }),
   );
 
 // ── Query hooks ───────────────────────────────────────────────────────────────
@@ -314,13 +325,23 @@ export function useCancelTrade() {
  * passes `targetCollectionId` to file the incoming copies somewhere other than
  * their inbox; a giver passes `copyIds` when the copies that physically left
  * are not the ones the accept pinned. Omitting both takes the defaults.
+ *
+ * `quantity` settles only part of the row, leaving the rest in flight as a
+ * trade of its own — two of the three turned up and the third is coming next
+ * time. Omitted, the whole row settles.
  * @returns The apply-sync mutation.
  */
 export function useApplyTradeSync() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
     CardTradeResponse,
-    { tradeId: string; targetCollectionId?: string; copyIds?: string[]; groupSlug?: string }
+    {
+      tradeId: string;
+      targetCollectionId?: string;
+      copyIds?: string[];
+      quantity?: number;
+      groupSlug?: string;
+    }
   >({
     mutationFn: (data) =>
       applyTradeSyncFn({
@@ -328,16 +349,27 @@ export function useApplyTradeSync() {
           tradeId: data.tradeId,
           targetCollectionId: data.targetCollectionId,
           copyIds: data.copyIds,
+          quantity: data.quantity,
         },
       }),
     invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });
 }
 
+/**
+ * Settles the viewer's own half without the data change. Takes the same
+ * `quantity` as {@link useApplyTradeSync}, which is also how a receiver closes
+ * a remainder that never arrived once cancelling is past.
+ * @returns The skip-sync mutation.
+ */
 export function useSkipTradeSync() {
   const userId = useRequiredUserId();
-  return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
-    mutationFn: (data) => skipTradeSyncFn({ data: data.tradeId }),
+  return useMutationWithInvalidation<
+    CardTradeResponse,
+    { tradeId: string; quantity?: number; groupSlug?: string }
+  >({
+    mutationFn: (data) =>
+      skipTradeSyncFn({ data: { tradeId: data.tradeId, quantity: data.quantity } }),
     invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });
 }
