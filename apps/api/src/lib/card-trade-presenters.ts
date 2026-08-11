@@ -93,15 +93,20 @@ export function copyHasRecordedDetails(copy: TradeCopyRow): boolean {
  * A copy's identity as a person would judge it. Two candidates with the same
  * key are interchangeable, so asking which one to promise is busywork.
  *
- * The collection is deliberately out of the key. Two plain copies filed in two
- * binders are still the same card, and counting that as a difference would fire
- * the picker on nearly every trade. Printing-level traits (finish, art variant,
- * language) are out too, but for a stronger reason: a trade names one printing,
- * so every candidate shares them.
+ * `byCollection` adds the binder the copy is filed in to that identity. The
+ * settle picker sets it: the copies are about to be deleted, so which binder
+ * loses one is part of the answer, and the giver said so. The accept picker
+ * does not, because a promise is not a deletion — two plain copies in two
+ * binders are the same card to promise away, and counting that as a difference
+ * would fire the picker on nearly every trade.
+ *
+ * Printing-level traits (finish, art variant, language) are out of the key for
+ * a stronger reason: a trade names one printing, so every candidate shares them.
  * @returns A stable string key for the copy's user-visible traits.
  */
-function distinguishingKey(copy: TradeCopyRow): string {
+function distinguishingKey(copy: TradeCopyRow, byCollection: boolean): string {
   return JSON.stringify([
+    byCollection ? copy.collectionId : null,
     copy.condition,
     copy.grader,
     copy.grade,
@@ -115,14 +120,20 @@ function distinguishingKey(copy: TradeCopyRow): string {
 /**
  * Whether the giver has a choice worth surfacing: more candidates than the
  * trade needs, and at least two of them differ in something a person cares
- * about. A stack of identical unrecorded copies is not a decision.
+ * about. A stack of identical unrecorded copies from one binder is not a
+ * decision. `byCollection` is the settle picker's stricter reading of
+ * "differ" (see {@link distinguishingKey}).
  * @returns `true` when the client should prompt for a pick.
  */
-export function cardTradeChoiceMatters(copies: readonly TradeCopyRow[], quantity: number): boolean {
+export function cardTradeChoiceMatters(
+  copies: readonly TradeCopyRow[],
+  quantity: number,
+  byCollection = false,
+): boolean {
   if (copies.length <= quantity) {
     return false;
   }
-  const keys = new Set(copies.map((copy) => distinguishingKey(copy)));
+  const keys = new Set(copies.map((copy) => distinguishingKey(copy, byCollection)));
   return keys.size > 1;
 }
 
@@ -155,6 +166,10 @@ export function toCardTradeCopyOption(copy: TradeCopyRow, pinned: boolean): Card
  * an explicit choice would promise. On a reserved trade the pinned copies sort
  * ahead of the rest, since they are the current answer the settle picker opens
  * on; the alternatives keep the plainest-first order behind them.
+ *
+ * Passing `pinnedCopyIds` is also what marks this as the settle side, which
+ * judges "these copies are alike" per collection (see
+ * {@link distinguishingKey}).
  * @returns The serialized copy-options response.
  */
 export function toCardTradeCopyOptions(input: {
@@ -163,6 +178,7 @@ export function toCardTradeCopyOptions(input: {
   copies: readonly TradeCopyRow[];
   pinnedCopyIds?: readonly string[];
 }): CardTradeCopyOptionsResponse {
+  const settling = input.pinnedCopyIds !== undefined;
   const pinned = new Set(input.pinnedCopyIds);
   const byPinWeight = sortCopiesForPinning(input.copies);
   const ordered = [
@@ -172,7 +188,7 @@ export function toCardTradeCopyOptions(input: {
   return {
     tradeId: input.tradeId,
     quantity: input.quantity,
-    choiceMatters: cardTradeChoiceMatters(ordered, input.quantity),
+    choiceMatters: cardTradeChoiceMatters(ordered, input.quantity, settling),
     copies: ordered.map((copy) => toCardTradeCopyOption(copy, pinned.has(copy.id))),
   };
 }

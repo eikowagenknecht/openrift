@@ -2,6 +2,10 @@
 
 ## 2026-08-11
 
+### Highlights
+
+- feat(Trades): **Choose the copy you handed over** — confirming your half of a swap now asks which copy left whenever your copies differ or sit in different collections, instead of removing whichever one was pinned.
+
 ### Other
 
 - feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, without a detour through the card browser.

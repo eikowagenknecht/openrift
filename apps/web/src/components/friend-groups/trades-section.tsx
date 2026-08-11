@@ -191,16 +191,16 @@ function AddIncomingTradeButtons({
 }
 
 /**
- * The giver's side of a reserved trade: one press removes the copies the accept
- * pinned, with an overflow menu to say the ones that actually changed hands were
- * others.
+ * The giver's side of a reserved trade: one press removes the copies that
+ * changed hands, asking which ones when the candidates differ, with an overflow
+ * menu to ask anyway.
  *
- * The pinned copies are only ever a guess at that. A giver-initiated offer pins
- * without asking them at all, and even a picked pin was picked before the swap,
- * so the copy that travelled can easily have come out of a different binder —
- * one the group may never have seen. Nothing here re-pins: the rows are about to
- * be deleted, so the menu is a correction to what leaves, not to what is
- * promised.
+ * The pinned copies are only ever a guess at what travelled. A giver-initiated
+ * offer pins without asking them at all, and even a picked pin was picked before
+ * the swap, so the copy that changed hands can easily have come out of a
+ * different binder — one the group may never have seen. Nothing here re-pins:
+ * the rows are about to be deleted, so the choice is a correction to what
+ * leaves, not to what is promised.
  * @returns The remove button, its overflow menu and the picker dialog.
  */
 function RemoveOutgoingTradeButtons({
@@ -219,33 +219,24 @@ function RemoveOutgoingTradeButtons({
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
   const settle = useTradeActionStore((state) => state.settle);
-  const applySync = useApplyTradeSync();
   const flow = useTradeSettleCopyFlow({
     tradeId: trade.id,
     groupSlug: trade.groupSlug,
     onSettled: () => settle(trade.id),
   });
 
-  function removePinned(): void {
+  function startSettle(force: boolean): void {
     begin(trade.id);
-    applySync.mutate(
-      { tradeId: trade.id, groupSlug: trade.groupSlug },
-      { onSettled: () => settle(trade.id) },
-    );
+    flow.start({ force });
   }
 
   return (
     <>
-      <Button size="sm" disabled={acting} onClick={removePinned}>
-        Handed over, remove {trade.quantity}
+      <Button size="sm" disabled={acting} onClick={() => startSettle(false)}>
+        Handed over, remove from my collection
       </Button>
       <SettleOverflowMenu disabled={acting}>
-        <DropdownMenuItem
-          onClick={() => {
-            begin(trade.id);
-            flow.start();
-          }}
-        >
+        <DropdownMenuItem onClick={() => startSettle(true)}>
           <LayersIcon className="size-4" />
           Choose which copies…
         </DropdownMenuItem>

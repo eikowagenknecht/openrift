@@ -271,6 +271,9 @@ function SettleHarness() {
   return (
     <>
       <button type="button" onClick={() => flow.start()}>
+        Handed over
+      </button>
+      <button type="button" onClick={() => flow.start({ force: true })}>
         Choose copies
       </button>
       <TradeSettleCopyPickerDialog flow={flow} cardName="Fury Rune" />
@@ -290,6 +293,12 @@ function renderSettleFlow() {
 async function startSettleChoice() {
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Choose copies" }));
+  return user;
+}
+
+async function startSettle() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Handed over" }));
   return user;
 }
 
@@ -384,6 +393,78 @@ describe("TradeSettleCopyPickerDialog", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(syncMutate).not.toHaveBeenCalled();
+    expect(settled).toHaveBeenCalled();
+  });
+});
+
+describe("the settle button itself", () => {
+  beforeEach(() => {
+    currentOptions = {
+      tradeId: "trade-1",
+      quantity: 1,
+      choiceMatters: true,
+      copies: [{ ...GRADED, pinned: true }, PLAIN_A, PLAIN_B],
+    };
+  });
+
+  it("asks which copy went when the candidates differ", async () => {
+    renderSettleFlow();
+    await startSettle();
+
+    await screen.findByRole("dialog");
+    expect(syncMutate).not.toHaveBeenCalled();
+  });
+
+  it("removes the pinned copies with no prompt when every candidate is alike", async () => {
+    currentOptions = {
+      tradeId: "trade-1",
+      quantity: 1,
+      choiceMatters: false,
+      copies: [{ ...PLAIN_A, pinned: true }, PLAIN_B],
+    };
+    renderSettleFlow();
+    await startSettle();
+
+    await waitFor(() => expect(syncMutate).toHaveBeenCalledTimes(1));
+    // No copyIds: the server removes the copies it pinned, which is what the
+    // options read just named.
+    expect(syncMutate.mock.calls[0][0]).toEqual({
+      tradeId: "trade-1",
+      groupSlug: "bothfeld",
+      copyIds: undefined,
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(settled).toHaveBeenCalled();
+  });
+
+  it("asks when the only difference is which collection the copies sit in", async () => {
+    // The server decides this — `choiceMatters` counts the collection on the
+    // settle side — so the button must not second-guess it.
+    currentOptions = {
+      tradeId: "trade-1",
+      quantity: 1,
+      choiceMatters: true,
+      copies: [{ ...PLAIN_A, pinned: true }, PLAIN_B],
+    };
+    renderSettleFlow();
+    await startSettle();
+
+    await screen.findByRole("dialog");
+    expect(syncMutate).not.toHaveBeenCalled();
+  });
+
+  it("still settles when the copy options cannot be read", async () => {
+    optionsFail = true;
+    renderSettleFlow();
+    await startSettle();
+
+    await waitFor(() => expect(syncMutate).toHaveBeenCalledTimes(1));
+    expect(syncMutate.mock.calls[0][0]).toEqual({
+      tradeId: "trade-1",
+      groupSlug: "bothfeld",
+      copyIds: undefined,
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(settled).toHaveBeenCalled();
   });
 });

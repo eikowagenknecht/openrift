@@ -156,12 +156,25 @@ describe("cardTradeChoiceMatters", () => {
     expect(cardTradeChoiceMatters(rows, 1)).toBe(true);
   });
 
-  it("ignores which collection a copy sits in", () => {
+  it("ignores which collection a copy sits in when promising one away", () => {
     const rows = [
       copy({ id: "a", collectionId: "col-1", collectionName: "Binder" }),
       copy({ id: "b", collectionId: "col-2", collectionName: "Shoebox" }),
     ];
     expect(cardTradeChoiceMatters(rows, 1)).toBe(false);
+  });
+
+  it("counts the collection when deciding which copy to delete", () => {
+    const rows = [
+      copy({ id: "a", collectionId: "col-1", collectionName: "Binder" }),
+      copy({ id: "b", collectionId: "col-2", collectionName: "Shoebox" }),
+    ];
+    expect(cardTradeChoiceMatters(rows, 1, true)).toBe(true);
+  });
+
+  it("is false for alike copies from one collection even when deleting", () => {
+    const rows = [copy({ id: "a" }), copy({ id: "b" })];
+    expect(cardTradeChoiceMatters(rows, 1, true)).toBe(false);
   });
 
   it("is false with no candidates at all", () => {
@@ -277,6 +290,26 @@ describe("toCardTradeCopyOptions", () => {
     });
     expect(result.copies.map((row) => row.id)).toEqual(["graded", "plain-a", "plain-b"]);
     expect(result.copies.map((row) => row.pinned)).toEqual([true, false, false]);
+  });
+
+  it("prompts a settling giver whose alike copies sit in different collections", () => {
+    const spread = [
+      copy({ id: "pinned", collectionId: "col-1", collectionName: "Binder" }),
+      copy({ id: "other", collectionId: "col-2", collectionName: "Shoebox" }),
+    ];
+    // The accept side of the same two copies has nothing to decide: it promises
+    // a card, it does not empty a binder.
+    expect(
+      toCardTradeCopyOptions({ tradeId: "trade-1", quantity: 1, copies: spread }).choiceMatters,
+    ).toBe(false);
+    expect(
+      toCardTradeCopyOptions({
+        tradeId: "trade-1",
+        quantity: 1,
+        copies: spread,
+        pinnedCopyIds: ["pinned"],
+      }).choiceMatters,
+    ).toBe(true);
   });
 
   it("keeps the alternatives plainest-first behind several pins", () => {

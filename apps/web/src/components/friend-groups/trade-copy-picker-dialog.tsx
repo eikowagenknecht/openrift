@@ -379,12 +379,15 @@ interface TradeSettleChoice {
 }
 
 /**
- * A settle in progress, shared between the row's "Choose which copies…" menu
- * item and the settle picker.
+ * A settle in progress, shared between the row's "Handed over" button, its
+ * "Choose which copies…" menu item and the settle picker.
  */
 export interface TradeSettleCopyFlow {
-  /** Opens the picker, reading the trade's candidate copies first. */
-  start: () => void;
+  /**
+   * Settles the giver's half. Reads the trade's candidate copies first and
+   * prompts when they differ from one another; `force` prompts either way.
+   */
+  start: (options?: { force?: boolean }) => void;
   /** The paused settle the picker is showing, or null when it is closed. */
   choice: TradeSettleChoice | null;
   /** Settles the giver's half, removing the chosen copies. */
@@ -396,13 +399,22 @@ export interface TradeSettleCopyFlow {
 }
 
 /**
- * Drives one reserved trade's "Choose which copies…" item: reads which copies
- * the settle could remove, then prompts.
+ * Drives one reserved trade's "Handed over" button and its "Choose which
+ * copies…" item: reads which copies the settle would remove, then either
+ * removes them or prompts first.
  *
- * Unlike the accept flow this never short-circuits on `choiceMatters`. The item
- * is pressed deliberately, and a giver who opened it to see *which* copies are
- * about to go deserves the list even when there is nothing to swap.
- * @returns The settle-choice flow for one row.
+ * The prompt is the point of the read, and the only protection there is. A
+ * giver whose candidate copies differ — one graded, one annotated, one filed in
+ * another binder — is about to hard-delete a specific card with no way back (a
+ * settle is final; ADR-019, amendment 2026-08-10), and the pin the accept made
+ * weeks ago is only a guess at which one physically travelled. So the button
+ * asks whenever `choiceMatters`, and goes straight through when every candidate
+ * is interchangeable. The settle side of `choiceMatters` counts the collection
+ * as a difference, which the accept side does not.
+ *
+ * The menu item forces the prompt, since someone who opened it to see what goes
+ * deserves the list even when there is nothing to swap.
+ * @returns The settle flow for one row.
  */
 export function useTradeSettleCopyFlow({
   tradeId,
@@ -423,29 +435,48 @@ export function useTradeSettleCopyFlow({
     onSettled?.();
   }
 
+  /**
+   * Settles the giver's half. `copyIds` names the copies only when the giver
+   * corrected the pick — left off, the server removes the ones it pinned.
+   */
+  function settle(copyIds?: string[]): void {
+    applySync.mutate({ tradeId, groupSlug, copyIds }, { onSettled: finish });
+  }
+
   const flow: TradeSettleCopyFlow = {
     choice,
     settling: applySync.isPending,
 
-    start: () => {
+    start: (startOptions) => {
+      const force = startOptions?.force === true;
       void (async () => {
+        let options: CardTradeCopyOptionsResponse | null = null;
         try {
-          const options = await queryClient.fetchQuery(
-            tradeCopyOptionsQueryOptions(userId, tradeId),
-          );
-          setChoice({ options });
+          options = await queryClient.fetchQuery(tradeCopyOptionsQueryOptions(userId, tradeId));
         } catch {
-          // The read failed, so there is nothing to choose between. Drop back
-          // to the row's plain "remove the pinned copies" button rather than
-          // opening an empty dialog; the global query error handling has
-          // already reported it.
-          finish();
+          // The global query error handling has already reported it.
         }
+        if (options === null) {
+          // Nothing to choose between. The menu item exists only to open the
+          // picker, so it drops out; the button still settles, the way it did
+          // before there was a picker.
+          if (force) {
+            finish();
+            return;
+          }
+          settle();
+          return;
+        }
+        if (force || options.choiceMatters) {
+          setChoice({ options });
+          return;
+        }
+        settle();
       })();
     },
 
     confirm: (copyIds) => {
-      applySync.mutate({ tradeId, groupSlug, copyIds }, { onSettled: finish });
+      settle(copyIds);
     },
 
     cancel: () => {
