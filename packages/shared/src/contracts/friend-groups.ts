@@ -377,8 +377,6 @@ export const friendGroupMemberDetailResponseSchema = z
     member: friendGroupMemberResponseSchema,
     shares: z.array(friendGroupShareResponseSchema),
     collectionShares: z.array(friendGroupCollectionShareResponseSchema),
-    matches: z.array(friendGroupMatchRowSchema),
-    reverseMatches: z.array(friendGroupMatchRowSchema),
   })
   .openapi("FriendGroupMemberDetailResponse");
 

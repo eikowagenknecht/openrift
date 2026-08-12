@@ -1,7 +1,7 @@
 import type { CardTradeResponse } from "@openrift/shared";
 
 import type { MatchSuggestionFields } from "./trade-derivation";
-import { countTradeSuggestions, withoutLiveTradeMatches } from "./trade-derivation";
+import { tradeSuggestionKeys, withoutLiveTradeMatches } from "./trade-derivation";
 
 /**
  * Whether a trade is waiting on the viewer — the rows a person's card counts as
@@ -149,6 +149,12 @@ export interface TradeHubCard<TMember> {
   trades: CardTradeResponse[];
   /** Distinct match suggestions with them in this group. */
   suggestions: number;
+  /**
+   * Suggestions with them the viewer's *other* groups add on top of this
+   * group's. A card both groups can trade counts once, in `suggestions`, since
+   * it is one opportunity however many groups reach it.
+   */
+  suggestionsElsewhere: number;
   /** Wishlists and tradelists they share with this group. */
   listCount: number;
   /** Trades with them this group has finished. */
@@ -172,6 +178,17 @@ export interface TradeHubCardsInput<TMember, TMatch> {
   incoming: readonly TMatch[];
   /** This group's match rows where the card goes to the other member. */
   outgoing: readonly TMatch[];
+  /**
+   * The same two directions from every *other* group the viewer is in, pooled.
+   * The trade sheet a card opens is person-level, so a member whose only
+   * suggestions sit in another shared group has to be able to say so; a card
+   * that stayed silent about them was the reason the hub and the sheet
+   * disagreed. Empty while those groups' matches are still loading, which
+   * simply means the hint appears a moment later.
+   */
+  elsewhereIncoming: readonly TMatch[];
+  /** See {@link elsewhereIncoming}. */
+  elsewhereOutgoing: readonly TMatch[];
   /** The lists shared with this group, by anyone. */
   shares: readonly TradeHubShare[];
 }
@@ -189,13 +206,44 @@ function cardRank(card: TradeHubCard<TradeHubMember>): number {
   if (card.open.length > 0) {
     return 1;
   }
-  if (card.suggestions > 0) {
+  // Suggestions in another shared group rank with this group's: both are the
+  // same opportunity from the same person, and the sheet the card opens shows
+  // them side by side.
+  if (card.suggestions > 0 || card.suggestionsElsewhere > 0) {
     return 2;
   }
   if (card.listCount > 0) {
     return 3;
   }
   return 4;
+}
+
+/** @returns "N possible trades", pluralized. */
+function possibleTrades(count: number): string {
+  return `${count} possible ${count === 1 ? "trade" : "trades"}`;
+}
+
+/**
+ * The card's suggestions line: what the matcher found with this person, and how
+ * much of it this group is not where it happens. The elsewhere part is named
+ * rather than folded into one total, because the card sits on one group's page
+ * while the sheet it opens pools them all — a member with nothing here and two
+ * suggestions in another group has to read as exactly that, not as either "2
+ * possible trades" (wrong page) or nothing at all (the old silence, which is
+ * what sent people looking for a bug).
+ * @param card The person's card.
+ * @returns The line, or null when the matcher found nothing with them anywhere.
+ */
+export function suggestionsLine(card: TradeHubCard<TradeHubMember>): string | null {
+  const groups = card.suggestionsElsewhere === 1 ? "another group" : "other groups";
+  if (card.suggestions === 0) {
+    return card.suggestionsElsewhere === 0
+      ? null
+      : `${possibleTrades(card.suggestionsElsewhere)} in ${groups}`;
+  }
+  return card.suggestionsElsewhere === 0
+    ? possibleTrades(card.suggestions)
+    : `${possibleTrades(card.suggestions)} · ${card.suggestionsElsewhere} more in ${groups}`;
 }
 
 /**
@@ -233,6 +281,14 @@ export function buildTradeHubCards<
     withoutLiveTradeMatches(input.outgoing, input.allTrades),
     (match) => match.counterpartyUserId,
   );
+  const elsewhereIncomingByPerson = Map.groupBy(
+    withoutLiveTradeMatches(input.elsewhereIncoming, input.allTrades),
+    (match) => match.counterpartyUserId,
+  );
+  const elsewhereOutgoingByPerson = Map.groupBy(
+    withoutLiveTradeMatches(input.elsewhereOutgoing, input.allTrades),
+    (match) => match.counterpartyUserId,
+  );
   const tradesByPerson = Map.groupBy(input.groupTrades, (trade) => trade.counterparty.userId);
   const elsewhereByPerson = Map.groupBy(
     input.allTrades.filter(
@@ -251,6 +307,14 @@ export function buildTradeHubCards<
     .filter((member) => member.userId !== input.viewerId)
     .map((member) => {
       const trades = tradesByPerson.get(member.userId) ?? [];
+      const here = tradeSuggestionKeys(
+        incomingByPerson.get(member.userId) ?? [],
+        outgoingByPerson.get(member.userId) ?? [],
+      );
+      const elsewhere = tradeSuggestionKeys(
+        elsewhereIncomingByPerson.get(member.userId) ?? [],
+        elsewhereOutgoingByPerson.get(member.userId) ?? [],
+      );
       return {
         member,
         // Not filtered to live first: a legacy completed row can still be
@@ -261,10 +325,8 @@ export function buildTradeHubCards<
             !isNeedsYouTrade(trade) && (trade.status === "pending" || trade.status === "reserved"),
         ),
         trades,
-        suggestions: countTradeSuggestions(
-          incomingByPerson.get(member.userId) ?? [],
-          outgoingByPerson.get(member.userId) ?? [],
-        ),
+        suggestions: here.size,
+        suggestionsElsewhere: [...elsewhere].filter((key) => !here.has(key)).length,
         listCount: (listsByPerson.get(member.userId) ?? []).length,
         completedCount: trades.filter((trade) => trade.status === "completed").length,
         elsewhereCount: (elsewhereByPerson.get(member.userId) ?? []).length,

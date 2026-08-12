@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { CardList } from "@/components/ui/card-list";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
-import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
+import { useGroupTrades, useTradeSheet, useUserTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import {
   bucketMemberTrades,
@@ -44,6 +44,9 @@ const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: s
  * @param matchCount Distinct suggestions the matcher found with them.
  * @returns The summary sentence.
  */
+// Every count it takes is person-level (pooled across shared groups), which is
+// what makes the "nothing" case safe to say on a page that lives inside one
+// group.
 function tradeSummaryLine(openCount: number, needsYouCount: number, matchCount: number): string {
   const parts: string[] = [];
   if (openCount > 0) {
@@ -63,6 +66,11 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data: groupDetail } = useFriendGroupDetail(slug);
   const { data: tradesData } = useGroupTrades(groupDetail.group.id);
   const { data: allTradesData } = useUserTrades();
+  // The same pooled matches the trade sheet renders, rather than this group's
+  // own: the summary below stands in for that page, and a group-scoped count
+  // under person-scoped trade counts said "nothing" about a member the sheet
+  // then showed suggestions for.
+  const { data: sheet } = useTradeSheet(userId);
   const { member } = data;
 
   // Drop match suggestions that already have a live trade with this member for
@@ -71,10 +79,8 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   // SuggestedSection, with the same fallback to the group's own trades until
   // the all-groups list loads.
   const liveTrades = allTradesData?.items ?? tradesData?.items ?? [];
-  const incomingMatches = withoutLiveTradeMatches(data.matches, liveTrades);
-  const outgoingMatches = withoutLiveTradeMatches(data.reverseMatches, liveTrades);
-  // Person-level, not group-level: the trade sheet the card links to pools every
-  // shared group, so the counts here have to agree with what it will show.
+  const incomingMatches = withoutLiveTradeMatches(sheet.othersHaveYourWants, liveTrades);
+  const outgoingMatches = withoutLiveTradeMatches(sheet.othersWantYourHaves, liveTrades);
   const { active, actionNeeded } = bucketMemberTrades(liveTrades, userId);
   const tradeSummary = tradeSummaryLine(
     active.length + actionNeeded.length,

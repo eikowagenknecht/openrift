@@ -128,16 +128,21 @@ export function matchSuggestionKey(direction: MatchDirection, row: MatchSuggesti
 }
 
 /**
- * Counts the suggestion tiles the Trades page will show for these match rows.
- * The raw match arrays carry one row per physical copy, so their length wildly
- * overstates what the user sees (50 copies of one wanted card is one
- * suggestion, not 50).
- * @returns The number of distinct suggestions across both directions.
+ * The distinct suggestions these match rows amount to, as {@link
+ * matchSuggestionKey} keys. The raw match arrays carry one row per physical
+ * copy, so their length wildly overstates what the user sees (50 copies of one
+ * wanted card is one suggestion, not 50).
+ *
+ * The key names no group, which is what lets two sets from different groups be
+ * compared: the same card reachable through two shared groups is one
+ * opportunity, so a set difference tells you what a second group genuinely
+ * adds.
+ * @returns The suggestion keys across both directions.
  */
-export function countTradeSuggestions(
+export function tradeSuggestionKeys(
   incoming: readonly MatchSuggestionFields[],
   outgoing: readonly MatchSuggestionFields[],
-): number {
+): Set<string> {
   const keys = new Set<string>();
   for (const row of incoming) {
     keys.add(matchSuggestionKey("incoming", row));
@@ -145,7 +150,18 @@ export function countTradeSuggestions(
   for (const row of outgoing) {
     keys.add(matchSuggestionKey("outgoing", row));
   }
-  return keys.size;
+  return keys;
+}
+
+/**
+ * Counts the suggestion tiles the Trades page will show for these match rows.
+ * @returns The number of distinct suggestions across both directions.
+ */
+export function countTradeSuggestions(
+  incoming: readonly MatchSuggestionFields[],
+  outgoing: readonly MatchSuggestionFields[],
+): number {
+  return tradeSuggestionKeys(incoming, outgoing).size;
 }
 
 /**

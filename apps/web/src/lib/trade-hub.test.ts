@@ -9,6 +9,7 @@ import {
   isQuietTradeHubCard,
   needsYouCounts,
   sortNeedsYou,
+  suggestionsLine,
 } from "./trade-hub";
 
 function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
@@ -203,6 +204,8 @@ function buildCards(
     allTrades: [],
     incoming: [],
     outgoing: [],
+    elsewhereIncoming: [],
+    elsewhereOutgoing: [],
     shares: [],
     ...overrides,
   });
@@ -256,6 +259,38 @@ describe("buildTradeHubCards", () => {
     });
 
     expect(card.suggestions).toBe(2);
+  });
+
+  it("counts only what the viewer's other groups add on top of this one", () => {
+    const [card] = buildCards({
+      incoming: [stubMatch({ printingId: "printing-1" })],
+      elsewhereIncoming: [
+        // The same wish, reachable through another shared group too: one
+        // opportunity, already counted here.
+        stubMatch({ printingId: "printing-1" }),
+        stubMatch({ printingId: "printing-9", buyEntryId: "entry-9" }),
+      ],
+    });
+
+    expect(card.suggestions).toBe(1);
+    expect(card.suggestionsElsewhere).toBe(1);
+  });
+
+  it("drops an elsewhere suggestion a live trade already covers", () => {
+    const [card] = buildCards({
+      elsewhereIncoming: [stubMatch({ printingId: "printing-2", buyEntryId: "entry-2" })],
+      allTrades: [stubTrade({ printingId: "printing-2", status: "pending" })],
+    });
+
+    expect(card.suggestionsElsewhere).toBe(0);
+  });
+
+  it("keeps a member with suggestions only in another group off the quiet pile", () => {
+    const [card] = buildCards({
+      elsewhereIncoming: [stubMatch({ printingId: "printing-1" })],
+    });
+
+    expect(isQuietTradeHubCard(card)).toBe(false);
   });
 
   it("counts only the wishlists and tradelists a member shares", () => {
@@ -321,5 +356,31 @@ describe("buildTradeHubCards", () => {
       allTrades: [stubTrade({ groupId: "group-2", status: "pending" })],
     });
     expect(isQuietTradeHubCard(elsewhere)).toBe(false);
+  });
+});
+
+describe("suggestionsLine", () => {
+  /** @returns A card carrying just the two suggestion counts the line reads. */
+  function withCounts(suggestions: number, suggestionsElsewhere: number) {
+    return { ...buildCards()[0], suggestions, suggestionsElsewhere };
+  }
+
+  it("says nothing when the matcher found nothing anywhere", () => {
+    expect(suggestionsLine(withCounts(0, 0))).toBeNull();
+  });
+
+  it("names this group's suggestions alone when there are no others", () => {
+    expect(suggestionsLine(withCounts(1, 0))).toBe("1 possible trade");
+    expect(suggestionsLine(withCounts(3, 0))).toBe("3 possible trades");
+  });
+
+  it("adds what the other groups hold on top", () => {
+    expect(suggestionsLine(withCounts(3, 2))).toBe("3 possible trades · 2 more in other groups");
+    expect(suggestionsLine(withCounts(3, 1))).toBe("3 possible trades · 1 more in another group");
+  });
+
+  it("stands on its own when every suggestion is in another group", () => {
+    expect(suggestionsLine(withCounts(0, 1))).toBe("1 possible trade in another group");
+    expect(suggestionsLine(withCounts(0, 4))).toBe("4 possible trades in other groups");
   });
 });

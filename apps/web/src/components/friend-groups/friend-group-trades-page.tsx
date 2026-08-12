@@ -6,7 +6,11 @@ import { Suspense } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
-import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
+import {
+  useFriendGroupMatches,
+  useFriendGroupMatchesForSlugs,
+  useFriendGroups,
+} from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { buildTradeHubCards } from "@/lib/trade-hub";
 
@@ -47,6 +51,14 @@ function TradeHub({ slug, data }: { slug: string; data: FriendGroupDetailRespons
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: tradesData } = useGroupTrades(data.group.id);
   const { data: allTradesData } = useUserTrades();
+  // The card a member gets opens their person-level sheet, which pools every
+  // shared group, so the card reads the other groups too — otherwise a member
+  // whose suggestions all sit in another group looks like there is nothing
+  // between the two of you.
+  const { data: groups } = useFriendGroups();
+  const elsewhere = useFriendGroupMatchesForSlugs(
+    groups.items.filter((group) => group.slug !== slug).map((group) => group.slug),
+  );
 
   const trades = tradesData?.items ?? [];
   const cards = buildTradeHubCards({
@@ -58,6 +70,8 @@ function TradeHub({ slug, data }: { slug: string; data: FriendGroupDetailRespons
     allTrades: allTradesData?.items ?? trades,
     incoming: matches.othersHaveYourWants,
     outgoing: matches.othersWantYourHaves,
+    elsewhereIncoming: elsewhere.othersHaveYourWants,
+    elsewhereOutgoing: elsewhere.othersWantYourHaves,
     shares: data.shares,
   });
 

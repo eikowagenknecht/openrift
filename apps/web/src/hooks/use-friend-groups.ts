@@ -19,7 +19,7 @@ import type {
 import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
 import { isDefinedError, safe } from "@orpc/client";
 import type { QueryClient } from "@tanstack/react-query";
-import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ParsedLocation } from "@tanstack/react-router";
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -236,6 +236,33 @@ export function useFriendGroupDetail(slug: string) {
 export function useFriendGroupMatches(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(friendGroupMatchesQueryOptions(userId, slug));
+}
+
+/**
+ * The match rows of several groups at once, pooled into one pair of arrays.
+ * The trades hub uses it for the viewer's *other* groups, so a member card can
+ * say that the person it is about has suggestions the sheet will show and this
+ * group does not.
+ *
+ * Non-suspending on purpose: matching is the most expensive read in the app
+ * (rule lists expand against the whole catalog), and the hub must paint its
+ * cards from this group's data rather than wait on every other group. Rows
+ * arrive as each group answers, and they land on the same query keys those
+ * groups' own trades pages use, so a hub visit warms them and vice versa.
+ * @param slugs The groups to read, usually every group but the current one.
+ * @returns The pooled rows, empty until the first group answers.
+ */
+export function useFriendGroupMatchesForSlugs(
+  slugs: readonly string[],
+): FriendGroupMatchesResponse {
+  const userId = useRequiredUserId();
+  return useQueries({
+    queries: slugs.map((slug) => friendGroupMatchesQueryOptions(userId, slug)),
+    combine: (results) => ({
+      othersHaveYourWants: results.flatMap((result) => result.data?.othersHaveYourWants ?? []),
+      othersWantYourHaves: results.flatMap((result) => result.data?.othersWantYourHaves ?? []),
+    }),
+  });
 }
 
 export function useFriendGroupActivity(slug: string) {

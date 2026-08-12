@@ -10,7 +10,12 @@ import { IconChip } from "@/components/ui/icon-chip";
 import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupShareableLists } from "@/hooks/use-friend-groups";
 import type { TradeHubCard } from "@/lib/trade-hub";
-import { expiringSoonCount, isQuietTradeHubCard, needsYouCounts } from "@/lib/trade-hub";
+import {
+  expiringSoonCount,
+  isQuietTradeHubCard,
+  needsYouCounts,
+  suggestionsLine,
+} from "@/lib/trade-hub";
 import { cn } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
@@ -106,6 +111,7 @@ export function TradeHubMemberCard({
   const { member } = card;
   const quiet = isQuietTradeHubCard(card);
   const action = actionLine(card);
+  const suggestions = suggestionsLine(card);
   const facts = factsLine(card);
   const footer = footerLine(card);
 
@@ -139,12 +145,12 @@ export function TradeHubMemberCard({
       {/* The one fact that is an opportunity rather than a record, so it sits
           apart from the muted line — green like the incoming arrow, one step
           below the gold of what already waits. */}
-      {card.suggestions > 0 ? (
+      {suggestions === null ? null : (
         <p className="flex items-center gap-1 text-sm font-medium text-green-700 dark:text-green-500">
           <SparklesIcon className="size-3.5 shrink-0" />
-          {card.suggestions} possible {card.suggestions === 1 ? "trade" : "trades"}
+          {suggestions}
         </p>
-      ) : null}
+      )}
       {facts === null ? null : <p className="text-muted-foreground text-sm">{facts}</p>}
       {footer === null ? null : <p className="text-muted-foreground text-xs">{footer}</p>}
     </CardLink>

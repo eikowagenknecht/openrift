@@ -844,7 +844,7 @@ export const friendGroupsRouter = {
   getMemberDetail: os.getMemberDetail.handler(
     async ({ input, context }): Promise<FriendGroupMemberDetailResponse> => {
       const viewerId = context.userId;
-      const { friendGroups, friendGroupMatches, lists, copies } = context.repos;
+      const { friendGroups, lists, copies } = context.repos;
       const counterpartyUserId = input.userId;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -879,19 +879,6 @@ export const friendGroupsRouter = {
       ]);
       const coversByCollection = groupCovers(shareCovers);
 
-      const [matches, reverseMatches] = await Promise.all([
-        friendGroupMatches.othersHaveYourWants({
-          groupId: ctx.group.id,
-          viewerUserId: viewerId,
-          counterpartyUserId,
-        }),
-        friendGroupMatches.othersWantYourHaves({
-          groupId: ctx.group.id,
-          viewerUserId: viewerId,
-          counterpartyUserId,
-        }),
-      ]);
-
       return {
         member: toMember(counterparty, contactsByUser.get(counterpartyUserId) ?? []),
         shares: memberShares.map((row) =>
@@ -900,8 +887,6 @@ export const friendGroupsRouter = {
         collectionShares: memberCollectionShares.map((row) =>
           toCollectionShare(row, coversByCollection.get(row.collectionId)),
         ),
-        matches,
-        reverseMatches,
       };
     },
   ),
