@@ -1,11 +1,11 @@
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
+import { useContext } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { OwnedBreakdownVariant } from "@/hooks/use-owned-count";
 import {
@@ -14,7 +14,9 @@ import {
   useOwnedCount,
 } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 interface OwnedCollectionsPopoverProps {
   printingId: string;
@@ -66,7 +68,17 @@ export function OwnedCollectionsPopover({
     siblings ?? [],
     isAuthenticated && totalOwned > 0 && groupByVariant,
   );
-  const { view } = useFilterValues();
+  // The filter context is optional here, the same way it is for the detail's
+  // tag chips (see useApplyTagFilter). This popover renders on the card
+  // browsers, which have one, and inside CardDetailOverlay, which the group
+  // trades and member pages open from a row rather than a grid and so carry no
+  // filter params at all. Reading it strictly threw there and broke the whole
+  // detail. Off a filter surface there is no current view to carry into the
+  // link, so the display-store default stands in — the same fallback
+  // useFilterValues applies to an absent `view` param.
+  const filterSearch = useContext(FilterSearchProvider);
+  const defaultView = useDisplayStore((state) => state.defaultCardView);
+  const view = filterSearch?.view ?? defaultView;
   const isPrintingsView = view === "printings" || view === "copies";
   const { labels } = useEnumOrders();
 

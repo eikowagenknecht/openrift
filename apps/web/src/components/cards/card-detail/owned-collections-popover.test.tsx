@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,10 +9,24 @@ import { useDisplayStore } from "@/stores/display-store";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
 import { createStoreResetter } from "@/test/store-helpers";
 
+// The mocked Link records the search it was handed, which is what the view
+// fallback decides: `id:<shortCode>` in printings view, the card name in cards
+// view.
+const { linkSearches } = vi.hoisted(() => ({ linkSearches: [] as unknown[] }));
+
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <span className={className}>{children}</span>
-  ),
+  Link: ({
+    children,
+    className,
+    search,
+  }: {
+    children: ReactNode;
+    className?: string;
+    search?: unknown;
+  }) => {
+    linkSearches.push(search);
+    return <span className={className}>{children}</span>;
+  },
 }));
 
 const { sessionMock } = vi.hoisted(() => ({
@@ -71,6 +86,7 @@ describe("OwnedCollectionsPopover", () => {
   afterEach(() => {
     resetDisplayStore();
     resetSearchScopeStore();
+    linkSearches.length = 0;
     sessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
     vi.restoreAllMocks();
   });
@@ -94,12 +110,52 @@ describe("OwnedCollectionsPopover", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("surfaces the provider error when rendered without a FilterSearchProvider", () => {
-    // The render error is expected; keep it out of the test output.
+  // Regression: the group trades and member pages open the card detail from a
+  // row, through CardDetailOverlay, so there is no filter context anywhere
+  // above this popover. Reading it strictly threw and the whole detail fell to
+  // its error boundary (Sentry OPENRIFT-SSR-17). Rendering must survive the
+  // absence rather than depend on each such surface wrapping itself.
+  it("renders the owned badge with no FilterSearchProvider above it", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { container } = render(<CatchBoundary>{renderPopover()}</CatchBoundary>);
-    expect(container.querySelector("[data-caught]")?.textContent).toBe(
-      "useFilterSearch must be used within a <FilterSearchProvider>",
+    const { container, getByText } = render(<CatchBoundary>{renderPopover()}</CatchBoundary>);
+    expect(container.querySelector("[data-caught]")).toBeNull();
+    expect(getByText("2")).toBeTruthy();
+  });
+
+  // Without a filter context there is no view to carry, so the display-store
+  // default decides how the collection link searches: by short code in
+  // printings view, by card name in cards view.
+  it("links by short code with no provider when the default view is printings", async () => {
+    useDisplayStore.getState().setDefaultCardView("printings");
+    const { findByText } = render(renderPopover());
+
+    await userEvent.click(await findByText("2"));
+    await findByText("Binder");
+
+    expect(linkSearches.at(-1)).toEqual({ search: "id:OGN-001", view: "printings" });
+  });
+
+  it("links by card name with no provider when the default view is cards", async () => {
+    useDisplayStore.getState().setDefaultCardView("cards");
+    const { findByText } = render(renderPopover());
+
+    await userEvent.click(await findByText("2"));
+    await findByText("Binder");
+
+    expect(linkSearches.at(-1)).toEqual({ search: "Annie" });
+  });
+
+  // A surface that does carry filter params still wins over the default, so
+  // the fallback never overrides a real view.
+  it("prefers the provider's view over the display-store default", async () => {
+    useDisplayStore.getState().setDefaultCardView("cards");
+    const { findByText } = render(
+      <FilterSearchProvider value={{ view: "printings" }}>{renderPopover()}</FilterSearchProvider>,
     );
+
+    await userEvent.click(await findByText("2"));
+    await findByText("Binder");
+
+    expect(linkSearches.at(-1)).toEqual({ search: "id:OGN-001", view: "printings" });
   });
 });
