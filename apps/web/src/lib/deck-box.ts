@@ -65,7 +65,7 @@ type DeckBoxSlotState = "in-box" | "available" | "blocked" | "missing";
  * choice: same printing, same collection, same condition. Ten identical runes
  * in one binder are one entry with a count, not ten rows that read alike.
  */
-export interface DeckBoxAlternative {
+interface DeckBoxAlternative {
   /** What makes this a distinct choice, and the row's identity. */
   key: string;
   /** The copy a swap would actually take — the best-ranked one of the group. */
