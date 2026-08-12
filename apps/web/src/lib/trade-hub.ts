@@ -89,7 +89,7 @@ function needsYouRank(trade: CardTradeResponse): number {
 }
 
 /** @returns Negative when `a` expires first; a missing deadline sorts last. */
-export function compareExpiry(a: string | null, b: string | null): number {
+function compareExpiry(a: string | null, b: string | null): number {
   if (a === b) {
     return 0;
   }
@@ -133,7 +133,7 @@ export interface TradeHubMember {
 }
 
 /** The share fields the hub counts. */
-export interface TradeHubShare {
+interface TradeHubShare {
   userId: string;
   listIntent: "wish" | "trade" | "organize";
 }
