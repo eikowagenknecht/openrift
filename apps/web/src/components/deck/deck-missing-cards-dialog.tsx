@@ -1,7 +1,14 @@
 import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckIcon, CopyIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
+import {
+  ArrowDownLeftIcon,
+  CheckIcon,
+  CopyIcon,
+  HeartIcon,
+  LockIcon,
+  ShoppingCartIcon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -158,6 +165,19 @@ function lockedTooltipText(card: CardOwnership): string {
   return `You have ${card.locked} ${copyWord} that are ${rest} or ${last}.`;
 }
 
+/**
+ * Tooltip for a row's incoming copies — cards on their way from a trade the
+ * viewer has reserved but not settled (ADR-019). Separate from
+ * {@link lockedTooltipText} because these copies aren't locked, and aren't the
+ * viewer's yet: they explain part of the shortfall without reducing it.
+ * @returns The tooltip sentence.
+ */
+function incomingTooltipText(card: CardOwnership): string {
+  return card.incoming === 1
+    ? "1 copy is on the way from a trade. It'll count once you've got it."
+    : `${card.incoming} copies are on the way from a trade. They'll count once you've got them.`;
+}
+
 export function DeckMissingCardsDialog({
   open,
   onOpenChange,
@@ -307,6 +327,23 @@ export function DeckMissingCardsDialog({
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-56 text-xs">
                               {lockedTooltipText(card)}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {card.incoming > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <span className="text-muted-foreground inline-flex items-center" />
+                              }
+                            >
+                              {/* Same arrow the collection browser's trade chips
+                                  use for a card coming in, so the two surfaces
+                                  read as one vocabulary. */}
+                              <ArrowDownLeftIcon className="size-3" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-56 text-xs">
+                              {incomingTooltipText(card)}
                             </TooltipContent>
                           </Tooltip>
                         )}

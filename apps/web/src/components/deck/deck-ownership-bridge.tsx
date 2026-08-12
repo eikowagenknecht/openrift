@@ -1,6 +1,7 @@
 import type { Marketplace } from "@openrift/shared";
 import { useEffect } from "react";
 
+import { useIncomingTradeCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
@@ -38,6 +39,9 @@ export function DeckOwnershipBridge({
   // owner-only anyway (never part of a shared deck's payload).
   const { data: counts } = useDeckBuildingCounts(isLoggedIn);
   const { data: borrowedCounts } = useBorrowedCounts(isLoggedIn);
+  // Cards arriving from reserved trades (ADR-019) are not in hand: advisory
+  // only, so the user doesn't buy a copy that's already on its way.
+  const { data: incomingCounts } = useIncomingTradeCounts(isLoggedIn);
 
   // Pass `{}` for logged-out viewers so useDeckOwnership still computes deck
   // pricing (it bails out only when the map is undefined). Matches the
@@ -54,6 +58,7 @@ export function DeckOwnershipBridge({
       reserved: counts.lockedReserved,
       excluded: counts.lockedExcluded,
     },
+    incomingCounts,
   );
 
   useEffect(() => {

@@ -706,6 +706,144 @@ describe("computeDeckOwnership", () => {
     expect(result.byCardZone.get(`${cardId}:main`)?.locked).toBe(0);
   });
 
+  it("annotates the shortfall with incoming copies without reducing it", () => {
+    // The whole point of the incoming bucket: cards on their way from a
+    // reserved trade explain part of the gap but aren't in hand, so the deck
+    // still counts them missing. Contrast with borrowed, which does cover need.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 3, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { [printingId]: 1 },
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      undefined,
+      undefined,
+      undefined,
+      { [printingId]: 2 },
+    );
+
+    expect(result.missingCount).toBe(2);
+    expect(result.totalIncoming).toBe(2);
+    expect(result.byCardZone.get(`${cardId}:main`)?.shortfall).toBe(2);
+    expect(result.byCardZone.get(`${cardId}:main`)?.incoming).toBe(2);
+  });
+
+  it("caps incoming at the shortfall locked has not already explained", () => {
+    // Need 4, own 1 available, 2 locked, 2 incoming. Shortfall is 3; locked
+    // claims 2 of it, so incoming may only claim the remaining 1. Without the
+    // chained cap the row would explain 4 missing copies out of a gap of 3.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 4, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { [printingId]: 1 },
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      { [printingId]: 2 },
+      undefined,
+      undefined,
+      { [printingId]: 2 },
+    );
+
+    const entry = result.byCardZone.get(`${cardId}:main`);
+    expect(entry?.shortfall).toBe(3);
+    expect(entry?.locked).toBe(2);
+    expect(entry?.incoming).toBe(1);
+    expect((entry?.locked ?? 0) + (entry?.incoming ?? 0)).toBeLessThanOrEqual(
+      entry?.shortfall ?? 0,
+    );
+  });
+
+  it("distributes incoming copies across zones without double-claiming", () => {
+    // 2 incoming copies against 2 main + 2 sideboard, none owned. The main
+    // zone is walked first and takes both; the sideboard gets none.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" }),
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      undefined,
+      undefined,
+      undefined,
+      { [printingId]: 2 },
+    );
+
+    expect(result.totalIncoming).toBe(2);
+    expect(result.missingCount).toBe(4);
+    expect(result.byCardZone.get(`${cardId}:main`)?.incoming).toBe(2);
+    expect(result.byCardZone.get(`${cardId}:sideboard`)?.incoming).toBe(0);
+  });
+
+  it("leaves the missing value untouched by incoming copies", () => {
+    // The buy list still prices every missing copy: the cards aren't here yet,
+    // and a trade can fall through. The annotation is the only signal.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const prices = stubPriceLookup({ [printingId]: { tcgplayer: 250 } });
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      prices,
+      EN_FIRST,
+      undefined,
+      undefined,
+      undefined,
+      { [printingId]: 2 },
+    );
+
+    expect(result.missingValueCents).toBe(500);
+  });
+
+  it("defaults incoming to 0 when no incoming map is supplied", () => {
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { [printingId]: 1 },
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.totalIncoming).toBe(0);
+    expect(result.byCardZone.get(`${cardId}:main`)?.incoming).toBe(0);
+  });
+
   it("handles multiple cards with mixed ownership", () => {
     const deckCards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Alpha", quantity: 3, zone: "main" }),

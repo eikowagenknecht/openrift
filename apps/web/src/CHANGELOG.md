@@ -2,6 +2,10 @@
 
 ## 2026-08-12
 
+### Highlights
+
+- feat(Decks): **Cards on their way from a trade** — a deck's missing cards now mark the copies already reserved to you in a swap, so you don't buy one that's about to arrive.
+
 ### Other
 
 - fix(Collection): **Owned count after taking from a group box** — taking a card out of a group's collection now raises your own owned count right away, instead of only after a reload.

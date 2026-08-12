@@ -76,6 +76,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions } from "@/hooks/use-card-filters";
+import { useIncomingTradeCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
@@ -222,6 +223,9 @@ function DeckEditorContent({
   );
   // Copies borrowed from friends (ADR-039) are in hand and buildable.
   const { data: borrowedCounts } = useBorrowedCounts(Boolean(session?.user));
+  // Cards arriving from reserved trades (ADR-019) are not in hand: advisory
+  // only, so the user doesn't buy a copy that's already on its way.
+  const { data: incomingCounts } = useIncomingTradeCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const editorViolations = useDeckViolations(deckId, data.deck.format, data.deck.formatConfig);
@@ -253,6 +257,7 @@ function DeckEditorContent({
       reserved: deckCounts.lockedReserved,
       excluded: deckCounts.lockedExcluded,
     },
+    incomingCounts,
   );
 
   // Build the runes-by-domain catalog up here (always-mounted parent) so the

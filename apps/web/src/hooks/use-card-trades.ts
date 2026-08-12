@@ -1,5 +1,6 @@
 import type {
   CardTradeCopyOptionsResponse,
+  CardTradeLiveAnnotation,
   CardTradeResponse,
   CardTradeRole,
   CardTradeStatus,
@@ -168,6 +169,20 @@ export function useUserTrades() {
 }
 
 /**
+ * Shared by the card browsers' trade markers and the deck builder's incoming
+ * counts, so the two read one cached response instead of racing two.
+ * @returns The live-annotations query options.
+ */
+function liveTradesByPrintingQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: queryKeys.trades.liveByPrinting(userId),
+    queryFn: () => fetchLiveTradesByPrinting(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
  * The viewer's live trades across all groups, summed per (printing, role,
  * phase), for the card browsers' per-card trade markers.
  *
@@ -181,12 +196,53 @@ export function useUserTrades() {
 export function useLiveTradesByPrinting() {
   const userId = useUserId();
   return useQuery({
-    queryKey: queryKeys.trades.liveByPrinting(userId ?? ""),
-    queryFn: () => fetchLiveTradesByPrinting(),
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
+    ...liveTradesByPrintingQueryOptions(userId ?? ""),
     enabled: userId !== null,
   });
+}
+
+/**
+ * Per-printing counts of cards on their way to the viewer — the receiver side
+ * of a reserved trade the viewer hasn't settled yet (ADR-019).
+ *
+ * Only the `reserved` phase counts. A pinned copy is `lockedReserved` for the
+ * giver and incoming for the receiver, so one pin drives both numbers and they
+ * can't disagree. `asked` and `offered` pin nothing, and the same cards can sit
+ * in several open offers at once, so counting those would promise stock that
+ * may never arrive.
+ * @returns Incoming quantities keyed by printingId.
+ */
+export function aggregateIncomingTradeCounts(
+  annotations: readonly CardTradeLiveAnnotation[],
+): Record<string, number> {
+  const incoming: Record<string, number> = {};
+  for (const annotation of annotations) {
+    if (annotation.role !== "receiver" || annotation.phase !== "reserved") {
+      continue;
+    }
+    incoming[annotation.printingId] = (incoming[annotation.printingId] ?? 0) + annotation.quantity;
+  }
+  return incoming;
+}
+
+/**
+ * Per-printing incoming-trade counts for the deck builder. The underlying query
+ * already drops a side the viewer has settled, so a card stops counting as
+ * incoming at the same moment it becomes a real copy — no double-count window.
+ * @returns Incoming counts keyed by printingId, or undefined while loading/disabled.
+ */
+export function useIncomingTradeCounts(enabled: boolean): {
+  data: Record<string, number> | undefined;
+} {
+  const userId = useUserId();
+  const { data } = useQuery({
+    ...liveTradesByPrintingQueryOptions(userId ?? ""),
+    enabled: enabled && userId !== null,
+  });
+  if (!enabled || data === undefined) {
+    return { data: undefined };
+  }
+  return { data: aggregateIncomingTradeCounts(data.annotations) };
 }
 
 /**

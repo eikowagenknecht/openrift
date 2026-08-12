@@ -45,6 +45,14 @@ export interface CardOwnership {
    */
   borrowed: number;
   /**
+   * Copies on their way to the viewer from a reserved trade they haven't
+   * settled yet (ADR-019). Not in hand, so unlike `borrowed` these do NOT
+   * reduce the shortfall — they only explain part of it, the way `locked`
+   * does. Capped to whatever shortfall `locked` hasn't already accounted for,
+   * so the two annotations partition the gap instead of double-counting it.
+   */
+  incoming: number;
+  /**
    * Price for the printing the deck builder shows for this card row — either
    * the explicitly-pinned `preferredPrintingId` or the language-preference
    * canonical fallback. `undefined` when no price is available for that
@@ -155,6 +163,12 @@ export interface DeckOwnershipData {
   ownedPrintingByCardId: ReadonlyMap<string, OwnershipPrinting>;
   totalLocked: number;
   totalBorrowed: number;
+  /**
+   * Copies of missing cards that are arriving from reserved trades. Advisory
+   * only: `missingCount` is deliberately unaffected, because the cards aren't
+   * in hand yet.
+   */
+  totalIncoming: number;
   missingCount: number;
   /**
    * `missingCount` split by scope: shortfall inside the deck proper vs the
@@ -219,6 +233,7 @@ export function computeDeckOwnership(
     reserved: Record<string, number>;
     excluded: Record<string, number>;
   },
+  incomingCountByPrinting?: Record<string, number>,
 ): DeckOwnershipData {
   // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
   // memo"` helper, it wraps the call site in a cache check. On cache hits
@@ -273,6 +288,18 @@ export function computeDeckOwnership(
     }
   }
 
+  // And for cards arriving from a reserved trade (ADR-019) — not in hand, so
+  // they annotate the shortfall rather than covering it.
+  const incomingByCardId = new Map<string, number>();
+  if (incomingCountByPrinting) {
+    for (const printing of allPrintings) {
+      const count = incomingCountByPrinting[printing.id] ?? 0;
+      if (count > 0) {
+        incomingByCardId.set(printing.cardId, (incomingByCardId.get(printing.cardId) ?? 0) + count);
+      }
+    }
+  }
+
   // Same fan-out for the locked reason breakdown, used only to word the "why
   // locked" tooltip — the capped `lockedByCardId` above still owns the actual
   // displayed count, so these aren't re-capped per zone.
@@ -314,6 +341,7 @@ export function computeDeckOwnership(
   const claimedByCardId = new Map<string, number>();
   const claimedLockedByCardId = new Map<string, number>();
   const claimedBorrowedByCardId = new Map<string, number>();
+  const claimedIncomingByCardId = new Map<string, number>();
 
   const byCardZone = new Map<string, CardOwnership>();
   const ownedPrintingByCardId = new Map<string, OwnershipPrinting>();
@@ -324,6 +352,7 @@ export function computeDeckOwnership(
   let requiredZoneOwned = 0;
   let totalLocked = 0;
   let totalBorrowed = 0;
+  let totalIncoming = 0;
   let missingCount = 0;
   let requiredZoneMissing = 0;
   let sideboardMissing = 0;
@@ -371,6 +400,18 @@ export function computeDeckOwnership(
     const lockedAvailableForZone = Math.max(0, totalLockedForCard - alreadyClaimedLocked);
     const lockedInZone = Math.min(shortfall, lockedAvailableForZone);
     claimedLockedByCardId.set(card.cardId, alreadyClaimedLocked + lockedInZone);
+
+    // Cards arriving from a reserved trade (ADR-019) are not in hand, so they
+    // never touch `shortfall` — they only explain part of it, so the user knows
+    // not to go buy a copy that's already on its way. Capped against what
+    // `locked` hasn't already explained: locked and incoming are disjoint
+    // physical cards, so chaining the caps keeps their sum within the gap
+    // instead of over-explaining it.
+    const totalIncomingForCard = incomingByCardId.get(card.cardId) ?? 0;
+    const alreadyClaimedIncoming = claimedIncomingByCardId.get(card.cardId) ?? 0;
+    const incomingAvailableForZone = Math.max(0, totalIncomingForCard - alreadyClaimedIncoming);
+    const incomingInZone = Math.min(shortfall - lockedInZone, incomingAvailableForZone);
+    claimedIncomingByCardId.set(card.cardId, alreadyClaimedIncoming + incomingInZone);
 
     // Resolve the printing the deck builder displays for this row, mirroring
     // `usePreferredPrinting`: explicit pin first, then language-preference
@@ -449,6 +490,7 @@ export function computeDeckOwnership(
       lockedReserved: reservedByCardId.get(card.cardId) ?? 0,
       lockedExcluded: excludedByCardId.get(card.cardId) ?? 0,
       borrowed: borrowedInZone,
+      incoming: incomingInZone,
       displayPrice,
       displayPrinting,
       cheapestPrice,
@@ -465,6 +507,7 @@ export function computeDeckOwnership(
     totalOwned += ownedInZone;
     totalLocked += lockedInZone;
     totalBorrowed += borrowedInZone;
+    totalIncoming += incomingInZone;
     if (REQUIRED_ZONE_SET.has(card.zone)) {
       requiredZoneNeeded += card.quantity;
       requiredZoneOwned += ownedInZone;
@@ -515,6 +558,7 @@ export function computeDeckOwnership(
     ownedPrintingByCardId,
     totalLocked,
     totalBorrowed,
+    totalIncoming,
     missingCount,
     requiredZoneMissing,
     sideboardMissing,
@@ -546,6 +590,7 @@ export function useDeckOwnership(
     reserved: Record<string, number>;
     excluded: Record<string, number>;
   },
+  incomingCountByPrinting?: Record<string, number>,
 ): DeckOwnershipData | undefined {
   const prices = usePrices();
   const languageOrder = useEffectiveLanguageOrder();
@@ -562,5 +607,6 @@ export function useDeckOwnership(
     lockedCountByPrinting,
     borrowedCountByPrinting,
     lockedReasonCountByPrinting,
+    incomingCountByPrinting,
   );
 }
