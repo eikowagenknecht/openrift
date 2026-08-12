@@ -58,7 +58,7 @@ interface PersistedScanSession {
 }
 
 /** What {@link ScanSessionState.restore} hands the page for its resume banner. */
-export interface RestoredScanSession {
+interface RestoredScanSession {
   /** Physical cards the restored rows stand for (copies plus readings). */
   cards: number;
   /** When the restored session last recognised a card, if it ever did. */
