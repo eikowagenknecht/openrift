@@ -518,9 +518,9 @@ function SlotRow({
 
 /**
  * Where the copy this row would take comes from, and a way to take a different
- * one. The collection is the label, so a pull run reads as a list of shelves
- * to visit; the count of other copies says whether there is a choice behind it
- * before anything opens.
+ * one. The collection is the label, so a pull run reads as a list of shelves to
+ * visit. The count next to it is how many *different* copies are behind it, not
+ * how many copies there are: a shelf of forty identical runes is one choice.
  * @returns The source control.
  */
 function SourcePicker({
@@ -557,18 +557,25 @@ function SourcePicker({
       />
       <PopoverContent align="end" className="w-72 p-1">
         <p className="text-muted-foreground px-2 py-1 text-xs">Take this copy instead</p>
-        {slot.alternatives.map((copy) => (
+        {slot.alternatives.map((alternative) => (
           <Button
-            key={copy.copyId}
+            key={alternative.key}
             variant="ghost"
             size="sm"
             className="w-full justify-start gap-2 font-normal"
-            onClick={() => onSwap(copy.copyId)}
+            onClick={() => onSwap(alternative.copy.copyId)}
           >
-            <span className="text-muted-foreground font-mono text-xs">{copy.shortCode}</span>
-            <CopyDetails copy={copy} labels={labels} />
+            <span className="text-muted-foreground font-mono text-xs">
+              {alternative.copy.shortCode}
+            </span>
+            <CopyDetails copy={alternative.copy} labels={labels} />
+            {alternative.count > 1 && (
+              <span className="text-muted-foreground text-xs tabular-nums">
+                ×{alternative.count}
+              </span>
+            )}
             <span className="text-muted-foreground ml-auto truncate text-xs">
-              {copy.collectionName}
+              {alternative.copy.collectionName}
             </span>
           </Button>
         ))}

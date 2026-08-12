@@ -61,6 +61,20 @@ export interface DeckBoxCopy {
 type DeckBoxSlotState = "in-box" | "available" | "blocked" | "missing";
 
 /**
+ * One other copy a slot could take, standing for every copy that is the same
+ * choice: same printing, same collection, same condition. Ten identical runes
+ * in one binder are one entry with a count, not ten rows that read alike.
+ */
+export interface DeckBoxAlternative {
+  /** What makes this a distinct choice, and the row's identity. */
+  key: string;
+  /** The copy a swap would actually take — the best-ranked one of the group. */
+  copy: DeckBoxCopy;
+  /** How many copies this entry stands for. */
+  count: number;
+}
+
+/**
  * One copy the deck calls for, as its own row. A card with three copies in the
  * main zone has three slots, so each one can be ticked off (or swapped for a
  * different physical copy) on its own as the deck is sorted out.
@@ -83,8 +97,12 @@ export interface DeckBoxSlot {
    * ranking around it changes. Available slots only.
    */
   slotKey?: string;
-  /** Movable copies of the same card this slot could take instead. */
-  alternatives: DeckBoxCopy[];
+  /**
+   * The other choices this slot could take, best first. Copies the card's own
+   * other slots already hold are left out, and so is a choice that matches what
+   * the slot holds — swapping for an identical copy changes nothing.
+   */
+  alternatives: DeckBoxAlternative[];
   /** Why a blocked slot can't move: out on loan, or reserved for a trade. */
   reason?: "loan" | "trade";
 }
@@ -202,6 +220,42 @@ function candidateComparator(
     }
     return a.id.localeCompare(b.id);
   };
+}
+
+/**
+ * What makes one copy a different choice from another when picking a source.
+ * Everything else a copy carries (its id, when it was added) is bookkeeping
+ * that says nothing about which card you would pull off the shelf.
+ * @returns The choice's identity.
+ */
+function alternativeKey(copy: CopyResponse): string {
+  return [copy.printingId, copy.collectionId, copy.condition ?? "", copy.grade ?? ""].join("|");
+}
+
+/**
+ * Folds candidates that are the same choice into one entry each, keeping the
+ * ranking they arrive in. The best-ranked copy of a group is the one a swap
+ * takes, so picking the entry picks the same copy the plan would have.
+ * @returns One entry per distinct choice, best first.
+ */
+function groupAlternatives(
+  ranked: readonly CopyResponse[],
+  asBoxCopy: (copy: CopyResponse) => DeckBoxCopy | undefined,
+): DeckBoxAlternative[] {
+  const byKey = new Map<string, DeckBoxAlternative>();
+  for (const copy of ranked) {
+    const key = alternativeKey(copy);
+    const entry = byKey.get(key);
+    if (entry) {
+      entry.count += 1;
+      continue;
+    }
+    const boxCopy = asBoxCopy(copy);
+    if (boxCopy) {
+      byKey.set(key, { key, copy: boxCopy, count: 1 });
+    }
+  }
+  return [...byKey.values()];
 }
 
 /**
@@ -401,9 +455,9 @@ export function computeDeckBoxPlan({
     }
 
     const ranked = (candidatesByCard.get(cardId) ?? []).toSorted(comparator);
-    // Hand-picked copies lead, in slot order, so a swap sticks even as the
-    // ranking around it changes.
-    const chosen: CopyResponse[] = [];
+    // Hand-picked copies claim their own slot first, so a swap sticks to the row
+    // it was made on even as the ranking around it changes.
+    const chosen: (CopyResponse | undefined)[] = Array.from({ length: shortfall });
     const taken = new Set<string>();
     for (let slot = 0; slot < shortfall; slot++) {
       const overrideId = overrides?.get(`${cardId}:${slot}`);
@@ -411,31 +465,40 @@ export function computeDeckBoxPlan({
         ? ranked.find((copy) => copy.id === overrideId && !taken.has(copy.id))
         : undefined;
       if (override) {
-        chosen.push(override);
+        chosen[slot] = override;
         taken.add(override.id);
       }
     }
-    for (const copy of ranked) {
-      if (chosen.length >= shortfall) {
-        break;
-      }
-      if (!taken.has(copy.id)) {
-        chosen.push(copy);
-        taken.add(copy.id);
-      }
-    }
-
-    const allCopies = ranked.map((copy) => asBoxCopy(copy)).filter((copy) => copy !== undefined);
-    for (const [slot, copy] of chosen.entries()) {
-      const boxCopy = asBoxCopy(copy);
-      if (!boxCopy) {
+    // The rest take the best copies still going, in row order.
+    const spare = ranked.filter((copy) => !taken.has(copy.id));
+    let next = 0;
+    for (let slot = 0; slot < shortfall; slot++) {
+      if (chosen[slot] || next >= spare.length) {
         continue;
       }
+      const copy = spare[next];
+      next += 1;
+      chosen[slot] = copy;
+      taken.add(copy.id);
+    }
+
+    // Only copies no slot of this card has claimed: offering one slot the copy
+    // another is already holding is offering nothing.
+    const free = groupAlternatives(
+      ranked.filter((copy) => !taken.has(copy.id)),
+      asBoxCopy,
+    );
+    for (const [slot, copy] of chosen.entries()) {
+      const boxCopy = copy && asBoxCopy(copy);
+      if (!copy || !boxCopy) {
+        continue;
+      }
+      const held = alternativeKey(copy);
       fills.push({
         state: "available",
         slotKey: `${cardId}:${slot}`,
         copy: boxCopy,
-        alternatives: allCopies.filter((candidate) => candidate.copyId !== copy.id),
+        alternatives: free.filter((candidate) => candidate.key !== held),
       });
     }
 

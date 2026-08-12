@@ -164,7 +164,7 @@ describe("computeDeckBoxPlan", () => {
     expect(plan.slots[0]?.copy?.printingId).toBe(pinned.id);
     // The alternatives keep the same ranking, so the swap list leads with the
     // copy that would have been picked next.
-    expect(plan.slots[0]?.alternatives[0]?.printingId).toBe(english.id);
+    expect(plan.slots[0]?.alternatives[0]?.copy.printingId).toBe(english.id);
   });
 
   it("plays the beaters: never a graded copy, worst condition first", () => {
@@ -183,7 +183,7 @@ describe("computeDeckBoxPlan", () => {
     expect(picked?.condition).toBe("played");
     expect(picked?.grade).toBeNull();
     // Graded copies sink to the bottom of the swap list rather than vanishing.
-    expect(plan.slots[0]?.alternatives.at(-1)?.grade).toBe(9);
+    expect(plan.slots[0]?.alternatives.at(-1)?.copy.grade).toBe(9);
   });
 
   it("passes over a copy marked mint for one with no condition recorded", () => {
@@ -319,8 +319,92 @@ describe("computeDeckBoxPlan", () => {
     );
     expect(plan.inBoxTotal).toBe(1);
     expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "available", "available"]);
-    // The spare copy stays where it is, and is offered as an alternative.
-    expect(plan.slots[1]?.alternatives).toHaveLength(2);
+    // The spare copy stays where it is, but it is the same choice as the two
+    // already picked, so no row offers it as a swap.
+    expect(plan.slots[1]?.alternatives).toEqual([]);
+  });
+
+  it("offers copies that are the same choice as a single entry", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
+    const shelf = [
+      stubCopy({ printingId: printing.id, collectionId: SHOEBOX }),
+      stubCopy({ printingId: printing.id, collectionId: SHOEBOX }),
+      stubCopy({ printingId: printing.id, collectionId: SHOEBOX }),
+    ];
+    const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [worn, ...shelf] }));
+    expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
+    // Three copies that read alike are one row, not three.
+    expect(plan.slots[0]?.alternatives).toHaveLength(1);
+    expect(plan.slots[0]?.alternatives[0]?.count).toBe(3);
+    // Picking it takes the best-ranked copy of the group.
+    expect(plan.slots[0]?.alternatives[0]?.copy.copyId).toBe(shelf[0]?.id);
+  });
+
+  it("keeps copies apart when a mark tells them apart", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const other = stubPrinting({ cardId: "card-1", shortCode: "OGS-005b" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [printing, other],
+        copies: [
+          stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" }),
+          // Same printing and shelf as the pick, but a different condition.
+          stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "good" }),
+          // Same everything but the shelf it sits on.
+          stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" }),
+          // Same shelf and condition, but a different printing.
+          stubCopy({ printingId: other.id, collectionId: BINDER, condition: "good" }),
+        ],
+      }),
+    );
+    expect(plan.slots[0]?.alternatives).toHaveLength(3);
+    expect(plan.slots[0]?.alternatives.map((entry) => entry.count)).toEqual([1, 1, 1]);
+  });
+
+  it("doesn't offer a swap for a copy the slot already holds the like of", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [printing],
+        copies: [
+          stubCopy({ printingId: printing.id, collectionId: BINDER }),
+          stubCopy({ printingId: printing.id, collectionId: BINDER }),
+        ],
+      }),
+    );
+    expect(plan.slots[0]?.state).toBe("available");
+    expect(plan.slots[0]?.alternatives).toEqual([]);
+  });
+
+  it("never offers a slot the copy another slot of the same card holds", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
+    const good = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" });
+    const plan = computeDeckBoxPlan(
+      inputFor({ quantity: 2, printings: [printing], copies: [worn, good] }),
+    );
+    expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([worn.id, good.id]);
+    // Both copies are spoken for, so neither row has anything left to swap to.
+    expect(plan.slots.flatMap((slot) => slot.alternatives)).toEqual([]);
+  });
+
+  it("keeps a hand-picked copy on the row it was picked on", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
+    const good = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" });
+    const mint = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "mint" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        quantity: 2,
+        printings: [printing],
+        copies: [worn, good, mint],
+        // A swap made on the second row moves that row, not the first.
+        overrides: new Map([["card-1:1", mint.id]]),
+      }),
+    );
+    expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([worn.id, mint.id]);
+    expect(plan.slots.map((slot) => slot.slotKey)).toEqual(["card-1:0", "card-1:1"]);
   });
 
   it("ignores a box holding more copies than the deck runs", () => {
