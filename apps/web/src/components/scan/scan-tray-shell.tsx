@@ -68,9 +68,24 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
   return (
     <Drawer
       open
+      // The sheet has no close state, but Base UI still reads a downward swipe
+      // as a dismiss candidate before it picks a snap point: a flick past
+      // FAST_SWIPE_VELOCITY dismisses outright, and below that the release
+      // point is projected forward by velocity, which overshoots the peek.
+      // The rejected dismiss then restores the snap point the drag *started*
+      // from, so a downward swing left the sheet stuck open. Cancelling here
+      // takes the synchronous rejection path instead of the deferred one,
+      // which would otherwise dip the sheet for a frame before springing back.
+      onOpenChange={(_open, details) => {
+        details.cancel();
+      }}
       modal={false}
       snapPoints={[PEEK_SNAP_POINT, 1]}
       defaultSnapPoint={PEEK_SNAP_POINT}
+      // Drag distance alone picks the next snap point. Without this, velocity
+      // projection turns any downward swing into the dismiss described above.
+      // Nothing is lost with two snap points — there is none to skip past.
+      snapToSequentialPoints
       showSwipeHandle
     >
       <DrawerContent>
