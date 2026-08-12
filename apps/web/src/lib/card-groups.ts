@@ -4,6 +4,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
+import { groupItemsByCollection } from "@/lib/group-by-collection";
 import { groupItemsByField, isFieldGrouping } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
@@ -33,8 +34,8 @@ export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]):
 
 /**
  * Groups items for a card viewer by the chosen axis (set / field / channel /
- * year / marker), applying the group direction. Shared by the grid and table
- * viewers; each then lays the groups out into its own virtual rows.
+ * year / marker / collection), applying the group direction. Shared by the grid
+ * and table viewers; each then lays the groups out into its own virtual rows.
  * @returns The ordered card groups, or a single "_all" group when ungrouped.
  */
 export function buildGroups(
@@ -44,12 +45,24 @@ export function buildGroups(
   groupDir: "asc" | "desc",
   orders: EnumOrders,
   labels: EnumLabels,
+  collectionOrder?: GroupInfo[],
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
   }
   if (groupBy === "channel") {
     return groupItemsByChannel(items, groupDir);
+  }
+  if (groupBy === "collection") {
+    // Only /collections' copies view supplies a collection order. Anywhere else
+    // (a deep-linked `?groupBy=collection` on a surface whose items are
+    // printings) this axis has nothing to bucket by, so fall through to the
+    // ungrouped single section rather than one bucket per missing id.
+    if (!collectionOrder) {
+      return [{ group: { id: "_all", slug: "", name: "" }, items }];
+    }
+    const collectionGroups = groupItemsByCollection(items, collectionOrder);
+    return groupDir === "desc" ? collectionGroups.toReversed() : collectionGroups;
   }
   if (groupBy === "year") {
     return groupItemsByYear(items, groupDir);

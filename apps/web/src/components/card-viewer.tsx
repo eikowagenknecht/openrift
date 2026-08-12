@@ -38,6 +38,12 @@ interface CardViewerProps {
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
+  /**
+   * Section order for the "collection" grouping axis, supplied only by
+   * /collections' copies view (where an item is one physical copy). Its absence
+   * is what makes the axis inert on every other surface.
+   */
+  collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
@@ -75,6 +81,7 @@ export function CardViewer({
   totalItems,
   renderCard,
   setOrder,
+  collectionOrder,
   groupBy,
   groupDir,
   selectedItemId,
@@ -115,6 +122,7 @@ export function CardViewer({
             items={items}
             totalItems={totalItems}
             setOrder={setOrder}
+            collectionOrder={collectionOrder}
             groupBy={groupBy}
             groupDir={groupDir}
             selectedItemId={selectedItemId}
@@ -126,6 +134,7 @@ export function CardViewer({
             totalItems={totalItems}
             renderCard={renderCard}
             setOrder={setOrder}
+            collectionOrder={collectionOrder}
             groupBy={groupBy}
             groupDir={groupDir}
             selectedItemId={selectedItemId}
@@ -145,6 +154,7 @@ type HydratedGridProps = Pick<
   | "totalItems"
   | "renderCard"
   | "setOrder"
+  | "collectionOrder"
   | "groupBy"
   | "groupDir"
   | "selectedItemId"
@@ -165,6 +175,7 @@ interface HydratedTableProps {
   items: CardViewerItem[];
   totalItems: number;
   setOrder?: GroupInfo[];
+  collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;

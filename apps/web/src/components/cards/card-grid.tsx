@@ -215,6 +215,8 @@ interface CardGridProps {
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
+  /** Section order for the "collection" axis. Only /collections supplies it. */
+  collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
@@ -229,6 +231,7 @@ export function CardGrid({
   totalItems,
   renderCard,
   setOrder,
+  collectionOrder,
   groupBy = "set",
   groupDir = "asc",
   selectedItemId,
@@ -270,7 +273,7 @@ export function CardGrid({
   const { gap, cardWidth: thumbWidth } = computeGridMetrics(containerWidth, columns);
 
   // ── Group items, then flatten into virtual rows ──────────────────
-  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels, collectionOrder);
   const multipleGroups = groups.length > 1;
 
   const labelHeight = LABEL_HEIGHT;

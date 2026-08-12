@@ -139,6 +139,8 @@ interface CardTableProps {
   items: CardViewerItem[];
   totalItems: number;
   setOrder?: GroupInfo[];
+  /** Section order for the "collection" axis. Only /collections supplies it. */
+  collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
@@ -179,6 +181,7 @@ export function CardTable({
   items,
   totalItems,
   setOrder,
+  collectionOrder,
   groupBy = "set",
   groupDir = "asc",
   selectedItemId,
@@ -197,7 +200,7 @@ export function CardTable({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels, collectionOrder);
   const multipleGroups = groups.length > 1;
   const virtualRows = buildVirtualRows(groups);
   const setNameBySlug = new Map((setOrder ?? []).map((info) => [info.slug, info.name]));

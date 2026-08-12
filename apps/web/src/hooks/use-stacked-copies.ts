@@ -14,6 +14,14 @@ export interface StackedEntry {
 interface UseStackedCopiesResult {
   stacks: StackedEntry[];
   totalCopies: number;
+  /**
+   * Holding collection per copy id. A stack pools copies that can sit in
+   * different collections, so the "Collection" grouping axis reads this rather
+   * than the stack. Covers every fetched copy, including ones the personal-only
+   * filter kept out of the stacks — callers only look up ids they got from a
+   * stack, and filtering twice would just have to repeat that rule.
+   */
+  collectionIdByCopyId: ReadonlyMap<string, string>;
   isReady: boolean;
 }
 
@@ -64,9 +72,9 @@ export function buildStacks(
 
 /**
  * Groups copies by printing ID into stacks, sorted by card ID.
- * @returns Sorted stacks, total copy count, and a readiness flag that lets
- * callers distinguish "still loading" from "loaded but empty" so the empty
- * state doesn't flash before the first fetch resolves.
+ * @returns Sorted stacks, total copy count, the per-copy collection lookup, and
+ * a readiness flag that lets callers distinguish "still loading" from "loaded
+ * but empty" so the empty state doesn't flash before the first fetch resolves.
  */
 export function useStackedCopies(collectionId?: string): UseStackedCopiesResult {
   const { data: copies, isReady } = useCopies(collectionId);
@@ -79,6 +87,7 @@ export function useStackedCopies(collectionId?: string): UseStackedCopiesResult 
 
   const sortedStacks = buildStacks(copies, printingById, collectionId);
   const totalCopies = sortedStacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
+  const collectionIdByCopyId = new Map(copies.map((copy) => [copy.id, copy.collectionId]));
 
-  return { stacks: sortedStacks, totalCopies, isReady };
+  return { stacks: sortedStacks, totalCopies, collectionIdByCopyId, isReady };
 }

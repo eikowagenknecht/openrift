@@ -11,6 +11,7 @@
 
 ### Other
 
+- feat(Collection): **Group All Cards by collection** — in copies view the All Cards grid can now split into a section per collection, so you can see where each copy actually sits.
 - feat(Collection): **Card details inside the scanner** — Details on a scanned card opens the usual card overlay in place instead of leaving for the card page.
 - feat(Collection): **Printing picker grouped by language** — switching or picking a printing now shows one tab per language when a card exists in several.
 - feat(App): **Scanner moved to /scan** — the scan page has its own top-level address; old /collections/scan bookmarks need updating.

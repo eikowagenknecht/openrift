@@ -21,7 +21,9 @@ const TEST_ORDERS = {
 const mockStacks = vi.fn<() => { stacks: StackedEntry[]; totalCopies: number; isReady: boolean }>();
 
 vi.mock("@/hooks/use-stacked-copies", () => ({
-  useStackedCopies: () => mockStacks(),
+  // The per-copy collection lookup is only read by the grid's "Collection"
+  // grouping, so cases here set stacks alone and get an empty map.
+  useStackedCopies: () => ({ collectionIdByCopyId: new Map<string, string>(), ...mockStacks() }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({

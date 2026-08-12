@@ -43,7 +43,10 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
-const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
+// Exported so a surface that adds an axis of its own (/collections' copies-only
+// "Collection") appends to this list instead of restating the nine shared
+// labels, which would then drift.
+export const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "none", label: "None" },
   { value: "set", label: "Set" },
   { value: "type", label: "Type" },

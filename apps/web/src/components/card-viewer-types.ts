@@ -15,6 +15,13 @@ export interface CardViewerItem {
    * anchor at the instance the user actually clicked.
    */
   zone?: DeckZone;
+  /**
+   * Holding collection for /collections' copies-view items, where one item is
+   * one physical copy. Set only there: a stacked tile pools copies that can sit
+   * in different collections, so it has no single one. Feeds the "Collection"
+   * grouping axis (see groupItemsByCollection).
+   */
+  collectionId?: string;
 }
 
 /** Per-cell rendering context provided by CardGrid to renderCard. */

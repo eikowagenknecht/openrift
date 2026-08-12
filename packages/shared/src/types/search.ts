@@ -44,6 +44,11 @@ export const GROUP_BY_FIELDS = [
   "channel",
   "year",
   "marker",
+  // Copies-only, and only offered by /collections' "All cards" aggregate: it
+  // buckets physical copies by the collection holding them. Every other axis
+  // reads off the printing, so they work in every view; this one needs an item
+  // that *is* one copy. See isCopiesOnlyGrouping.
+  "collection",
 ] as const;
 
 export type GroupByField = (typeof GROUP_BY_FIELDS)[number];

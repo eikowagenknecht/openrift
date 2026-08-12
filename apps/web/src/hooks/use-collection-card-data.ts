@@ -99,7 +99,7 @@ export function useCollectionCardData({
   ownedCardTotalOverride,
 }: UseCollectionCardDataParams) {
   "use memo";
-  const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
+  const { stacks, totalCopies, collectionIdByCopyId, isReady } = useStackedCopies(collectionId);
   const { orders } = useEnumOrders();
   const defaultEffectiveLanguageOrder = useEffectiveLanguageOrder();
 
@@ -310,6 +310,7 @@ export function useCollectionCardData({
     priceRangeByCardId,
     stacks,
     totalCopies,
+    collectionIdByCopyId,
     stackByPrintingId,
     totalUniqueCards,
     ownedCountMax: ownedCountUpperBound,

@@ -35,6 +35,7 @@ import { CollectionTopBar } from "@/components/collection/collection-top-bar";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
 import { EmptyState } from "@/components/empty-state";
+import { defaultGroupByOptions } from "@/components/filters/options-bar";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { LendCardDialog } from "@/components/loans/lend-card-dialog";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
@@ -63,6 +64,7 @@ import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { formatterForMarketplace } from "@/lib/format";
+import { isCopiesOnlyGrouping } from "@/lib/group-by-collection";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -114,7 +116,25 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const mode = selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
-  const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
+  const {
+    filters,
+    sortBy,
+    sortDir,
+    view,
+    groupBy: rawGroupBy,
+    groupDir,
+    hasActiveFilters,
+  } = useFilterValues();
+  // The "Collection" axis buckets physical copies, so it needs copies view (one
+  // item per copy, each carrying its holding collection) and the "All cards"
+  // aggregate, the only scope with more than one collection in play. Everywhere
+  // else the axis is absent from the dropdown, so a value left over from the
+  // URL or the remembered pref normalizes back to the surface default instead
+  // of driving a grouping the toolbar can't show.
+  const collectionGroupingAvailable =
+    collectionId === undefined && view === "copies" && !showLibrary;
+  const groupBy =
+    isCopiesOnlyGrouping(rawGroupBy) && !collectionGroupingAvailable ? "set" : rawGroupBy;
   const { setSearch } = useFilterActions();
   const {
     allPrintings,
@@ -156,6 +176,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     setDisplayLabel,
     ownedCountBound,
     selectableCopyIds,
+    collectionIdByCopyId,
     stacks,
     totalCopies,
     stackByPrintingId,
@@ -519,7 +540,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           .flatMap((entry) =>
             entry.stack.copyIds.map((copyId) => {
               stackByItemId.set(copyId, entry.stack);
-              return { id: copyId, printing: entry.printing };
+              // One item per physical copy, so it can name its holding
+              // collection — what the "Collection" grouping axis buckets on.
+              return {
+                id: copyId,
+                printing: entry.printing,
+                collectionId: collectionIdByCopyId.get(copyId),
+              };
             }),
           );
   }
@@ -752,6 +779,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       ? new Set(sortedCards.map((card) => card.cardId)).size
       : sortedCards.length;
 
+  // Section order for the "Collection" axis, and the names its headers show.
+  // Sidebar order, so the sections read top to bottom the way the sidebar
+  // lists them (inbox first, then the user's own arrangement).
+  const collectionOrder = collections.map((collection) => ({
+    id: collection.id,
+    slug: "",
+    name: collection.name,
+  }));
+
   const toolbar = (
     <BrowserToolbar
       totalCards={view === "copies" ? totalCopies : totalUniqueCards}
@@ -770,6 +806,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       }
       extras={showLibraryButton}
       showCopies={!showLibrary}
+      groupByOptions={
+        collectionGroupingAvailable
+          ? [...defaultGroupByOptions, { value: "collection", label: "Collection" }]
+          : undefined
+      }
+      // `groupBy` here is the normalized value, so the dropdown never shows
+      // "Collection" while the grid has fallen back to the set grouping.
+      groupByValue={groupBy}
     />
   );
 
@@ -891,6 +935,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             totalItems={showLibrary ? allPrintings.length : totalCopies}
             renderCard={renderCard}
             setOrder={sets}
+            collectionOrder={collectionGroupingAvailable ? collectionOrder : undefined}
             groupBy={groupBy}
             groupDir={groupDir}
             deferredSortedCards={deferredSortedCards}

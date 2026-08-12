@@ -97,6 +97,48 @@ describe("buildGroups", () => {
     expect(groups[0].group.id).toBe("_all");
   });
 
+  it("groups by collection in the given collection order", () => {
+    const collectionOrder: GroupInfo[] = [
+      { id: "col-inbox", slug: "", name: "Inbox" },
+      { id: "col-binder", slug: "", name: "Binder" },
+    ];
+    const copies: CardViewerItem[] = [
+      { ...item("set-a"), collectionId: "col-binder" },
+      { ...item("set-b"), collectionId: "col-inbox" },
+    ];
+    const groups = buildGroups(
+      copies,
+      "collection",
+      setOrder,
+      "asc",
+      ORDERS,
+      LABELS,
+      collectionOrder,
+    );
+    expect(groups.map((group) => group.group.id)).toEqual(["col-inbox", "col-binder"]);
+
+    const reversed = buildGroups(
+      copies,
+      "collection",
+      setOrder,
+      "desc",
+      ORDERS,
+      LABELS,
+      collectionOrder,
+    );
+    expect(reversed.map((group) => group.group.id)).toEqual(["col-binder", "col-inbox"]);
+  });
+
+  it("falls back to a single _all group when collection grouping has no collection order", () => {
+    // Every surface but /collections' copies view leaves collectionOrder unset,
+    // where a deep-linked `?groupBy=collection` must not shatter the grid into
+    // one bucket per missing id.
+    const groups = buildGroups(items, "collection", setOrder, "asc", ORDERS, LABELS);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].group.id).toBe("_all");
+    expect(groups[0].items).toHaveLength(2);
+  });
+
   it("falls back to set grouping for an axis this surface doesn't know", () => {
     // A foreign axis can reach buildGroups via a deep-linked URL (/promos'
     // "card" pasted onto /cards). It must degrade to the default set
