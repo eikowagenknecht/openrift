@@ -45,8 +45,8 @@ export interface TradeRequestEmailInput {
   kind: "wants" | "offers";
   /** The initiator's revealed contact channels for this group, or `""` if none. */
   initiatorContact?: string;
-  /** Deep link to the group's Trades tab. */
-  tradesUrl: string;
+  /** Deep link to the trade sheet with the initiator. */
+  sheetUrl: string;
   /** One-click unsubscribe link for the `tradeRequests` channel. */
   unsubscribeUrl: string;
 }
@@ -75,7 +75,7 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
     <p style="margin:0 0 16px;">${lead}</p>
     <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 7 days after they're sent.</p>
     ${contactLine}
-    <p style="margin:0;">${emailButton("View the trade", input.tradesUrl)}</p>
+    <p style="margin:0;">${emailButton("View the trade", input.sheetUrl)}</p>
   `;
 
   return {

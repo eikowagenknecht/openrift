@@ -466,34 +466,40 @@ describe("sumTradeValues", () => {
 });
 
 describe("tradesHubSummary", () => {
-  it("leads with the action count when trades are waiting on the viewer", () => {
-    expect(tradesHubSummary(2, 3, 1)).toEqual({
-      headline: 2,
-      sub: "trades need your action · 3 possible",
+  it("leads with the number of people waiting, not the number of trades", () => {
+    expect(tradesHubSummary(3, 48, 8, 3, 7, 20)).toEqual({
+      headline: 3,
+      sub: "people are waiting on you · 48 to answer · 8 to hand over · 3 to receive · 7 suggestions",
     });
   });
 
-  it("uses singular copy for one action and drops the possible tail at zero", () => {
-    expect(tradesHubSummary(1, 0, 0)).toEqual({
+  it("uses singular copy for one person and one suggestion", () => {
+    expect(tradesHubSummary(1, 0, 2, 0, 1, 0)).toEqual({
       headline: 1,
-      sub: "trade needs your action",
+      sub: "person is waiting on you · 2 to hand over · 1 suggestion",
     });
   });
 
-  it("falls back to the match count when nothing is waiting on the viewer", () => {
-    expect(tradesHubSummary(0, 1, 0)).toEqual({
+  it("omits the zero tails", () => {
+    expect(tradesHubSummary(2, 5, 0, 0, 0, 0).sub).toBe("people are waiting on you · 5 to answer");
+    expect(tradesHubSummary(2, 0, 0, 1, 0, 0).sub).toBe("people are waiting on you · 1 to receive");
+    expect(tradesHubSummary(2, 0, 0, 0, 0, 0).sub).toBe("people are waiting on you");
+  });
+
+  it("falls back to the match count when nobody is waiting on the viewer", () => {
+    expect(tradesHubSummary(0, 0, 0, 0, 1, 0)).toEqual({
       headline: 1,
       sub: "possible trade · none waiting on you",
     });
-    expect(tradesHubSummary(0, 4, 2)).toEqual({
+    expect(tradesHubSummary(0, 0, 0, 0, 4, 2)).toEqual({
       headline: 4,
       sub: "possible trades · none waiting on you",
     });
   });
 
   it("distinguishes no-matches from no-trades-at-all when both counts are zero", () => {
-    expect(tradesHubSummary(0, 0, 2).sub).toBe("no new matches right now");
-    expect(tradesHubSummary(0, 0, 0).sub).toBe("no open trades right now");
+    expect(tradesHubSummary(0, 0, 0, 0, 0, 2).sub).toBe("no new matches right now");
+    expect(tradesHubSummary(0, 0, 0, 0, 0, 0).sub).toBe("no open trades right now");
   });
 });
 

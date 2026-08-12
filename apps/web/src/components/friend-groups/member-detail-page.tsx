@@ -5,20 +5,24 @@ import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { CardList } from "@/components/ui/card-list";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
-import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
+import {
+  bucketMemberTrades,
+  countTradeSuggestions,
+  withoutLiveTradeMatches,
+} from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { ROLE_LABEL } from "./friend-group-shell";
-import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
-import { MemberTradesSection } from "./trades-section";
 
 interface MemberDetailPageProps {
   slug: string;
@@ -30,6 +34,30 @@ const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: s
   { intent: "trade", heading: "Tradelists" },
 ];
 
+/**
+ * The one-line state of play with this member, for the summary card that stands
+ * in for the trade rows and suggestions the trade sheet now owns. Parts that
+ * are zero are left out rather than printed as "0", so the line only ever says
+ * something is there.
+ * @param openCount Live trades with the member (in progress plus awaiting them).
+ * @param needsYouCount How many of those are waiting on the viewer.
+ * @param matchCount Distinct suggestions the matcher found with them.
+ * @returns The summary sentence.
+ */
+function tradeSummaryLine(openCount: number, needsYouCount: number, matchCount: number): string {
+  const parts: string[] = [];
+  if (openCount > 0) {
+    parts.push(`${openCount} open ${openCount === 1 ? "trade" : "trades"}`);
+  }
+  if (needsYouCount > 0) {
+    parts.push(`${needsYouCount} needs you`);
+  }
+  if (matchCount > 0) {
+    parts.push(`${matchCount} possible ${matchCount === 1 ? "trade" : "trades"}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Nothing traded yet";
+}
+
 export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data } = useFriendGroupMemberDetail(slug, userId);
   const { data: groupDetail } = useFriendGroupDetail(slug);
@@ -38,15 +66,21 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { member } = data;
 
   // Drop match suggestions that already have a live trade with this member for
-  // the same card — here or in another shared group — so a suggestion and its
-  // in-progress trade don't both show; the in-progress trade renders in
-  // MemberTradesSection instead. Mirrors the Trades page's SuggestedSection,
-  // with the same fallback to the group's own trades until the all-groups
-  // list loads.
+  // the same card — here or in another shared group — so a suggestion and the
+  // trade it became aren't counted twice. Mirrors the Trades page's
+  // SuggestedSection, with the same fallback to the group's own trades until
+  // the all-groups list loads.
   const liveTrades = allTradesData?.items ?? tradesData?.items ?? [];
   const incomingMatches = withoutLiveTradeMatches(data.matches, liveTrades);
   const outgoingMatches = withoutLiveTradeMatches(data.reverseMatches, liveTrades);
-  const hasMatches = incomingMatches.length > 0 || outgoingMatches.length > 0;
+  // Person-level, not group-level: the trade sheet the card links to pools every
+  // shared group, so the counts here have to agree with what it will show.
+  const { active, actionNeeded } = bucketMemberTrades(liveTrades, userId);
+  const tradeSummary = tradeSummaryLine(
+    active.length + actionNeeded.length,
+    actionNeeded.length,
+    countTradeSuggestions(incomingMatches, outgoingMatches),
+  );
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));
   const hasShares = sortedShares.length > 0;
@@ -85,19 +119,19 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
             </div>
           </header>
 
-          <MemberTradesSection groupId={groupDetail.group.id} counterpartyUserId={userId} />
-
-          {hasMatches ? (
-            <section className="flex flex-col gap-3">
-              <SectionHeading>Possible trades</SectionHeading>
-              <MatchTradeList
-                incoming={incomingMatches}
-                outgoing={outgoingMatches}
-                groupSlug={slug}
-                showCounterparty={false}
-              />
-            </section>
-          ) : null}
+          {/* Everything about trading with this member — the live rows, the
+              suggestions and the history — lives on the person-level trade
+              sheet, which pools every group the two share. This page keeps the
+              headline and hands off. */}
+          <section className="flex flex-col gap-3">
+            <SectionHeading>Trades</SectionHeading>
+            <Card className="flex-row flex-wrap items-center justify-between gap-3 p-3">
+              <p className="min-w-0">{tradeSummary}</p>
+              <Button render={<Link to="/trades/$userId" params={{ userId }} />}>
+                Open trade sheet
+              </Button>
+            </Card>
+          </section>
 
           {hasCollections ? (
             <section className="flex flex-col gap-3">

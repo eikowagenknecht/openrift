@@ -1,14 +1,21 @@
+import { ERROR_CODES } from "@openrift/shared";
 import type {
   CardTradeActionCountsResponse,
   CardTradeCopyOptionsResponse,
   CardTradeListResponse,
   CardTradeLiveByPrintingResponse,
   CardTradeResponse,
+  CardTradeSheetResponse,
 } from "@openrift/shared";
 import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
 import { implement } from "@orpc/server";
 
-import { toCardTradeLiveByPrinting } from "../../lib/card-trade-presenters.js";
+import { AppError } from "../../errors.js";
+import {
+  toCardTradeCounterparty,
+  toCardTradeLiveByPrinting,
+  toCardTradeSheetRows,
+} from "../../lib/card-trade-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
@@ -57,6 +64,62 @@ export const cardTradesRouter = {
       return toCardTradeLiveByPrinting(rows);
     },
   ),
+
+  withUser: os.withUser.handler(async ({ input, context }): Promise<CardTradeSheetResponse> => {
+    const viewerId = context.userId;
+    const counterpartyUserId = input.userId;
+    if (counterpartyUserId === viewerId) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot open a trade sheet with yourself");
+    }
+
+    const { friendGroups, friendGroupMatches } = context.repos;
+
+    // No shared group is the same answer as no such user: the viewer can see
+    // nothing of either, and two different answers would turn the route into an
+    // account-existence probe.
+    const groups = await friendGroups.sharedGroups(viewerId, counterpartyUserId);
+    if (groups.length === 0) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
+    }
+
+    // The profile is the same in every shared group, so one roster answers it;
+    // revealed contacts are per group, so those are read from all of them.
+    const [members, contactsByGroup] = await Promise.all([
+      friendGroups.listMembers(groups[0].id),
+      Promise.all(groups.map((group) => friendGroups.getRevealedContactsForMembers(group.id))),
+    ]);
+    const member = members.find((row) => row.userId === counterpartyUserId);
+    if (!member) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
+    }
+
+    // Promise.all keeps the groups in their sorted order, which is what decides
+    // where a row shared by several groups gets attributed.
+    const matchesByGroup = await Promise.all(
+      groups.map(async (group) => {
+        const scope = { groupId: group.id, viewerUserId: viewerId, counterpartyUserId };
+        const [incoming, outgoing] = await Promise.all([
+          friendGroupMatches.othersHaveYourWants(scope),
+          friendGroupMatches.othersWantYourHaves(scope),
+        ]);
+        return { group, incoming, outgoing };
+      }),
+    );
+
+    return {
+      counterparty: toCardTradeCounterparty(
+        member,
+        contactsByGroup.map((contacts) => contacts.get(counterpartyUserId)),
+      ),
+      groups: groups.map((group) => ({ id: group.id, slug: group.slug, name: group.name })),
+      othersHaveYourWants: toCardTradeSheetRows(
+        matchesByGroup.map(({ group, incoming }) => ({ group, rows: incoming })),
+      ),
+      othersWantYourHaves: toCardTradeSheetRows(
+        matchesByGroup.map(({ group, outgoing }) => ({ group, rows: outgoing })),
+      ),
+    };
+  }),
 
   copyOptions: os.copyOptions.handler(
     ({ input, context }): Promise<CardTradeCopyOptionsResponse> => {

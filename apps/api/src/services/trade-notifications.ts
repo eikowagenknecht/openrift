@@ -117,9 +117,8 @@ export async function sendTradeRequestEmail(
       return;
     }
 
-    // The recipient-oriented DTO carries the initiator as `counterparty` (name +
-    // revealed contact methods) and the group slug for the deep link — no extra
-    // user query.
+    // The recipient-oriented DTO carries the initiator as `counterparty` (name,
+    // user id, revealed contact methods) — no extra user query.
     const dto = await repos.cardTrades.getDtoByIdForUser(trade.id, recipientUserId);
     if (dto === undefined) {
       return;
@@ -130,7 +129,10 @@ export async function sendTradeRequestEmail(
     const cards = await repos.catalog.cardsByIds([trade.cardId]);
     const cardName = cards[0]?.name ?? "a card";
 
-    const tradesUrl = `${deps.appBaseUrl}/groups/${dto.groupSlug}/trades`;
+    // The email is about this one trade, so it lands on the sheet with the
+    // person who started it — where the trade sits alongside everything else
+    // between the two of them, pooled across every shared group.
+    const sheetUrl = `${deps.appBaseUrl}/trades/${dto.counterparty.userId}`;
     const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
       deps.appBaseUrl,
       deps.unsubscribeSecret,
@@ -146,7 +148,7 @@ export async function sendTradeRequestEmail(
       // receiver-initiated = the initiator wants the card; giver-initiated = offer.
       kind: trade.initiator === "receiver" ? "wants" : "offers",
       initiatorContact,
-      tradesUrl,
+      sheetUrl,
       unsubscribeUrl: pageUrl,
     });
 
@@ -297,7 +299,10 @@ export async function flushCoalescedTradeRequests(
     const cards = await repos.catalog.cardsByIds([...cardIds]);
     const nameByCard = new Map(cards.map((card) => [card.id, card.name]));
 
-    // One section per group (a pair can share more than one group).
+    // One section per group (a pair can share more than one group). Unlike the
+    // instant email above, this one is not about a single trade: each section is
+    // a friend group, headed and buttoned by its name, so it stays on the group
+    // deep link rather than the person-level sheet.
     const sections: CoalescedRequestGroup[] = [];
     const sectionByGroup = new Map<string, CoalescedRequestGroup>();
     for (const row of claimedRows) {

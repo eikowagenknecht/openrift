@@ -12,6 +12,9 @@ import type {
   cardTradeLiveByPrintingResponseSchema,
   cardTradeLivePhaseSchema,
   cardTradeResponseSchema,
+  cardTradeSheetGroupSchema,
+  cardTradeSheetMatchRowSchema,
+  cardTradeSheetResponseSchema,
 } from "@openrift/shared/contracts/card-trades";
 import type { z } from "zod";
 
@@ -63,3 +66,12 @@ export type CardTradeLiveAnnotation = z.infer<typeof cardTradeLiveAnnotationSche
 
 /** Every live trade the viewer has, aggregated per (printing, role, phase). */
 export type CardTradeLiveByPrintingResponse = z.infer<typeof cardTradeLiveByPrintingResponseSchema>;
+
+/** One group the viewer and a counterparty share, as the trade sheet labels it. */
+export type CardTradeSheetGroup = z.infer<typeof cardTradeSheetGroupSchema>;
+
+/** A group match row tagged with the shared group whose shares produced it. */
+export type CardTradeSheetMatchRow = z.infer<typeof cardTradeSheetMatchRowSchema>;
+
+/** One counterparty's whole trade sheet, pooled across every shared group. */
+export type CardTradeSheetResponse = z.infer<typeof cardTradeSheetResponseSchema>;

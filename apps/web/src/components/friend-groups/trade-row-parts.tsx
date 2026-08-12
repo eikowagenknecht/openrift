@@ -1,27 +1,14 @@
-import type { CardTradeStatus, Finish, Marketplace, Rarity } from "@openrift/shared";
+import type { CardTradeStatus, Finish, Rarity } from "@openrift/shared";
 import { marketplaceLabel } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import {
-  ArrowDownLeftIcon,
-  ArrowUpRightIcon,
-  BellIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  ClockIcon,
-} from "lucide-react";
+import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { UserAvatar } from "@/components/user-avatar";
-import type { CappedRowsFold } from "@/hooks/use-capped-rows";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
-import type { TradeValueSplit } from "@/lib/trade-derivation";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -158,66 +145,13 @@ export function TradeEstimatedPrice({
 }
 
 /**
- * The per-person estimated value shown on a counterparty group header, split by
- * direction: "You get cards worth ≈X · give cards worth ≈Y" when cards flow both
- * ways, or a single side when they don't. "cards worth" is load-bearing: the
- * number is the market value of the cards changing hands, and without it "You'd
- * get ≈X" reads as cash coming to you (exactly backwards when the viewer is
- * buying those cards). `conditional` switches to the "You'd get/give" wording
- * used for suggestions (a value you'd realise *if* you traded), versus the plain
- * "You get/give" of trades already agreed. Renders nothing when neither side has
- * a priced item. The "≈" flags it as an estimate over what's priced.
- * @returns The value-summary element, or null when nothing is priced.
- */
-export function TradeValueSummary({
-  split,
-  marketplace,
-  conditional = false,
-  className,
-}: {
-  split: TradeValueSplit;
-  marketplace: Marketplace;
-  /** Use "You'd get/give" (suggestions) instead of "You get/give" (agreed). */
-  conditional?: boolean;
-  className?: string;
-}) {
-  if (!split.hasGet && !split.hasGive) {
-    return null;
-  }
-  const fmt = compactFormatterForMarketplace(marketplace);
-  const getVerb = conditional ? "You'd get" : "You get";
-  const giveVerb = conditional ? "You'd give" : "You give";
-  let text: string;
-  if (split.hasGet && split.hasGive) {
-    text = `${getVerb} cards worth ≈${fmt(split.get)} · give cards worth ≈${fmt(split.give)}`;
-  } else if (split.hasGet) {
-    text = `${getVerb} cards worth ≈${fmt(split.get)}`;
-  } else {
-    text = `${giveVerb} cards worth ≈${fmt(split.give)}`;
-  }
-  return (
-    <span
-      // The both-directions wording is wider than a phone, so it wraps below
-      // sm and every host stacks it onto its own line there. From sm up it
-      // stays one line, pinned right of whatever it sits next to.
-      className={cn(
-        "text-muted-foreground shrink-0 text-xs whitespace-normal sm:whitespace-nowrap",
-        className,
-      )}
-      title={`Estimated value (${marketplaceLabel(marketplace)})`}
-    >
-      {text}
-    </span>
-  );
-}
-
-/**
  * The status badge for a live or finished trade, shared across match rows and
  * trade rows. A sent request still awaiting the other side reads "Waiting for
  * {name}" (the ball is in their court); the same status but awaiting the viewer
  * reads "Your move" (they sent it, you accept or decline). An accepted trade
- * reads "Ready to swap" (go arrange the physical hand-off). Terminal statuses
- * fall back to their plain label.
+ * reads "Ready to swap" (go arrange the physical hand-off), or "Done on your
+ * side" once the viewer has settled their half. Terminal statuses fall back to
+ * their plain label.
  * @returns The status badge element.
  */
 export function TradeStatusBadge({
@@ -261,13 +195,20 @@ export function TradeStatusBadge({
   }
   if (status === "reserved") {
     // The viewer has settled their own half, so the swap is done as far as they
-    // are concerned and the trade is only waiting on the other party's
-    // confirmation (ADR-019, amendment 2026-08-10).
+    // are concerned and only the other party's confirmation is outstanding
+    // (ADR-019, amendment 2026-08-10). It says "done", not "waiting", because
+    // nothing about it is theirs to chase — the trade sheet files these under
+    // history for the same reason. The muted variant keeps it from reading as a
+    // completed trade, which needs both halves.
     if (viewerSettled) {
       return (
-        <Badge variant="secondary" className={cn("shrink-0", className)}>
-          <ClockIcon />
-          <span className="truncate">Waiting for {counterpartyName ?? "them"}</span>
+        <Badge
+          variant="secondary"
+          className={cn("shrink-0", className)}
+          title="Your side is settled. The trade completes when they confirm theirs."
+        >
+          <CheckIcon />
+          <span className="truncate">Done on your side</span>
         </Badge>
       );
     }
@@ -319,65 +260,5 @@ export function TradeExpiry({
       <ClockIcon className="size-3" />
       {label}
     </span>
-  );
-}
-
-/**
- * The counterparty chip on the right of a row: avatar + name, linking to the
- * member's page. Shared so match rows and trade rows present the member the
- * same way. Only rows that aren't already under a counterparty header render it.
- * @returns The counterparty chip element.
- */
-export function CounterpartyChip({
-  groupSlug,
-  userId,
-  name,
-  image,
-  gravatarHash,
-}: {
-  groupSlug: string;
-  userId: string;
-  /** Drives the avatar's initials fallback and the label — the member's real name. */
-  name: string | null;
-  image: string | null;
-  gravatarHash: string;
-}) {
-  return (
-    <Link
-      to="/groups/$slug/members/$userId"
-      params={{ slug: groupSlug, userId }}
-      className="hover:bg-muted/60 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
-      title={name ?? "Member"}
-    >
-      <UserAvatar image={image} name={name} gravatarHash={gravatarHash} size="sm" />
-      <span className="text-sm">{name ?? "Member"}</span>
-    </Link>
-  );
-}
-
-/**
- * The "Show N more" / "Show less" row closing a folded trade list — one member
- * with dozens of open trades or suggestions otherwise buries everything below
- * them. Drives {@link useCappedRows}; render it only when that reports the list
- * foldable.
- * @returns The toggle row.
- */
-export function TradeShowMoreRow({
-  fold,
-  className,
-}: {
-  fold: CappedRowsFold;
-  className?: string;
-}) {
-  return (
-    <Button
-      variant="dashed"
-      size="sm"
-      className={cn("w-full justify-center", className)}
-      onClick={() => fold.toggle()}
-    >
-      {fold.expanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
-      {fold.expanded ? "Show less" : `Show ${fold.hiddenCount} more`}
-    </Button>
   );
 }

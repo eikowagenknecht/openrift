@@ -12,7 +12,7 @@ const REQUEST_BASE = {
   initiatorName: "Garen",
   cardName: "Azir, Emperor of the Sands",
   quantity: 1,
-  tradesUrl: "https://openrift.app/groups/my-group/trades",
+  sheetUrl: "https://openrift.app/trades/user-garen",
   unsubscribeUrl: "https://openrift.app/api/v1/unsubscribe?token=abc",
 } as const;
 
@@ -23,7 +23,9 @@ describe("buildTradeRequestEmail", () => {
     expect(html).toContain("wants to trade for");
     expect(html).toContain("Garen");
     expect(html).toContain("expire 7 days");
-    expect(html).toContain(REQUEST_BASE.tradesUrl);
+    // The email is about this one trade, so the button lands on the sheet with
+    // the initiator, not the group's Trades tab.
+    expect(html).toContain(REQUEST_BASE.sheetUrl);
     expect(html).toContain(REQUEST_BASE.unsubscribeUrl);
   });
 

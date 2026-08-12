@@ -7,7 +7,6 @@ import type {
   Printing,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { ChevronRightIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -15,11 +14,8 @@ import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Pressable } from "@/components/ui/pressable";
-import { UserAvatar } from "@/components/user-avatar";
-import { useCappedRows } from "@/hooks/use-capped-rows";
 import { useCreateTrade, useDeclineTrade, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -29,7 +25,7 @@ import { usePrices } from "@/hooks/use-prices";
 import type { CatalogPosition } from "@/lib/catalog-position";
 import { compareCatalogPosition, setIndexById, UNKNOWN_SET_INDEX } from "@/lib/catalog-position";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import type { MatchCopyDetail, MatchDirection, TradeValueSplit } from "@/lib/trade-derivation";
+import type { MatchCopyDetail, MatchDirection } from "@/lib/trade-derivation";
 import {
   describeViewerSource,
   matchCopyConditionLabel,
@@ -45,12 +41,9 @@ import { RequestTradeDialog } from "./request-trade-dialog";
 import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 import {
   CardMetaLine,
-  CounterpartyChip,
   TradeDirectionIcon,
   TradePerCopyPrice,
-  TradeShowMoreRow,
   TradeStatusBadge,
-  TradeValueSummary,
 } from "./trade-row-parts";
 
 // Receive-first, give-second: incoming rows sort ahead of outgoing ones, then
@@ -58,32 +51,43 @@ import {
 const DIRECTION_ORDER: Record<MatchDirection, number> = { incoming: 0, outgoing: 1 };
 
 /**
- * Key into the live-trade lookup: the other member + the exact printing.
+ * A match row, optionally tagged with the friend group it came from. The trade
+ * sheet pools rows from every group the two people share, so it tags each one;
+ * a row that carries no tag falls back to the list's own `groupSlug`.
+ */
+export type MatchTradeListRow = FriendGroupMatchRow & { groupSlug?: string };
+
+/**
+ * Key into the live-trade lookup: the group, the other member and the exact
+ * printing. The group is part of the key because a list can span several of
+ * them, where the same member and printing may be in flight in more than one.
  * @returns The composite lookup key.
  */
-function liveTradeKey(counterpartyUserId: string, printingId: string): string {
-  return `${counterpartyUserId}\0${printingId}`;
+function liveTradeKey(groupSlug: string, counterpartyUserId: string, printingId: string): string {
+  return `${groupSlug}\0${counterpartyUserId}\0${printingId}`;
 }
 
 /**
  * The per-row trade action. When a live trade already exists between the two of
  * you for this printing: if it's awaiting your response, show Accept/Decline
  * inline; otherwise show its status. With no live trade, show Request/Offer.
+ * The trade is created in the row's own group, which on a mixed list is not
+ * necessarily the one the list was opened from.
  * @returns The action element.
  */
 function MatchRowTradeAction({
   match,
-  groupSlug,
   liveTrade,
 }: {
   match: DirectedMatch;
-  groupSlug: string;
   liveTrade?: CardTradeResponse;
 }) {
   const [open, setOpen] = useState(false);
   const createTrade = useCreateTrade();
   const acceptFlow = useTradeAcceptFlow();
   const declineTrade = useDeclineTrade();
+
+  const groupSlug = match.groupSlug;
 
   if (liveTrade !== undefined) {
     // A request/offer awaiting the viewer — let them act without leaving the tab.
@@ -117,9 +121,9 @@ function MatchRowTradeAction({
         </div>
       );
     }
-    // Your own pending request awaiting them, or a reserved trade. The member is
-    // named by the counterparty header above the row (or by the member page this
-    // list is on), so the badge stays anonymous: "Waiting for them".
+    // Your own pending request awaiting them, or a reserved trade. The page this
+    // list sits on is already about one member, so the badge stays anonymous:
+    // "Waiting for them".
     return <TradeStatusBadge status={liveTrade.status} />;
   }
 
@@ -167,6 +171,8 @@ function MatchRowTradeAction({
 // CardCell needs a full Printing object we'd have to synthesize. Wiring
 // CardCell is a follow-up when the matches panel needs siblings / chevrons.
 interface ResolvedMatchRow extends FriendGroupMatchRow {
+  /** The friend group this row belongs to, resolved from the row or the list. */
+  groupSlug: string;
   cardSlug: string;
   shortCode: string;
   /** The set's position in catalog order; {@link UNKNOWN_SET_INDEX} when unknown. */
@@ -198,15 +204,17 @@ interface DirectedMatch extends AggregatedMatch {
 
 /**
  * Resolves UUID set IDs and rarity/finish slugs to display names via the
- * catalog so row metadata doesn't leak raw IDs.
+ * catalog so row metadata doesn't leak raw IDs, and pins each row to the group
+ * it belongs to (its own, or the list's when it carries none).
  * @returns The rows with catalog-resolved display fields.
  */
 function resolveMatchRows(
-  rows: FriendGroupMatchRow[],
+  rows: MatchTradeListRow[],
   cardsById: ReturnType<typeof useCards>["cardsById"],
   printingsById: ReturnType<typeof useCards>["printingsById"],
   sets: ReturnType<typeof useCards>["sets"],
   labels: ReturnType<typeof useEnumOrders>["labels"],
+  fallbackGroupSlug: string,
 ): ResolvedMatchRow[] {
   const setsById = new Map(sets.map((set) => [set.id, set]));
   const setIndexes = setIndexById(sets);
@@ -216,6 +224,7 @@ function resolveMatchRows(
     const printing = printingsById[row.printingId] ?? null;
     return {
       ...row,
+      groupSlug: row.groupSlug ?? fallbackGroupSlug,
       cardName: card ? legendDisplayName(card) : row.cardName,
       cardSlug: card?.slug ?? row.cardId,
       shortCode: printing?.shortCode ?? "",
@@ -309,16 +318,11 @@ function MatchSourceLine({
  */
 function MatchRow({
   match,
-  groupSlug,
   marketplaceInfos,
-  showCounterparty,
   liveTrade,
 }: {
   match: DirectedMatch;
-  groupSlug: string;
   marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
-  /** When false (member-detail page), the counterparty is fixed, so the chip is hidden. */
-  showCounterparty: boolean;
   /** An existing live trade for this (counterparty, printing), if any. */
   liveTrade?: CardTradeResponse;
 }) {
@@ -341,16 +345,17 @@ function MatchRow({
     counterpartyPref.pricePref !== null || counterpartyPref.tradeType !== null;
 
   return (
-    // A suggestion (an opportunity), not a started trade: dashed border + no
-    // resting fill (an outlined slot that fills on hover), versus the solid,
-    // filled bg-card rows of trades the viewer has actually started.
+    // A suggestion (an opportunity), not a started trade: dashed border + a
+    // washed muted fill, versus the solid ring-carrying bg-card rows of trades
+    // the viewer has actually started. The wash reads as "not yet real" even
+    // when the two kinds of row sit in the same column on the trade sheet.
     // On phones the row stacks: the card identity (with price hint + member
     // chip) sits on top, and the action drops to its own right-aligned bar
     // below. From sm up both groups dissolve (sm:contents) back into one row.
     <div
       ref={rowRef}
       {...hoverProps}
-      className="group hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
+      className="group bg-muted/30 hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
     >
       {/* Identity: on phones its own top row (arrow + art + name/meta); from sm
           up the wrapper dissolves (sm:contents) so it flows into the inline row. */}
@@ -384,10 +389,11 @@ function MatchRow({
         </div>
       </div>
 
-      {/* Deal footer: on phones a second row that carries the price + member on
-          the left and the action on the right, so nothing crams onto the
-          identity line. From sm up this wrapper and the price/member group both
-          dissolve (sm:contents) back into the single inline row. */}
+      {/* Deal footer: on phones a second row that carries the price on the left
+          and the action on the right, so nothing crams onto the identity line.
+          The price keeps its own wrapper so the action stays pinned right even
+          when there is no price to show. From sm up both wrappers dissolve
+          (sm:contents) back into the single inline row. */}
       <div className="flex items-center justify-between gap-2 sm:contents">
         <div className="flex min-w-0 items-center gap-2 sm:contents">
           {hasCounterpartyPref ? (
@@ -406,19 +412,9 @@ function MatchRow({
               />
             </div>
           ) : null}
-
-          {showCounterparty ? (
-            <CounterpartyChip
-              groupSlug={groupSlug}
-              userId={match.counterpartyUserId}
-              name={match.counterpartyName}
-              image={match.counterpartyImage}
-              gravatarHash={match.counterpartyGravatarHash}
-            />
-          ) : null}
         </div>
 
-        <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
+        <MatchRowTradeAction match={match} liveTrade={liveTrade} />
       </div>
 
       {previewing && match.printing ? (
@@ -429,17 +425,19 @@ function MatchRow({
 }
 
 /**
- * Collapse rows with the same `(buyEntryId, counterpartyListId, printingId)`
- * into one tile so that 100 copies of the same printing in the same source
- * list no longer render 100 cells. Different counterparty lists (e.g. "Spare
- * Foils" vs "Sell Pile") with the same printing stay separate tiles so the
- * source list is visible.
- * @returns One aggregated match per unique (buyEntryId, counterpartyListId, printingId) triple.
+ * Collapse rows with the same `(groupSlug, buyEntryId, counterpartyListId,
+ * printingId)` into one tile so that 100 copies of the same printing in the
+ * same source list no longer render 100 cells. Different counterparty lists
+ * (e.g. "Spare Foils" vs "Sell Pile") with the same printing stay separate
+ * tiles so the source list is visible. The group is part of the key so that on
+ * a list spanning several groups a tile is never a mix of them — a trade
+ * created from it has one unambiguous group.
+ * @returns One aggregated match per unique (groupSlug, buyEntryId, counterpartyListId, printingId) tuple.
  */
 function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
   const aggregated = new Map<string, AggregatedMatch>();
   for (const row of rows) {
-    const key = `${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
+    const key = `${row.groupSlug}\0${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
     const copy: MatchCopyDetail = {
       condition: row.condition,
       grader: row.grader,
@@ -460,6 +458,8 @@ function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
 export interface MatchTradeGroup extends CatalogPosition {
   /** Stable, per-counterparty key used both as the React key and the fold-store id. */
   foldId: string;
+  /** The friend group every variant in this group belongs to. */
+  groupSlug: string;
   direction: MatchDirection;
   cardName: string;
   cardSlug: string;
@@ -484,6 +484,8 @@ export interface MatchTradeGroup extends CatalogPosition {
  * group of four variants instead of four sibling rows. Printing-level wishes
  * target one specific printing, so they stay one group per
  * (direction, counterparty, list, printing) and keep their existing one-row look.
+ * Rows from different friend groups never merge, even when everything else
+ * about them matches, so a trade started from a group has one group to go to.
  *
  * Variants are ordered by catalog position, and each group takes the position of
  * its earliest one, so a card-level wish sorts with the first printing it can be
@@ -494,7 +496,7 @@ export interface MatchTradeGroup extends CatalogPosition {
 export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
   const groups = new Map<string, MatchTradeGroup>();
   for (const row of rows) {
-    const key = matchSuggestionKey(row.direction, row);
+    const key = `${row.groupSlug}\0${matchSuggestionKey(row.direction, row)}`;
     const existing = groups.get(key);
     if (existing) {
       existing.variants.push(row);
@@ -502,6 +504,7 @@ export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
     } else {
       groups.set(key, {
         foldId: key,
+        groupSlug: row.groupSlug,
         direction: row.direction,
         cardName: row.cardName,
         cardSlug: row.cardSlug,
@@ -553,15 +556,11 @@ export function compareMatchTradeGroups(a: MatchTradeGroup, b: MatchTradeGroup):
  */
 function MatchTradeRowGroup({
   group,
-  groupSlug,
   infosByPrinting,
-  showCounterparty,
   liveTradeByKey,
 }: {
   group: MatchTradeGroup;
-  groupSlug: string;
   infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
-  showCounterparty: boolean;
   liveTradeByKey: Map<string, CardTradeResponse>;
 }) {
   const expanded = useMatchVariantsFoldStore((state) => state.expanded.has(group.foldId));
@@ -585,7 +584,9 @@ function MatchTradeRowGroup({
   // accept/decline still lives on the expanded row). Reserved outranks pending.
   const variantStatuses = group.variants.map(
     (variant) =>
-      liveTradeByKey.get(liveTradeKey(variant.counterpartyUserId, variant.printingId))?.status,
+      liveTradeByKey.get(
+        liveTradeKey(variant.groupSlug, variant.counterpartyUserId, variant.printingId),
+      )?.status,
   );
   const headerStatus: CardTradeStatus | null = variantStatuses.includes("reserved")
     ? "reserved"
@@ -594,8 +595,8 @@ function MatchTradeRowGroup({
       : null;
 
   return (
-    // Suggestion group: dashed border + no resting fill, matching MatchRow.
-    <div className="overflow-hidden rounded-md border border-dashed">
+    // Suggestion group: dashed border + washed muted fill, matching MatchRow.
+    <div className="bg-muted/30 overflow-hidden rounded-md border border-dashed">
       <div className="hover:bg-muted flex flex-col gap-2 p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
         {/* Identity + disclosure share the top row on phones; from sm up the
             wrapper dissolves (sm:contents) and the chevron's sm:order-last drops
@@ -647,24 +648,12 @@ function MatchTradeRowGroup({
           />
         </div>
 
-        {showCounterparty || headerStatus ? (
-          // The member chip and status badge sit on their own row on phones;
-          // from sm up they dissolve back into the header row (before the
-          // chevron, which is pinned last via sm:order-last).
+        {headerStatus ? (
+          // The status badge sits on its own row on phones; from sm up it
+          // dissolves back into the header row (before the chevron, which is
+          // pinned last via sm:order-last).
           <div className="flex flex-wrap items-center gap-2 sm:contents">
-            {showCounterparty ? (
-              <CounterpartyChip
-                groupSlug={groupSlug}
-                userId={group.counterpartyUserId}
-                name={group.counterpartyName}
-                image={group.counterpartyImage}
-                gravatarHash={group.counterpartyGravatarHash}
-              />
-            ) : null}
-
-            {headerStatus ? (
-              <TradeStatusBadge status={headerStatus} className="min-w-0 shrink" />
-            ) : null}
+            <TradeStatusBadge status={headerStatus} className="min-w-0 shrink" />
           </div>
         ) : null}
       </div>
@@ -675,11 +664,9 @@ function MatchTradeRowGroup({
             <MatchRow
               key={`${variant.counterpartyListId}\0${variant.printingId}`}
               match={variant}
-              groupSlug={groupSlug}
               marketplaceInfos={infosByPrinting[variant.printingId] ?? null}
-              showCounterparty={false}
               liveTrade={liveTradeByKey.get(
-                liveTradeKey(variant.counterpartyUserId, variant.printingId),
+                liveTradeKey(variant.groupSlug, variant.counterpartyUserId, variant.printingId),
               )}
             />
           ))}
@@ -692,29 +679,22 @@ function MatchTradeRowGroup({
 /**
  * Renders one suggestion group as the collapsed multi-variant card when a
  * card-level wish spans several printings, or a single wide row otherwise.
- * Shared by the flat (member-detail) list and the per-counterparty groups.
  * @returns The suggestion element.
  */
 function MatchGroupItem({
   group,
-  groupSlug,
   infosByPrinting,
-  showCounterparty,
   liveTradeByKey,
 }: {
   group: MatchTradeGroup;
-  groupSlug: string;
   infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
-  showCounterparty: boolean;
   liveTradeByKey: Map<string, CardTradeResponse>;
 }) {
   if (group.variants.length > 1) {
     return (
       <MatchTradeRowGroup
         group={group}
-        groupSlug={groupSlug}
         infosByPrinting={infosByPrinting}
-        showCounterparty={showCounterparty}
         liveTradeByKey={liveTradeByKey}
       />
     );
@@ -723,19 +703,34 @@ function MatchGroupItem({
   return (
     <MatchRow
       match={variant}
-      groupSlug={groupSlug}
       marketplaceInfos={infosByPrinting[variant.printingId] ?? null}
-      showCounterparty={showCounterparty}
-      liveTrade={liveTradeByKey.get(liveTradeKey(variant.counterpartyUserId, variant.printingId))}
+      liveTrade={liveTradeByKey.get(
+        liveTradeKey(variant.groupSlug, variant.counterpartyUserId, variant.printingId),
+      )}
     />
   );
 }
 
+interface MatchTradeListProps {
+  /** Rows where a member has a card you want (the card flows to you). */
+  incoming: MatchTradeListRow[];
+  /** Rows where a member wants a card you have (the card flows to them). */
+  outgoing: MatchTradeListRow[];
+  /** The group a row belongs to when it doesn't name one of its own. */
+  groupSlug: string;
+}
+
 /**
- * Whether a suggestion can be bulk-requested: a single-printing card coming to
- * the viewer with at least one copy available. Multi-printing wishes are
- * ambiguous (which version?) so they keep their per-row Request button and its
- * picker; outgoing "offer" suggestions aren't requests at all.
+ * The suggestions list on a person's trade sheet: a flat list of wide rows,
+ * everything you'd receive first, then everything you'd give. The whole list is
+ * one member already, so no row names them.
+ * @returns The list of match rows.
+ */
+/**
+ * Whether "Request all" can fire this suggestion unattended: an incoming,
+ * single-printing group with copies actually available. A card-level wish
+ * spanning several printings needs the human to pick one, so it stays out.
+ * @param group The aggregated suggestion group.
  * @returns True when "Request all" can fire this suggestion unattended.
  */
 function isBulkRequestable(group: MatchTradeGroup): boolean {
@@ -747,74 +742,24 @@ function isBulkRequestable(group: MatchTradeGroup): boolean {
 }
 
 /**
- * Estimates a counterparty's suggestions' value, split by direction. A
- * suggestion's quantity is only ever what you *could* trade (`maxTradeQuantity`
- * — the wished amount capped by what they have), and its per-copy price is the
- * cheapest across a card wish's variants, so this is a rough "if you traded it
- * all" figure. Unpriced groups are skipped.
- * @returns The get/give value split for the person's suggestions.
+ * One press to request every unambiguous incoming suggestion in the list. Each
+ * request is created in its own group's context, so on a trade sheet spanning
+ * several shared groups the trades land where their source lists live. Only
+ * offered from two requestable rows up — a single row's own button is enough.
+ * @returns The right-aligned bulk row, or null.
  */
-function sumMatchValues(
-  matches: MatchTradeGroup[],
-  prices: ReturnType<typeof usePrices>,
-  marketplace: Marketplace,
-): TradeValueSplit {
-  const split: TradeValueSplit = { get: 0, give: 0, hasGet: false, hasGive: false };
-  for (const group of matches) {
-    const unitPrices = group.variants
-      .map((variant) => prices.get(variant.printingId, marketplace))
-      .filter((price) => price !== undefined);
-    if (unitPrices.length === 0) {
-      continue;
-    }
-    const value =
-      Math.min(...unitPrices) * maxTradeQuantity(group.buyQuantity, group.totalAvailable);
-    if (group.direction === "incoming") {
-      split.get += value;
-      split.hasGet = true;
-    } else {
-      split.give += value;
-      split.hasGive = true;
-    }
-  }
-  return split;
-}
-
-/**
- * One counterparty's suggestions under a collapsible header: avatar, name, a
- * "possible" count, and the estimated get/give value, with a "Request all"
- * button that fires every unambiguous single-printing card you want from them at
- * its default quantity. Multi-printing wishes and outgoing offers keep their own
- * per-row buttons.
- * @returns The per-counterparty suggestions group.
- */
-function MatchCounterpartyGroup({
-  matches,
-  groupSlug,
-  infosByPrinting,
-  liveTradeByKey,
-}: {
-  matches: MatchTradeGroup[];
-  groupSlug: string;
-  infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
-  liveTradeByKey: Map<string, CardTradeResponse>;
-}) {
-  const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+function BulkRequestRow({ groups }: { groups: MatchTradeGroup[] }) {
   const createTrade = useCreateTrade();
-
-  const first = matches[0];
-  const split = sumMatchValues(matches, prices, marketplace);
-  const requestable = matches.filter((group) => isBulkRequestable(group));
-  // A display cap only: the header count, the value summary and "Request all"
-  // keep covering every suggestion, folded away or not.
-  const fold = useCappedRows(matches);
+  const requestable = groups.filter((group) => isBulkRequestable(group));
+  if (requestable.length < 2) {
+    return null;
+  }
 
   function requestAll(): void {
     for (const group of requestable) {
       const variant = group.variants[0];
       createTrade.mutate({
-        groupSlug,
+        groupSlug: group.groupSlug,
         counterpartyUserId: variant.counterpartyUserId,
         role: "receiver",
         printingId: variant.printingId,
@@ -824,101 +769,39 @@ function MatchCounterpartyGroup({
   }
 
   return (
-    <Collapsible defaultOpen>
-      <div className="flex items-center gap-2">
-        <CollapsibleTrigger className="group hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
-          <UserAvatar
-            image={first.counterpartyImage}
-            name={first.counterpartyName}
-            gravatarHash={first.counterpartyGravatarHash}
-            size="sm"
-          />
-          {/* Narrow screens stack the value summary under the name — inline it
-              leaves the name a few characters wide. It wraps there too, since
-              the both-directions wording outruns a phone's width on its own. */}
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate">{first.counterpartyName ?? "Member"}</span>
-              <span className="text-muted-foreground shrink-0 text-xs">({matches.length})</span>
-            </span>
-            <TradeValueSummary
-              split={split}
-              marketplace={marketplace}
-              conditional
-              className="sm:ml-auto"
-            />
-          </span>
-          <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-        </CollapsibleTrigger>
-        {requestable.length >= 2 ? (
-          <Button
-            size="sm"
-            className="shrink-0"
-            disabled={createTrade.isPending}
-            onClick={requestAll}
-          >
-            Request all ({requestable.length})
-          </Button>
-        ) : null}
-      </div>
-      <CollapsibleContent>
-        <div className="mt-1 flex flex-col gap-2">
-          {fold.rows.map((group) => (
-            <MatchGroupItem
-              key={group.foldId}
-              group={group}
-              groupSlug={groupSlug}
-              infosByPrinting={infosByPrinting}
-              showCounterparty={false}
-              liveTradeByKey={liveTradeByKey}
-            />
-          ))}
-          {fold.foldable ? <TradeShowMoreRow fold={fold} /> : null}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <div className="flex items-center justify-end">
+      <Button size="sm" variant="outline" onClick={requestAll}>
+        Request all ({requestable.length})
+      </Button>
+    </div>
   );
 }
 
-interface MatchTradeListProps {
-  /** Rows where a member has a card you want (the card flows to you). */
-  incoming: FriendGroupMatchRow[];
-  /** Rows where a member wants a card you have (the card flows to them). */
-  outgoing: FriendGroupMatchRow[];
-  groupSlug: string;
-  /** Hide the per-row counterparty chip when the whole list is one member. */
-  showCounterparty?: boolean;
-}
-
-/**
- * The unified trades view. On the group page suggestions are grouped per
- * counterparty (each foldable, with a running value and a "Request all"), so a
- * long list of possible trades with several people reads as a handful of blocks.
- * On the member-detail page (`showCounterparty` false) the whole list is one
- * member already, so it stays a flat list of wide rows — everything you'd
- * receive first, then everything you'd give.
- * @returns The grouped or flat list of match rows.
- */
-export function MatchTradeList({
-  incoming,
-  outgoing,
-  groupSlug,
-  showCounterparty = true,
-}: MatchTradeListProps) {
+export function MatchTradeList({ incoming, outgoing, groupSlug }: MatchTradeListProps) {
   const { cardsById, printingsById, sets } = useCards();
   const { labels } = useEnumOrders();
   const { data: userTrades } = useUserTrades();
 
-  // Lookup of the viewer's live trades in THIS group, so a matched row can show
-  // accept/decline (when awaiting the viewer) or its status inline instead of a
-  // Request/Offer button.
+  // Lookup of the viewer's live trades in the groups this list covers, so a
+  // matched row can show accept/decline (when awaiting the viewer) or its status
+  // inline instead of a Request/Offer button. A list is usually one group, but
+  // rows may name their own, so every group present is allowed through.
+  const listGroupSlugs = new Set<string>([groupSlug]);
+  for (const row of [...incoming, ...outgoing]) {
+    if (row.groupSlug !== undefined) {
+      listGroupSlugs.add(row.groupSlug);
+    }
+  }
   const liveTradeByKey = new Map<string, CardTradeResponse>();
   for (const trade of userTrades?.items ?? []) {
     if (
-      trade.groupSlug === groupSlug &&
+      listGroupSlugs.has(trade.groupSlug) &&
       (trade.status === "pending" || trade.status === "reserved")
     ) {
-      liveTradeByKey.set(liveTradeKey(trade.counterparty.userId, trade.printingId), trade);
+      liveTradeByKey.set(
+        liveTradeKey(trade.groupSlug, trade.counterparty.userId, trade.printingId),
+        trade,
+      );
     }
   }
 
@@ -926,10 +809,10 @@ export function MatchTradeList({
   const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
 
   const incomingRows = aggregateMatches(
-    resolveMatchRows(incoming, cardsById, printingsById, sets, labels),
+    resolveMatchRows(incoming, cardsById, printingsById, sets, labels, groupSlug),
   ).map((match): DirectedMatch => ({ ...match, direction: "incoming" }));
   const outgoingRows = aggregateMatches(
-    resolveMatchRows(outgoing, cardsById, printingsById, sets, labels),
+    resolveMatchRows(outgoing, cardsById, printingsById, sets, labels, groupSlug),
   ).map((match): DirectedMatch => ({ ...match, direction: "outgoing" }));
   // Keep the "everything you'd receive, then everything you'd give" split, but
   // order each direction the way the catalog does — set first, then card number
@@ -940,41 +823,13 @@ export function MatchTradeList({
   );
   const infosByPrinting = marketplaceInfo?.infos ?? {};
 
-  // Member-detail page: one member, so a flat list reads best.
-  if (!showCounterparty) {
-    return (
-      <div className="flex flex-col gap-2">
-        {groups.map((group) => (
-          <MatchGroupItem
-            key={group.foldId}
-            group={group}
-            groupSlug={groupSlug}
-            infosByPrinting={infosByPrinting}
-            showCounterparty={false}
-            liveTradeByKey={liveTradeByKey}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Group page: bucket the suggestions per counterparty, biggest pile first,
-  // then by name. Each person's suggestions keep the direction/name order above.
-  const byCounterparty = [
-    ...Map.groupBy(groups, (group) => group.counterpartyUserId).values(),
-  ].toSorted(
-    (a, b) =>
-      b.length - a.length ||
-      (a[0].counterpartyName ?? "").localeCompare(b[0].counterpartyName ?? ""),
-  );
-
   return (
     <div className="flex flex-col gap-2">
-      {byCounterparty.map((matches) => (
-        <MatchCounterpartyGroup
-          key={matches[0].counterpartyUserId}
-          matches={matches}
-          groupSlug={groupSlug}
+      <BulkRequestRow groups={groups} />
+      {groups.map((group) => (
+        <MatchGroupItem
+          key={group.foldId}
+          group={group}
           infosByPrinting={infosByPrinting}
           liveTradeByKey={liveTradeByKey}
         />

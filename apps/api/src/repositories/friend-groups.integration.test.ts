@@ -29,6 +29,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   const createdCollectionIds: string[] = [];
   const createdCopyIds: string[] = [];
   const recreatedUserIds: string[] = [];
+  /** Throwaway users a single test seeds, deleted alongside the file-owned four. */
+  const createdUserIds: string[] = [];
 
   afterAll(async () => {
     if (createdGroupIds.length > 0) {
@@ -46,7 +48,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     // Users are file-owned; delete them last, once nothing references them.
     await db
       .deleteFrom("users")
-      .where("id", "in", [VIEWER_ID, ADMIN_ID, SELLER_ID, OUTSIDER_ID])
+      .where("id", "in", [VIEWER_ID, ADMIN_ID, SELLER_ID, OUTSIDER_ID, ...createdUserIds])
       .execute();
   });
 
@@ -165,6 +167,53 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .set({ name: "Test User" })
       .where("id", "in", [SELLER_ID, OUTSIDER_ID])
       .execute();
+  });
+
+  // ── Shared groups (person-level trade sheet) ──────────────────────────────
+
+  it("sharedGroups returns every group both users are in, sorted by name", async () => {
+    // Fresh users, because the file-owned four already share groups from
+    // earlier tests and this asserts on the whole result, not a subset.
+    const alice = await seedTestUser(db);
+    const bob = await seedTestUser(db);
+    createdUserIds.push(alice.id, bob.id);
+
+    const zaun = await createGroup(alice.id);
+    const piltover = await createGroup(alice.id);
+    const aliceOnly = await createGroup(alice.id);
+    await repo.addMember(zaun.id, bob.id, "member");
+    await repo.addMember(piltover.id, bob.id, "member");
+    // Names chosen so lower-cased ordering ("piltover" < "Zaun") differs from
+    // raw byte ordering, proving the lower(g.name) sort.
+    await db
+      .updateTable("friendGroups")
+      .set({ name: "Zaun Runners" })
+      .where("id", "=", zaun.id)
+      .execute();
+    await db
+      .updateTable("friendGroups")
+      .set({ name: "piltover pact" })
+      .where("id", "=", piltover.id)
+      .execute();
+
+    const shared = await repo.sharedGroups(alice.id, bob.id);
+    expect(shared.map((group) => group.id)).toEqual([piltover.id, zaun.id]);
+    expect(shared[0]).toEqual({ id: piltover.id, slug: piltover.slug, name: "piltover pact" });
+    // A group only one of them is in never counts as shared.
+    expect(shared.map((group) => group.id)).not.toContain(aliceOnly.id);
+    // The relation is symmetric — the sheet works from either side.
+    const reversed = await repo.sharedGroups(bob.id, alice.id);
+    expect(reversed.map((group) => group.id)).toEqual([piltover.id, zaun.id]);
+  });
+
+  it("sharedGroups is empty for two users with no group in common", async () => {
+    const alice = await seedTestUser(db);
+    const stranger = await seedTestUser(db);
+    createdUserIds.push(alice.id, stranger.id);
+    const group = await createGroup(alice.id);
+    await repo.addMember(group.id, VIEWER_ID, "member");
+
+    expect(await repo.sharedGroups(alice.id, stranger.id)).toEqual([]);
   });
 
   it("rejects a second owner via the partial unique index", async () => {

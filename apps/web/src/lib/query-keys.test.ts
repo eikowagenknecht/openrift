@@ -89,6 +89,15 @@ describe("queryKeys", () => {
     expect(key).toEqual(["trades", "user-1", "copy-options", "trade-1"]);
     expect(key.slice(0, prefix.length)).toEqual([...prefix]);
   });
+
+  // Same reason again: the trade sheet's suggestions are what a request made
+  // from it removes, so the sheet has to refresh on every trade mutation.
+  it("trades.sheet nests under the trades.all invalidation prefix", () => {
+    const prefix = queryKeys.trades.all("user-1");
+    const key = queryKeys.trades.sheet("user-1", "member-1");
+    expect(key).toEqual(["trades", "user-1", "sheet", "member-1"]);
+    expect(key.slice(0, prefix.length)).toEqual([...prefix]);
+  });
 });
 
 // ---------------------------------------------------------------------------

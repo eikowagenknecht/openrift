@@ -207,6 +207,12 @@ export const queryKeys = {
     // without its own invalidation entry.
     copyOptions: (userId: string, tradeId: string) =>
       ["trades", userId, "copy-options", tradeId] as const,
+    // One counterparty's whole trade sheet (their profile, the shared groups,
+    // and the match suggestions pooled across them). Deliberately under the
+    // `["trades", userId]` prefix so every trade mutation's prefix
+    // invalidation refreshes the open sheet — accepting a suggestion there has
+    // to drop it from the list without its own invalidation entry.
+    sheet: (userId: string, memberId: string) => ["trades", userId, "sheet", memberId] as const,
   },
   loans: {
     // Same prefix-invalidation shape as trades (ADR-039): mutations invalidate

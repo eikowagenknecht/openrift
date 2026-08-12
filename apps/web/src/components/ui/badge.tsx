@@ -23,6 +23,8 @@ const badgeVariants = cva(
         warning: "bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
         // custom: tonal violet label badge — the admin role chip, matching IconChip's violet tone
         violet: "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400",
+        // custom: sky variant for shared-list chips — matching IconChip's sky tone
+        sky: "bg-sky-500/15 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400",
         // custom: neutral muted badge — replaces inline bg-muted text-muted-foreground label spans
         muted: "bg-muted text-muted-foreground",
         // custom: subtle primary-tinted label badge — replaces inline bg-primary/10 text-primary label spans

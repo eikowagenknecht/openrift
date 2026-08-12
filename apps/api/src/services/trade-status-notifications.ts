@@ -200,7 +200,10 @@ export async function flushTradeStatusEmails(
     const cards = await repos.catalog.cardsByIds([...cardIds]);
     const nameByCard = new Map(cards.map((card) => [card.id, card.name]));
 
-    // One section per group (a pair can share more than one group).
+    // One section per group (a pair can share more than one group). The email
+    // folds several status changes together, so it is not about a single trade:
+    // each section is a friend group, headed and buttoned by its name, and stays
+    // on the group deep link rather than the person-level sheet.
     const sections: TradeStatusUpdateGroup[] = [];
     const sectionByGroup = new Map<string, TradeStatusUpdateGroup>();
     for (const row of claimedRows) {

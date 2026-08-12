@@ -235,6 +235,7 @@ const BADGE_VARIANTS = [
   "success",
   "warning",
   "violet",
+  "sky",
   "muted",
   "subtle",
   "count",

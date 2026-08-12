@@ -1,14 +1,19 @@
-import type { CopyLink } from "@openrift/shared";
+import type { ContactMethod, CopyLink } from "@openrift/shared";
 import type {
   CardTradeCopyOption,
   CardTradeCopyOptionsResponse,
+  CardTradeCounterparty,
   CardTradeLiveAnnotation,
   CardTradeLiveByPrintingResponse,
   CardTradeLivePhase,
   CardTradeRole,
+  CardTradeSheetGroup,
+  CardTradeSheetMatchRow,
 } from "@openrift/shared/types";
 
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
+import type { MatchRow } from "../repositories/friend-group-matches.js";
+import { gravatarHashForEmail } from "./gravatar.js";
 
 /**
  * One candidate copy behind a trade, as `copies.listMetadataByIds` reads it.
@@ -62,12 +67,26 @@ export function copyPinWeight(copy: TradeCopyRow): number {
 }
 
 /**
- * Orders candidates plainest-first, id as a stable tiebreak. The first
- * `quantity` entries are what an accept without an explicit choice pins.
+ * Orders candidates plainest-first, then by collection name, id as the final
+ * tiebreak. The first `quantity` entries are what an accept without an explicit
+ * choice pins.
+ *
+ * The collection term is what the picker reads as grouping: six equally plain
+ * copies spread over two binders would otherwise interleave in id order, which
+ * is effectively random to the giver scanning the list. It also decides the
+ * default pin among copies that are alike in every other way, which lands on
+ * the alphabetically first collection. That is arbitrary but stable, and a
+ * stable answer is the point: the accept picker does not even open for copies
+ * that differ only by collection, so nobody is being asked to ratify it.
  * @returns A new array in default pin order.
  */
 export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopyRow[] {
-  return copies.toSorted((a, b) => copyPinWeight(a) - copyPinWeight(b) || a.id.localeCompare(b.id));
+  return copies.toSorted(
+    (a, b) =>
+      copyPinWeight(a) - copyPinWeight(b) ||
+      a.collectionName.localeCompare(b.collectionName) ||
+      a.id.localeCompare(b.id),
+  );
 }
 
 /**
@@ -269,4 +288,102 @@ export function toCardTradeLiveByPrinting(
       LIVE_PHASE_ORDER.indexOf(b.phase) - LIVE_PHASE_ORDER.indexOf(a.phase),
   );
   return { annotations: ordered.map((row) => toCardTradeLiveAnnotation(row)) };
+}
+
+/**
+ * The counterparty's profile as the roster reads it, from any group they are
+ * in — `friendGroups.listMembers` joined with the user row.
+ */
+export interface TradeSheetMemberRow {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  userImage: string | null;
+}
+
+/** One shared group's match rows, in the order the groups are presented. */
+export interface TradeSheetGroupRows {
+  group: CardTradeSheetGroup;
+  rows: readonly MatchRow[];
+}
+
+/**
+ * The counterparty header of a person-level trade sheet.
+ *
+ * Contacts are revealed per group, so a person the viewer meets in two groups
+ * can have revealed a phone number in one and a Discord handle in the other.
+ * The sheet is one view of that person, so the lists are unioned — the viewer
+ * is a member of every group in `contactMethodsByGroup` and is entitled to each
+ * of them. Ids repeat when the same method is revealed twice, so the union
+ * dedupes on id and keeps each method's first appearance, which preserves the
+ * owner's sort order within a group.
+ * @returns The serialized counterparty.
+ */
+export function toCardTradeCounterparty(
+  member: TradeSheetMemberRow,
+  contactMethodsByGroup: readonly (readonly ContactMethod[] | undefined)[],
+): CardTradeCounterparty {
+  const seen = new Set<string>();
+  const contactMethods: ContactMethod[] = [];
+  for (const methods of contactMethodsByGroup) {
+    for (const method of methods ?? []) {
+      if (!seen.has(method.id)) {
+        seen.add(method.id);
+        contactMethods.push(method);
+      }
+    }
+  }
+  return {
+    userId: member.userId,
+    name: member.userName,
+    image: member.userImage,
+    gravatarHash: gravatarHashForEmail(member.userEmail),
+    contactMethods,
+  };
+}
+
+/**
+ * What makes two pooled match rows the same offer. A copy the counterparty
+ * shares with two groups matches the viewer's demand once per group, and the
+ * sheet is about the person, not the group, so those collapse into one row.
+ *
+ * The buy side is in the key because the same copy can answer two different
+ * wants (a card-level entry and a printing-level one, or two wishlists), and
+ * those really are separate rows. `buyEntryId` is null for demand a dynamic
+ * rule produced (ADR-034), which is a value of its own here: a rule-derived row
+ * and a manual row on the same list are not the same row.
+ * @returns A stable key over copy + buy side.
+ */
+function sheetRowKey(row: MatchRow): string {
+  return JSON.stringify([row.copyId, row.buyListId, row.buyEntryId]);
+}
+
+/**
+ * Pools one direction's match rows across the shared groups, tagging each with
+ * the group whose shares produced it and dropping the repeats.
+ *
+ * Direction is not part of the dedupe key because it never has to be: each
+ * direction is pooled by its own call, and a copy the viewer owns cannot also
+ * be a copy the counterparty owns. Groups are visited in the order given (the
+ * response's group order, by name), so a row present in several shared groups
+ * is attributed to the first of them — a stable answer that does not move when
+ * an unrelated group's shares change.
+ * @returns The pooled rows, grouped by source group in the given order.
+ */
+export function toCardTradeSheetRows(
+  perGroup: readonly TradeSheetGroupRows[],
+): CardTradeSheetMatchRow[] {
+  const seen = new Set<string>();
+  const pooled: CardTradeSheetMatchRow[] = [];
+  for (const { group, rows } of perGroup) {
+    for (const row of rows) {
+      const key = sheetRowKey(row);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      pooled.push({ ...row, groupId: group.id, groupSlug: group.slug });
+    }
+  }
+  return pooled;
 }

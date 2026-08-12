@@ -1,25 +1,23 @@
-import type { CardTradeResponse, FriendGroupDetailResponse } from "@openrift/shared";
+import type { FriendGroupDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
-import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { ActionBand } from "@/components/ui/action-band";
-import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CardList } from "@/components/ui/card-list";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
+import { UserAvatar } from "@/components/user-avatar";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
-import { CAPPED_ROWS_LIMIT } from "@/hooks/use-capped-rows";
-import { useGroupTrades, useTradeActionCounts, useUserTrades } from "@/hooks/use-card-trades";
-import { useCards } from "@/hooks/use-cards";
+import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { frontImageId } from "@/lib/card-meta";
 import {
   compareTournamentsForList,
   formatTournamentDate,
@@ -27,11 +25,13 @@ import {
 } from "@/lib/tournament-display";
 import {
   countTradeSuggestions,
+  groupTradesByCounterparty,
   tradeSection,
   tradesHubSummary,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
-import { capitalize, cn } from "@/lib/utils";
+import { isNeedsYouTrade, needsYouCounts } from "@/lib/trade-hub";
+import { capitalize } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";
@@ -39,14 +39,13 @@ import { GroupSetupNudges } from "./group-setup-nudges";
 import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { PendingRequestsBand } from "./pending-requests-band";
-import { TradeDirectionIcon, TradeExpiry, TradeStatusBadge } from "./trade-row-parts";
 
 /**
  * The group overview / dashboard: pending join requests (admins only) as the
- * page's first band, the trades hub (count, action state, and in-progress
- * trades in one surface), a row of tiles linking to the shared / members /
- * events pages, then the recent activity feed beside a rail with the newest
- * shares and the tournament nudge.
+ * page's first band, the trades hub (who is waiting on the viewer, and a chip
+ * per person), a row of tiles linking to the shared / members / events pages,
+ * then the recent activity feed beside a rail with the newest shares and the
+ * tournament nudge.
  *
  * The requests band leads because the groups index and the avatar badge both
  * advertise "N requests to review" and land here; without it the only trace on
@@ -72,21 +71,19 @@ export function OverviewContent({ slug, data }: { slug: string; data: FriendGrou
 
 /**
  * The page's primary module: everything trade-related in one full-width band.
- * The header row carries the headline count — trades needing the viewer's
- * action when there are any (the old banner state), otherwise the possible
- * trades the matcher found — and the in-progress trades render as inline rows
- * below it. Replaces the old three-surface split (banner, stat tile,
- * in-progress strip), which fragmented one domain across the page.
+ * The header row counts the people waiting on the viewer (see
+ * {@link tradesHubSummary}), and one chip per person sits below it, each
+ * leading to that person's trade sheet — the surface where their whole pile is
+ * actually worked through. A trade count would be the wrong unit: three members
+ * can hold dozens of rows between them, and there is nothing the viewer does to
+ * "59 trades".
  * @returns The trades hub band.
  */
 function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: matches } = useFriendGroupMatches(slug);
-  const { data: actionCounts } = useTradeActionCounts();
   const { data: tradesData } = useGroupTrades(data.group.id);
   const { data: allTradesData } = useUserTrades();
 
-  const actionCount =
-    actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
   const trades = tradesData?.items ?? [];
   const active = trades.filter((trade) => tradeSection(trade) === "active");
   // Count what the Trades page renders: per-copy match rows collapsed into
@@ -99,118 +96,69 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
     withoutLiveTradeMatches(matches.othersWantYourHaves, liveTrades),
   );
 
-  const needsAction = actionCount > 0;
-  const { headline, sub } = tradesHubSummary(actionCount, matchCount, active.length);
+  // Every viewer-side action counts as waiting: requests to answer, cards to
+  // hand over, cards to receive. Grouping them by counterparty turns the pile
+  // into the conversations it really is, biggest first.
+  const needsYou = trades.filter((trade) => isNeedsYouTrade(trade));
+  const waiting = groupTradesByCounterparty(needsYou);
+  const { toAnswer, toHandOver, toReceive } = needsYouCounts(needsYou);
 
-  // A member with dozens of open trades otherwise pushes the rest of the
-  // overview off the screen. There is no expand toggle here (the whole band is
-  // an anchor, so a nested button would be invalid HTML) — the sixth cell is a
-  // "+N more" tile, and following the band lands on the Trades page where every
-  // trade is grouped per member. Folding one lone row away saves nothing, since
-  // the tile takes the cell it freed.
-  const folded = active.length > CAPPED_ROWS_LIMIT + 1;
-  const shownActive = folded ? active.slice(0, CAPPED_ROWS_LIMIT) : active;
-  const hiddenActive = active.length - shownActive.length;
+  const needsAction = waiting.length > 0;
+  const { headline, sub } = tradesHubSummary(
+    waiting.length,
+    toAnswer,
+    toHandOver,
+    toReceive,
+    matchCount,
+    active.length,
+  );
 
-  // The whole band is one click target (like the stat tiles), so the
-  // in-progress rows inside are plain divs — they all lead to the Trades page
-  // anyway, and nested anchors are invalid HTML.
+  // The band is plain chrome, not one giant anchor: the person chips and the CTA
+  // are each their own link, and nesting those inside a band-wide anchor would
+  // be invalid HTML.
   return (
     <ActionBand
-      render={<Link to="/groups/$slug/trades" params={{ slug }} />}
       icon={ZapIcon}
       accent={needsAction}
       label="Trades"
       value={headline}
       sub={sub}
       action={
-        // A span with Button's classes, not a Button: the whole band is the
-        // anchor, and a nested interactive element would be invalid HTML. The
-        // group-hover overrides re-key the hover styles to the band.
-        <span
-          className={cn(
-            buttonVariants({ variant: needsAction ? "default" : "ghost" }),
-            needsAction
-              ? "group-hover/action-band:bg-primary/90"
-              : "group-hover/action-band:bg-muted",
-          )}
+        <Button
+          variant={needsAction ? "default" : "ghost"}
+          render={<Link to="/groups/$slug/trades" params={{ slug }} />}
         >
           View trades
-          <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
-        </span>
+          <ChevronRightIcon />
+        </Button>
       }
     >
-      {active.length > 0 ? (
-        // min-w-0 on the items: a grid track sizes to its content's minimum by
-        // default, so one wide row would stretch the column past the viewport.
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {shownActive.map((trade) => (
-            <li key={trade.id} className="min-w-0">
-              <InProgressTradeRow trade={trade} />
+      {waiting.length > 0 ? (
+        <ul className="flex flex-wrap gap-2">
+          {waiting.map(({ counterparty, trades: theirs }) => (
+            <li key={counterparty.userId} className="min-w-0">
+              {/* Badge's warning tone carries the band's gold palette; the
+                  height and left padding open up for the avatar, which is
+                  taller than a plain text chip. */}
+              <Badge
+                variant="warning"
+                className="h-auto max-w-52 gap-1.5 py-1 pl-1 text-sm hover:bg-amber-500/20 dark:hover:bg-amber-500/30"
+                render={<Link to="/trades/$userId" params={{ userId: counterparty.userId }} />}
+              >
+                <UserAvatar
+                  image={counterparty.image}
+                  name={counterparty.name}
+                  gravatarHash={counterparty.gravatarHash}
+                  size="sm"
+                />
+                <span className="truncate font-medium">{counterparty.name ?? "A member"}</span>
+                <span className="tabular-nums opacity-80">· {theirs.length}</span>
+              </Badge>
             </li>
           ))}
-          {hiddenActive > 0 ? (
-            <li className="min-w-0">
-              <div className="text-muted-foreground group-hover/action-band:text-foreground flex items-center justify-center gap-1 rounded-lg border border-dashed px-2.5 py-2 text-sm transition-colors">
-                {hiddenActive} more in progress
-                <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
-              </div>
-            </li>
-          ) : null}
         </ul>
       ) : null}
     </ActionBand>
-  );
-}
-
-/**
- * One in-progress trade as a compact row inside the trades hub: the direction
- * arrow, the card thumb, the card name with the counterparty, then the status
- * badge and any expiry countdown. A plain div — the hub band around it is the
- * link to the Trades page, where the actual cancel / mark-traded controls live.
- * @returns The trade row.
- */
-function InProgressTradeRow({ trade }: { trade: CardTradeResponse }) {
-  const { cardsById, printingsById } = useCards();
-  const card = cardsById[trade.cardId];
-  const printing = printingsById[trade.printingId];
-  const cardName = card?.name ?? "Card";
-  const imageId = frontImageId(printing);
-  const incoming = trade.role === "receiver";
-  // A pending trade's badge already reads "Waiting for {name}", so only name the
-  // member in the row text when the badge doesn't (a reserved "Ready to swap").
-  const showCounterparty = trade.status === "reserved";
-  return (
-    <div className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
-      <TradeDirectionIcon incoming={incoming} />
-      <CardArtThumb imageId={imageId} alt={cardName} className="w-7" loading="lazy" />
-      {/* On phones the badge and countdown drop to a second line under the card
-          name — inline, "Waiting for {name}" is a nowrap block that can't shrink
-          and would widen the whole page. From sm up the wrappers dissolve
-          (sm:contents) back into one horizontal row. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
-        <span className="min-w-0 flex-1 truncate text-sm">
-          <span className="font-medium">
-            {trade.quantity}× {cardName}
-          </span>
-          {showCounterparty ? (
-            <span className="text-muted-foreground">
-              {" "}
-              · with {trade.counterparty.name ?? "a member"}
-            </span>
-          ) : null}
-        </span>
-        <div className="flex min-w-0 items-center gap-2 sm:contents">
-          <TradeStatusBadge
-            status={trade.status}
-            counterpartyName={trade.counterparty.name}
-            awaitingViewer={false}
-            className="min-w-0 shrink"
-          />
-          <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
-        </div>
-      </div>
-    </div>
   );
 }
 

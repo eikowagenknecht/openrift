@@ -4,6 +4,7 @@ import { friendGroupSlugSchema, idParamSchema, withParams } from "@openrift/shar
 import { z } from "zod";
 
 import { authedRoute } from "./_base.js";
+import { friendGroupMatchRowSchema } from "./friend-groups.js";
 
 extendZodWithOpenApi(z);
 
@@ -263,6 +264,52 @@ export const cardTradeActionCountsResponseSchema = z
   })
   .openapi("CardTradeActionCountsResponse");
 
+/**
+ * One group the viewer and the counterparty are both in. Enough to label a row
+ * and link back to the group's own pages; the rest of the group payload belongs
+ * to the friend-groups contract.
+ */
+export const cardTradeSheetGroupSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+  })
+  .openapi("CardTradeSheetGroup");
+
+/**
+ * A group match row carrying the group it came from. The trade sheet pools the
+ * matches of every shared group into one list, so each row has to say which
+ * group's shares produced it — that is the group a trade on this row is created
+ * in, and the only thing the person-level view adds to the row.
+ */
+export const cardTradeSheetMatchRowSchema = friendGroupMatchRowSchema
+  .extend({
+    groupId: z.string(),
+    groupSlug: z.string(),
+  })
+  .openapi("CardTradeSheetMatchRow");
+
+/**
+ * Everything a person-level trade sheet needs about one counterparty, pooled
+ * across every group the two share. Rows that show up in several shared groups
+ * appear once, attributed to the first group in `groups`.
+ */
+export const cardTradeSheetResponseSchema = z
+  .object({
+    counterparty: cardTradeCounterpartySchema,
+    /** The shared groups, sorted by name. Never empty — no shared group is a 404. */
+    groups: z.array(cardTradeSheetGroupSchema),
+    /** Cards the counterparty offers that the viewer wants. */
+    othersHaveYourWants: z.array(cardTradeSheetMatchRowSchema),
+    /** Cards the viewer offers that the counterparty wants. */
+    othersWantYourHaves: z.array(cardTradeSheetMatchRowSchema),
+  })
+  .openapi("CardTradeSheetResponse");
+
+/** Path input for the person-level trade sheet. User ids are text, not uuids. */
+export const cardTradeSheetParamsSchema = z.object({ userId: z.string().min(1) });
+
 const TAG = "CardTrades";
 
 /**
@@ -276,8 +323,10 @@ const TAG = "CardTrades";
  * adds BAD_REQUEST (quantity below minimum); `copyOptions` → NOT_FOUND (trade)
  * + CONFLICT (neither pending nor open to settle) + FORBIDDEN (viewer is not
  * the giver). `accept` and `sync` also use CONFLICT for a rejected `copyIds`
- * choice, and FORBIDDEN when a non-giver sends one. The lifecycle mutations
- * take the trade id as a path param.
+ * choice, and FORBIDDEN when a non-giver sends one. `withUser` → NOT_FOUND
+ * (unknown user or no shared group, deliberately the same answer so the route
+ * cannot be used to probe for accounts) + BAD_REQUEST (the viewer themselves).
+ * The lifecycle mutations take the trade id as a path param.
  */
 export const cardTradesContract = {
   create: authedRoute
@@ -299,6 +348,14 @@ export const cardTradesContract = {
   liveByPrinting: authedRoute
     .route({ method: "GET", path: "/api/v1/trades/live-by-printing", tags: [TAG] })
     .output(cardTradeLiveByPrintingResponseSchema),
+  withUser: authedRoute
+    .route({ method: "GET", path: "/api/v1/trades/with/{userId}", tags: [TAG] })
+    .input(cardTradeSheetParamsSchema)
+    .errors({
+      NOT_FOUND: { message: "Member not found" },
+      BAD_REQUEST: { message: "Cannot open a trade sheet with yourself" },
+    })
+    .output(cardTradeSheetResponseSchema),
   copyOptions: authedRoute
     .route({ method: "GET", path: "/api/v1/trades/{id}/copy-options", tags: [TAG] })
     .input(idParamSchema)

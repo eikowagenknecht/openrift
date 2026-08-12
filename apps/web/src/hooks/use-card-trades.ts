@@ -3,10 +3,11 @@ import type {
   CardTradeLiveAnnotation,
   CardTradeResponse,
   CardTradeRole,
+  CardTradeSheetResponse,
   CardTradeStatus,
 } from "@openrift/shared";
 import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
@@ -38,6 +39,13 @@ const fetchTradeActionCounts = createServerFn({ method: "GET" })
 const fetchLiveTradesByPrinting = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }) => apiOrpcClient(cardTradesContract, context.cookie).liveByPrinting());
+
+const fetchTradeSheet = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(({ context, data: memberId }): Promise<CardTradeSheetResponse> =>
+    apiOrpcClient(cardTradesContract, context.cookie).withUser({ userId: memberId }),
+  );
 
 const fetchTradeCopyOptions = createServerFn({ method: "GET" })
   .validator((input: string) => input)
@@ -243,6 +251,33 @@ export function useIncomingTradeCounts(enabled: boolean): {
     return { data: undefined };
   }
   return { data: aggregateIncomingTradeCounts(data.annotations) };
+}
+
+/**
+ * One counterparty's trade sheet: their profile, every group the two share, and
+ * the match suggestions pooled across those groups.
+ * @param userId The viewer.
+ * @param memberId The counterparty the sheet is about.
+ * @returns The trade-sheet query options.
+ */
+export function tradeSheetQueryOptions(userId: string, memberId: string) {
+  return queryOptions({
+    queryKey: queryKeys.trades.sheet(userId, memberId),
+    queryFn: () => fetchTradeSheet({ data: memberId }),
+  });
+}
+
+/**
+ * The trade sheet for one counterparty, for the person-level trades page.
+ * Deliberately not polled: the live trades the page also renders come from
+ * {@link useUserTrades}, which polls, and every trade mutation invalidates this
+ * key through the shared `trades` prefix.
+ * @param memberId The counterparty the sheet is about.
+ * @returns The trade-sheet query.
+ */
+export function useTradeSheet(memberId: string) {
+  const userId = useRequiredUserId();
+  return useSuspenseQuery(tradeSheetQueryOptions(userId, memberId));
 }
 
 /**

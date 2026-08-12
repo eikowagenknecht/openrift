@@ -149,26 +149,42 @@ export function countTradeSuggestions(
 }
 
 /**
- * The trades hub's headline and sub-line, shared by the group overview's hub
- * band and the Trades page's summary band so the two never disagree. Leads
- * with the trades awaiting the viewer's action when there are any, otherwise
- * with the possible trades the matcher found.
- * @param actionCount Trades currently waiting on the viewer.
+ * The trades hub band's headline and sub-line. The headline counts the *people*
+ * waiting on the viewer, not the trades: a pile of 59 open rows is usually a
+ * handful of conversations, and everything behind the band (the person chips,
+ * the trade sheet) is per-person, so a raw trade count names a unit nobody can
+ * act on. The trade counts follow in the sub-line, where they read as detail.
+ *
+ * With nobody waiting there is no conversation to lead with, so the band falls
+ * back to the possible trades the matcher found.
+ * @param peopleCount Distinct counterparties waiting on the viewer.
+ * @param toAnswer Requests awaiting the viewer's accept-or-decline.
+ * @param toHandOver Agreed swaps whose cards the viewer still has to hand over.
+ * @param toReceive Agreed swaps whose cards the viewer still has to receive.
  * @param matchCount Distinct match suggestions (see {@link countTradeSuggestions}).
  * @param activeCount Trades in progress (accepted or awaiting the other side).
  * @returns The headline number and the sub-line that qualifies it.
  */
 export function tradesHubSummary(
-  actionCount: number,
+  peopleCount: number,
+  toAnswer: number,
+  toHandOver: number,
+  toReceive: number,
   matchCount: number,
   activeCount: number,
 ): { headline: number; sub: string } {
-  if (actionCount > 0) {
+  if (peopleCount > 0) {
+    const tails = [
+      toAnswer > 0 ? `${toAnswer} to answer` : null,
+      toHandOver > 0 ? `${toHandOver} to hand over` : null,
+      toReceive > 0 ? `${toReceive} to receive` : null,
+      matchCount > 0 ? `${matchCount} ${matchCount === 1 ? "suggestion" : "suggestions"}` : null,
+    ].filter((tail) => tail !== null);
     return {
-      headline: actionCount,
-      sub: `${actionCount === 1 ? "trade needs" : "trades need"} your action${
-        matchCount > 0 ? ` · ${matchCount} possible` : ""
-      }`,
+      headline: peopleCount,
+      sub: [`${peopleCount === 1 ? "person is" : "people are"} waiting on you`, ...tails].join(
+        " · ",
+      ),
     };
   }
   return {

@@ -34,6 +34,7 @@ type MatchTradeGroup = ReturnType<typeof groupTradeMatches>[number];
 
 function makeMatch(): AggregatedMatch {
   return {
+    groupSlug: "rift-crew",
     counterpartyUserId: "user-1",
     counterpartyName: "Alice",
     counterpartyImage: null,
@@ -115,6 +116,16 @@ describe("groupTradeMatches", () => {
       makeDirected({ counterpartyUserId: "user-2", printingId: "printing-b" }),
     ]);
     expect(groups).toHaveLength(2);
+    expect(groups[0].foldId).not.toBe(groups[1].foldId);
+  });
+
+  it("does not merge the same wish across different friend groups", () => {
+    const groups = groupTradeMatches([
+      makeDirected({ groupSlug: "rift-crew", printingId: "printing-a" }),
+      makeDirected({ groupSlug: "summoner-skirmish", printingId: "printing-b" }),
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups.map((group) => group.groupSlug)).toEqual(["rift-crew", "summoner-skirmish"]);
     expect(groups[0].foldId).not.toBe(groups[1].foldId);
   });
 

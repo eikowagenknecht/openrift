@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
+import type { MatchRow } from "../repositories/friend-group-matches.js";
 import type { TradeCopyRow } from "./card-trade-presenters.js";
 import {
   cardTradeChoiceMatters,
@@ -10,9 +11,12 @@ import {
   sortCopiesForPinning,
   toCardTradeCopyOption,
   toCardTradeCopyOptions,
+  toCardTradeCounterparty,
   toCardTradeLiveAnnotation,
   toCardTradeLiveByPrinting,
+  toCardTradeSheetRows,
 } from "./card-trade-presenters.js";
+import { gravatarHashForEmail } from "./gravatar.js";
 
 /** @returns A plain, unrecorded candidate copy with the given overrides. */
 function copy(overrides: Partial<TradeCopyRow> = {}): TradeCopyRow {
@@ -122,6 +126,34 @@ describe("sortCopiesForPinning", () => {
   it("breaks ties by id so the order is stable", () => {
     const rows = [copy({ id: "c" }), copy({ id: "a" }), copy({ id: "b" })];
     expect(sortCopiesForPinning(rows).map((row) => row.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("keeps equally plain copies of one collection together", () => {
+    // Interleaved on the way in, so pure id order would spread each binder's
+    // copies across the picker.
+    const rows = [
+      copy({ id: "c", collectionId: "col-2", collectionName: "Shoebox" }),
+      copy({ id: "a", collectionId: "col-1", collectionName: "Binder" }),
+      copy({ id: "d", collectionId: "col-2", collectionName: "Shoebox" }),
+      copy({ id: "b", collectionId: "col-1", collectionName: "Binder" }),
+    ];
+    expect(sortCopiesForPinning(rows).map((row) => row.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("groups by collection only within a pin weight", () => {
+    // The plain Shoebox copy still outranks the graded Binder one: how plain a
+    // copy is decides first, and which binder it sits in only sorts the rest.
+    const rows = [
+      copy({
+        id: "graded",
+        collectionId: "col-1",
+        collectionName: "Binder",
+        grader: "psa",
+        grade: 10,
+      }),
+      copy({ id: "plain", collectionId: "col-2", collectionName: "Shoebox" }),
+    ];
+    expect(sortCopiesForPinning(rows).map((row) => row.id)).toEqual(["plain", "graded"]);
   });
 
   it("does not mutate the input", () => {
@@ -481,5 +513,178 @@ describe("toCardTradeLiveByPrinting", () => {
     const rows = [annotationRow({ printingId: "printing-z" }), annotationRow()];
     toCardTradeLiveByPrinting(rows);
     expect(rows.map((row) => row.printingId)).toEqual(["printing-z", "printing-a"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toCardTradeCounterparty
+// ---------------------------------------------------------------------------
+
+describe("toCardTradeCounterparty", () => {
+  const member = {
+    userId: "user-b",
+    userName: "Ekko",
+    userEmail: " Ekko@Example.COM ",
+    userImage: "https://cdn.example/avatar.png",
+  };
+
+  it("maps the profile and hashes the normalised email", () => {
+    const result = toCardTradeCounterparty(member, []);
+    expect(result).toEqual({
+      userId: "user-b",
+      name: "Ekko",
+      image: "https://cdn.example/avatar.png",
+      gravatarHash: gravatarHashForEmail("ekko@example.com"),
+      contactMethods: [],
+    });
+  });
+
+  it("unions the contacts revealed in each shared group, in group order", () => {
+    const result = toCardTradeCounterparty(member, [
+      [{ id: "cm-1", type: "discord", value: "ekko#1" }],
+      [{ id: "cm-2", type: "signal", value: "+100" }],
+    ]);
+    expect(result.contactMethods.map((method) => method.id)).toEqual(["cm-1", "cm-2"]);
+  });
+
+  it("keeps one entry for a method revealed to several groups", () => {
+    const discord = { id: "cm-1", type: "discord" as const, value: "ekko#1" };
+    const result = toCardTradeCounterparty(member, [
+      [discord],
+      [discord, { id: "cm-2", type: "email", value: "ekko@example.com" }],
+    ]);
+    expect(result.contactMethods.map((method) => method.id)).toEqual(["cm-1", "cm-2"]);
+  });
+
+  it("treats a group with nothing revealed as no contacts", () => {
+    const result = toCardTradeCounterparty(member, [
+      undefined,
+      [{ id: "cm-1", type: "discord", value: "ekko#1" }],
+    ]);
+    expect(result.contactMethods).toHaveLength(1);
+  });
+
+  it("carries a missing name and image through as null", () => {
+    const result = toCardTradeCounterparty({ ...member, userName: null, userImage: null }, []);
+    expect(result.name).toBeNull();
+    expect(result.image).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toCardTradeSheetRows
+// ---------------------------------------------------------------------------
+
+const GROUP_A = { id: "group-a", slug: "arcane-nights", name: "Arcane Nights" };
+const GROUP_B = { id: "group-b", slug: "bilgewater-bay", name: "Bilgewater Bay" };
+
+/** @returns A match row on one plain copy, with the given overrides. */
+function matchRow(overrides: Partial<MatchRow> = {}): MatchRow {
+  const pref = { pricePref: null, priceAbsoluteCents: null, tradeType: null, currency: null };
+  return {
+    counterpartyUserId: "user-b",
+    counterpartyName: "Ekko",
+    counterpartyImage: null,
+    counterpartyGravatarHash: "hash",
+    counterpartyListId: "list-sell",
+    counterpartyListName: "Trade Binder",
+    viewerListName: "Wants",
+    sellEntryId: "entry-sell",
+    sellListId: "list-sell",
+    copyId: "copy-1",
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
+    printingId: "printing-1",
+    cardId: "card-1",
+    cardName: "Jinx, Rebel",
+    setId: "OGN",
+    rarity: "Epic",
+    finish: "foil",
+    imageId: null,
+    buyEntryId: "entry-buy",
+    buyListId: "list-buy",
+    buyEntryKind: "printing",
+    buyQuantity: 1,
+    sellPref: pref,
+    buyPref: pref,
+    ...overrides,
+  };
+}
+
+describe("toCardTradeSheetRows", () => {
+  it("tags each row with the group whose shares produced it", () => {
+    const result = toCardTradeSheetRows([
+      { group: GROUP_A, rows: [matchRow()] },
+      { group: GROUP_B, rows: [matchRow({ copyId: "copy-2" })] },
+    ]);
+    expect(result.map((row) => [row.copyId, row.groupId, row.groupSlug])).toEqual([
+      ["copy-1", "group-a", "arcane-nights"],
+      ["copy-2", "group-b", "bilgewater-bay"],
+    ]);
+  });
+
+  it("collapses a row shared by two groups onto the first group", () => {
+    const result = toCardTradeSheetRows([
+      { group: GROUP_A, rows: [matchRow()] },
+      { group: GROUP_B, rows: [matchRow()] },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].groupId).toBe("group-a");
+  });
+
+  it("keeps two rows on the same copy when they answer different wants", () => {
+    const result = toCardTradeSheetRows([
+      {
+        group: GROUP_A,
+        rows: [matchRow({ buyEntryId: "entry-buy-1" }), matchRow({ buyEntryId: "entry-buy-2" })],
+      },
+    ]);
+    expect(result.map((row) => row.buyEntryId)).toEqual(["entry-buy-1", "entry-buy-2"]);
+  });
+
+  it("keeps the same copy on two different wishlists apart", () => {
+    const result = toCardTradeSheetRows([
+      {
+        group: GROUP_A,
+        rows: [
+          matchRow({ buyListId: "list-buy-1", buyEntryId: null }),
+          matchRow({ buyListId: "list-buy-2", buyEntryId: null }),
+        ],
+      },
+    ]);
+    expect(result).toHaveLength(2);
+  });
+
+  // Rule-derived demand has no list_entries row (ADR-034), so null is a value
+  // in the key and not a wildcard that swallows the manual row beside it.
+  it("keys a rule-derived row apart from a manual one on the same list", () => {
+    const result = toCardTradeSheetRows([
+      {
+        group: GROUP_A,
+        rows: [matchRow({ buyEntryId: null }), matchRow({ buyEntryId: "entry-buy" })],
+      },
+    ]);
+    expect(result.map((row) => row.buyEntryId)).toEqual([null, "entry-buy"]);
+  });
+
+  it("collapses two rule-derived rows that agree on copy and list", () => {
+    const result = toCardTradeSheetRows([
+      { group: GROUP_A, rows: [matchRow({ buyEntryId: null })] },
+      { group: GROUP_B, rows: [matchRow({ buyEntryId: null })] },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].groupSlug).toBe("arcane-nights");
+  });
+
+  it("returns nothing when no group has rows", () => {
+    expect(toCardTradeSheetRows([{ group: GROUP_A, rows: [] }])).toEqual([]);
+  });
+
+  it("does not mutate the rows it tags", () => {
+    const row = matchRow();
+    toCardTradeSheetRows([{ group: GROUP_A, rows: [row] }]);
+    expect(row).not.toHaveProperty("groupId");
   });
 });

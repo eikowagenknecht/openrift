@@ -2,7 +2,10 @@ import type { CardTradeCopyOption, CardTradeCopyOptionsResponse } from "@openrif
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { TradeSettleChoice, TradeSettleChoiceControl } from "./trade-copy-picker-dialog";
 
 const acceptMutate = vi.fn((_variables: unknown, options?: { onSettled?: () => void }) => {
   options?.onSettled?.();
@@ -42,12 +45,8 @@ vi.mock("@/hooks/use-enums", () => ({
   }),
 }));
 
-const {
-  TradeCopyPickerDialog,
-  TradeSettleCopyPickerDialog,
-  useTradeAcceptFlow,
-  useTradeSettleCopyFlow,
-} = await import("./trade-copy-picker-dialog");
+const { TradeCopyPickerDialog, TradeSettleCopyPickerDialog, useTradeAcceptFlow } =
+  await import("./trade-copy-picker-dialog");
 
 function makeCopy(id: string, overrides: Partial<CardTradeCopyOption> = {}): CardTradeCopyOption {
   return {
@@ -79,6 +78,8 @@ const GRADED = makeCopy("copy-graded", {
 });
 
 const settled = vi.fn();
+const confirmed = vi.fn();
+const cancelled = vi.fn();
 
 function Harness(props: { role?: "giver" | "receiver" }) {
   const flow = useTradeAcceptFlow({ onSettled: settled });
@@ -121,6 +122,8 @@ beforeEach(() => {
   acceptMutate.mockClear();
   syncMutate.mockClear();
   settled.mockClear();
+  confirmed.mockClear();
+  cancelled.mockClear();
   optionsFail = false;
   currentOptions = {
     tradeId: "trade-1",
@@ -193,7 +196,20 @@ describe("TradeCopyPickerDialog", () => {
     await screen.findByRole("dialog");
     expect(screen.getByRole("checkbox", { name: /PSA 9/u })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /Vault/u })).toBeInTheDocument();
-    expect(screen.getAllByText("Nothing recorded")).toHaveLength(2);
+    // The two plain copies have nothing else to say, so the binder they sit in
+    // has to lead the row.
+    expect(
+      screen.getByRole("checkbox", { name: /^Spare Foils\s*No details$/u }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /^Bulk Box\s*No details$/u })).toBeInTheDocument();
+  });
+
+  it("names the collection before the copy's badges", async () => {
+    renderFlow();
+    await startAccept();
+
+    await screen.findByRole("dialog");
+    expect(screen.getByRole("checkbox", { name: /^Vault\s*PSA 9$/u })).toBeInTheDocument();
   });
 });
 
@@ -262,19 +278,35 @@ describe("useTradeAcceptFlow", () => {
 // Settle picker
 // ---------------------------------------------------------------------------
 
+/**
+ * Drives the dialog the way the settle session does: the choice already exists
+ * when the picker opens (the batch runner read the options and held the row
+ * back), and the harness only records what the dialog hands back. The gating
+ * that used to live in a per-row hook is `runSettleBatch`'s now, covered by
+ * its own tests.
+ * @returns The picker plus a button that opens it on `currentOptions`.
+ */
 function SettleHarness() {
-  const flow = useTradeSettleCopyFlow({
-    tradeId: "trade-1",
-    groupSlug: "bothfeld",
-    onSettled: settled,
-  });
+  const [choice, setChoice] = useState<TradeSettleChoice | null>(null);
+  const flow: TradeSettleChoiceControl = {
+    choice,
+    settling: false,
+    confirm: (copyIds) => {
+      confirmed(copyIds);
+      setChoice(null);
+    },
+    cancel: () => {
+      cancelled();
+      setChoice(null);
+    },
+  };
   return (
     <>
-      <button type="button" onClick={() => flow.start()}>
-        Handed over
-      </button>
-      <button type="button" onClick={() => flow.start({ force: true })}>
-        Choose copies
+      <button
+        type="button"
+        onClick={() => setChoice({ options: currentOptions, quantity: currentOptions.quantity })}
+      >
+        Open picker
       </button>
       <TradeSettleCopyPickerDialog flow={flow} cardName="Fury Rune" />
     </>
@@ -282,23 +314,12 @@ function SettleHarness() {
 }
 
 function renderSettleFlow() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <SettleHarness />
-    </QueryClientProvider>,
-  );
+  return render(<SettleHarness />);
 }
 
-async function startSettleChoice() {
+async function openSettlePicker() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Choose copies" }));
-  return user;
-}
-
-async function startSettle() {
-  const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Handed over" }));
+  await user.click(screen.getByRole("button", { name: "Open picker" }));
   return user;
 }
 
@@ -316,7 +337,7 @@ describe("TradeSettleCopyPickerDialog", () => {
 
   it("opens on the copies the trade has pinned, not the plainest ones", async () => {
     renderSettleFlow();
-    await startSettleChoice();
+    await openSettlePicker();
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
@@ -326,9 +347,9 @@ describe("TradeSettleCopyPickerDialog", () => {
     expect(checkboxes[2]).not.toBeChecked();
   });
 
-  it("settles with the copy the giver says actually changed hands", async () => {
+  it("hands back the copies the giver says actually changed hands", async () => {
     renderSettleFlow();
-    const user = await startSettleChoice();
+    const user = await openSettlePicker();
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
@@ -337,134 +358,32 @@ describe("TradeSettleCopyPickerDialog", () => {
     await user.click(checkboxes[2]);
     await user.click(screen.getByRole("button", { name: "Remove copy" }));
 
-    expect(syncMutate).toHaveBeenCalledTimes(1);
-    expect(syncMutate.mock.calls[0][0]).toEqual({
-      tradeId: "trade-1",
-      groupSlug: "bothfeld",
-      copyIds: ["copy-b"],
-    });
+    expect(confirmed).toHaveBeenCalledTimes(1);
+    expect(confirmed).toHaveBeenCalledWith(["copy-b"]);
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(settled).toHaveBeenCalled();
   });
 
   it("blocks confirm until the pick matches the trade's quantity", async () => {
     renderSettleFlow();
-    const user = await startSettleChoice();
+    const user = await openSettlePicker();
 
     await screen.findByRole("dialog");
     await user.click(screen.getAllByRole("checkbox")[0]);
 
     expect(screen.getByRole("button", { name: "Remove copy" })).toBeDisabled();
     expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();
-    expect(syncMutate).not.toHaveBeenCalled();
+    expect(confirmed).not.toHaveBeenCalled();
   });
 
-  it("prompts even when there is nothing to swap, so the giver can see what goes", async () => {
-    currentOptions = {
-      tradeId: "trade-1",
-      quantity: 1,
-      choiceMatters: false,
-      copies: [{ ...PLAIN_A, pinned: true }],
-    };
+  it("drops the choice without confirming when the picker is dismissed", async () => {
     renderSettleFlow();
-    await startSettleChoice();
-
-    await screen.findByRole("dialog");
-    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
-    expect(syncMutate).not.toHaveBeenCalled();
-  });
-
-  it("settles the row without removing anything when the read fails", async () => {
-    optionsFail = true;
-    renderSettleFlow();
-    await startSettleChoice();
-
-    await waitFor(() => expect(settled).toHaveBeenCalled());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(syncMutate).not.toHaveBeenCalled();
-  });
-
-  it("settles the row without removing anything when the picker is dismissed", async () => {
-    renderSettleFlow();
-    const user = await startSettleChoice();
+    const user = await openSettlePicker();
 
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(syncMutate).not.toHaveBeenCalled();
-    expect(settled).toHaveBeenCalled();
-  });
-});
-
-describe("the settle button itself", () => {
-  beforeEach(() => {
-    currentOptions = {
-      tradeId: "trade-1",
-      quantity: 1,
-      choiceMatters: true,
-      copies: [{ ...GRADED, pinned: true }, PLAIN_A, PLAIN_B],
-    };
-  });
-
-  it("asks which copy went when the candidates differ", async () => {
-    renderSettleFlow();
-    await startSettle();
-
-    await screen.findByRole("dialog");
-    expect(syncMutate).not.toHaveBeenCalled();
-  });
-
-  it("removes the pinned copies with no prompt when every candidate is alike", async () => {
-    currentOptions = {
-      tradeId: "trade-1",
-      quantity: 1,
-      choiceMatters: false,
-      copies: [{ ...PLAIN_A, pinned: true }, PLAIN_B],
-    };
-    renderSettleFlow();
-    await startSettle();
-
-    await waitFor(() => expect(syncMutate).toHaveBeenCalledTimes(1));
-    // No copyIds: the server removes the copies it pinned, which is what the
-    // options read just named.
-    expect(syncMutate.mock.calls[0][0]).toEqual({
-      tradeId: "trade-1",
-      groupSlug: "bothfeld",
-      copyIds: undefined,
-    });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(settled).toHaveBeenCalled();
-  });
-
-  it("asks when the only difference is which collection the copies sit in", async () => {
-    // The server decides this — `choiceMatters` counts the collection on the
-    // settle side — so the button must not second-guess it.
-    currentOptions = {
-      tradeId: "trade-1",
-      quantity: 1,
-      choiceMatters: true,
-      copies: [{ ...PLAIN_A, pinned: true }, PLAIN_B],
-    };
-    renderSettleFlow();
-    await startSettle();
-
-    await screen.findByRole("dialog");
-    expect(syncMutate).not.toHaveBeenCalled();
-  });
-
-  it("still settles when the copy options cannot be read", async () => {
-    optionsFail = true;
-    renderSettleFlow();
-    await startSettle();
-
-    await waitFor(() => expect(syncMutate).toHaveBeenCalledTimes(1));
-    expect(syncMutate.mock.calls[0][0]).toEqual({
-      tradeId: "trade-1",
-      groupSlug: "bothfeld",
-      copyIds: undefined,
-    });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(settled).toHaveBeenCalled();
+    expect(confirmed).not.toHaveBeenCalled();
+    expect(cancelled).toHaveBeenCalled();
   });
 });

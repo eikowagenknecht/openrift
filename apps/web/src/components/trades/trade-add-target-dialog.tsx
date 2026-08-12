@@ -1,5 +1,4 @@
 import { Suspense, useState } from "react";
-import { toast } from "sonner";
 
 import {
   CollectionRadioPicker,
@@ -16,38 +15,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { useApplyTradeSync } from "@/hooks/use-card-trades";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useTradeAddTargetStore } from "@/stores/trade-add-target-store";
 
-interface AddToCollectionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** The completed trade whose received copies are being added. */
-  tradeId: string;
-  /** For trade-cache invalidation after the sync applies. */
-  groupSlug: string;
-  cardName: string;
-  /** How many copies the trade brings in — added as-is, so there is no stepper. */
-  quantity: number;
-}
-
 /**
- * Lets the receiver of a completed trade choose which collection the incoming
- * copies land in, or create a new collection on the spot. Nothing else is picked
- * here — the quantity is fixed by the trade. The choice becomes the remembered
- * target, so the row buttons that opened this dialog then add there in one press
- * until it is changed again.
+ * Changes where incoming trade copies land, and nothing else. No trade is
+ * touched: the settle session commits every row at once, so the target has to be
+ * settable before there is anything to file — picking it mid-settle would mean
+ * answering the same question once per card.
  * @returns The dialog element.
  */
-export function AddToCollectionDialog({
+export function TradeAddTargetDialog({
   open,
   onOpenChange,
-  tradeId,
-  groupSlug,
-  cardName,
-  quantity,
-}: AddToCollectionDialogProps) {
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -57,13 +41,7 @@ export function AddToCollectionDialog({
               <div className="text-muted-foreground py-4 text-sm">Loading your collections…</div>
             }
           >
-            <AddToCollectionBody
-              tradeId={tradeId}
-              groupSlug={groupSlug}
-              cardName={cardName}
-              quantity={quantity}
-              onClose={() => onOpenChange(false)}
-            />
+            <TradeAddTargetBody onClose={() => onOpenChange(false)} />
           </Suspense>
         ) : null}
       </DialogContent>
@@ -71,28 +49,14 @@ export function AddToCollectionDialog({
   );
 }
 
-function AddToCollectionBody({
-  tradeId,
-  groupSlug,
-  cardName,
-  quantity,
-  onClose,
-}: {
-  tradeId: string;
-  groupSlug: string;
-  cardName: string;
-  quantity: number;
-  onClose: () => void;
-}) {
+function TradeAddTargetBody({ onClose }: { onClose: () => void }) {
   const { data: collections } = useCollections();
   const createCollection = useCreateCollection();
-  const applySync = useApplyTradeSync();
   const setTarget = useTradeAddTargetStore((state) => state.setTarget);
-  const pending = createCollection.isPending || applySync.isPending;
 
-  // Opens on whatever the row button would have added to, so the dialog and the
-  // button never disagree about where the copies are headed. A remembered
-  // collection that has since been deleted falls back to the inbox.
+  // Opens on whatever the session would add to, so the dialog and the summary
+  // above it never disagree. A remembered collection that has since been deleted
+  // falls back to the inbox.
   const remembered = useTradeAddTargetStore((state) => state.target);
   const inbox = collections.find((collection) => collection.isInbox);
   const rememberedId = collections.find((collection) => collection.id === remembered?.id)?.id;
@@ -108,18 +72,14 @@ function AddToCollectionBody({
     const picked = collections.find((collection) => collection.id === selectedId);
     const pickedName = picked ? picked.name : newCollectionName;
     try {
-      let targetCollectionId: string;
+      let targetId: string;
       if (selectedId === NEW_COLLECTION_OPTION) {
-        const created = await createCollection.mutateAsync({
-          name: newCollectionName,
-        });
-        targetCollectionId = created.id;
+        const created = await createCollection.mutateAsync({ name: newCollectionName });
+        targetId = created.id;
       } else {
-        targetCollectionId = selectedId;
+        targetId = selectedId;
       }
-      await applySync.mutateAsync({ tradeId, targetCollectionId, groupSlug });
-      setTarget({ id: targetCollectionId, name: pickedName });
-      toast.success(`Added ${cardName} to ${pickedName}`);
+      setTarget({ id: targetId, name: pickedName });
       onClose();
     } catch {
       // Reported by the global mutation error toast (see reportMutationError).
@@ -129,9 +89,9 @@ function AddToCollectionBody({
   return (
     <DialogForm onSubmit={confirm}>
       <DialogHeader>
-        <DialogTitle>Add to collection</DialogTitle>
+        <DialogTitle>Where do incoming cards go?</DialogTitle>
         <DialogDescription>
-          Choose where the {quantity}× {cardName} you received should go.
+          Cards you receive are filed here until you pick somewhere else.
         </DialogDescription>
       </DialogHeader>
 
@@ -141,7 +101,7 @@ function AddToCollectionBody({
         onSelectedIdChange={setSelectedId}
         newName={newName}
         onNewNameChange={setNewName}
-        idPrefix="add-collection"
+        idPrefix="trade-add-target"
       />
 
       <DialogFooter>
@@ -149,10 +109,11 @@ function AddToCollectionBody({
         <Button
           type="submit"
           disabled={
-            pending || (selectedId === NEW_COLLECTION_OPTION && newName.trim().length === 0)
+            createCollection.isPending ||
+            (selectedId === NEW_COLLECTION_OPTION && newName.trim().length === 0)
           }
         >
-          Add to collection
+          Use this collection
         </Button>
       </DialogFooter>
     </DialogForm>

@@ -34,6 +34,13 @@ export interface MemberWithUser extends GroupMember {
   userImage: string | null;
 }
 
+/** A group two users have in common, identified just enough to label and link. */
+export interface SharedGroupRow {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 /** Profile basics for a tile avatar stack; the route maps email → gravatar hash. */
 export interface MemberPreviewRow {
   userId: string;
@@ -308,6 +315,28 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         sharedListCount: Number(row.sharedListCount ?? 0),
         memberPreviews: previews.get(row.id) ?? [],
       }));
+    },
+
+    /**
+     * The groups both users belong to. Backs the person-level trade sheet,
+     * which pools one counterparty's matches across every group the two share;
+     * an empty result is also the sheet's authorization answer, since two
+     * people with no group in common can see nothing of each other.
+     * @returns The shared groups, sorted by name (case-insensitive, id as a
+     *   stable tiebreak). Empty when the users share no group.
+     */
+    sharedGroups(userIdA: string, userIdB: string): Promise<SharedGroupRow[]> {
+      return db
+        .selectFrom("friendGroupMembers as a")
+        .innerJoin("friendGroupMembers as b", (join) =>
+          join.onRef("b.groupId", "=", "a.groupId").on("b.userId", "=", userIdB),
+        )
+        .innerJoin("friendGroups as g", "g.id", "a.groupId")
+        .select(["g.id as id", "g.slug as slug", "g.name as name"])
+        .where("a.userId", "=", userIdA)
+        .orderBy(sql`lower(g.name)`, "asc")
+        .orderBy("g.id", "asc")
+        .execute();
     },
 
     /** Idempotent member insert (DO NOTHING on existing row). */

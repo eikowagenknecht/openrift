@@ -15,14 +15,16 @@
 
 ### Highlights
 
+- feat(Trades): **A trade sheet for every trading partner** — one page per member showing your live trades both ways, suggestions, history and value, pooled across every group you share.
+- feat(Trades): **Trades page rebuilt around people** — whatever needs you comes first, then one card per member with the whole relationship at a glance, instead of status sections.
+- feat(Trades): **At the table, start to finish** — one session for a meetup: answer open requests on the spot, count what actually changed hands, and settle only that much, with anything missing staying an open trade for next time.
 - feat(Collection): **Scan now, add later** — a "Just identify" session can be committed afterwards: one button adds everything it counted to a collection of your choice, and offers to tick off matching wishlist entries.
 - feat(Collection): **See what a pack was worth as you scan** — every scanned card now shows its price, wishlist heart and owned count, with a session total and best pull (duplicates count even in Just identify mode).
-- feat(Trades): **Check the pile at the table** — a new button on each member's trades opens the swap card by card, with art big enough to match against what's in your hand, and settles only the copies that actually turned up. Anything they forgot stays an open trade for next time.
 - feat(Trades): **Choose the copy you handed over** — confirming your half of a swap now asks which copy left whenever your copies differ or sit in different collections, instead of removing whichever one was pinned.
 
 ### Other
 
-- feat(Trades): **Card details from a trade row** — clicking a card's name on the Trades page or a member's page opens its details, and arrow keys or a swipe step through the rest of that member's cards.
+- feat(Trades): **Card details from a trade row** — clicking a card's name on a trade or suggestion opens its details, and arrow keys or a swipe step through the rest of the list.
 - fix(Collection): **Details follow the selected card** — moving or removing the card you have open now moves the detail panel on to the card that takes its place, instead of leaving the old one on screen.
 - fix(Collection): **Clicking a copy selects that copy** — in copies view, clicking one of several copies of a card now highlights the one you clicked rather than jumping to the first.
 

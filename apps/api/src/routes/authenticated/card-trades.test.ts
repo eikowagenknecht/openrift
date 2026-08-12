@@ -17,6 +17,17 @@ const mockCardTradesRepo = {
   liveAnnotationsForUser: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockFriendGroupsRepo = {
+  sharedGroups: vi.fn(() => Promise.resolve([] as object[])),
+  listMembers: vi.fn(() => Promise.resolve([] as object[])),
+  getRevealedContactsForMembers: vi.fn(() => Promise.resolve(new Map<string, object[]>())),
+};
+
+const mockFriendGroupMatchesRepo = {
+  othersHaveYourWants: vi.fn(() => Promise.resolve([] as object[])),
+  othersWantYourHaves: vi.fn(() => Promise.resolve([] as object[])),
+};
+
 const mockCreateTrade = vi.fn(() => Promise.resolve({} as object));
 const mockAcceptTrade = vi.fn(() => Promise.resolve({} as object));
 const mockListTradeCopyOptions = vi.fn(() => Promise.resolve({} as object));
@@ -36,7 +47,11 @@ const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("transact", (() => {}) as never);
-  c.set("repos", { cardTrades: mockCardTradesRepo } as never);
+  c.set("repos", {
+    cardTrades: mockCardTradesRepo,
+    friendGroups: mockFriendGroupsRepo,
+    friendGroupMatches: mockFriendGroupMatchesRepo,
+  } as never);
   c.set("services", {
     createTrade: mockCreateTrade,
     listTradeCopyOptions: mockListTradeCopyOptions,
@@ -93,6 +108,65 @@ const tradeResponse = {
   counterpartySyncAppliedAt: null,
   actionNeeded: null,
 };
+
+const GROUP_A = {
+  id: "a0000000-0001-4000-a000-000000000041",
+  slug: "arcane-nights",
+  name: "Arcane Nights",
+};
+const GROUP_B = {
+  id: "a0000000-0001-4000-a000-000000000042",
+  slug: "bilgewater-bay",
+  name: "Bilgewater Bay",
+};
+
+const counterpartyMember = {
+  userId: COUNTERPARTY_ID,
+  userName: "Ekko",
+  userEmail: "ekko@example.com",
+  userImage: null,
+};
+
+const tradePref = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+  currency: null,
+};
+
+/** @returns A match row as the match repo hands it to the sheet handler. */
+function matchRow(overrides: Record<string, unknown> = {}) {
+  return {
+    counterpartyUserId: COUNTERPARTY_ID,
+    counterpartyName: "Ekko",
+    counterpartyImage: null,
+    counterpartyGravatarHash: "hash",
+    counterpartyListId: "list-sell",
+    counterpartyListName: "Trade Binder",
+    viewerListName: "Wants",
+    sellEntryId: "entry-sell",
+    sellListId: "list-sell",
+    copyId: COPY_ID,
+    condition: null,
+    grader: null,
+    grade: null,
+    notesPublic: null,
+    printingId: PRINTING_ID,
+    cardId: "OGS-001",
+    cardName: "Jinx, Rebel",
+    setId: "OGN",
+    rarity: "Epic",
+    finish: "foil",
+    imageId: null,
+    buyEntryId: "entry-buy",
+    buyListId: "list-buy",
+    buyEntryKind: "printing",
+    buyQuantity: 1,
+    sellPref: tradePref,
+    buyPref: tradePref,
+    ...overrides,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -250,6 +324,118 @@ describe("GET /api/v1/trades/live-by-printing", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.annotations).toEqual([]);
+  });
+});
+
+describe("GET /api/v1/trades/with/:userId", () => {
+  /** Points the roster and contact reads at the counterparty in every group. */
+  function seedCounterparty() {
+    mockFriendGroupsRepo.listMembers.mockResolvedValue([counterpartyMember]);
+    mockFriendGroupsRepo.getRevealedContactsForMembers.mockResolvedValue(
+      new Map([[COUNTERPARTY_ID, [{ id: "cm-1", type: "discord", value: "ekko#1" }]]]),
+    );
+  }
+
+  it("returns 400 when the viewer asks for a sheet with themselves", async () => {
+    const res = await app.request(`/api/v1/trades/with/${USER_ID}`);
+    expect(res.status).toBe(400);
+    expect(mockFriendGroupsRepo.sharedGroups).not.toHaveBeenCalled();
+  });
+
+  // Unknown user and no shared group answer alike so the route cannot be used
+  // to probe for accounts.
+  it("returns 404 when the two share no group", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([]);
+    const res = await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    expect(res.status).toBe(404);
+    const json = await readJson(res);
+    expect(json.message).toBe("Member not found");
+    expect(mockFriendGroupMatchesRepo.othersHaveYourWants).not.toHaveBeenCalled();
+  });
+
+  it("returns the shared groups in the repo's sorted order, with rows tagged", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A, GROUP_B]);
+    seedCounterparty();
+    mockFriendGroupMatchesRepo.othersHaveYourWants
+      .mockResolvedValueOnce([matchRow()])
+      .mockResolvedValueOnce([matchRow({ copyId: "copy-from-b" })]);
+    mockFriendGroupMatchesRepo.othersWantYourHaves.mockResolvedValue([]);
+
+    const res = await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.groups.map((group: { slug: string }) => group.slug)).toEqual([
+      "arcane-nights",
+      "bilgewater-bay",
+    ]);
+    expect(
+      json.othersHaveYourWants.map((row: { copyId: string; groupSlug: string }) => [
+        row.copyId,
+        row.groupSlug,
+      ]),
+    ).toEqual([
+      [COPY_ID, "arcane-nights"],
+      ["copy-from-b", "bilgewater-bay"],
+    ]);
+    expect(json.othersWantYourHaves).toEqual([]);
+    expect(mockFriendGroupsRepo.sharedGroups).toHaveBeenCalledWith(USER_ID, COUNTERPARTY_ID);
+  });
+
+  it("scopes every match read to the viewer and the counterparty", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A]);
+    seedCounterparty();
+    mockFriendGroupMatchesRepo.othersHaveYourWants.mockResolvedValue([]);
+    mockFriendGroupMatchesRepo.othersWantYourHaves.mockResolvedValue([matchRow()]);
+
+    await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    for (const repoFn of [
+      mockFriendGroupMatchesRepo.othersHaveYourWants,
+      mockFriendGroupMatchesRepo.othersWantYourHaves,
+    ]) {
+      expect(repoFn).toHaveBeenCalledWith({
+        groupId: GROUP_A.id,
+        viewerUserId: USER_ID,
+        counterpartyUserId: COUNTERPARTY_ID,
+      });
+    }
+  });
+
+  it("collapses a row that both shared groups produce onto the first", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A, GROUP_B]);
+    seedCounterparty();
+    mockFriendGroupMatchesRepo.othersHaveYourWants.mockResolvedValue([matchRow()]);
+    mockFriendGroupMatchesRepo.othersWantYourHaves.mockResolvedValue([]);
+
+    const res = await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    const json = await readJson(res);
+    expect(json.othersHaveYourWants).toHaveLength(1);
+    expect(json.othersHaveYourWants[0].groupSlug).toBe("arcane-nights");
+  });
+
+  it("returns the counterparty's profile and revealed contacts", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A]);
+    seedCounterparty();
+    mockFriendGroupMatchesRepo.othersHaveYourWants.mockResolvedValue([]);
+    mockFriendGroupMatchesRepo.othersWantYourHaves.mockResolvedValue([]);
+
+    const res = await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    const json = await readJson(res);
+    expect(json.counterparty.userId).toBe(COUNTERPARTY_ID);
+    expect(json.counterparty.name).toBe("Ekko");
+    expect(json.counterparty.gravatarHash).toHaveLength(64);
+    expect(json.counterparty.contactMethods).toEqual([
+      { id: "cm-1", type: "discord", value: "ekko#1" },
+    ]);
+  });
+
+  // A shared group whose roster no longer carries the counterparty means the
+  // membership went away between the two reads.
+  it("returns 404 when the counterparty is not on the roster", async () => {
+    mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A]);
+    mockFriendGroupsRepo.listMembers.mockResolvedValue([]);
+    mockFriendGroupsRepo.getRevealedContactsForMembers.mockResolvedValue(new Map());
+    const res = await app.request(`/api/v1/trades/with/${COUNTERPARTY_ID}`);
+    expect(res.status).toBe(404);
   });
 });
 
