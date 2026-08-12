@@ -10,9 +10,30 @@ interface TestCard {
 }
 
 const catalogue: Record<string, DeckCheckCardIdentity> = {
-  "p-zed": { name: "Zed", shortCode: "OGN-200", domains: ["mind"], energy: 4, power: 5 },
-  "p-ahri": { name: "Ahri", shortCode: "OGN-010", domains: ["fury"], energy: 3, power: 4 },
-  "p-jinx": { name: "Jinx", shortCode: "OGN-100", domains: ["fury", "mind"], energy: 5, power: 6 },
+  "p-zed": {
+    name: "Zed",
+    shortCode: "OGN-200",
+    setIndex: 0,
+    domains: ["mind"],
+    energy: 4,
+    power: 5,
+  },
+  "p-ahri": {
+    name: "Ahri",
+    shortCode: "OGN-010",
+    setIndex: 0,
+    domains: ["fury"],
+    energy: 3,
+    power: 4,
+  },
+  "p-jinx": {
+    name: "Jinx",
+    shortCode: "OGN-100",
+    setIndex: 0,
+    domains: ["fury", "mind"],
+    energy: 5,
+    power: 6,
+  },
 };
 
 const DOMAIN_ORDER = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"];
@@ -60,6 +81,32 @@ describe("sortDeckCheckCards", () => {
       "Ahri",
       "Jinx",
       "Zed",
+    ]);
+  });
+
+  it("sorts by set order before card number for the 'id' sort", () => {
+    // The promo's code sorts alphabetically ahead of "OGN", but its set comes
+    // later in the catalog, so the Origins card leads.
+    const withPromo: Record<string, DeckCheckCardIdentity> = {
+      ...catalogue,
+      "p-promo": {
+        name: "Promo Ahri",
+        shortCode: "AAA-001",
+        setIndex: 1,
+        domains: ["fury"],
+        energy: 3,
+        power: 4,
+      },
+    };
+    const promoIdentify = (printingId: string | null) =>
+      printingId ? withPromo[printingId] : undefined;
+    const mixed: TestCard[] = [
+      { sortOrder: 0, rawName: "Promo Ahri", resolvedPrintingId: "p-promo" },
+      { sortOrder: 1, rawName: "Zed", resolvedPrintingId: "p-zed" },
+    ];
+    expect(names(sortDeckCheckCards(mixed, "id", "asc", promoIdentify))).toEqual([
+      "Zed",
+      "Promo Ahri",
     ]);
   });
 
@@ -128,8 +175,22 @@ describe("sortDeckCheckCards", () => {
 
   it("sorts by name within the same domain for the 'domain' sort", () => {
     const sameDomain: Record<string, DeckCheckCardIdentity> = {
-      "p-a": { name: "Annie", shortCode: "OGN-001", domains: ["fury"], energy: 2, power: 1 },
-      "p-b": { name: "Brand", shortCode: "OGN-002", domains: ["fury"], energy: 2, power: 1 },
+      "p-a": {
+        name: "Annie",
+        shortCode: "OGN-001",
+        setIndex: 0,
+        domains: ["fury"],
+        energy: 2,
+        power: 1,
+      },
+      "p-b": {
+        name: "Brand",
+        shortCode: "OGN-002",
+        setIndex: 0,
+        domains: ["fury"],
+        energy: 2,
+        power: 1,
+      },
     };
     const sameDomainIdentify = (printingId: string | null) =>
       printingId ? sameDomain[printingId] : undefined;
@@ -159,8 +220,22 @@ describe("sortDeckCheckCards", () => {
 
   it("ranks domains missing from the order list after known domains", () => {
     const exotic: Record<string, DeckCheckCardIdentity> = {
-      "p-known": { name: "Known", shortCode: "OGN-001", domains: ["fury"], energy: 1, power: 1 },
-      "p-exotic": { name: "Exotic", shortCode: "OGN-002", domains: ["void"], energy: 1, power: 1 },
+      "p-known": {
+        name: "Known",
+        shortCode: "OGN-001",
+        setIndex: 0,
+        domains: ["fury"],
+        energy: 1,
+        power: 1,
+      },
+      "p-exotic": {
+        name: "Exotic",
+        shortCode: "OGN-002",
+        setIndex: 0,
+        domains: ["void"],
+        energy: 1,
+        power: 1,
+      },
     };
     const exoticIdentify = (printingId: string | null) =>
       printingId ? exotic[printingId] : undefined;
@@ -189,9 +264,30 @@ describe("sortDeckCheckCards", () => {
 
   it("breaks equal energy by power, then name, for the 'energy' sort", () => {
     const sameEnergy: Record<string, DeckCheckCardIdentity> = {
-      "p-low": { name: "Lux", shortCode: "OGN-001", domains: ["mind"], energy: 3, power: 2 },
-      "p-high": { name: "Vi", shortCode: "OGN-002", domains: ["fury"], energy: 3, power: 7 },
-      "p-tie": { name: "Ekko", shortCode: "OGN-003", domains: ["mind"], energy: 3, power: 2 },
+      "p-low": {
+        name: "Lux",
+        shortCode: "OGN-001",
+        setIndex: 0,
+        domains: ["mind"],
+        energy: 3,
+        power: 2,
+      },
+      "p-high": {
+        name: "Vi",
+        shortCode: "OGN-002",
+        setIndex: 0,
+        domains: ["fury"],
+        energy: 3,
+        power: 7,
+      },
+      "p-tie": {
+        name: "Ekko",
+        shortCode: "OGN-003",
+        setIndex: 0,
+        domains: ["mind"],
+        energy: 3,
+        power: 2,
+      },
     };
     const sameEnergyIdentify = (printingId: string | null) =>
       printingId ? sameEnergy[printingId] : undefined;
@@ -208,10 +304,18 @@ describe("sortDeckCheckCards", () => {
 
   it("ranks cards with null energy after numbered cards in the 'energy' sort", () => {
     const withNull: Record<string, DeckCheckCardIdentity> = {
-      "p-num": { name: "Garen", shortCode: "OGN-001", domains: ["body"], energy: 2, power: 3 },
+      "p-num": {
+        name: "Garen",
+        shortCode: "OGN-001",
+        setIndex: 0,
+        domains: ["body"],
+        energy: 2,
+        power: 3,
+      },
       "p-null": {
         name: "Howling Abyss",
         shortCode: "OGN-090",
+        setIndex: 0,
         domains: [],
         energy: null,
         power: null,

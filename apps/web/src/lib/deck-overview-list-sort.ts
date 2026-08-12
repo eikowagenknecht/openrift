@@ -1,4 +1,8 @@
+import { UNKNOWN_SET_INDEX } from "@openrift/shared";
+
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
+import type { CatalogPosition } from "@/lib/catalog-position";
+import { compareCatalogPosition } from "@/lib/catalog-position";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { compareDeckCardsByCurve } from "@/lib/deck-card-sort";
 import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
@@ -9,6 +13,12 @@ export interface DeckListSortContext {
   getEntry: (card: DeckBuilderCard) => CardOwnership | undefined;
   /** Rarity slugs in display order; unknown/absent rarities sort last. */
   rarityOrder: readonly string[];
+  /**
+   * Each set's place in the app's set order, for the ID sort — a card ID is a
+   * set plus a number, and the set half orders by the catalog's set order
+   * rather than by the alphabetical prefix inside the code.
+   */
+  setIndexById: ReadonlyMap<string, number>;
   /**
    * The price the row actually shows — with "show my printings" on, rows
    * price the printing the viewer owns; otherwise the cheapest acceptable
@@ -24,6 +34,13 @@ export interface DeckListSortContext {
    * on. Omit it and the sort reads the entry's display printing.
    */
   getRowRarity?: (card: DeckBuilderCard) => string | undefined;
+  /**
+   * The printing whose ID the row actually shows, for the same reason as
+   * {@link DeckListSortContext.getRowPrice}: the set code follows the printing
+   * on screen, which is the viewer's own while "show my printings" is on. Omit
+   * it and the sort reads the entry's display printing.
+   */
+  getRowPrinting?: (card: DeckBuilderCard) => { setId: string; shortCode: string } | undefined;
 }
 
 /**
@@ -33,7 +50,7 @@ export interface DeckListSortContext {
  * thumbnail dashboard. The other sorts are direction-aware and fall back to the
  * card name as a stable tiebreaker.
  *
- * Rows whose price / rarity / ownership fact is missing (no ownership data
+ * Rows whose set code / price / rarity / ownership fact is missing (no ownership data
  * loaded yet, or a card with no catalog printing) sort last regardless of
  * direction, so unresolved rows don't scatter through the list.
  *
@@ -54,6 +71,38 @@ export function sortDeckOverviewList(
 
   if (sortBy === "name") {
     return cards.toSorted((a, b) => dir * byName(a, b));
+  }
+
+  if (sortBy === "id") {
+    // Same presence rule as price and rarity below: a row whose printing the
+    // resolver can't produce shows no ID, so it belongs at the end rather than
+    // sorting by a code that isn't on screen.
+    const printingOf =
+      ctx.getRowPrinting ?? ((card: DeckBuilderCard) => ctx.getEntry(card)?.displayPrinting);
+    const positionOf = (card: DeckBuilderCard): CatalogPosition | undefined => {
+      const printing = printingOf(card);
+      if (!printing) {
+        return undefined;
+      }
+      return {
+        setIndex: ctx.setIndexById.get(printing.setId) ?? UNKNOWN_SET_INDEX,
+        shortCode: printing.shortCode,
+      };
+    };
+    return cards.toSorted((a, b) => {
+      const ap = positionOf(a);
+      const bp = positionOf(b);
+      if (ap === undefined && bp === undefined) {
+        return byName(a, b);
+      }
+      if (ap === undefined) {
+        return 1;
+      }
+      if (bp === undefined) {
+        return -1;
+      }
+      return dir * compareCatalogPosition(ap, bp) || byName(a, b);
+    });
   }
 
   if (sortBy === "energy") {

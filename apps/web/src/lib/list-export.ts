@@ -3,6 +3,7 @@ import type {
   ListEntryDetailResponse,
   ListKind,
   Printing,
+  SetOrderInfo,
   TradePreference,
 } from "@openrift/shared";
 import {
@@ -145,6 +146,7 @@ function mergeCopiesByPrinting(
 export function stacksFromListEntries(
   entries: readonly ListEntryDetailResponse[],
   printingsById: Readonly<Record<string, Printing>>,
+  sets: readonly SetOrderInfo[],
 ): StackedEntry[] {
   const quantities = new Map<string, number>();
   for (const entry of entries) {
@@ -161,6 +163,7 @@ export function stacksFromListEntries(
   const sorted = sortCards(
     [...quantities.keys()].map((printingId) => printingsById[printingId]),
     "id",
+    { sets },
   );
   return sorted.map((printing) => ({
     printingId: printing.id,

@@ -15,6 +15,7 @@ import {
   formatHasSideboard,
   imageUrl,
   legendDisplayName,
+  setIndexById,
   validateDeck,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
@@ -468,6 +469,7 @@ export function DeckOverview({
 }: DeckOverviewProps) {
   const championIdentifierTags = useChampionIdentifierTags();
   const { labels: enumLabels, orders: enumOrders } = useEnumOrders();
+  const { sets } = useCards();
   const violations = validateDeck({
     format: deck.format,
     formatConfig: deck.formatConfig,
@@ -649,6 +651,7 @@ export function DeckOverview({
   const overviewSortContext: DeckListSortContext = {
     getEntry: getOwnershipEntry,
     rarityOrder: enumOrders.rarities,
+    setIndexById: setIndexById(sets),
     getRowPrice: (card) => {
       const owned = ownedPrintingFor(card.cardId);
       if (owned && priceMap) {
@@ -659,6 +662,8 @@ export function DeckOverview({
     },
     getRowRarity: (card) =>
       (ownedPrintingFor(card.cardId) ?? getOwnershipEntry(card)?.displayPrinting)?.rarity,
+    getRowPrinting: (card) =>
+      ownedPrintingFor(card.cardId) ?? getOwnershipEntry(card)?.displayPrinting,
   };
   const sortZoneCards = (zoneCards: DeckBuilderCard[]) =>
     sortDeckOverviewList(zoneCards, listSortBy, listSortDir, overviewSortContext);

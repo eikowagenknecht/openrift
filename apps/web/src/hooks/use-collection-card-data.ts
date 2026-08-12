@@ -263,7 +263,7 @@ export function useCollectionCardData({
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, prices, favoriteMarketplace) : null;
 
-  const sortOptions: SortCardsOptions = { sortDir };
+  const sortOptions: SortCardsOptions = { sortDir, sets };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (printing) => {
       const range = priceRangeByCardId.get(printing.cardId);

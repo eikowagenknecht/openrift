@@ -9,6 +9,13 @@ import { sortDeckOverviewList } from "./deck-overview-list-sort";
 
 const RARITY_ORDER = ["common", "uncommon", "rare", "epic"];
 
+// Origins leads, the promo set trails — the app's set order, which is what the
+// ID sort follows rather than the alphabetical prefix inside the short code.
+const SET_INDEXES = new Map([
+  ["set-origins", 0],
+  ["set-promo", 1],
+]);
+
 /**
  * Builds a sort context from a per-card map of the facts each sort reads.
  * @returns A DeckListSortContext resolving entries from the given map.
@@ -18,13 +25,23 @@ function contextFrom(entries: Record<string, Partial<CardOwnership>>): DeckListS
     getEntry: (card: DeckBuilderCard) =>
       card.cardId in entries ? (entries[card.cardId] as CardOwnership) : undefined,
     rarityOrder: RARITY_ORDER,
+    setIndexById: SET_INDEXES,
   };
 }
 
 const EMPTY_CONTEXT: DeckListSortContext = {
   getEntry: () => undefined,
   rarityOrder: RARITY_ORDER,
+  setIndexById: SET_INDEXES,
 };
+
+/**
+ * Shorthand for the printing fields the ID sort reads off an ownership entry.
+ * @returns A partial ownership entry carrying just the display printing.
+ */
+function withPrinting(setId: string, shortCode: string): Partial<CardOwnership> {
+  return { displayPrinting: { setId, shortCode } as CardOwnership["displayPrinting"] };
+}
 
 function names(cards: DeckBuilderCard[]): string[] {
   return cards.map((card) => card.cardName);
@@ -58,6 +75,105 @@ describe("sortDeckOverviewList", () => {
       "Bard",
       "Ashe",
     ]);
+  });
+
+  it("orders by card number within a set, with printingless rows pinned last", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "second", cardName: "Second" }),
+      stubDeckBuilderCard({ cardId: "first", cardName: "First" }),
+      stubDeckBuilderCard({ cardId: "none", cardName: "Unresolved" }),
+    ];
+    const ctx = contextFrom({
+      first: withPrinting("set-origins", "OGN-001"),
+      second: withPrinting("set-origins", "OGN-030a"),
+    });
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual([
+      "First",
+      "Second",
+      "Unresolved",
+    ]);
+    expect(names(sortDeckOverviewList(cards, "id", "desc", ctx))).toEqual([
+      "Second",
+      "First",
+      "Unresolved",
+    ]);
+  });
+
+  it("orders by set before card number, in the app's set order", () => {
+    // The promo's code sorts alphabetically ahead of "OGN", but its set comes
+    // second in the catalog, so the Origins card leads.
+    const cards = [
+      stubDeckBuilderCard({ cardId: "promo", cardName: "Promo" }),
+      stubDeckBuilderCard({ cardId: "origins", cardName: "Origins" }),
+    ];
+    const ctx = contextFrom({
+      promo: withPrinting("set-promo", "AAA-001"),
+      origins: withPrinting("set-origins", "OGN-999"),
+    });
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual(["Origins", "Promo"]);
+    expect(names(sortDeckOverviewList(cards, "id", "desc", ctx))).toEqual(["Promo", "Origins"]);
+  });
+
+  it("sorts a row from an unknown set after every known set", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "stray", cardName: "Stray" }),
+      stubDeckBuilderCard({ cardId: "promo", cardName: "Promo" }),
+    ];
+    const ctx = contextFrom({
+      stray: withPrinting("set-nope", "AAA-001"),
+      promo: withPrinting("set-promo", "PRM-500"),
+    });
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual(["Promo", "Stray"]);
+  });
+
+  it("orders by the row's own printing when the list resolves one", () => {
+    // "Show my printings" is on: the IDs come from the printings the viewer
+    // owns, which order the two rows the other way round.
+    const cards = [
+      stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
+      stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
+    ];
+    const rowPrintings: Record<string, { setId: string; shortCode: string } | undefined> = {
+      a: { setId: "set-origins", shortCode: "OGN-050" },
+      b: { setId: "set-origins", shortCode: "OGN-010" },
+    };
+    const ctx: DeckListSortContext = {
+      ...contextFrom({
+        a: withPrinting("set-origins", "OGN-010"),
+        b: withPrinting("set-origins", "OGN-050"),
+      }),
+      getRowPrinting: (card) => rowPrintings[card.cardId],
+    };
+
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual(["Bard", "Ashe"]);
+  });
+
+  it("falls back to the display printing when no row resolver is supplied", () => {
+    const cards = [
+      stubDeckBuilderCard({ cardId: "b", cardName: "Later" }),
+      stubDeckBuilderCard({ cardId: "a", cardName: "Earlier" }),
+    ];
+    const ctx = contextFrom({
+      a: withPrinting("set-origins", "OGN-001"),
+      b: withPrinting("set-origins", "OGN-002"),
+    });
+
+    expect(ctx.getRowPrinting).toBeUndefined();
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual(["Earlier", "Later"]);
+  });
+
+  it("breaks card-ID ties by name", () => {
+    // Two rows of the same card (different zones or pinned printings) resolve
+    // the same printing, so the name decides rather than the input order.
+    const cards = [
+      stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
+      stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
+    ];
+    const ctx = contextFrom({
+      a: withPrinting("set-origins", "OGN-001"),
+      b: withPrinting("set-origins", "OGN-001"),
+    });
+    expect(names(sortDeckOverviewList(cards, "id", "asc", ctx))).toEqual(["Ashe", "Bard"]);
   });
 
   it("orders by price with missing prices pinned last regardless of direction", () => {

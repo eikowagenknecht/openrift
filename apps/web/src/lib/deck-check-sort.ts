@@ -1,3 +1,4 @@
+import { compareCatalogPosition } from "@/lib/catalog-position";
 import type { DeckCheckSort } from "@/stores/deck-check-view-store";
 
 /** The subset of a checker card line the sort needs. */
@@ -15,6 +16,12 @@ export interface DeckCheckCardIdentity {
   name: string;
   /** Set + collector code, e.g. "OGN-001". */
   shortCode: string;
+  /**
+   * The set's place in the app's set order. The "id" sort reads it so cards
+   * order by set the way the rest of the app does, rather than by the
+   * alphabetical set prefix inside the short code.
+   */
+  setIndex: number;
   /** Domain slugs in card order (one or two entries). */
   domains: string[];
   /** Energy cost; `null` for cards that have none (sorts last). */
@@ -27,7 +34,7 @@ export interface DeckCheckCardIdentity {
  * Order the card lines inside one checker zone. "deck" keeps the import order
  * (direction is ignored — it mirrors the physical pile). "name" sorts by the
  * resolved catalogue name (falling back to the raw imported name), "id" by the
- * printing's short code, "domain" by the card's domains in `domainOrder`
+ * printing's set order then short code, "domain" by the card's domains in `domainOrder`
  * (mono-domain before duals sharing the same first domain), then by name.
  * "energy" sorts by energy cost, then power, then name. For "id", "domain", and
  * "energy", lines with no matched printing have no code/domains/cost and always
@@ -120,19 +127,20 @@ export function sortDeckCheckCards<T extends DeckCheckSortableCard>(
     });
   }
 
-  // sortBy === "id": by printing short code, unmatched lines pinned to the end.
+  // sortBy === "id": by set order then printing short code, unmatched lines
+  // pinned to the end.
   return cards.toSorted((a, b) => {
-    const aCode = identify(a.resolvedPrintingId)?.shortCode;
-    const bCode = identify(b.resolvedPrintingId)?.shortCode;
-    if (aCode === undefined && bCode === undefined) {
+    const aIdentity = identify(a.resolvedPrintingId);
+    const bIdentity = identify(b.resolvedPrintingId);
+    if (aIdentity === undefined && bIdentity === undefined) {
       return a.sortOrder - b.sortOrder;
     }
-    if (aCode === undefined) {
+    if (aIdentity === undefined) {
       return 1;
     }
-    if (bCode === undefined) {
+    if (bIdentity === undefined) {
       return -1;
     }
-    return dir * aCode.localeCompare(bCode) || a.sortOrder - b.sortOrder;
+    return dir * compareCatalogPosition(aIdentity, bIdentity) || a.sortOrder - b.sortOrder;
   });
 }

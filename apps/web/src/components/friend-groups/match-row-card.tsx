@@ -6,7 +6,7 @@ import type {
   MarketplaceInfo,
   Printing,
 } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName, setIndexById, UNKNOWN_SET_INDEX } from "@openrift/shared";
 import { useRef, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -23,7 +23,7 @@ import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { useMouseHover } from "@/hooks/use-mouse-hover";
 import { usePrices } from "@/hooks/use-prices";
 import type { CatalogPosition } from "@/lib/catalog-position";
-import { compareCatalogPosition, setIndexById, UNKNOWN_SET_INDEX } from "@/lib/catalog-position";
+import { compareCatalogPosition } from "@/lib/catalog-position";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { MatchCopyDetail, MatchDirection } from "@/lib/trade-derivation";
 import {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { orderSetsMainFirst } from "./set-order";
+import { orderSetsMainFirst, setIndexById } from "./set-order.js";
 
 describe("orderSetsMainFirst", () => {
   it("moves main sets ahead of supplemental ones", () => {
@@ -54,5 +54,32 @@ describe("orderSetsMainFirst", () => {
 
   it("returns an empty array unchanged", () => {
     expect(orderSetsMainFirst([])).toEqual([]);
+  });
+});
+
+describe("setIndexById", () => {
+  it("indexes sets main-first, in catalog order within each type", () => {
+    const indexes = setIndexById([
+      { id: "promo", setType: "supplemental" },
+      { id: "origins", setType: "main" },
+      { id: "sands", setType: "main" },
+    ]);
+    expect(indexes.get("origins")).toBe(0);
+    expect(indexes.get("sands")).toBe(1);
+    expect(indexes.get("promo")).toBe(2);
+  });
+
+  it("has no entry for an unknown set", () => {
+    expect(setIndexById([{ id: "origins", setType: "main" }]).get("nope")).toBeUndefined();
+  });
+
+  it("indexes sets with no setType in source order", () => {
+    const indexes = setIndexById([{ id: "a" }, { id: "b" }]);
+    expect(indexes.get("a")).toBe(0);
+    expect(indexes.get("b")).toBe(1);
+  });
+
+  it("returns an empty lookup for no sets", () => {
+    expect(setIndexById([]).size).toBe(0);
   });
 });

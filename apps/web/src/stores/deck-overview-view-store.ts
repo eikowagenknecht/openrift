@@ -14,7 +14,14 @@ type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
  * the overview is in list mode. "default" keeps the sidebar's curve order
  * (energy → power → name); the rest reorder within the group.
  */
-export type DeckOverviewSort = "default" | "name" | "energy" | "price" | "rarity" | "ownership";
+export type DeckOverviewSort =
+  | "default"
+  | "id"
+  | "name"
+  | "energy"
+  | "price"
+  | "rarity"
+  | "ownership";
 
 /**
  * Widest column count a persisted override may carry. Well past what any
@@ -73,6 +80,7 @@ const DISPLAY_MODES: ReadonlySet<DeckOverviewDisplayMode> = new Set(["grid", "li
 
 const SORTS: ReadonlySet<DeckOverviewSort> = new Set([
   "default",
+  "id",
   "name",
   "energy",
   "price",

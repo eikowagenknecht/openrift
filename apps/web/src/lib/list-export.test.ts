@@ -135,6 +135,8 @@ function printingListEntry(
   };
 }
 
+const SETS = [{ id: "set-origins", setType: "main" as const }];
+
 describe("stacksFromListEntries", () => {
   it("merges entries of the same printing into one stack with quantity-many copy ids", () => {
     const printing = stubPrinting({ id: "p1", shortCode: "OGN-001" });
@@ -142,6 +144,7 @@ describe("stacksFromListEntries", () => {
     const stacks = stacksFromListEntries(
       [printingListEntry("e1", "p1", 2), printingListEntry("e2", "p1", 1)],
       printingsById,
+      SETS,
     );
     expect(stacks).toHaveLength(1);
     expect(stacks[0].printingId).toBe("p1");
@@ -157,6 +160,7 @@ describe("stacksFromListEntries", () => {
     const stacks = stacksFromListEntries(
       [printingListEntry("e1", "p1", 1), printingListEntry("e2", "p2", 1)],
       printingsById,
+      SETS,
     );
     expect(stacks.map((stack) => stack.printing.shortCode)).toEqual(["OGN-001", "OGN-042"]);
   });
@@ -172,13 +176,14 @@ describe("stacksFromListEntries", () => {
         printingListEntry("e3", "p-unknown", 4),
       ],
       printingsById,
+      SETS,
     );
     expect(stacks).toHaveLength(1);
     expect(stacks[0].printingId).toBe("p1");
   });
 
   it("returns an empty array for an empty list", () => {
-    expect(stacksFromListEntries([], {})).toEqual([]);
+    expect(stacksFromListEntries([], {}, SETS)).toEqual([]);
   });
 });
 
@@ -272,13 +277,13 @@ describe("withoutReservedCopies", () => {
   ];
 
   it("drops the reserved copy from the CSV stacks", () => {
-    const stacks = stacksFromListEntries(withoutReservedCopies(binder), printingsById);
+    const stacks = stacksFromListEntries(withoutReservedCopies(binder), printingsById, SETS);
     expect(stacks).toHaveLength(1);
     expect(stacks[0].copyIds).toHaveLength(2);
   });
 
   it("keeps the reserved copy when the exclusion is off", () => {
-    const stacks = stacksFromListEntries(binder, printingsById);
+    const stacks = stacksFromListEntries(binder, printingsById, SETS);
     expect(stacks[0].copyIds).toHaveLength(3);
   });
 

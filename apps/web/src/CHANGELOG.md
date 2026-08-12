@@ -7,6 +7,7 @@
 - feat(Collection): **Identify-first scanning** — the scanner now names and counts cards first and adds them only when you pick a collection, instead of adding as it goes.
 - feat(Collection): **Scan sessions survive leaving the page** — navigating away or reloading no longer clears the scanned list, and a session older than a day offers a fresh start.
 - feat(App): **Scan from the main menu** — the card scanner now sits right in the menu on every page, and the menu itself is grouped into Play, Organize, and Explore sections instead of one long list.
+- feat(Decks): **Sort a deck by card ID** — the deck view can now order cards by set and collector number, and sorting by ID everywhere follows the set order instead of the letters in the code.
 - feat(Decks): **Cards on their way from a trade** — a deck's missing cards now mark the copies already reserved to you in a swap, so you don't buy one that's about to arrive.
 
 ### Other

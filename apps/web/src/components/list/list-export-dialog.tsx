@@ -175,10 +175,10 @@ function CsvExport({
   /** Extra export options, rendered between the format select and the button. */
   options?: ReactNode;
 }) {
-  const { printingsById } = useCards();
+  const { printingsById, sets } = useCards();
   const [format, setFormat] = useState<CsvExportFormat>("openrift");
 
-  const stacks = stacksFromListEntries(entries, printingsById);
+  const stacks = stacksFromListEntries(entries, printingsById, sets);
   const cardCount = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
   const handleDownload = () => {

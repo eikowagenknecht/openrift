@@ -1,5 +1,12 @@
 import type { DeckCheckEntryCardResponse, Printing } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import {
+  WellKnown,
+  getOrientation,
+  imageUrl,
+  legendDisplayName,
+  setIndexById,
+  UNKNOWN_SET_INDEX,
+} from "@openrift/shared";
 import { CheckIcon, LayoutGridIcon, PencilIcon, Rows3Icon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -71,12 +78,13 @@ export function CardChecklist({
 }) {
   const { zoneLabels } = useZoneOrder();
   const { orders } = useEnumOrders();
-  const { allPrintings } = useCards();
+  const { allPrintings, sets } = useCards();
   const isMobile = useIsMobile();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<HoveredPreview | null>(null);
 
   const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
+  const setIndexes = setIndexById(sets);
   // Resolve catalogue identity for the "name" / "id" / "domain" / "energy" sorts.
   const identify = (printingId: string | null) => {
     const printing = printingId ? printingById.get(printingId) : undefined;
@@ -84,6 +92,7 @@ export function CardChecklist({
       ? {
           name: printing.card.name,
           shortCode: printing.shortCode,
+          setIndex: setIndexes.get(printing.setId) ?? UNKNOWN_SET_INDEX,
           domains: printing.card.domains,
           energy: printing.card.energy,
           power: printing.card.power,

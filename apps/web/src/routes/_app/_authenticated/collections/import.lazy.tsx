@@ -137,7 +137,7 @@ function ImportExportPage() {
 function ExportSection() {
   const userId = useRequiredUserId();
   const { data: collections } = useCollections();
-  const { allPrintings } = useCards();
+  const { allPrintings, sets } = useCards();
   const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
   const [exportFormat, setExportFormat] = useState<CsvExportFormat>("openrift");
 
@@ -181,6 +181,7 @@ function ExportSection() {
     const sortedPrintings = sortCards(
       stacks.map((stack) => stack.printing),
       "id",
+      { sets },
     );
     const byPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
     const sortedStacks = sortedPrintings

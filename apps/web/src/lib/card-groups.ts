@@ -1,4 +1,5 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
+import { orderSetsMainFirst } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
@@ -8,7 +9,6 @@ import { groupItemsByCollection } from "@/lib/group-by-collection";
 import { groupItemsByField, isFieldGrouping } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
-import { orderSetsMainFirst } from "@/lib/set-order";
 
 /** A section of cards in a viewer: its header info plus the items it contains. */
 export interface CardGroup {

@@ -4,8 +4,10 @@ import {
   getOrientation,
   legendDisplayName,
   PREFERENCE_DEFAULTS,
+  setIndexById,
   sortByLanguageAndCanonicalRank,
   sortCards,
+  UNKNOWN_SET_INDEX,
 } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
@@ -15,7 +17,6 @@ import { searchToFilters } from "@/lib/cards-facets";
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
 import { needsCssRotation } from "@/lib/images";
 import type { FilterSearch } from "@/lib/search-schemas";
-import { orderSetsMainFirst } from "@/lib/set-order";
 import type { SurfaceViewPrefs } from "@/lib/view-prefs";
 import {
   resolveViewPrefsFromCookie,
@@ -106,18 +107,16 @@ export function extractFirstRow(
     displayCards = dedupeToCardsViewTiles(filtered, groupBy);
   }
 
-  let sortedCards = sortCards(displayCards, sortBy, { sortDir });
+  let sortedCards = sortCards(displayCards, sortBy, { sortDir, sets });
 
   if (groupBy === "set") {
     // Mirror the live grid's set order (groupItemsBySet): main sets lead,
     // supplemental follow, release order preserved within each type. Without
     // this the SSR shell leads with a different set than the hydrated grid.
-    const orderedSets = orderSetsMainFirst(sets);
-    const setSortIndex = new Map(orderedSets.map((set, index) => [set.id, index]));
-    const fallbackSetIndex = orderedSets.length;
+    const setSortIndex = setIndexById(sets);
     sortedCards = sortedCards.toSorted((a, b) => {
-      const aIdx = setSortIndex.get(a.setId) ?? fallbackSetIndex;
-      const bIdx = setSortIndex.get(b.setId) ?? fallbackSetIndex;
+      const aIdx = setSortIndex.get(a.setId) ?? UNKNOWN_SET_INDEX;
+      const bIdx = setSortIndex.get(b.setId) ?? UNKNOWN_SET_INDEX;
       return aIdx - bIdx;
     });
   }

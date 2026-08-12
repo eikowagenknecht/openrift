@@ -217,6 +217,7 @@ export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardO
       id: nextId(),
       language: "EN",
       shortCode: "OGN-001",
+      setId: "set-origins",
       rarity: "common",
       imageId: undefined,
       landscape: false,

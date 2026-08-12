@@ -16,6 +16,9 @@ export {
 } from "./filters.js";
 export type { SortCardsOptions } from "./filters.js";
 
+export type { SetOrderInfo } from "./set-order.js";
+export { orderSetsMainFirst, setIndexById, UNKNOWN_SET_INDEX } from "./set-order.js";
+
 export { findStandardArtFallback, isStandardPrinting } from "./standard.js";
 export type { StandardArtFallback } from "./standard.js";
 

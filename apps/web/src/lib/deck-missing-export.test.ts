@@ -71,6 +71,7 @@ describe("missingCardsToListEntries", () => {
         id: "cheap-printing",
         language: "EN",
         shortCode: "OGN-002",
+        setId: "set-origins",
         rarity: "common",
         imageId: undefined,
         landscape: false,

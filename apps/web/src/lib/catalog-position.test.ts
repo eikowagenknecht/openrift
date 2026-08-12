@@ -1,12 +1,8 @@
 import type { Printing } from "@openrift/shared";
+import { setIndexById, UNKNOWN_SET_INDEX } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import {
-  compareCatalogPosition,
-  comparePrintingIdsByCatalog,
-  setIndexById,
-  UNKNOWN_SET_INDEX,
-} from "@/lib/catalog-position";
+import { compareCatalogPosition, comparePrintingIdsByCatalog } from "@/lib/catalog-position";
 import { stubPrinting } from "@/test/factories";
 
 const SETS = [{ id: "set-founders" }, { id: "set-origins" }, { id: "set-unleashed" }];
@@ -38,22 +34,6 @@ describe("compareCatalogPosition", () => {
   });
 });
 
-describe("setIndexById", () => {
-  it("maps each set to its position in catalog order", () => {
-    const indexes = setIndexById(SETS);
-    expect(indexes.get("set-founders")).toBe(0);
-    expect(indexes.get("set-unleashed")).toBe(2);
-  });
-
-  it("has no entry for an unknown set", () => {
-    expect(setIndexById(SETS).get("set-nope")).toBeUndefined();
-  });
-
-  it("is empty for an empty catalog", () => {
-    expect(setIndexById([]).size).toBe(0);
-  });
-});
-
 describe("comparePrintingIdsByCatalog", () => {
   const founders = stubPrinting({ id: "p-fnd", setId: "set-founders", shortCode: "FND-249" });
   const originsLow = stubPrinting({ id: "p-ogn-2", setId: "set-origins", shortCode: "OGN-002" });
@@ -77,6 +57,18 @@ describe("comparePrintingIdsByCatalog", () => {
     const compare = comparePrintingIdsByCatalog(catalog([stray, originsLow]), SETS);
     const sorted = ["p-stray", "p-ogn-2"].toSorted(compare);
     expect(sorted).toEqual(["p-ogn-2", "p-stray"]);
+  });
+
+  it("sorts a supplemental set's printings after the main sets", () => {
+    // The set order is main-first, then catalog order — the same order the
+    // grid's set headers use — so a promo printed before a main set still
+    // sorts behind it.
+    const promo = stubPrinting({ id: "p-promo", setId: "set-promo", shortCode: "PRM-001" });
+    const compare = comparePrintingIdsByCatalog(catalog([promo, founders]), [
+      { id: "set-promo", setType: "supplemental" },
+      { id: "set-founders", setType: "main" },
+    ]);
+    expect(["p-promo", "p-fnd"].toSorted(compare)).toEqual(["p-fnd", "p-promo"]);
   });
 
   it("keeps unknown printings in their original order", () => {

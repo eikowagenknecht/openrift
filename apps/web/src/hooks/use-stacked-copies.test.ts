@@ -15,6 +15,7 @@ const printingById = new Map<string, Printing>([
   [standard.id, standard],
   [foil.id, foil],
 ]);
+const SETS = [{ id: "set-unleashed", setType: "main" as const }];
 
 function copy(id: string, printingId: string, collectionId: string, groupId: string | null = null) {
   return stubCopy({ id, printingId, collectionId, groupId });
@@ -31,7 +32,7 @@ describe("buildStacks", () => {
         copy(`g-${index}`, standard.id, "col-group", "group-1"),
       ),
     ];
-    const stacks = buildStacks(copies, printingById, undefined);
+    const stacks = buildStacks(copies, printingById, SETS, undefined);
     expect(stacks).toHaveLength(1);
     expect(stacks[0].printingId).toBe(standard.id);
     expect(stacks[0].copyIds).toHaveLength(9);
@@ -39,7 +40,7 @@ describe("buildStacks", () => {
 
   it("drops a card owned only in a group collection from the personal aggregate", () => {
     const copies = [copy("g-1", foil.id, "col-group", "group-1")];
-    expect(buildStacks(copies, printingById, undefined)).toEqual([]);
+    expect(buildStacks(copies, printingById, SETS, undefined)).toEqual([]);
   });
 
   it("includes every copy when scoped to a specific collection, group or not", () => {
@@ -49,13 +50,13 @@ describe("buildStacks", () => {
       copy("g-2", standard.id, "col-group", "group-1"),
       copy("g-3", standard.id, "col-group", "group-1"),
     ];
-    const stacks = buildStacks(copies, printingById, "col-group");
+    const stacks = buildStacks(copies, printingById, SETS, "col-group");
     expect(stacks).toHaveLength(1);
     expect(stacks[0].copyIds).toHaveLength(3);
   });
 
   it("skips copies whose printing is unknown", () => {
     const copies = [copy("x-1", "pr-missing", "col-personal")];
-    expect(buildStacks(copies, printingById, undefined)).toEqual([]);
+    expect(buildStacks(copies, printingById, SETS, undefined)).toEqual([]);
   });
 });

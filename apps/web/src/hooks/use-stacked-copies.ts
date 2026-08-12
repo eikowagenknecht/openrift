@@ -1,4 +1,4 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
+import type { CopyResponse, Printing, SetOrderInfo } from "@openrift/shared";
 import { sortCards } from "@openrift/shared";
 
 import { useCards } from "@/hooks/use-cards";
@@ -37,6 +37,7 @@ interface UseStackedCopiesResult {
 export function buildStacks(
   copies: readonly CopyResponse[],
   printingById: ReadonlyMap<string, Printing>,
+  sets: readonly SetOrderInfo[],
   collectionId?: string,
 ): StackedEntry[] {
   const personalOnly = collectionId === undefined;
@@ -63,6 +64,7 @@ export function buildStacks(
   const sortedCards = sortCards(
     stacks.map((stack) => stack.printing),
     "id",
+    { sets },
   );
   const stackByPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
   return sortedCards
@@ -78,14 +80,14 @@ export function buildStacks(
  */
 export function useStackedCopies(collectionId?: string): UseStackedCopiesResult {
   const { data: copies, isReady } = useCopies(collectionId);
-  const { allPrintings } = useCards();
+  const { allPrintings, sets } = useCards();
 
   const printingById = new Map<string, Printing>();
   for (const printing of allPrintings) {
     printingById.set(printing.id, printing);
   }
 
-  const sortedStacks = buildStacks(copies, printingById, collectionId);
+  const sortedStacks = buildStacks(copies, printingById, sets, collectionId);
   const totalCopies = sortedStacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
   const collectionIdByCopyId = new Map(copies.map((copy) => [copy.id, copy.collectionId]));
 

@@ -80,6 +80,8 @@ interface OwnershipPrinting {
   id: string;
   language: string;
   shortCode: string;
+  /** Set the printing belongs to; the card-ID sort orders by its catalog position. */
+  setId: string;
   rarity: Rarity;
   imageId: string | undefined;
   /** True for Battlefields — their art is stored landscape and rotated for display. */
@@ -96,6 +98,7 @@ function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
     id: printing.id,
     language: printing.language,
     shortCode: printing.shortCode,
+    setId: printing.setId,
     rarity: printing.rarity,
     imageId: printing.images[0]?.imageId,
     landscape: getOrientation(printing.card.types) === "landscape",

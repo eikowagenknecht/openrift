@@ -396,7 +396,7 @@ export function useCardData({
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
 
-  const sortOptions: SortCardsOptions = { sortDir };
+  const sortOptions: SortCardsOptions = { sortDir, sets };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (p) => {
       const range = priceRangeByCardId.get(p.cardId);

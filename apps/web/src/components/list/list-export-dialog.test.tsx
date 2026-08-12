@@ -11,6 +11,8 @@ const jinxPrinting = stubPrinting({ id: "p-jinx", cardId: "card-jinx", card: { n
 vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({
     printingsById: { [viPrinting.id]: viPrinting, [jinxPrinting.id]: jinxPrinting },
+    // The export sorts by card ID, which orders by set before card number.
+    sets: [{ id: viPrinting.setId, setType: "main" }],
   }),
 }));
 

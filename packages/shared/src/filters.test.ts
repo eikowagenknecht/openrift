@@ -2050,6 +2050,16 @@ describe("getAvailableFilters", () => {
 // ---------------------------------------------------------------------------
 
 describe("sortCards", () => {
+  // Matches `makePrinting`'s default set, plus a second main set that sorts
+  // after it despite its printings' alphabetically-earlier short codes.
+  const SET_ALPHA_ID = "00000000-0000-0000-0000-0000000000a1";
+  const SET_BETA_ID = "00000000-0000-0000-0000-0000000000a2";
+  const SET_PROMO_ID = "00000000-0000-0000-0000-0000000000a3";
+  const SETS = [
+    { id: SET_ALPHA_ID, setType: "main" as const },
+    { id: SET_BETA_ID, setType: "main" as const },
+  ];
+
   const printings = [
     makePrinting({
       id: "SET1-003:epic:normal:",
@@ -2121,9 +2131,67 @@ describe("sortCards", () => {
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
-  it("sorts by id (shortCode string comparison)", () => {
-    const result = sortCards(printings, "id");
+  it("sorts by id (card number within one set)", () => {
+    const result = sortCards(printings, "id", { sets: SETS });
     expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "SET1-002", "SET1-003"]);
+  });
+
+  it("sorts by id across sets in set order, not by the code's set prefix", () => {
+    // "AAA" sorts ahead of "SET1" alphabetically, but Set Alpha comes first in
+    // the catalog, so its printings lead.
+    const beta = makePrinting({
+      id: "AAA-001:common:normal:",
+      shortCode: "AAA-001",
+      setId: SET_BETA_ID,
+      cardId: "AAA-001",
+    });
+    const result = sortCards([beta, ...printings], "id", { sets: SETS });
+    expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "SET1-002", "SET1-003", "AAA-001"]);
+  });
+
+  it("sorts a supplemental set's printings after the main sets", () => {
+    const promo = makePrinting({
+      id: "PRM-001:common:normal:",
+      shortCode: "PRM-001",
+      setId: SET_PROMO_ID,
+      cardId: "PRM-001",
+    });
+    // The promo set leads the catalog array but is supplemental, so it still
+    // sorts last — the same order the grid's set headers use.
+    const result = sortCards([...printings, promo], "id", {
+      sets: [{ id: SET_PROMO_ID, setType: "supplemental" }, ...SETS],
+    });
+    expect(result.at(-1)?.shortCode).toBe("PRM-001");
+  });
+
+  it("sorts a printing from an unknown set last", () => {
+    const stray = makePrinting({
+      id: "ZZZ-001:common:normal:",
+      shortCode: "AAA-001",
+      setId: "set-not-in-catalog",
+      cardId: "ZZZ-001",
+    });
+    const result = sortCards([stray, ...printings], "id", { sets: SETS });
+    expect(result.at(-1)?.setId).toBe("set-not-in-catalog");
+  });
+
+  it("breaks a name tie by set order, then card number", () => {
+    const reprint = makePrinting({
+      id: "AAA-009:common:normal:",
+      shortCode: "AAA-009",
+      setId: SET_BETA_ID,
+      cardId: "AAA-009",
+      card: { name: "Alpha" },
+    });
+    const alpha = printings.find((p) => p.card.name === "Alpha");
+    const result = sortCards([reprint, alpha as typeof reprint], "name", { sets: SETS });
+    expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "AAA-009"]);
+  });
+
+  it("throws when sorting by id without the catalog's sets", () => {
+    // The set half of a card ID can't be derived from the printing alone, so a
+    // missing catalog is a programming error rather than a silent mis-sort.
+    expect(() => sortCards(printings, "id")).toThrow("`sets` is required");
   });
 
   it("sorts by energy, breaking ties by shortCode", () => {
@@ -2621,7 +2689,7 @@ describe("sortCards", () => {
 
   it("returns empty array when given empty input", () => {
     expect(sortCards([], "name")).toEqual([]);
-    expect(sortCards([], "id")).toEqual([]);
+    expect(sortCards([], "id", { sets: SETS })).toEqual([]);
     expect(sortCards([], "energy")).toEqual([]);
     expect(sortCards([], "rarity", { rarityOrder: TEST_ORDERS.rarities })).toEqual([]);
     expect(sortCards([], "price")).toEqual([]);
@@ -2630,7 +2698,7 @@ describe("sortCards", () => {
   it("handles single-element array for all sort modes", () => {
     const single = [makePrinting({ cardId: "x", card: { name: "Solo" } })];
     expect(sortCards(single, "name")).toHaveLength(1);
-    expect(sortCards(single, "id")).toHaveLength(1);
+    expect(sortCards(single, "id", { sets: SETS })).toHaveLength(1);
     expect(sortCards(single, "energy")).toHaveLength(1);
     expect(sortCards(single, "rarity", { rarityOrder: TEST_ORDERS.rarities })).toHaveLength(1);
     expect(sortCards(single, "price")).toHaveLength(1);

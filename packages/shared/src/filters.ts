@@ -1,4 +1,6 @@
 import { foldCached, foldForSearch, squashCached, squashForSearch } from "./search-fold.js";
+import type { SetOrderInfo } from "./set-order.js";
+import { orderSetsMainFirst, setIndexById, UNKNOWN_SET_INDEX } from "./set-order.js";
 import { isStandardPrinting } from "./standard.js";
 import type {
   CardFilters,
@@ -287,7 +289,7 @@ function matchesCustomTags(filterSlugs: string[], actualSlugs: readonly string[]
 
 /**
  * Compares by a nullable numeric value. Nulls are always pushed to the end,
- * the primary comparison respects `dir`, and the tiebreaker (shortCode) is
+ * the primary comparison respects `dir`, and the tiebreaker (card ID) is
  * always ascending.
  *
  * @returns A negative, zero, or positive number for sort ordering.
@@ -297,13 +299,14 @@ function compareWithFallback(
   b: Printing,
   getValue: (p: Printing) => number | null | undefined,
   dir: 1 | -1,
+  byId: (a: Printing, b: Printing) => number,
 ): number {
   const va = getValue(a);
   const vb = getValue(b);
   const aNullish = va === null || va === undefined;
   const bNullish = vb === null || vb === undefined;
   if (aNullish && bNullish) {
-    return a.shortCode.localeCompare(b.shortCode);
+    return byId(a, b);
   }
   if (aNullish) {
     return 1;
@@ -311,7 +314,27 @@ function compareWithFallback(
   if (bNullish) {
     return -1;
   }
-  return dir * (va - vb) || a.shortCode.localeCompare(b.shortCode);
+  return dir * (va - vb) || byId(a, b);
+}
+
+/**
+ * Orders two printings by card ID: the set's place in the app's set order
+ * first, then the number inside the short code, which is zero-padded and so
+ * sorts as a plain string ("OGN-002" before "OGN-010").
+ *
+ * Without set metadata the short code stands alone, which orders sets by their
+ * alphabetical prefix — fine within one set, wrong across several, hence the
+ * `sets` requirement on the "id" sort.
+ *
+ * @returns A comparator over two printings.
+ */
+function idComparator(sets?: readonly SetOrderInfo[]): (a: Printing, b: Printing) => number {
+  if (!sets) {
+    return (a, b) => a.shortCode.localeCompare(b.shortCode);
+  }
+  const indexes = setIndexById(sets);
+  const indexOf = (printing: Printing) => indexes.get(printing.setId) ?? UNKNOWN_SET_INDEX;
+  return (a, b) => indexOf(a) - indexOf(b) || a.shortCode.localeCompare(b.shortCode);
 }
 
 function matchesSearch(
@@ -586,13 +609,7 @@ export function getAvailableFilters(
   const setMeta = options.sets;
   const sets = unique(printings.map((p) => p.setSlug));
   if (setMeta) {
-    const setSlugOrder = new Map(
-      setMeta
-        .toSorted((a, b) =>
-          a.setType === b.setType ? 0 : a.setType === WellKnown.setType.MAIN ? -1 : 1,
-        )
-        .map((s, i) => [s.slug, i]),
-    );
+    const setSlugOrder = new Map(orderSetsMainFirst(setMeta).map((s, i) => [s.slug, i]));
     sets.sort((a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity));
   }
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
@@ -1289,12 +1306,21 @@ export interface SortCardsOptions {
    * ignored otherwise.
    */
   rarityOrder?: readonly string[];
+  /**
+   * The catalog's sets, in catalog order. Required when `sortBy === "id"`, and
+   * used by every other sort's tiebreaker when supplied: a card ID orders by
+   * its set's place in {@link orderSetsMainFirst} order first, so IDs across
+   * sets follow the same set order as the grid's group headers rather than the
+   * alphabetical set prefix inside the short code.
+   */
+  sets?: readonly SetOrderInfo[];
 }
 
 /**
  * Sorts a printings array by the given sort option. Direction applies only to
- * the primary key; the tiebreaker (shortCode) is always ascending. Null
- * stats/prices are always pushed to the end.
+ * the primary key; the tiebreaker (card ID) is always ascending. Null
+ * stats/prices are always pushed to the end. Card ID means set order then card
+ * number, so `options.sets` has to be supplied — see {@link SortCardsOptions}.
  *
  * @returns A new sorted array (does not mutate the input).
  *
@@ -1309,17 +1335,18 @@ export function sortCards(
   options: SortCardsOptions = {},
 ): Printing[] {
   const dir: 1 | -1 = options.sortDir === "desc" ? -1 : 1;
+  const byId = idComparator(options.sets);
   if (sortBy === "name") {
-    return printings.toSorted(
-      (a, b) =>
-        dir * a.card.name.localeCompare(b.card.name) || a.shortCode.localeCompare(b.shortCode),
-    );
+    return printings.toSorted((a, b) => dir * a.card.name.localeCompare(b.card.name) || byId(a, b));
   }
   if (sortBy === "id") {
-    return printings.toSorted((a, b) => dir * a.shortCode.localeCompare(b.shortCode));
+    if (!options.sets) {
+      throw new Error("sortCards: `sets` is required when sortBy is 'id'");
+    }
+    return printings.toSorted((a, b) => dir * byId(a, b));
   }
   if (sortBy === "energy") {
-    return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy, dir));
+    return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy, dir, byId));
   }
   if (sortBy === "rarity") {
     if (!options.rarityOrder) {
@@ -1328,11 +1355,10 @@ export function sortCards(
     const rarityOrder = options.rarityOrder;
     return printings.toSorted(
       (a, b) =>
-        dir * (orderIndex(rarityOrder, a.rarity) - orderIndex(rarityOrder, b.rarity)) ||
-        a.shortCode.localeCompare(b.shortCode),
+        dir * (orderIndex(rarityOrder, a.rarity) - orderIndex(rarityOrder, b.rarity)) || byId(a, b),
     );
   }
   // oxlint-disable-next-line unicorn/no-useless-undefined -- returning undefined satisfies the getPrice contract
   const getPrice = options.getPrice ?? (() => undefined);
-  return printings.toSorted((a, b) => compareWithFallback(a, b, getPrice, dir));
+  return printings.toSorted((a, b) => compareWithFallback(a, b, getPrice, dir, byId));
 }

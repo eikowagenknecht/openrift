@@ -6,6 +6,7 @@ import {
   formatHasSideboard,
   imageUrl,
   legendDisplayName,
+  setIndexById,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";
@@ -22,6 +23,7 @@ import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCards } from "@/hooks/use-cards";
 import type { CardOwnership, DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -84,6 +86,7 @@ export const DECK_OVERVIEW_SORT_OPTIONS: SortGroupOption<DeckOverviewSort>[] = [
   // "default" is the sidebar's curve order (energy → power → name) — named for
   // what it does rather than for being the fallback.
   { value: "default", label: "Curve order" },
+  { value: "id", label: "ID" },
   { value: "name", label: "Name" },
   { value: "energy", label: "Energy" },
   { value: "price", label: "Price" },
@@ -185,6 +188,7 @@ export function DeckOverviewList({
   const isRowDimmed = (card: DeckBuilderCard) =>
     statsFocus !== null && statsFocus !== undefined && !cardMatchesStatsFocus(card, statsFocus);
   const { orders, labels } = useEnumOrders();
+  const { sets } = useCards();
   const domainColors = useDomainColors();
   const isMobile = useIsMobile();
   const fmtPrice = formatterForMarketplace(marketplace);
@@ -237,10 +241,13 @@ export function DeckOverviewList({
   const sortContext: DeckListSortContext = {
     getEntry,
     rarityOrder: orders.rarities,
-    // Sort what the rows show: with "show my printings" on, both the price and
-    // the rarity icon describe the owned printing, not the deck's.
+    setIndexById: setIndexById(sets),
+    // Sort what the rows show: with "show my printings" on, the price, the
+    // rarity icon and the set code all describe the owned printing, not the
+    // deck's.
     getRowPrice: (card) => resolveRowPrinting(card, getEntry(card)).price,
     getRowRarity: (card) => resolveRowPrinting(card, getEntry(card)).printing?.rarity,
+    getRowPrinting: (card) => resolveRowPrinting(card, getEntry(card)).printing,
   };
 
   const groupCards = (zoneCards: DeckBuilderCard[]): DeckCardGroup[] =>

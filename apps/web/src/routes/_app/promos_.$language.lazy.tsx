@@ -346,6 +346,7 @@ function PromosPage() {
   const sortPrintings = (printings: Printing[]) =>
     sortCards(printings, sortBy, {
       sortDir,
+      sets: catalog.sets,
       rarityOrder: enumOrders.rarities,
       getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
     });
