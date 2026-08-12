@@ -372,6 +372,8 @@ export function TradeSettleSection({
               trade={trade}
               sequence={sequence}
               groupLabel={groupNames?.get(trade.groupId)}
+              // The heading says it once for the whole section.
+              redundantStatus="ready-to-swap"
             />
           ))}
         </div>

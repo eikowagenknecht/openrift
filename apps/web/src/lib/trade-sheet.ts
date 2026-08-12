@@ -25,9 +25,9 @@ export function stepSequence(trades: readonly CardTradeResponse[]): string[] | u
 export interface TradeLedger {
   /** Requests waiting on the viewer's yes or no, soonest to expire first. */
   yourMove: CardTradeResponse[];
-  /** Agreed swaps the viewer can still settle, most recently touched first. */
+  /** Agreed swaps the viewer can still settle, incoming cards before outgoing. */
   readyToSwap: CardTradeResponse[];
-  /** Other live trades: requests the viewer sent, waiting on the other side. */
+  /** Other live trades: requests the viewer sent, waiting on the other side, incoming first. */
   waiting: CardTradeResponse[];
   /**
    * Trades with nothing left for the viewer to do, newest first: the terminal
@@ -52,6 +52,47 @@ function waitingRank(trade: CardTradeResponse): number {
 /** @returns Negative when `a` is the more recently touched trade. */
 function byUpdatedAtDescending(a: CardTradeResponse, b: CardTradeResponse): number {
   return b.updatedAt.localeCompare(a.updatedAt);
+}
+
+/**
+ * Catalog order for a trade's printing, as the standard `canonicalRank`
+ * (language, then set order, then shortcode). An unknown printing sorts last
+ * rather than to the front, so a catalog that has not caught up with a trade
+ * cannot push a row nobody can read to the top of a pile.
+ */
+export type PrintingRank = (printingId: string) => number;
+
+/**
+ * Catalog order nobody has supplied.
+ * @returns The same rank for every printing, leaving the next tier to decide.
+ */
+const noPrintingRank: PrintingRank = () => 0;
+
+/**
+ * How far up a section a trade sorts by direction: the cards coming to the
+ * viewer first, the ones they hand over after.
+ * @param trade The trade to rank.
+ * @returns The sort tier; lower sorts first.
+ */
+function directionRank(trade: CardTradeResponse): number {
+  return trade.role === "receiver" ? 0 : 1;
+}
+
+/**
+ * Orders a pile the way someone standing at a table works through it: their
+ * incoming cards as one run and their outgoing as another, each in catalog
+ * order so the rows follow the stack they are sorting. When the two people last
+ * touched a trade decides nothing at that table, so it only breaks ties.
+ * @param printingRank Catalog order for a printing.
+ * @returns The comparator.
+ */
+function byDirectionThenCatalog(
+  printingRank: PrintingRank,
+): (a: CardTradeResponse, b: CardTradeResponse) => number {
+  return (a, b) =>
+    directionRank(a) - directionRank(b) ||
+    printingRank(a.printingId) - printingRank(b.printingId) ||
+    byUpdatedAtDescending(a, b);
 }
 
 /**
@@ -80,24 +121,31 @@ function stillWaiting(trade: CardTradeResponse): boolean {
  * the waiting section. Nothing about it is theirs to chase, so filing it beside
  * the requests they are still owed an answer to would put a finished errand in
  * front of them every visit.
+ *
+ * The two open sections read by direction: incoming rows then outgoing, which
+ * is the shape of the swap itself and the two piles it becomes on the table.
+ * The other two sort by time instead, for the same reason they exist — a
+ * request runs out on its own, so your-move leads with whatever expires
+ * soonest, and history is a log.
  * @param trades The viewer's trades, from any set of groups.
  * @param counterpartyUserId The person the sheet is about.
+ * @param printingRank Catalog order for a printing, ordering each direction's run. Omit to leave both runs on recency.
  * @returns The your-move / ready-to-swap / waiting / history lists, each already sorted.
  */
 export function splitTradeLedger(
   trades: readonly CardTradeResponse[],
   counterpartyUserId: string,
+  printingRank: PrintingRank = noPrintingRank,
 ): TradeLedger {
   const mine = trades.filter((trade) => trade.counterparty.userId === counterpartyUserId);
   const rest = mine.filter((trade) => !isNeedsYouTrade(trade));
+  const byPile = byDirectionThenCatalog(printingRank);
   return {
     yourMove: sortNeedsYou(mine.filter((trade) => trade.actionNeeded === "accept-or-decline")),
-    readyToSwap: mine
-      .filter((trade) => trade.actionNeeded === "settle")
-      .toSorted(byUpdatedAtDescending),
+    readyToSwap: mine.filter((trade) => trade.actionNeeded === "settle").toSorted(byPile),
     waiting: rest
       .filter((trade) => stillWaiting(trade))
-      .toSorted((a, b) => waitingRank(a) - waitingRank(b) || byUpdatedAtDescending(a, b)),
+      .toSorted((a, b) => waitingRank(a) - waitingRank(b) || byPile(a, b)),
     history: rest.filter((trade) => !stillWaiting(trade)).toSorted(byUpdatedAtDescending),
   };
 }

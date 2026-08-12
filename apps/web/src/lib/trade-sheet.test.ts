@@ -118,7 +118,7 @@ describe("splitTradeLedger", () => {
     expect(ids(ledger.yourMove)).toEqual(["answer-soon", "answer-later"]);
   });
 
-  it("gathers both directions of a swap into ready-to-swap, most recently touched first", () => {
+  it("gathers both directions of a swap into ready-to-swap, incoming before outgoing", () => {
     const ledger = splitTradeLedger(
       [
         stubTrade({
@@ -126,21 +126,112 @@ describe("splitTradeLedger", () => {
           role: "giver",
           status: "reserved",
           actionNeeded: "settle",
-          updatedAt: "2026-06-01T00:00:00.000Z",
+          updatedAt: "2026-06-05T00:00:00.000Z",
         }),
         stubTrade({
           id: "receive",
           role: "receiver",
           status: "reserved",
           actionNeeded: "settle",
-          updatedAt: "2026-06-05T00:00:00.000Z",
+          updatedAt: "2026-06-01T00:00:00.000Z",
         }),
       ],
       "user-2",
     );
 
+    // Direction beats recency: the more recently touched row is the outgoing one.
     expect(ids(ledger.readyToSwap)).toEqual(["receive", "hand-over"]);
     expect(ledger.yourMove).toEqual([]);
+  });
+
+  it("runs each direction of ready-to-swap in catalog order", () => {
+    const settle = { status: "reserved", actionNeeded: "settle" } as const;
+    const ledger = splitTradeLedger(
+      [
+        stubTrade({ id: "in-late", role: "receiver", printingId: "p-30", ...settle }),
+        stubTrade({ id: "out-early", role: "giver", printingId: "p-10", ...settle }),
+        stubTrade({ id: "in-early", role: "receiver", printingId: "p-20", ...settle }),
+        stubTrade({ id: "out-late", role: "giver", printingId: "p-40", ...settle }),
+      ],
+      "user-2",
+      (printingId) => Number(printingId.slice("p-".length)),
+    );
+
+    expect(ids(ledger.readyToSwap)).toEqual(["in-early", "in-late", "out-early", "out-late"]);
+  });
+
+  it("sorts the waiting section by direction under its agreed-swaps-first tier", () => {
+    const ledger = splitTradeLedger(
+      [
+        stubTrade({ id: "sent-out", role: "giver", status: "pending", actionNeeded: "cancel" }),
+        stubTrade({ id: "reserved", status: "reserved" }),
+        stubTrade({ id: "sent-in", role: "receiver", status: "pending", actionNeeded: "cancel" }),
+      ],
+      "user-2",
+    );
+
+    expect(ids(ledger.waiting)).toEqual(["reserved", "sent-in", "sent-out"]);
+  });
+
+  it("keeps your-move on expiry and history on recency, whatever the direction", () => {
+    // Neither section is a pile to work through: a request runs out on its own,
+    // and history is a log.
+    const ledger = splitTradeLedger(
+      [
+        stubTrade({
+          id: "answer-out",
+          role: "giver",
+          actionNeeded: "accept-or-decline",
+          expiresAt: "2026-06-02T00:00:00Z",
+        }),
+        stubTrade({
+          id: "answer-in",
+          role: "receiver",
+          actionNeeded: "accept-or-decline",
+          expiresAt: "2026-06-04T00:00:00Z",
+        }),
+        stubTrade({
+          id: "done-out",
+          role: "giver",
+          status: "completed",
+          updatedAt: "2026-06-05T00:00:00.000Z",
+        }),
+        stubTrade({
+          id: "done-in",
+          role: "receiver",
+          status: "completed",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+        }),
+      ],
+      "user-2",
+      (printingId) => Number(printingId.slice("printing-".length)),
+    );
+
+    expect(ids(ledger.yourMove)).toEqual(["answer-out", "answer-in"]);
+    expect(ids(ledger.history)).toEqual(["done-out", "done-in"]);
+  });
+
+  it("leaves both open sections on recency when no catalog order is supplied", () => {
+    const settle = { role: "receiver", status: "reserved", actionNeeded: "settle" } as const;
+    const ledger = splitTradeLedger(
+      [
+        stubTrade({
+          id: "older",
+          printingId: "p-1",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          ...settle,
+        }),
+        stubTrade({
+          id: "newer",
+          printingId: "p-2",
+          updatedAt: "2026-06-05T00:00:00.000Z",
+          ...settle,
+        }),
+      ],
+      "user-2",
+    );
+
+    expect(ids(ledger.readyToSwap)).toEqual(["newer", "older"]);
   });
 
   it("orders the waiting section agreed swaps first, then sent requests, newest first", () => {

@@ -17,6 +17,7 @@ import { MatchTradeList } from "@/components/friend-groups/match-row-card";
 import { BulkTradeActions } from "@/components/friend-groups/trade-bulk-actions";
 import { TradeCardmarketExportDialog } from "@/components/friend-groups/trade-cardmarket-export-dialog";
 import { TradeRow } from "@/components/friend-groups/trade-row";
+import type { TradeBadgeState } from "@/components/friend-groups/trade-row-parts";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { TradeBalanceBar } from "@/components/trades/trade-balance-bar";
@@ -35,6 +36,7 @@ import type { IconChipTone } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { useTradeSheet, useUserTrades } from "@/hooks/use-card-trades";
+import { useCards } from "@/hooks/use-cards";
 import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { splitTradeLedger, stepSequence } from "@/lib/trade-sheet";
 
@@ -51,6 +53,7 @@ function LedgerSection({
   trades,
   groupNames,
   bulk,
+  redundantStatus,
 }: {
   heading: string;
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
@@ -60,6 +63,8 @@ function LedgerSection({
   groupNames: ReadonlyMap<string, string> | null;
   /** Bulk actions rendered on the heading's right, if the section offers any. */
   bulk?: ReactNode;
+  /** The state this section's heading already says, dropped from its rows' badges. */
+  redundantStatus?: TradeBadgeState;
 }) {
   if (trades.length === 0) {
     return null;
@@ -80,6 +85,7 @@ function LedgerSection({
             trade={trade}
             sequence={sequence}
             groupLabel={groupNames?.get(trade.groupId)}
+            redundantStatus={redundantStatus}
           />
         ))}
       </div>
@@ -149,10 +155,18 @@ function HistoryFold({
 export function TradeSheetPage({ userId }: { userId: string }) {
   const { data: sheet } = useTradeSheet(userId);
   const { data: allTrades } = useUserTrades();
+  const { printingsById } = useCards();
   const [exportOpen, setExportOpen] = useState(false);
 
   const trades = allTrades?.items ?? [];
-  const ledger = splitTradeLedger(trades, userId);
+  // The open sections run in catalog order within each direction, so the rows
+  // follow the stack the two people are working through. A printing the catalog
+  // has not caught up with sorts last rather than to the top of that stack.
+  const ledger = splitTradeLedger(
+    trades,
+    userId,
+    (printingId) => printingsById[printingId]?.canonicalRank ?? Number.MAX_SAFE_INTEGER,
+  );
 
   // Drop suggestions that already have a live trade with this person for the
   // same printing — in any shared group — so a suggestion and the trade it
@@ -286,6 +300,7 @@ export function TradeSheetPage({ userId }: { userId: string }) {
               trades={ledger.yourMove}
               groupNames={groupNames}
               bulk={<BulkTradeActions trades={ledger.yourMove} mode="accept-decline" />}
+              redundantStatus="your-move"
             />
             {ledger.readyToSwap.length > 0 ? (
               <TradeSettleSection trades={ledger.readyToSwap} groupNames={groupNames} />
@@ -294,6 +309,7 @@ export function TradeSheetPage({ userId }: { userId: string }) {
               heading={`Waiting on ${name}`}
               trades={ledger.waiting}
               groupNames={groupNames}
+              redundantStatus="waiting-for-them"
             />
             {incoming.length > 0 || outgoing.length > 0 ? (
               <section className="flex flex-col gap-3">

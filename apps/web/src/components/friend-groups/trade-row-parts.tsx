@@ -145,6 +145,41 @@ export function TradeEstimatedPrice({
 }
 
 /**
+ * Which of {@link TradeStatusBadge}'s badges a trade gets. Named rather than
+ * derived twice, so a surface that has already said the state in a heading can
+ * name the one it would be repeating.
+ */
+export type TradeBadgeState =
+  | "your-move"
+  | "waiting-for-them"
+  | "ready-to-swap"
+  | "done-your-side"
+  | `status:${CardTradeStatus}`;
+
+/**
+ * The badge a trade lands on, from the same three inputs the badge itself takes.
+ * @param trade The trade's status and the two things that qualify it.
+ * @returns The badge state.
+ */
+export function tradeBadgeState({
+  status,
+  awaitingViewer,
+  viewerSettled,
+}: {
+  status: CardTradeStatus;
+  awaitingViewer?: boolean;
+  viewerSettled?: boolean;
+}): TradeBadgeState {
+  if (status === "pending") {
+    return awaitingViewer === true ? "your-move" : "waiting-for-them";
+  }
+  if (status === "reserved") {
+    return viewerSettled === true ? "done-your-side" : "ready-to-swap";
+  }
+  return `status:${status}`;
+}
+
+/**
  * The status badge for a live or finished trade, shared across match rows and
  * trade rows. A sent request still awaiting the other side reads "Waiting for
  * {name}" (the ball is in their court); the same status but awaiting the viewer
@@ -177,15 +212,16 @@ export function TradeStatusBadge({
    */
   className?: string;
 }) {
-  if (status === "pending") {
-    if (awaitingViewer) {
-      return (
-        <Badge variant="warning" className={cn("shrink-0", className)}>
-          <BellIcon />
-          Your move
-        </Badge>
-      );
-    }
+  const state = tradeBadgeState({ status, awaitingViewer, viewerSettled });
+  if (state === "your-move") {
+    return (
+      <Badge variant="warning" className={cn("shrink-0", className)}>
+        <BellIcon />
+        Your move
+      </Badge>
+    );
+  }
+  if (state === "waiting-for-them") {
     return (
       <Badge variant="secondary" className={cn("shrink-0", className)}>
         <ClockIcon />
@@ -193,25 +229,25 @@ export function TradeStatusBadge({
       </Badge>
     );
   }
-  if (status === "reserved") {
-    // The viewer has settled their own half, so the swap is done as far as they
-    // are concerned and only the other party's confirmation is outstanding
-    // (ADR-019, amendment 2026-08-10). It says "done", not "waiting", because
-    // nothing about it is theirs to chase — the trade sheet files these under
-    // history for the same reason. The muted variant keeps it from reading as a
-    // completed trade, which needs both halves.
-    if (viewerSettled) {
-      return (
-        <Badge
-          variant="secondary"
-          className={cn("shrink-0", className)}
-          title="Your side is settled. The trade completes when they confirm theirs."
-        >
-          <CheckIcon />
-          <span className="truncate">Done on your side</span>
-        </Badge>
-      );
-    }
+  // The viewer has settled their own half, so the swap is done as far as they
+  // are concerned and only the other party's confirmation is outstanding
+  // (ADR-019, amendment 2026-08-10). It says "done", not "waiting", because
+  // nothing about it is theirs to chase — the trade sheet files these under
+  // history for the same reason. The muted variant keeps it from reading as a
+  // completed trade, which needs both halves.
+  if (state === "done-your-side") {
+    return (
+      <Badge
+        variant="secondary"
+        className={cn("shrink-0", className)}
+        title="Your side is settled. The trade completes when they confirm theirs."
+      >
+        <CheckIcon />
+        <span className="truncate">Done on your side</span>
+      </Badge>
+    );
+  }
+  if (state === "ready-to-swap") {
     return (
       <Badge variant="success" className={cn("shrink-0", className)}>
         <CheckIcon />

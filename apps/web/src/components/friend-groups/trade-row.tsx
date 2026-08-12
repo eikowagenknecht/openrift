@@ -9,11 +9,13 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { frontImageId } from "@/lib/card-meta";
 
 import { TradeRowActions } from "./trade-row-actions";
+import type { TradeBadgeState } from "./trade-row-parts";
 import {
   CardMetaLine,
   TradeDirectionIcon,
   TradeEstimatedPrice,
   TradeExpiry,
+  tradeBadgeState,
   TradeStatusBadge,
 } from "./trade-row-parts";
 
@@ -21,15 +23,15 @@ import {
  * One trade as a compact two-line row with a contextual action set: the
  * direction arrow, then the card and its value on top, everything qualifying it
  * (status, print, deadline, group) below, and the buttons for whatever it is
- * waiting on beside them. The arrow is unconditional — the sheet's sections
- * sort by urgency, not direction, so every row that moves a card says which way
- * (the same rule the suggestion rows follow).
+ * waiting on beside them. The arrow is unconditional — a flat list of rows says
+ * which way each card moves (the same rule the suggestion rows follow).
  * @returns The trade row element.
  */
 export function TradeRow({
   trade,
   sequence,
   groupLabel,
+  redundantStatus,
 }: {
   trade: CardTradeResponse;
   /** The printing ids of the block this row sits in, for the detail's prev/next. */
@@ -39,6 +41,14 @@ export function TradeRow({
    * Hosts pass it only where the two people share more than one group.
    */
   groupLabel?: string;
+  /**
+   * The one state a host's own heading already says, whose badge the row then
+   * drops. A section that is a status filter would otherwise repeat its heading
+   * on every row it holds. Only that state is dropped, so a row that landed in
+   * the section by another route (a legacy `completed` awaiting a settle, say)
+   * keeps the badge that says so.
+   */
+  redundantStatus?: TradeBadgeState;
 }) {
   const { cardsById, printingsById } = useCards();
   const { labels } = useEnumOrders();
@@ -52,6 +62,8 @@ export function TradeRow({
   // A pending trade awaiting the viewer's accept/decline is "Your decision", not
   // "Waiting for them".
   const awaitingViewer = trade.actionNeeded === "accept-or-decline";
+  const viewerSettled = trade.viewerSyncAppliedAt !== null;
+  const badgeState = tradeBadgeState({ status: trade.status, awaitingViewer, viewerSettled });
 
   return (
     // Thumb, two-line text block, actions. The actions keep their own line when
@@ -90,12 +102,14 @@ export function TradeRow({
           {/* Every surface that renders these rows is already about one member,
               so the row itself never names them: no member chip, and the pending
               badge reads "Waiting for them". */}
-          <TradeStatusBadge
-            status={trade.status}
-            awaitingViewer={awaitingViewer}
-            viewerSettled={trade.viewerSyncAppliedAt !== null}
-            className="min-w-0 shrink"
-          />
+          {badgeState === redundantStatus ? null : (
+            <TradeStatusBadge
+              status={trade.status}
+              awaitingViewer={awaitingViewer}
+              viewerSettled={viewerSettled}
+              className="min-w-0 shrink"
+            />
+          )}
 
           {printing ? (
             <CardMetaLine
