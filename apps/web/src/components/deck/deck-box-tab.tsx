@@ -1,22 +1,59 @@
+import type { DeckZone } from "@openrift/shared";
+import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRightIcon, BoxIcon, HandHeartIcon, PackageSearchIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { MoveDialog } from "@/components/collection/move-dialog";
+import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
+import { DECK_LIST_SECTION_CLASS, DeckListRowArt } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollections } from "@/hooks/use-collections";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useDeckBox } from "@/hooks/use-deck-box";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
-import type { DeckBoxCopy, DeckBoxGroup, DeckBoxPull } from "@/lib/deck-box";
+import type { DeckBoxCard, DeckBoxCopy, DeckBoxSlot } from "@/lib/deck-box";
+import { toBoxCardFromDeck } from "@/lib/deck-box";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { getDeckCardKey } from "@/lib/deck-builder-card";
+import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
+import { GROUPED_ZONES } from "@/lib/deck-card-sort";
+import { ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { getPipBackgroundStyle } from "@/lib/domain";
+import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+
+/**
+ * Zone render order, minus Overflow: cards parked there don't travel with the
+ * deck, so the box never asks for them.
+ */
+const BOX_ZONE_ORDER: readonly DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+];
+
+/**
+ * The lookup tables every box row renders with. Resolved once for the tab and
+ * threaded down: both hooks behind them rebuild their maps on every call, so a
+ * row reading them itself would hand each row a fresh object.
+ */
+interface BoxRowLabels {
+  rarities: Record<string, string>;
+  domains: Record<string, string>;
+  finishes: Record<string, string>;
+  conditions: Record<string, string>;
+  domainColors: Record<string, string>;
+}
 
 interface DeckBoxTabProps {
   deckId: string;
@@ -26,12 +63,25 @@ interface DeckBoxTabProps {
   homeCollectionName: string;
   /** Opens the missing-cards dialog, which owns buying and wishlists. */
   onViewMissing?: () => void;
+  /**
+   * The overview's own ordering and sub-grouping, passed in rather than read
+   * here so the box lists a zone exactly the way the deck list does — same
+   * sort, same axis, same direction, from the same toolbar.
+   */
+  sortCards: (zoneCards: DeckBuilderCard[]) => DeckBuilderCard[];
+  groupCards: (zoneCards: DeckBuilderCard[]) => DeckCardGroup[];
+  /** The active grouping axis — type groups keep their icons. */
+  groupBy: DeckOverviewGroup;
 }
 
 /**
- * The deck's box: what is in it, what to pull out of which collection to fill
- * it, and what can't be pulled. Moving a copy is the only state there is — the
- * plan reads the live copies feed, so the list updates itself.
+ * The deck's box, as one list in the deck's own order: every copy the deck
+ * calls for is a row you tick off as it goes in, whether it is in the box
+ * already, waiting on a shelf, out on loan, or not owned at all. Copies in the
+ * box that no deck there calls for trail the list, offering to move out.
+ *
+ * Moving a copy is the only state there is — the plan reads the live copies
+ * feed, so the list updates itself.
  * @returns The Box tab.
  */
 export function DeckBoxTab({
@@ -40,11 +90,13 @@ export function DeckBoxTab({
   homeCollectionId,
   homeCollectionName,
   onViewMissing,
+  sortCards,
+  groupCards,
+  groupBy,
 }: DeckBoxTabProps) {
   // Per-slot copy choices, kept for as long as the tab is open. They are a
   // preference for this pull run, not something worth persisting.
   const [overrides, setOverrides] = useState<ReadonlyMap<string, string>>(new Map());
-  const [showSettled, setShowSettled] = useState(false);
   // Where each copy came from, remembered while the tab stays open so taking a
   // card back out returns it to its shelf. Once that memory is gone (a reload,
   // another session) the move dialog asks where it should go instead.
@@ -53,23 +105,34 @@ export function DeckBoxTab({
   const plan = useDeckBox(deckId, cards, homeCollectionId, overrides);
   const moveCopies = useMoveCopies();
   const { data: collections } = useCollections();
+  const { labels: enumLabels } = useEnumOrders();
+  const domainColors = useDomainColors();
+  const labels: BoxRowLabels = {
+    rarities: enumLabels.rarities,
+    domains: enumLabels.domains,
+    finishes: enumLabels.finishes,
+    conditions: enumLabels.conditions,
+    domainColors,
+  };
 
   if (!plan) {
     return <p className="text-muted-foreground py-6 text-sm">Loading your copies…</p>;
   }
 
-  const pullTotal = plan.groups.reduce((sum, group) => sum + group.pulls.length, 0);
+  const slotsByCardKey = Map.groupBy(plan.slots, (slot) => slot.cardKey);
+  const pullable = plan.slots.filter((slot) => slot.state === "available");
 
   /**
    * Moves copies into the box. A batch says so with an undoable toast; a single
-   * tick stays quiet, because the row moving to "In the box" is the feedback
-   * and unticking it is the undo — twenty toasts for twenty ticks is noise.
+   * tick stays quiet, because the row's tick going green is the feedback and
+   * unticking it is the undo — twenty toasts for twenty ticks is noise.
    */
-  const move = (pulls: readonly DeckBoxPull[], announce = true) => {
-    const copyIds = pulls.map((pull) => pull.copy.copyId);
+  const move = (slots: readonly DeckBoxSlot[], announce = true) => {
+    const moved = slots.flatMap((slot) => (slot.copy ? [slot.copy] : []));
+    const copyIds = moved.map((copy) => copy.copyId);
     const origins = new Map([
       ...originById,
-      ...pulls.map((pull): [string, string] => [pull.copy.copyId, pull.copy.collectionId]),
+      ...moved.map((copy): [string, string] => [copy.copyId, copy.collectionId]),
     ]);
     setOriginById(origins);
     moveCopies.mutate(
@@ -118,6 +181,27 @@ export function DeckBoxTab({
 
   const complete = plan.neededTotal > 0 && plan.inBoxTotal === plan.neededTotal;
 
+  const rowsFor = (card: DeckBuilderCard) => {
+    const boxCard = toBoxCardFromDeck(card);
+    return (slotsByCardKey.get(getDeckCardKey(card)) ?? []).map((slot) => (
+      <SlotRow
+        key={slot.key}
+        card={boxCard}
+        slot={slot}
+        labels={labels}
+        disabled={moveCopies.isPending}
+        onTick={() => move([slot], false)}
+        onTakeOut={() => slot.copy && takeOut(slot.copy.copyId)}
+        onSwap={swap}
+      />
+    ));
+  };
+
+  const zones = BOX_ZONE_ORDER.map((zone) => ({
+    zone,
+    cards: cards.filter((card) => card.zone === zone),
+  })).filter((entry) => entry.cards.length > 0);
+
   return (
     // The overview column already spaces and pads its children, so this only
     // sets the rhythm between the box's own sections.
@@ -144,66 +228,74 @@ export function DeckBoxTab({
             </Badge>
           )}
         </div>
-        {pullTotal > 0 && (
-          <Button
-            size="sm"
-            disabled={moveCopies.isPending}
-            onClick={() => move(plan.groups.flatMap((group) => group.pulls))}
-          >
+        {pullable.length > 0 && (
+          <Button size="sm" disabled={moveCopies.isPending} onClick={() => move(pullable)}>
             Move everything into the box
           </Button>
         )}
       </div>
 
-      {plan.groups.map((group) => (
-        <PullGroup
-          key={group.collectionId}
-          group={group}
-          disabled={moveCopies.isPending}
-          onMove={() => move(group.pulls)}
-          onTick={(pull) => move([pull], false)}
-          onSwap={swap}
-        />
-      ))}
+      {/* Same flow as the deck list: zones as unbreakable blocks across as many
+          ~30rem columns as fit, so both views fold the same way. */}
+      <div className="w-full columns-[30rem] gap-x-10">
+        {zones.map(({ zone, cards: zoneCards }) => (
+          <ZoneSection
+            key={zone}
+            zone={zone}
+            slotsByCardKey={slotsByCardKey}
+            cards={zoneCards}
+            sortCards={sortCards}
+            groupCards={groupCards}
+            groupBy={groupBy}
+            rowsFor={rowsFor}
+          />
+        ))}
 
-      {plan.blocked.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            Can&apos;t take
-          </h3>
-          {plan.blocked.map((entry) => (
-            <div
-              key={`${entry.cardId}:${entry.reason}`}
-              className="flex items-center gap-2 py-0.5 text-sm"
-            >
-              {/* Same glyphs the rest of the app uses for these two states:
-                  the loan chip's hand, the outgoing-trade arrow. */}
-              {entry.reason === "loan" ? (
-                <HandHeartIcon className="text-muted-foreground size-3.5 shrink-0" />
-              ) : (
-                <ArrowUpRightIcon className="text-muted-foreground size-3.5 shrink-0" />
-              )}
-              <span className="truncate">{entry.cardName}</span>
-              <span className="text-muted-foreground tabular-nums">×{entry.count}</span>
-              {/* A loan has one page to settle it on. A trade reservation
-                  belongs to whichever group's trade pinned it, which the copy
-                  doesn't name, so that one only states the reason. */}
-              {entry.reason === "loan" ? (
-                <Link
-                  to="/loans"
-                  className="text-muted-foreground ml-auto shrink-0 text-xs underline-offset-2 hover:underline"
-                >
-                  out on loan
-                </Link>
-              ) : (
-                <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                  reserved for a trade
-                </span>
+        {plan.extras.length > 0 && (
+          <section className={DECK_LIST_SECTION_CLASS}>
+            <div className="flex h-6 items-center gap-2 border-b">
+              <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+                Not in this deck
+              </span>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="ml-auto text-xs"
+                disabled={moveCopies.isPending}
+                onClick={() =>
+                  setMovingOut(plan.extras.flatMap((entry) => entry.copies.map((c) => c.copyId)))
+                }
+              >
+                Move out {plan.extraCount}
+              </Button>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {plan.extras.flatMap((entry) =>
+                entry.copies.map((copy) => (
+                  <BoxRow
+                    key={copy.copyId}
+                    card={entry.card}
+                    copy={copy}
+                    labels={labels}
+                    leading={<span className="size-4 shrink-0" />}
+                    trailing={
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="shrink-0 text-xs"
+                        disabled={moveCopies.isPending}
+                        onClick={() => setMovingOut([copy.copyId])}
+                      >
+                        Move out
+                      </Button>
+                    }
+                  />
+                )),
               )}
             </div>
-          ))}
-        </section>
-      )}
+          </section>
+        )}
+      </div>
 
       {plan.missingCount > 0 && (
         <Button
@@ -216,76 +308,6 @@ export function DeckBoxTab({
           <PackageSearchIcon className="size-3.5" />
           You don&apos;t own {plan.missingCount} {plan.missingCount === 1 ? "card" : "cards"}
         </Button>
-      )}
-
-      {plan.extras.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Not in this deck
-            </h3>
-            <span className="text-muted-foreground text-xs tabular-nums">{plan.extraCount}</span>
-            <Button
-              size="xs"
-              variant="outline"
-              className="ml-auto"
-              disabled={moveCopies.isPending}
-              onClick={() =>
-                setMovingOut(plan.extras.flatMap((entry) => entry.copies.map((c) => c.copyId)))
-              }
-            >
-              Move out
-            </Button>
-          </div>
-          {plan.extras.map((entry) => (
-            <div key={entry.cardId} className="flex items-center gap-2 py-0.5 text-sm">
-              <span className="text-muted-foreground tabular-nums">{entry.copies.length}×</span>
-              <span className="min-w-0 flex-1 truncate">{entry.cardName}</span>
-              <Button
-                variant="ghost"
-                size="xs"
-                className="shrink-0 text-xs"
-                disabled={moveCopies.isPending}
-                onClick={() => setMovingOut(entry.copies.map((copy) => copy.copyId))}
-              >
-                Move out
-              </Button>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {plan.settled.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <ExpandToggle expanded={showSettled} onClick={() => setShowSettled(!showSettled)}>
-            <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              In the box ({plan.inBoxTotal})
-            </span>
-          </ExpandToggle>
-          {showSettled &&
-            plan.settled.flatMap((entry) =>
-              entry.copies.map((copy) => (
-                <div
-                  key={copy.copyId}
-                  className="hover:bg-muted/40 flex items-center gap-2 rounded-md px-1 py-1 text-sm"
-                >
-                  <Checkbox
-                    checked
-                    disabled={moveCopies.isPending}
-                    aria-label={`Take ${entry.cardName} back out of the box`}
-                    onCheckedChange={() => takeOut(copy.copyId)}
-                  />
-                  <span className="text-muted-foreground w-24 shrink-0 font-mono text-xs">
-                    {copy.shortCode}
-                  </span>
-                  <span className="text-muted-foreground min-w-0 flex-1 truncate">
-                    {entry.cardName}
-                  </span>
-                  <CopyDetails copy={copy} />
-                </div>
-              )),
-            )}
-        </section>
       )}
 
       <MoveDialog
@@ -308,125 +330,317 @@ export function DeckBoxTab({
 }
 
 /**
- * One collection's worth of pulls, in the order the cards sit in it.
- * @returns The group section.
+ * One zone's block, headed like the deck list's: small-caps label over a
+ * hairline rule, with how much of the zone is in the box in place of the
+ * list's card count. Grouped zones keep their sub-groups.
+ * @returns The zone section.
  */
-function PullGroup({
-  group,
-  disabled,
-  onMove,
-  onTick,
-  onSwap,
+function ZoneSection({
+  zone,
+  cards,
+  slotsByCardKey,
+  sortCards,
+  groupCards,
+  groupBy,
+  rowsFor,
 }: {
-  group: DeckBoxGroup;
-  disabled: boolean;
-  onMove: () => void;
-  onTick: (pull: DeckBoxPull) => void;
-  onSwap: (slotKey: string, copyId: string) => void;
+  zone: DeckZone;
+  cards: DeckBuilderCard[];
+  slotsByCardKey: ReadonlyMap<string, DeckBoxSlot[]>;
+  sortCards: (zoneCards: DeckBuilderCard[]) => DeckBuilderCard[];
+  groupCards: (zoneCards: DeckBuilderCard[]) => DeckCardGroup[];
+  groupBy: DeckOverviewGroup;
+  rowsFor: (card: DeckBuilderCard) => React.ReactNode;
 }) {
+  const zoneSlots = cards.flatMap((card) => slotsByCardKey.get(getDeckCardKey(card)) ?? []);
+  const inBox = zoneSlots.filter((slot) => slot.state === "in-box").length;
+  const groups = GROUPED_ZONES.has(zone) ? groupCards(cards) : null;
+
   return (
-    <section className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          <Link
-            to="/collections/$collectionId"
-            params={{ collectionId: group.collectionId }}
-            className="underline-offset-2 hover:underline"
-          >
-            {group.collectionName}
-          </Link>
-        </h3>
-        <span className="text-muted-foreground text-xs tabular-nums">{group.pulls.length}</span>
-        <Button
-          size="xs"
-          variant="outline"
-          className="ml-auto"
-          disabled={disabled}
-          onClick={onMove}
+    <section className={DECK_LIST_SECTION_CLASS}>
+      <div className="flex h-6 items-center gap-2 border-b">
+        <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          {ZONE_LABELS[zone]}
+        </span>
+        <span
+          className={cn(
+            "ml-auto text-xs tabular-nums",
+            inBox === zoneSlots.length
+              ? "text-green-600 dark:text-green-500"
+              : "text-muted-foreground",
+          )}
         >
-          Move these {group.pulls.length}
-        </Button>
+          {inBox}/{zoneSlots.length}
+        </span>
       </div>
-      {group.pulls.map((pull) => (
-        <PullRow
-          key={pull.slotKey}
-          pull={pull}
-          disabled={disabled}
-          onTick={() => onTick(pull)}
-          onSwap={onSwap}
-        />
-      ))}
+
+      {groups ? (
+        <div className="flex flex-col gap-3">
+          {groups.map((group) => (
+            <div key={group.key} className="flex flex-col gap-0.5">
+              {group.label !== null && (
+                <div className="text-muted-foreground flex items-center gap-1.5 px-2 text-xs">
+                  {groupBy === "type" && (
+                    <img
+                      src={getTypeIconPath(group.key, [])}
+                      alt=""
+                      className="size-3.5 brightness-0 dark:invert"
+                    />
+                  )}
+                  <span className="whitespace-nowrap">{group.label}</span>
+                </div>
+              )}
+              {sortCards(group.cards).map((card) => rowsFor(card))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-0.5">{sortCards(cards).map((card) => rowsFor(card))}</div>
+      )}
     </section>
   );
 }
 
 /**
- * One copy to pull: what to look for, a tick that puts it in the box as you
- * physically pull it, and a way to take a different copy of the same card
- * instead. The tick is the move — there is no separate "done" state to keep in
- * sync, so the list survives a reload mid-sort.
- * @returns The row.
+ * One copy the deck calls for. What the row offers follows where that copy is:
+ * a tick to move it in or back out, a source to pick it from, or the reason it
+ * can't come at all.
+ * @returns The slot row.
  */
-function PullRow({
-  pull,
+function SlotRow({
+  card,
+  slot,
+  labels,
   disabled,
   onTick,
+  onTakeOut,
   onSwap,
 }: {
-  pull: DeckBoxPull;
+  card: DeckBoxCard;
+  slot: DeckBoxSlot;
+  labels: BoxRowLabels;
   disabled: boolean;
   onTick: () => void;
+  onTakeOut: () => void;
   onSwap: (slotKey: string, copyId: string) => void;
 }) {
-  return (
-    <div className="hover:bg-muted/40 flex items-center gap-2 rounded-md px-1 py-1 text-sm">
-      <Checkbox
-        checked={false}
-        disabled={disabled}
-        aria-label={`Put ${pull.cardName} in the box`}
-        onCheckedChange={onTick}
-      />
-      <span className="text-muted-foreground w-24 shrink-0 font-mono text-xs">
-        {pull.copy.shortCode}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{pull.cardName}</span>
-      <CopyDetails copy={pull.copy} />
-      {pull.alternatives.length > 0 && (
-        <Popover>
-          <PopoverTrigger
-            render={
-              // Counting them rather than saying "Swap" tells you whether the
-              // row has a real choice behind it before you open anything.
-              <Button
-                variant="ghost"
-                size="xs"
-                className="shrink-0 text-xs"
-                aria-label={`Take a different copy of ${pull.cardName}`}
-              >
-                {pull.alternatives.length} {pull.alternatives.length === 1 ? "other" : "others"}
-              </Button>
-            }
+  if (slot.state === "in-box") {
+    return (
+      <BoxRow
+        card={card}
+        copy={slot.copy}
+        labels={labels}
+        leading={
+          <Checkbox
+            checked
+            disabled={disabled}
+            aria-label={`Take ${card.name} back out of the box`}
+            onCheckedChange={onTakeOut}
           />
-          <PopoverContent align="end" className="w-64 p-1">
-            <p className="text-muted-foreground px-2 py-1 text-xs">Take this copy instead</p>
-            {pull.alternatives.map((copy) => (
-              <Button
-                key={copy.copyId}
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start gap-2 font-normal"
-                onClick={() => onSwap(pull.slotKey, copy.copyId)}
-              >
-                <span className="text-muted-foreground font-mono text-xs">{copy.shortCode}</span>
-                <CopyDetails copy={copy} />
-                <span className="text-muted-foreground ml-auto truncate text-xs">
-                  {copy.collectionName}
-                </span>
-              </Button>
-            ))}
-          </PopoverContent>
-        </Popover>
-      )}
+        }
+      />
+    );
+  }
+
+  if (slot.state === "available") {
+    return (
+      <BoxRow
+        card={card}
+        copy={slot.copy}
+        labels={labels}
+        leading={
+          <Checkbox
+            checked={false}
+            disabled={disabled}
+            aria-label={`Put ${card.name} in the box`}
+            onCheckedChange={onTick}
+          />
+        }
+        trailing={
+          <SourcePicker
+            cardName={card.name}
+            slot={slot}
+            labels={labels}
+            onSwap={(copyId) => slot.slotKey && onSwap(slot.slotKey, copyId)}
+          />
+        }
+      />
+    );
+  }
+
+  if (slot.state === "blocked") {
+    return (
+      <BoxRow
+        card={card}
+        copy={slot.copy}
+        labels={labels}
+        muted
+        leading={
+          // Same glyphs the rest of the app uses for these two states: the loan
+          // chip's hand, the outgoing-trade arrow.
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            {slot.reason === "loan" ? (
+              <HandHeartIcon className="text-muted-foreground size-3.5" />
+            ) : (
+              <ArrowUpRightIcon className="text-muted-foreground size-3.5" />
+            )}
+          </span>
+        }
+        trailing={
+          // A loan has one page to settle it on. A trade reservation belongs to
+          // whichever group's trade pinned it, which the copy doesn't name, so
+          // that one only states the reason.
+          slot.reason === "loan" ? (
+            <Link
+              to="/loans"
+              className="text-muted-foreground shrink-0 text-xs underline-offset-2 hover:underline"
+            >
+              out on loan
+            </Link>
+          ) : (
+            <span className="text-muted-foreground shrink-0 text-xs">reserved for a trade</span>
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <BoxRow
+      card={card}
+      labels={labels}
+      muted
+      leading={<span className="size-4 shrink-0" />}
+      trailing={<span className="text-muted-foreground shrink-0 text-xs">don&apos;t own it</span>}
+    />
+  );
+}
+
+/**
+ * Where the copy this row would take comes from, and a way to take a different
+ * one. The collection is the label, so a pull run reads as a list of shelves
+ * to visit; the count of other copies says whether there is a choice behind it
+ * before anything opens.
+ * @returns The source control.
+ */
+function SourcePicker({
+  cardName,
+  slot,
+  labels,
+  onSwap,
+}: {
+  cardName: string;
+  slot: DeckBoxSlot;
+  labels: BoxRowLabels;
+  onSwap: (copyId: string) => void;
+}) {
+  const source = slot.copy?.collectionName ?? "";
+  if (slot.alternatives.length === 0) {
+    return (
+      <span className="text-muted-foreground max-w-24 shrink-0 truncate text-xs">{source}</span>
+    );
+  }
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="xs"
+            className="max-w-32 shrink-0 text-xs"
+            aria-label={`Take a different copy of ${cardName}`}
+          >
+            <span className="truncate">{source}</span>
+            <span className="text-muted-foreground">+{slot.alternatives.length}</span>
+          </Button>
+        }
+      />
+      <PopoverContent align="end" className="w-72 p-1">
+        <p className="text-muted-foreground px-2 py-1 text-xs">Take this copy instead</p>
+        {slot.alternatives.map((copy) => (
+          <Button
+            key={copy.copyId}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 font-normal"
+            onClick={() => onSwap(copy.copyId)}
+          >
+            <span className="text-muted-foreground font-mono text-xs">{copy.shortCode}</span>
+            <CopyDetails copy={copy} labels={labels} />
+            <span className="text-muted-foreground ml-auto truncate text-xs">
+              {copy.collectionName}
+            </span>
+          </Button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * One row of the box, in the deck list's shape: art, domain pip, printing code,
+ * name, then the two costs. No count and no price — a row is one physical copy,
+ * and what it needs instead is enough about the printing to tell two copies of
+ * the same card apart.
+ * @returns The row.
+ */
+function BoxRow({
+  card,
+  copy,
+  labels,
+  muted,
+  leading,
+  trailing,
+}: {
+  card: DeckBoxCard;
+  /** The copy the row stands for. A slot nobody owns has none. */
+  copy?: DeckBoxCopy;
+  labels: BoxRowLabels;
+  /** Grey the card out: the row is a gap rather than something to pack. */
+  muted?: boolean;
+  /** Control at the row's head — the tick that moves a copy in or out. */
+  leading: React.ReactNode;
+  /** Trailing action or note: where to take it from, or why it can't come. */
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="hover:bg-muted/40 flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
+      {leading}
+      <DeckListRowArt src={copy?.imageId ? imageUrl(copy.imageId, "120w") : undefined} />
+      <span
+        aria-hidden
+        className="w-0.5 shrink-0 self-stretch rounded-full"
+        style={getPipBackgroundStyle(card.domains, labels.domainColors)}
+      />
+      {/* The code stays on phones, unlike the deck list's: finding this exact
+          printing in a binder is what the row is for. */}
+      <span className="flex w-20 shrink-0 items-center gap-1.5">
+        {copy && (
+          <>
+            <img
+              src={getFilterIconPath("rarities", copy.rarity)}
+              alt=""
+              title={labels.rarities[copy.rarity]}
+              className="size-3.5 shrink-0"
+            />
+            <span className="text-muted-foreground truncate font-mono text-xs">
+              {copy.shortCode}
+            </span>
+          </>
+        )}
+      </span>
+      <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
+        {legendDisplayName({ name: card.name, types: card.types, tags: card.tags })}
+      </span>
+      <PowerPips
+        power={card.power}
+        domains={card.domains}
+        colors={labels.domainColors}
+        domainLabels={labels.domains}
+      />
+      {card.energy !== null && <EnergyGlyph value={card.energy} />}
+      {copy && <CopyDetails copy={copy} labels={labels} />}
+      {trailing}
     </div>
   );
 }
@@ -434,10 +648,9 @@ function PullRow({
 /**
  * The marks that tell two copies of the same card apart: language, finish, and
  * whether it is graded or in a recorded condition.
- * @returns The detail chips, or null for a plain copy.
+ * @returns The detail chips.
  */
-function CopyDetails({ copy }: { copy: DeckBoxCopy }) {
-  const { labels } = useEnumOrders();
+function CopyDetails({ copy, labels }: { copy: DeckBoxCopy; labels: BoxRowLabels }) {
   const parts: string[] = [copy.language];
   if (copy.finish !== "normal") {
     parts.push(labels.finishes[copy.finish]);
@@ -463,7 +676,7 @@ function CopyDetails({ copy }: { copy: DeckBoxCopy }) {
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">
         {copy.grade === null
-          ? "The copy this row would take"
+          ? "The copy this row stands for"
           : "This copy is graded — swap it for a plain one if you'd rather keep it in the binder"}
       </TooltipContent>
     </Tooltip>

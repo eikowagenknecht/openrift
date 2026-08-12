@@ -1212,6 +1212,42 @@ export function DeckOverview({
   // the right side of the tab strip row, deck view only. Desktop only: the
   // cluster is wider than a phone screen, so phones get `mobileViewControls`
   // below instead.
+  // Built once and shared: the ordering control belongs to the deck list and
+  // the Box tab alike, since the box lists the deck in the same order.
+  const sortGroupControls = (
+    <SortGroupControls
+      sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
+      sortBy={listSortBy}
+      sortDir={listSortDir}
+      onSortByChange={setSortBy}
+      onSortDirChange={setSortDir}
+      group={{
+        options: groupOptions,
+        value: groupBy,
+        dir: groupDir,
+        onValueChange: setGroupBy,
+        onDirChange: setGroupDir,
+      }}
+    />
+  );
+  const compactSortGroupControls = (
+    <SortGroupControls
+      compact
+      sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
+      sortBy={listSortBy}
+      sortDir={listSortDir}
+      onSortByChange={setSortBy}
+      onSortDirChange={setSortDir}
+      group={{
+        options: groupOptions,
+        value: groupBy,
+        dir: groupDir,
+        onValueChange: setGroupBy,
+        onDirChange: setGroupDir,
+      }}
+    />
+  );
+
   const viewControls = totalCards > 0 && (
     <div className="flex items-center gap-2">
       {hasThumbnails && (
@@ -1227,20 +1263,7 @@ export function DeckOverview({
           onMaxColumnsChange={setColumns}
         />
       )}
-      <SortGroupControls
-        sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
-        sortBy={listSortBy}
-        sortDir={listSortDir}
-        onSortByChange={setSortBy}
-        onSortDirChange={setSortDir}
-        group={{
-          options: groupOptions,
-          value: groupBy,
-          dir: groupDir,
-          onValueChange: setGroupBy,
-          onDirChange: setGroupDir,
-        }}
-      />
+      {sortGroupControls}
       {displayModeToggle}
       {/* After the view toggle, matching the phone row where the options
           drawer follows the same switch. */}
@@ -1273,21 +1296,7 @@ export function DeckOverview({
             />
           </div>
         )}
-        <SortGroupControls
-          compact
-          sortOptions={DECK_OVERVIEW_SORT_OPTIONS}
-          sortBy={listSortBy}
-          sortDir={listSortDir}
-          onSortByChange={setSortBy}
-          onSortDirChange={setSortDir}
-          group={{
-            options: groupOptions,
-            value: groupBy,
-            dir: groupDir,
-            onValueChange: setGroupBy,
-            onDirChange: setGroupDir,
-          }}
-        />
+        {compactSortGroupControls}
         {optionSwitchRows.length > 0 && (
           <div className="flex flex-col gap-4 border-t pt-4">{optionSwitchRows}</div>
         )}
@@ -1358,10 +1367,20 @@ export function DeckOverview({
         onTabChange={setTab}
         showPlanTab={showPlanTab}
         showBoxTab={showBoxTab}
-        trailingMobile={activeTab === "overview" ? mobileViewControls : undefined}
+        trailingMobile={
+          activeTab === "overview" ? (
+            mobileViewControls
+          ) : activeTab === "box" ? (
+            <MobileOptionsDrawer>{compactSortGroupControls}</MobileOptionsDrawer>
+          ) : undefined
+        }
         trailing={
           activeTab === "overview" ? (
             viewControls
+          ) : activeTab === "box" ? (
+            // The box lists the deck in the same order as the list view, so it
+            // carries that ordering control and none of the grid-only ones.
+            sortGroupControls
           ) : activeTab === "plan" ? (
             // Host container for the plan editor's own actions (save, clear,
             // dirty badge). It portals into this once the ref lands — see
@@ -1419,6 +1438,9 @@ export function DeckOverview({
           homeCollectionId={homeCollection.id}
           homeCollectionName={homeCollection.name}
           onViewMissing={onViewMissing}
+          sortCards={sortZoneCards}
+          groupCards={groupZoneCards}
+          groupBy={groupBy}
         />
       )}
 

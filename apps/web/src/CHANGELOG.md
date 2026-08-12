@@ -12,6 +12,7 @@
 ### Other
 
 - feat(Collection): **Group All Cards by collection** — in copies view the All Cards grid can now split into a section per collection, so you can see where each copy actually sits.
+- feat(Decks): **Box tab reads like the deck list** — one list in the deck's own zones, sort and grouping, with a row per copy showing its art, printing and condition, a tick to move it in or out, and a source to pick it from.
 - feat(Collection): **Card details inside the scanner** — Details on a scanned card opens the usual card overlay in place instead of leaving for the card page.
 - feat(Collection): **Printing picker grouped by language** — switching or picking a printing now shows one tab per language when a card exists in several.
 - feat(App): **Scanner moved to /scan** — the scan page has its own top-level address; old /collections/scan bookmarks need updating.

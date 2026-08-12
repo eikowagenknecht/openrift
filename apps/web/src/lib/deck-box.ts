@@ -1,7 +1,17 @@
-import type { CopyResponse, Finish, Printing } from "@openrift/shared";
+import type {
+  Card,
+  CardType,
+  CopyResponse,
+  Domain,
+  Finish,
+  Printing,
+  Rarity,
+} from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
+import { frontImageId } from "@/lib/card-meta";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { getDeckCardKey } from "@/lib/deck-builder-card";
 
 /**
  * What has to happen for a deck to physically sit in its box: which copies are
@@ -12,11 +22,30 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
  * plan without any bookkeeping of its own — the box's contents are the state.
  */
 
+/**
+ * The card-level marks a box row renders, the same ones the deck list shows:
+ * name, domains, and the two costs. Carried per row rather than looked up at
+ * render time, because the sweep names cards the deck doesn't run.
+ */
+export interface DeckBoxCard {
+  cardId: string;
+  name: string;
+  /** Full type set, for the legend display name. */
+  types: CardType[];
+  tags: string[];
+  domains: Domain[];
+  energy: number | null;
+  power: number | null;
+}
+
 /** One physical copy that could go in the box. */
 export interface DeckBoxCopy {
   copyId: string;
   printingId: string;
   shortCode: string;
+  rarity: Rarity;
+  /** Front-face art of this printing, or null when it has none on file. */
+  imageId: string | null;
   language: string;
   finish: Finish;
   condition: string | null;
@@ -25,53 +54,50 @@ export interface DeckBoxCopy {
   collectionName: string;
 }
 
-/** One copy to pull, with the other copies that could take its place. */
-export interface DeckBoxPull {
+/**
+ * Where one copy the deck calls for stands: in the box already, waiting in
+ * another collection, held up by a loan or a trade, or not owned at all.
+ */
+type DeckBoxSlotState = "in-box" | "available" | "blocked" | "missing";
+
+/**
+ * One copy the deck calls for, as its own row. A card with three copies in the
+ * main zone has three slots, so each one can be ticked off (or swapped for a
+ * different physical copy) on its own as the deck is sorted out.
+ */
+export interface DeckBoxSlot {
+  /** Row identity: the deck card this slot belongs to, plus its place in it. */
+  key: string;
+  cardId: string;
+  /** The deck row this slot fills, as {@link getDeckCardKey} spells it. */
+  cardKey: string;
+  state: DeckBoxSlotState;
   /**
-   * Identifies the outstanding copy this row stands for (card plus its index
-   * among that card's outstanding copies), so a swap can be remembered without
-   * depending on which copy is currently picked.
+   * The copy this slot stands for — the one in the box, the one a tick would
+   * move in, or the one that's held up. A missing slot has none.
    */
-  slotKey: string;
-  cardId: string;
-  cardName: string;
-  copy: DeckBoxCopy;
-  /** Movable copies of the same card that this row could use instead. */
+  copy?: DeckBoxCopy;
+  /**
+   * Identifies the outstanding copy for a swap (card plus its index among that
+   * card's outstanding copies), so a hand-picked source sticks even as the
+   * ranking around it changes. Available slots only.
+   */
+  slotKey?: string;
+  /** Movable copies of the same card this slot could take instead. */
   alternatives: DeckBoxCopy[];
+  /** Why a blocked slot can't move: out on loan, or reserved for a trade. */
+  reason?: "loan" | "trade";
 }
 
-/** The copies to pull out of one collection, in the order they sit in it. */
-export interface DeckBoxGroup {
-  collectionId: string;
-  collectionName: string;
-  pulls: DeckBoxPull[];
-}
-
-/** A card the deck still needs whose remaining copies can't be moved. */
-interface DeckBoxBlocked {
-  cardId: string;
-  cardName: string;
-  count: number;
-  /** Out on a loan, or reserved for a live outgoing trade. */
-  reason: "loan" | "trade";
-}
-
-/** A card already sitting in the box, with the copies that are in there. */
-interface DeckBoxSettled {
-  cardId: string;
-  cardName: string;
-  count: number;
-  /** The copies themselves, so one can be taken back out again. */
-  copies: DeckBoxCopy[];
-}
+/** What a slot holds, before it is tied to one of the deck's rows. */
+type SlotFill = Omit<DeckBoxSlot, "key" | "cardId" | "cardKey">;
 
 /**
  * Copies in the box that no deck stored there calls for — what a sweep offers
  * to move back out.
  */
 interface DeckBoxExtra {
-  cardId: string;
-  cardName: string;
+  card: DeckBoxCard;
   copies: DeckBoxCopy[];
 }
 
@@ -80,9 +106,8 @@ export interface DeckBoxPlan {
   neededTotal: number;
   /** Of those, how many are in the box already. */
   inBoxTotal: number;
-  groups: DeckBoxGroup[];
-  settled: DeckBoxSettled[];
-  blocked: DeckBoxBlocked[];
+  /** One row per copy the deck calls for, in the order the deck lists them. */
+  slots: DeckBoxSlot[];
   /** Copies the viewer owns nowhere, so no move can supply them. */
   missingCount: number;
   extras: DeckBoxExtra[];
@@ -113,7 +138,7 @@ export interface DeckBoxInput {
   conditionOrder: readonly string[];
   /**
    * Per-slot copy choices the viewer made by hand, keyed by
-   * {@link DeckBoxPull.slotKey}. A choice that no longer applies (the copy
+   * {@link DeckBoxSlot.slotKey}. A choice that no longer applies (the copy
    * moved, was lent out, or is already in the box) is ignored.
    */
   overrides?: ReadonlyMap<string, string>;
@@ -192,12 +217,47 @@ function toBoxCopy(
     copyId: copy.id,
     printingId: copy.printingId,
     shortCode: printing.shortCode,
+    rarity: printing.rarity,
+    imageId: frontImageId(printing),
     language: printing.language,
     finish: printing.finish,
     condition: copy.condition,
     grade: copy.grade,
     collectionId: copy.collectionId,
     collectionName: collectionNameById.get(copy.collectionId) ?? "",
+  };
+}
+
+/**
+ * The card behind a deck slot. Exported for the box view, whose deck rows carry
+ * the builder card rather than a plan entry.
+ * @returns The display card.
+ */
+export function toBoxCardFromDeck(card: DeckBuilderCard): DeckBoxCard {
+  return {
+    cardId: card.cardId,
+    name: card.cardName,
+    types: card.cardTypes,
+    tags: card.tags,
+    domains: card.domains,
+    energy: card.energy,
+    power: card.power,
+  };
+}
+
+/**
+ * The card behind a copy the deck doesn't run, taken from the catalog instead.
+ * @returns The display card.
+ */
+function toBoxCardFromCatalog(cardId: string, card: Card): DeckBoxCard {
+  return {
+    cardId,
+    name: card.name,
+    types: card.types,
+    tags: card.tags,
+    domains: card.domains,
+    energy: card.energy,
+    power: card.power,
   };
 }
 
@@ -225,15 +285,21 @@ export function computeDeckBoxPlan({
   // Copies of cards this deck doesn't run are none of this plan's business, so
   // index only the printings the deck can use.
   const printingById = new Map<string, Printing>();
-  const neededByCard = new Map<string, number>();
-  const nameByCard = new Map<string, string>();
+  // Card and copy count in one entry: every list below needs both, and keeping
+  // them together is what lets a row carry its card without a lookup that could
+  // come back empty.
+  const needsByCard = new Map<string, { card: DeckBoxCard; needed: number }>();
   const pinnedByCard = new Map<string, string | null>();
   for (const card of cards) {
     if (!isCountedZone(card.zone)) {
       continue;
     }
-    neededByCard.set(card.cardId, (neededByCard.get(card.cardId) ?? 0) + card.quantity);
-    nameByCard.set(card.cardId, card.cardName);
+    const need = needsByCard.get(card.cardId);
+    if (need) {
+      need.needed += card.quantity;
+    } else {
+      needsByCard.set(card.cardId, { card: toBoxCardFromDeck(card), needed: card.quantity });
+    }
     // A card split across zones keeps the first pin it declares; the zones
     // agree in practice, and a pin is only a preference here anyway.
     if (!pinnedByCard.has(card.cardId)) {
@@ -245,17 +311,17 @@ export function computeDeckBoxPlan({
   }
 
   const inBoxByCard = new Map<string, CopyResponse[]>();
-  const blockedByCard = new Map<string, { loan: number; trade: number }>();
+  const blockedByCard = new Map<string, { loan: CopyResponse[]; trade: CopyResponse[] }>();
   const candidatesByCard = new Map<string, CopyResponse[]>();
   for (const copy of copies) {
     const deckPrinting = printingById.get(copy.printingId);
-    const isDeckCard = deckPrinting !== undefined && neededByCard.has(deckPrinting.cardId);
+    const isDeckCard = deckPrinting !== undefined && needsByCard.has(deckPrinting.cardId);
     if (isDeckCard && (copy.onLoan || copy.reserved)) {
-      const bucket = blockedByCard.get(deckPrinting.cardId) ?? { loan: 0, trade: 0 };
+      const bucket = blockedByCard.get(deckPrinting.cardId) ?? { loan: [], trade: [] };
       if (copy.onLoan) {
-        bucket.loan += 1;
+        bucket.loan.push(copy);
       } else {
-        bucket.trade += 1;
+        bucket.trade.push(copy);
       }
       blockedByCard.set(deckPrinting.cardId, bucket);
       continue;
@@ -295,39 +361,39 @@ export function computeDeckBoxPlan({
     }
   }
 
-  const pullsByCollection = new Map<string, DeckBoxPull[]>();
-  const settled: DeckBoxSettled[] = [];
-  const blocked: DeckBoxBlocked[] = [];
+  // What fills each card's slots, best first: the copies already in the box,
+  // then the ones a pull would take, then the ones that are held up. Anything
+  // still short is a slot no move can fill.
+  const fillsByCard = new Map<string, SlotFill[]>();
   let neededTotal = 0;
   let inBoxTotal = 0;
   let missingCount = 0;
 
-  for (const [cardId, needed] of neededByCard) {
-    const cardName = nameByCard.get(cardId) ?? "";
+  for (const [cardId, { needed }] of needsByCard) {
     const comparator = candidateComparator(
       pinnedByCard.get(cardId) ?? null,
       printingById,
       languageOrder,
       conditionOrder,
     );
+    const asBoxCopy = (copy: CopyResponse): DeckBoxCopy | undefined => {
+      const printing = printingById.get(copy.printingId);
+      return printing ? toBoxCopy(copy, printing, collectionNameById) : undefined;
+    };
     // Rank the box's copies the same way a pull does, so the ones that stay are
     // the ones this deck would have chosen and any surplus the sweep offers is
     // the nicest copy, not an arbitrary one.
     const boxCopies = (inBoxByCard.get(cardId) ?? []).toSorted(comparator);
-    const inBox = Math.min(boxCopies.length, needed);
+    const fills: SlotFill[] = boxCopies
+      .slice(0, Math.min(boxCopies.length, needed))
+      .flatMap((copy) => {
+        const boxCopy = asBoxCopy(copy);
+        return boxCopy ? [{ state: "in-box" as const, copy: boxCopy, alternatives: [] }] : [];
+      });
+    const inBox = fills.length;
     neededTotal += needed;
     inBoxTotal += inBox;
-    if (inBox > 0) {
-      settled.push({
-        cardId,
-        cardName,
-        count: inBox,
-        copies: boxCopies.slice(0, inBox).flatMap((copy) => {
-          const printing = printingById.get(copy.printingId);
-          return printing ? [toBoxCopy(copy, printing, collectionNameById)] : [];
-        }),
-      });
-    }
+    fillsByCard.set(cardId, fills);
 
     const shortfall = needed - inBox;
     if (shortfall === 0) {
@@ -359,50 +425,70 @@ export function computeDeckBoxPlan({
       }
     }
 
-    const alternatives = ranked.map((copy) => {
-      const printing = printingById.get(copy.printingId);
-      return printing ? toBoxCopy(copy, printing, collectionNameById) : undefined;
-    });
-    const allCopies = alternatives.filter((copy) => copy !== undefined);
-
-    chosen.forEach((copy, slot) => {
-      const printing = printingById.get(copy.printingId);
-      if (!printing) {
-        return;
+    const allCopies = ranked.map((copy) => asBoxCopy(copy)).filter((copy) => copy !== undefined);
+    for (const [slot, copy] of chosen.entries()) {
+      const boxCopy = asBoxCopy(copy);
+      if (!boxCopy) {
+        continue;
       }
-      const pull: DeckBoxPull = {
+      fills.push({
+        state: "available",
         slotKey: `${cardId}:${slot}`,
-        cardId,
-        cardName,
-        copy: toBoxCopy(copy, printing, collectionNameById),
+        copy: boxCopy,
         alternatives: allCopies.filter((candidate) => candidate.copyId !== copy.id),
-      };
-      const bucket = pullsByCollection.get(copy.collectionId);
-      if (bucket) {
-        bucket.push(pull);
-      } else {
-        pullsByCollection.set(copy.collectionId, [pull]);
-      }
-    });
+      });
+    }
 
     // Whatever the pulls don't cover is either spoken for or not owned. Loans
     // are reported before trade reservations so a card blocked both ways names
     // the one the viewer can act on first.
-    let uncovered = shortfall - chosen.length;
+    let uncovered = needed - fills.length;
     const stuck = blockedByCard.get(cardId);
     if (stuck && uncovered > 0) {
-      const loan = Math.min(stuck.loan, uncovered);
-      if (loan > 0) {
-        blocked.push({ cardId, cardName, count: loan, reason: "loan" });
-        uncovered -= loan;
-      }
-      const trade = Math.min(stuck.trade, uncovered);
-      if (trade > 0) {
-        blocked.push({ cardId, cardName, count: trade, reason: "trade" });
-        uncovered -= trade;
-      }
+      // Ranked like a pull: a card with more copies held up than the deck is
+      // short of names the ones it would have taken, not arbitrary ones.
+      const takeHeld = (pool: readonly CopyResponse[], reason: "loan" | "trade") => {
+        const held = pool
+          .toSorted(comparator)
+          .slice(0, uncovered)
+          .flatMap((copy) => {
+            const boxCopy = asBoxCopy(copy);
+            return boxCopy
+              ? [{ state: "blocked" as const, reason, copy: boxCopy, alternatives: [] }]
+              : [];
+          });
+        fills.push(...held);
+        uncovered -= held.length;
+      };
+      takeHeld(stuck.loan, "loan");
+      takeHeld(stuck.trade, "trade");
     }
     missingCount += uncovered;
+    for (let slot = 0; slot < uncovered; slot++) {
+      fills.push({ state: "missing", alternatives: [] });
+    }
+  }
+
+  // Hand each deck row its share of the card's slots, in the order the deck
+  // lists them: a card split across zones fills the first zone it appears in
+  // before the next.
+  const slots: DeckBoxSlot[] = [];
+  const usedByCard = new Map<string, number>();
+  for (const card of cards) {
+    if (!isCountedZone(card.zone)) {
+      continue;
+    }
+    const fills = fillsByCard.get(card.cardId) ?? [];
+    const cardKey = getDeckCardKey(card);
+    let used = usedByCard.get(card.cardId) ?? 0;
+    for (let index = 0; index < card.quantity; index++) {
+      const fill = fills[used];
+      used += 1;
+      if (fill) {
+        slots.push({ key: `${cardKey}:${index}`, cardId: card.cardId, cardKey, ...fill });
+      }
+    }
+    usedByCard.set(card.cardId, used);
   }
 
   // The sweep: everything in the box past what the decks stored there call for.
@@ -411,7 +497,8 @@ export function computeDeckBoxPlan({
   const extras: DeckBoxExtra[] = [];
   let extraCount = 0;
   for (const [cardId, boxCopies] of inBoxByCard) {
-    const allowance = (neededByCard.get(cardId) ?? 0) + (otherDeckNeeds?.get(cardId) ?? 0);
+    const deckNeed = needsByCard.get(cardId);
+    const allowance = (deckNeed?.needed ?? 0) + (otherDeckNeeds?.get(cardId) ?? 0);
     if (boxCopies.length <= allowance) {
       continue;
     }
@@ -430,36 +517,23 @@ export function computeDeckBoxPlan({
     if (surplus.length === 0) {
       continue;
     }
+    // A card the deck doesn't run has no deck slot to describe it, so the
+    // catalog entry behind one of its copies stands in.
+    const catalogCard = printingsById[boxCopies[0]?.printingId ?? ""]?.card;
+    const card = deckNeed?.card ?? (catalogCard && toBoxCardFromCatalog(cardId, catalogCard));
+    if (!card) {
+      continue;
+    }
     extraCount += surplus.length;
-    extras.push({
-      cardId,
-      cardName:
-        nameByCard.get(cardId) ?? printingsById[boxCopies[0]?.printingId ?? ""]?.card.name ?? "",
-      copies: surplus,
-    });
+    extras.push({ card, copies: surplus });
   }
-
-  const groups: DeckBoxGroup[] = [...pullsByCollection.entries()]
-    .map(([collectionId, pulls]) => ({
-      collectionId,
-      collectionName: collectionNameById.get(collectionId) ?? "",
-      // Binder order: set code then collector number, which `shortCode` spells
-      // out ("OGS-005"), so a pull run walks the pages front to back.
-      pulls: pulls.toSorted(
-        (a, b) =>
-          a.copy.shortCode.localeCompare(b.copy.shortCode) || a.cardName.localeCompare(b.cardName),
-      ),
-    }))
-    .toSorted((a, b) => a.collectionName.localeCompare(b.collectionName));
 
   return {
     neededTotal,
     inBoxTotal,
-    groups,
-    settled: settled.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
-    blocked: blocked.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
+    slots,
     missingCount,
-    extras: extras.toSorted((a, b) => a.cardName.localeCompare(b.cardName)),
+    extras: extras.toSorted((a, b) => a.card.name.localeCompare(b.card.name)),
     extraCount,
   };
 }

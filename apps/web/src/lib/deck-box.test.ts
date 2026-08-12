@@ -70,21 +70,19 @@ function inputFor({
 }
 
 describe("computeDeckBoxPlan", () => {
-  it("counts copies already in the box as settled", () => {
+  it("stands a copy already in the box up as a settled slot", () => {
     const printing = stubPrinting({ cardId: "card-1", shortCode: "OGS-005" });
     const copy = stubCopy({ printingId: printing.id, collectionId: BOX });
     const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [copy] }));
     expect(plan.neededTotal).toBe(1);
     expect(plan.inBoxTotal).toBe(1);
-    expect(plan.settled).toHaveLength(1);
-    expect(plan.settled[0]?.count).toBe(1);
-    // The settled copies come along so a row can be taken back out again.
-    expect(plan.settled[0]?.copies.map((entry) => entry.copyId)).toEqual([copy.id]);
-    expect(plan.groups).toEqual([]);
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box"]);
+    // The copy comes along so the row can be taken back out again.
+    expect(plan.slots[0]?.copy?.copyId).toBe(copy.id);
     expect(plan.missingCount).toBe(0);
   });
 
-  it("groups the copies to pull by the collection they sit in", () => {
+  it("names the collection each copy waits in", () => {
     const printing = stubPrinting({ cardId: "card-1", shortCode: "OGS-005" });
     const plan = computeDeckBoxPlan(
       inputFor({
@@ -96,19 +94,19 @@ describe("computeDeckBoxPlan", () => {
         ],
       }),
     );
-    expect(plan.groups.map((group) => group.collectionName)).toEqual(["Binder A", "Shoebox"]);
-    expect(plan.groups[0]?.pulls[0]?.copy.collectionName).toBe("Binder A");
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["available", "available"]);
+    expect(plan.slots.map((slot) => slot.copy?.collectionName)).toEqual(["Binder A", "Shoebox"]);
     expect(plan.inBoxTotal).toBe(0);
     expect(plan.missingCount).toBe(0);
   });
 
-  it("orders a group's rows by set and collector number", () => {
+  it("lists slots in the deck's own card order, one per copy", () => {
     const first = stubPrinting({ cardId: "card-1", shortCode: "OGS-005" });
     const second = stubPrinting({ cardId: "card-2", shortCode: "OGS-001" });
     const plan = computeDeckBoxPlan({
       ...inputFor({ printings: [first], copies: [] }),
       cards: [
-        stubDeckBuilderCard({ cardId: "card-1", cardName: "Fire Dragon" }),
+        stubDeckBuilderCard({ cardId: "card-1", cardName: "Fire Dragon", quantity: 2 }),
         stubDeckBuilderCard({ cardId: "card-2", cardName: "Ice Golem" }),
       ],
       printingsByCardId: new Map([
@@ -117,13 +115,35 @@ describe("computeDeckBoxPlan", () => {
       ]),
       copies: [
         stubCopy({ printingId: first.id, collectionId: BINDER }),
+        stubCopy({ printingId: first.id, collectionId: BINDER }),
         stubCopy({ printingId: second.id, collectionId: BINDER }),
       ],
     });
-    expect(plan.groups[0]?.pulls.map((pull) => pull.copy.shortCode)).toEqual([
-      "OGS-001",
+    expect(plan.slots.map((slot) => slot.copy?.shortCode)).toEqual([
       "OGS-005",
+      "OGS-005",
+      "OGS-001",
     ]);
+    // Both copies of a card belong to the same deck row, one slot each.
+    expect(plan.slots[0]?.cardKey).toBe(plan.slots[1]?.cardKey);
+    expect(new Set(plan.slots.map((slot) => slot.key)).size).toBe(3);
+  });
+
+  it("splits a card's slots across the zones that call for it", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const plan = computeDeckBoxPlan({
+      ...inputFor({ printings: [printing], copies: [] }),
+      cards: [
+        stubDeckBuilderCard({ cardId: "card-1", quantity: 2, zone: "main" }),
+        stubDeckBuilderCard({ cardId: "card-1", quantity: 1, zone: "sideboard" }),
+      ],
+      copies: [stubCopy({ printingId: printing.id, collectionId: BOX })],
+    });
+    expect(plan.neededTotal).toBe(3);
+    // The copy in the box fills the first row that asks for it; the rest of
+    // that row and the sideboard's are still short.
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "missing", "missing"]);
+    expect(new Set(plan.slots.map((slot) => slot.cardKey)).size).toBe(2);
   });
 
   it("prefers the deck's pinned printing, then the viewer's language", () => {
@@ -141,10 +161,10 @@ describe("computeDeckBoxPlan", () => {
         ],
       }),
     );
-    expect(plan.groups[0]?.pulls[0]?.copy.printingId).toBe(pinned.id);
+    expect(plan.slots[0]?.copy?.printingId).toBe(pinned.id);
     // The alternatives keep the same ranking, so the swap list leads with the
     // copy that would have been picked next.
-    expect(plan.groups[0]?.pulls[0]?.alternatives[0]?.printingId).toBe(english.id);
+    expect(plan.slots[0]?.alternatives[0]?.printingId).toBe(english.id);
   });
 
   it("plays the beaters: never a graded copy, worst condition first", () => {
@@ -159,11 +179,11 @@ describe("computeDeckBoxPlan", () => {
         ],
       }),
     );
-    const picked = plan.groups[0]?.pulls[0]?.copy;
+    const picked = plan.slots[0]?.copy;
     expect(picked?.condition).toBe("played");
     expect(picked?.grade).toBeNull();
     // Graded copies sink to the bottom of the swap list rather than vanishing.
-    expect(plan.groups[0]?.pulls[0]?.alternatives.at(-1)?.grade).toBe(9);
+    expect(plan.slots[0]?.alternatives.at(-1)?.grade).toBe(9);
   });
 
   it("passes over a copy marked mint for one with no condition recorded", () => {
@@ -177,22 +197,19 @@ describe("computeDeckBoxPlan", () => {
         ],
       }),
     );
-    expect(plan.groups[0]?.pulls[0]?.copy.condition).toBeNull();
+    expect(plan.slots[0]?.copy?.condition).toBeNull();
   });
 
   it("reports a lent-out copy as blocked rather than missing", () => {
     const printing = stubPrinting({ cardId: "card-1" });
-    const plan = computeDeckBoxPlan(
-      inputFor({
-        printings: [printing],
-        copies: [stubCopy({ printingId: printing.id, collectionId: BINDER, onLoan: true })],
-      }),
-    );
-    expect(plan.blocked).toEqual([
-      { cardId: "card-1", cardName: "Fire Dragon", count: 1, reason: "loan" },
-    ]);
+    const copy = stubCopy({ printingId: printing.id, collectionId: BINDER, onLoan: true });
+    const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [copy] }));
+    expect(plan.slots).toHaveLength(1);
+    expect(plan.slots[0]?.state).toBe("blocked");
+    expect(plan.slots[0]?.reason).toBe("loan");
+    // The row names the copy that is out, not just the reason.
+    expect(plan.slots[0]?.copy?.copyId).toBe(copy.id);
     expect(plan.missingCount).toBe(0);
-    expect(plan.groups).toEqual([]);
   });
 
   it("treats a copy in the box but out on loan as a gap in the box", () => {
@@ -204,8 +221,8 @@ describe("computeDeckBoxPlan", () => {
       }),
     );
     expect(plan.inBoxTotal).toBe(0);
-    expect(plan.settled).toEqual([]);
-    expect(plan.blocked[0]?.reason).toBe("loan");
+    expect(plan.slots[0]?.state).toBe("blocked");
+    expect(plan.slots[0]?.reason).toBe("loan");
   });
 
   it("reports a trade-reserved copy separately from a lent one", () => {
@@ -220,7 +237,7 @@ describe("computeDeckBoxPlan", () => {
         ],
       }),
     );
-    expect(plan.blocked.map((entry) => entry.reason)).toEqual(["loan", "trade"]);
+    expect(plan.slots.map((slot) => slot.reason)).toEqual(["loan", "trade"]);
   });
 
   it("never picks a group binder's copies", () => {
@@ -231,7 +248,7 @@ describe("computeDeckBoxPlan", () => {
         copies: [stubCopy({ printingId: printing.id, collectionId: SHOEBOX, groupId: "group-1" })],
       }),
     );
-    expect(plan.groups).toEqual([]);
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["missing"]);
     expect(plan.missingCount).toBe(1);
   });
 
@@ -240,6 +257,8 @@ describe("computeDeckBoxPlan", () => {
     const plan = computeDeckBoxPlan(inputFor({ quantity: 3, printings: [printing], copies: [] }));
     expect(plan.missingCount).toBe(3);
     expect(plan.neededTotal).toBe(3);
+    // One row per copy, so a partly-owned card shows what is still open.
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["missing", "missing", "missing"]);
   });
 
   it("leaves Overflow cards out of the box entirely", () => {
@@ -252,7 +271,7 @@ describe("computeDeckBoxPlan", () => {
       }),
     );
     expect(plan.neededTotal).toBe(0);
-    expect(plan.groups).toEqual([]);
+    expect(plan.slots).toEqual([]);
     expect(plan.missingCount).toBe(0);
   });
 
@@ -267,7 +286,8 @@ describe("computeDeckBoxPlan", () => {
         overrides: new Map([["card-1:0", mint.id]]),
       }),
     );
-    expect(plan.groups[0]?.pulls[0]?.copy.copyId).toBe(mint.id);
+    expect(plan.slots[0]?.copy?.copyId).toBe(mint.id);
+    expect(plan.slots[0]?.slotKey).toBe("card-1:0");
   });
 
   it("falls back to the ranking when a hand-picked copy is gone", () => {
@@ -280,7 +300,7 @@ describe("computeDeckBoxPlan", () => {
         overrides: new Map([["card-1:0", "a-copy-that-moved-away"]]),
       }),
     );
-    expect(plan.groups[0]?.pulls[0]?.copy.copyId).toBe(worn.id);
+    expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
   });
 
   it("only asks for the copies the box is still short of", () => {
@@ -298,9 +318,9 @@ describe("computeDeckBoxPlan", () => {
       }),
     );
     expect(plan.inBoxTotal).toBe(1);
-    expect(plan.groups[0]?.pulls).toHaveLength(2);
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "available", "available"]);
     // The spare copy stays where it is, and is offered as an alternative.
-    expect(plan.groups[0]?.pulls[0]?.alternatives).toHaveLength(2);
+    expect(plan.slots[1]?.alternatives).toHaveLength(2);
   });
 
   it("ignores a box holding more copies than the deck runs", () => {
@@ -315,7 +335,7 @@ describe("computeDeckBoxPlan", () => {
       }),
     );
     expect(plan.inBoxTotal).toBe(1);
-    expect(plan.settled[0]?.count).toBe(1);
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box"]);
   });
 
   it("returns an empty plan for a deck with no cards", () => {
@@ -332,9 +352,7 @@ describe("computeDeckBoxPlan", () => {
     expect(plan).toEqual({
       neededTotal: 0,
       inBoxTotal: 0,
-      groups: [],
-      settled: [],
-      blocked: [],
+      slots: [],
       missingCount: 0,
       extras: [],
       extraCount: 0,
@@ -360,8 +378,8 @@ describe("computeDeckBoxPlan extras", () => {
     expect(plan.extraCount).toBe(1);
     expect(plan.extras).toEqual([
       {
-        cardId: "card-2",
-        cardName: "Ice Golem",
+        // The card comes from the catalog: the deck has no row to describe it.
+        card: expect.objectContaining({ cardId: "card-2", name: "Ice Golem" }),
         copies: [expect.objectContaining({ copyId: stray.id })],
       },
     ]);
@@ -373,7 +391,7 @@ describe("computeDeckBoxPlan extras", () => {
     const mint = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "mint" });
     const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [worn, mint] }));
     // The deck keeps the beater; the mint copy is what the sweep offers.
-    expect(plan.settled[0]?.copies[0]?.copyId).toBe(worn.id);
+    expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
     expect(plan.extras[0]?.copies.map((copy) => copy.copyId)).toEqual([mint.id]);
   });
 
