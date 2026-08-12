@@ -78,7 +78,12 @@ export function PickerList({
     >
       {searchable ? <CommandInput placeholder={searchPlaceholder} /> : null}
       {header}
-      <CommandList>{children}</CommandList>
+      {/* p-1 stands in for the CommandGroup a plain Command palette wraps its items in: that group
+          is where the scaffold's row inset and the 4px break under the filter input come from, and
+          rows go straight into the list here. Without it the input pill (inset by Command's p-1 plus
+          the input wrapper's own) sits 4px narrower per side than the rows, and its bottom border
+          touches the first row. */}
+      <CommandList className="p-1">{children}</CommandList>
     </Command>
   );
 }

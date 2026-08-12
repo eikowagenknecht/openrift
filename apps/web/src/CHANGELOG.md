@@ -17,6 +17,7 @@
 - feat(Collection): **Card details inside the scanner** — Details on a scanned card opens the usual card overlay in place instead of leaving for the card page.
 - feat(Collection): **Printing picker grouped by language** — switching or picking a printing now shows one tab per language when a card exists in several.
 - feat(App): **Scanner moved to /scan** — the scan page has its own top-level address; old /collections/scan bookmarks need updating.
+- fix(Collection): **Picker lists line up** — the filter box in the move and add dialogs now sits at the same width as the list under it, with a clear gap between the two.
 - fix(Trades): **Trade sheet reads as two piles** — the open sections now list what you get before what you give, each in catalog order, and rows no longer repeat the status their heading already says.
 - fix(Trades): **Value bar on cheap trades** — a swap worth under one unit of currency now fills the give/get bar properly instead of leaving most of it empty.
 - fix(Groups): **Card details on the trades and member pages** — opening a card from a trade row no longer fails to load for signed-in owners of that card.
