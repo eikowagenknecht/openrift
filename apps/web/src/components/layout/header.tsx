@@ -3,6 +3,7 @@ import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   BookTextIcon,
+  CameraIcon,
   CircleHelpIcon,
   ExternalLinkIcon,
   GavelIcon,
@@ -29,8 +30,7 @@ import {
   UserIcon,
   UsersIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 
 import { Badge } from "@/components/ui/badge";
@@ -125,7 +125,7 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 // Nav entries that require an account. Signed out, these still show in the nav
 // (with a lock glyph) so a new visitor can see what an account unlocks; clicking
 // one opens SignInRequiredDialog instead of navigating. Copy mirrors the README.
-type LockedFeatureKey = "collections" | "groups" | "loans" | "tournaments" | "contribute";
+type LockedFeatureKey = "collections" | "scan" | "groups" | "loans" | "tournaments" | "contribute";
 
 const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -137,6 +137,13 @@ const LOCKED_FEATURES: Record<
       "Track every card you own, down to the printing, across as many collections as you like.",
     to: "/collections",
     icon: LibraryIcon,
+  },
+  scan: {
+    title: "Card scanner",
+    description:
+      "Hold your cards in front of the camera to add them to a collection, recognised on your device so no pictures are uploaded.",
+    to: "/collections/scan",
+    icon: CameraIcon,
   },
   groups: {
     title: "Groups",
@@ -165,6 +172,147 @@ const LOCKED_FEATURES: Record<
     icon: PencilLineIcon,
   },
 };
+
+// Attention counts referenced by nav items via their `badge` key.
+interface NavBadgeCounts {
+  groups: number;
+  loans: number;
+}
+
+// Single source of truth for both navs. PRIMARY_NAV_ITEMS renders as the
+// desktop top-level links and the first block of the mobile sheet;
+// MORE_NAV_SECTIONS renders inside the desktop "More" panel and as titled
+// groups in the mobile sheet.
+interface NavItemConfig {
+  label: string;
+  to: string;
+  icon: typeof LayersIcon;
+  /** Second line of the item's row in the desktop "More" panel. */
+  description?: string;
+  /** Keep the current search params on navigation (the /cards filters). */
+  keepSearch?: boolean;
+  /** Needs an account: signed out, the entry renders locked and opens SignInRequiredDialog. */
+  lockedKey?: LockedFeatureKey;
+  badge?: keyof NavBadgeCounts;
+  /** Only rendered while this feature flag is on. */
+  flag?: "glossary";
+  /** Phone feature: shown in the mobile sheet only, never in the desktop nav. */
+  mobileOnly?: boolean;
+}
+
+interface NavSectionConfig {
+  label: string;
+  items: NavItemConfig[];
+}
+
+const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
+  { label: "Cards", to: "/cards", icon: LayersIcon, keepSearch: true },
+  { label: "Collection", to: "/collections", icon: LibraryIcon, lockedKey: "collections" },
+  { label: "Scan", to: "/collections/scan", icon: CameraIcon, lockedKey: "scan" },
+  // Decks are available logged out (ADR-035: build local decks without an
+  // account), so this entry is a plain link for everyone.
+  { label: "Decks", to: "/decks", icon: BookOpenIcon },
+  { label: "Groups", to: "/groups", icon: UsersIcon, lockedKey: "groups", badge: "groups" },
+];
+
+const MORE_NAV_SECTIONS: NavSectionConfig[] = [
+  {
+    label: "Play",
+    items: [
+      {
+        label: "Rules",
+        to: "/rules",
+        icon: GavelIcon,
+        description: "Core and tournament rules",
+      },
+      {
+        label: "Glossary",
+        to: "/glossary",
+        icon: BookTextIcon,
+        flag: "glossary",
+        description: "Symbols, keywords, and shorthand",
+      },
+      // Match tracker is a phone feature: mobile menu only, not in the desktop nav.
+      { label: "Match tracker", to: "/match-tracker", icon: SwordsIcon, mobileOnly: true },
+    ],
+  },
+  {
+    label: "Organize",
+    items: [
+      {
+        label: "Tournaments",
+        to: "/tournaments",
+        icon: TrophyIcon,
+        lockedKey: "tournaments",
+        description: "Run pods, deck check, and judges under one event",
+      },
+      {
+        label: "Lending",
+        to: "/loans",
+        icon: HandHeartIcon,
+        lockedKey: "loans",
+        badge: "loans",
+        description: "Cards lent to friends and cards you're borrowing",
+      },
+    ],
+  },
+  {
+    label: "Explore",
+    items: [
+      {
+        label: "Promos",
+        to: "/promos",
+        icon: GiftIcon,
+        description: "Alternate printings from events and giveaways",
+      },
+      {
+        label: "Products",
+        to: "/products",
+        icon: PackageIcon,
+        description: "Full card lists for official products",
+      },
+      {
+        label: "Pack opener",
+        to: "/pack-opener",
+        icon: PackagePlusIcon,
+        description: "Simulate opening boosters with real pull rates",
+      },
+      {
+        label: "Card designer",
+        to: "/card-designer",
+        icon: PaletteIcon,
+        description: "Make a custom card with your own background image",
+      },
+    ],
+  },
+];
+
+/**
+ * Whether a nav item renders in the current menu.
+ * @returns True when the item's feature flag and platform constraints allow it.
+ */
+function navItemVisible(
+  item: NavItemConfig,
+  opts: { showGlossary: boolean; mobile: boolean },
+): boolean {
+  if (item.flag === "glossary" && !opts.showGlossary) {
+    return false;
+  }
+  if (item.mobileOnly && !opts.mobile) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Screen-reader label for a nav attention badge.
+ * @returns The aria-label matching the badge's meaning.
+ */
+function badgeAriaLabel(badge: keyof NavBadgeCounts, count: number): string {
+  return badge === "loans"
+    ? `${count} loans need your confirmation`
+    : `${count} items need your attention`;
+}
 
 function SignInRequiredDialog({
   featureKey,
@@ -217,230 +365,161 @@ const DESKTOP_NAV_ITEM_CLASS = cn(
   "text-muted-foreground hover:text-foreground focus:text-foreground data-[status=active]:text-foreground data-[status=active]:font-semibold",
 );
 
+function DesktopPrimaryItem({
+  item,
+  isLoggedIn,
+  badges,
+  onLockedClick,
+}: {
+  item: NavItemConfig;
+  isLoggedIn: boolean;
+  badges: NavBadgeCounts;
+  onLockedClick: (key: LockedFeatureKey) => void;
+}) {
+  const lockedKey = item.lockedKey;
+  if (lockedKey && !isLoggedIn) {
+    return (
+      <NavigationMenuLink
+        // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
+        render={<button type="button" onClick={() => onLockedClick(lockedKey)} />}
+        className={cn(DESKTOP_NAV_ITEM_CLASS, "gap-1.5")}
+      >
+        {item.label}
+        <LockIcon className="text-muted-foreground size-3.5" />
+      </NavigationMenuLink>
+    );
+  }
+  const badgeCount = item.badge ? badges[item.badge] : 0;
+  return (
+    <NavigationMenuLink
+      render={<Link to={item.to} search={item.keepSearch ? (prev) => prev : undefined} />}
+      className={DESKTOP_NAV_ITEM_CLASS}
+    >
+      {item.label}
+      {item.badge && badgeCount > 0 && (
+        <Badge
+          variant="count"
+          aria-label={badgeAriaLabel(item.badge, badgeCount)}
+          className="ml-1.5"
+        >
+          {badgeCount > 9 ? "9+" : badgeCount}
+        </Badge>
+      )}
+    </NavigationMenuLink>
+  );
+}
+
+function DesktopMoreItem({
+  item,
+  isLoggedIn,
+  badges,
+  onLockedClick,
+}: {
+  item: NavItemConfig;
+  isLoggedIn: boolean;
+  badges: NavBadgeCounts;
+  onLockedClick: (key: LockedFeatureKey) => void;
+}) {
+  const lockedKey = item.lockedKey;
+  const badgeCount = item.badge ? badges[item.badge] : 0;
+  const content = (
+    <>
+      <item.icon />
+      <div>
+        <div className="font-medium">
+          {item.label}
+          {item.badge && badgeCount > 0 && (
+            <Badge
+              variant="count"
+              aria-label={badgeAriaLabel(item.badge, badgeCount)}
+              className="ml-1.5"
+            >
+              {badgeCount > 9 ? "9+" : badgeCount}
+            </Badge>
+          )}
+        </div>
+        <div className="text-muted-foreground text-xs">{item.description}</div>
+      </div>
+    </>
+  );
+  if (lockedKey && !isLoggedIn) {
+    return (
+      <NavigationMenuLink
+        closeOnClick
+        // A native <button> shrinks to its content and centers its text; force
+        // it to fill and left-align so it matches the <Link>-rendered rows.
+        className="w-full text-left"
+        // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
+        render={<button type="button" onClick={() => onLockedClick(lockedKey)} />}
+      >
+        {content}
+        <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
+      </NavigationMenuLink>
+    );
+  }
+  return (
+    <NavigationMenuLink closeOnClick render={<Link to={item.to} />}>
+      {content}
+    </NavigationMenuLink>
+  );
+}
+
 function DesktopNav({
   isLoggedIn,
   showGlossary,
-  showDecks,
-  groupsBadge,
-  loansBadge,
+  badges,
   onLockedClick,
 }: {
   isLoggedIn: boolean;
   showGlossary: boolean;
-  showDecks: boolean;
-  groupsBadge: number;
-  loansBadge: number;
+  badges: NavBadgeCounts;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
     <NavigationMenu>
       <NavigationMenuList className="gap-1">
-        <NavigationMenuItem>
-          <NavigationMenuLink
-            render={<Link to="/cards" search={(prev) => prev} />}
-            className={DESKTOP_NAV_ITEM_CLASS}
-          >
-            Cards
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
-          {isLoggedIn ? (
-            <NavigationMenuLink
-              render={<Link to="/collections" />}
-              className={DESKTOP_NAV_ITEM_CLASS}
-            >
-              Collection
-            </NavigationMenuLink>
-          ) : (
-            <NavigationMenuLink
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
-              render={<button type="button" onClick={() => onLockedClick("collections")} />}
-              className={cn(DESKTOP_NAV_ITEM_CLASS, "gap-1.5")}
-            >
-              Collection
-              <LockIcon className="text-muted-foreground size-3.5" />
-            </NavigationMenuLink>
-          )}
-        </NavigationMenuItem>
-        {showDecks && (
-          <NavigationMenuItem>
-            <NavigationMenuLink render={<Link to="/decks" />} className={DESKTOP_NAV_ITEM_CLASS}>
-              Decks
-            </NavigationMenuLink>
+        {PRIMARY_NAV_ITEMS.filter((item) =>
+          navItemVisible(item, { showGlossary, mobile: false }),
+        ).map((item) => (
+          <NavigationMenuItem key={item.to}>
+            <DesktopPrimaryItem
+              item={item}
+              isLoggedIn={isLoggedIn}
+              badges={badges}
+              onLockedClick={onLockedClick}
+            />
           </NavigationMenuItem>
-        )}
-        <NavigationMenuItem>
-          {isLoggedIn ? (
-            <NavigationMenuLink render={<Link to="/groups" />} className={DESKTOP_NAV_ITEM_CLASS}>
-              Groups
-              {groupsBadge > 0 && (
-                <Badge
-                  variant="count"
-                  aria-label={`${groupsBadge} items need your attention`}
-                  className="ml-1.5"
-                >
-                  {groupsBadge > 9 ? "9+" : groupsBadge}
-                </Badge>
-              )}
-            </NavigationMenuLink>
-          ) : (
-            <NavigationMenuLink
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
-              render={<button type="button" onClick={() => onLockedClick("groups")} />}
-              className={cn(DESKTOP_NAV_ITEM_CLASS, "gap-1.5")}
-            >
-              Groups
-              <LockIcon className="text-muted-foreground size-3.5" />
-            </NavigationMenuLink>
-          )}
-        </NavigationMenuItem>
+        ))}
         <NavigationMenuItem>
           <NavigationMenuTrigger className="text-muted-foreground hover:text-foreground focus:text-foreground data-popup-open:text-foreground">
             More
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-64 gap-1 p-1">
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/rules" />}>
-                  <GavelIcon />
-                  <div>
-                    <div className="font-medium">Rules</div>
-                    <div className="text-muted-foreground text-xs">Core and tournament rules</div>
+            {/* CSS columns pack the sections side by side; break-inside-avoid
+                keeps each section whole so a group never splits mid-column. */}
+            <div className="w-[34rem] columns-2 gap-2 p-2">
+              {MORE_NAV_SECTIONS.map((section) => (
+                <section key={section.label} className="mb-3 break-inside-avoid last:mb-0">
+                  <div className="text-muted-foreground px-2 pb-1 text-xs font-semibold tracking-wide uppercase">
+                    {section.label}
                   </div>
-                </NavigationMenuLink>
-              </li>
-              {showGlossary && (
-                <li>
-                  <NavigationMenuLink closeOnClick render={<Link to="/glossary" />}>
-                    <BookTextIcon />
-                    <div>
-                      <div className="font-medium">Glossary</div>
-                      <div className="text-muted-foreground text-xs">
-                        Symbols, keywords, and shorthand
-                      </div>
-                    </div>
-                  </NavigationMenuLink>
-                </li>
-              )}
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/promos" />}>
-                  <GiftIcon />
-                  <div>
-                    <div className="font-medium">Promos</div>
-                    <div className="text-muted-foreground text-xs">
-                      Alternate printings from events and giveaways
-                    </div>
-                  </div>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/products" />}>
-                  <PackageIcon />
-                  <div>
-                    <div className="font-medium">Products</div>
-                    <div className="text-muted-foreground text-xs">
-                      Full card lists for official products
-                    </div>
-                  </div>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/pack-opener" />}>
-                  <PackagePlusIcon />
-                  <div>
-                    <div className="font-medium">Pack opener</div>
-                    <div className="text-muted-foreground text-xs">
-                      Simulate opening boosters with real pull rates
-                    </div>
-                  </div>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/card-designer" />}>
-                  <PaletteIcon />
-                  <div>
-                    <div className="font-medium">Card designer</div>
-                    <div className="text-muted-foreground text-xs">
-                      Make a custom card with your own background image
-                    </div>
-                  </div>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                {isLoggedIn ? (
-                  <NavigationMenuLink closeOnClick render={<Link to="/loans" />}>
-                    <HandHeartIcon />
-                    <div>
-                      <div className="font-medium">
-                        Lending
-                        {loansBadge > 0 && (
-                          <Badge
-                            variant="count"
-                            aria-label={`${loansBadge} loans need your confirmation`}
-                            className="ml-1.5"
-                          >
-                            {loansBadge > 9 ? "9+" : loansBadge}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-muted-foreground text-xs">
-                        Cards lent to friends and cards you&apos;re borrowing
-                      </div>
-                    </div>
-                  </NavigationMenuLink>
-                ) : (
-                  <NavigationMenuLink
-                    closeOnClick
-                    // A native <button> shrinks to its content and centers its text; force
-                    // it to fill and left-align so it matches the <Link>-rendered rows.
-                    className="w-full text-left"
-                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
-                    render={<button type="button" onClick={() => onLockedClick("loans")} />}
-                  >
-                    <HandHeartIcon />
-                    <div>
-                      <div className="font-medium">Lending</div>
-                      <div className="text-muted-foreground text-xs">
-                        Cards lent to friends and cards you&apos;re borrowing
-                      </div>
-                    </div>
-                    <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
-                  </NavigationMenuLink>
-                )}
-              </li>
-              <li>
-                {isLoggedIn ? (
-                  <NavigationMenuLink closeOnClick render={<Link to="/tournaments" />}>
-                    <TrophyIcon />
-                    <div>
-                      <div className="font-medium">Tournaments</div>
-                      <div className="text-muted-foreground text-xs">
-                        Run pods, deck check, and judges under one event
-                      </div>
-                    </div>
-                  </NavigationMenuLink>
-                ) : (
-                  <NavigationMenuLink
-                    closeOnClick
-                    // A native <button> shrinks to its content and centers its text; force
-                    // it to fill and left-align so it matches the <Link>-rendered rows.
-                    className="w-full text-left"
-                    // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; NavigationMenuLink owns all styling and provides the label as children
-                    render={<button type="button" onClick={() => onLockedClick("tournaments")} />}
-                  >
-                    <TrophyIcon />
-                    <div>
-                      <div className="font-medium">Tournaments</div>
-                      <div className="text-muted-foreground text-xs">
-                        Run pods, deck check, and judges under one event
-                      </div>
-                    </div>
-                    <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
-                  </NavigationMenuLink>
-                )}
-              </li>
-              {/* Match tracker is a phone feature — it's in the mobile menu only, not here. */}
-            </ul>
+                  <ul className="grid gap-1">
+                    {section.items
+                      .filter((item) => navItemVisible(item, { showGlossary, mobile: false }))
+                      .map((item) => (
+                        <li key={item.to}>
+                          <DesktopMoreItem
+                            item={item}
+                            isLoggedIn={isLoggedIn}
+                            badges={badges}
+                            onLockedClick={onLockedClick}
+                          />
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
       </NavigationMenuList>
@@ -582,60 +661,56 @@ function UserMenu({
 const MOBILE_NAV_ITEM_CLASS =
   "text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold data-[status=active]:text-foreground";
 
-function MobileNavLink({
-  to,
-  search,
-  icon,
-  children,
-  badge,
+function MobileNavItem({
+  item,
+  compact,
+  isLoggedIn,
+  badges,
+  onLockedClick,
 }: {
-  to: string;
-  search?: (prev: Record<string, unknown>) => Record<string, unknown>;
-  icon: ReactNode;
-  children: ReactNode;
-  badge?: number;
+  item: NavItemConfig;
+  /** Tighter rows for the titled sections; the primary block keeps the roomy padding. */
+  compact?: boolean;
+  isLoggedIn: boolean;
+  badges: NavBadgeCounts;
+  onLockedClick: (key: LockedFeatureKey) => void;
 }) {
+  const lockedKey = item.lockedKey;
+  const rowClass = cn(MOBILE_NAV_ITEM_CLASS, compact && "py-2.5");
+  const icon = <item.icon className="text-muted-foreground size-5" />;
+  // Signed out, a locked entry closes the sheet and opens the sign-in dialog
+  // instead of navigating.
+  if (lockedKey && !isLoggedIn) {
+    return (
+      <SheetClose
+        // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; SheetClose/MOBILE_NAV_ITEM_CLASS owns all styling and provides the label as children
+        render={<button type="button" onClick={() => onLockedClick(lockedKey)} />}
+        className={rowClass}
+      >
+        {icon}
+        {item.label}
+        <LockIcon className="text-muted-foreground ml-auto size-4" />
+      </SheetClose>
+    );
+  }
+  const badgeCount = item.badge ? badges[item.badge] : 0;
   return (
     <SheetClose
       nativeButton={false}
-      render={<Link to={to} search={search} />}
-      className={MOBILE_NAV_ITEM_CLASS}
+      render={<Link to={item.to} search={item.keepSearch ? (prev) => prev : undefined} />}
+      className={rowClass}
     >
       {icon}
-      {children}
-      {badge !== undefined && badge > 0 && (
+      {item.label}
+      {item.badge && badgeCount > 0 && (
         <Badge
           variant="count"
-          aria-label={`${badge} items need your attention`}
+          aria-label={badgeAriaLabel(item.badge, badgeCount)}
           className="ml-auto"
         >
-          {badge > 9 ? "9+" : badge}
+          {badgeCount > 9 ? "9+" : badgeCount}
         </Badge>
       )}
-    </SheetClose>
-  );
-}
-
-// Signed-out counterpart to MobileNavLink: closes the sheet and opens the
-// sign-in dialog instead of navigating.
-function MobileNavLockedItem({
-  icon,
-  children,
-  onClick,
-}: {
-  icon: ReactNode;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <SheetClose
-      // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; SheetClose/MOBILE_NAV_ITEM_CLASS owns all styling and provides the label as children
-      render={<button type="button" onClick={onClick} />}
-      className={MOBILE_NAV_ITEM_CLASS}
-    >
-      {icon}
-      {children}
-      <LockIcon className="text-muted-foreground ml-auto size-4" />
     </SheetClose>
   );
 }
@@ -645,18 +720,14 @@ function MobileNav({
   onOpenChange,
   isLoggedIn,
   showGlossary,
-  showDecks,
-  groupsBadge,
-  loansBadge,
+  badges,
   onLockedClick,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isLoggedIn: boolean;
   showGlossary: boolean;
-  showDecks: boolean;
-  groupsBadge: number;
-  loansBadge: number;
+  badges: NavBadgeCounts;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
@@ -675,126 +746,54 @@ function MobileNav({
           </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 px-2">
-          <MobileNavLink
-            to="/cards"
-            search={(prev) => prev}
-            icon={<LayersIcon className="text-muted-foreground size-5" />}
-          >
-            Cards
-          </MobileNavLink>
-          {isLoggedIn ? (
-            <MobileNavLink
-              to="/collections"
-              icon={<LibraryIcon className="text-muted-foreground size-5" />}
-            >
-              Collection
-            </MobileNavLink>
-          ) : (
-            <MobileNavLockedItem
-              icon={<LibraryIcon className="text-muted-foreground size-5" />}
-              onClick={() => onLockedClick("collections")}
-            >
-              Collection
-            </MobileNavLockedItem>
-          )}
-          {showDecks && (
-            <MobileNavLink
-              to="/decks"
-              icon={<BookOpenIcon className="text-muted-foreground size-5" />}
-            >
-              Decks
-            </MobileNavLink>
-          )}
-          {isLoggedIn ? (
-            <MobileNavLink
-              to="/groups"
-              icon={<UsersIcon className="text-muted-foreground size-5" />}
-              badge={groupsBadge}
-            >
-              Groups
-            </MobileNavLink>
-          ) : (
-            <MobileNavLockedItem
-              icon={<UsersIcon className="text-muted-foreground size-5" />}
-              onClick={() => onLockedClick("groups")}
-            >
-              Groups
-            </MobileNavLockedItem>
-          )}
-          <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
-            More
-          </div>
-          <MobileNavLink to="/rules" icon={<GavelIcon className="text-muted-foreground size-5" />}>
-            Rules
-          </MobileNavLink>
-          {showGlossary && (
-            <MobileNavLink
-              to="/glossary"
-              icon={<BookTextIcon className="text-muted-foreground size-5" />}
-            >
-              Glossary
-            </MobileNavLink>
-          )}
-          <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
-            Promos
-          </MobileNavLink>
-          <MobileNavLink
-            to="/products"
-            icon={<PackageIcon className="text-muted-foreground size-5" />}
-          >
-            Products
-          </MobileNavLink>
-          <MobileNavLink
-            to="/pack-opener"
-            icon={<PackagePlusIcon className="text-muted-foreground size-5" />}
-          >
-            Pack opener
-          </MobileNavLink>
-          <MobileNavLink
-            to="/card-designer"
-            icon={<PaletteIcon className="text-muted-foreground size-5" />}
-          >
-            Card designer
-          </MobileNavLink>
-          <MobileNavLink
-            to="/match-tracker"
-            icon={<SwordsIcon className="text-muted-foreground size-5" />}
-          >
-            Match tracker
-          </MobileNavLink>
-          {isLoggedIn ? (
-            <MobileNavLink
-              to="/loans"
-              icon={<HandHeartIcon className="text-muted-foreground size-5" />}
-              badge={loansBadge}
-            >
-              Lending
-            </MobileNavLink>
-          ) : (
-            <MobileNavLockedItem
-              icon={<HandHeartIcon className="text-muted-foreground size-5" />}
-              onClick={() => onLockedClick("loans")}
-            >
-              Lending
-            </MobileNavLockedItem>
-          )}
-          {isLoggedIn ? (
-            <MobileNavLink
-              to="/tournaments"
-              icon={<TrophyIcon className="text-muted-foreground size-5" />}
-            >
-              Tournaments
-            </MobileNavLink>
-          ) : (
-            <MobileNavLockedItem
-              icon={<TrophyIcon className="text-muted-foreground size-5" />}
-              onClick={() => onLockedClick("tournaments")}
-            >
-              Tournaments
-            </MobileNavLockedItem>
-          )}
+          {PRIMARY_NAV_ITEMS.filter((item) =>
+            navItemVisible(item, { showGlossary, mobile: true }),
+          ).map((item) => (
+            <MobileNavItem
+              key={item.to}
+              item={item}
+              isLoggedIn={isLoggedIn}
+              badges={badges}
+              onLockedClick={onLockedClick}
+            />
+          ))}
+          {MORE_NAV_SECTIONS.map((section) => (
+            <Fragment key={section.label}>
+              <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
+                {section.label}
+              </div>
+              {section.items
+                .filter((item) => navItemVisible(item, { showGlossary, mobile: true }))
+                .map((item) => (
+                  <MobileNavItem
+                    key={item.to}
+                    item={item}
+                    compact
+                    isLoggedIn={isLoggedIn}
+                    badges={badges}
+                    onLockedClick={onLockedClick}
+                  />
+                ))}
+            </Fragment>
+          ))}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
+          <SheetClose
+            nativeButton={false}
+            render={<Link to="/help" />}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
+          >
+            <CircleHelpIcon className="size-4" />
+            Help
+          </SheetClose>
+          <SheetClose
+            nativeButton={false}
+            render={<Link to="/changelog" />}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
+          >
+            <SparklesIcon className="size-4" />
+            What&apos;s new
+          </SheetClose>
           <a
             href={SOCIAL_LINKS.discordInvite}
             target="_blank"
@@ -906,11 +905,6 @@ export function Header() {
   const [lockedFeature, setLockedFeature] = useState<LockedFeatureKey | null>(null);
   const showGlossary = glossaryEnabled;
   const isLoggedIn = Boolean(session?.user);
-  // Collection, Groups, and Tournaments always show in the nav. Signed out they
-  // render as locked entries that open SignInRequiredDialog (via setLockedFeature)
-  // instead of navigating. Decks are available logged out (ADR-035: build local
-  // decks without an account), so that entry is a plain link for everyone.
-  const showDecks = true;
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
@@ -949,9 +943,7 @@ export function Header() {
           <DesktopNav
             isLoggedIn={isLoggedIn}
             showGlossary={showGlossary}
-            showDecks={showDecks}
-            groupsBadge={groupsBadge}
-            loansBadge={loansBadge}
+            badges={{ groups: groupsBadge, loans: loansBadge }}
             onLockedClick={setLockedFeature}
           />
         </div>
@@ -983,9 +975,7 @@ export function Header() {
         onOpenChange={setMobileMenuOpen}
         isLoggedIn={isLoggedIn}
         showGlossary={showGlossary}
-        showDecks={showDecks}
-        groupsBadge={groupsBadge}
-        loansBadge={loansBadge}
+        badges={{ groups: groupsBadge, loans: loansBadge }}
         onLockedClick={setLockedFeature}
       />
 

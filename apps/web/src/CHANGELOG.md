@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(App): **Scan from the main menu** — the card scanner now sits right in the menu on every page, and the menu itself is grouped into Play, Organize, and Explore sections instead of one long list.
 - feat(Decks): **Cards on their way from a trade** — a deck's missing cards now mark the copies already reserved to you in a swap, so you don't buy one that's about to arrive.
 
 ### Other
