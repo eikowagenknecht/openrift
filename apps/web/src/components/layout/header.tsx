@@ -142,7 +142,7 @@ const LOCKED_FEATURES: Record<
     title: "Card scanner",
     description:
       "Hold your cards in front of the camera to add them to a collection, recognised on your device so no pictures are uploaded.",
-    to: "/collections/scan",
+    to: "/scan",
     icon: CameraIcon,
   },
   groups: {
@@ -208,7 +208,7 @@ interface NavSectionConfig {
 const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { label: "Cards", to: "/cards", icon: LayersIcon, keepSearch: true },
   { label: "Collection", to: "/collections", icon: LibraryIcon, lockedKey: "collections" },
-  { label: "Scan", to: "/collections/scan", icon: CameraIcon, lockedKey: "scan" },
+  { label: "Scan", to: "/scan", icon: CameraIcon, lockedKey: "scan" },
   // Decks are available logged out (ADR-035: build local decks without an
   // account), so this entry is a plain link for everyone.
   { label: "Decks", to: "/decks", icon: BookOpenIcon },

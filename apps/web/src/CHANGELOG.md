@@ -4,11 +4,16 @@
 
 ### Highlights
 
+- feat(Collection): **Identify-first scanning** — the scanner now names and counts cards first and adds them only when you pick a collection, instead of adding as it goes.
+- feat(Collection): **Scan sessions survive leaving the page** — navigating away or reloading no longer clears the scanned list, and a session older than a day offers a fresh start.
 - feat(App): **Scan from the main menu** — the card scanner now sits right in the menu on every page, and the menu itself is grouped into Play, Organize, and Explore sections instead of one long list.
 - feat(Decks): **Cards on their way from a trade** — a deck's missing cards now mark the copies already reserved to you in a swap, so you don't buy one that's about to arrive.
 
 ### Other
 
+- feat(Collection): **Card details inside the scanner** — Details on a scanned card opens the usual card overlay in place instead of leaving for the card page.
+- feat(Collection): **Printing picker grouped by language** — switching or picking a printing now shows one tab per language when a card exists in several.
+- feat(App): **Scanner moved to /scan** — the scan page has its own top-level address; old /collections/scan bookmarks need updating.
 - fix(Trades): **Value bar on cheap trades** — a swap worth under one unit of currency now fills the give/get bar properly instead of leaving most of it empty.
 - fix(Groups): **Card details on the trades and member pages** — opening a card from a trade row no longer fails to load for signed-in owners of that card.
 - fix(Collection): **Owned count after taking from a group box** — taking a card out of a group's collection now raises your own owned count right away, instead of only after a reload.

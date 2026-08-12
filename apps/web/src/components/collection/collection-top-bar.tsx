@@ -147,13 +147,13 @@ export function CollectionTopBar({
           {addActionsInBar && canAdd && (
             <>
               <PageTopBarIconButton
-                render={<Link to="/collections/scan" />}
+                render={<Link to="/scan" />}
                 aria-label="Scan cards"
                 className="sm:hidden"
               >
                 <CameraIcon className="size-4" />
               </PageTopBarIconButton>
-              <PageTopBarButton render={<Link to="/collections/scan" />} className="hidden sm:flex">
+              <PageTopBarButton render={<Link to="/scan" />} className="hidden sm:flex">
                 <CameraIcon className="size-4" />
                 Scan
               </PageTopBarButton>
@@ -197,7 +197,7 @@ export function CollectionTopBar({
               <DropdownMenuContent align="end">
                 {showAddMenuItems && (
                   <>
-                    <DropdownMenuItem render={<Link to="/collections/scan" />}>
+                    <DropdownMenuItem render={<Link to="/scan" />}>
                       <CameraIcon className="size-4" />
                       Scan cards
                     </DropdownMenuItem>

@@ -6,7 +6,7 @@ import { collectionsQueryOptions } from "@/lib/collections-query";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-export const Route = createFileRoute("/_app/_authenticated/collections_/scan")({
+export const Route = createFileRoute("/_app/_authenticated/scan")({
   // data-only: the page drives a live camera and reads collection state via
   // live queries — nothing here renders meaningfully on the server.
   ssr: "data-only",

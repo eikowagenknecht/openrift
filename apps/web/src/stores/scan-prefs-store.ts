@@ -4,11 +4,23 @@ import { persist } from "zustand/middleware";
 /** The language scans resolve to when only the language is ambiguous. */
 const DEFAULT_SCAN_LANGUAGE = "EN";
 
+/**
+ * Target value for scanning without collecting: the card is recognised and
+ * logged in the session tray, and nothing is written to the account. The
+ * default, because naming cards is what a first-time scanner wants; the tray's
+ * "Add all to a collection" turns a session into copies afterwards.
+ */
+export const SCAN_IDENTIFY_ONLY = "identify-only";
+
 interface ScanPrefsState {
   /** Silence the lock tick (vibration is unaffected). */
   muted: boolean;
   setMuted: (value: boolean) => void;
-  /** Last collection scans were added to; null until the first pick. */
+  /**
+   * Where scans go: a collection id collects live, {@link SCAN_IDENTIFY_ONLY}
+   * only names them. Null no longer occurs as a fresh default, but blobs
+   * persisted before identify-only became the default still carry it.
+   */
   targetCollectionId: string | null;
   setTargetCollectionId: (value: string | null) => void;
   /**
@@ -32,7 +44,7 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
     (set) => ({
       muted: false,
       setMuted: (value) => set({ muted: value }),
-      targetCollectionId: null,
+      targetCollectionId: SCAN_IDENTIFY_ONLY,
       setTargetCollectionId: (value) => set({ targetCollectionId: value }),
       cardLanguage: DEFAULT_SCAN_LANGUAGE,
       setCardLanguage: (value) => set({ cardLanguage: value }),
@@ -58,6 +70,9 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
         return {
           ...current,
           muted: typeof raw.muted === "boolean" ? raw.muted : current.muted,
+          // Only a stored string is a real pick, so a blob written before the
+          // identify-only default (which stored null until the first pick)
+          // lands on that default like a new user would.
           targetCollectionId:
             typeof raw.targetCollectionId === "string"
               ? raw.targetCollectionId

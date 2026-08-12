@@ -1,3 +1,4 @@
+import type { Printing } from "@openrift/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resetIdCounter, stubPrinting } from "@/test/factories";
@@ -415,6 +416,223 @@ describe("useScanSessionStore", () => {
       useScanSessionStore.getState().reset();
       expect(useScanSessionStore.getState().rows.size).toBe(0);
       expect(useScanSessionStore.getState().scans).toBe(0);
+    });
+
+    it("clears the scan timestamp and any staged restore", () => {
+      useScanSessionStore.getState().recordIdentified(stubPrinting({ id: "p1" }));
+      useScanSessionStore.setState({
+        restored: {
+          rows: [{ printingId: "p2", copyIds: [], identifiedCount: 1 }],
+          scans: 1,
+          lastScanAt: 42,
+        },
+      });
+      useScanSessionStore.getState().reset();
+      expect(useScanSessionStore.getState().lastScanAt).toBeNull();
+      expect(useScanSessionStore.getState().restored).toBeNull();
+    });
+  });
+
+  describe("lastScanAt", () => {
+    it("stamps recognitions but not corrections", () => {
+      expect(useScanSessionStore.getState().lastScanAt).toBeNull();
+      const printing = stubPrinting({ id: "p1" });
+      useScanSessionStore.getState().recordIdentified(printing);
+      const afterScan = useScanSessionStore.getState().lastScanAt;
+      expect(afterScan).not.toBeNull();
+
+      useScanSessionStore.getState().removeIdentified("p1");
+      useScanSessionStore.getState().recordConfirmed(printing, "copy-1");
+      expect(useScanSessionStore.getState().lastScanAt).toBe(afterScan);
+    });
+  });
+
+  describe("persistence", () => {
+    describe("partialize", () => {
+      it("stores confirmed copies and readings, never pendings", () => {
+        const printing = stubPrinting({ id: "p1" });
+        useScanSessionStore.getState().recordPending(printing, "temp-1");
+        useScanSessionStore.getState().confirmAdd("p1", "temp-1", "copy-1");
+        useScanSessionStore.getState().recordPending(printing, "temp-2");
+        useScanSessionStore.getState().recordIdentified(stubPrinting({ id: "p2" }));
+
+        const partialize = useScanSessionStore.persist.getOptions().partialize;
+        const persisted = partialize?.(useScanSessionStore.getState());
+        expect(persisted?.rows).toEqual([
+          { printingId: "p1", copyIds: ["copy-1"], identifiedCount: 0 },
+          { printingId: "p2", copyIds: [], identifiedCount: 1 },
+        ]);
+        expect(persisted?.scans).toBe(3);
+        expect(persisted?.lastScanAt).not.toBeNull();
+      });
+
+      it("drops a row whose only copies are still pending", () => {
+        useScanSessionStore.getState().recordPending(stubPrinting({ id: "p1" }), "temp-1");
+        const partialize = useScanSessionStore.persist.getOptions().partialize;
+        expect(partialize?.(useScanSessionStore.getState()).rows).toEqual([]);
+      });
+
+      it("passes a staged payload through unchanged until restore runs", () => {
+        const staged = {
+          rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 2 }],
+          scans: 3,
+          lastScanAt: 123,
+        };
+        useScanSessionStore.setState({ restored: staged });
+        const partialize = useScanSessionStore.persist.getOptions().partialize;
+        expect(partialize?.(useScanSessionStore.getState())).toEqual(staged);
+      });
+    });
+
+    describe("merge", () => {
+      it("stages a valid persisted session for restore", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const current = useScanSessionStore.getState();
+        const merged = merge?.(
+          {
+            rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 1 }],
+            scans: 2,
+            lastScanAt: 42,
+          },
+          current,
+        );
+        expect(merged?.restored).toEqual({
+          rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 1 }],
+          scans: 2,
+          lastScanAt: 42,
+        });
+        expect(merged?.rows.size).toBe(0);
+      });
+
+      it("filters malformed rows and stages nothing when none survive", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const current = useScanSessionStore.getState();
+        const merged = merge?.(
+          {
+            rows: [
+              { printingId: 5, copyIds: [], identifiedCount: 0 },
+              "junk",
+              { printingId: "p1", copyIds: [1], identifiedCount: 0 },
+              { printingId: "p2", copyIds: [], identifiedCount: -1 },
+            ],
+            scans: 1,
+            lastScanAt: null,
+          },
+          current,
+        );
+        expect(merged?.restored).toBeNull();
+      });
+
+      it("defaults a missing scans count to the row count", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const current = useScanSessionStore.getState();
+        const merged = merge?.(
+          { rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 0 }] },
+          current,
+        );
+        expect(merged?.restored?.scans).toBe(1);
+        expect(merged?.restored?.lastScanAt).toBeNull();
+      });
+
+      it("survives a null persisted blob", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const current = useScanSessionStore.getState();
+        expect(merge?.(null, current)).toBe(current);
+      });
+    });
+
+    describe("restore", () => {
+      const lookupFrom = (printings: Printing[]) => {
+        const byId = new Map(printings.map((printing) => [printing.id, printing]));
+        return (id: string) => byId.get(id);
+      };
+
+      it("rebuilds rows from the catalog and reports the banner data", () => {
+        useScanSessionStore.setState({
+          restored: {
+            rows: [
+              { printingId: "p1", copyIds: ["copy-1", "copy-2"], identifiedCount: 0 },
+              { printingId: "p2", copyIds: [], identifiedCount: 3 },
+            ],
+            scans: 5,
+            lastScanAt: 42,
+          },
+        });
+
+        const result = useScanSessionStore
+          .getState()
+          .restore(lookupFrom([stubPrinting({ id: "p1" }), stubPrinting({ id: "p2" })]));
+
+        expect(result).toEqual({ cards: 5, lastScanAt: 42 });
+        const state = useScanSessionStore.getState();
+        expect([...state.rows.keys()]).toEqual(["p1", "p2"]);
+        expect(state.rows.get("p1")?.copyIds).toEqual(["copy-1", "copy-2"]);
+        expect(state.rows.get("p1")?.pendingCount).toBe(0);
+        expect(state.rows.get("p2")?.identifiedCount).toBe(3);
+        expect(state.scans).toBe(5);
+        expect(state.lastScanAt).toBe(42);
+        expect(state.restored).toBeNull();
+      });
+
+      it("drops readings whose printing left the catalog", () => {
+        useScanSessionStore.setState({
+          restored: {
+            rows: [
+              { printingId: "p-gone", copyIds: ["copy-1"], identifiedCount: 0 },
+              { printingId: "p1", copyIds: [], identifiedCount: 2 },
+            ],
+            scans: 3,
+            lastScanAt: null,
+          },
+        });
+
+        const result = useScanSessionStore
+          .getState()
+          .restore(lookupFrom([stubPrinting({ id: "p1" })]));
+
+        expect(result).toEqual({ cards: 2, lastScanAt: null });
+        expect([...useScanSessionStore.getState().rows.keys()]).toEqual(["p1"]);
+      });
+
+      it("keeps cards scanned before the restore as the newest rows", () => {
+        const p1 = stubPrinting({ id: "p1" });
+        const p2 = stubPrinting({ id: "p2" });
+        useScanSessionStore.getState().recordIdentified(p1);
+        useScanSessionStore.getState().recordIdentified(p2);
+        useScanSessionStore.setState({
+          restored: {
+            rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 0 }],
+            scans: 1,
+            lastScanAt: 42,
+          },
+        });
+
+        useScanSessionStore.getState().restore(lookupFrom([p1, p2]));
+
+        const state = useScanSessionStore.getState();
+        expect([...state.rows.keys()]).toEqual(["p1", "p2"]);
+        expect(state.rows.get("p1")?.copyIds).toEqual(["copy-1"]);
+        expect(state.rows.get("p1")?.identifiedCount).toBe(1);
+        expect(state.scans).toBe(3);
+        // The live session's own timestamp outranks the restored one.
+        expect(state.lastScanAt).not.toBe(42);
+      });
+
+      it("returns null when nothing was staged", () => {
+        expect(useScanSessionStore.getState().restore(() => undefined)).toBeNull();
+      });
+
+      it("returns null and clears the stage when no printing resolves", () => {
+        useScanSessionStore.setState({
+          restored: {
+            rows: [{ printingId: "p-gone", copyIds: ["copy-1"], identifiedCount: 0 }],
+            scans: 1,
+            lastScanAt: 42,
+          },
+        });
+        expect(useScanSessionStore.getState().restore(() => undefined)).toBeNull();
+        expect(useScanSessionStore.getState().restored).toBeNull();
+      });
     });
   });
 });

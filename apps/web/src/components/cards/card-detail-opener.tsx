@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { createContext, use, useState } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
 
 import { CardDetailOverlay } from "@/components/cards/card-detail-overlay";
 import { Pressable } from "@/components/ui/pressable";
@@ -33,7 +33,7 @@ const OpenCardDetailContext = createContext<Dispatch<SetStateAction<OpenCardDeta
  * there rather than as a control that does nothing.
  * @returns The opener, or null outside a provider.
  */
-function useOpenCardDetail(): Dispatch<SetStateAction<OpenCardDetail | null>> | null {
+export function useOpenCardDetail(): Dispatch<SetStateAction<OpenCardDetail | null>> | null {
   return use(OpenCardDetailContext);
 }
 
@@ -54,10 +54,32 @@ function useOpenCardDetail(): Dispatch<SetStateAction<OpenCardDetail | null>> | 
  * with no stepping and no position label.
  * @returns The provider tree wrapping `children`, plus the overlay.
  */
-export function CardDetailOverlayProvider({ children }: { children: ReactNode }) {
+export function CardDetailOverlayProvider({
+  children,
+  onOpenChange,
+}: {
+  children: ReactNode;
+  /**
+   * Told whether a card detail is up, for a surface that has to stand down
+   * while it is (a running camera, a poll). Reported on the open/close edge
+   * only, so stepping prev/next through a sequence is not a close and a
+   * reopen.
+   */
+  onOpenChange?: (open: boolean) => void;
+}) {
   const [openCard, setOpenCard] = useState<OpenCardDetail | null>(null);
   const showImages = useDisplayStore((state) => state.showImages);
   const navigate = useNavigate();
+
+  const detailOpen = openCard !== null;
+  const reportedOpenRef = useRef(detailOpen);
+  useEffect(() => {
+    if (reportedOpenRef.current === detailOpen) {
+      return;
+    }
+    reportedOpenRef.current = detailOpen;
+    onOpenChange?.(detailOpen);
+  }, [detailOpen, onOpenChange]);
 
   // Tag and keyword chips in the detail have nothing to filter on a page of
   // trade rows, so they hand the query to the catalog and close behind

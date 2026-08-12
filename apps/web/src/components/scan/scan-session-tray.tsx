@@ -14,6 +14,7 @@ import {
 import { useId } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { useOpenCardDetail } from "@/components/cards/card-detail-opener";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
@@ -105,10 +106,10 @@ export function ScanSessionTray({
   // each call, and the camera pipeline wants that CPU.
   const { labels } = useEnumOrders();
   const newestFirst = [...rows.values()].toReversed();
-  const { openId, toggle } = useScanTrayDisclosure(
-    newestFirst.map((row) => row.printing.id),
-    scans,
-  );
+  // Tray order, which is also the order the detail overlay's prev/next steps
+  // through once a row opens it.
+  const sequence = newestFirst.map((row) => row.printing.id);
+  const { openId, toggle } = useScanTrayDisclosure(sequence, scans);
 
   // What the session is worth to the user: prices, wishlist membership and
   // owned-before counts, shared by the summary line and the row badges. All
@@ -118,10 +119,7 @@ export function ScanSessionTray({
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const { data: prices } = useQuery(pricesQueryOptions);
   const wish = useWishEntries(true);
-  const { data: owned } = useOwnedCountsForPrintings(
-    newestFirst.map((row) => row.printing.id),
-    hydrated,
-  );
+  const { data: owned } = useOwnedCountsForPrintings(sequence, hydrated);
   // Owned counts include what this session already added (the copies
   // collection is optimistic), so "owned before" subtracts the session's own
   // copies. Identify-only readings never reach the collection, so they
@@ -150,7 +148,7 @@ export function ScanSessionTray({
         <p className="text-muted-foreground">
           {collecting
             ? "Nothing scanned yet. Cards land in your collection the moment they are recognised, and show up here so you can undo or mark a foil."
-            : "Nothing scanned yet. Cards you hold up will be named here, and nothing is added to your collection."}
+            : "Nothing scanned yet. Cards you hold up are named and counted here. Add them to a collection whenever you like."}
         </p>
         <UnidentifiedList
           cards={unidentified}
@@ -177,6 +175,7 @@ export function ScanSessionTray({
           <TrayRow
             key={row.printing.id}
             row={row}
+            sequence={sequence}
             siblings={index ? finishSiblingsOf(row.printing, index) : []}
             finishLabels={labels.finishes}
             open={openId === row.printing.id}
@@ -213,6 +212,8 @@ export function ScanSessionTray({
 
 interface TrayRowProps {
   row: ScanSessionRow;
+  /** Every tray row's printing id, for the detail overlay's prev/next. */
+  sequence: string[];
   /** Same-card printings that differ only in finish, for the switch buttons. */
   siblings: Printing[];
   finishLabels: Record<string, string>;
@@ -242,6 +243,7 @@ interface TrayRowProps {
  */
 function TrayRow({
   row,
+  sequence,
   siblings,
   finishLabels,
   open,
@@ -256,6 +258,7 @@ function TrayRow({
   ownedBefore,
 }: TrayRowProps) {
   const actionsId = useId();
+  const openCardDetail = useOpenCardDetail();
   const printing = row.printing;
   const name = legendDisplayName(printing.card);
   const isFoil = printing.finish !== WellKnown.finish.NORMAL;
@@ -331,14 +334,28 @@ function TrayRow({
       </div>
       {open && (
         <div id={actionsId} className="mt-2 flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            render={<Link to="/cards/$cardSlug" params={{ cardSlug: printing.card.slug }} />}
-            aria-label={`Open the card page for ${name}`}
-          >
-            <InfoIcon />
-            Details
-          </Button>
+          {/* The detail opens over the page, because leaving for the card page
+              would end a running camera session. Without a provider above the
+              tray there is nothing to open in place, so the card page it is. */}
+          {openCardDetail ? (
+            <Button
+              variant="outline"
+              onClick={() => openCardDetail({ printingId: printing.id, sequence })}
+              aria-label={`Show details for ${name}`}
+            >
+              <InfoIcon />
+              Details
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              render={<Link to="/cards/$cardSlug" params={{ cardSlug: printing.card.slug }} />}
+              aria-label={`Open the card page for ${name}`}
+            >
+              <InfoIcon />
+              Details
+            </Button>
+          )}
           {/* Identify-only readings get the same corrections as copies — a
               mis-counted or mis-finished reading skews the session summary
               just as much. The page routes each control to the store or the

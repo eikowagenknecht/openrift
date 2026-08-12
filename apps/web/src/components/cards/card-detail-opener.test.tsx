@@ -138,3 +138,52 @@ describe("CardDetailNameButton", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
+
+describe("CardDetailOverlayProvider", () => {
+  it("says nothing while no detail has been opened", () => {
+    const onOpenChange = vi.fn();
+    render(
+      <CardDetailOverlayProvider onOpenChange={onOpenChange}>
+        <CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("reports opening once, and not again for a step to the next printing", async () => {
+    // The scan page stops locking cards while a detail is up, so a step through
+    // the sequence must not read as a close and a reopen.
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <CardDetailOverlayProvider onOpenChange={onOpenChange}>
+        <CardDetailNameButton printingId="printing-1" sequence={["printing-1", "printing-2"]}>
+          Yasuo
+        </CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+    expect(onOpenChange.mock.calls).toEqual([[true]]);
+
+    await user.click(screen.getByRole("button", { name: "next" }));
+    expect(onOpenChange.mock.calls).toEqual([[true]]);
+  });
+
+  it("reports the close when the overlay dismisses", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <CardDetailOverlayProvider onOpenChange={onOpenChange}>
+        <CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>
+      </CardDetailOverlayProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Yasuo" }));
+    // With no sequence the stand-in reports null, the same as a real dismissal.
+    await user.click(screen.getByRole("button", { name: "next" }));
+
+    expect(onOpenChange.mock.calls).toEqual([[true], [false]]);
+  });
+});

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
 
-import { useScanPrefsStore } from "./scan-prefs-store";
+import { SCAN_IDENTIFY_ONLY, useScanPrefsStore } from "./scan-prefs-store";
 
 let resetStore: () => void;
 
@@ -20,6 +20,10 @@ describe("useScanPrefsStore", () => {
     useScanPrefsStore.getState().setTargetCollectionId("col-1");
     expect(useScanPrefsStore.getState().muted).toBe(true);
     expect(useScanPrefsStore.getState().targetCollectionId).toBe("col-1");
+  });
+
+  it("defaults the target to identify-only", () => {
+    expect(useScanPrefsStore.getState().targetCollectionId).toBe(SCAN_IDENTIFY_ONLY);
   });
 
   it("defaults the card language to English and stores a change", () => {
@@ -65,7 +69,7 @@ describe("useScanPrefsStore", () => {
         useScanPrefsStore.getState(),
       );
       expect(result?.muted).toBe(false);
-      expect(result?.targetCollectionId).toBeNull();
+      expect(result?.targetCollectionId).toBe(SCAN_IDENTIFY_ONLY);
       expect(result?.cardLanguage).toBe("EN");
       expect(result?.autoScan).toBe(false);
     });
@@ -74,9 +78,30 @@ describe("useScanPrefsStore", () => {
       const merge = useScanPrefsStore.persist.getOptions().merge;
       const result = merge?.(null, useScanPrefsStore.getState());
       expect(result?.muted).toBe(false);
-      expect(result?.targetCollectionId).toBeNull();
+      expect(result?.targetCollectionId).toBe(SCAN_IDENTIFY_ONLY);
       expect(result?.cardLanguage).toBe("EN");
       expect(result?.autoScan).toBe(false);
+    });
+
+    it("identifies only for a blob written before the first target pick", () => {
+      const merge = useScanPrefsStore.persist.getOptions().merge;
+      const result = merge?.({ targetCollectionId: null }, useScanPrefsStore.getState());
+      expect(result?.targetCollectionId).toBe(SCAN_IDENTIFY_ONLY);
+    });
+
+    it("keeps a persisted collection target rather than reinstating identify-only", () => {
+      const merge = useScanPrefsStore.persist.getOptions().merge;
+      const result = merge?.({ targetCollectionId: "col-7" }, useScanPrefsStore.getState());
+      expect(result?.targetCollectionId).toBe("col-7");
+    });
+
+    it("keeps a persisted identify-only target", () => {
+      const merge = useScanPrefsStore.persist.getOptions().merge;
+      const result = merge?.(
+        { targetCollectionId: SCAN_IDENTIFY_ONLY },
+        useScanPrefsStore.getState(),
+      );
+      expect(result?.targetCollectionId).toBe(SCAN_IDENTIFY_ONLY);
     });
 
     it("defaults auto-scan off for a blob written before the toggle existed", () => {

@@ -12,11 +12,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
 import { TakeWishlistFollowUpDialog } from "@/components/collection/take-wishlist-followup-dialog";
 import {
   PageTopBar,
   PageTopBarActions,
-  PageTopBarBack,
   PageTopBarIconButton,
   PageTopBarSticky,
   PageTopBarTitle,
@@ -38,6 +38,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -62,7 +63,7 @@ import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-r
 import type { ScannerMode } from "@/lib/scan-session";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { cn } from "@/lib/utils";
-import { useScanPrefsStore } from "@/stores/scan-prefs-store";
+import { SCAN_IDENTIFY_ONLY, useScanPrefsStore } from "@/stores/scan-prefs-store";
 import type { ScanSessionRow } from "@/stores/scan-session-store";
 import { useScanSessionStore } from "@/stores/scan-session-store";
 
@@ -75,12 +76,30 @@ import { useScanSessionStore } from "@/stores/scan-session-store";
 const AIM_SUGGEST_SECONDS = 3;
 
 /**
- * Target-collection value for scanning without collecting: the card is
- * recognised and logged in the tray, and nothing is written to the account.
- * What you do when you want to know what a card is, or when you are checking
- * the scanner itself.
+ * How old a restored session must be before the tray leads with a resume
+ * banner. A reload mid-session should feel like nothing happened; a tray from
+ * days ago should not silently pass as today's pulls.
  */
-const NO_COLLECTION = "identify-only";
+const RESUME_PROMPT_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * When the restored session last scanned, in banner words.
+ *
+ * @returns A phrase for the resume banner ("yesterday", "3 days ago").
+ */
+function describeLastScan(lastScanAt: number | null): string {
+  if (lastScanAt === null) {
+    return "an earlier session";
+  }
+  const days = Math.floor((Date.now() - lastScanAt) / (24 * 60 * 60 * 1000));
+  if (days <= 0) {
+    return "earlier today";
+  }
+  if (days === 1) {
+    return "yesterday";
+  }
+  return `${days} days ago`;
+}
 
 /** Card-language value for a stack that is not all one language. */
 const ANY_LANGUAGE = "any";
@@ -92,7 +111,7 @@ const ANY_LANGUAGE = "any";
  * itself (foils, unsplittable variants) open a picker right away; dismissing
  * it discards that lock.
  *
- * @returns The /collections/scan page.
+ * @returns The /scan page.
  */
 export function ScanPage() {
   const { allPrintings } = useCards();
@@ -108,11 +127,13 @@ export function ScanPage() {
   const setAutoScan = useScanPrefsStore((state) => state.setAutoScan);
   const languageLabels = useLanguageLabels();
 
-  // Recognise but do not collect. Distinct from "no target yet", which falls
-  // back to the inbox below.
-  const identifyOnly = storedTargetId === NO_COLLECTION;
-  // The stored target may have been deleted since the last session; fall back
-  // to the inbox, which every account has.
+  // Recognise but do not collect. Null is a blob from before identify-only
+  // became the default, so it belongs here too: whoever never picked a target
+  // is exactly who the default is for.
+  const identifyOnly = storedTargetId === SCAN_IDENTIFY_ONLY || storedTargetId === null;
+  // A picked collection may have been deleted since the last session; fall back
+  // to the inbox, which every account has, rather than silently stopping the
+  // collecting the user asked for.
   const target = identifyOnly
     ? undefined
     : (collections.find((collection) => collection.id === storedTargetId) ??
@@ -120,8 +141,8 @@ export function ScanPage() {
       collections[0]);
   const targetId = target?.id ?? null;
   const targetItems = [
+    { value: SCAN_IDENTIFY_ONLY, label: "Just identify" },
     ...collections.map((collection) => ({ value: collection.id, label: collection.name })),
-    { value: NO_COLLECTION, label: "Just identify" },
   ];
 
   // The catalog's printing languages, for the card-language preference. The
@@ -133,11 +154,31 @@ export function ScanPage() {
       .map((code) => ({ value: code, label: languageLabels[code] ?? code })),
   ];
 
-  // A scan session is one page visit: the tray is a log of what THIS sitting
-  // added, so a leftover from an earlier visit must not linger.
+  // The session log survives leaving the page: anything persisted is rebuilt
+  // from the catalog on arrival. A recent session resumes silently (a reload
+  // mid-scan should feel like nothing happened); an old one leads with a
+  // banner so yesterday's pulls cannot pass as today's.
+  const [resumeNotice, setResumeNotice] = useState<{ cards: number; when: string } | null>(null);
   useEffect(() => {
+    if (allPrintings.length === 0) {
+      return;
+    }
+    const byId = new Map(allPrintings.map((printing) => [printing.id, printing]));
+    const restored = useScanSessionStore.getState().restore((printingId) => byId.get(printingId));
+    if (
+      restored !== null &&
+      (restored.lastScanAt === null || Date.now() - restored.lastScanAt >= RESUME_PROMPT_AFTER_MS)
+    ) {
+      setResumeNotice({ cards: restored.cards, when: describeLastScan(restored.lastScanAt) });
+    }
+  }, [allPrintings]);
+
+  function handleStartFresh() {
+    // Start fresh discards the log only: copies an old session added were
+    // added on purpose and stay in the collection.
     useScanSessionStore.getState().reset();
-  }, []);
+    setResumeNotice(null);
+  }
 
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -196,6 +237,9 @@ export function ScanPage() {
   const [flights, setFlights] = useState<ScanFlight[]>([]);
   const flightSeqRef = useRef(0);
 
+  // A tray row's detail is up, over the whole page.
+  const [detailOpen, setDetailOpen] = useState(false);
+
   async function addPrinting(printing: Printing) {
     if (identifyOnly) {
       // Named, logged, and that is the whole job — nothing reaches the account.
@@ -217,6 +261,11 @@ export function ScanPage() {
   }
 
   function handleLock(lock: Pick<LockedCard, "key" | "artKey" | "label" | "resolved">) {
+    // While the user reads a card's detail they are not aiming, and in collect
+    // mode with auto-scan a card left in the guide would keep counting.
+    if (detailOpen) {
+      return;
+    }
     if (!index) {
       return;
     }
@@ -845,9 +894,11 @@ export function ScanPage() {
   );
 
   const targetSelect = (
+    // The full items array still goes to the root: BaseUI resolves the
+    // trigger's display label from it, however the list below is grouped.
     <Select
       items={targetItems}
-      value={identifyOnly ? NO_COLLECTION : (targetId ?? "")}
+      value={identifyOnly ? SCAN_IDENTIFY_ONLY : (targetId ?? "")}
       onValueChange={(value) => {
         if (value) {
           setStoredTargetId(value);
@@ -858,9 +909,13 @@ export function ScanPage() {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {targetItems.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
+        {/* Identifying is not one of the collections, so it leads the list and
+            a rule separates it from them. */}
+        <SelectItem value={SCAN_IDENTIFY_ONLY}>Just identify</SelectItem>
+        {collections.length > 0 && <SelectSeparator />}
+        {collections.map((collection) => (
+          <SelectItem key={collection.id} value={collection.id}>
+            {collection.name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -960,27 +1015,46 @@ export function ScanPage() {
   );
 
   const tray = (
-    <ScanSessionTray
-      index={index}
-      onSwitchFinish={handleSwitchPrinting}
-      onAddOne={handleAddOne}
-      onRemoveOne={handleRemoveOne}
-      onChangePrinting={setSwapRow}
-      onRemoveAll={() => void handleRemoveAll()}
-      onAddAll={identifyOnly ? () => setAddAllOpen(true) : undefined}
-      collecting={!identifyOnly}
-      unidentified={unidentified}
-      onIdentifyMissed={handleIdentifyMissed}
-      onDismissMissed={dismissUnidentified}
-    />
+    <>
+      {resumeNotice !== null && (
+        <div className="bg-muted/50 mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md px-3 py-2">
+          <span className="text-sm">
+            {resumeNotice.cards} {resumeNotice.cards === 1 ? "card" : "cards"} from{" "}
+            {resumeNotice.when}.
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setResumeNotice(null)}>
+              Keep going
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleStartFresh}>
+              Start fresh
+            </Button>
+          </div>
+        </div>
+      )}
+      <ScanSessionTray
+        index={index}
+        onSwitchFinish={handleSwitchPrinting}
+        onAddOne={handleAddOne}
+        onRemoveOne={handleRemoveOne}
+        onChangePrinting={setSwapRow}
+        onRemoveAll={() => void handleRemoveAll()}
+        onAddAll={identifyOnly ? () => setAddAllOpen(true) : undefined}
+        collecting={!identifyOnly}
+        unidentified={unidentified}
+        onIdentifyMissed={handleIdentifyMissed}
+        onDismissMissed={dismissUnidentified}
+      />
+    </>
   );
 
   return (
-    <>
+    // Wraps the whole page so the tray inside the stage can open a card's
+    // detail over it, rather than navigating away from a running session.
+    <CardDetailOverlayProvider onOpenChange={setDetailOpen}>
       {!immersive && (
         <PageTopBarSticky maxWidth="4xl">
           <PageTopBar>
-            <PageTopBarBack to="/collections" aria-label="Back to collections" />
             <PageTopBarTitle>Scan cards</PageTopBarTitle>
             <PageTopBarActions>
               {targetSelect}
@@ -1066,6 +1140,6 @@ export function ScanPage() {
           }
         }}
       />
-    </>
+    </CardDetailOverlayProvider>
   );
 }

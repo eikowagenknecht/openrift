@@ -856,7 +856,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                   {/* An empty collection is exactly when a stack of physical
                       cards is waiting to be entered, so the scanner belongs
                       here even though the bar only carries it on the inbox. */}
-                  <Link to="/collections/scan" className={buttonVariants({ variant: "ghost" })}>
+                  <Link to="/scan" className={buttonVariants({ variant: "ghost" })}>
                     <CameraIcon />
                     Scan cards
                   </Link>
