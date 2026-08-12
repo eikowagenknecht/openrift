@@ -6,6 +6,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { queryKeys } from "@/lib/query-keys";
 import { stubCopy } from "@/test/factories";
 
 // Mutable holder so individual tests can swap in a real TanStack DB collection
@@ -74,6 +75,39 @@ function seedSession(client: QueryClient, userId: string) {
       createdAt: "",
       updatedAt: "",
     },
+  });
+}
+
+// Seeds the collections list cache that groupIdForCollection reads to resolve
+// a destination collection's owning group. Only id and groupId are consulted,
+// so the rest of CollectionResponse is filled with inert defaults.
+function seedCollections(
+  client: QueryClient,
+  userId: string,
+  collections: { id: string; groupId: string | null }[],
+) {
+  client.setQueryData(queryKeys.collections.all(userId), {
+    items: collections.map(({ id, groupId }) => ({
+      id,
+      groupId,
+      name: id,
+      description: null,
+      availableForDeckbuilding: true,
+      sidebarHidden: false,
+      isInbox: false,
+      sortOrder: 0,
+      isPublic: false,
+      shareToken: null,
+      copyCount: 0,
+      totalValueCents: null,
+      unpricedCopyCount: null,
+      createdAt: "",
+      updatedAt: "",
+      groupSlug: groupId === null ? null : "group",
+      groupName: groupId === null ? null : "Group",
+      viewerCanAdmin: true,
+      homeDecks: [],
+    })),
   });
 }
 
@@ -317,6 +351,68 @@ describe("batch mutations with a mix of real and temp ids process only the real 
     await result.current.mutateAsync({ copyIds: ["temp-x", "real-1"], toCollectionId: "dest" });
 
     expect(sentBody).toEqual({ copyIds: ["real-1"], toCollectionId: "dest" });
+  });
+});
+
+// Regression: a move rewrote only `collectionId` on the copy row, in both the
+// optimistic update and the per-chunk confirmation. `groupId` is derived from
+// the owning collection, so a copy taken out of a group's bulk box into a
+// personal collection kept its old group id. Personal owned totals skip every
+// copy with a `groupId` (see aggregateTotals in use-owned-count.ts), so the
+// viewer's count never moved: the box's tile dropped by one, but opening the
+// card still showed the old "in my collection" figure. Nothing refetches the
+// copies feed after a move (the invalidation is refetchType: "none"), so the
+// stale row survived for the rest of the session.
+describe("moving copies carries the destination collection's group id", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 204 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    copiesCollectionHolder.current = null;
+  });
+
+  it("clears groupId when taking a copy from a group box into a personal collection", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+    seedCollections(client, "user-1", [
+      { id: "box", groupId: "group-1" },
+      { id: "inbox", groupId: null },
+    ]);
+    const collection = await makeRealCopiesCollection(client, [
+      stubCopy({ id: "real-1", collectionId: "box", groupId: "group-1" }),
+    ]);
+    copiesCollectionHolder.current = collection;
+
+    const { result } = renderHook(() => useMoveCopies(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({ copyIds: ["real-1"], toCollectionId: "inbox" });
+
+    const moved = collection.toArray.find((copy) => copy.id === "real-1");
+    expect(moved?.collectionId).toBe("inbox");
+    expect(moved?.groupId).toBeNull();
+  });
+
+  it("sets groupId when contributing a personal copy to a group collection", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+    seedCollections(client, "user-1", [
+      { id: "inbox", groupId: null },
+      { id: "box", groupId: "group-1" },
+    ]);
+    const collection = await makeRealCopiesCollection(client, [
+      stubCopy({ id: "real-1", collectionId: "inbox", groupId: null }),
+    ]);
+    copiesCollectionHolder.current = collection;
+
+    const { result } = renderHook(() => useMoveCopies(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({ copyIds: ["real-1"], toCollectionId: "box" });
+
+    const moved = collection.toArray.find((copy) => copy.id === "real-1");
+    expect(moved?.collectionId).toBe("box");
+    expect(moved?.groupId).toBe("group-1");
   });
 });
 

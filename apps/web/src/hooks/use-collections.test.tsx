@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
@@ -44,8 +45,12 @@ vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => copiesCollectionHolder.current,
 }));
 
-const { useClearCollection, useReorderCollections, useSetCollectionSidebarHidden } =
-  await import("./use-collections");
+const {
+  useClearCollection,
+  useDeleteCollection,
+  useReorderCollections,
+  useSetCollectionSidebarHidden,
+} = await import("./use-collections");
 
 function wrap(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -167,6 +172,44 @@ describe("useSetCollectionSidebarHidden", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(client.getQueryData(["collections", "user-1"])).toEqual({ items });
     expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
+  });
+});
+
+// Regression: deleting a collection mirrors the server's move-to-inbox in the
+// synced store, but rewrote only collectionId. An inbox is always personal, so
+// copies from a deleted group collection kept a stale groupId and stayed out of
+// the viewer's personal owned totals (which skip group copies) until a full
+// copies refetch.
+describe("useDeleteCollection", () => {
+  beforeEach(() => {
+    serverFnImpl.mockReset();
+    serverFnImpl.mockResolvedValue(null);
+    copiesCollectionHolder.current = null;
+  });
+
+  it("clears groupId on the copies it moves into the inbox", async () => {
+    const writeUpdate = vi.fn();
+    copiesCollectionHolder.current = {
+      toArray: [
+        { id: "copy-1", collectionId: "group-box", groupId: "group-1" },
+        { id: "copy-other", collectionId: "col-2", groupId: null },
+      ],
+      utils: { writeUpdate },
+    };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+    client.setQueryData(queryKeys.collections.all("user-1"), {
+      items: [{ ...collection("inbox-1", 0), isInbox: true }],
+    });
+
+    const { result } = renderHook(() => useDeleteCollection(), { wrapper: wrap(client) });
+    await result.current.mutateAsync("group-box");
+
+    await waitFor(() => {
+      expect(writeUpdate).toHaveBeenCalledWith([
+        { id: "copy-1", collectionId: "inbox-1", groupId: null },
+      ]);
+    });
   });
 });
 

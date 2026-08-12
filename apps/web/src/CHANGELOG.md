@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-12
+
+### Other
+
+- fix(Collection): **Owned count after taking from a group box** — taking a card out of a group's collection now raises your own owned count right away, instead of only after a reload.
+
 ## 2026-08-11
 
 ### Highlights

@@ -388,8 +388,12 @@ export function useDeleteCollection() {
       if (inboxId && copiesCollection) {
         const affected = copiesCollection.toArray.filter((copy) => copy.collectionId === deletedId);
         if (affected.length > 0) {
+          // groupId travels with collectionId: an inbox is always personal
+          // (the schema forbids a group inbox), so copies landing there stop
+          // being group-owned. Leaving the old groupId would keep them out of
+          // the viewer's personal owned totals, which skip group copies.
           copiesCollection.utils.writeUpdate(
-            affected.map((copy) => ({ id: copy.id, collectionId: inboxId })),
+            affected.map((copy) => ({ id: copy.id, collectionId: inboxId, groupId: null })),
           );
         }
       }

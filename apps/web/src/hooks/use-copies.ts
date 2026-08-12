@@ -293,6 +293,16 @@ export function useMoveCopies() {
         throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const collection = copiesCollection;
+      // A move across the personal/group boundary changes who owns the copy,
+      // so the row's derived `groupId` has to travel with `collectionId`. The
+      // server recomputes it from the destination collection, but the
+      // invalidation below is `refetchType: "none"`, so nothing re-reads the
+      // feed and a row written with only the new `collectionId` keeps its old
+      // `groupId` for the rest of the session. That is what left the viewer's
+      // owned totals unchanged after taking a card out of a group's bulk box:
+      // personal counts skip every copy with a `groupId`, so the taken copy
+      // stayed invisible to them.
+      const toGroupId = groupIdForCollection(queryClient, userId, toCollectionId);
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
           const ids = transaction.mutations.map((m) => String(m.key));
@@ -309,7 +319,9 @@ export function useMoveCopies() {
             // chunk's failure only rolls back the not-yet-committed
             // remainder instead of discarding chunks the server already
             // committed.
-            collection.utils.writeUpdate(batch.map((id) => ({ id, collectionId: toCollectionId })));
+            collection.utils.writeUpdate(
+              batch.map((id) => ({ id, collectionId: toCollectionId, groupId: toGroupId })),
+            );
           }
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
@@ -327,6 +339,7 @@ export function useMoveCopies() {
         for (const id of realCopyIds) {
           collection.update(id, (draft) => {
             draft.collectionId = toCollectionId;
+            draft.groupId = toGroupId;
           });
         }
       });
