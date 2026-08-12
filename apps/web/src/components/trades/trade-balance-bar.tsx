@@ -47,6 +47,15 @@ export function TradeBalanceBar({
   const getCards = cardCount(trades, "receiver");
   const priced = split.hasGive || split.hasGet;
 
+  // The bar's segments are sized by flex-grow, which CSS reads as shares of the
+  // free space — and when the grow factors sum to less than 1 it hands out only
+  // that fraction of it (CSS Flexbox §9.7). Feeding the raw money in therefore
+  // broke every cheap deal: a 0.32 € trade filled a third of the rail and left
+  // the rest bare track. Normalising to fractions of the total pins the sum at
+  // 1 at any price, and the segments' min-width still keeps a zero side visible.
+  const total = split.give + split.get;
+  const giveShare = total > 0 ? split.give / total : 0.5;
+
   // Neutral by design: a value gap is usually the part money settles (one side
   // is simply buying), so the bar states the difference and never calls it
   // anyone's "favor" — the app cannot see the cash side of the deal.
@@ -89,18 +98,12 @@ export function TradeBalanceBar({
       </div>
       {priced ? (
         <>
-          {/* Zero-value sides keep a sliver (minmax via flex-basis) so the bar
-              always reads as two-sided rather than one color filling the rail. */}
+          {/* Zero-value sides keep a sliver (min-width) so the bar always reads
+              as two-sided rather than one color filling the rail. */}
           <div className="bg-muted flex h-1.5 overflow-hidden rounded-full">
-            <span
-              className="min-w-1 bg-amber-500/80"
-              style={{ flexGrow: Math.max(split.give, 0.0001) }}
-            />
+            <span className="min-w-1 bg-amber-500/80" style={{ flexGrow: giveShare }} />
             <span className="w-0.5 shrink-0" />
-            <span
-              className="min-w-1 bg-green-500/80"
-              style={{ flexGrow: Math.max(split.get, 0.0001) }}
-            />
+            <span className="min-w-1 bg-green-500/80" style={{ flexGrow: 1 - giveShare }} />
           </div>
           <div className="text-muted-foreground/70 flex justify-between gap-3 text-xs">
             <span>{deltaText}</span>

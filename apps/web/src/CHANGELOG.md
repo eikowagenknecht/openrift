@@ -9,6 +9,7 @@
 
 ### Other
 
+- fix(Trades): **Value bar on cheap trades** — a swap worth under one unit of currency now fills the give/get bar properly instead of leaving most of it empty.
 - fix(Groups): **Card details on the trades and member pages** — opening a card from a trade row no longer fails to load for signed-in owners of that card.
 - fix(Collection): **Owned count after taking from a group box** — taking a card out of a group's collection now raises your own owned count right away, instead of only after a reload.
 
