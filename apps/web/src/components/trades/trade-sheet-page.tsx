@@ -152,7 +152,14 @@ function HistoryFold({
  * every one of those a trip back.
  * @returns The trade-sheet page.
  */
-export function TradeSheetPage({ userId }: { userId: string }) {
+export function TradeSheetPage({
+  userId,
+  fromGroupSlug,
+}: {
+  userId: string;
+  /** The group the viewer came through, when they arrived from one. */
+  fromGroupSlug?: string;
+}) {
   const { data: sheet } = useTradeSheet(userId);
   const { data: allTrades } = useUserTrades();
   const { printingsById } = useCards();
@@ -174,14 +181,22 @@ export function TradeSheetPage({ userId }: { userId: string }) {
   const incoming = withoutLiveTradeMatches(sheet.othersHaveYourWants, trades);
   const outgoing = withoutLiveTradeMatches(sheet.othersWantYourHaves, trades);
 
-  // The API guarantees at least one shared group (no shared group is a 404), so
-  // the first one is always there to send the back arrow and the lists link to.
-  const firstGroup = sheet.groups[0];
+  // The sheet is about the person, not a group, so its trail leads back to the
+  // group the viewer came through. An unknown or absent `from` (a bookmark, a
+  // shared link) falls back to the first shared group; the API guarantees at
+  // least one, so the back arrow and the lists link always have somewhere to go.
+  const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
   const name = sheet.counterparty.name ?? "Member";
   // Which group a trade sits in only tells the viewer something when there is
   // more than one it could have been, so a single shared group names nothing.
-  const groupNames =
-    sheet.groups.length > 1 ? new Map(sheet.groups.map((group) => [group.id, group.name])) : null;
+  // Trade rows key on the id, suggestion rows on the slug, so both maps exist.
+  const multipleGroups = sheet.groups.length > 1;
+  const groupNames = multipleGroups
+    ? new Map(sheet.groups.map((group) => [group.id, group.name]))
+    : null;
+  const groupNamesBySlug = multipleGroups
+    ? new Map(sheet.groups.map((group) => [group.slug, group.name]))
+    : null;
   // What the balance bar weighs: the trades still in flight. A swap the viewer
   // has settled their half of has moved to history and drops out of here with
   // it, which is right — those cards have changed hands.
@@ -208,12 +223,12 @@ export function TradeSheetPage({ userId }: { userId: string }) {
       <TopBarBreadcrumbBar
         segments={[
           {
-            label: firstGroup.name,
-            link: <Link to="/groups/$slug" params={{ slug: firstGroup.slug }} />,
+            label: anchorGroup.name,
+            link: <Link to="/groups/$slug" params={{ slug: anchorGroup.slug }} />,
           },
           {
             label: "Trades",
-            link: <Link to="/groups/$slug/trades" params={{ slug: firstGroup.slug }} />,
+            link: <Link to="/groups/$slug/trades" params={{ slug: anchorGroup.slug }} />,
           },
           { label: name },
         ]}
@@ -284,7 +299,7 @@ export function TradeSheetPage({ userId }: { userId: string }) {
               render={
                 <Link
                   to="/groups/$slug/members/$userId"
-                  params={{ slug: firstGroup.slug, userId }}
+                  params={{ slug: anchorGroup.slug, userId }}
                 />
               }
             >
@@ -314,14 +329,16 @@ export function TradeSheetPage({ userId }: { userId: string }) {
             {incoming.length > 0 || outgoing.length > 0 ? (
               <section className="flex flex-col gap-3">
                 {/* Counted the way the tiles render (per suggestion, not per
-                    copy), so the heading never disagrees with the list. */}
+                    copy, and not per group), so the heading never disagrees
+                    with the list. */}
                 <SectionHeading count={countTradeSuggestions(incoming, outgoing)}>
                   Suggestions
                 </SectionHeading>
                 <MatchTradeList
                   incoming={incoming}
                   outgoing={outgoing}
-                  groupSlug={firstGroup.slug}
+                  groupSlug={anchorGroup.slug}
+                  groupNames={groupNamesBySlug}
                 />
               </section>
             ) : null}

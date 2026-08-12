@@ -8,5 +8,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/trades/$userId")(
 
 function TradeSheetRoute() {
   const { userId } = Route.useParams();
-  return <TradeSheetPage userId={userId} />;
+  const { from } = Route.useSearch();
+  return <TradeSheetPage userId={userId} fromGroupSlug={from} />;
 }

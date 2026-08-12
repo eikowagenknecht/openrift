@@ -95,7 +95,14 @@ function footerLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
  * shows the people you already trade with.
  * @returns The member card.
  */
-export function TradeHubMemberCard({ card }: { card: TradeHubCard<FriendGroupMemberResponse> }) {
+export function TradeHubMemberCard({
+  card,
+  slug,
+}: {
+  card: TradeHubCard<FriendGroupMemberResponse>;
+  /** The group this hub belongs to, so the sheet's trail leads back to it. */
+  slug: string;
+}) {
   const { member } = card;
   const quiet = isQuietTradeHubCard(card);
   const action = actionLine(card);
@@ -104,7 +111,9 @@ export function TradeHubMemberCard({ card }: { card: TradeHubCard<FriendGroupMem
 
   return (
     <CardLink
-      render={<Link to="/trades/$userId" params={{ userId: member.userId }} />}
+      render={
+        <Link to="/trades/$userId" params={{ userId: member.userId }} search={{ from: slug }} />
+      }
       className={cn("gap-1.5 p-4", quiet && "opacity-60")}
     >
       <div className="flex items-center gap-2.5">
@@ -118,7 +127,12 @@ export function TradeHubMemberCard({ card }: { card: TradeHubCard<FriendGroupMem
         <ChevronRightIcon className="text-muted-foreground/40 group-hover/card:text-muted-foreground size-4 shrink-0 transition-transform group-hover/card:translate-x-0.5" />
       </div>
 
-      {quiet ? <p className="text-muted-foreground">Nothing traded yet</p> : null}
+      {/* "in this group", because the card only counts what this group's shared
+          lists produced. The same two people may well have trades and
+          suggestions through another shared group, and the sheet this card
+          opens shows those too — a bare "Nothing traded yet" then reads as a
+          contradiction. */}
+      {quiet ? <p className="text-muted-foreground">Nothing in this group yet</p> : null}
       {action === null ? null : (
         <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{action}</p>
       )}

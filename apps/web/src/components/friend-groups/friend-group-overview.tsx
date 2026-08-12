@@ -143,7 +143,13 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
               <Badge
                 variant="warning"
                 className="h-auto max-w-52 gap-1.5 py-1 pl-1 text-sm hover:bg-amber-500/20 dark:hover:bg-amber-500/30"
-                render={<Link to="/trades/$userId" params={{ userId: counterparty.userId }} />}
+                render={
+                  <Link
+                    to="/trades/$userId"
+                    params={{ userId: counterparty.userId }}
+                    search={{ from: slug }}
+                  />
+                }
               >
                 <UserAvatar
                   image={counterparty.image}

@@ -127,7 +127,9 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
             <SectionHeading>Trades</SectionHeading>
             <Card className="flex-row flex-wrap items-center justify-between gap-3 p-3">
               <p className="min-w-0">{tradeSummary}</p>
-              <Button render={<Link to="/trades/$userId" params={{ userId }} />}>
+              <Button
+                render={<Link to="/trades/$userId" params={{ userId }} search={{ from: slug }} />}
+              >
                 Open trade sheet
               </Button>
             </Card>

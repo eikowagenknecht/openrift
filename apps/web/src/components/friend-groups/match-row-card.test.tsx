@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { EnumLabels } from "@/hooks/use-enums";
+import { countTradeSuggestions } from "@/lib/trade-derivation";
+
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -27,7 +30,8 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-const { compareMatchTradeGroups, groupTradeMatches } = await import("./match-row-card");
+const { compareMatchTradeGroups, groupTradeMatches, resolveMatchRows } =
+  await import("./match-row-card");
 type DirectedMatch = Parameters<typeof groupTradeMatches>[0][number];
 type AggregatedMatch = Omit<DirectedMatch, "direction">;
 type MatchTradeGroup = ReturnType<typeof groupTradeMatches>[number];
@@ -119,14 +123,27 @@ describe("groupTradeMatches", () => {
     expect(groups[0].foldId).not.toBe(groups[1].foldId);
   });
 
-  it("does not merge the same wish across different friend groups", () => {
+  it("merges one wish reachable through two friend groups into a single tile", () => {
     const groups = groupTradeMatches([
-      makeDirected({ groupSlug: "rift-crew", printingId: "printing-a" }),
-      makeDirected({ groupSlug: "summoner-skirmish", printingId: "printing-b" }),
+      makeDirected({ groupSlug: "rift-crew", copyId: "copy-1", printingId: "printing-a" }),
+      makeDirected({ groupSlug: "summoner-skirmish", copyId: "copy-2", printingId: "printing-a" }),
     ]);
-    expect(groups).toHaveLength(2);
-    expect(groups.map((group) => group.groupSlug)).toEqual(["rift-crew", "summoner-skirmish"]);
-    expect(groups[0].foldId).not.toBe(groups[1].foldId);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].variants.map((variant) => variant.groupSlug)).toEqual([
+      "rift-crew",
+      "summoner-skirmish",
+    ]);
+  });
+
+  it("counts the same as the tiles it renders, across friend groups", () => {
+    const rows = [
+      makeDirected({ groupSlug: "rift-crew", copyId: "copy-1", printingId: "printing-a" }),
+      makeDirected({ groupSlug: "summoner-skirmish", copyId: "copy-2", printingId: "printing-a" }),
+    ];
+    // The trade sheet's Suggestions heading counts with countTradeSuggestions
+    // while the list below it renders groupTradeMatches. The two disagreeing is
+    // what made one suggestion show up as a pair of identical tiles.
+    expect(groupTradeMatches(rows)).toHaveLength(countTradeSuggestions(rows, []));
   });
 
   it("does not merge incoming and outgoing rows of the same card", () => {
@@ -157,6 +174,54 @@ describe("groupTradeMatches", () => {
     ]);
     expect(groups[0].setIndex).toBe(1);
     expect(groups[0].shortCode).toBe("FND-249");
+  });
+});
+
+describe("resolveMatchRows", () => {
+  const LABELS: EnumLabels = {
+    finishes: { foil: "Foil" },
+    rarities: { common: "Common" },
+    domains: {},
+    cardTypes: {},
+    superTypes: {},
+    artVariants: {},
+    cardSizes: {},
+    conditions: {},
+    graders: {},
+  };
+  type ListRow = Parameters<typeof resolveMatchRows>[0][number];
+
+  function resolve(rows: ListRow[], groupNames: ReadonlyMap<string, string> | null) {
+    return resolveMatchRows(rows, {}, {}, [], LABELS, "rift-crew", groupNames);
+  }
+
+  // Only the fields resolveMatchRows reads; the rest of a match row is beside
+  // the point here.
+  function makeListRow(overrides: Partial<ListRow> = {}): ListRow {
+    return { ...makeMatch(), groupSlug: undefined, ...overrides } as ListRow;
+  }
+
+  it("names the row's own group, not the list's, when they differ", () => {
+    const [row] = resolve(
+      [makeListRow({ groupSlug: "summoner-skirmish" })],
+      new Map([
+        ["rift-crew", "Rift Crew"],
+        ["summoner-skirmish", "Summoner Skirmish"],
+      ]),
+    );
+    expect(row.groupSlug).toBe("summoner-skirmish");
+    expect(row.groupLabel).toBe("Summoner Skirmish");
+  });
+
+  it("falls back to the list's group for a row that names none", () => {
+    const [row] = resolve([makeListRow()], new Map([["rift-crew", "Rift Crew"]]));
+    expect(row.groupSlug).toBe("rift-crew");
+    expect(row.groupLabel).toBe("Rift Crew");
+  });
+
+  it("leaves rows unlabelled when the list covers a single group", () => {
+    const [row] = resolve([makeListRow({ groupSlug: "summoner-skirmish" })], null);
+    expect(row.groupLabel).toBeUndefined();
   });
 });
 

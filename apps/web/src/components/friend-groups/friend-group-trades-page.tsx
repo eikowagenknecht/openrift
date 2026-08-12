@@ -76,7 +76,7 @@ function TradeHub({ slug, data }: { slug: string; data: FriendGroupDetailRespons
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {cards.map((card) => (
-        <TradeHubMemberCard key={card.member.userId} card={card} />
+        <TradeHubMemberCard key={card.member.userId} card={card} slug={slug} />
       ))}
     </div>
   );

@@ -13,6 +13,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Pressable } from "@/components/ui/pressable";
@@ -173,6 +174,12 @@ function MatchRowTradeAction({
 interface ResolvedMatchRow extends FriendGroupMatchRow {
   /** The friend group this row belongs to, resolved from the row or the list. */
   groupSlug: string;
+  /**
+   * The friend group's name, when naming it tells the viewer something. Set
+   * only where the list pools rows from more than one group, the same rule
+   * `TradeRow` follows for its own group badge.
+   */
+  groupLabel?: string;
   cardSlug: string;
   shortCode: string;
   /** The set's position in catalog order; {@link UNKNOWN_SET_INDEX} when unknown. */
@@ -205,16 +212,18 @@ interface DirectedMatch extends AggregatedMatch {
 /**
  * Resolves UUID set IDs and rarity/finish slugs to display names via the
  * catalog so row metadata doesn't leak raw IDs, and pins each row to the group
- * it belongs to (its own, or the list's when it carries none).
+ * it belongs to (its own, or the list's when it carries none) plus that group's
+ * display name when the list names groups at all.
  * @returns The rows with catalog-resolved display fields.
  */
-function resolveMatchRows(
+export function resolveMatchRows(
   rows: MatchTradeListRow[],
   cardsById: ReturnType<typeof useCards>["cardsById"],
   printingsById: ReturnType<typeof useCards>["printingsById"],
   sets: ReturnType<typeof useCards>["sets"],
   labels: ReturnType<typeof useEnumOrders>["labels"],
   fallbackGroupSlug: string,
+  groupLabels: ReadonlyMap<string, string> | null,
 ): ResolvedMatchRow[] {
   const setsById = new Map(sets.map((set) => [set.id, set]));
   const setIndexes = setIndexById(sets);
@@ -222,9 +231,11 @@ function resolveMatchRows(
     const card = cardsById[row.cardId];
     const set = setsById.get(row.setId);
     const printing = printingsById[row.printingId] ?? null;
+    const groupSlug = row.groupSlug ?? fallbackGroupSlug;
     return {
       ...row,
-      groupSlug: row.groupSlug ?? fallbackGroupSlug,
+      groupSlug,
+      groupLabel: groupLabels?.get(groupSlug),
       cardName: card ? legendDisplayName(card) : row.cardName,
       cardSlug: card?.slug ?? row.cardId,
       shortCode: printing?.shortCode ?? "",
@@ -310,6 +321,36 @@ function MatchSourceLine({
 }
 
 /**
+ * The friend group a suggestion came from. Rendered only where the list pools
+ * more than one group, so on the common single-group list nothing is added.
+ * Same outline badge `TradeRow` carries, because a suggestion and the trade it
+ * becomes are the same thing at two moments and should say where they live the
+ * same way.
+ * @returns The group badges, or null when no variant names a group.
+ */
+function MatchGroupBadges({ rows }: { rows: readonly ResolvedMatchRow[] }) {
+  // Distinct, because a tile's variants usually all come from one group and the
+  // badge should then appear once.
+  const labels = [
+    ...new Set(rows.map((row) => row.groupLabel).filter((label) => label !== undefined)),
+  ];
+  if (labels.length === 0) {
+    return null;
+  }
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-1">
+      {labels.map((label) => (
+        // A badge clips rather than ellipsises on its own, so the label carries
+        // the truncation.
+        <Badge key={label} variant="outline" className="min-w-0">
+          <span className="truncate">{label}</span>
+        </Badge>
+      ))}
+    </span>
+  );
+}
+
+/**
  * One wide row in the unified "Possible trades" list. The direction arrow
  * tells you which way the card flows; the price hint shows the *counterparty's*
  * preference (their ask when the card comes to you, their offer when it goes to
@@ -386,6 +427,7 @@ function MatchRow({
           <MatchRowMeta match={match} />
           <MatchCopyMetadataLine match={match} />
           <MatchSourceLine direction={match.direction} listNames={[match.viewerListName]} />
+          <MatchGroupBadges rows={[match]} />
         </div>
       </div>
 
@@ -458,8 +500,6 @@ function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
 export interface MatchTradeGroup extends CatalogPosition {
   /** Stable, per-counterparty key used both as the React key and the fold-store id. */
   foldId: string;
-  /** The friend group every variant in this group belongs to. */
-  groupSlug: string;
   direction: MatchDirection;
   cardName: string;
   cardSlug: string;
@@ -484,8 +524,13 @@ export interface MatchTradeGroup extends CatalogPosition {
  * group of four variants instead of four sibling rows. Printing-level wishes
  * target one specific printing, so they stay one group per
  * (direction, counterparty, list, printing) and keep their existing one-row look.
- * Rows from different friend groups never merge, even when everything else
- * about them matches, so a trade started from a group has one group to go to.
+ *
+ * The friend group is deliberately *not* in the key. The trade sheet pools
+ * every group two people share, and a card reachable through two of them is one
+ * opportunity, not two: keyed by group it rendered as a pair of tiles that
+ * looked identical, while every count of it (the section heading, the hub card)
+ * said one. The group stays on each variant instead, where the badge names it
+ * and the trade a variant starts still has one unambiguous group to go to.
  *
  * Variants are ordered by catalog position, and each group takes the position of
  * its earliest one, so a card-level wish sorts with the first printing it can be
@@ -496,7 +541,7 @@ export interface MatchTradeGroup extends CatalogPosition {
 export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
   const groups = new Map<string, MatchTradeGroup>();
   for (const row of rows) {
-    const key = `${row.groupSlug}\0${matchSuggestionKey(row.direction, row)}`;
+    const key = matchSuggestionKey(row.direction, row);
     const existing = groups.get(key);
     if (existing) {
       existing.variants.push(row);
@@ -504,7 +549,6 @@ export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
     } else {
       groups.set(key, {
         foldId: key,
-        groupSlug: row.groupSlug,
         direction: row.direction,
         cardName: row.cardName,
         cardSlug: row.cardSlug,
@@ -636,6 +680,10 @@ function MatchTradeRowGroup({
                 direction={group.direction}
                 listNames={group.variants.map((variant) => variant.viewerListName)}
               />
+              {/* Every group the variants come from, so a collapsed tile still
+                  says where its copies live — a card reachable through two
+                  shared groups is one tile with two of these. */}
+              <MatchGroupBadges rows={group.variants} />
             </span>
           </Pressable>
 
@@ -718,6 +766,12 @@ interface MatchTradeListProps {
   outgoing: MatchTradeListRow[];
   /** The group a row belongs to when it doesn't name one of its own. */
   groupSlug: string;
+  /**
+   * Group names by slug, or null while every row belongs to the same group.
+   * Hosts pass it only where the list pools rows from more than one, since a
+   * single group names nothing the page doesn't already say.
+   */
+  groupNames?: ReadonlyMap<string, string> | null;
 }
 
 /**
@@ -757,9 +811,11 @@ function BulkRequestRow({ groups }: { groups: MatchTradeGroup[] }) {
 
   function requestAll(): void {
     for (const group of requestable) {
+      // Single-variant by construction (see isBulkRequestable), so the variant's
+      // own group is the whole tile's group and the request is unambiguous.
       const variant = group.variants[0];
       createTrade.mutate({
-        groupSlug: group.groupSlug,
+        groupSlug: variant.groupSlug,
         counterpartyUserId: variant.counterpartyUserId,
         role: "receiver",
         printingId: variant.printingId,
@@ -777,7 +833,12 @@ function BulkRequestRow({ groups }: { groups: MatchTradeGroup[] }) {
   );
 }
 
-export function MatchTradeList({ incoming, outgoing, groupSlug }: MatchTradeListProps) {
+export function MatchTradeList({
+  incoming,
+  outgoing,
+  groupSlug,
+  groupNames = null,
+}: MatchTradeListProps) {
   const { cardsById, printingsById, sets } = useCards();
   const { labels } = useEnumOrders();
   const { data: userTrades } = useUserTrades();
@@ -809,10 +870,10 @@ export function MatchTradeList({ incoming, outgoing, groupSlug }: MatchTradeList
   const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
 
   const incomingRows = aggregateMatches(
-    resolveMatchRows(incoming, cardsById, printingsById, sets, labels, groupSlug),
+    resolveMatchRows(incoming, cardsById, printingsById, sets, labels, groupSlug, groupNames),
   ).map((match): DirectedMatch => ({ ...match, direction: "incoming" }));
   const outgoingRows = aggregateMatches(
-    resolveMatchRows(outgoing, cardsById, printingsById, sets, labels, groupSlug),
+    resolveMatchRows(outgoing, cardsById, printingsById, sets, labels, groupSlug, groupNames),
   ).map((match): DirectedMatch => ({ ...match, direction: "outgoing" }));
   // Keep the "everything you'd receive, then everything you'd give" split, but
   // order each direction the way the catalog does — set first, then card number
