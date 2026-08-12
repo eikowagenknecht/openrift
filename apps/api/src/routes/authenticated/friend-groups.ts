@@ -353,7 +353,7 @@ export const friendGroupsRouter = {
       isAdmin ? friendGroups.listRequestsForGroup(group.id) : Promise.resolve([]),
       friendGroups.getRevealedContactsForMembers(group.id),
       cardTrades.countCompletedCardsInGroup(group.id),
-      cardTrades.countCompletedCardsByMemberInGroup(group.id),
+      cardTrades.countTradedCardsWithViewerInGroup(group.id, viewerId),
     ]);
 
     // The materialized `entryCount` counts only manual rows, so rule-based lists

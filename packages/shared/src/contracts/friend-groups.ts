@@ -273,12 +273,22 @@ export const friendGroupDetailResponseSchema = z
     shares: z.array(friendGroupShareResponseSchema),
     collectionShares: z.array(friendGroupCollectionShareResponseSchema),
     pendingRequests: z.array(friendGroupRequestResponseSchema),
-    /** Lifetime sum of quantities over the group's completed trades. */
+    /**
+     * Lifetime cards traded in the group, by anyone with anyone: the summed
+     * quantity over rows at least one party has settled. Group-wide, because
+     * the hero stat it feeds is about the group.
+     */
     cardsTradedCount: z.number().int().nonnegative().default(0),
     /**
-     * Lifetime cards traded per member (userId → summed quantity over their
-     * completed trades in this group, as giver or receiver). Members with no
-     * completed trades are absent.
+     * Cards the *viewer* has traded with each other member of this group
+     * (counterparty userId → summed quantity), over the rows whose swap is done
+     * from the viewer's side — see `cardTradeState` in `@openrift/shared`.
+     * Members the viewer has traded nothing with are absent.
+     *
+     * Viewer-scoped, unlike {@link cardsTradedCount}: it renders as a badge
+     * beside a person on a page the viewer is reading, where a group-wide total
+     * reads as a claim about the two of them and was wrong for every member the
+     * viewer had never actually traded with.
      */
     cardsTradedByMember: z.record(z.string(), z.number().int().nonnegative()).default({}),
   })

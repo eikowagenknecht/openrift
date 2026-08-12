@@ -1,4 +1,5 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
+import { needsViewerAction } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
@@ -30,7 +31,7 @@ import {
   tradesHubSummary,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
-import { isNeedsYouTrade, needsYouCounts } from "@/lib/trade-hub";
+import { needsYouCounts } from "@/lib/trade-hub";
 import { capitalize } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
@@ -99,7 +100,7 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
   // Every viewer-side action counts as waiting: requests to answer, cards to
   // hand over, cards to receive. Grouping them by counterparty turns the pile
   // into the conversations it really is, biggest first.
-  const needsYou = trades.filter((trade) => isNeedsYouTrade(trade));
+  const needsYou = trades.filter((trade) => needsViewerAction(trade));
   const waiting = groupTradesByCounterparty(needsYou);
   const { toAnswer, toHandOver, toReceive } = needsYouCounts(needsYou);
 

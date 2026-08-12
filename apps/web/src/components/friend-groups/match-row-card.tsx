@@ -28,6 +28,7 @@ import { compareCatalogPosition } from "@/lib/catalog-position";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { MatchCopyDetail, MatchDirection } from "@/lib/trade-derivation";
 import {
+  describeCounterpartySource,
   describeViewerSource,
   matchCopyConditionLabel,
   matchSuggestionKey,
@@ -301,23 +302,39 @@ function MatchCopyMetadataLine({ match }: { match: AggregatedMatch }) {
 }
 
 /**
- * A muted line naming which of the viewer's own lists produced the suggestion,
- * so it's clear why the row is here (the viewer's wishlist for an incoming card,
- * their tradelist for an outgoing one). Renders nothing when no list name is known.
- * @returns The source-list line, or null.
+ * A muted line naming the two lists that met to produce the suggestion: the
+ * viewer's own on the left, the counterparty's on the right. Both halves are
+ * shown because a match is a wish on one side meeting a have on the other, and
+ * naming only the viewer's left the more useful half — which of *their* lists
+ * wants this — as a hover title nobody found.
+ *
+ * Truncates as one line and carries the full text as its title, so a long pair
+ * of list names cannot push the row taller.
+ * @returns The source-list line, or null when neither side names a list.
  */
 function MatchSourceLine({
   direction,
   listNames,
+  counterpartyListNames,
 }: {
   direction: MatchDirection;
   listNames: string[];
+  counterpartyListNames: string[];
 }) {
-  const label = describeViewerSource(direction, listNames);
-  if (label === null) {
+  const text = [
+    describeViewerSource(direction, listNames),
+    describeCounterpartySource(direction, counterpartyListNames),
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
+  if (text === "") {
     return null;
   }
-  return <span className="text-muted-foreground truncate text-xs">{label}</span>;
+  return (
+    <span className="text-muted-foreground truncate text-xs" title={text}>
+      {text}
+    </span>
+  );
 }
 
 /**
@@ -412,10 +429,9 @@ function MatchRow({
           loading="lazy"
         />
 
-        <div
-          className="flex min-w-0 flex-1 flex-col gap-0.5"
-          title={`Their list: ${match.counterpartyListName}`}
-        >
+        {/* No title here any more: the counterparty's list is spelled out in
+            the source line below, where it does not need discovering. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <CardDetailNameButton
             // Only the resolved catalog printing can be shown, so an unknown
             // one keeps the name as plain text rather than a dead control.
@@ -426,7 +442,11 @@ function MatchRow({
           </CardDetailNameButton>
           <MatchRowMeta match={match} />
           <MatchCopyMetadataLine match={match} />
-          <MatchSourceLine direction={match.direction} listNames={[match.viewerListName]} />
+          <MatchSourceLine
+            direction={match.direction}
+            listNames={[match.viewerListName]}
+            counterpartyListNames={[match.counterpartyListName]}
+          />
           <MatchGroupBadges rows={[match]} />
         </div>
       </div>
@@ -679,6 +699,9 @@ function MatchTradeRowGroup({
               <MatchSourceLine
                 direction={group.direction}
                 listNames={group.variants.map((variant) => variant.viewerListName)}
+                counterpartyListNames={group.variants.map(
+                  (variant) => variant.counterpartyListName,
+                )}
               />
               {/* Every group the variants come from, so a collapsed tile still
                   says where its copies live — a card reachable through two

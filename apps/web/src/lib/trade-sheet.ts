@@ -1,6 +1,7 @@
 import type { CardTradeResponse } from "@openrift/shared";
+import { cardTradeState, needsViewerAction } from "@openrift/shared";
 
-import { isNeedsYouTrade, sortNeedsYou } from "./trade-hub";
+import { sortNeedsYou } from "./trade-hub";
 
 /**
  * The distinct printings a list's rows cover, for the card detail's prev/next.
@@ -100,14 +101,14 @@ function byDirectionThenCatalog(
  * request they sent is: the other side may yet answer it. A swap they have
  * settled is not — their half is final and only the other party's confirmation
  * is outstanding (ADR-019, amendment 2026-08-10), so it reads as done from here.
+ *
+ * Delegates to the shared lifecycle state, which is what keeps this section and
+ * the hub card's "waiting on them" the same number.
  * @param trade The trade to test.
  * @returns True while the trade belongs in the waiting section.
  */
 function stillWaiting(trade: CardTradeResponse): boolean {
-  if (trade.status === "pending") {
-    return true;
-  }
-  return trade.status === "reserved" && trade.viewerSyncAppliedAt === null;
+  return cardTradeState(trade) === "waiting-on-them";
 }
 
 /**
@@ -138,7 +139,7 @@ export function splitTradeLedger(
   printingRank: PrintingRank = noPrintingRank,
 ): TradeLedger {
   const mine = trades.filter((trade) => trade.counterparty.userId === counterpartyUserId);
-  const rest = mine.filter((trade) => !isNeedsYouTrade(trade));
+  const rest = mine.filter((trade) => !needsViewerAction(trade));
   const byPile = byDirectionThenCatalog(printingRank);
   return {
     yourMove: sortNeedsYou(mine.filter((trade) => trade.actionNeeded === "accept-or-decline")),

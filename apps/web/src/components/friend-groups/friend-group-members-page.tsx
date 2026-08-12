@@ -194,6 +194,7 @@ function MemberCard({
   viewerId: string;
   viewerRole: FriendGroupRole;
   shareCounts: { wishlists: number; tradelists: number; collections: number };
+  /** Cards the viewer has traded with this member here; 0 on the viewer's own card. */
   cardsTraded: number;
 }) {
   const isSelf = member.userId === viewerId;
@@ -303,7 +304,7 @@ function MemberCard({
         {cardsTraded > 0 ? (
           <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
             <ZapIcon className="size-3" />
-            {cardsTraded} traded
+            {cardsTraded} traded with you
           </span>
         ) : null}
       </div>

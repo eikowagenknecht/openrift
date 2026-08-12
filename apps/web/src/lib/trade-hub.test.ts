@@ -5,7 +5,6 @@ import type { MatchSuggestionFields } from "./trade-derivation";
 import {
   buildTradeHubCards,
   expiringSoonCount,
-  isNeedsYouTrade,
   isQuietTradeHubCard,
   needsYouCounts,
   sortNeedsYou,
@@ -59,15 +58,6 @@ function stubMatch(overrides: Partial<MatchSuggestionFields> = {}): MatchSuggest
 function ids(trades: CardTradeResponse[]): string[] {
   return trades.map((trade) => trade.id);
 }
-
-describe("isNeedsYouTrade", () => {
-  it("accepts the two viewer-side actions and nothing else", () => {
-    expect(isNeedsYouTrade(stubTrade({ actionNeeded: "accept-or-decline" }))).toBe(true);
-    expect(isNeedsYouTrade(stubTrade({ actionNeeded: "settle" }))).toBe(true);
-    expect(isNeedsYouTrade(stubTrade({ actionNeeded: "cancel" }))).toBe(false);
-    expect(isNeedsYouTrade(stubTrade({ actionNeeded: null }))).toBe(false);
-  });
-});
 
 describe("needsYouCounts", () => {
   it("counts the three acts apart: answer, hand over, receive", () => {
@@ -228,8 +218,46 @@ describe("buildTradeHubCards", () => {
 
     expect(ids(card.needsYou)).toEqual(["mine"]);
     expect(ids(card.open)).toEqual(["theirs", "reserved"]);
-    expect(card.completedCount).toBe(1);
+    expect(card.tradedCount).toBe(1);
     expect(card.trades).toHaveLength(4);
+  });
+
+  // Regression: the hub counted every reserved row as waiting on the other
+  // side, so a person whose swaps the viewer had all settled read "16 waiting
+  // on them" while their trade sheet filed the same rows under history.
+  it("does not count a reservation the viewer already settled as waiting on them", () => {
+    const [card] = buildCards({
+      groupTrades: [
+        stubTrade({
+          id: "settled-by-me",
+          status: "reserved",
+          actionNeeded: null,
+          viewerSyncAppliedAt: "2026-08-08T10:00:00.000Z",
+        }),
+        stubTrade({ id: "still-theirs", status: "reserved", actionNeeded: null }),
+      ],
+    });
+
+    expect(ids(card.open)).toEqual(["still-theirs"]);
+  });
+
+  // The other half of the same rule: a swap the viewer has settled is a trade
+  // that happened, so the card's footer counts it alongside the completed ones.
+  it("counts a viewer-settled reservation as traded", () => {
+    const [card] = buildCards({
+      groupTrades: [
+        stubTrade({
+          id: "settled-by-me",
+          status: "reserved",
+          actionNeeded: null,
+          viewerSyncAppliedAt: "2026-08-08T10:00:00.000Z",
+        }),
+        stubTrade({ id: "done", status: "completed" }),
+        stubTrade({ id: "cancelled", status: "cancelled" }),
+      ],
+    });
+
+    expect(card.tradedCount).toBe(2);
   });
 
   it("counts live trades in the viewer's other groups separately", () => {
@@ -239,6 +267,15 @@ describe("buildTradeHubCards", () => {
         stubTrade({ id: "here", actionNeeded: "cancel" }),
         stubTrade({ id: "elsewhere", groupId: "group-2", status: "reserved" }),
         stubTrade({ id: "elsewhere-done", groupId: "group-2", status: "completed" }),
+        // Settled by the viewer over in that group, so nothing about it is
+        // theirs to chase and it is not "in flight" here either.
+        stubTrade({
+          id: "elsewhere-settled-by-me",
+          groupId: "group-2",
+          status: "reserved",
+          actionNeeded: null,
+          viewerSyncAppliedAt: "2026-08-08T10:00:00.000Z",
+        }),
       ],
     });
 

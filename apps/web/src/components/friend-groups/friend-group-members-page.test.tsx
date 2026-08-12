@@ -201,7 +201,10 @@ describe("MembersPageContent roster", () => {
     expect(screen.queryByText(/organize/u)).not.toBeInTheDocument();
   });
 
-  it("shows a traded-count pill only for members with completed trades", () => {
+  // The count is the viewer's own trades with that member, so the label says
+  // so. It used to be group-wide and read as a claim about the two of them,
+  // which put "3 traded" beside someone the viewer had never traded with.
+  it("shows a traded-count pill only for members the viewer has traded with", () => {
     render(
       <MembersPageContent
         slug="bothfeld"
@@ -211,7 +214,7 @@ describe("MembersPageContent roster", () => {
         })}
       />,
     );
-    expect(screen.getByText("12 traded")).toBeInTheDocument();
+    expect(screen.getByText("12 traded with you")).toBeInTheDocument();
     // The zero-count member (viewer-1) carries no pill at all.
     expect(screen.getAllByText(/traded/u)).toHaveLength(1);
   });

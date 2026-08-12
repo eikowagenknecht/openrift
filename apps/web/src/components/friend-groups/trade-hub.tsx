@@ -75,10 +75,8 @@ function factsLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null
 /** @returns The card's muted footer line, or null when there's nothing behind it. */
 function footerLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
   const parts: string[] = [];
-  if (card.completedCount > 0) {
-    parts.push(
-      `${card.completedCount} completed ${card.completedCount === 1 ? "trade" : "trades"}`,
-    );
+  if (card.tradedCount > 0) {
+    parts.push(`${card.tradedCount} ${card.tradedCount === 1 ? "trade" : "trades"} done`);
   }
   if (card.elsewhereCount > 0) {
     parts.push(`+${card.elsewhereCount} in other groups`);

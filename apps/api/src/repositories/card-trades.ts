@@ -1,3 +1,4 @@
+import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared";
 import type {
   CardTradeActionCountsResponse,
   CardTradeActionNeeded,
@@ -551,15 +552,17 @@ export function cardTradesRepo(db: Kysely<Database>) {
     /**
      * Total cards ever traded in a group: the sum of `quantity` over its traded
      * rows. Feeds the group hero's "N cards traded" stat — a lifetime count,
-     * unlike the bounded activity feed.
+     * unlike the bounded activity feed. Group-wide on purpose: the hero is about
+     * the group, not about the viewer.
      *
      * A trade counts from the *first* settle, not from completion (ADR-019,
      * amendment 2026-08-10). Waiting for both would permanently undercount every
-     * swap whose second side never confirms, and would read lower than the old
-     * model, where one unilateral "mark as traded" counted at once. Testing the
-     * two timestamps rather than the status covers both shapes in one predicate:
-     * a completed row always has both set, a half-settled one has exactly one,
-     * and a cancelled or expired row has neither.
+     * swap whose second side never confirms.
+     *
+     * The status test is not redundant with the timestamps. A row keeps its sync
+     * columns when `cancelForDepartingMember` bulk-cancels a leaving member's
+     * live trades, so a predicate on the timestamps alone counted those forever;
+     * `TRADED_CARD_TRADE_STATUSES` is what excludes them.
      * @returns The summed quantity (0 for a group with nothing traded).
      */
     async countCompletedCardsInGroup(groupId: string): Promise<number> {
@@ -567,6 +570,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .selectFrom("cardTrades")
         .select((eb) => eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"))
         .where("groupId", "=", groupId)
+        .where("status", "in", [...TRADED_CARD_TRADE_STATUSES])
         .where((eb) =>
           eb.or([
             eb("giverSyncAppliedAt", "is not", null),
@@ -578,32 +582,48 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Lifetime cards traded per member of a group: for each user, the sum of
-     * `quantity` over the group's traded rows they took part in, as giver or
-     * receiver. Feeds the members page's per-member traded counts. Members with
-     * nothing traded are absent from the map.
+     * Cards the viewer has traded with each other member of a group: for every
+     * counterparty, the summed `quantity` of the rows between the two of them
+     * whose swap is done. Feeds the members page's per-member "N traded" badge.
+     * Members the viewer has traded nothing with are absent from the map.
      *
-     * Counts from the first settle, on the same predicate and for the same
-     * reason as {@link countCompletedCardsInGroup}.
-     * @returns userId → summed quantity.
+     * Viewer-scoped, not group-wide. The badge sits next to a person on a page
+     * the viewer is reading, so it is read as "what the two of us have traded";
+     * a group-wide total put "3 traded" beside a member the viewer had only ever
+     * opened three cancelled requests with.
+     *
+     * The predicate is the SQL twin of `cardTradeState(trade) === "done"` in
+     * `@openrift/shared`: completed, or reserved with the *viewer's own* half
+     * settled. Testing the viewer's side rather than either side is what keeps
+     * the badge from claiming a swap the viewer still owes a settle on, which
+     * their trade sheet would be listing as their move at the same moment.
+     * @returns counterparty userId → summed quantity.
      */
-    async countCompletedCardsByMemberInGroup(groupId: string): Promise<Map<string, number>> {
-      const sideTotals = (side: "giverUserId" | "receiverUserId") =>
-        db
+    async countTradedCardsWithViewerInGroup(
+      groupId: string,
+      viewerUserId: string,
+    ): Promise<Map<string, number>> {
+      const sideTotals = (viewerSide: "giverUserId" | "receiverUserId") => {
+        const otherSide = viewerSide === "giverUserId" ? "receiverUserId" : "giverUserId";
+        const viewerSync =
+          viewerSide === "giverUserId" ? "giverSyncAppliedAt" : "receiverSyncAppliedAt";
+        return db
           .selectFrom("cardTrades")
           .select((eb) => [
-            eb.ref(side).as("userId"),
+            eb.ref(otherSide).as("userId"),
             eb.cast<number>(eb.fn.sum(eb.ref("quantity")), "integer").as("total"),
           ])
           .where("groupId", "=", groupId)
+          .where(viewerSide, "=", viewerUserId)
           .where((eb) =>
             eb.or([
-              eb("giverSyncAppliedAt", "is not", null),
-              eb("receiverSyncAppliedAt", "is not", null),
+              eb("status", "=", "completed"),
+              eb.and([eb("status", "=", "reserved"), eb(viewerSync, "is not", null)]),
             ]),
           )
-          .groupBy(side)
+          .groupBy(otherSide)
           .execute();
+      };
       const [given, received] = await Promise.all([
         sideTotals("giverUserId"),
         sideTotals("receiverUserId"),

@@ -1,4 +1,5 @@
 import type { ListIntent } from "@openrift/shared";
+import { isTradedCardTrade } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
@@ -42,12 +43,23 @@ const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: s
  * @param openCount Live trades with the member (in progress plus awaiting them).
  * @param needsYouCount How many of those are waiting on the viewer.
  * @param matchCount Distinct suggestions the matcher found with them.
+ * @param tradedCount Trades with them whose cards changed hands.
  * @returns The summary sentence.
  */
 // Every count it takes is person-level (pooled across shared groups), which is
 // what makes the "nothing" case safe to say on a page that lives inside one
 // group.
-function tradeSummaryLine(openCount: number, needsYouCount: number, matchCount: number): string {
+//
+// The finished trades are in here because the fallback claims a fact it was not
+// measuring: with nothing open and nothing suggested, the line read "Nothing
+// traded yet" at someone the viewer had swapped 58 cards with. It now only says
+// that when there is genuinely no history either.
+function tradeSummaryLine(
+  openCount: number,
+  needsYouCount: number,
+  matchCount: number,
+  tradedCount: number,
+): string {
   const parts: string[] = [];
   if (openCount > 0) {
     parts.push(`${openCount} open ${openCount === 1 ? "trade" : "trades"}`);
@@ -57,6 +69,9 @@ function tradeSummaryLine(openCount: number, needsYouCount: number, matchCount: 
   }
   if (matchCount > 0) {
     parts.push(`${matchCount} possible ${matchCount === 1 ? "trade" : "trades"}`);
+  }
+  if (tradedCount > 0) {
+    parts.push(`${tradedCount} ${tradedCount === 1 ? "trade" : "trades"} done`);
   }
   return parts.length > 0 ? parts.join(" · ") : "Nothing traded yet";
 }
@@ -82,10 +97,14 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const incomingMatches = withoutLiveTradeMatches(sheet.othersHaveYourWants, liveTrades);
   const outgoingMatches = withoutLiveTradeMatches(sheet.othersWantYourHaves, liveTrades);
   const { active, actionNeeded } = bucketMemberTrades(liveTrades, userId);
+  const tradedCount = liveTrades.filter(
+    (trade) => trade.counterparty.userId === userId && isTradedCardTrade(trade),
+  ).length;
   const tradeSummary = tradeSummaryLine(
     active.length + actionNeeded.length,
     actionNeeded.length,
     countTradeSuggestions(incomingMatches, outgoingMatches),
+    tradedCount,
   );
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));

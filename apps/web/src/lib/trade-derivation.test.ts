@@ -6,6 +6,7 @@ import {
   bucketMemberTrades,
   collapseTradeAnnotations,
   countTradeSuggestions,
+  describeCounterpartySource,
   describeViewerSource,
   dominantTradeBadge,
   groupTradeAnnotationsByPrinting,
@@ -140,6 +141,33 @@ describe("describeViewerSource", () => {
   it("returns null when no name is known", () => {
     expect(describeViewerSource("incoming", [])).toBeNull();
     expect(describeViewerSource("incoming", [""])).toBeNull();
+  });
+});
+
+describe("describeCounterpartySource", () => {
+  // The mirror of the viewer's noun: a card coming to the viewer sits on the
+  // other person's tradelist, one going out sits on their wishlist.
+  it("names their tradelist for an incoming card", () => {
+    expect(describeCounterpartySource("incoming", ["Spare Foils"])).toBe(
+      "Their tradelist: Spare Foils",
+    );
+  });
+
+  it("names their wishlist for an outgoing card", () => {
+    expect(describeCounterpartySource("outgoing", ["Chase Cards"])).toBe(
+      "Their wishlist: Chase Cards",
+    );
+  });
+
+  it("counts distinct lists when a group spans several", () => {
+    expect(describeCounterpartySource("incoming", ["Binder A", "Binder B"])).toBe(
+      "2 of their tradelists",
+    );
+  });
+
+  it("returns null when no name is known", () => {
+    expect(describeCounterpartySource("outgoing", [])).toBeNull();
+    expect(describeCounterpartySource("outgoing", [""])).toBeNull();
   });
 });
 

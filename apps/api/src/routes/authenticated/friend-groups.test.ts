@@ -129,7 +129,7 @@ function makeApp(overrides: {
   };
   const cardTrades = {
     countCompletedCardsInGroup: vi.fn(() => Promise.resolve(0)),
-    countCompletedCardsByMemberInGroup: vi.fn(() => Promise.resolve(new Map())),
+    countTradedCardsWithViewerInGroup: vi.fn(() => Promise.resolve(new Map())),
     ...overrides.cardTrades,
   };
 
@@ -481,7 +481,7 @@ describe("friend-groups route", () => {
       },
       cardTrades: {
         countCompletedCardsInGroup: vi.fn(() => Promise.resolve(128)),
-        countCompletedCardsByMemberInGroup: vi.fn(() => Promise.resolve(new Map([[USER_ID, 90]]))),
+        countTradedCardsWithViewerInGroup: vi.fn(() => Promise.resolve(new Map([[USER_ID, 90]]))),
       },
     });
     const res = await app.request("/api/v1/friend-groups/playgroup");

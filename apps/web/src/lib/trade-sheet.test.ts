@@ -1,4 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
+import { cardTradeState } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { splitTradeLedger, stepSequence } from "./trade-sheet";
@@ -318,6 +319,40 @@ describe("splitTradeLedger", () => {
 
     expect(ids(trades)).toEqual(["pending", "settle"]);
   });
+});
+
+// The two surfaces disagreed in production: the hub's card said "16 waiting on
+// them" about a person whose sheet showed the same 16 rows as history, because
+// each derived its own answer from the raw status. Both now read the shared
+// lifecycle state, and this pins them together.
+describe("the sheet and the hub card agree on what waits on the other side", () => {
+  const cases: { name: string; trade: CardTradeResponse }[] = [
+    { name: "a request the viewer sent", trade: stubTrade({ id: "sent", actionNeeded: "cancel" }) },
+    {
+      name: "a reservation neither side has settled",
+      trade: stubTrade({ id: "unsettled", status: "reserved", actionNeeded: null }),
+    },
+    {
+      name: "a reservation the viewer has settled",
+      trade: stubTrade({
+        id: "settled-by-me",
+        status: "reserved",
+        actionNeeded: null,
+        viewerSyncAppliedAt: "2026-08-08T10:00:00.000Z",
+      }),
+    },
+    { name: "a completed trade", trade: stubTrade({ id: "done", status: "completed" }) },
+    { name: "a cancelled trade", trade: stubTrade({ id: "gone", status: "cancelled" }) },
+  ];
+
+  for (const { name, trade } of cases) {
+    it(`counts ${name} the same way on both`, () => {
+      const onSheet = splitTradeLedger([trade], "user-2").waiting.length;
+      const onCard = [trade].filter((row) => cardTradeState(row) === "waiting-on-them").length;
+
+      expect(onCard).toBe(onSheet);
+    });
+  }
 });
 
 describe("stepSequence", () => {

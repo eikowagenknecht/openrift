@@ -25,6 +25,15 @@ export type { StandardArtFallback } from "./standard.js";
 export { effectiveTournamentState } from "./tournament-lifecycle.js";
 export type { EffectiveTournamentState } from "./tournament-lifecycle.js";
 
+export {
+  cardTradeState,
+  isLiveCardTradeStatus,
+  isTradedCardTrade,
+  needsViewerAction,
+  TRADED_CARD_TRADE_STATUSES,
+} from "./card-trade-lifecycle.js";
+export type { CardTradeState, CardTradeStateFields } from "./card-trade-lifecycle.js";
+
 export type {
   ExpandedEntry,
   KeepPriorityOrders,

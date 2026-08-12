@@ -10,8 +10,12 @@
 - feat(Decks): **Sort a deck by card ID** — the deck view can now order cards by set and collector number, and sorting by ID everywhere follows the set order instead of the letters in the code.
 - feat(Decks): **Cards on their way from a trade** — a deck's missing cards now mark the copies already reserved to you in a swap, so you don't buy one that's about to arrive.
 
+- fix(Trades): **Trade counts agree everywhere** — the members page, the Trades page and a member's trade sheet now count from one rule, so a person the sheet calls settled up no longer shows trades waiting on them.
+
 ### Other
 
+- feat(Trades): **Suggestions name both lists** — a suggestion now says which of their lists the card sits on next to which of yours, instead of hiding it behind a hover.
+- fix(Groups): **"Traded" counts your own trades** — the count beside a member is now the cards you two have swapped, not everything they have done with anyone in the group.
 - feat(Collection): **Group All Cards by collection** — in copies view the All Cards grid can now split into a section per collection, so you can see where each copy actually sits.
 - feat(Decks): **Box tab reads like the deck list** — one list in the deck's own zones, sort and grouping, with a row per copy showing its art, printing and condition, a tick to move it in or out, and a source to pick it from.
 - feat(Collection): **Card details inside the scanner** — Details on a scanned card opens the usual card overlay in place instead of leaving for the card page.

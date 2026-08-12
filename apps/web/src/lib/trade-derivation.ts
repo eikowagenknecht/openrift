@@ -4,34 +4,34 @@ import type {
   CardTradeResponse,
   FriendGroupMatchRow,
 } from "@openrift/shared";
+import { cardTradeState, isLiveCardTradeStatus } from "@openrift/shared";
 
 /** The three buckets the per-group Trades tab groups trades into. */
 export type TradeSection = "action-needed" | "active" | "history";
 
 /**
- * Buckets a trade for the Trades tab. Status- and role-derived (via the
- * server-computed `actionNeeded`), independent of the seen/unread flag.
+ * Buckets a trade for the Trades tab, from the shared lifecycle state so this
+ * tab, the hub cards, the trade sheet and the members badge cannot drift apart.
+ *
+ * A reservation the viewer has already settled files under history rather than
+ * staying in flight: their half is final, and only the other party's
+ * confirmation is outstanding.
  * @returns The section the trade belongs in.
  */
 export function tradeSection(trade: CardTradeResponse): TradeSection {
-  // Things the viewer must act on: a request awaiting their answer, or a swap
-  // whose own half they haven't confirmed. The groups-list badge splits these
-  // two the same way, so a count the viewer taps always has rows behind it in
-  // this section.
-  if (trade.actionNeeded === "accept-or-decline" || trade.actionNeeded === "settle") {
-    return "action-needed";
+  switch (cardTradeState(trade)) {
+    case "to-answer":
+    case "to-settle": {
+      return "action-needed";
+    }
+    case "waiting-on-them": {
+      return "active";
+    }
+    case "done":
+    case "closed": {
+      return "history";
+    }
   }
-  // In flight: their own pending request awaiting the other side.
-  if (trade.actionNeeded === "cancel") {
-    return "active";
-  }
-  // A settled side of a still-open reservation stays in flight; the viewer is
-  // simply waiting on the other party now.
-  if (trade.status === "reserved") {
-    return "active";
-  }
-  // Terminal: completed, declined, cancelled or expired.
-  return "history";
 }
 
 function liveTradeKey(counterpartyUserId: string, printingId: string): string {
@@ -57,7 +57,7 @@ export function withoutLiveTradeMatches<
 >(matches: readonly TMatch[], trades: readonly CardTradeResponse[]): TMatch[] {
   const live = new Set(
     trades
-      .filter((trade) => trade.status === "pending" || trade.status === "reserved")
+      .filter((trade) => isLiveCardTradeStatus(trade.status))
       .map((trade) => liveTradeKey(trade.counterparty.userId, trade.printingId)),
   );
   return matches.filter(
@@ -228,15 +228,54 @@ export function describeViewerSource(
   direction: MatchDirection,
   listNames: readonly string[],
 ): string | null {
-  const kind = direction === "incoming" ? "wishlist" : "tradelist";
+  return describeSource("your", direction === "incoming" ? "wishlist" : "tradelist", listNames);
+}
+
+/**
+ * The same label for the *other* side's list: the one the counterparty keeps
+ * the card on. The noun is the mirror of the viewer's — a card coming to the
+ * viewer is on their counterparty's tradelist, one going out is on their
+ * wishlist — because a match is always a wish on one side meeting a have on the
+ * other.
+ *
+ * Shown beside {@link describeViewerSource} so a suggestion says both halves of
+ * why it exists. Only the viewer's half used to be visible, and the
+ * counterparty's list was a hover title nobody found.
+ * @param direction Whether the card flows to the viewer or away.
+ * @param listNames The counterparty's source-list name per variant (may repeat).
+ * @returns The source-list label, or null when no name is known.
+ */
+export function describeCounterpartySource(
+  direction: MatchDirection,
+  listNames: readonly string[],
+): string | null {
+  return describeSource("their", direction === "incoming" ? "tradelist" : "wishlist", listNames);
+}
+
+/**
+ * Shared body of the two source-list labels. A grouped suggestion can span
+ * several lists on either side (different printings held in different trade
+ * lists), so more than one distinct name collapses to a count rather than
+ * spilling a list of names into a one-line label.
+ * @param owner Whose lists these are, lowercase.
+ * @param kind The list noun for this side and direction.
+ * @param listNames The source-list name per variant (may repeat).
+ * @returns The label, or null when no name is known.
+ */
+function describeSource(
+  owner: "your" | "their",
+  kind: "wishlist" | "tradelist",
+  listNames: readonly string[],
+): string | null {
   const distinct = [...new Set(listNames.filter((name) => name.length > 0))];
   if (distinct.length === 0) {
     return null;
   }
+  const capitalized = owner === "your" ? "Your" : "Their";
   if (distinct.length === 1) {
-    return `Your ${kind}: ${distinct[0]}`;
+    return `${capitalized} ${kind}: ${distinct[0]}`;
   }
-  return `${distinct.length} of your ${kind}s`;
+  return `${distinct.length} of ${owner} ${kind}s`;
 }
 
 /** The per-copy metadata a match row surfaces about an offered copy (ADR-038). */

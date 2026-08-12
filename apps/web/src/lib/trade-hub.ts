@@ -1,17 +1,19 @@
 import type { CardTradeResponse } from "@openrift/shared";
+import { cardTradeState, isTradedCardTrade, needsViewerAction } from "@openrift/shared";
 
 import type { MatchSuggestionFields } from "./trade-derivation";
 import { tradeSuggestionKeys, withoutLiveTradeMatches } from "./trade-derivation";
 
 /**
- * Whether a trade is waiting on the viewer — the rows a person's card counts as
- * their move. Both of the server's viewer-side actions count: answering a
- * request, and settling a swap that already happened.
+ * Whether a trade is still going: someone has an act left to perform. A
+ * reservation the viewer has settled is not — only the other party's
+ * confirmation is outstanding, and nothing about it is theirs to chase.
  * @param trade The trade to test.
- * @returns True when the viewer is the one holding it up.
+ * @returns True while the trade is in flight.
  */
-export function isNeedsYouTrade(trade: CardTradeResponse): boolean {
-  return trade.actionNeeded === "accept-or-decline" || trade.actionNeeded === "settle";
+function isInFlightTrade(trade: CardTradeResponse): boolean {
+  const state = cardTradeState(trade);
+  return state === "to-answer" || state === "to-settle" || state === "waiting-on-them";
 }
 
 /** The three acts the rows waiting on the viewer ask for. */
@@ -31,7 +33,7 @@ export interface NeedsYouCounts {
  * different errands — a number that mixes them tells you nothing about which
  * one today is. The two settle sides split by the viewer's role: a giver hands
  * over, a receiver receives.
- * @param needsYou The rows waiting on the viewer, as {@link isNeedsYouTrade} accepts them.
+ * @param needsYou The rows waiting on the viewer, as `needsViewerAction` accepts them.
  * @returns How many of each act.
  */
 export function needsYouCounts(needsYou: readonly CardTradeResponse[]): NeedsYouCounts {
@@ -143,7 +145,12 @@ export interface TradeHubCard<TMember> {
   member: TMember;
   /** This group's trades with them waiting on the viewer, in {@link sortNeedsYou} order. */
   needsYou: CardTradeResponse[];
-  /** This group's other live trades with them: waiting on the other side. */
+  /**
+   * This group's other live trades with them: genuinely waiting on the other
+   * side. A reservation the viewer has already settled is *not* in here — their
+   * half is final, so the sheet files it under history, and a card that counted
+   * it said "16 waiting on them" about a person the sheet called settled up.
+   */
   open: CardTradeResponse[];
   /** Every trade with them in this group, live or finished. */
   trades: CardTradeResponse[];
@@ -157,9 +164,9 @@ export interface TradeHubCard<TMember> {
   suggestionsElsewhere: number;
   /** Wishlists and tradelists they share with this group. */
   listCount: number;
-  /** Trades with them this group has finished. */
-  completedCount: number;
-  /** Live trades with them in the viewer's *other* groups. */
+  /** Trades with them in this group whose cards changed hands (`isTradedCardTrade`). */
+  tradedCount: number;
+  /** Trades with them still in flight in the viewer's *other* groups. */
   elsewhereCount: number;
 }
 
@@ -254,7 +261,7 @@ export function suggestionsLine(card: TradeHubCard<TradeHubMember>): string | nu
  * @returns True when every count is zero.
  */
 export function isQuietTradeHubCard(card: TradeHubCard<TradeHubMember>): boolean {
-  return cardRank(card) === 4 && card.completedCount === 0 && card.elsewhereCount === 0;
+  return cardRank(card) === 4 && card.tradedCount === 0 && card.elsewhereCount === 0;
 }
 
 /**
@@ -291,11 +298,7 @@ export function buildTradeHubCards<
   );
   const tradesByPerson = Map.groupBy(input.groupTrades, (trade) => trade.counterparty.userId);
   const elsewhereByPerson = Map.groupBy(
-    input.allTrades.filter(
-      (trade) =>
-        trade.groupId !== input.groupId &&
-        (trade.status === "pending" || trade.status === "reserved"),
-    ),
+    input.allTrades.filter((trade) => trade.groupId !== input.groupId && isInFlightTrade(trade)),
     (trade) => trade.counterparty.userId,
   );
   const listsByPerson = Map.groupBy(
@@ -319,16 +322,13 @@ export function buildTradeHubCards<
         member,
         // Not filtered to live first: a legacy completed row can still be
         // awaiting its settle, and that is exactly a row waiting on the viewer.
-        needsYou: sortNeedsYou(trades.filter((trade) => isNeedsYouTrade(trade))),
-        open: trades.filter(
-          (trade) =>
-            !isNeedsYouTrade(trade) && (trade.status === "pending" || trade.status === "reserved"),
-        ),
+        needsYou: sortNeedsYou(trades.filter((trade) => needsViewerAction(trade))),
+        open: trades.filter((trade) => cardTradeState(trade) === "waiting-on-them"),
         trades,
         suggestions: here.size,
         suggestionsElsewhere: [...elsewhere].filter((key) => !here.has(key)).length,
         listCount: (listsByPerson.get(member.userId) ?? []).length,
-        completedCount: trades.filter((trade) => trade.status === "completed").length,
+        tradedCount: trades.filter((trade) => isTradedCardTrade(trade)).length,
         elsewhereCount: (elsewhereByPerson.get(member.userId) ?? []).length,
       };
     });

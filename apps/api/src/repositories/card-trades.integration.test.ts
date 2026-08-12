@@ -705,20 +705,44 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
   });
 
-  it("countCompletedCardsByMemberInGroup credits both parties, completed only", async () => {
+  it("countTradedCardsWithViewerInGroup counts from the viewer's own settle", async () => {
     const { group } = await setupMatch(3);
-    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
+    const traded = (viewerId: string) =>
+      repos.cardTrades.countTradedCardsWithViewerInGroup(group.id, viewerId);
+
+    expect(await traded(RECEIVER_ID)).toEqual(new Map());
     const trade = await request(group, 2);
     await acceptTrade(transact, trade.id, GIVER_ID);
-    // Unsettled reserved trades don't count — same rule as the group-wide stat.
-    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(new Map());
+    // Reserved with neither side settled counts for nobody: nothing has moved.
+    expect(await traded(RECEIVER_ID)).toEqual(new Map());
+    expect(await traded(GIVER_ID)).toEqual(new Map());
+
+    // The receiver settles their own half. It counts for them — the cards are
+    // in their hands — but not yet for the giver, whose sheet is still asking
+    // them to settle. Counting either side's settle for both is what let a
+    // member with nothing of their own settled show a traded badge.
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
-    expect(await repos.cardTrades.countCompletedCardsByMemberInGroup(group.id)).toEqual(
-      new Map([
-        [GIVER_ID, 2],
-        [RECEIVER_ID, 2],
-      ]),
-    );
+    expect(await traded(RECEIVER_ID)).toEqual(new Map([[GIVER_ID, 2]]));
+    expect(await traded(GIVER_ID)).toEqual(new Map());
+
+    // The second settle completes the trade, so it now counts for both.
+    await applyTradeSync(transact, trade.id, GIVER_ID);
+    expect(await traded(RECEIVER_ID)).toEqual(new Map([[GIVER_ID, 2]]));
+    expect(await traded(GIVER_ID)).toEqual(new Map([[RECEIVER_ID, 2]]));
+  });
+
+  it("countTradedCardsWithViewerInGroup ignores trades the viewer is not part of", async () => {
+    const { group } = await setupMatch(3);
+    const trade = await request(group, 2);
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    await applyTradeSync(transact, trade.id, RECEIVER_ID);
+    await applyTradeSync(transact, trade.id, GIVER_ID);
+
+    // A bystander in the same group has traded nothing, however busy the group
+    // is. The badge used to be group-wide and credited them anyway.
+    expect(
+      await repos.cardTrades.countTradedCardsWithViewerInGroup(group.id, BYSTANDER_ID),
+    ).toEqual(new Map());
   });
 
   it("giver settle disposes copies (removed event + tradelist entry gone)", async () => {
