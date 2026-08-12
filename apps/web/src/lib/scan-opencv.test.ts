@@ -72,12 +72,12 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
   it("evaluates the script from its own URL, not from a blob", async () => {
     const { loadOpenCv } = await import("./scan-opencv");
 
-    await loadOpenCv("/scan-opencv.js");
+    await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
     // A blob: URL needs `blob:` in the CSP's script-src, which the served
     // policy does not carry — the tag has to point at the real asset.
     expect(appended).toHaveLength(1);
-    expect(appended[0]?.getAttribute("src")).toBe("/scan-opencv.js");
+    expect(appended[0]?.getAttribute("src")).toBe("/media/scan/scan-opencv-v1.js");
     expect(appended[0]?.src.startsWith("blob:")).toBe(false);
   });
 
@@ -95,7 +95,7 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
     const { loadOpenCv } = await import("./scan-opencv");
     const onProgress = vi.fn();
 
-    await loadOpenCv("/scan-opencv.js", onProgress);
+    await loadOpenCv("/media/scan/scan-opencv-v1.js", onProgress);
 
     expect(onProgress).toHaveBeenCalledWith(64, 128);
   });
@@ -103,7 +103,7 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
   it("resolves with the module the glue exports", async () => {
     const { loadOpenCv } = await import("./scan-opencv");
 
-    const cv = await loadOpenCv("/scan-opencv.js");
+    const cv = await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
     // The thenable is stripped, or every later await would re-adopt it.
     expect(cv).toBe((globalThis as { cv?: unknown }).cv);
@@ -114,13 +114,13 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
     const { loadOpenCv } = await import("./scan-opencv");
 
     respondWith = "error";
-    await expect(loadOpenCv("/scan-opencv.js")).rejects.toThrow(
+    await expect(loadOpenCv("/media/scan/scan-opencv-v1.js")).rejects.toThrow(
       "The OpenCV script failed to evaluate",
     );
 
     respondWith = "load";
-    await loadOpenCv("/scan-opencv.js");
-    await loadOpenCv("/scan-opencv.js");
+    await loadOpenCv("/media/scan/scan-opencv-v1.js");
+    await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
     expect(fetchWithProgress).toHaveBeenCalledTimes(2);
     expect(appended).toHaveLength(2);
@@ -177,19 +177,32 @@ describe("loadOpenCvInWorker", () => {
     serveSource(`globalThis.cv = { then(resolve) { resolve(this); } };`);
     const onProgress = vi.fn();
 
-    await loadOpenCvInWorker("/scan-opencv.js", onProgress);
+    await loadOpenCvInWorker("/media/scan/scan-opencv-v1.js", onProgress);
 
     expect(onProgress).toHaveBeenCalled();
   });
 
-  it("names the dev export script when the download fails", async () => {
+  it("names the media/scan repair when the download fails", async () => {
     const { loadOpenCvInWorker } = await import("./scan-opencv");
     fetchWithProgress.mockImplementation((_url: string, _onProgress: unknown, hint: string) =>
       Promise.reject(new Error(hint)),
     );
 
-    await expect(loadOpenCvInWorker("/scan-opencv.js")).rejects.toThrow(
-      "bun scripts/scan/export-index.ts",
+    // Assert on the advice, not on "media/scan": the URL itself is echoed in
+    // the message, so matching that would pass with any wording.
+    await expect(loadOpenCvInWorker("/media/scan/scan-opencv-v1.js")).rejects.toThrow(
+      "/admin/scan",
+    );
+  });
+
+  it("never points at a local export script", async () => {
+    const { loadOpenCvInWorker } = await import("./scan-opencv");
+    fetchWithProgress.mockImplementation((_url: string, _onProgress: unknown, hint: string) =>
+      Promise.reject(new Error(hint)),
+    );
+
+    await expect(loadOpenCvInWorker("/media/scan/scan-opencv-v1.js")).rejects.not.toThrow(
+      "export-index",
     );
   });
 });

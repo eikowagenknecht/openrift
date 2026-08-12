@@ -48,7 +48,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useLanguageLabels } from "@/hooks/use-enums";
 import { useScanLayout } from "@/hooks/use-scan-layout";
-import { useScanAssets } from "@/hooks/use-scan-serving";
+import { useScanServing } from "@/hooks/use-scan-serving";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useWishEntries } from "@/hooks/use-wish-entries";
 import type { AimHint } from "@/lib/scan-aim-hint";
@@ -149,7 +149,8 @@ export function ScanPage() {
     setCameraAvailable(navigator.mediaDevices?.getUserMedia !== undefined);
   }, []);
 
-  const assets = useScanAssets();
+  const serving = useScanServing();
+  const assets = serving.assets;
   // Primitive deps: the assets object is re-derived per render, and an
   // identity change mid-download would cancel the in-flight load.
   const bankUrl = assets?.bankUrl ?? null;
@@ -176,6 +177,14 @@ export function ScanPage() {
       cancelled = true;
     };
   }, [bankUrl, labelsUrl]);
+
+  // Nothing published means nothing to download: the scanner has one source,
+  // so there is no local export to fall back to. Keep the wording plain here;
+  // the actionable version lives on the admin scan page.
+  const unavailableMessage =
+    serving.status === "unavailable"
+      ? "The card index has not been published yet. Please try again later."
+      : loadError;
 
   const index = loaded ? buildScanPrintingIndex(allPrintings, loaded) : null;
 
@@ -761,11 +770,11 @@ export function ScanPage() {
         </Card>
       )}
 
-      {loadError && (
+      {unavailableMessage && (
         <Card className="border-destructive mt-4">
           <CardContent className="pt-6">
             <p className="font-medium">Scanning is not available right now.</p>
-            <p className="text-muted-foreground mt-2">{loadError}</p>
+            <p className="text-muted-foreground mt-2">{unavailableMessage}</p>
           </CardContent>
         </Card>
       )}

@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/select";
 import type { LockedCard, ScannerReadout, ScannerSettings } from "@/hooks/use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
-import type { ScanAssets } from "@/hooks/use-scan-serving";
-import { useLatestScanBankRun, useRebuildScanBank, useScanAssets } from "@/hooks/use-scan-serving";
+import type { ScanServing } from "@/hooks/use-scan-serving";
+import { useLatestScanBankRun, useRebuildScanBank, useScanServing } from "@/hooks/use-scan-serving";
 import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
@@ -309,7 +309,7 @@ function EngineCard({ settings, onChange }: EngineCardProps) {
   );
 }
 
-function ServingCard({ assets }: { assets: ScanAssets | null }) {
+function ServingCard({ serving }: { serving: ScanServing }) {
   const rebuild = useRebuildScanBank();
   const latestRun = useLatestScanBankRun();
   const running = rebuild.isPending || latestRun.data?.status === "running";
@@ -335,18 +335,22 @@ function ServingCard({ assets }: { assets: ScanAssets | null }) {
         <CardTitle>Serving</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {assets === null && <p className="text-muted-foreground">Resolving the manifest…</p>}
-        {assets?.source === "dev" && (
+        {serving.status === "loading" && (
+          <p className="text-muted-foreground">Resolving the manifest…</p>
+        )}
+        {serving.status === "unavailable" && (
           <p className="text-muted-foreground">
-            No server bank yet — assets come from the dev export. Rebuild to publish the first
-            generation (the encoder file must exist under media/scan first).
+            No server bank yet, so scanning is unavailable. Rebuild to publish the first generation
+            (the encoder file must exist under media/scan first).
           </p>
         )}
-        {assets?.source === "manifest" && (
+        {serving.status === "ready" && (
           <p className="text-muted-foreground tabular-nums">
-            Server bank <code className="bg-muted rounded px-1">{assets.bankHash}</code> ·{" "}
-            {assets.entryCount} entries
-            {assets.builtAt ? ` · built ${new Date(assets.builtAt).toLocaleString()}` : ""}
+            Server bank <code className="bg-muted rounded px-1">{serving.assets.bankHash}</code> ·{" "}
+            {serving.assets.entryCount} entries
+            {serving.assets.builtAt
+              ? ` · built ${new Date(serving.assets.builtAt).toLocaleString()}`
+              : ""}
           </p>
         )}
         {latestRun.data?.status === "failed" && (
@@ -380,7 +384,8 @@ export function ScanTestPage() {
     setCameraAvailable(navigator.mediaDevices?.getUserMedia !== undefined);
   }, []);
 
-  const assets = useScanAssets();
+  const serving = useScanServing();
+  const assets = serving.assets;
   // Primitive deps: the assets object is re-derived per render, and an
   // identity change mid-download would cancel the in-flight load.
   const bankUrl = assets?.bankUrl ?? null;
@@ -504,11 +509,9 @@ export function ScanTestPage() {
             <CardContent className="pt-6">
               <p className="font-medium">{loadError}</p>
               <p className="text-muted-foreground mt-2">
-                The bank, labels and encoder model are generated, not committed. Run{" "}
-                <code className="bg-muted rounded px-1 py-0.5">
-                  bun scripts/scan/export-index.ts
-                </code>{" "}
-                and reload.
+                The manifest names a generation that is missing from{" "}
+                <code className="bg-muted rounded px-1 py-0.5">media/scan</code>. Rebuild the bank
+                to publish a fresh one, or copy the files from production.
               </p>
             </CardContent>
           </Card>
@@ -598,7 +601,7 @@ export function ScanTestPage() {
             <LiveFrameCard readout={readout} loaded={loaded} active={active} />
             <CameraCard info={cameraInfo} active={active} />
             <EngineCard settings={settings} onChange={handleSettingsChange} />
-            <ServingCard assets={assets} />
+            <ServingCard serving={serving} />
           </div>
         </div>
       </div>

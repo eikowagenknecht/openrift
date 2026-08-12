@@ -22,6 +22,7 @@
 import type { OpenCvLike, OrbCvLike } from "@openrift/shared/scan";
 
 import { fetchWithProgress } from "@/lib/fetch-progress";
+import { scanAssetError } from "@/lib/scan-asset-hint";
 
 /** The initialised OpenCV module, with the ORB surface the matcher needs. */
 type OpenCvModule = OpenCvLike & OrbCvLike;
@@ -33,10 +34,10 @@ let cvProgressListener: ((loaded: number, total: number) => void) | null = null;
 /**
  * Message for a download that could not be served.
  *
- * @returns The hint, naming the dev-time export script.
+ * @returns The message, hinting at whichever source the URL came from.
  */
 function missingHint(scriptUrl: string): string {
-  return `could not load OpenCV from ${scriptUrl} (in dev, run: bun scripts/scan/export-index.ts)`;
+  return scanAssetError("OpenCV", scriptUrl);
 }
 
 /**
@@ -85,8 +86,8 @@ async function awaitCvExport(): Promise<OpenCvModule> {
 /**
  * Load the OpenCV WASM build into the page, once per page.
  *
- * Evaluated as a plain classic script (`/scan-opencv.js`, written next to the
- * bank by `export-index.ts`), NOT as a module import: vite's dep-optimized ESM
+ * Evaluated as a plain classic script (served from `media/scan` next to the
+ * bank), NOT as a module import: vite's dep-optimized ESM
  * wrapping of the emscripten UMD spins the main thread forever during
  * evaluation, in every engine tested, while the raw script evaluates in well
  * under a second.

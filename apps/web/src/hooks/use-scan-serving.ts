@@ -16,11 +16,10 @@ const MANIFEST_KEY = ["scan", "manifest"] as const;
 const REBUILD_RUN_KEY = ["admin", "job-runs", REBUILD_SCAN_BANK_KIND] as const;
 
 /**
- * Where the scanner's downloadable assets come from: the server's manifest
- * (content-hashed, immutable) or the dev export's public paths.
+ * The scanner's downloadable assets, all served from `media/scan` as
+ * content-hashed, immutable files.
  */
-export interface ScanAssets {
-  source: "manifest" | "dev";
+interface ScanAssets {
   bankUrl: string;
   labelsUrl: string;
   encoderUrl: string;
@@ -30,17 +29,17 @@ export interface ScanAssets {
   builtAt: string | null;
 }
 
-/** The dev-export fallback: files written by `bun scripts/scan/export-index.ts`. */
-const DEV_SCAN_ASSETS: ScanAssets = {
-  source: "dev",
-  bankUrl: "/scan-embed-bank.bin",
-  labelsUrl: "/scan-labels.json",
-  encoderUrl: "/scan-encoder.onnx",
-  opencvUrl: "/scan-opencv.js",
-  bankHash: null,
-  entryCount: null,
-  builtAt: null,
-};
+/**
+ * Resolution state of the serving manifest.
+ *
+ * There is deliberately no local fallback. Dev and production load the same
+ * files through the same manifest, so an unpublished bank leaves the scanner
+ * unavailable rather than quietly running a different engine than users get.
+ */
+export type ScanServing =
+  | { status: "loading"; assets: null }
+  | { status: "unavailable"; assets: null }
+  | { status: "ready"; assets: ScanAssets };
 
 const fetchScanManifestFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -51,10 +50,10 @@ const fetchScanManifestFn = createServerFn({ method: "GET" })
 /**
  * The serving manifest, resolved to usable asset URLs.
  *
- * @returns Null while resolving; afterwards the manifest's assets, or the dev
- *   fallback when no bank has ever been built (or the manifest failed).
+ * @returns The resolution state: loading, unavailable when no bank has been
+ *   published (or the manifest failed), or the assets to download.
  */
-export function useScanAssets(): ScanAssets | null {
+export function useScanServing(): ScanServing {
   const manifest = useQuery({
     queryKey: MANIFEST_KEY,
     queryFn: () => fetchScanManifestFn(),
@@ -62,21 +61,23 @@ export function useScanAssets(): ScanAssets | null {
     retry: 1,
   });
   if (manifest.isPending) {
-    return null;
+    return { status: "loading", assets: null };
   }
   const data = manifest.data;
   if (!data?.available || data.bankUrl === null || data.labelsUrl === null) {
-    return DEV_SCAN_ASSETS;
+    return { status: "unavailable", assets: null };
   }
   return {
-    source: "manifest",
-    bankUrl: data.bankUrl,
-    labelsUrl: data.labelsUrl,
-    encoderUrl: data.encoderUrl,
-    opencvUrl: data.opencvUrl,
-    bankHash: data.bankHash,
-    entryCount: data.entryCount,
-    builtAt: data.builtAt,
+    status: "ready",
+    assets: {
+      bankUrl: data.bankUrl,
+      labelsUrl: data.labelsUrl,
+      encoderUrl: data.encoderUrl,
+      opencvUrl: data.opencvUrl,
+      bankHash: data.bankHash,
+      entryCount: data.entryCount,
+      builtAt: data.builtAt,
+    },
   };
 }
 

@@ -11,10 +11,12 @@
 #
 # Needs docker; the OpenCV source is cloned on first run. Outputs land in
 #   data/image-recognition-test/models/opencv/opencv.js + opencv_js.wasm
-# which export-index.ts and run-clips.ts pick up. The emscripten file names
-# stay as built: under Bun/Node the glue resolves opencv_js.wasm next to
-# itself, which is what lets run-clips require() it directly; export-index
-# renames to the scan-opencv.js/.wasm serving convention. Not committed.
+# which run-clips.ts picks up. The emscripten file names stay as built: under
+# Bun/Node the glue resolves opencv_js.wasm next to itself, which is what lets
+# run-clips require() it directly. Serving it to browsers is a separate,
+# manual step: copy the pair into media/scan under the versioned
+# scan-opencv-<version>.js/.wasm names and point config.scan.opencvFile at it,
+# the same way the encoder is published. Not committed.
 #
 # Usage: bash scripts/scan/build-opencv.sh [--clean]
 set -euo pipefail
