@@ -269,6 +269,24 @@ export function TradeSheetPage({
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              {/* The sheet holds the ledger and the suggestions, never the
+                  lists they came out of, so browsing what this person shares
+                  needs a way off the page. It sits in the header rather than
+                  only in the empty state below, which is where it used to
+                  live: the moment a single suggestion appeared the empty state
+                  stopped rendering and the link went with it. */}
+              <Button
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    to="/groups/$slug/members/$userId"
+                    params={{ slug: anchorGroup.slug, userId }}
+                  />
+                }
+              >
+                View their lists
+              </Button>
               {reserved.length > 0 ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -290,22 +308,14 @@ export function TradeSheetPage({
         </header>
 
         {empty ? (
+          // No action of its own: the header's "View their lists" is the same
+          // link and sits right above this, so repeating it here put two
+          // identically-labelled buttons on one screen.
           <EmptyState
             icon={HandshakeIcon}
             title="Nothing traded yet"
             description="Suggestions appear when your wishlists and their tradelists overlap."
-          >
-            <Button
-              render={
-                <Link
-                  to="/groups/$slug/members/$userId"
-                  params={{ slug: anchorGroup.slug, userId }}
-                />
-              }
-            >
-              View their lists
-            </Button>
-          </EmptyState>
+          />
         ) : (
           <>
             <LedgerSection

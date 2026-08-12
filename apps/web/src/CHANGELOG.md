@@ -18,6 +18,7 @@
 - feat(Collection): **Printing picker grouped by language** — switching or picking a printing now shows one tab per language when a card exists in several.
 - feat(App): **Scanner moved to /scan** — the scan page has its own top-level address; old /collections/scan bookmarks need updating.
 - feat(Trades): **Suggestions from your other groups** — a member's card on the Trades page now says when possible trades with them sit in another group you share, and their member page counts those too.
+- fix(Trades): **Their shared lists from the trade sheet** — the link to a member's wishlists and tradelists now sits in the sheet's header, where it used to disappear as soon as you had a trade or suggestion with them.
 - fix(Trades): **Suggestions across shared groups** — a card you can trade through two shared groups is one suggestion again instead of two identical ones, and every trade sheet row now names the group it belongs to.
 - fix(Collection): **Picker lists line up** — the filter box in the move and add dialogs now sits at the same width as the list under it, with a clear gap between the two.
 - fix(Trades): **Trade sheet reads as two piles** — the open sections now list what you get before what you give, each in catalog order, and rows no longer repeat the status their heading already says.
