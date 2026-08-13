@@ -3,6 +3,7 @@ import { ERROR_CODES } from "@openrift/shared";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import * as Sentry from "@sentry/bun";
+import { isAPIError } from "better-auth/api";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
@@ -20,6 +21,7 @@ import type { createEmailSender } from "./email.js";
 import { AppError, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
+import { mapAuthError } from "./lib/better-auth-error.js";
 import { loadSession } from "./middleware/load-session.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
@@ -136,6 +138,25 @@ export function createApp(deps: AppDeps) {
 
     if (err instanceof SyntaxError) {
       return c.json({ error: "Invalid JSON in request body", code: ERROR_CODES.BAD_REQUEST }, 400);
+    }
+
+    // better-auth throws better-call's APIError, which extends plain Error and
+    // so matched none of the branches above — every API-key rate-limit denial
+    // and every invalid key came out of the catch-all below as a 500 plus an
+    // unhandled Sentry event. `resolveSession` reaches here for any Hono route
+    // that loads a session (`loadSession`, `requireAuth`, `requireAdmin`); the
+    // oRPC handler never reaches `onError`, so its own session lookup maps the
+    // same error in `buildApiContext`.
+    if (isAPIError(err)) {
+      const { status, code, message, retryAfterSeconds } = mapAuthError(err);
+      if (status >= 500) {
+        Sentry.captureException(err, { extra: { method: c.req.method, path: c.req.path } });
+        log.error({ err, method: c.req.method, path: c.req.path }, "better-auth APIError 5xx");
+      }
+      const body: ApiErrorResponse = { error: message, code };
+      const headers =
+        retryAfterSeconds === undefined ? undefined : { "Retry-After": String(retryAfterSeconds) };
+      return c.json(body, status as ContentfulStatusCode, headers);
     }
 
     Sentry.captureException(err, { extra: { method: c.req.method, path: c.req.path } });
@@ -472,6 +493,12 @@ export function createApp(deps: AppDeps) {
     // under the public /decks/share/ read) from ever being labelled `public`.
     if (response.ok && (c.req.method === "GET" || isHead) && apiContext.cacheControl) {
       response.headers.set("Cache-Control", apiContext.cacheControl);
+    }
+    // The api-key rate limiter refused the session lookup and told us how long
+    // to wait; the throw is already encoded into `response` by here, so the
+    // hint travels on the context (see ApiContext.retryAfterSeconds).
+    if (apiContext.retryAfterSeconds !== undefined) {
+      response.headers.set("Retry-After", String(apiContext.retryAfterSeconds));
     }
     if (!isHead) {
       return response;

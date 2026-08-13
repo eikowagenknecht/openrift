@@ -1,7 +1,10 @@
+import { isAPIError } from "better-auth/api";
 import type { Context } from "hono";
 
 import type { Repos, Services, Transact } from "../deps.js";
+import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
+import { mapAuthError } from "../lib/better-auth-error.js";
 import { resolveSession } from "../middleware/load-session.js";
 import type { AdminAccess } from "../middleware/require-admin.js";
 import type { Auth, Config, Variables } from "../types.js";
@@ -55,6 +58,13 @@ export interface ApiContext {
    * Undefined for procedures that declare no `cache` meta.
    */
   cacheControl?: string;
+  /**
+   * Output slot: seconds to wait, set when a session lookup was refused by the
+   * api-key rate limiter. oRPC encodes a handler throw into a `Response` whose
+   * headers we can't reach from the thrown error, so the catch-all mount reads
+   * this back after `handle()` and sets `Retry-After` on the 429.
+   */
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -64,7 +74,7 @@ export interface ApiContext {
  * @returns The native oRPC context for this request.
  */
 export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContext {
-  return {
+  const context: ApiContext = {
     repos: c.get("repos"),
     services: c.get("services"),
     config: c.get("config"),
@@ -74,9 +84,37 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
     user: c.get("user") ?? null,
     adminAccess: c.get("adminAccess") ?? null,
     loadUser: async () => {
-      await resolveSession(c);
+      try {
+        await resolveSession(c);
+      } catch (error) {
+        throw convertAuthError(error, context);
+      }
       return c.get("user") ?? null;
     },
     reqHeader: (name) => c.req.header(name),
   };
+  return context;
+}
+
+/**
+ * Converts a better-auth {@link APIError} thrown by the session lookup into the
+ * {@link AppError} the oRPC pipeline already knows how to encode, stashing any
+ * retry hint on the context for the catch-all mount to turn into a header.
+ *
+ * The Hono `onError` handler maps these errors itself, but oRPC catches every
+ * handler throw and encodes it into a `Response` before `onError` can see it,
+ * so an API-key rate-limit denial or an invalid key on an oRPC route would
+ * otherwise still answer 500 and be captured as an unhandled Sentry exception.
+ * Anything that is not an `APIError` is returned unchanged, to be rethrown.
+ * @returns The error to throw in place of the original.
+ */
+function convertAuthError(error: unknown, context: ApiContext): unknown {
+  if (!isAPIError(error)) {
+    return error;
+  }
+  const { status, code, message, retryAfterSeconds } = mapAuthError(error);
+  if (retryAfterSeconds !== undefined) {
+    context.retryAfterSeconds = retryAfterSeconds;
+  }
+  return new AppError(status, code, message);
 }

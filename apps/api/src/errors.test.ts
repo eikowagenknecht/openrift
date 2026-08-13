@@ -43,6 +43,7 @@ describe("codeForStatus", () => {
     [404, ERROR_CODES.NOT_FOUND],
     [409, ERROR_CODES.CONFLICT],
     [413, ERROR_CODES.PAYLOAD_TOO_LARGE],
+    [429, ERROR_CODES.RATE_LIMITED],
     [503, ERROR_CODES.SERVICE_UNAVAILABLE],
   ])("maps %i to its canonical code", (status, expected) => {
     expect(codeForStatus(status)).toBe(expected);
@@ -50,7 +51,7 @@ describe("codeForStatus", () => {
 
   it("maps unrecognized 4xx statuses to BAD_REQUEST", () => {
     expect(codeForStatus(418)).toBe(ERROR_CODES.BAD_REQUEST);
-    expect(codeForStatus(429)).toBe(ERROR_CODES.BAD_REQUEST);
+    expect(codeForStatus(422)).toBe(ERROR_CODES.BAD_REQUEST);
   });
 
   it("maps any 5xx status to INTERNAL_ERROR", () => {
