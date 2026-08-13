@@ -84,7 +84,7 @@ export interface SetsTable {
 }
 
 /** How wide a period a `set_releases.released_at` date stands for. */
-export type ReleasePrecision = "day" | "month" | "quarter" | "year";
+type ReleasePrecision = "day" | "month" | "quarter" | "year";
 
 /**
  * When a set reached a given language (migration 233). One row per
@@ -96,7 +96,7 @@ export type ReleasePrecision = "day" | "month" | "quarter" | "year";
  * "Q2 2026" is expressible. Both NULL means announced with no date yet, which
  * always reads as unreleased.
  */
-export interface SetReleasesTable {
+interface SetReleasesTable {
   /** FK → sets.id, ON DELETE CASCADE */
   setId: string;
   /** FK → languages.code, ON UPDATE CASCADE */
