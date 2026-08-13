@@ -12,7 +12,8 @@
     },
     "apps/api": {
       "entry": ["src/app.ts"],
-      "ignore": ["src/test/**", "src/db/migrations/*.ts"]
+      "ignore": ["src/test/**", "src/db/migrations/*.ts"],
+      "ignoreDependencies": ["swagger-ui-dist"]
     },
     "apps/web": {
       "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],

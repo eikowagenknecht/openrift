@@ -38,6 +38,7 @@ import { healthRoute } from "./routes/public/health.js";
 import { publicOembedRoute } from "./routes/public/oembed.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
+import { SWAGGER_ASSETS_BASE_URL, swaggerAssetsRoute } from "./routes/public/swagger-assets.js";
 import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
 import type { Auth, Config, Variables } from "./types.js";
 
@@ -404,8 +405,10 @@ export function createApp(deps: AppDeps) {
     const doc = await buildDoc(adminDocInfo);
     return c.json(filterPaths(doc, (path) => path.startsWith(ADMIN_DOC_PREFIX)));
   });
-  app.get("/api/ui", swaggerUI({ url: "/api/doc" }));
-  app.get("/api/admin/ui", swaggerUI({ url: "/api/admin/doc" }));
+  // baseUrl points the page's <script>/<link> tags at swaggerAssetsRoute below
+  // instead of the default jsDelivr CDN, which the site CSP blocks.
+  app.get("/api/ui", swaggerUI({ url: "/api/doc", baseUrl: SWAGGER_ASSETS_BASE_URL }));
+  app.get("/api/admin/ui", swaggerUI({ url: "/api/admin/doc", baseUrl: SWAGGER_ASSETS_BASE_URL }));
 
   // ── Plain-Hono routes (not oRPC) ──────────────────────────────────────────
   // Binary/HTML/empty responses, external error envelopes, or a deliberate
@@ -414,6 +417,7 @@ export function createApp(deps: AppDeps) {
   mountAdminSentryTest(app);
   app
     .route("/api", healthRoute)
+    .route("/api", swaggerAssetsRoute)
     .route("/api/v1", publicShareImagesRoute)
     .route("/api/v1", publicOembedRoute)
     .route("/api/v1", sentryTunnelRoute)
