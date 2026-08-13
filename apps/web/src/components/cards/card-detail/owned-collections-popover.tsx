@@ -3,10 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
 import { useContext } from "react";
 
-import { FinishIcon } from "@/components/cards/finish-icon";
+import { OwnedVariantBreakdown } from "@/components/cards/owned-variant-breakdown";
 import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useEnumOrders } from "@/hooks/use-enums";
 import type { OwnedBreakdownVariant } from "@/hooks/use-owned-count";
 import {
   useOwnedCollections,
@@ -80,7 +79,6 @@ export function OwnedCollectionsPopover({
   const defaultView = useDisplayStore((state) => state.defaultCardView);
   const view = filterSearch?.view ?? defaultView;
   const isPrintingsView = view === "printings" || view === "copies";
-  const { labels } = useEnumOrders();
 
   if (!isAuthenticated || totalOwned === 0) {
     return null;
@@ -103,40 +101,7 @@ export function OwnedCollectionsPopover({
           </p>
         </div>
         {groupByVariant ? (
-          <div className="px-1 pb-1">
-            {variantBreakdown?.map((variant) => (
-              <div key={variant.printingId} className="px-1 pb-1 last:pb-0">
-                <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 text-xs font-medium tracking-wide uppercase">
-                  <span>{variant.shortCode}</span>
-                  <FinishIcon
-                    finish={variant.finish}
-                    title={labels.finishes[variant.finish]}
-                    iconClassName="size-3"
-                  />
-                </div>
-                <ul>
-                  {variant.collections.map((entry) => (
-                    <li key={entry.collectionId}>
-                      <Link
-                        to="/collections/$collectionId"
-                        params={{ collectionId: entry.collectionId }}
-                        search={{ search: `id:${variant.shortCode}`, view: "printings" }}
-                        className={cn(
-                          "flex items-center justify-between rounded-md px-2 py-1 text-sm",
-                          "hover:bg-accent transition-colors",
-                        )}
-                      >
-                        <span className="truncate">{entry.collectionName}</span>
-                        <span className="text-muted-foreground ml-2 shrink-0 tabular-nums">
-                          &times;{entry.count}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <OwnedVariantBreakdown variants={variantBreakdown ?? []} />
         ) : (
           <ul className="px-1 pb-1">
             {singleBreakdown?.map((entry) => (

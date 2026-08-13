@@ -413,7 +413,7 @@ export interface OwnedBreakdownVariant {
 }
 
 /** Per-variant breakdown entry: variant identity plus its non-empty per-collection counts. */
-interface VariantCollectionBreakdownEntry {
+export interface VariantCollectionBreakdownEntry {
   printingId: string;
   shortCode: string;
   finish: Finish;

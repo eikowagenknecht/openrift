@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 
+import { AvailableCopiesPopover } from "./available-copies-popover";
 import { RequestTradeDialog } from "./request-trade-dialog";
 import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 import {
@@ -256,9 +257,13 @@ export function resolveMatchRows(
  * separate and the price stays per-copy, so a "3 wanted" wish backed by only 1
  * copy never reads as "3 × price". The shortcode already encodes the set, so
  * the set name is dropped; rarity and finish render as icons rather than words.
+ *
+ * On an outgoing row the available count opens the viewer's own holdings of the
+ * card (see {@link AvailableCopiesPopover}); on an incoming one it counts the
+ * counterparty's copies and stays plain text.
  * @returns The metadata line element.
  */
-function MatchRowMeta({ match }: { match: AggregatedMatch }) {
+function MatchRowMeta({ match }: { match: DirectedMatch }) {
   return (
     <CardMetaLine
       shortCode={match.shortCode}
@@ -269,7 +274,14 @@ function MatchRowMeta({ match }: { match: AggregatedMatch }) {
       trailing={
         <>
           <span>· {match.buyQuantity} wanted</span>
-          <span>· {match.availableCount} available</span>
+          {match.direction === "outgoing" ? (
+            <>
+              <span>·</span>
+              <AvailableCopiesPopover cardId={match.cardId} availableCount={match.availableCount} />
+            </>
+          ) : (
+            <span>· {match.availableCount} available</span>
+          )}
           <TradePerCopyPrice printingId={match.printingId} />
         </>
       }
@@ -521,6 +533,7 @@ export interface MatchTradeGroup extends CatalogPosition {
   /** Stable, per-counterparty key used both as the React key and the fold-store id. */
   foldId: string;
   direction: MatchDirection;
+  cardId: string;
   cardName: string;
   cardSlug: string;
   imageId: string | null;
@@ -570,6 +583,7 @@ export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
       groups.set(key, {
         foldId: key,
         direction: row.direction,
+        cardId: row.cardId,
         cardName: row.cardName,
         cardSlug: row.cardSlug,
         imageId: row.imageId,
@@ -666,10 +680,18 @@ function MatchTradeRowGroup({
             wrapper dissolves (sm:contents) and the chevron's sm:order-last drops
             it to the far right, past the member chip and status. */}
         <div className="flex min-w-0 items-center gap-3 sm:contents">
+          {/* The pressable stops at the card name. Everything below it — the
+              counts line in particular — can hold controls of its own (the
+              available-count popover), and a button inside a button is invalid
+              nesting that React warns about. The ExpandToggle to the right is
+              the keyboard-reachable control; art and name are mouse shortcuts
+              to the same toggle, so they stay out of the tab order rather than
+              adding two stops for one action. */}
           <Pressable
             onClick={() => toggle(group.foldId)}
-            aria-expanded={expanded}
-            className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 transition-colors"
+            tabIndex={-1}
+            aria-label={`Toggle ${group.cardName} variants`}
+            className="hover:text-foreground flex shrink-0 items-center gap-3 transition-colors"
           >
             <TradeDirectionIcon incoming={incoming} />
 
@@ -680,40 +702,55 @@ function MatchTradeRowGroup({
               className="w-10"
               loading="lazy"
             />
-
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate font-medium">{group.cardName}</span>
-              <span className="text-muted-foreground text-xs">
-                {group.variants.length} variants · {group.buyQuantity} wanted ·{" "}
-                {group.totalAvailable} available
-                {cheapestUnit !== undefined && (
-                  <>
-                    {" · "}
-                    {pricesVary ? "from " : ""}
-                    <span className={cn("font-medium", priceColorClass(cheapestUnit))}>
-                      {compactFormatterForMarketplace(marketplace)(cheapestUnit)}/copy
-                    </span>
-                  </>
-                )}
-              </span>
-              <MatchSourceLine
-                direction={group.direction}
-                listNames={group.variants.map((variant) => variant.viewerListName)}
-                counterpartyListNames={group.variants.map(
-                  (variant) => variant.counterpartyListName,
-                )}
-              />
-              {/* Every group the variants come from, so a collapsed tile still
-                  says where its copies live — a card reachable through two
-                  shared groups is one tile with two of these. */}
-              <MatchGroupBadges rows={group.variants} />
-            </span>
           </Pressable>
+
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <Pressable
+              onClick={() => toggle(group.foldId)}
+              tabIndex={-1}
+              className="hover:text-foreground max-w-full self-start truncate font-medium transition-colors"
+            >
+              {group.cardName}
+            </Pressable>
+            <span className="text-muted-foreground text-xs">
+              {group.variants.length} variants · {group.buyQuantity} wanted ·{" "}
+              {/* Outgoing only, same rule as the per-variant rows: on an
+                  incoming group this counts their copies, not the viewer's. */}
+              {group.direction === "outgoing" ? (
+                <AvailableCopiesPopover
+                  cardId={group.cardId}
+                  availableCount={group.totalAvailable}
+                />
+              ) : (
+                <>{group.totalAvailable} available</>
+              )}
+              {cheapestUnit !== undefined && (
+                <>
+                  {" · "}
+                  {pricesVary ? "from " : ""}
+                  <span className={cn("font-medium", priceColorClass(cheapestUnit))}>
+                    {compactFormatterForMarketplace(marketplace)(cheapestUnit)}/copy
+                  </span>
+                </>
+              )}
+            </span>
+            <MatchSourceLine
+              direction={group.direction}
+              listNames={group.variants.map((variant) => variant.viewerListName)}
+              counterpartyListNames={group.variants.map((variant) => variant.counterpartyListName)}
+            />
+            {/* Every group the variants come from, so a collapsed tile still
+                says where its copies live — a card reachable through two
+                shared groups is one tile with two of these. */}
+            <MatchGroupBadges rows={group.variants} />
+          </span>
 
           <ExpandToggle
             expanded={expanded}
             onClick={() => toggle(group.foldId)}
-            aria-label={expanded ? "Collapse variants" : "Expand variants"}
+            aria-label={
+              expanded ? `Collapse ${group.cardName} variants` : `Expand ${group.cardName} variants`
+            }
             className="text-muted-foreground hover:text-foreground shrink-0 transition-colors sm:order-last"
             chevronClassName="text-inherit"
           />

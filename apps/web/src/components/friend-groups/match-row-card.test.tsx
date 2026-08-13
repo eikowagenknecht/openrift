@@ -105,6 +105,16 @@ describe("groupTradeMatches", () => {
     expect(groups[0].totalAvailable).toBe(25);
   });
 
+  // The collapsed header's available-count popover looks the viewer's own
+  // copies up by card, so the group has to carry the card id its variants share.
+  it("carries the card id its variants share", () => {
+    const groups = groupTradeMatches([
+      makeDirected({ printingId: "printing-a" }),
+      makeDirected({ printingId: "printing-b" }),
+    ]);
+    expect(groups[0].cardId).toBe("card-1");
+  });
+
   it("keeps printing-level wishes as separate one-variant groups", () => {
     const groups = groupTradeMatches([
       makeDirected({ buyEntryKind: "printing", printingId: "printing-a" }),

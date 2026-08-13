@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Trades): **Check what you own before offering** — the available count on a card you would give away opens a breakdown of every variant you own and the collections holding them.
 - feat(Groups): **Possible trades on the groups list** — each group card now shows how many possible trades it holds, so you can see where to go without opening every group.
 
 ### Other
