@@ -65,6 +65,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           name: "CAT Core Set",
           printedTotal: 200,
           releases: { EN: { releasedAt: "2025-01-15", precision: "day" } },
+          setType: "main",
         }),
       );
       expect(res.status).toBe(201);
@@ -78,6 +79,9 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-expansion-one",
           name: "CAT Expansion One",
           printedTotal: 150,
+          // Not the column default: the GET below asserts it survived the
+          // insert, which is what the create path used to drop.
+          setType: "supplemental",
         }),
       );
       expect(res.status).toBe(201);
@@ -91,6 +95,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-core-set",
           name: "Duplicate Core Set",
           printedTotal: 100,
+          setType: "main",
         }),
       );
       expect(res.status).toBe(409);
@@ -107,6 +112,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "",
           name: "Bad Set",
           printedTotal: 0,
+          setType: "main",
         }),
       );
       expect(res.status).toBe(400);
@@ -118,6 +124,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-bad-set",
           name: "",
           printedTotal: 0,
+          setType: "main",
         }),
       );
       expect(res.status).toBe(400);
@@ -142,8 +149,14 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(coreSet.printedTotal).toBe(200);
       expect(coreSet.sortOrder).toBeTypeOf("number");
       expect(coreSet.releases).toEqual({ EN: { releasedAt: "2025-01-15", precision: "day" } });
+      expect(coreSet.setType).toBe("main");
       expect(coreSet.cardCount).toBe(0);
       expect(coreSet.printingCount).toBe(0);
+
+      // Regression: createSet's contract had no setType, so the POST's value
+      // was dropped and every new set came back as the column default.
+      const expansion = json.sets.find((s: { slug: string }) => s.slug === "CAT-expansion-one");
+      expect(expansion.setType).toBe("supplemental");
     });
 
     it("sets are ordered by sort_order", async () => {
@@ -290,6 +303,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-has-prints",
           name: "CAT Has Prints",
           printedTotal: 1,
+          setType: "main",
         }),
       );
       expect(createRes.status).toBe(201);
