@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
+- fix(Cards): **Hiding the detail panel stays hidden** — closing the side panel from the toolbar button popped the selected card back up as a dialog instead of putting it away.
 
 ## 2026-08-13
 

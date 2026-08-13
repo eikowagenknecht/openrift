@@ -31,6 +31,7 @@ import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useGridViewportStore } from "@/stores/grid-viewport-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 import { FilterCustomizeControl } from "./filter-customize-control";
 import { FilterPanelContent } from "./filter-panel-content";
@@ -93,7 +94,20 @@ function groupByOptionsForView(view: "cards" | "printings" | "copies") {
 export function DetailPaneToggle({ className }: { className?: string }) {
   const paneDocked = useDisplayStore((state) => state.paneDocked);
   const setPaneDocked = useDisplayStore((state) => state.setPaneDocked);
+  const closeDetail = useSelectionStore((state) => state.closeDetail);
   const isMobile = useIsMobile();
+
+  // Undocking clears the selection too, mirroring the pane's own X
+  // (SelectionDetailPane.handleClose). Flipping paneDocked alone leaves
+  // detailOpen set, which is exactly what the modal opens on, so the card the
+  // user just hid would reappear in a dialog.
+  const handlePressedChange = (next: boolean) => {
+    setPaneDocked(next);
+    if (!next) {
+      closeDetail();
+    }
+  };
+
   if (isMobile) {
     return null;
   }
@@ -102,7 +116,7 @@ export function DetailPaneToggle({ className }: { className?: string }) {
     <Toggle
       variant="outline"
       pressed={paneDocked}
-      onPressedChange={setPaneDocked}
+      onPressedChange={handlePressedChange}
       className={cn(activeToggleClass, className)}
       title={label}
       aria-label={label}
