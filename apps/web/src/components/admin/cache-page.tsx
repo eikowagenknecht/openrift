@@ -1,5 +1,6 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import { EraserIcon, LoaderIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
+import type { JobRunView } from "@openrift/shared/contracts/admin/job-runs";
+import { CheckIcon, EraserIcon, LoaderIcon, RefreshCwIcon, TrashIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -18,9 +19,58 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useCacheStatus, usePurgeCache } from "@/hooks/use-cache-purge";
-import { useRecomputeCardTokens } from "@/hooks/use-recompute-card-tokens";
-import { useRefreshMatviews } from "@/hooks/use-refresh-matviews";
+import { useLatestJobRunByKind } from "@/hooks/use-job-runs";
+import {
+  CARD_TOKENS_RECOMPUTE_KIND,
+  useRecomputeCardTokens,
+} from "@/hooks/use-recompute-card-tokens";
+import { MATVIEWS_REFRESH_KIND, useRefreshMatviews } from "@/hooks/use-refresh-matviews";
 import { useClearSsrCache } from "@/hooks/use-status";
+
+/**
+ * Latest-run status line for the fire-and-forget jobs on this page: spinner
+ * while the background run is going, the error on failure, `succeededText`
+ * once it completes.
+ * @returns The status line for the run.
+ */
+function JobRunStatusLine({ run, succeededText }: { run: JobRunView; succeededText: string }) {
+  if (run.status === "running") {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1 text-sm">
+        <LoaderIcon className="size-4 animate-spin" />
+        Running…
+      </p>
+    );
+  }
+  if (run.status === "failed") {
+    return (
+      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+        <XIcon className="size-4" />
+        {run.errorMessage ?? "Failed"}
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+      <CheckIcon className="size-4" />
+      {succeededText}
+    </p>
+  );
+}
+
+/**
+ * Succeeded-line text for the card-token job: the counts its run summary
+ * recorded, or a plain "Completed" for runs without one.
+ * @returns The text for the succeeded status line.
+ */
+function cardTokensSucceededText(result: JobRunView["result"]): string {
+  const totalCards = result?.totalCards;
+  const withTokens = result?.withTokens;
+  if (typeof totalCards === "number" && typeof withTokens === "number") {
+    return `${withTokens} of ${totalCards} cards reference at least one token`;
+  }
+  return "Completed";
+}
 
 export function CachePage() {
   const { data } = useCacheStatus();
@@ -28,31 +78,17 @@ export function CachePage() {
   const clearSsrCache = useClearSsrCache();
   const refreshMatviews = useRefreshMatviews();
   const recomputeCardTokens = useRecomputeCardTokens();
+  const matviewsRun = useLatestJobRunByKind(MATVIEWS_REFRESH_KIND);
+  const cardTokensRun = useLatestJobRunByKind(CARD_TOKENS_RECOMPUTE_KIND);
+
+  const matviewsRunning = refreshMatviews.isPending || matviewsRun.data?.status === "running";
+  const cardTokensRunning =
+    recomputeCardTokens.isPending || cardTokensRun.data?.status === "running";
 
   async function handlePurge() {
     try {
       await purge.mutateAsync();
       toast.success("Cloudflare cache purged");
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
-
-  async function handleRefreshMatviews() {
-    try {
-      await refreshMatviews.mutateAsync();
-      toast.success("Materialized views refreshed");
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-    }
-  }
-
-  async function handleRecomputeCardTokens() {
-    try {
-      const result = await recomputeCardTokens.mutateAsync();
-      toast.success(
-        `${result.withTokens} of ${result.totalCards} cards reference at least one token`,
-      );
     } catch {
       // Reported by the global mutation error toast (see reportMutationError).
     }
@@ -99,16 +135,21 @@ export function CachePage() {
           </p>
           <Button
             variant="outline"
-            onClick={handleRefreshMatviews}
-            disabled={refreshMatviews.isPending}
+            onClick={() =>
+              refreshMatviews.mutate(undefined, { onSuccess: () => matviewsRun.refetch() })
+            }
+            disabled={matviewsRunning}
           >
-            {refreshMatviews.isPending ? (
+            {matviewsRunning ? (
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
               <RefreshCwIcon className="size-4" />
             )}
             Refresh materialized views
           </Button>
+          {matviewsRun.data && (
+            <JobRunStatusLine run={matviewsRun.data} succeededText="Materialized views refreshed" />
+          )}
         </CardContent>
       </Card>
 
@@ -125,16 +166,24 @@ export function CachePage() {
           </p>
           <Button
             variant="outline"
-            onClick={handleRecomputeCardTokens}
-            disabled={recomputeCardTokens.isPending}
+            onClick={() =>
+              recomputeCardTokens.mutate(undefined, { onSuccess: () => cardTokensRun.refetch() })
+            }
+            disabled={cardTokensRunning}
           >
-            {recomputeCardTokens.isPending ? (
+            {cardTokensRunning ? (
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
               <RefreshCwIcon className="size-4" />
             )}
             Re-derive card tokens
           </Button>
+          {cardTokensRun.data && (
+            <JobRunStatusLine
+              run={cardTokensRun.data}
+              succeededText={cardTokensSucceededText(cardTokensRun.data.result)}
+            />
+          )}
         </CardContent>
       </Card>
 

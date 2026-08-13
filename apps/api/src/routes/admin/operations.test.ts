@@ -36,6 +36,10 @@ const mockMktAdmin = {
 
 const mockMarketplace = { refreshLatestPrices: vi.fn() };
 
+const mockCatalog = { refreshCatalogViews: vi.fn(), refreshCardAggregates: vi.fn() };
+
+const mockCardTokens = { recomputeAll: vi.fn() };
+
 const mockJobRuns = {
   start: vi.fn(async () => ({ id: "019d4999-4219-72f6-b7bb-64004e1b1bff" })),
   succeed: vi.fn(async () => undefined),
@@ -63,7 +67,8 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     marketplaceAdmin: mockMktAdmin,
     marketplace: mockMarketplace,
-    catalog: { refreshCatalogViews: vi.fn() },
+    catalog: mockCatalog,
+    cardTokens: mockCardTokens,
     jobRuns: mockJobRuns,
   } as never);
   await next();
@@ -224,6 +229,124 @@ describe("POST /api/admin/v1/refresh-cardmarket-prices", () => {
       expect(mockJobRuns.succeed).toHaveBeenCalled();
     });
     expect(mockRefreshCardmarket).toHaveBeenCalled();
+  });
+});
+
+// Regression: this endpoint used to await the refresh inline and answer 204.
+// In prod the refresh outlives Bun.serve's idle timeout, so the socket was cut
+// before the response ("The socket connection was closed unexpectedly").
+describe("POST /api/admin/v1/refresh-materialized-views", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetJobRunMocks();
+  });
+
+  it("returns 202 with runId and refreshes the views in the background", async () => {
+    mockMarketplace.refreshLatestPrices.mockResolvedValue(undefined);
+    mockCatalog.refreshCatalogViews.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/refresh-materialized-views", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+    expect(await readJson(res)).toEqual({
+      runId: "019d4999-4219-72f6-b7bb-64004e1b1bff",
+      status: "running",
+    });
+    expect(mockJobRuns.start).toHaveBeenCalledWith({
+      kind: "matviews.refresh",
+      trigger: "admin",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.succeed).toHaveBeenCalled();
+    });
+    expect(mockMarketplace.refreshLatestPrices).toHaveBeenCalled();
+    expect(mockCatalog.refreshCatalogViews).toHaveBeenCalled();
+  });
+
+  it("returns 'already_running' when a refresh is already in flight", async () => {
+    mockJobRuns.findRunning.mockResolvedValueOnce({ id: "019d4999-4219-72f6-b7bb-64004e1b1c00" });
+
+    const res = await app.request("/api/admin/v1/refresh-materialized-views", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+    expect(await readJson(res)).toEqual({
+      runId: "019d4999-4219-72f6-b7bb-64004e1b1c00",
+      status: "already_running",
+    });
+    expect(mockMarketplace.refreshLatestPrices).not.toHaveBeenCalled();
+    expect(mockJobRuns.start).not.toHaveBeenCalled();
+  });
+
+  it("writes a failed row when the background refresh throws", async () => {
+    mockMarketplace.refreshLatestPrices.mockRejectedValue(new Error("deadlock detected"));
+    mockCatalog.refreshCatalogViews.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/refresh-materialized-views", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.fail).toHaveBeenCalledWith(
+        "019d4999-4219-72f6-b7bb-64004e1b1bff",
+        expect.objectContaining({ errorMessage: "deadlock detected" }),
+      );
+    });
+    expect(mockJobRuns.succeed).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/admin/v1/recompute-card-tokens", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetJobRunMocks();
+  });
+
+  it("returns 202 with runId and stores the counts as the run result", async () => {
+    mockCardTokens.recomputeAll.mockResolvedValue({ totalCards: 500, withTokens: 42 });
+    mockCatalog.refreshCardAggregates.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/recompute-card-tokens", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+    expect(await readJson(res)).toEqual({
+      runId: "019d4999-4219-72f6-b7bb-64004e1b1bff",
+      status: "running",
+    });
+    expect(mockJobRuns.start).toHaveBeenCalledWith({
+      kind: "card_tokens.recompute",
+      trigger: "admin",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.succeed).toHaveBeenCalledWith(
+        "019d4999-4219-72f6-b7bb-64004e1b1bff",
+        expect.objectContaining({ result: { totalCards: 500, withTokens: 42 } }),
+      );
+    });
+    // The aggregates view reads card_tokens, so it must refresh after the
+    // re-derivation, never before.
+    const recomputeOrder = mockCardTokens.recomputeAll.mock.invocationCallOrder[0];
+    const refreshOrder = mockCatalog.refreshCardAggregates.mock.invocationCallOrder[0];
+    expect(recomputeOrder).toBeLessThan(refreshOrder ?? 0);
+  });
+
+  it("returns 'already_running' when a recompute is already in flight", async () => {
+    mockJobRuns.findRunning.mockResolvedValueOnce({ id: "019d4999-4219-72f6-b7bb-64004e1b1c00" });
+
+    const res = await app.request("/api/admin/v1/recompute-card-tokens", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+    expect(await readJson(res)).toEqual({
+      runId: "019d4999-4219-72f6-b7bb-64004e1b1c00",
+      status: "already_running",
+    });
+    expect(mockCardTokens.recomputeAll).not.toHaveBeenCalled();
   });
 });
 

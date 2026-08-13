@@ -356,7 +356,11 @@ if (config.cron.tradeStatusFlushSchedule) {
 
 const app = createApp({ db, auth, config, log, sendEmail });
 
-Bun.serve({ fetch: app.fetch, port: config.port });
+// Bun's default idleTimeout is 10s, which cuts the socket mid-request on slow
+// admin operations (bulk imports, inline matview refreshes after card edits).
+// Anything expected to run long still belongs in runJobAsync; this is headroom
+// for legitimately slow synchronous requests, not a license to block.
+Bun.serve({ fetch: app.fetch, port: config.port, idleTimeout: 120 });
 log.info(`API server listening on http://localhost:${config.port}`);
 
 export { app };

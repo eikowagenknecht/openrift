@@ -57,7 +57,9 @@ describe("buildBinderSheetDoc", () => {
         expect(doc.output("arraybuffer").byteLength).toBeGreaterThan(1000);
       }
     }
-  });
+    // Six full PDF renders take ~4s alone and starve past the 5s default
+    // when the whole suite runs in parallel.
+  }, 20_000);
 
   it("survives a title far too long for the sheet", async () => {
     const doc = await buildBinderSheetDoc({ ...BASE, title: "Kai ".repeat(60) });
@@ -91,5 +93,6 @@ describe("buildBinderSheetDoc", () => {
         marked.output("arraybuffer").byteLength,
       );
     }
-  });
+    // Four renders; same suite-load headroom as the size-and-style loop above.
+  }, 20_000);
 });
