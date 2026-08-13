@@ -178,6 +178,7 @@ import * as m229 from "./229-deck-links.js";
 import * as m230 from "./230-trade-per-side-settle.js";
 import * as m231 from "./231-deck-folders.js";
 import * as m232 from "./232-candidate-printing-printed-year.js";
+import * as m233 from "./233-set-language-releases.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -415,4 +416,5 @@ export const migrations: Record<string, Migration> = {
   "230-trade-per-side-settle": m230,
   "231-deck-folders": m231,
   "232-candidate-printing-printed-year": m232,
+  "233-set-language-releases": m233,
 };

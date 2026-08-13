@@ -20,7 +20,14 @@ function toCatalogValue(printing: Printing) {
 // every field the enrichment reads (sets, cards, printings, ids).
 function makeCatalog(printings: Printing[]): CatalogResponse {
   return {
-    sets: [{ id: SET_ID, slug: "rb1", name: "Set One", released: true }],
+    sets: [
+      {
+        id: SET_ID,
+        slug: "rb1",
+        name: "Set One",
+        releases: { EN: { releasedAt: "2025-01-01", precision: "day" } },
+      },
+    ],
     cards: Object.fromEntries(printings.map((p) => [p.cardId, p.card])),
     printings: Object.fromEntries(printings.map((p) => [p.id, toCatalogValue(p)])),
     totalCopies: 0,

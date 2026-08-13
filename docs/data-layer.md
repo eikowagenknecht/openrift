@@ -33,30 +33,51 @@ Set metadata. Each set has a UUID primary key and a human-readable `slug` (e.g. 
 | `slug`          | text        | not null, unique                                            |
 | `printed_total` | integer     | nullable — the official denominator (e.g. 298 in "001/298") |
 | `sort_order`    | integer     | not null, default 0                                         |
-| `released_at`   | date        | nullable                                                    |
 | `created_at`    | timestamptz | not null, default now()                                     |
 | `updated_at`    | timestamptz | not null, default now()                                     |
+
+### `set_releases`
+
+When a set reached each language. Release dates are per language, so there is
+one row per (set, language) rather than a date on `sets`. An absent row means
+the set is not announced in that language.
+
+| Column        | Type              | Constraints                                                         |
+| ------------- | ----------------- | ------------------------------------------------------------------- |
+| `set_id`      | uuid              | primary key (with `language`), FK → sets.id, on delete cascade      |
+| `language`    | text              | primary key (with `set_id`), FK → languages.code, on update cascade |
+| `released_at` | date              | nullable — the FIRST day of the known period                        |
+| `precision`   | release_precision | nullable — `day` / `month` / `quarter` / `year`; null iff no date   |
+| `created_at`  | timestamptz       | not null, default now()                                             |
+| `updated_at`  | timestamptz       | not null, default now()                                             |
+
+There is no stored `released` flag. A set counts as released in a language once
+the period its date describes has finished, derived by `isReleased` in
+`packages/shared/src/set-release.ts`. A null date means announced with no date
+yet, which always reads as unreleased — anything actually on shelves can be
+dated to at least its year. A CHECK keeps `released_at` on the first day of its
+period so the period-end maths and the display formatter never have to guess.
 
 ### `cards`
 
 Game card identity — one row per unique card. Stats and rules live here; physical product details (art, rarity, finish) live in `printings`.
 
-| Column        | Type        | Constraints                                                |
-| ------------- | ----------- | ---------------------------------------------------------- |
-| `id`          | uuid        | primary key, default uuidv7()                              |
-| `name`        | text        | not null                                                   |
-| `slug`        | text        | not null, unique                                           |
-| `norm_name`   | text        | not null — auto-set by trigger (lowercase, alphanumeric)   |
-| `type`        | text        | not null (Legend, Unit, Rune, Spell, Gear, Battlefield)    |
-| `might`       | integer     | nullable — Unit only                                       |
-| `energy`      | integer     | nullable — Unit, Spell, Gear only                          |
-| `power`       | integer     | nullable — Unit, Spell, Gear only                          |
-| `might_bonus` | integer     | nullable — Gear only                                       |
-| `keywords`    | text[]      | not null, default '{}'                                     |
-| `tags`        | text[]      | not null, default '{}'                                     |
-| `comment`     | text        | nullable — admin notes                                     |
-| `created_at`  | timestamptz | not null, default now()                                    |
-| `updated_at`  | timestamptz | not null, default now()                                    |
+| Column        | Type        | Constraints                                              |
+| ------------- | ----------- | -------------------------------------------------------- |
+| `id`          | uuid        | primary key, default uuidv7()                            |
+| `name`        | text        | not null                                                 |
+| `slug`        | text        | not null, unique                                         |
+| `norm_name`   | text        | not null — auto-set by trigger (lowercase, alphanumeric) |
+| `type`        | text        | not null (Legend, Unit, Rune, Spell, Gear, Battlefield)  |
+| `might`       | integer     | nullable — Unit only                                     |
+| `energy`      | integer     | nullable — Unit, Spell, Gear only                        |
+| `power`       | integer     | nullable — Unit, Spell, Gear only                        |
+| `might_bonus` | integer     | nullable — Gear only                                     |
+| `keywords`    | text[]      | not null, default '{}'                                   |
+| `tags`        | text[]      | not null, default '{}'                                   |
+| `comment`     | text        | nullable — admin notes                                   |
+| `created_at`  | timestamptz | not null, default now()                                  |
+| `updated_at`  | timestamptz | not null, default now()                                  |
 
 Stats are nullable with type-specific semantics: `might` is only set for Units, `might_bonus` only for Gear, and `energy`/`power` only for Unit, Spell, and Gear. CHECK constraints enforce non-negative stats and non-empty text fields (nulls are allowed, empty strings are not).
 
@@ -68,28 +89,28 @@ Stats are nullable with type-specific semantics: `might` is only set for Units, 
 
 Physical product variations of a game card (art, rarity, finish, etc.). One card can have many printings across sets and variants.
 
-| Column                | Type        | Constraints                                       |
-| --------------------- | ----------- | ------------------------------------------------- |
-| `id`                  | uuid        | primary key, default uuidv7()                     |
-| `card_id`             | uuid        | not null, FK → cards.id                           |
-| `set_id`              | uuid        | not null, FK → sets.id                            |
-| `short_code`          | text        | not null                                          |
-| `public_code`         | text        | not null                                          |
-| `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase) |
-| `art_variant`         | text        | not null (normal, altart, overnumbered, ultimate) |
-| `is_signed`           | boolean     | not null, default false                           |
-| `finish`              | text        | not null (normal, foil)                           |
-| `language`            | text        | not null, default 'EN'                            |
+| Column                | Type        | Constraints                                                                                                       |
+| --------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `id`                  | uuid        | primary key, default uuidv7()                                                                                     |
+| `card_id`             | uuid        | not null, FK → cards.id                                                                                           |
+| `set_id`              | uuid        | not null, FK → sets.id                                                                                            |
+| `short_code`          | text        | not null                                                                                                          |
+| `public_code`         | text        | not null                                                                                                          |
+| `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase)                                                                 |
+| `art_variant`         | text        | not null (normal, altart, overnumbered, ultimate)                                                                 |
+| `is_signed`           | boolean     | not null, default false                                                                                           |
+| `finish`              | text        | not null (normal, foil)                                                                                           |
+| `language`            | text        | not null, default 'EN'                                                                                            |
 | `marker_slugs`        | text[]      | not null, default '{}' — denormalized, sorted, GIN-indexed mirror of `printing_markers` (kept in sync by trigger) |
-| `artist`              | text        | not null                                          |
-| `printed_name`        | text        | nullable (localized/printed card name)            |
-| `printed_rules_text`  | text        | nullable (may differ from card's canonical text)  |
-| `printed_effect_text` | text        | nullable                                          |
-| `flavor_text`         | text        | nullable                                          |
-| `printed_year`        | smallint    | nullable — year stamped on the physical card      |
-| `comment`             | text        | nullable — admin notes                            |
-| `created_at`          | timestamptz | not null, default now()                           |
-| `updated_at`          | timestamptz | not null, default now()                           |
+| `artist`              | text        | not null                                                                                                          |
+| `printed_name`        | text        | nullable (localized/printed card name)                                                                            |
+| `printed_rules_text`  | text        | nullable (may differ from card's canonical text)                                                                  |
+| `printed_effect_text` | text        | nullable                                                                                                          |
+| `flavor_text`         | text        | nullable                                                                                                          |
+| `printed_year`        | smallint    | nullable — year stamped on the physical card                                                                      |
+| `comment`             | text        | nullable — admin notes                                                                                            |
+| `created_at`          | timestamptz | not null, default now()                                                                                           |
+| `updated_at`          | timestamptz | not null, default now()                                                                                           |
 
 There is no `slug` column on `printings` (only `cards` has a slug). Promo/distribution classification is no longer a single `promo_type_id` FK — it now lives in the `markers` / `printing_markers` and `distribution_channels` / `printing_distribution_channels` tables (see [Reference Tables](#reference-tables)).
 

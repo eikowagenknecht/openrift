@@ -20,7 +20,7 @@ import { enrichCatalog } from "./catalog-query";
 import type { FilterSearch } from "./search-schemas";
 
 function makeSet(id: string, slug: string): CatalogSetResponse {
-  return { id, slug, name: slug, releasedAt: null, released: true, setType: "main" };
+  return { id, slug, name: slug, releases: {}, setType: "main" };
 }
 
 function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogResponseCardValue {
@@ -196,8 +196,7 @@ describe("extractSetLabels", () => {
         id: "set-arc",
         slug: "ARC",
         name: "Arcanum",
-        releasedAt: null,
-        released: true,
+        releases: {},
         setType: "main" as const,
       },
     ];
@@ -321,8 +320,7 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
         id: "set-supp",
         slug: "SUPP",
         name: "Supplemental",
-        releasedAt: null,
-        released: true,
+        releases: {},
         setType: "supplemental" as const,
       },
     ];

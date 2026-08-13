@@ -48,14 +48,13 @@ registerRouterForTest(app, catalogRouter);
 // Test data
 // ---------------------------------------------------------------------------
 
-// `releasedAt` / `released` / `setType` are real `sets` columns — the catalog
-// output schema requires them, so the fixture carries them too.
+// `releases` (the per-language release periods) and `setType` are part of the
+// catalog output schema, so the fixture carries them too.
 const dbSet = {
   id: "OGS",
   slug: "OGS",
   name: "Original Set",
-  releasedAt: "2025-10-31",
-  released: true,
+  releases: { EN: { releasedAt: "2025-10-31", precision: "day" as const } },
   setType: "main" as const,
 };
 
@@ -160,8 +159,7 @@ describe("GET /api/v1/catalog", () => {
       id: "OGS",
       slug: "OGS",
       name: "Original Set",
-      releasedAt: "2025-10-31",
-      released: true,
+      releases: { EN: { releasedAt: "2025-10-31", precision: "day" } },
       setType: "main",
     });
   });
@@ -281,8 +279,7 @@ describe("GET /api/v1/catalog", () => {
       id: "S2",
       slug: "S2",
       name: "Set Two",
-      releasedAt: null,
-      released: false,
+      releases: {},
       setType: "supplemental" as const,
     };
     const secondCard = { ...dbCard, id: "S2-001", slug: "S2-001" };

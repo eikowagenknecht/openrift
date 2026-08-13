@@ -14,6 +14,8 @@ const mockSetsRepo = {
   listAll: vi.fn(),
   cardCountsBySet: vi.fn(),
   printingCountsBySet: vi.fn(),
+  releasesBySet: vi.fn(),
+  replaceReleases: vi.fn(),
   update: vi.fn(),
   createIfNotExists: vi.fn(),
   printingCount: vi.fn(),
@@ -37,8 +39,9 @@ app.use("*", async (c, next) => {
 registerRouterForTest(app, adminCatalogRouter);
 
 // ---------------------------------------------------------------------------
-// Test data — `released` / `setType` are real `sets` columns, so the fixtures
-// include them (the output schema requires them).
+// Test data — `setType` is a real `sets` column and the release periods come
+// from the `set_releases` join, so the fixtures carry both (the output schema
+// requires them).
 // ---------------------------------------------------------------------------
 
 const setId1 = "a0000000-0001-4000-a000-000000000010";
@@ -50,8 +53,6 @@ const dbSet1 = {
   name: "Origin Set",
   printedTotal: 100,
   sortOrder: 0,
-  releasedAt: "2026-01-01",
-  released: true,
   setType: "main" as const,
 };
 
@@ -61,8 +62,6 @@ const dbSet2 = {
   name: "Second Set",
   printedTotal: null,
   sortOrder: 1,
-  releasedAt: null,
-  released: false,
   setType: "supplemental" as const,
 };
 
@@ -82,6 +81,9 @@ describe("GET /api/admin/v1/sets", () => {
       { setId: setId1, printingCount: 75 },
       { setId: setId2, printingCount: 10 },
     ]);
+    mockSetsRepo.releasesBySet.mockResolvedValue(
+      new Map([[setId1, { EN: { releasedAt: "2026-01-01", precision: "day" } }]]),
+    );
 
     const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
@@ -93,8 +95,7 @@ describe("GET /api/admin/v1/sets", () => {
       name: "Origin Set",
       printedTotal: 100,
       sortOrder: 0,
-      releasedAt: "2026-01-01",
-      released: true,
+      releases: { EN: { releasedAt: "2026-01-01", precision: "day" } },
       setType: "main",
       cardCount: 50,
       printingCount: 75,
@@ -105,8 +106,8 @@ describe("GET /api/admin/v1/sets", () => {
       name: "Second Set",
       printedTotal: null,
       sortOrder: 1,
-      releasedAt: null,
-      released: false,
+      // No rows in `set_releases`: not announced in any language.
+      releases: {},
       setType: "supplemental",
       cardCount: 0,
       printingCount: 10,
@@ -117,6 +118,7 @@ describe("GET /api/admin/v1/sets", () => {
     mockSetsRepo.listAll.mockResolvedValue([dbSet2]);
     mockSetsRepo.cardCountsBySet.mockResolvedValue([]);
     mockSetsRepo.printingCountsBySet.mockResolvedValue([]);
+    mockSetsRepo.releasesBySet.mockResolvedValue(new Map());
 
     const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
@@ -139,8 +141,7 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
       body: JSON.stringify({
         name: "Updated Name",
         printedTotal: 200,
-        releasedAt: "2026-06-01",
-        released: true,
+        releases: { EN: { releasedAt: "2026-06-01", precision: "day" } },
         setType: "main",
       }),
     });
@@ -148,10 +149,63 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
     expect(mockSetsRepo.update).toHaveBeenCalledWith(setId1, {
       name: "Updated Name",
       printedTotal: 200,
-      releasedAt: "2026-06-01",
-      released: true,
       setType: "main",
     });
+    expect(mockSetsRepo.replaceReleases).toHaveBeenCalledWith(setId1, {
+      EN: { releasedAt: "2026-06-01", precision: "day" },
+    });
+  });
+
+  it("accepts a coarse release period and an undated language", async () => {
+    mockSetsRepo.update.mockResolvedValue(true);
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Updated Name",
+        printedTotal: 200,
+        releases: {
+          FR: { releasedAt: "2026-04-01", precision: "quarter" },
+          KR: { releasedAt: null, precision: null },
+        },
+        setType: "main",
+      }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockSetsRepo.replaceReleases).toHaveBeenCalledWith(setId1, {
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+      KR: { releasedAt: null, precision: null },
+    });
+  });
+
+  it("rejects a coarse period whose date is not the period start", async () => {
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Updated Name",
+        printedTotal: 200,
+        releases: { FR: { releasedAt: "2026-05-17", precision: "quarter" } },
+        setType: "main",
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockSetsRepo.replaceReleases).not.toHaveBeenCalled();
+  });
+
+  it("rejects a date without a precision", async () => {
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Updated Name",
+        printedTotal: 200,
+        releases: { FR: { releasedAt: "2026-05-17", precision: null } },
+        setType: "main",
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockSetsRepo.replaceReleases).not.toHaveBeenCalled();
   });
 
   it("returns 404 when set not found", async () => {
@@ -162,8 +216,7 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
       body: JSON.stringify({
         name: "Updated",
         printedTotal: 100,
-        releasedAt: null,
-        released: false,
+        releases: {},
         setType: "main",
       }),
     });
@@ -172,7 +225,7 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
     expect(json.message).toContain("not found");
   });
 
-  it("accepts null releasedAt", async () => {
+  it("clears every release row when the map is empty", async () => {
     mockSetsRepo.update.mockResolvedValue(true);
     const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
       method: "PATCH",
@@ -180,8 +233,7 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
       body: JSON.stringify({
         name: "Test",
         printedTotal: 50,
-        releasedAt: null,
-        released: false,
+        releases: {},
         setType: "supplemental",
       }),
     });
@@ -189,10 +241,9 @@ describe("PATCH /api/admin/v1/sets/:id", () => {
     expect(mockSetsRepo.update).toHaveBeenCalledWith(setId1, {
       name: "Test",
       printedTotal: 50,
-      releasedAt: null,
-      released: false,
       setType: "supplemental",
     });
+    expect(mockSetsRepo.replaceReleases).toHaveBeenCalledWith(setId1, {});
   });
 });
 
@@ -210,7 +261,7 @@ describe("POST /api/admin/v1/sets", () => {
         id: "new-set",
         name: "New Set",
         printedTotal: 50,
-        releasedAt: "2026-03-01",
+        releases: { EN: { releasedAt: "2026-03-01", precision: "day" } },
       }),
     });
     expect(res.status).toBe(201);
@@ -220,7 +271,9 @@ describe("POST /api/admin/v1/sets", () => {
       slug: "new-set",
       name: "New Set",
       printedTotal: 50,
-      releasedAt: "2026-03-01",
+    });
+    expect(mockSetsRepo.replaceReleases).toHaveBeenCalledWith(setId1, {
+      EN: { releasedAt: "2026-03-01", precision: "day" },
     });
   });
 
@@ -233,7 +286,6 @@ describe("POST /api/admin/v1/sets", () => {
         id: "existing-set",
         name: "Existing Set",
         printedTotal: 100,
-        releasedAt: null,
       }),
     });
     expect(res.status).toBe(409);

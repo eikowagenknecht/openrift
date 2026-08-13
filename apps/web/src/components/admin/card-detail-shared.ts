@@ -308,7 +308,9 @@ export function buildPreseededActiveCard(
  *   as the main image. Without a favorited source no image is pre-filled, so the
  *   auto-main behaviour only triggers when a favorite provider is present.
  * - `printedYear` falls back to the year of the set's release date when no source
- *   supplies one (a provider value always wins). It stays editable in the grid.
+ *   supplies one (a provider value always wins). `setReleaseYears` is keyed both
+ *   by set slug (the set's earliest release) and by `slug|LANGUAGE`, and the
+ *   language-specific entry wins. It stays editable in the grid.
  *
  * The result is a suggestion the admin reviews before accepting, not a commit.
  *
@@ -368,9 +370,15 @@ export function buildPreseededActivePrinting(
     }
   }
 
-  // Printed year: fall back to the set's release year when no source supplied one.
+  // Printed year: fall back to the set's release year when no source supplied
+  // one. Sets reach each language on their own date, so the printing's own
+  // language wins; the set's earliest release is the fallback.
   if (!candidateHasValue(seed.printedYear) && typeof seed.setId === "string") {
-    const year = setReleaseYears[seed.setId];
+    const languageKey =
+      typeof seed.language === "string" ? `${seed.setId}|${seed.language}` : undefined;
+    const year =
+      (languageKey === undefined ? undefined : setReleaseYears[languageKey]) ??
+      setReleaseYears[seed.setId];
     if (year !== undefined) {
       seed.printedYear = year;
     }

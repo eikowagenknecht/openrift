@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { adminProductsContract } from "@openrift/shared/contracts/admin/products";
 import type {
   ProductDetailResponse,
@@ -73,6 +74,7 @@ export interface EnrichedProductDetail {
  */
 function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDetail {
   const setById = new Map(response.sets.map((set) => [set.id, set]));
+  const today = todayUtc();
   const printings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const wire of response.printings) {
@@ -83,7 +85,12 @@ function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDe
     if (!set || !card) {
       continue;
     }
-    const printing: Printing = { ...wire, setSlug: set.slug, setReleased: set.released, card };
+    const printing: Printing = {
+      ...wire,
+      setSlug: set.slug,
+      setReleased: isReleasedIn(set.releases, wire.language, today),
+      card,
+    };
     printings.push(printing);
     printingsById[printing.id] = printing;
   }

@@ -10,7 +10,7 @@ interface SetListEntryFixture {
   setType: "main" | "supplemental";
   cardCount: number;
   printingCount: number;
-  releasedAt: string | null;
+  releases: Record<string, { releasedAt: string | null; precision: string | null }>;
   coverImage: { full: string; thumbnail: string } | null;
 }
 
@@ -19,7 +19,13 @@ interface SetListResponseFixture {
 }
 
 interface SetDetailResponseFixture {
-  set: { id: string; slug: string; name: string; setType: string; releasedAt: string | null };
+  set: {
+    id: string;
+    slug: string;
+    name: string;
+    setType: string;
+    releases: Record<string, { releasedAt: string | null; precision: string | null }>;
+  };
   cards: Record<string, { id: string; slug: string; name: string }>;
   printings: { id: string; cardId: string; language: string }[];
 }

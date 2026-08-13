@@ -1,5 +1,5 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
-import { imageUrl, preferredPrinting, WellKnown } from "@openrift/shared";
+import { imageUrl, isReleasedIn, preferredPrinting, todayUtc, WellKnown } from "@openrift/shared";
 import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -68,6 +68,7 @@ export function resolveProxyCards(
 ): ProxyCard[] {
   const setsById = new Map(catalog.sets.map((set) => [set.id, set]));
   const cardsById: Record<string, Card> = catalog.cards;
+  const today = todayUtc();
 
   type EnrichedPrinting = Printing & { id: string; setSlug: string };
   const printingById = new Map<string, EnrichedPrinting>();
@@ -80,7 +81,7 @@ export function resolveProxyCards(
         ...printing,
         id,
         setSlug: set.slug,
-        setReleased: set.released,
+        setReleased: isReleasedIn(set.releases, printing.language, today),
         card,
       };
       printingById.set(id, enriched);

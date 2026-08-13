@@ -142,11 +142,25 @@ INSERT INTO keyword_translations (keyword_name, language, label) VALUES
 
 
 -- Sets and cards
-INSERT INTO sets (id, slug, name, set_type, printed_total, sort_order, released_at) VALUES
-  ('019cfd6f-067b-768c-a586-b8f9547ad455', 'UNL', 'Unleashed', 'main', 219, 1, '2026-05-08T00:00:00.000Z'),
-  ('019cfc3b-0369-78be-bd85-75cb9e46ad0c', 'SFD', 'Spiritforged', 'main', 221, 2, '2026-02-28T00:00:00.000Z'),
-  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'OGN', 'Origins', 'main', 298, 3, '2025-08-01T00:00:00.000Z'),
-  ('019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS', 'Proving Grounds', 'supplemental', 24, 4, '2025-08-01T00:00:00.000Z');
+INSERT INTO sets (id, slug, name, set_type, printed_total, sort_order) VALUES
+  ('019cfd6f-067b-768c-a586-b8f9547ad455', 'UNL', 'Unleashed', 'main', 219, 1),
+  ('019cfc3b-0369-78be-bd85-75cb9e46ad0c', 'SFD', 'Spiritforged', 'main', 221, 2),
+  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'OGN', 'Origins', 'main', 298, 3),
+  ('019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS', 'Proving Grounds', 'supplemental', 24, 4);
+
+INSERT INTO set_releases (set_id, language, released_at, precision) VALUES
+  ('019cfd6f-067b-768c-a586-b8f9547ad455', 'EN', '2026-05-08', 'day'),
+  ('019cfd6f-067b-768c-a586-b8f9547ad455', 'FR', '2026-07-01', 'quarter'),
+  ('019cfd6f-067b-768c-a586-b8f9547ad455', 'SC', '2026-05-08', 'day'),
+  ('019cfc3b-0369-78be-bd85-75cb9e46ad0c', 'EN', '2026-02-28', 'day'),
+  ('019cfc3b-0369-78be-bd85-75cb9e46ad0c', 'FR', '2026-02-28', 'day'),
+  ('019cfc3b-0369-78be-bd85-75cb9e46ad0c', 'SC', '2026-02-28', 'day'),
+  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'EN', '2025-08-01', 'day'),
+  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'FR', '2025-08-01', 'day'),
+  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'KR', NULL, NULL),
+  ('019cfc3b-0369-7890-a450-7859471cc3f6', 'SC', '2025-08-01', 'day'),
+  ('019cfc3b-0369-76e1-8643-5310ac59ac33', 'EN', '2025-08-01', 'day'),
+  ('019cfc3b-0369-76e1-8643-5310ac59ac33', 'SC', '2025-08-01', 'day');
 
 INSERT INTO cards (id, slug, name, type, might, energy, power, might_bonus, keywords, tags, norm_name) VALUES
   ('019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', 'annie-fiery', 'Annie, Fiery', 'unit', 4, 5, 1, NULL, '{}', '{"Annie","Noxus"}', 'anniefiery'),

@@ -68,8 +68,7 @@ export function makeSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSet
     id: "set-1",
     slug: "OGN",
     name: "Origins",
-    releasedAt: "2025-10-31",
-    released: true,
+    releases: { EN: { releasedAt: "2025-10-31", precision: "day" } },
     setType: "main",
     ...overrides,
   };

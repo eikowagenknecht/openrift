@@ -69,7 +69,17 @@ describe("cardDetailQueryOptions", () => {
 
 describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
   const card = { id: "card-1", slug: "ezreal" };
-  const printing = (id: string, setId: string) => ({ id, setId, cardId: "card-1" });
+  const printing = (id: string, setId: string, language = "EN") => ({
+    id,
+    setId,
+    cardId: "card-1",
+    language,
+  });
+  // Released long ago in English, still pending in French.
+  const releases = {
+    EN: { releasedAt: "2025-01-01", precision: "day" },
+    FR: { releasedAt: "2099-01-01", precision: "day" },
+  };
   const product = (printingId: string, slug: string, name: string, quantity: number) => ({
     printingId,
     slug,
@@ -90,7 +100,7 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     const result = runSelect({
       card,
       printings: [printing("p1", "s1"), printing("p2", "s1")],
-      sets: [{ id: "s1", slug: "ogn", released: true }],
+      sets: [{ id: "s1", slug: "ogn", releases }],
       products: [
         product("p1", "prerift-ezreal", "Pre-Rift Kit", 2),
         product("p2", "prerift-ezreal", "Pre-Rift Kit", 1),
@@ -111,7 +121,7 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     const result = runSelect({
       card,
       printings: [printing("p1", "s1")],
-      sets: [{ id: "s1", slug: "ogn", released: true }],
+      sets: [{ id: "s1", slug: "ogn", releases }],
       products: [],
     });
 
@@ -125,7 +135,7 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     const result = runSelect({
       card,
       printings: [printing("p1", "s1")],
-      sets: [{ id: "s1", slug: "ogn", released: true }],
+      sets: [{ id: "s1", slug: "ogn", releases }],
       products: [
         product("p1", "arcane-box", "Arcane Box Set", 1),
         product("p1", "prerift-ezreal", "Pre-Rift Kit", 2),
@@ -144,12 +154,25 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     const result = runSelect({
       card,
       printings: [printing("p1", "s1"), printing("p2", "missing-set")],
-      sets: [{ id: "s1", slug: "ogn", released: false }],
+      sets: [{ id: "s1", slug: "ogn", releases: {} }],
       products: [],
     });
 
     expect(result.printings[0]).toMatchObject({ setSlug: "ogn", setReleased: false });
     // An unknown set falls back rather than throwing.
     expect(result.printings[1]).toMatchObject({ setSlug: "", setReleased: true });
+  });
+
+  it("resolves setReleased per printing language", () => {
+    // Same set, two languages: English is out, French is not.
+    const result = runSelect({
+      card,
+      printings: [printing("p1", "s1", "EN"), printing("p2", "s1", "FR")],
+      sets: [{ id: "s1", slug: "ogn", releases }],
+      products: [],
+    });
+
+    expect(result.printings[0]).toMatchObject({ setSlug: "ogn", setReleased: true });
+    expect(result.printings[1]).toMatchObject({ setSlug: "ogn", setReleased: false });
   });
 });

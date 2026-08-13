@@ -26,8 +26,7 @@ function stubSet(overrides: Partial<SetListEntry> = {}): SetListEntry {
     id: overrides.id ?? "set-1",
     slug: overrides.slug ?? "origins",
     name: overrides.name ?? "Origins",
-    releasedAt: overrides.releasedAt ?? "2025-01-01",
-    released: overrides.released ?? true,
+    releases: overrides.releases ?? { EN: { releasedAt: "2025-01-01", precision: "day" } },
     setType: overrides.setType ?? "main",
     cardCount: overrides.cardCount ?? 100,
     printingCount: overrides.printingCount ?? 150,
@@ -672,27 +671,48 @@ describe("excludeUnreleasedSets", () => {
   });
 
   it("hides unreleased sets and their printings", () => {
-    const sets = [
-      stubSet({ id: "set-1" }),
-      stubSet({ id: "set-2", slug: "preview", released: false, releasedAt: null }),
-    ];
+    const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "preview" })];
     const released = stubPrinting({ setId: "set-1" });
-    const preview = stubPrinting({ setId: "set-2" });
+    const preview = stubPrinting({ setId: "set-2", setReleased: false });
     const result = excludeUnreleasedSets({ sets, printings: [released, preview], stacks: [] });
     expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
     expect(result.printings).toEqual([released]);
   });
 
-  it("keeps an unreleased set when the user owns cards from it", () => {
-    const sets = [
-      stubSet({ id: "set-1" }),
-      stubSet({ id: "set-2", slug: "preview", released: false, releasedAt: null }),
+  it("keeps a set whose other language is already out", () => {
+    // Release dates are per language: the English printings of a set count
+    // while its French ones are still months away.
+    const sets = [stubSet({ id: "set-1" })];
+    const english = stubPrinting({ setId: "set-1", language: "EN" });
+    const french = stubPrinting({ setId: "set-1", language: "FR", setReleased: false });
+    const result = excludeUnreleasedSets({ sets, printings: [english, french], stacks: [] });
+    expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
+    expect(result.printings).toEqual([english]);
+  });
+
+  it("keeps an unreleased printing when the user owns that language", () => {
+    const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "preview" })];
+    const printings = [
+      stubPrinting({ setId: "set-1" }),
+      stubPrinting({ setId: "set-2", language: "FR", setReleased: false }),
     ];
-    const printings = [stubPrinting({ setId: "set-1" }), stubPrinting({ setId: "set-2" })];
-    const ownedStack = stubStack({ setId: "set-2" });
+    const ownedStack = stubStack({ setId: "set-2", language: "FR" });
     const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
     expect(result.sets.map((set) => set.id)).toEqual(["set-1", "set-2"]);
     expect(result.printings).toHaveLength(2);
+  });
+
+  it("still hides an unreleased printing in a language the user does not own", () => {
+    const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "preview" })];
+    const printings = [
+      stubPrinting({ setId: "set-1" }),
+      stubPrinting({ setId: "set-2", language: "FR", setReleased: false }),
+    ];
+    // Owns the English printing of set-2, which says nothing about French.
+    const ownedStack = stubStack({ setId: "set-2", language: "EN" });
+    const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
+    expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
+    expect(result.printings).toHaveLength(1);
   });
 });
 

@@ -4,6 +4,7 @@ import type {
   CatalogResponsePrintingValue,
   Printing,
 } from "@openrift/shared";
+import { isReleasedIn, todayUtc } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../lib/printing-presenters.js";
@@ -106,12 +107,23 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
 function catalogResponseToPrintings(catalog: CatalogResponse): Printing[] {
   const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
   const cardsById = catalog.cards;
+  // One "today" for the whole join, so two printings of the same set can't
+  // land on opposite sides of a midnight that passes mid-assembly.
+  const today = todayUtc();
   const printings: Printing[] = [];
   for (const [id, value] of Object.entries(catalog.printings)) {
     const set = setsById.get(value.setId);
     const card = cardsById[value.cardId];
     if (set && card) {
-      printings.push({ ...value, id, setSlug: set.slug, setReleased: set.released, card });
+      printings.push({
+        ...value,
+        id,
+        setSlug: set.slug,
+        // A set is out in each language on its own date, and a printing knows
+        // which language it is.
+        setReleased: isReleasedIn(set.releases, value.language, today),
+        card,
+      });
     }
   }
   return printings;

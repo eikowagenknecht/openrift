@@ -1,4 +1,5 @@
 import type { Printing, SetDetailResponse, SetListResponse } from "@openrift/shared";
+import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { setsContract } from "@openrift/shared/contracts/sets";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
@@ -45,10 +46,11 @@ interface EnrichedSetDetail {
 }
 
 function enrichSetDetail(response: SetDetailResponse): EnrichedSetDetail {
+  const today = todayUtc();
   const printings: Printing[] = response.printings.map((p) => ({
     ...p,
     setSlug: response.set.slug,
-    setReleased: response.set.released,
+    setReleased: isReleasedIn(response.set.releases, p.language, today),
     card: response.cards[p.cardId],
   }));
   return { set: response.set, printings, cards: response.cards };

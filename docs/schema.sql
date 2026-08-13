@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Ei2x7xYFVHuHDscTue7hIFzj2Q7KTE7sf9NNmOT63UYPuYndTEikwyuHR7LNNpr
+\restrict 5V404Q1oYZLHQPx2c2FhAzfFdFc1TTSeliOZjLJCrPS8DpAgzdgkHgZPLyeeVwt
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -54,6 +54,18 @@ COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching
 CREATE TYPE public.marketplace_group_kind AS ENUM (
     'basic',
     'special'
+);
+
+
+--
+-- Name: release_precision; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.release_precision AS ENUM (
+    'day',
+    'month',
+    'quarter',
+    'year'
 );
 
 
@@ -1993,11 +2005,9 @@ CREATE TABLE public.sets (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
-    released_at date,
     slug text NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
     set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
-    released boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
@@ -2338,6 +2348,22 @@ CREATE TABLE public.sessions (
     user_agent text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: set_releases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.set_releases (
+    set_id uuid NOT NULL,
+    language text NOT NULL,
+    released_at date,
+    "precision" public.release_precision,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_set_releases_period_start CHECK (((released_at IS NULL) OR ("precision" = 'day'::public.release_precision) OR (("precision" = 'month'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric)) OR (("precision" = 'quarter'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric) AND (EXTRACT(month FROM released_at) = ANY (ARRAY[(1)::numeric, (4)::numeric, (7)::numeric, (10)::numeric]))) OR (("precision" = 'year'::public.release_precision) AND (EXTRACT(doy FROM released_at) = (1)::numeric)))),
+    CONSTRAINT chk_set_releases_precision CHECK (((released_at IS NULL) = ("precision" IS NULL)))
 );
 
 
@@ -3476,6 +3502,14 @@ ALTER TABLE ONLY public.scan_index
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: set_releases set_releases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.set_releases
+    ADD CONSTRAINT set_releases_pkey PRIMARY KEY (set_id, language);
 
 
 --
@@ -5109,6 +5143,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW 
 
 
 --
+-- Name: set_releases trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.set_releases FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: sets trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6290,6 +6331,22 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: set_releases set_releases_language_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.set_releases
+    ADD CONSTRAINT set_releases_language_fkey FOREIGN KEY (language) REFERENCES public.languages(code) ON UPDATE CASCADE;
+
+
+--
+-- Name: set_releases set_releases_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.set_releases
+    ADD CONSTRAINT set_releases_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.sets(id) ON DELETE CASCADE;
+
+
+--
 -- Name: tag_definitions tag_definitions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6413,5 +6470,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Ei2x7xYFVHuHDscTue7hIFzj2Q7KTE7sf9NNmOT63UYPuYndTEikwyuHR7LNNpr
+\unrestrict 5V404Q1oYZLHQPx2c2FhAzfFdFc1TTSeliOZjLJCrPS8DpAgzdgkHgZPLyeeVwt
 

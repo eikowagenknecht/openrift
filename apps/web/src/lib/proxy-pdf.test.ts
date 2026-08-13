@@ -14,8 +14,7 @@ function stubSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSetRespons
     id: overrides.id ?? "set-en-first",
     slug: overrides.slug ?? "rb1",
     name: overrides.name ?? "Origins",
-    releasedAt: overrides.releasedAt ?? "2024-01-01",
-    released: overrides.released ?? true,
+    releases: overrides.releases ?? { EN: { releasedAt: "2024-01-01", precision: "day" } },
     setType: overrides.setType ?? "main",
   };
 }

@@ -98,12 +98,29 @@ export const distributionChannelSchema = z.object({
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
+/**
+ * One language's release period for a set. `releasedAt` is the first day of
+ * the period, `precision` how wide it is; both null means announced with no
+ * date. Whether the set is *released* is derived from this (see
+ * `isReleased` in `set-release.ts`), never sent as its own field — a stored
+ * flag would go stale the moment a date passed with the response cached.
+ */
+export const setReleaseSchema = z.object({
+  releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
+  precision: z.enum(["day", "month", "quarter", "year"]).nullable().openapi({ example: "day" }),
+});
+
 export const catalogSetResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
   slug: z.string().openapi({ example: "OGN" }),
   name: z.string().openapi({ example: "Origins" }),
-  releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
-  released: z.boolean().openapi({ example: true }),
+  /** Release period per language code. A missing key means not announced there. */
+  releases: z.record(z.string(), setReleaseSchema).openapi({
+    example: {
+      EN: { releasedAt: "2025-10-31", precision: "day" },
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+    },
+  }),
   setType: z.enum(["main", "supplemental"]).openapi({ example: "main" }),
 });
 

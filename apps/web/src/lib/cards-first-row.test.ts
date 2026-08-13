@@ -15,7 +15,7 @@ function makeSet(
   slug: string,
   setType: "main" | "supplemental" = "main",
 ): CatalogSetResponse {
-  return { id, slug, name: slug, releasedAt: null, released: true, setType };
+  return { id, slug, name: slug, releases: {}, setType };
 }
 
 function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogResponseCardValue {

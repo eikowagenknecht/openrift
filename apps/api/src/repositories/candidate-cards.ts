@@ -603,13 +603,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Set slug + release date for given IDs. */
+    /** @returns Set slug, name and printed total for given IDs. */
     setInfoByIds(setIds: string[]): Promise<
       {
         id: string;
         slug: string;
         name: string;
-        releasedAt: string | null;
         printedTotal: number | null;
       }[]
     > {
@@ -618,7 +617,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       }
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt", "printedTotal"])
+        .select(["id", "slug", "name", "printedTotal"])
         .where("id", "in", setIds)
         .execute();
     },

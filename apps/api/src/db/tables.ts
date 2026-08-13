@@ -78,9 +78,32 @@ export interface SetsTable {
   /** CHECK: >= 0 */
   printedTotal: number | null;
   sortOrder: number;
-  releasedAt: string | null;
-  released: Generated<boolean>;
   setType: Generated<"main" | "supplemental">;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** How wide a period a `set_releases.released_at` date stands for. */
+export type ReleasePrecision = "day" | "month" | "quarter" | "year";
+
+/**
+ * When a set reached a given language (migration 233). One row per
+ * (set, language); an absent row means the set is not announced there.
+ *
+ * There is no stored `released` flag — it is derived from the date, so the
+ * two can never disagree. `releasedAt` is the FIRST day of the known period
+ * and `precision` says how wide that period is, so a set dated only to
+ * "Q2 2026" is expressible. Both NULL means announced with no date yet, which
+ * always reads as unreleased.
+ */
+export interface SetReleasesTable {
+  /** FK → sets.id, ON DELETE CASCADE */
+  setId: string;
+  /** FK → languages.code, ON UPDATE CASCADE */
+  language: string;
+  /** CHECK: NULL exactly when `precision` is, and always its period's first day */
+  releasedAt: string | null;
+  precision: ReleasePrecision | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1909,6 +1932,7 @@ type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
 export interface Database {
   // Card data (migration 001, restructured in 007)
   sets: SetsTable;
+  setReleases: SetReleasesTable;
   cards: CardsTable;
   cardErrata: CardErrataTable;
   printings: PrintingsTable;

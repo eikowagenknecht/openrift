@@ -16,10 +16,11 @@ export const adminCatalogRouter = {
   listSets: os.listSets.handler(async ({ context }) => {
     const { sets: setsRepo } = context.repos;
 
-    const [sets, cardCounts, printingCounts] = await Promise.all([
+    const [sets, cardCounts, printingCounts, releases] = await Promise.all([
       setsRepo.listAll(),
       setsRepo.cardCountsBySet(),
       setsRepo.printingCountsBySet(),
+      setsRepo.releasesBySet(),
     ]);
 
     const cardCountMap = new Map(cardCounts.map((r) => [r.setId, r.cardCount]));
@@ -32,8 +33,7 @@ export const adminCatalogRouter = {
         name: s.name,
         printedTotal: s.printedTotal,
         sortOrder: s.sortOrder,
-        releasedAt: s.releasedAt,
-        released: s.released,
+        releases: releases.get(s.id) ?? {},
         setType: s.setType,
         cardCount: cardCountMap.get(s.id) ?? 0,
         printingCount: printingCountMap.get(s.id) ?? 0,
@@ -43,27 +43,25 @@ export const adminCatalogRouter = {
 
   updateSet: os.updateSet.handler(async ({ input, context }): Promise<void> => {
     const { sets: setsRepo } = context.repos;
-    const { id, name, printedTotal, releasedAt, released, setType } = input;
+    const { id, name, printedTotal, releases, setType } = input;
 
-    const updated = await setsRepo.update(id, {
-      name,
-      printedTotal,
-      releasedAt,
-      released,
-      setType,
-    });
+    const updated = await setsRepo.update(id, { name, printedTotal, setType });
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set "${id}" not found`);
     }
+    await setsRepo.replaceReleases(id, releases);
   }),
 
   createSet: os.createSet.handler(async ({ input, context }) => {
     const { sets: setsRepo } = context.repos;
-    const { id, name, printedTotal, releasedAt } = input;
+    const { id, name, printedTotal, releases } = input;
 
-    const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
+    const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal });
     if (!setId) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Set with ID "${id}" already exists`);
+    }
+    if (releases) {
+      await setsRepo.replaceReleases(setId, releases);
     }
 
     return { id: setId };

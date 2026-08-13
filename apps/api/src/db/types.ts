@@ -28,6 +28,8 @@ export type {
   PrintingImagesTable,
   PrintingsTable,
   SetsTable,
+  SetReleasesTable,
+  ReleasePrecision,
   ListEntriesTable,
   ListsTable,
   // Preconstructed products (migration 198, ADR-015)

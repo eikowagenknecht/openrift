@@ -15,6 +15,9 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     // Delete printings referencing our test sets first
     if (createdSetIds.length > 0) {
       await db.deleteFrom("printings").where("setId", "in", createdSetIds).execute();
+      // `set_releases` cascades from `sets`, but delete explicitly so a failed
+      // run doesn't leave rows behind for the next one.
+      await db.deleteFrom("setReleases").where("setId", "in", createdSetIds).execute();
       await db.deleteFrom("sets").where("id", "in", createdSetIds).execute();
     }
   });
@@ -85,8 +88,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     const updated = await repo.update(id, {
       name: "Updated Test Set",
       printedTotal: 200,
-      releasedAt: "2026-01-01",
-      released: true,
       setType: "main",
     });
     expect(updated).toBe(true);
@@ -100,11 +101,57 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     const result = await repo.update("00000000-0000-0000-0000-000000000000", {
       name: "Nope",
       printedTotal: null,
-      releasedAt: null,
-      released: true,
       setType: "main",
     });
     expect(result).toBe(false);
+  });
+
+  it("replaceReleases writes, updates and deletes language rows", async () => {
+    const id = createdSetIds[0];
+
+    await repo.replaceReleases(id, {
+      EN: { releasedAt: "2026-01-15", precision: "day" },
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+      KR: { releasedAt: null, precision: null },
+    });
+    let bySet = await repo.releasesBySet();
+    let releases = bySet.get(id);
+    expect(releases).toEqual({
+      EN: { releasedAt: "2026-01-15", precision: "day" },
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+      KR: { releasedAt: null, precision: null },
+    });
+
+    // A language dropped from the map stops being announced; a language kept
+    // is updated in place.
+    await repo.replaceReleases(id, {
+      EN: { releasedAt: "2026-01-16", precision: "day" },
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+    });
+    bySet = await repo.releasesBySet();
+    releases = bySet.get(id);
+    expect(releases).toEqual({
+      EN: { releasedAt: "2026-01-16", precision: "day" },
+      FR: { releasedAt: "2026-04-01", precision: "quarter" },
+    });
+
+    await repo.replaceReleases(id, {});
+    bySet = await repo.releasesBySet();
+    expect(bySet.get(id)).toBeUndefined();
+  });
+
+  it("replaceReleases rejects a coarse period that is not its first day", async () => {
+    const id = createdSetIds[0];
+    await expect(
+      repo.replaceReleases(id, { EN: { releasedAt: "2026-05-17", precision: "quarter" } }),
+    ).rejects.toThrow(/chk_set_releases_period_start/u);
+  });
+
+  it("replaceReleases rejects a date without a precision", async () => {
+    const id = createdSetIds[0];
+    await expect(
+      repo.replaceReleases(id, { EN: { releasedAt: "2026-05-17", precision: null } }),
+    ).rejects.toThrow(/chk_set_releases_precision/u);
   });
 
   it("cardCount returns 0 for a set with no printings", async () => {

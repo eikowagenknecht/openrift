@@ -1,3 +1,4 @@
+import type { SetReleases } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -49,7 +50,6 @@ export function setsRepo(db: Kysely<Database>) {
       slug: string;
       name: string;
       printedTotal: number | null;
-      releasedAt?: string | null;
       sortOrder: number;
     }): Promise<void> {
       await db
@@ -58,7 +58,6 @@ export function setsRepo(db: Kysely<Database>) {
           slug: values.slug,
           name: values.name,
           printedTotal: values.printedTotal,
-          releasedAt: values.releasedAt ?? null,
           sortOrder: values.sortOrder,
         })
         .execute();
@@ -73,7 +72,6 @@ export function setsRepo(db: Kysely<Database>) {
       slug: string;
       name: string;
       printedTotal: number | null;
-      releasedAt?: string | null;
     }): Promise<string | null> {
       const result = await db
         .insertInto("sets")
@@ -81,7 +79,6 @@ export function setsRepo(db: Kysely<Database>) {
           slug: values.slug,
           name: values.name,
           printedTotal: values.printedTotal,
-          releasedAt: values.releasedAt ?? null,
           sortOrder: sql<number>`coalesce((select max(sort_order) from sets), 0) + 1`,
         })
         .onConflict((oc) => oc.column("slug").doNothing())
@@ -100,8 +97,6 @@ export function setsRepo(db: Kysely<Database>) {
       values: {
         name: string;
         printedTotal: number | null;
-        releasedAt: string | null;
-        released: boolean;
         setType: "main" | "supplemental";
       },
     ): Promise<boolean> {
@@ -111,6 +106,58 @@ export function setsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .executeTakeFirst();
       return (result?.numUpdatedRows ?? 0n) > 0n;
+    },
+
+    /** @returns Every set's release rows, keyed by set UUID then language. */
+    async releasesBySet(): Promise<Map<string, SetReleases>> {
+      const rows = await db
+        .selectFrom("setReleases")
+        .select(["setId", "language", "releasedAt", "precision"])
+        .execute();
+      const bySet = new Map<string, SetReleases>();
+      for (const row of rows) {
+        const releases = bySet.get(row.setId) ?? {};
+        releases[row.language] = { releasedAt: row.releasedAt, precision: row.precision };
+        bySet.set(row.setId, releases);
+      }
+      return bySet;
+    },
+
+    /**
+     * Replaces a set's release rows with exactly the given languages. Languages
+     * absent from `releases` are deleted, which is how a set is marked as not
+     * announced in a language again.
+     */
+    async replaceReleases(setId: string, releases: SetReleases): Promise<void> {
+      const languages = Object.keys(releases);
+      await db.transaction().execute(async (trx) => {
+        let deletion = trx.deleteFrom("setReleases").where("setId", "=", setId);
+        if (languages.length > 0) {
+          deletion = deletion.where("language", "not in", languages);
+        }
+        await deletion.execute();
+
+        if (languages.length === 0) {
+          return;
+        }
+        await trx
+          .insertInto("setReleases")
+          .values(
+            languages.map((language) => ({
+              setId,
+              language,
+              releasedAt: releases[language]?.releasedAt ?? null,
+              precision: releases[language]?.precision ?? null,
+            })),
+          )
+          .onConflict((oc) =>
+            oc.columns(["setId", "language"]).doUpdateSet((eb) => ({
+              releasedAt: eb.ref("excluded.releasedAt"),
+              precision: eb.ref("excluded.precision"),
+            })),
+          )
+          .execute();
+      });
     },
 
     /** Deletes a set by UUID. */

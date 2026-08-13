@@ -17,6 +17,33 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(sets[0]).toHaveProperty("name");
   });
 
+  it("sets carry their per-language release periods, parsed from jsonb", async () => {
+    const sets = await repo.sets();
+    const origins = sets.find((set) => set.slug === "OGN");
+    expect(origins).toBeDefined();
+    // postgres.js under Bun hands jsonb back as a string; the repo parses it,
+    // so this must be an object, not text.
+    expect(typeof origins!.releases).toBe("object");
+    expect(origins!.releases.EN).toEqual({ releasedAt: "2025-08-01", precision: "day" });
+    // A language announced without a date.
+    expect(origins!.releases.KR).toEqual({ releasedAt: null, precision: null });
+  });
+
+  it("setBySlug carries the same release map as the list", async () => {
+    const set = await repo.setBySlug("UNL");
+    expect(set).toBeDefined();
+    // Coarse precision survives the round trip.
+    expect(set!.releases.FR).toEqual({ releasedAt: "2026-07-01", precision: "quarter" });
+  });
+
+  it("a set announced in no language has an empty release map", async () => {
+    const sets = await repo.sets();
+    for (const set of sets) {
+      expect(set.releases).not.toBeNull();
+      expect(typeof set.releases).toBe("object");
+    }
+  });
+
   it("cards returns all cards ordered by name", async () => {
     const cards = await repo.cards();
     expect(cards.length).toBeGreaterThan(0);

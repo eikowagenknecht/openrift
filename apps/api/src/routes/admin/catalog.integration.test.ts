@@ -64,7 +64,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-core-set",
           name: "CAT Core Set",
           printedTotal: 200,
-          releasedAt: "2025-01-15",
+          releases: { EN: { releasedAt: "2025-01-15", precision: "day" } },
         }),
       );
       expect(res.status).toBe(201);
@@ -78,7 +78,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-expansion-one",
           name: "CAT Expansion One",
           printedTotal: 150,
-          releasedAt: null,
         }),
       );
       expect(res.status).toBe(201);
@@ -92,7 +91,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-core-set",
           name: "Duplicate Core Set",
           printedTotal: 100,
-          releasedAt: null,
         }),
       );
       expect(res.status).toBe(409);
@@ -109,7 +107,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "",
           name: "Bad Set",
           printedTotal: 0,
-          releasedAt: null,
         }),
       );
       expect(res.status).toBe(400);
@@ -121,7 +118,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-bad-set",
           name: "",
           printedTotal: 0,
-          releasedAt: null,
         }),
       );
       expect(res.status).toBe(400);
@@ -145,7 +141,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(coreSet.name).toBe("CAT Core Set");
       expect(coreSet.printedTotal).toBe(200);
       expect(coreSet.sortOrder).toBeTypeOf("number");
-      expect(coreSet.releasedAt).toBe("2025-01-15");
+      expect(coreSet.releases).toEqual({ EN: { releasedAt: "2025-01-15", precision: "day" } });
       expect(coreSet.cardCount).toBe(0);
       expect(coreSet.printingCount).toBe(0);
     });
@@ -171,8 +167,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         adminReq("PATCH", `/sets/${fakeUuid}`, {
           name: "Ghost Set",
           printedTotal: 0,
-          releasedAt: null,
-          released: false,
+          releases: {},
           setType: "main",
         }),
       );
@@ -186,8 +181,10 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         adminReq("PATCH", `/sets/${setIds["CAT-core-set"]}`, {
           name: "CAT Core Set Revised",
           printedTotal: 210,
-          releasedAt: "2025-02-01",
-          released: true,
+          releases: {
+            EN: { releasedAt: "2025-02-01", precision: "day" },
+            FR: { releasedAt: "2025-04-01", precision: "quarter" },
+          },
           setType: "main",
         }),
       );
@@ -201,7 +198,11 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const coreSet = json.sets.find((s: { slug: string }) => s.slug === "CAT-core-set");
       expect(coreSet.name).toBe("CAT Core Set Revised");
       expect(coreSet.printedTotal).toBe(210);
-      expect(coreSet.releasedAt).toBe("2025-02-01");
+      // The PATCH replaces the whole map, so French is added and English moves.
+      expect(coreSet.releases).toEqual({
+        EN: { releasedAt: "2025-02-01", precision: "day" },
+        FR: { releasedAt: "2025-04-01", precision: "quarter" },
+      });
     });
   });
 
@@ -289,7 +290,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-has-prints",
           name: "CAT Has Prints",
           printedTotal: 1,
-          releasedAt: null,
         }),
       );
       expect(createRes.status).toBe(201);

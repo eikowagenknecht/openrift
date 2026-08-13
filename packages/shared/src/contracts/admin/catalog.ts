@@ -17,14 +17,48 @@ const setFieldRules = {
   setType: z.enum([WellKnown.setType.MAIN, WellKnown.setType.SUPPLEMENTAL]),
 };
 
+/**
+ * One language's release period. A null date (with a null precision) means
+ * announced for that language without a date yet, which reads as unreleased.
+ * Coarse precisions must carry the first day of their period — the same
+ * invariant the `set_releases` CHECK enforces.
+ */
+const setReleaseInputSchema = z
+  .object({
+    releasedAt: isoDate.nullable(),
+    precision: z.enum(["day", "month", "quarter", "year"]).nullable(),
+  })
+  .refine((value) => (value.releasedAt === null) === (value.precision === null), {
+    message: "releasedAt and precision must both be set or both be null",
+  })
+  .refine(
+    (value) => {
+      if (!value.releasedAt || !value.precision || value.precision === "day") {
+        return true;
+      }
+      const month = Number(value.releasedAt.slice(5, 7));
+      const day = Number(value.releasedAt.slice(8, 10));
+      if (value.precision === "year") {
+        return month === 1 && day === 1;
+      }
+      if (value.precision === "quarter") {
+        return day === 1 && [1, 4, 7, 10].includes(month);
+      }
+      return day === 1;
+    },
+    { message: "releasedAt must be the first day of its period" },
+  );
+
+/** Release periods keyed by language code. */
+const setReleasesSchema = z.record(z.string().min(1), setReleaseInputSchema);
+
 export const adminSetSchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
   printedTotal: z.number().nullable(),
   sortOrder: z.number(),
-  releasedAt: isoDate.nullable(),
-  released: z.boolean(),
+  releases: setReleasesSchema,
   setType: setFieldRules.setType,
   cardCount: z.number(),
   printingCount: z.number(),
@@ -48,8 +82,8 @@ export const adminCatalogContract = {
       withParams(idParamSchema, {
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
-        releasedAt: isoDate.nullable(),
-        released: z.boolean(),
+        // Sent whole: languages missing from the map are no longer announced.
+        releases: setReleasesSchema,
         setType: setFieldRules.setType,
       }),
     ),
@@ -61,7 +95,7 @@ export const adminCatalogContract = {
         id: setFieldRules.slug,
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
-        releasedAt: isoDate.nullable().optional(),
+        releases: setReleasesSchema.optional(),
       }),
     )
     .output(z.object({ id: z.string() })),

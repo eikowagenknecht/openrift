@@ -606,25 +606,33 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
 }
 
 /**
- * Hides preview sets (not yet released) from collection stats, unless the
- * user already owns cards from them. Keeps the set list and the printing
- * catalog consistent so owned/total counts always refer to the same pool.
- * @returns The sets and printings limited to released (or owned) sets.
+ * Hides printings the user cannot have yet from collection stats, unless they
+ * already own that version. Release dates are per language, so this filters
+ * printings rather than whole sets: the English printings of a set count while
+ * its French ones are still months out. A set disappears only once every one of
+ * its printings is filtered away. Keeps the set list and the printing catalog
+ * consistent so owned/total counts always refer to the same pool.
+ * @returns The sets and printings limited to released (or owned) printings.
  */
 export function excludeUnreleasedSets(input: {
   sets: SetListEntry[];
   printings: Printing[];
   stacks: StackedEntry[];
 }): { sets: SetListEntry[]; printings: Printing[] } {
-  const ownedSetIds = new Set(input.stacks.map((stack) => stack.printing.setId));
-  const visibleSets = input.sets.filter((set) => set.released || ownedSetIds.has(set.id));
-  if (visibleSets.length === input.sets.length) {
+  const ownedKey = (setId: string, language: string) => `${setId}|${language}`;
+  const owned = new Set(
+    input.stacks.map((stack) => ownedKey(stack.printing.setId, stack.printing.language)),
+  );
+  const visiblePrintings = input.printings.filter(
+    (printing) => printing.setReleased || owned.has(ownedKey(printing.setId, printing.language)),
+  );
+  if (visiblePrintings.length === input.printings.length) {
     return { sets: input.sets, printings: input.printings };
   }
-  const visibleSetIds = new Set(visibleSets.map((set) => set.id));
+  const visibleSetIds = new Set(visiblePrintings.map((printing) => printing.setId));
   return {
-    sets: visibleSets,
-    printings: input.printings.filter((printing) => visibleSetIds.has(printing.setId)),
+    sets: input.sets.filter((set) => visibleSetIds.has(set.id)),
+    printings: visiblePrintings,
   };
 }
 

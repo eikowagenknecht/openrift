@@ -54,8 +54,7 @@ function buildFixture() {
     id: `set-${i}`,
     slug: `SET${i + 1}`,
     name: `Test Set ${i + 1}`,
-    releasedAt: null,
-    released: true,
+    releases: {},
     setType: i < 5 ? "main" : "supplemental",
   }));
 

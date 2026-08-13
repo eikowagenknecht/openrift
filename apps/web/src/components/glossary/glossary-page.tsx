@@ -1,4 +1,5 @@
-import { foldForSearch } from "@openrift/shared";
+import type { SetReleases } from "@openrift/shared";
+import { foldForSearch, formatReleasePeriod, isReleasedAnywhere } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
@@ -588,8 +589,7 @@ function MarkersSection({
 interface SetEntry {
   slug: string;
   name: string;
-  releasedAt: string | null;
-  released: boolean;
+  releases: SetReleases;
   setType: "main" | "supplemental";
   cardCount: number;
 }
@@ -669,7 +669,7 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
                 {set.name}
               </Link>
               <span className="text-muted-foreground capitalize">{set.setType}</span>
-              {!set.released && (
+              {!isReleasedAnywhere(set.releases) && (
                 <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-700 dark:text-amber-300">
                   Unreleased
                 </span>
@@ -677,7 +677,11 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
             </div>
             <p className="text-muted-foreground mt-1">
               {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}
-              {set.releasedAt && ` · released ${set.releasedAt}`}
+              {/* One date per language: a set reaches each on its own schedule. */}
+              {Object.keys(set.releases)
+                .toSorted()
+                .map((language) => ` · ${language} ${formatReleasePeriod(set.releases[language])}`)
+                .join("")}
             </p>
           </li>
         ))}
@@ -938,8 +942,7 @@ export function GlossaryPage() {
   const sets: SetEntry[] = (setList.sets ?? []).map((setEntry) => ({
     slug: setEntry.slug,
     name: setEntry.name,
-    releasedAt: setEntry.releasedAt,
-    released: setEntry.released,
+    releases: setEntry.releases,
     setType: setEntry.setType,
     cardCount: setEntry.cardCount,
   }));

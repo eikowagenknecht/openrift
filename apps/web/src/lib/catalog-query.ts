@@ -1,4 +1,5 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
+import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -177,6 +178,10 @@ function enrichCatalogInner(catalog: CatalogResponse): UseCardsResult {
   // server-computed sort key from the `printings_ordered` view. Consumers
   // that need user-language-aware order layer on top via
   // `sortByLanguageAndCanonicalRank`.
+  // A set reaches each language on its own date, so `setReleased` is resolved
+  // per printing language. One "today" for the whole join, so two printings of
+  // the same set can't straddle a midnight that passes mid-enrich.
+  const today = todayUtc();
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const [id, value] of Object.entries(catalog.printings)) {
@@ -187,7 +192,7 @@ function enrichCatalogInner(catalog: CatalogResponse): UseCardsResult {
         ...value,
         id,
         setSlug: set.slug,
-        setReleased: set.released,
+        setReleased: isReleasedIn(set.releases, value.language, today),
         card,
       };
       allPrintings.push(printing);

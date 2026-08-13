@@ -1,8 +1,10 @@
 import { WellKnown } from "@openrift/shared";
+import type { SetReleases } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import { parseJsonbRequired } from "../db/helpers.js";
 import type {
   CardBansTable,
   CardErrataTable,
@@ -34,11 +36,15 @@ type CatalogCardErrataRow = Pick<
   "cardId" | "correctedRulesText" | "correctedEffectText" | "source" | "sourceUrl" | "effectiveDate"
 >;
 
-/** Set columns returned by the catalog. */
-type CatalogSetRow = Pick<
-  Selectable<SetsTable>,
-  "id" | "slug" | "name" | "releasedAt" | "released" | "setType"
->;
+/**
+ * Set columns returned by the catalog, with the per-language release periods
+ * folded in. No `released` boolean: clients derive it from the dates via
+ * `isReleased`, so a cached response can't claim a set is still upcoming a
+ * week after its date passed.
+ */
+type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "setType"> & {
+  releases: SetReleases;
+};
 
 /** Active printing image with resolved image_files.id (null IDs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
@@ -110,6 +116,27 @@ const PRINTING_VIEW_COLUMNS = [
 ] as const;
 
 /**
+ * The per-language release map for a set, as a correlated subquery so the set
+ * reads stay one round trip. Returns `{}` for a set announced nowhere.
+ * @returns A jsonb expression aliased as `releases`.
+ */
+function releasesJson() {
+  return sql<SetReleases>`coalesce((
+    SELECT jsonb_object_agg(
+      r.language,
+      jsonb_build_object('releasedAt', r.released_at, 'precision', r.precision)
+    )
+    FROM set_releases r
+    WHERE r.set_id = sets.id
+  ), '{}'::jsonb)`.as("releases");
+}
+
+/** @returns The row with its `releases` jsonb parsed (postgres.js hands it back as text). */
+function withReleases<T extends { releases: SetReleases }>(row: T): T {
+  return { ...row, releases: parseJsonbRequired(row.releases) };
+}
+
+/**
  * Read-only queries for the card catalog (sets + printings + cards).
  *
  * The `.select()` columns in each method define the public API contract —
@@ -121,12 +148,13 @@ const PRINTING_VIEW_COLUMNS = [
 export function catalogRepo(db: Kysely<Database>) {
   return {
     /** @returns All sets ordered by their display position. */
-    sets(): Promise<CatalogSetRow[]> {
-      return db
+    async sets(): Promise<CatalogSetRow[]> {
+      const rows = await db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt", "released", "setType"])
+        .select(["id", "slug", "name", "setType", releasesJson()])
         .orderBy("sortOrder")
         .execute();
+      return rows.map((row) => withReleases(row));
     },
 
     /**
@@ -303,6 +331,12 @@ export function catalogRepo(db: Kysely<Database>) {
      * tag. The hashes are over the junctions only (a few thousand rows at ADR-009
      * scale); `custom_tags` slug renames are caught by its own `updated_at`.
      *
+     * `current_date` is folded in because the assembled `Printing[]` carries
+     * `setReleased`, which is derived from the per-language release dates
+     * rather than stored (migration 233). Without it a set whose date passed
+     * at midnight would keep evaluating as unreleased until some unrelated
+     * admin edit happened to roll the token.
+     *
      * Far cheaper than the full assembly (aggregates only, no row materialization
      * or map building), so it can run on every ruled-list read.
      * @returns An opaque string that changes iff the rule-relevant catalog changes.
@@ -330,7 +364,10 @@ export function catalogRepo(db: Kysely<Database>) {
           coalesce((SELECT md5(string_agg(card_id::text || ':' || super_type_slug, ',' ORDER BY card_id, super_type_slug)) FROM card_super_types), '') || '|' ||
           coalesce((SELECT md5(string_agg(card_id::text || ':' || custom_tag_id::text, ',' ORDER BY card_id, custom_tag_id)) FROM card_custom_tags), '') || '|' ||
           coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') AS token
+          coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') || '|' ||
+          coalesce((SELECT count(*) FROM set_releases)::text, '') || ':' ||
+          coalesce((SELECT max(updated_at) FROM set_releases)::text, '') || '|' ||
+          current_date::text AS token
       `.execute(db);
       return result.rows[0]?.token ?? "";
     },
@@ -535,25 +572,27 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /** @returns Sets matching the given IDs. */
-    setsByIds(ids: string[]): Promise<CatalogSetRow[]> {
+    async setsByIds(ids: string[]): Promise<CatalogSetRow[]> {
       if (ids.length === 0) {
-        return Promise.resolve([]);
+        return [];
       }
-      return db
+      const rows = await db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt", "released", "setType"])
+        .select(["id", "slug", "name", "setType", releasesJson()])
         .where("id", "in", ids)
         .orderBy("sortOrder")
         .execute();
+      return rows.map((row) => withReleases(row));
     },
 
     /** @returns A single set by slug, or `undefined`. */
-    setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
-      return db
+    async setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
+      const row = await db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt", "released", "setType"])
+        .select(["id", "slug", "name", "setType", releasesJson()])
         .where("slug", "=", slug)
         .executeTakeFirst();
+      return row && withReleases(row);
     },
 
     /** @returns All printings for a given set ID in canonical order. */

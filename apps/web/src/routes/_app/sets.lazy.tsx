@@ -1,5 +1,5 @@
 import type { SetListEntry } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { formatReleasePeriod, WellKnown, imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
@@ -10,7 +10,6 @@ import { CardLink } from "@/components/ui/card-link";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/sets")({
@@ -18,8 +17,20 @@ export const Route = createLazyFileRoute("/_app/sets")({
   pendingComponent: SetsPending,
 });
 
-function formatDate(dateStr: string): string {
-  return formatAbsoluteDate(dateStr, { year: "numeric", month: "short", day: "numeric" });
+/**
+ * The set's release dates, one per language it is announced in. A set reaches
+ * each language on its own date, so there is no single release date to show.
+ * Alphabetical by language code, which keeps the server and client render
+ * identical (the viewer's language preference is client-only state).
+ * @returns One label per announced language, e.g. `EN Oct 31, 2025`.
+ */
+function releaseLabels(set: SetListEntry): string[] {
+  return Object.keys(set.releases)
+    .toSorted()
+    .map(
+      (language) =>
+        `${language} ${formatReleasePeriod(set.releases[language], { month: "short" })}`,
+    );
 }
 
 function HeroSetCard({ set }: { set: SetListEntry }) {
@@ -56,12 +67,12 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
             {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}, {set.printingCount}{" "}
             {set.printingCount === 1 ? "printing" : "printings"}
           </span>
-          {set.releasedAt && (
-            <span className="flex items-center gap-1.5">
-              <CalendarIcon className="size-3.5" />
-              {formatDate(set.releasedAt)}
+          {releaseLabels(set).map((label, index) => (
+            <span key={label} className="flex items-center gap-1.5">
+              {index === 0 && <CalendarIcon className="size-3.5" />}
+              {label}
             </span>
-          )}
+          ))}
         </div>
       </div>
     </CardLink>

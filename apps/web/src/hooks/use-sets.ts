@@ -1,3 +1,4 @@
+import type { SetReleases } from "@openrift/shared";
 import { adminCatalogContract } from "@openrift/shared/contracts/admin/catalog";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -29,8 +30,7 @@ const updateSetFn = createServerFn({ method: "POST" })
       id: string;
       name: string;
       printedTotal: number;
-      releasedAt: string | null;
-      released: boolean;
+      releases: SetReleases;
       setType: "main" | "supplemental";
     }) => input,
   )
@@ -45,8 +45,7 @@ export function useUpdateSet() {
       id: string;
       name: string;
       printedTotal: number;
-      releasedAt: string | null;
-      released: boolean;
+      releases: SetReleases;
       setType: "main" | "supplemental";
     }) => {
       await updateSetFn({ data: body });
@@ -57,8 +56,7 @@ export function useUpdateSet() {
 
 const createSetFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { id: string; name: string; printedTotal: number; releasedAt?: string | null }) =>
-      input,
+    (input: { id: string; name: string; printedTotal: number; releases?: SetReleases }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -71,7 +69,7 @@ export function useCreateSet() {
       id: string;
       name: string;
       printedTotal: number;
-      releasedAt?: string | null;
+      releases?: SetReleases;
     }) => createSetFn({ data: body }),
     invalidates: [queryKeys.admin.sets],
   });

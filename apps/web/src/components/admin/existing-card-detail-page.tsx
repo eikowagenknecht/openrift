@@ -3,6 +3,7 @@ import type {
   AdminMarketplaceName,
   AdminPrintingResponse,
 } from "@openrift/shared";
+import { earliestRelease } from "@openrift/shared";
 import { ArrowRightIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -237,12 +238,19 @@ export function ExistingCardDetailPage({
   const printings = existingData.printings;
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
-  // Map set slug -> release year, so a new printing pre-fills Printed Year from
-  // the set's release date when no source supplies one.
+  // Release-year lookup for the Printed Year pre-fill, keyed both by set slug
+  // (the set's earliest release, as a fallback) and by `slug|LANGUAGE`, since
+  // a set reaches each language in its own year.
   const setReleaseYears: Record<string, number> = {};
   for (const set of setsData.sets) {
-    if (set.releasedAt) {
-      setReleaseYears[set.slug] = Number(set.releasedAt.slice(0, 4));
+    for (const [language, release] of Object.entries(set.releases)) {
+      if (release.releasedAt) {
+        setReleaseYears[`${set.slug}|${language}`] = Number(release.releasedAt.slice(0, 4));
+      }
+    }
+    const earliest = earliestRelease(set.releases);
+    if (earliest?.releasedAt) {
+      setReleaseYears[set.slug] = Number(earliest.releasedAt.slice(0, 4));
     }
   }
   const costKeywords = Object.entries(keywordStyles)

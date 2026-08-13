@@ -29,6 +29,8 @@ export type {
   PrintingImagesTable,
   PrintingsTable,
   SetsTable,
+  SetReleasesTable,
+  ReleasePrecision,
   ListEntriesTable,
   ListsTable,
   ProductsTable,

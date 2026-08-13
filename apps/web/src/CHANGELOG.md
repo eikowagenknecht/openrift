@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **Release dates per language** — a set now carries its own date for each language it comes out in, so cards you cannot buy in your language yet are marked as previews until that date passes.
 - feat(Groups): **Members page as a roster** — the group's members are now a searchable, sortable list showing how many cards each person offers and wants, with contact icons that reveal a handle and copy it on tap.
 - feat(Trades): **Check what you own before offering** — the available count on a card you would give away opens a breakdown of every variant you own and the collections holding them.
 - feat(Groups): **Possible trades on the groups list** — each group card now shows how many possible trades it holds, so you can see where to go without opening every group.

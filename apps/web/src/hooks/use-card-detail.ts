@@ -1,4 +1,5 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
+import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { cardsContract } from "@openrift/shared/contracts/cards";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
@@ -43,12 +44,16 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
   const setsById = new Map(response.sets.map((s) => [s.id, s]));
   // Printings carry `canonicalRank` from the DB view; consumers layer the
   // per-user language axis on top via `sortByLanguageAndCanonicalRank`.
+  const today = todayUtc();
   const printings: Printing[] = response.printings.map((p) => {
     const set = setsById.get(p.setId);
     return {
       ...p,
       setSlug: set?.slug ?? "",
-      setReleased: set?.released ?? true,
+      // Per printing language: a set is out in English long before it is out
+      // in French. A printing whose set is missing from the payload keeps the
+      // optimistic default rather than gaining a Preview ribbon.
+      setReleased: set ? isReleasedIn(set.releases, p.language, today) : true,
       card: response.card,
     };
   });

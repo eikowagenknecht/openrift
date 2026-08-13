@@ -107,7 +107,7 @@ function toUpsert(table: string, rows: Record<string, unknown>[], pkCols: string
 console.log(`Querying ${SET_SLUG} data from local DB...`);
 
 const sets = await sql<Record<string, unknown>[]>`
-  SELECT id, slug, name, set_type, printed_total, sort_order, released_at
+  SELECT id, slug, name, set_type, printed_total, sort_order
   FROM sets
   WHERE slug = ${SET_SLUG}
      OR id IN (
@@ -117,6 +117,13 @@ const sets = await sql<Record<string, unknown>[]>`
        WHERE c.slug = ANY(${EXTRA_CARD_SLUGS})
      )
   ORDER BY sort_order
+`;
+
+const setReleases = await sql<Record<string, unknown>[]>`
+  SELECT sr.set_id, sr.language, sr.released_at, sr.precision
+  FROM set_releases sr
+  WHERE sr.set_id = ANY(${sets.map((s) => String(s.id))})
+  ORDER BY sr.set_id, sr.language
 `;
 
 const cards = await sql<Record<string, unknown>[]>`
@@ -482,6 +489,7 @@ const seedSql = [
   "",
   "-- Sets and cards",
   toInsert("sets", sets),
+  toInsert("set_releases", setReleases),
   toInsert("cards", cards),
   toInsert("card_card_types", cardCardTypes),
   toInsert("card_super_types", cardSuperTypes),
@@ -520,7 +528,7 @@ console.log(
     `  Reference: ${domains.length} domains, ${rarities.length} rarities, ${cardTypes.length} card types, ${superTypes.length} super types,`,
     `    ${finishes.length} finishes, ${artVariants.length} art variants, ${languages.length} languages, ${formats.length} formats,`,
     `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywords.length} keywords, ${keywordTranslations.length} keyword translations`,
-    `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardCardTypes.length} card types (junction), ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
+    `  Catalog: ${sets.length} sets, ${setReleases.length} set releases, ${cards.length} cards, ${cardCardTypes.length} card types (junction), ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
     `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${distributionChannels.length} distribution channels`,
     `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images, ${printingMarkers.length} marker links, ${printingDistributionChannels.length} channel links`,
     `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,

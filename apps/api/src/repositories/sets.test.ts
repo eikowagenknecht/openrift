@@ -55,14 +55,13 @@ describe("setsRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("create with releasedAt", async () => {
+  it("create with a later sort order", async () => {
     const db = createMockDb([]);
     await expect(
       setsRepo(db).create({
         slug: "NEW",
         name: "New Set",
         printedTotal: 100,
-        releasedAt: "2025-06-01",
         sortOrder: 2,
       }),
     ).resolves.toBeUndefined();
@@ -92,8 +91,6 @@ describe("setsRepo", () => {
       await setsRepo(db).update("s-1", {
         name: "Updated",
         printedTotal: 200,
-        releasedAt: null,
-        released: true,
         setType: "main",
       }),
     ).toBe(true);
@@ -105,8 +102,6 @@ describe("setsRepo", () => {
       await setsRepo(db).update("s-1", {
         name: "Updated",
         printedTotal: null,
-        releasedAt: null,
-        released: false,
         setType: "main",
       }),
     ).toBe(false);
