@@ -1,7 +1,14 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
 import { needsViewerAction } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, FolderIcon, TrophyIcon, UsersIcon, ZapIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  FolderIcon,
+  HeartIcon,
+  TrophyIcon,
+  UsersIcon,
+  ZapIcon,
+} from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { ActionBand } from "@/components/ui/action-band";
@@ -16,7 +23,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
-import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
+import { useFriendGroupMatches, useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
 import {
@@ -32,7 +39,7 @@ import {
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
 import { needsYouCounts } from "@/lib/trade-hub";
-import { capitalize } from "@/lib/utils";
+import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";
@@ -177,13 +184,53 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
   // personal collections shared in. The tile leads with the group's own count;
   // member shares are the supporting hint. The viewer's own shares live in
   // `collectionShares` too, so "from members" excludes them by `userId`.
-  const groupCollectionCount = collections.filter((col) => col.groupId === data.group.id).length;
+  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
   const memberShareCount = data.collectionShares.filter(
     (share) => share.userId !== viewerId,
   ).length;
 
+  // A group with no box of its own has nothing to want from, so it never asks.
+  const boxWants = useGroupBoxWants(groupCollections.length > 0 ? slug : undefined);
+
+  // Cards the viewer's wish lists want that the group's bulk boxes can actually
+  // hand over. The tile leads to the box holding the most of them, already
+  // filtered; a group with no box, or nothing wanted in one, gets no tile at
+  // all rather than a zero.
+  const bestBoxId = boxWants.bestCollection(groupCollections.map((box) => box.id));
+  const wantedBox = groupCollections.find((col) => col.id === bestBoxId);
+  // The value counts every wanted card in the group, so when more than one box
+  // holds some, the hint says so instead of naming only the linked one.
+  const boxesWithWants = groupCollections.filter(
+    (col) => boxWants.wantedCardCount(col.id) > 0,
+  ).length;
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-4",
+        wantedBox ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
+      )}
+    >
+      {wantedBox ? (
+        <StatTile
+          render={
+            <Link
+              to="/collections/$collectionId"
+              params={{ collectionId: wantedBox.id }}
+              search={{ wanted: true }}
+            />
+          }
+          icon={HeartIcon}
+          tone="gold"
+          label="Cards you want"
+          value={boxWants.wantedCardCount()}
+          hint={
+            boxesWithWants > 1
+              ? `across ${boxesWithWants} group boxes`
+              : `waiting in ${wantedBox.name}`
+          }
+        />
+      ) : null}
       <GroupTournamentsTile slug={slug} data={data} />
       <StatCard
         to="/groups/$slug/shared"
@@ -191,7 +238,7 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
         icon={FolderIcon}
         tone="sky"
         label="Group collections"
-        value={groupCollectionCount}
+        value={groupCollections.length}
         hint={
           memberShareCount > 0 ? `+${memberShareCount} shared by members` : "owned by the group"
         }

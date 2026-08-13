@@ -14,6 +14,7 @@ import type { useFilterValues } from "@/hooks/use-card-filters";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollectionsMap } from "@/hooks/use-collections";
 import { useChannelRegistry } from "@/hooks/use-enums";
+import { useFriendGroupsList, useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
@@ -32,6 +33,9 @@ interface UseCollectionGridDataParams {
   /** Whether the "show whole library" toggle is active — widens the grid from
    * "cards in this collection" to "every card in the catalog". */
   showLibrary: boolean;
+  /** Whether the group-box "Wanted" toggle is active (`?wanted` on the route).
+   * Inert outside a group bulk box, which is the only place the toggle shows. */
+  wantedOnly: boolean;
   allPrintings: Printing[];
   sets: SetInfo[];
   /** The full catalog's printingsByCardId (from useCards()), unfiltered by
@@ -56,6 +60,7 @@ export function useCollectionGridData({
   view,
   groupBy,
   showLibrary,
+  wantedOnly,
   allPrintings,
   sets,
   catalogAllPrintingsByCardId,
@@ -102,6 +107,17 @@ export function useCollectionGridData({
       }
     }
   }
+
+  // A group box can also be narrowed to what the viewer's wish lists still
+  // want. The endpoint is group-scoped while this surface only knows the
+  // collection's `groupId`, so resolve the slug from the viewer's groups list;
+  // both queries stand down on a personal collection.
+  const groupId = currentCollection?.groupId ?? undefined;
+  const { data: groupsData } = useFriendGroupsList(isGroupCollection);
+  const groupSlug = groupId
+    ? groupsData?.items.find((group) => group.id === groupId)?.slug
+    : undefined;
+  const boxWants = useGroupBoxWants(groupSlug);
 
   // The tile axis for per-card aggregation (counts, copy selection, siblings).
   // Only the collection's own cards-view grid splits a card into per-set /
@@ -202,7 +218,19 @@ export function useCollectionGridData({
   // Faceted counts so every filter chip (and the price/stat sliders) narrows to
   // the subset matching the other active filters — including the Copies range.
   const filterCounts = showLibrary ? catalogFilterCounts : collectionFilterCounts;
-  const sortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
+  const activeSortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
+  // "Wanted" narrows the grid to the printings this box can actually hand over.
+  // The cards view collapses a card's variants into one tile whose
+  // representative printing needn't be the wanted one, so it matches on the
+  // card; every other view has one tile per printing and matches on that.
+  const wantedBoxId = wantedOnly && isGroupCollection ? collectionId : undefined;
+  const sortedCards = wantedBoxId
+    ? activeSortedCards.filter((printing) =>
+        dataView === "cards"
+          ? boxWants.wantsCard(wantedBoxId, printing.cardId)
+          : boxWants.fulfillable(wantedBoxId, printing.id) > 0,
+      )
+    : activeSortedCards;
   const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
   // The detail-pane picker lists every printing of the clicked card, not just
   // the ones shown in the grid (filtered by set/search/rarity, or narrowed to
@@ -247,6 +275,8 @@ export function useCollectionGridData({
     dataView,
     currentCollection,
     isGroupCollection,
+    /** True while the grid is actually narrowed to the box's wanted printings. */
+    wantedFilterActive: wantedBoxId !== undefined,
     tileGroupBy,
     availableFilters,
     availableLanguages,

@@ -163,6 +163,8 @@ interface CardTableProps {
    * injected via cloneElement and the row node is provided as children.
    */
   rowWrapper?: ReactElement<TableRowSlotProps & { children?: ReactNode }>;
+  /** Surface-specific no-results copy; see {@link CardViewerEmptyState}. */
+  noResultsDescription?: ReactNode;
 }
 
 let cachedScrollMargin = 0;
@@ -190,6 +192,7 @@ export function CardTable({
   actionsCell,
   actionsLabel,
   rowWrapper,
+  noResultsDescription,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
   // Resolve the sticky offset in the body (not as a default param) so the live
@@ -315,7 +318,7 @@ export function CardTable({
   if (items.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-1 flex-col">
-        <CardViewerEmptyState totalItems={totalItems} />
+        <CardViewerEmptyState totalItems={totalItems} noResultsDescription={noResultsDescription} />
       </div>
     );
   }

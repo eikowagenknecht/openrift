@@ -97,6 +97,17 @@ export const filterSearchSchema = z.object({
 export type FilterSearch = z.infer<typeof filterSearchSchema>;
 
 /**
+ * Search params of the single-collection route: the shared filter set plus the
+ * `wanted` toggle, which narrows a group "bulk box" to the printings the
+ * viewer's wish lists still want. Absent (not `false`) when off, so the URL
+ * stays clean everywhere the toggle doesn't apply.
+ * @returns Zod schema for the collection detail route's search params.
+ */
+export const collectionDetailSearchSchema = filterSearchSchema.extend({
+  wanted: boolFlag(),
+});
+
+/**
  * Re-validates `search` and reports whether the raw URL carries keys the
  * schema would drop. TanStack merges raw URL keys onto the validated search
  * (Object.assign in buildLocation), so unknown keys survive into the

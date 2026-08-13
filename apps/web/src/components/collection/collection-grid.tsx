@@ -5,6 +5,7 @@ import {
   BookOpenIcon,
   CameraIcon,
   DownloadIcon,
+  HeartIcon,
   LibraryBigIcon,
   ListPlusIcon,
   PackageIcon,
@@ -42,6 +43,7 @@ import { SelectionDetailOverlays } from "@/components/selection-detail-overlays"
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Toggle } from "@/components/ui/toggle";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
@@ -92,9 +94,22 @@ const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["cu
 interface CollectionGridProps {
   collectionId?: string;
   title: string;
+  /**
+   * Whether the group-box "Wanted" filter is on. Owned by the route as a search
+   * param, so a link can open a box straight into the filtered view. Only the
+   * single-collection route passes these two — the "All cards" aggregate has no
+   * one box to filter.
+   */
+  wantedOnly?: boolean;
+  onWantedOnlyChange?: (next: boolean) => void;
 }
 
-export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
+export function CollectionGrid({
+  collectionId,
+  title,
+  wantedOnly = false,
+  onWantedOnlyChange,
+}: CollectionGridProps) {
   const isMobile = useIsMobile();
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
@@ -165,6 +180,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     dataView,
     currentCollection,
     isGroupCollection,
+    wantedFilterActive,
     tileGroupBy,
     availableFilters,
     availableLanguages,
@@ -194,6 +210,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     view,
     groupBy,
     showLibrary,
+    wantedOnly,
     allPrintings,
     sets,
     catalogAllPrintingsByCardId,
@@ -759,6 +776,25 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const topBarPortal = topBarSlot && createPortal(collectionTopBar, topBarSlot);
 
+  // Only a group bulk box has cards to want off someone else, so the filter
+  // shows there and nowhere else. Same heart the tiles use for a wished card.
+  const wantedButton =
+    isGroupCollection && onWantedOnlyChange ? (
+      <Toggle
+        variant="outline"
+        pressed={wantedOnly}
+        onPressedChange={onWantedOnlyChange}
+        // Persistent primary fill for the active state, matching the neighbouring
+        // library button's active look.
+        className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
+        title={wantedOnly ? "Show everything in the box" : "Show only cards you want"}
+        aria-label={wantedOnly ? "Show everything in the box" : "Show only cards you want"}
+      >
+        <HeartIcon className="size-4" />
+        <span className="hidden sm:inline">Wanted</span>
+      </Toggle>
+    ) : null;
+
   const showLibraryButton = addTarget ? (
     <Button
       variant={showLibrary ? "default" : "outline"}
@@ -804,7 +840,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           ? `Show ${filteredCardCount} ${dataView === "cards" ? "cards" : "printings"}`
           : undefined
       }
-      extras={showLibraryButton}
+      extras={
+        <>
+          {wantedButton}
+          {showLibraryButton}
+        </>
+      }
       showCopies={!showLibrary}
       groupByOptions={
         collectionGroupingAvailable
@@ -942,6 +983,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             printingsByCardId={printingsByCardId}
             view={dataView}
             stale={isGridStale}
+            noResultsDescription={
+              wantedFilterActive
+                ? "Nothing from your wishlists is in this box right now."
+                : undefined
+            }
             toolbar={toolbar}
             banner={
               showIntroBanner ? (

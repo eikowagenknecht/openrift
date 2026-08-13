@@ -382,6 +382,25 @@ export const friendGroupMatchesResponseSchema = z
   })
   .openapi("FriendGroupMatchesResponse");
 
+// One printing in a group-owned "bulk box" collection that the viewer's wish
+// lists still want, with the quantity actually takeable. Quantities follow the
+// trade-matching pipeline: demand is manual + rule wish entries netted against
+// firm live trades, supply drops reserved/loaned/altered copies, and the
+// fulfillable amount is a bounded allocation of the two (never more than the
+// residual want, never more than the box holds).
+export const friendGroupBoxWantRowSchema = z
+  .object({
+    collectionId: z.string(),
+    printingId: z.string(),
+    cardId: z.string(),
+    fulfillableQuantity: z.number().int().positive(),
+  })
+  .openapi("FriendGroupBoxWantRow");
+
+export const friendGroupBoxWantsResponseSchema = z
+  .object({ items: z.array(friendGroupBoxWantRowSchema) })
+  .openapi("FriendGroupBoxWantsResponse");
+
 export const friendGroupMemberDetailResponseSchema = z
   .object({
     member: friendGroupMemberResponseSchema,
@@ -693,6 +712,11 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupMatchesResponseSchema),
+  boxWants: authedRoute
+    .route({ method: "GET", path: `${FG}/{slug}/box-wants`, tags: [TAG] })
+    .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupBoxWantsResponseSchema),
   getSharedList: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/lists/{listId}`, tags: [TAG] })
     .input(friendGroupSlugAndListIdParamSchema)

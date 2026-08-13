@@ -30,6 +30,8 @@ interface BrowserCardViewerProps {
   rightPane?: ReactNode;
   addStripHeight?: number;
   table?: CardTableProps;
+  /** Surface-specific no-results copy; forwarded to {@link CardViewer}. */
+  noResultsDescription?: ReactNode;
   children?: ReactNode;
 }
 

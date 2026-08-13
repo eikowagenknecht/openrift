@@ -4,8 +4,13 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { BoxWantRow } from "@/lib/box-wants";
+import { buildBoxWantsLookup } from "@/lib/box-wants";
+
 // Mutated per test before rendering; read lazily inside the mock factories.
 let currentTournaments: TournamentSummaryResponse[] = [];
+let currentCollections: { id: string; name: string; groupId: string | null }[] = [];
+let currentBoxWantRows: BoxWantRow[] = [];
 const acceptMutate = vi.fn();
 const declineMutate = vi.fn();
 
@@ -20,7 +25,7 @@ vi.mock("@/hooks/use-cards", () => ({
 }));
 
 vi.mock("@/hooks/use-collections", () => ({
-  useCollections: () => ({ data: [] }),
+  useCollections: () => ({ data: currentCollections }),
 }));
 
 vi.mock("@/hooks/use-friend-groups", () => ({
@@ -29,6 +34,7 @@ vi.mock("@/hooks/use-friend-groups", () => ({
   useFriendGroupMatches: () => ({
     data: { othersHaveYourWants: [], othersWantYourHaves: [] },
   }),
+  useGroupBoxWants: () => buildBoxWantsLookup(currentBoxWantRows),
 }));
 
 vi.mock("@/hooks/use-tournaments", () => ({
@@ -49,11 +55,13 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     className,
   }: {
     to: string;
     params?: Record<string, string>;
+    search?: Record<string, unknown>;
     children?: ReactNode;
     className?: string;
   }) => {
@@ -61,6 +69,14 @@ vi.mock("@tanstack/react-router", () => ({
     if (params) {
       for (const [key, value] of Object.entries(params)) {
         path = path.replace(`$${key}`, value);
+      }
+    }
+    if (search) {
+      const query = Object.entries(search)
+        .map(([key, value]) => `${key}=${String(value)}`)
+        .join("&");
+      if (query) {
+        path = `${path}?${query}`;
       }
     }
     return (
@@ -72,6 +88,12 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 const { OverviewContent } = await import("./friend-group-overview");
+
+// File-level reset: these fixtures feed mocks shared by every describe below.
+beforeEach(() => {
+  currentCollections = [];
+  currentBoxWantRows = [];
+});
 
 function makeDetail(
   viewerRole: FriendGroupDetailResponse["viewerRole"],
@@ -149,6 +171,43 @@ function makeTournament(
     ...overrides,
   };
 }
+
+describe("OverviewContent wanted-in-box tile", () => {
+  it("hides the tile when the group's boxes hold nothing from the viewer's wishlists", () => {
+    currentCollections = [{ id: "box-1", name: "Bulk Box", groupId: "group-1" }];
+    renderOverview("member");
+    expect(screen.queryByRole("link", { name: /Cards you want/u })).not.toBeInTheDocument();
+  });
+
+  it("counts wanted cards across boxes and links the box holding the most, filtered", () => {
+    currentCollections = [
+      { id: "box-1", name: "Bulk Box", groupId: "group-1" },
+      { id: "box-2", name: "Overflow", groupId: "group-1" },
+      { id: "personal", name: "Mine", groupId: null },
+    ];
+    currentBoxWantRows = [
+      { collectionId: "box-1", printingId: "p1", cardId: "card-a", fulfillableQuantity: 1 },
+      { collectionId: "box-2", printingId: "p2", cardId: "card-a", fulfillableQuantity: 2 },
+      { collectionId: "box-2", printingId: "p3", cardId: "card-b", fulfillableQuantity: 1 },
+    ];
+    renderOverview("member");
+    const tile = screen.getByRole("link", { name: /Cards you want/u });
+    expect(tile).toHaveAttribute("href", "/collections/box-2?wanted=true");
+    expect(tile).toHaveTextContent("2");
+    expect(tile).toHaveTextContent("across 2 group boxes");
+  });
+
+  it("names the box in the hint when only one holds wanted cards", () => {
+    currentCollections = [{ id: "box-1", name: "Bulk Box", groupId: "group-1" }];
+    currentBoxWantRows = [
+      { collectionId: "box-1", printingId: "p1", cardId: "card-a", fulfillableQuantity: 3 },
+    ];
+    renderOverview("member");
+    const tile = screen.getByRole("link", { name: /Cards you want/u });
+    expect(tile).toHaveAttribute("href", "/collections/box-1?wanted=true");
+    expect(tile).toHaveTextContent("waiting in Bulk Box");
+  });
+});
 
 describe("OverviewContent tournaments tile", () => {
   beforeEach(() => {

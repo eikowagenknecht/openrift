@@ -26,6 +26,8 @@ import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
+import type { BoxWantRow, BoxWantsLookup } from "@/lib/box-wants";
+import { buildBoxWantsLookup, EMPTY_BOX_WANTS } from "@/lib/box-wants";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -75,6 +77,13 @@ const fetchGroupMatches = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
     apiOrpcClient(friendGroupsContract, context.cookie).matches({ slug }),
+  );
+
+const fetchGroupBoxWants = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(({ context, data: slug }): Promise<{ items: BoxWantRow[] }> =>
+    apiOrpcClient(friendGroupsContract, context.cookie).boxWants({ slug }),
   );
 
 const fetchGroupActivity = createServerFn({ method: "GET" })
@@ -209,6 +218,18 @@ function friendGroupMatchesQueryOptions(userId: string, slug: string) {
   });
 }
 
+function friendGroupBoxWantsQueryOptions(userId: string, slug: string) {
+  return queryOptions({
+    queryKey: queryKeys.friendGroups.boxWants(userId, slug),
+    queryFn: () => fetchGroupBoxWants({ data: slug }),
+    // No mutation invalidates this key yet, so counts can lag up to a minute
+    // behind a take or a wishlist edit. That's tolerable because the box's own
+    // stacks update instantly (the taken copy leaves the synced collection);
+    // only the tile count and per-printing quantities ride out the window.
+    staleTime: 60_000,
+  });
+}
+
 export function friendGroupJoinPreviewQueryOptions(code: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.joinPreview(code),
@@ -305,6 +326,24 @@ export function useFriendGroupMatchPanels(
             ];
       }),
   });
+}
+
+/**
+ * Which printings in a group's bulk boxes the viewer's wish lists still want,
+ * and how many of each the box can actually hand over. Non-suspending and
+ * gated on the slug: the collection grid resolves a group's slug from the
+ * collection it is showing, so the query must stand down until it has one (and
+ * on every personal collection, which has no group at all).
+ * @param slug The group to read, or undefined to fetch nothing.
+ * @returns The lookups over the group's rows; empty until the query answers.
+ */
+export function useGroupBoxWants(slug?: string): BoxWantsLookup {
+  const userId = useRequiredUserId();
+  const { data } = useQuery({
+    ...friendGroupBoxWantsQueryOptions(userId, slug ?? ""),
+    enabled: slug !== undefined,
+  });
+  return data ? buildBoxWantsLookup(data.items) : EMPTY_BOX_WANTS;
 }
 
 export function useFriendGroupActivity(slug: string) {

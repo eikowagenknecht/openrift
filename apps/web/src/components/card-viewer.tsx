@@ -63,6 +63,12 @@ interface CardViewerProps {
   addStripHeight?: number;
   /** Owned counts + click + add-mode handlers used by the table view. When omitted, table view falls back to the grid. */
   table?: CardTableProps;
+  /**
+   * Replaces the generic "try adjusting your filters" line when one filter in
+   * particular explains an empty result (e.g. /collections' group-box "Wanted"
+   * toggle). Applies to both the grid and the table.
+   */
+  noResultsDescription?: ReactNode;
   children?: ReactNode;
 }
 
@@ -94,6 +100,7 @@ export function CardViewer({
   rightPane,
   addStripHeight,
   table,
+  noResultsDescription,
   children,
 }: CardViewerProps) {
   const displayMode = useDisplayStore((state) => state.displayMode);
@@ -127,6 +134,7 @@ export function CardViewer({
             groupDir={groupDir}
             selectedItemId={selectedItemId}
             table={table}
+            noResultsDescription={noResultsDescription}
           />
         ) : (
           <HydratedGrid
@@ -139,6 +147,7 @@ export function CardViewer({
             groupDir={groupDir}
             selectedItemId={selectedItemId}
             addStripHeight={addStripHeight}
+            noResultsDescription={noResultsDescription}
           />
         )
       }
@@ -159,6 +168,7 @@ type HydratedGridProps = Pick<
   | "groupDir"
   | "selectedItemId"
   | "addStripHeight"
+  | "noResultsDescription"
 >;
 
 /**
@@ -180,6 +190,7 @@ interface HydratedTableProps {
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
   table: CardTableProps;
+  noResultsDescription?: ReactNode;
 }
 
 /**

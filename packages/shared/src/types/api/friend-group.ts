@@ -2,6 +2,8 @@ import type { collectionGroupSharesResponseSchema } from "@openrift/shared/contr
 import type {
   friendGroupActivityEventSchema,
   friendGroupActivityResponseSchema,
+  friendGroupBoxWantRowSchema,
+  friendGroupBoxWantsResponseSchema,
   friendGroupCollectionCoverSchema,
   friendGroupCollectionShareResponseSchema,
   friendGroupDetailResponseSchema,
@@ -88,6 +90,10 @@ export type FriendGroupShareableCollectionsResponse = z.infer<
 export type FriendGroupMatchRow = z.infer<typeof friendGroupMatchRowSchema>;
 
 export type FriendGroupMatchesResponse = z.infer<typeof friendGroupMatchesResponseSchema>;
+
+export type FriendGroupBoxWantRow = z.infer<typeof friendGroupBoxWantRowSchema>;
+
+export type FriendGroupBoxWantsResponse = z.infer<typeof friendGroupBoxWantsResponseSchema>;
 
 export type FriendGroupMemberDetailResponse = z.infer<typeof friendGroupMemberDetailResponseSchema>;
 

@@ -17,6 +17,7 @@ import type {
   FriendGroupPendingRequestsCountResponse,
   FriendGroupRequestResponse,
   FriendGroupResponse,
+  FriendGroupBoxWantsResponse,
   FriendGroupRole,
   FriendGroupShareResponse,
   FriendGroupShareableCollectionsResponse,
@@ -798,6 +799,22 @@ export const friendGroupsRouter = {
 
     return { othersHaveYourWants, othersWantYourHaves };
   }),
+
+  // ── BULK-BOX WANTS ──────────────────────────────────────────────────────
+  boxWants: os.boxWants.handler(
+    async ({ input, context }): Promise<FriendGroupBoxWantsResponse> => {
+      const viewerId = context.userId;
+
+      const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
+
+      const items = await context.repos.friendGroupMatches.boxWantsForViewer({
+        groupId: ctx.group.id,
+        viewerUserId: viewerId,
+      });
+
+      return { items };
+    },
+  ),
 
   // ── SHARED LIST DETAIL (browsable by any group member) ──────────────────
   getSharedList: os.getSharedList.handler(

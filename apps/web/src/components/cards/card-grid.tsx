@@ -224,6 +224,8 @@ interface CardGridProps {
   addStripHeight?: number;
   /** Total height of sticky elements above the grid (app header + toolbar). */
   stickyOffset?: number;
+  /** Surface-specific no-results copy; see {@link CardViewerEmptyState}. */
+  noResultsDescription?: ReactNode;
 }
 
 export function CardGrid({
@@ -237,6 +239,7 @@ export function CardGrid({
   selectedItemId,
   addStripHeight = 0,
   stickyOffset: stickyOffsetProp,
+  noResultsDescription,
 }: CardGridProps) {
   const { orders, labels } = useEnumOrders();
   // Resolve the sticky offset in the body (not as a default param) so the live
@@ -453,7 +456,7 @@ export function CardGrid({
   if (items.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-1 flex-col">
-        <CardViewerEmptyState totalItems={totalItems} />
+        <CardViewerEmptyState totalItems={totalItems} noResultsDescription={noResultsDescription} />
       </div>
     );
   }

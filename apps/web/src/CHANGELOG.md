@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-14
+
+### Highlights
+
+- feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
+
 ## 2026-08-13
 
 ### Highlights

@@ -133,6 +133,8 @@ export const queryKeys = {
     all: (userId: string) => ["friend-groups", userId] as const,
     detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,
     matches: (userId: string, slug: string) => ["friend-groups", userId, slug, "matches"] as const,
+    boxWants: (userId: string, slug: string) =>
+      ["friend-groups", userId, slug, "box-wants"] as const,
     checks: (userId: string, slug: string) => ["friend-groups", userId, slug, "checks"] as const,
     checkEvent: (userId: string, slug: string, eventId: string) =>
       ["friend-groups", userId, slug, "checks", eventId] as const,
