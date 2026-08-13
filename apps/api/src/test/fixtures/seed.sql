@@ -55,7 +55,11 @@ INSERT INTO art_variants (slug, label, sort_order, is_well_known) VALUES
 INSERT INTO languages (code, name, sort_order) VALUES
   ('EN', 'English', 1),
   ('SC', 'Simplified Chinese', 2),
-  ('FR', 'French', 3)
+  ('FR', 'French', 3),
+  -- Carries no printings: it exists so `set_releases` can hold an undated row,
+  -- the announced-without-a-date case. Sorted last so EN stays the lowest
+  -- sort_order for the language-ordering tests.
+  ('KR', 'Korean', 4)
   ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order;
 
 INSERT INTO formats (id, name) VALUES
