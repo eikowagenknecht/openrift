@@ -1832,6 +1832,109 @@ describe("buildCardDetail", () => {
     expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBe("p-prerelease-promo");
   });
 
+  it("prefers a marker match over a finish match for near-miss groups", async () => {
+    const candidateCard = {
+      id: "cc-1",
+      provider: "riftbound-gg",
+      name: "X",
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
+      tags: [],
+      shortCode: null,
+      externalId: "ext",
+      extraData: null,
+      checkedAt: null,
+    };
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([candidateCard]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        // Several sources report the foil-only promo as a normal finish.
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "VEN-118",
+          setId: "s1",
+          setName: "S",
+          rarity: "common",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: ["promo"],
+          finish: "normal",
+          artist: "A",
+          publicCode: "118",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      // The unmarked printing matches on finish and sorts first canonically, so
+      // a dominant finish cost would hand it the suggestion.
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-plain",
+          cardId: "card-1",
+          setId: "set-uuid-1",
+          shortCode: "VEN-118",
+          rarity: "common",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: [],
+          finish: "normal",
+          language: "EN",
+          artist: "A",
+          publicCode: "118",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+          canonicalRank: 1,
+        },
+        {
+          id: "p-promo",
+          cardId: "card-1",
+          setId: "set-uuid-1",
+          shortCode: "VEN-118",
+          rarity: "common",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: ["promo"],
+          finish: "foil",
+          language: "EN",
+          artist: "A",
+          publicCode: "118",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+          canonicalRank: 2,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-uuid-1", slug: "ven", name: "Vengeance", printedTotal: 298 },
+        ]),
+    });
+
+    const result = await buildCardDetail(repo, mpRepo(), "x");
+
+    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBe("p-promo");
+  });
+
   it("excludes linked candidate printings from grouping", async () => {
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),

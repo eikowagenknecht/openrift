@@ -20,11 +20,13 @@ import { USER_SUBMISSION_PROVIDER } from "./ingest-user-submission.js";
 type Repo = ReturnType<typeof candidateCardsRepo>;
 type MarketplaceMappingRepo = ReturnType<typeof marketplaceMappingRepo>;
 
-/** Near-miss printing suggestion weights — see `findSuggestedPrinting`. A finish
- *  mismatch outranks any realistic marker distance, and a printing missing a
- *  marker the source stated is a worse match than one carrying an extra. */
-const FINISH_MISMATCH_COST = 1000;
-const MISSING_MARKER_COST = 10;
+/** Near-miss printing suggestion weights — see `findSuggestedPrinting`. A stated
+ *  marker is the strongest signal, so a printing missing one outranks a finish
+ *  mismatch: sources mis-report finish constantly (a foil-only promo listed as
+ *  normal) but rarely invent a marker. An extra marker beyond what the source
+ *  declared is the cheapest miss, because sources under-report them. */
+const MISSING_MARKER_COST = 1000;
+const FINISH_MISMATCH_COST = 100;
 const EXTRA_MARKER_COST = 1;
 
 function toMarketplaceName(marketplace: string): AdminMarketplaceName | null {
@@ -620,6 +622,9 @@ async function buildDetailResponse(
       // printing lacking a marker the source did state is a different variant.
       // A symmetric distance ties those two cases, and the canonical-rank
       // tiebreak then hands the suggestion to the unmarked printing.
+      // A missing marker also beats a finish mismatch: several sources list
+      // VEN-118's foil-only `{promo}` printing as normal, and matching the
+      // unmarked normal printing on finish alone is the wrong variant.
       const missing = markerSlugs.filter((s) => !p.markerSlugs.includes(s)).length;
       const extra = p.markerSlugs.filter((s) => !wantedMarkers.has(s)).length;
       const score =
