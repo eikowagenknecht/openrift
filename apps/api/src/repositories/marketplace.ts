@@ -7,6 +7,12 @@ import type { Database, MarketplaceProductPricesTable } from "../db/index.js";
 interface CollectionValueHistoryPoint {
   date: string;
   valueCents: number;
+  /**
+   * The same day's holdings priced as if the market had frozen on the first
+   * day of the series. `valueCents - baselineValueCents` is therefore price
+   * movement over the window, with buying and selling divided out.
+   */
+  baselineValueCents: number;
   copyCount: number;
 }
 
@@ -379,6 +385,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * figure. A historical point reads "what I hold now, minus the events
      * since" — identical to "what I held then" for an account with complete
      * history, and closer to the truth than a forward replay for one without.
+     *
+     * Each point also carries `baselineValueCents`, the same composition
+     * priced as if the market had frozen on day one. The gap to `valueCents`
+     * is the window's price return with buying and selling divided out, and it
+     * survives the incomplete event log better than either line alone: a
+     * phantom copy inflates both, so it distorts the gap only by its own price
+     * movement rather than by its full value.
      *
      * @returns Daily value points for charting, oldest first.
      */
@@ -763,6 +776,31 @@ export function marketplaceRepo(db: Kysely<Database>) {
         windowStartDay ??
         (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
 
+      // ── Baseline prices: the market frozen on day one ──────────────────
+      // Valuing every day's composition at the prices in effect on `startDay`
+      // produces a line that moves only when copies are bought or sold. Its
+      // distance from the real line is price movement and nothing else, which
+      // is what makes the range toggle mean something: pick 30d and the gap is
+      // the 30-day return, not an all-time one.
+      //
+      // Deliberately not `priceOnDay`. That helper's cursor only ever moves
+      // left and the walk below needs it to start at the right edge, so asking
+      // it for `startDay` first would leave every later day priced at the
+      // window start.
+      //
+      // A printing first priced after `startDay` (a set released mid-window,
+      // or one the scraper picked up late) has no price to freeze at and falls
+      // back to its earliest snapshot. Contributing zero instead would read as
+      // an enormous gain the moment the card is acquired.
+      const baselinePrice = new Map<string, number>();
+      for (const [printingId, days] of sortedPriceDays) {
+        const idx = days.findLastIndex((day) => day <= startDay);
+        const price = priceMap.get(printingId)?.get(idx === -1 ? days[0] : days[idx]);
+        if (price !== undefined) {
+          baselinePrice.set(printingId, price);
+        }
+      }
+
       // Seed from today's copies, then undo events newest-first.
       const composition = new Map<string, number>(
         anchorRows.rows.map((row) => [row.printingId, row.copies]),
@@ -784,15 +822,24 @@ export function marketplaceRepo(db: Kysely<Database>) {
         const dayStr = toDateString(currentDay);
 
         let valueCents = 0;
+        let baselineValueCents = 0;
         let copyCount = 0;
         for (const [printingId, count] of composition) {
-          const price = priceOnDay(printingId, dayStr);
-          if (price !== undefined) {
-            valueCents += price * count;
-          }
           copyCount += count;
+          const price = priceOnDay(printingId, dayStr);
+          if (price === undefined) {
+            // No snapshot this old. Leaving the printing out of both lines
+            // keeps the gap between them price movement, instead of letting a
+            // hole in the price history read as a gain.
+            continue;
+          }
+          valueCents += price * count;
+          // The two maps are built from the same price rows, so a missing
+          // baseline can't happen. Falling back to the day's own price keeps
+          // such a printing out of the gap rather than inventing a swing.
+          baselineValueCents += (baselinePrice.get(printingId) ?? price) * count;
         }
-        reversed.push({ date: dayStr, valueCents, copyCount });
+        reversed.push({ date: dayStr, valueCents, baselineValueCents, copyCount });
 
         // Step back over this day's events to reach the previous day.
         while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) === dayStr) {

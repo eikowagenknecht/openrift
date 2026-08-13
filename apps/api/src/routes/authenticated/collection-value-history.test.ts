@@ -44,14 +44,19 @@ beforeEach(() => vi.resetAllMocks());
 describe("GET /api/v1/collection-value-history", () => {
   it("returns 200 with the value series mapped to the output shape", async () => {
     mockMarketplaceRepo.collectionValueTimeSeries.mockResolvedValue([
-      { date: "2026-03-15", valueCents: 125_000, copyCount: 42 },
-      { date: "2026-03-16", valueCents: 130_000, copyCount: 43 },
+      { date: "2026-03-15", valueCents: 125_000, baselineValueCents: 120_000, copyCount: 42 },
+      { date: "2026-03-16", valueCents: 130_000, baselineValueCents: 121_000, copyCount: 43 },
     ]);
     const res = await app.request("/api/v1/collection-value-history");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.series).toHaveLength(2);
-    expect(json.series[0]).toEqual({ date: "2026-03-15", valueCents: 125_000, copyCount: 42 });
+    expect(json.series[0]).toEqual({
+      date: "2026-03-15",
+      valueCents: 125_000,
+      baselineValueCents: 120_000,
+      copyCount: 42,
+    });
   });
 
   it("returns an empty series when the repo has no data", async () => {

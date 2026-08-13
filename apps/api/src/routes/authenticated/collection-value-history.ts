@@ -60,6 +60,7 @@ export const collectionValueHistoryRouter = {
       series: series.map((point) => ({
         date: point.date,
         valueCents: point.valueCents, // integer cents
+        baselineValueCents: point.baselineValueCents, // integer cents
         copyCount: point.copyCount,
       })),
     };

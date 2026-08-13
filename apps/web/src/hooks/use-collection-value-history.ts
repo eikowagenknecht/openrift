@@ -132,6 +132,7 @@ export function useCollectionValueHistory(
       series: data.series.map((point) => ({
         date: point.date,
         value: point.valueCents / 100,
+        baselineValue: point.baselineValueCents / 100,
         copyCount: point.copyCount,
       })),
     }),

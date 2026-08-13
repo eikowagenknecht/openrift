@@ -78,6 +78,11 @@ export const collectionValueHistoryResponseSchema = z
       z.object({
         date: z.string().openapi({ example: "2026-03-15" }),
         valueCents: z.number().int().openapi({ example: 125_000, description: "Integer cents" }),
+        baselineValueCents: z.number().int().openapi({
+          example: 118_000,
+          description:
+            "Integer cents. The same day's holdings valued at the prices in effect on the first day of the requested range, so the gap to valueCents is price movement alone.",
+        }),
         copyCount: z.number().openapi({ example: 42 }),
       }),
     ),

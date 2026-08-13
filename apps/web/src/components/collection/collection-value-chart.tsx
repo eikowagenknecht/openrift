@@ -2,15 +2,20 @@ import type { CompletionScopePreference, Marketplace, TimeRange } from "@openrif
 import { marketplaceLabel } from "@openrift/shared";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
-import { Area, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
 import { MarketplaceIcon } from "@/components/marketplace-icon";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+} from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionValueHistory } from "@/hooks/use-collection-value-history";
-import { formatterForMarketplace } from "@/lib/format";
+import { describePriceChange, formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
@@ -20,13 +25,20 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+// --chart-2 rather than the neutral --chart-3: the dataviz validator puts the
+// gold/gray pair at ΔE 10.9 in dark mode, under the 15 floor for normal vision,
+// so the two lines would be hard to tell apart. Gold/teal clears it at 22.9,
+// and matches the headline/secondary pairing on the card price history chart.
 const chartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
+  baselineValue: { label: "If prices hadn't changed", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
 interface CollectionValueTooltipContentProps {
   active?: boolean;
-  payload?: { payload: { date: string; value: number; copyCount: number } }[];
+  payload?: {
+    payload: { date: string; value: number; baselineValue: number; copyCount: number };
+  }[];
   currencyFormatter: (value: number) => string;
 }
 
@@ -39,6 +51,10 @@ function CollectionValueTooltipContent({
     return null;
   }
   const point = payload[0].payload;
+  // The whole reason the second line exists. Left in body ink rather than
+  // red/green: those are the reserved status colors, and the sign already says
+  // which way it went without leaning on hue.
+  const { sign, magnitude, percent } = describePriceChange(point.value, point.baselineValue);
   return (
     <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
       <p className="mb-1 font-medium">{point.date}</p>
@@ -48,6 +64,25 @@ function CollectionValueTooltipContent({
           <span className="text-muted-foreground">Value</span>
           <span className="ml-auto font-mono font-medium tabular-nums">
             {currencyFormatter(point.value)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: "var(--color-baselineValue)" }}
+          />
+          <span className="text-muted-foreground">At start-of-range prices</span>
+          <span className="ml-auto font-mono font-medium tabular-nums">
+            {currencyFormatter(point.baselineValue)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="size-2" />
+          <span className="text-muted-foreground">Price change</span>
+          <span className="ml-auto font-mono font-medium tabular-nums">
+            {sign}
+            {currencyFormatter(magnitude)}
+            {percent !== null && ` (${sign}${Math.abs(percent).toFixed(1)}%)`}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -184,6 +219,20 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
               connectNulls
               isAnimationActive={false}
             />
+            {/* Same holdings at day-one prices, so it moves only when cards are
+                bought or sold. Dashed and unfilled to read as the reference the
+                real line is measured against, not a second total. */}
+            <Line
+              dataKey="baselineValue"
+              type="monotone"
+              stroke="var(--color-baselineValue)"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              dot={false}
+              connectNulls
+              isAnimationActive={false}
+            />
+            <ChartLegend content={<ChartLegendContent />} />
           </ComposedChart>
         </ChartContainer>
       )}

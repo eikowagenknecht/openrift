@@ -150,3 +150,29 @@ export function compactFormatterForMarketplace(
 ): (v?: number | null) => string {
   return EUR_MARKETPLACES.has(marketplace) ? formatPriceCompactEur : formatPriceCompact;
 }
+
+export interface PriceChangeParts {
+  /** "+" or "−" (U+2212), so the direction reads without leaning on color. */
+  sign: string;
+  /** Size of the change, always positive. Render it after `sign`. */
+  magnitude: number;
+  /** Change as a percent of the baseline, or null when the baseline is zero. */
+  percent: number | null;
+}
+
+/**
+ * Split a value and the baseline it is measured against into the parts a
+ * change readout renders. Keeping the sign separate lets the magnitude go
+ * through a currency formatter untouched, which would otherwise print its own
+ * negative form and disagree with the percent beside it.
+ *
+ * @returns The sign, the absolute change, and the percent (null on a zero baseline).
+ */
+export function describePriceChange(value: number, baseline: number): PriceChangeParts {
+  const delta = value - baseline;
+  return {
+    sign: delta < 0 ? "−" : "+",
+    magnitude: Math.abs(delta),
+    percent: baseline === 0 ? null : (delta / baseline) * 100,
+  };
+}

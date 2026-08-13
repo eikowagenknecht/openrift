@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { EnumLabels } from "@/hooks/use-enums";
 
 import {
+  describePriceChange,
   formatCardId,
   formatImportPrintingLabel,
   formatImportPrintingLabelParts,
@@ -289,5 +290,30 @@ describe("formatPriceEur", () => {
 
   it("uses comma as decimal separator", () => {
     expect(formatPriceEur(1.23)).toBe("1,23 \u20AC");
+  });
+});
+
+describe("describePriceChange", () => {
+  it("marks a gain with a plus and the percent of the baseline", () => {
+    expect(describePriceChange(125, 100)).toEqual({ sign: "+", magnitude: 25, percent: 25 });
+  });
+
+  it("marks a loss with a minus and a positive magnitude", () => {
+    // The magnitude stays positive so a currency formatter does not print a
+    // second, differently-styled negative sign next to this one.
+    expect(describePriceChange(80, 100)).toEqual({ sign: "\u2212", magnitude: 20, percent: -20 });
+  });
+
+  it("treats no change as a plus of zero", () => {
+    expect(describePriceChange(100, 100)).toEqual({ sign: "+", magnitude: 0, percent: 0 });
+  });
+
+  it("returns a null percent when the baseline is zero", () => {
+    // An empty collection on the first day of the range has no base to divide by.
+    expect(describePriceChange(40, 0)).toEqual({ sign: "+", magnitude: 40, percent: null });
+  });
+
+  it("returns a null percent when both sides are zero", () => {
+    expect(describePriceChange(0, 0)).toEqual({ sign: "+", magnitude: 0, percent: null });
   });
 });
