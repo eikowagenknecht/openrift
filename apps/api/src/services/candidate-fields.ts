@@ -174,6 +174,7 @@ export function buildCandidatePrintingFields(printing: IngestPrinting): Candidat
     flavorText: printing.flavor_text,
     language: printing.language,
     printedName: printing.printed_name,
+    printedYear: printing.printed_year,
     externalId: printing.external_id,
     extraData: jsonOrNull(printing.extra_data),
   };

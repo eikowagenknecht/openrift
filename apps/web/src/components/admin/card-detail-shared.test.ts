@@ -1,4 +1,5 @@
 import type {
+  AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
@@ -7,7 +8,11 @@ import { describe, expect, it } from "vitest";
 
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 
-import { buildPreseededActiveCard, buildPreseededActivePrinting } from "./card-detail-shared";
+import {
+  buildPreseededActiveCard,
+  buildPreseededActivePrinting,
+  computePrintingMatchStatus,
+} from "./card-detail-shared";
 
 // Minimal field set mirroring buildCandidateCardFields: a plain string field, two
 // dropdown array fields, a numeric field, a read-only field, and a rich-text field
@@ -272,5 +277,69 @@ describe("buildPreseededActivePrinting", () => {
       {},
     );
     expect(seed.printedYear).toBeUndefined();
+  });
+});
+
+describe("computePrintingMatchStatus", () => {
+  const labels = { "cc-official": "official", "cc-gallery": "gallery" };
+  const providerSettings = printingSettings([
+    { provider: "official", sortOrder: 0, isFavorite: true },
+    { provider: "gallery", sortOrder: 1 },
+  ]);
+
+  // The accepted printing the candidates are compared against.
+  function accepted(values: Record<string, unknown>): AdminPrintingResponse {
+    return { setSlug: "ogn", ...values } as unknown as AdminPrintingResponse;
+  }
+
+  it("flags a mismatch when a favorited source disagrees on printedYear", () => {
+    const status = computePrintingMatchStatus(
+      accepted({ publicCode: "001", printedYear: 2024 }),
+      [printing("cc-official", { publicCode: "001", printedYear: 2025 })],
+      labels,
+      providerSettings,
+      printingFields,
+      {},
+    );
+    expect(status).toBe("mismatch");
+  });
+
+  it("matches when the favorited source agrees on printedYear", () => {
+    const status = computePrintingMatchStatus(
+      accepted({ publicCode: "001", printedYear: 2025 }),
+      [printing("cc-official", { publicCode: "001", printedYear: 2025 })],
+      labels,
+      providerSettings,
+      printingFields,
+      {},
+    );
+    expect(status).toBe("match");
+  });
+
+  it("ignores a printedYear that only a non-favorited source carries", () => {
+    const status = computePrintingMatchStatus(
+      accepted({ publicCode: "001", printedYear: 2024 }),
+      [
+        printing("cc-official", { publicCode: "001", printedYear: 2024 }),
+        printing("cc-gallery", { publicCode: "001", printedYear: 2025 }),
+      ],
+      labels,
+      providerSettings,
+      printingFields,
+      {},
+    );
+    expect(status).toBe("match");
+  });
+
+  it("matches when the source has no printedYear at all", () => {
+    const status = computePrintingMatchStatus(
+      accepted({ publicCode: "001", printedYear: 2024 }),
+      [printing("cc-official", { publicCode: "001", printedYear: null })],
+      labels,
+      providerSettings,
+      printingFields,
+      {},
+    );
+    expect(status).toBe("match");
   });
 });

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5J3qaZ3mlFnLtv8H8WVbjaSUuUUqGUqQsK4yrAM55uke5Whw1n3LYd2EfBPBwE5
+\restrict Ei2x7xYFVHuHDscTue7hIFzj2Q7KTE7sf9NNmOT63UYPuYndTEikwyuHR7LNNpr
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -691,6 +691,7 @@ CREATE TABLE public.candidate_printings (
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     size text,
     distribution_channel_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    printed_year smallint,
     CONSTRAINT candidate_printings_size_check CHECK ((size <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
@@ -6412,5 +6413,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5J3qaZ3mlFnLtv8H8WVbjaSUuUUqGUqQsK4yrAM55uke5Whw1n3LYd2EfBPBwE5
+\unrestrict Ei2x7xYFVHuHDscTue7hIFzj2Q7KTE7sf9NNmOT63UYPuYndTEikwyuHR7LNNpr
 

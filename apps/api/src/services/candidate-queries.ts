@@ -81,6 +81,7 @@ function formatCandidatePrinting(
     | "flavorText"
     | "language"
     | "printedName"
+    | "printedYear"
     | "externalId"
     | "extraData"
     | "checkedAt"
@@ -424,6 +425,7 @@ export async function buildExport(repo: Repo) {
         // they must survive an export → re-import cycle. Previously omitted.
         language: p.language,
         printed_name: p.printedName,
+        printed_year: p.printedYear,
         // Exported so the private candidate generators can use this document as
         // the canonical printing reference (finish enrichment keys on
         // short_code + language + markers).

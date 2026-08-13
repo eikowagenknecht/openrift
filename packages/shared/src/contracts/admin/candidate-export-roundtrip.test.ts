@@ -47,6 +47,7 @@ const sampleExport = [
         // The fields a prior export silently dropped — they must round-trip.
         language: "SC",
         printed_name: "遗弃",
+        printed_year: 2025,
         // Exported since the private generators use this document as the
         // canonical printing reference (finish/marker enrichment).
         marker_slugs: ["launch-exclusive"],
@@ -86,5 +87,37 @@ describe("candidate export ↔ upload round-trip", () => {
     // @ts-expect-error — deleting a required key to prove the schema demands it.
     delete missingFields[0].printings[0].language;
     expect(candidateExportDocumentSchema.safeParse(missingFields).success).toBe(false);
+  });
+
+  it("printed_year is part of the exported document (not droppable)", () => {
+    const missingYear = structuredClone(sampleExport);
+    // @ts-expect-error — deleting a required key to prove the schema demands it.
+    delete missingYear[0].printings[0].printed_year;
+    expect(candidateExportDocumentSchema.safeParse(missingYear).success).toBe(false);
+  });
+
+  it("an exported printed_year survives the re-upload as a number", () => {
+    const result = uploadCandidatesSchema.safeParse({
+      provider: "roundtrip",
+      candidates: sampleExport,
+    });
+    expect(result.data?.candidates[0].printings[0].printed_year).toBe(2025);
+  });
+
+  it("an upload that omits printed_year defaults it to null", () => {
+    const noYear = structuredClone(sampleExport);
+    // @ts-expect-error — older provider payloads predate the field entirely.
+    delete noYear[0].printings[0].printed_year;
+    const result = uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: noYear });
+    expect(result.success).toBe(true);
+    expect(result.data?.candidates[0].printings[0].printed_year).toBeNull();
+  });
+
+  it("an out-of-range printed_year is rejected on upload", () => {
+    const badYear = structuredClone(sampleExport);
+    badYear[0].printings[0].printed_year = 1500;
+    expect(
+      uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: badYear }).success,
+    ).toBe(false);
   });
 });

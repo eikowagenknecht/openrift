@@ -431,6 +431,7 @@ function FormatHelp() {
           <code className="bg-muted rounded px-1">flavor_text</code>,{" "}
           <code className="bg-muted rounded px-1">language</code>,{" "}
           <code className="bg-muted rounded px-1">printed_name</code>,{" "}
+          <code className="bg-muted rounded px-1">printed_year</code>,{" "}
           <code className="bg-muted rounded px-1">extra_data</code>.
         </p>
         <p className="text-muted-foreground">

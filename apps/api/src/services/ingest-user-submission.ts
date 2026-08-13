@@ -106,6 +106,9 @@ export function buildUserSubmissionCard(
       extra_data: null,
       language: printing.language ?? null,
       printed_name: printing.printed_name ?? null,
+      // The contribution form doesn't ask for the printed year; only provider
+      // uploads carry it.
+      printed_year: null,
     };
   });
 

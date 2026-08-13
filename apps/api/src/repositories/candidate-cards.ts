@@ -490,6 +490,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "flavorText"
         | "language"
         | "printedName"
+        | "printedYear"
         | "externalId"
         | "extraData"
         | "checkedAt"
@@ -527,6 +528,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.flavorText",
           "ps.language",
           "ps.printedName",
+          "ps.printedYear",
           "ps.externalId",
           "ps.extraData",
           "ps.checkedAt",

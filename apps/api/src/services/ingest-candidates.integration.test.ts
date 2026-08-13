@@ -52,6 +52,7 @@ function printing(input: PrintingInput): IngestPrinting {
     extra_data: null,
     language: null,
     printed_name: null,
+    printed_year: null,
     ...input,
     external_id: input.external_id ?? input.short_code,
   };
@@ -1313,5 +1314,58 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(ps.markerSlugs).toEqual(["promo"]);
     expect(ps.finish).toBe("foil");
     expect(ps.artVariant).toBe("altart");
+  });
+
+  it("stores printed_year and reports it in the diff when a re-upload changes it", async () => {
+    const upload = (printedYear: number | null) =>
+      ingestCandidates(transact, SOURCE, [
+        card({
+          name: "Printed Year Card",
+          types: ["unit"],
+          domains: ["fury"],
+          short_code: "PY-001",
+          printings: [
+            {
+              short_code: "PY-001-P1",
+              set_id: "SET-PY",
+              rarity: "rare",
+              finish: "normal",
+              artist: "Printed Year Artist",
+              public_code: "PY-001/100",
+              printed_year: printedYear,
+            },
+          ],
+        }),
+      ]);
+
+    await upload(2024);
+
+    const cs = await db
+      .selectFrom("candidateCards")
+      .select("id")
+      .where("provider", "=", SOURCE)
+      .where("shortCode", "=", "PY-001")
+      .executeTakeFirstOrThrow();
+    const before = await db
+      .selectFrom("candidatePrintings")
+      .selectAll()
+      .where("candidateCardId", "=", cs.id)
+      .executeTakeFirstOrThrow();
+    expect(before.printedYear).toBe(2024);
+
+    // A re-upload that changes only printed_year must be detected as an update
+    // (it goes through the same per-field diff as every other printing column).
+    const result = await upload(2025);
+    expect(result.printingUpdates).toBe(1);
+    expect(result.updatedPrintings[0].fields).toEqual([
+      { field: "printedYear", from: 2024, to: 2025 },
+    ]);
+
+    const after = await db
+      .selectFrom("candidatePrintings")
+      .selectAll()
+      .where("candidateCardId", "=", cs.id)
+      .executeTakeFirstOrThrow();
+    expect(after.printedYear).toBe(2025);
   });
 });

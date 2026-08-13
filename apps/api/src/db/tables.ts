@@ -1349,6 +1349,8 @@ export interface CandidatePrintingsTable {
 
   language: string | null;
   printedName: string | null;
+  /** Year stamped on the physical card; differs from set release for reprints. */
+  printedYear: number | null;
 
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;

@@ -89,6 +89,8 @@ export const candidatePrintingResponseSchema = z
     extraData: z.unknown().nullable(),
     language: z.string().nullable(),
     printedName: z.string().nullable(),
+    /** Year stamped on the physical card; differs from set release for reprints. */
+    printedYear: z.number().nullable(),
     checkedAt: z.string().nullable(),
   })
   .openapi("CandidatePrintingResponse");

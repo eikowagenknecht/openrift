@@ -154,6 +154,7 @@ export async function acceptFavoritePrintingsForCard(
           imageUrl: first.imageUrl,
           language: first.language ?? WellKnown.language.EN,
           printedName: first.printedName,
+          printedYear: first.printedYear,
         },
         group.map((cp) => cp.id),
         io,

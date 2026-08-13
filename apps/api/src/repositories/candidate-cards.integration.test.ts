@@ -341,6 +341,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result[0]).toHaveProperty("setName");
     expect(result[0]).toHaveProperty("rarity");
     expect(result[0]).toHaveProperty("imageUrl");
+    expect(result[0]).toHaveProperty("printedYear");
     expect(result[0]).toHaveProperty("externalId");
     expect(result[0]).toHaveProperty("extraData");
     expect(result[0]).toHaveProperty("checkedAt");

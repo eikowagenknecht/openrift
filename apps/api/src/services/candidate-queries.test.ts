@@ -823,6 +823,53 @@ describe("buildExport", () => {
     expect(result[0].printings[0].size).toBe("standard");
   });
 
+  it("exports printed_year so it round-trips back through the upload", async () => {
+    const repo = createMockRepo({
+      exportCards: vi.fn().mockResolvedValue([
+        {
+          id: "card-1",
+          slug: "OGN-001",
+          name: "Fireball",
+          type: "spell",
+          types: ["spell"],
+          superTypes: [],
+          domains: ["fury"],
+          might: null,
+          energy: 2,
+          power: null,
+          mightBonus: null,
+          tags: [],
+        },
+      ]),
+      exportPrintings: vi.fn().mockResolvedValue([
+        {
+          id: "p-1",
+          cardId: "card-1",
+          shortCode: "OGN-001",
+          setSlug: "ogn",
+          setName: "Origins",
+          rarity: "rare",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "Jane Doe",
+          publicCode: "001",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          printedYear: 2025,
+          originalUrl: null,
+          rehostedUrl: null,
+          imageId: null,
+        },
+      ]),
+    });
+
+    const result = await buildExport(repo);
+
+    expect(result[0].printings[0].printed_year).toBe(2025);
+  });
+
   it("prefers originalUrl over rehostedUrl for image_url", async () => {
     const repo = createMockRepo({
       exportCards: vi.fn().mockResolvedValue([

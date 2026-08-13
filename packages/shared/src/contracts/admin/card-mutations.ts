@@ -211,6 +211,10 @@ export const ingestPrintingSchema = z.object({
   extra_data: z.unknown().nullable().optional().default(null),
   language: nullStr,
   printed_name: nullStr,
+  // Numeric, so it can't use `nullStr`. Reuses the accept path's range rule
+  // rather than a bare `z.number()`: `printings.printed_year` is a smallint, and
+  // an out-of-range value would otherwise only surface as an opaque insert error.
+  printed_year: printingFieldRules.printedYear.optional().default(null),
 });
 
 const ingestCardFieldsObject = z.object({
@@ -304,6 +308,7 @@ const candidateExportPrintingSchema = z.object({
   extra_data: z.unknown().nullable(),
   language: z.string().nullable(),
   printed_name: z.string().nullable(),
+  printed_year: z.number().nullable(),
   marker_slugs: z.array(z.string()).optional(),
   distribution_channel_slugs: z.array(z.string()).optional(),
   size: z.string().optional(),
