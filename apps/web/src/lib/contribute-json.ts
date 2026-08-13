@@ -344,26 +344,56 @@ export function buildContributionJson(
 }
 
 /**
+ * Canonical form of a printing for "did the contributor touch this?".
+ * Slug arrays are sorted so a reordering by the pickers doesn't read as an edit.
+ * @param printing The form printing to serialize.
+ * @returns A string that is equal for two printings proposing the same thing.
+ */
+function printingFingerprint(printing: ContributeFormPrinting): string {
+  return JSON.stringify({
+    ...printing,
+    markerSlugs: [...printing.markerSlugs].toSorted(),
+    distributionChannelSlugs: [...printing.distributionChannelSlugs].toSorted(),
+  });
+}
+
+/**
  * Builds the payload for the in-app submission endpoint (ADR-036). Same
  * snake_case card/printing fields as the contribution JSON, but without the
  * generated `external_id`s — the server mints per-submission ones. The
  * contributor's note rides alongside.
+ *
+ * `baseline` is the state the form opened with. Any printing still identical to
+ * one in it is left out: the correction flow prefills every printing of the
+ * card, so a one-field fix would otherwise arrive as eight staging rows that
+ * propose nothing, burying the single cell the admin has to look at.
+ *
+ * Matching is by set membership rather than array position, because the form
+ * lets a contributor add, duplicate and remove printings. Editing a printing's
+ * public code, finish or language changes its fingerprint and so sends it,
+ * which is right: that is itself a correction.
+ *
  * @param state Current form state.
  * @param submissionNote Optional contributor note; trimmed, blank becomes null.
+ * @param baseline The form's initial state; omit to send every printing (the image flow, whose one printing is pre-populated with the very URL being suggested).
  * @returns The request body for `cardSubmissionsContract.submit`.
  */
 export function buildSubmissionPayload(
   state: ContributeFormState,
   submissionNote: string | null,
+  baseline?: ContributeFormState,
 ): CardSubmissionInput {
   const cardName = state.card.name.trim();
   const card = buildCardJson(state.card, "");
   delete card.external_id;
-  const printings = state.printings.map((printing) => {
-    const printingJson = buildPrintingJson(printing, "", cardName);
-    delete printingJson.external_id;
-    return printingJson;
-  });
+  const untouched = new Set(baseline?.printings.map((p) => printingFingerprint(p)));
+  const printings = state.printings
+    .filter((printing) => !untouched.has(printingFingerprint(printing)))
+    .map((printing) => {
+      const printingJson = buildPrintingJson(printing, "", cardName);
+      delete printingJson.external_id;
+      return printingJson;
+    });
   const trimmedNote = submissionNote?.trim() ? submissionNote.trim() : null;
   return {
     slug: state.slug,

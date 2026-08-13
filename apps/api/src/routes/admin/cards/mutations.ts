@@ -21,6 +21,7 @@ import {
   assertSomeProviderInScope,
   reviewableProviderScope,
 } from "../../../services/card-review-scope.js";
+import { resolveCheckedSubmissions } from "../../../services/card-submission-outcomes.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -92,6 +93,12 @@ export const adminCardMutationsRouter = {
     const { candidateCards } = context.repos;
     const result = await candidateCards.checkCandidateCard(input.candidateCardId);
     assertUpdated(result, "Candidate card not found");
+
+    await resolveCheckedSubmissions(context.repos, {
+      candidateCardIds: [input.candidateCardId],
+      adminUserId: context.userId,
+      now: new Date(),
+    });
   }),
 
   uncheckCandidateCard: os.uncheckCandidateCard.handler(
@@ -104,10 +111,16 @@ export const adminCardMutationsRouter = {
 
   checkAllCandidatePrintings: os.checkAllCandidatePrintings.handler(async ({ input, context }) => {
     const { candidateCards } = context.repos;
-    const updated = await candidateCards.checkAllCandidatePrintings(
+    const { updated, candidateCardIds } = await candidateCards.checkAllCandidatePrintings(
       input.printingId,
       input.extraIds,
     );
+
+    await resolveCheckedSubmissions(context.repos, {
+      candidateCardIds,
+      adminUserId: context.userId,
+      now: new Date(),
+    });
     return { updated };
   }),
 
@@ -115,7 +128,13 @@ export const adminCardMutationsRouter = {
     async ({ input, context }): Promise<void> => {
       const { candidateCards } = context.repos;
       const result = await candidateCards.checkCandidatePrinting(input.id);
-      assertUpdated(result, "Candidate printing not found");
+      assertFound(result, "Candidate printing not found");
+
+      await resolveCheckedSubmissions(context.repos, {
+        candidateCardIds: [result.candidateCardId],
+        adminUserId: context.userId,
+        now: new Date(),
+      });
     },
   ),
 
@@ -137,7 +156,18 @@ export const adminCardMutationsRouter = {
     const aliasRows = await mut.getCardAliases(card.id);
     const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
-    const updated = await candidateCards.checkAllCandidateCards(uniqueVariants, card.id);
+    const { updated, candidateCardIds } = await candidateCards.checkAllCandidateCards(
+      uniqueVariants,
+      card.id,
+    );
+
+    // The review run's terminal action. Every user submission on this card that
+    // is now fully checked gets its outcome here (ADR-036).
+    await resolveCheckedSubmissions(context.repos, {
+      candidateCardIds,
+      adminUserId: context.userId,
+      now: new Date(),
+    });
     return { updated };
   }),
 
@@ -338,7 +368,21 @@ export const adminCardMutationsRouter = {
     if (!provider.trim()) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Provider name is required");
     }
-    return await candidateCards.checkByProvider(provider.trim(), new Date());
+    const now = new Date();
+    const result = await candidateCards.checkByProvider(provider.trim(), now);
+
+    // Bulk-checking a provider is still a review decision, so submissions under
+    // it settle too. Resolved from the ledger rather than from the update's
+    // return set, because this verb reports counts, not ids.
+    const pending = await context.repos.cardSubmissions.pendingByProvider(provider.trim());
+    await resolveCheckedSubmissions(context.repos, {
+      candidateCardIds: pending
+        .map((submission) => submission.candidateCardId)
+        .filter((id): id is string => id !== null),
+      adminUserId: context.userId,
+      now,
+    });
+    return result;
   }),
 
   deleteByProvider: os.deleteByProvider.handler(async ({ input, context }) => {

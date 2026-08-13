@@ -7,6 +7,7 @@ import type {
   CandidatePrintingResponse,
 } from "@openrift/shared";
 import { WellKnown, ERROR_CODES } from "@openrift/shared";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
@@ -15,7 +16,6 @@ import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.j
 import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
-import { USER_SUBMISSION_PROVIDER } from "./ingest-user-submission.js";
 
 type Repo = ReturnType<typeof candidateCardsRepo>;
 type MarketplaceMappingRepo = ReturnType<typeof marketplaceMappingRepo>;

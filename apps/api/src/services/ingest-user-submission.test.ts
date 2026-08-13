@@ -1,7 +1,11 @@
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it } from "vitest";
 
-import { buildUserSubmissionCard, formatSubmissionDateStamp } from "./ingest-user-submission.js";
+import {
+  buildUserSubmissionCard,
+  formatSubmissionDateStamp,
+  inferSubmissionKind,
+} from "./ingest-user-submission.js";
 
 const USER_ID = "11111111-2222-3333-4444-555555555555";
 const STAMP = "20260702-0900";
@@ -106,5 +110,54 @@ describe("buildUserSubmissionCard", () => {
     );
     expect(card.printings).toHaveLength(2);
     expect(card.printings[0].external_id).not.toBe(card.printings[1].external_id);
+  });
+});
+
+describe("inferSubmissionKind", () => {
+  it("calls an unmatched submission a new card", () => {
+    const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
+    expect(inferSubmissionKind(card, false)).toBe("new_card");
+  });
+
+  it("calls a matched submission carrying card data a correction", () => {
+    // The correction form prefills every card field from the live card, which
+    // is what separates it from an image suggestion.
+    const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
+    expect(inferSubmissionKind(card, true)).toBe("correction");
+  });
+
+  it("calls a matched, stats-free, image-carrying submission an image", () => {
+    const card = buildUserSubmissionCard(
+      submission({
+        card: { name: "Ahri, Alluring" },
+        printings: [
+          {
+            public_code: "OGN-066/298",
+            set_id: "ogn",
+            set_name: "Origins",
+            image_url: "https://example.test/ahri.png",
+            language: "EN",
+          },
+        ],
+      }),
+      USER_ID,
+      STAMP,
+    );
+    expect(inferSubmissionKind(card, true)).toBe("image");
+  });
+
+  it("does not call it an image when only some printings carry one", () => {
+    const card = buildUserSubmissionCard(
+      submission({
+        card: { name: "Ahri, Alluring" },
+        printings: [
+          { public_code: "OGN-066/298", image_url: "https://example.test/ahri.png" },
+          { public_code: "OGN-067/298" },
+        ],
+      }),
+      USER_ID,
+      STAMP,
+    );
+    expect(inferSubmissionKind(card, true)).toBe("correction");
   });
 });

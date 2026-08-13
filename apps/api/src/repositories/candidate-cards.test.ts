@@ -214,10 +214,14 @@ describe("candidateCardsRepo", () => {
     expect(result).toBeDefined();
   });
 
-  it("checkAllCandidateCards returns affected count", async () => {
-    const db = createMockDb([{ numUpdatedRows: 3n }]);
+  it("checkAllCandidateCards counts the rows it flipped but returns every match", async () => {
+    // The count is what this call changed; the ids cover every matching
+    // candidate, including ones already checked. A submission checked entry by
+    // entry before its printings were done would otherwise stay pending, since
+    // a later "check all" updates nothing and so would resolve nothing.
+    const db = createMockDb([{ id: "cc-1" }, { id: "cc-2" }, { id: "cc-3" }]);
     const result = await candidateCardsRepo(db).checkAllCandidateCards(["annie"], "c-1");
-    expect(result).toBe(3);
+    expect(result).toEqual({ updated: 3, candidateCardIds: ["cc-1", "cc-2", "cc-3"] });
   });
 
   // ── Candidate printing checks ─────────────────────────────────────────────
@@ -234,24 +238,38 @@ describe("candidateCardsRepo", () => {
 
   it("checkAllCandidatePrintings returns 0 when no ids provided", async () => {
     const db = createMockDb([]);
-    expect(await candidateCardsRepo(db).checkAllCandidatePrintings()).toBe(0);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings()).toEqual({
+      updated: 0,
+      candidateCardIds: [],
+    });
   });
 
   it("checkAllCandidatePrintings with printingId", async () => {
-    const db = createMockDb([{ numUpdatedRows: 2n }]);
-    expect(await candidateCardsRepo(db).checkAllCandidatePrintings("p-1")).toBe(2);
+    const db = createMockDb([{ candidateCardId: "cc-1" }, { candidateCardId: "cc-2" }]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings("p-1")).toEqual({
+      updated: 2,
+      candidateCardIds: ["cc-1", "cc-2"],
+    });
   });
 
   it("checkAllCandidatePrintings with extraIds", async () => {
-    const db = createMockDb([{ numUpdatedRows: 1n }]);
-    expect(await candidateCardsRepo(db).checkAllCandidatePrintings(undefined, ["cp-1"])).toBe(1);
+    const db = createMockDb([{ candidateCardId: "cc-1" }]);
+    expect(await candidateCardsRepo(db).checkAllCandidatePrintings(undefined, ["cp-1"])).toEqual({
+      updated: 1,
+      candidateCardIds: ["cc-1"],
+    });
   });
 
-  it("checkAllCandidatePrintings with both printingId and extraIds", async () => {
-    const db = createMockDb([{ numUpdatedRows: 3n }]);
-    expect(await candidateCardsRepo(db).checkAllCandidatePrintings("p-1", ["cp-1", "cp-2"])).toBe(
-      3,
-    );
+  it("checkAllCandidatePrintings dedupes parents from the same candidate card", async () => {
+    // Two printings of one submission must resolve it once, not twice.
+    const db = createMockDb([
+      { candidateCardId: "cc-1" },
+      { candidateCardId: "cc-1" },
+      { candidateCardId: "cc-2" },
+    ]);
+    expect(
+      await candidateCardsRepo(db).checkAllCandidatePrintings("p-1", ["cp-1", "cp-2"]),
+    ).toEqual({ updated: 3, candidateCardIds: ["cc-1", "cc-2"] });
   });
 
   // ── Candidate printing mutations ──────────────────────────────────────────

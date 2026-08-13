@@ -3,6 +3,7 @@ import type {
   CandidatePrintingResponse,
   UnmatchedCardDetailResponse,
 } from "@openrift/shared";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
@@ -10,6 +11,7 @@ import {
   CopyCheckIcon,
   EllipsisVerticalIcon,
   LinkIcon,
+  MessageSquareIcon,
   PlusIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -24,6 +26,7 @@ import {
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
 import { GroupImagePreview } from "@/components/admin/image-preview";
+import { SubmissionResolutionDialog } from "@/components/admin/submission-resolution-dialog";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Heading } from "@/components/heading";
@@ -68,6 +71,8 @@ interface NewCardColumnActionsProps {
   newCardFields: FieldDef<NewCardFieldKey>[];
   setActiveCard: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+  /** Opens the reject/reply dialog for a user-submission column. */
+  onResolveSubmission: (candidateCardId: string, mode: "reject" | "reply") => void;
   /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
   isAdmin: boolean;
 }
@@ -77,12 +82,16 @@ function NewCardColumnActions({
   newCardFields,
   setActiveCard,
   onIgnoreSource,
+  onResolveSubmission,
   isAdmin,
 }: NewCardColumnActionsProps) {
   if (!row) {
     return null;
   }
   const cardRow = row as CandidateCardResponse;
+  // See card-fields-section.tsx: for a submission, ignoring is rejecting, and
+  // it should tell the contributor why.
+  const isUserSubmission = cardRow.provider === USER_SUBMISSION_PROVIDER;
   return (
     <>
       <DropdownMenuItem
@@ -102,17 +111,24 @@ function NewCardColumnActions({
         <CopyCheckIcon className="mr-2 size-3.5" />
         Accept all fields
       </DropdownMenuItem>
+      {isAdmin && isUserSubmission && (
+        <DropdownMenuItem onClick={() => onResolveSubmission(cardRow.id, "reply")}>
+          <MessageSquareIcon className="mr-2 size-3.5" />
+          Reply to contributor
+        </DropdownMenuItem>
+      )}
       {isAdmin && (
         <DropdownMenuItem
-          onClick={() =>
-            onIgnoreSource({
-              provider: cardRow.provider,
-              externalId: row.externalId,
-            })
-          }
+          onClick={() => {
+            if (isUserSubmission) {
+              onResolveSubmission(cardRow.id, "reject");
+              return;
+            }
+            onIgnoreSource({ provider: cardRow.provider, externalId: row.externalId });
+          }}
         >
           <BanIcon className="mr-2 size-3.5" />
-          Ignore permanently
+          {isUserSubmission ? "Reject submission" : "Ignore permanently"}
         </DropdownMenuItem>
       )}
     </>
@@ -171,6 +187,11 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
+  // The column menu is cloned per source column, so the dialog it opens lives here.
+  const [resolution, setResolution] = useState<{
+    candidateCardId: string;
+    mode: "reject" | "reply";
+  } | null>(null);
 
   // Pre-seed the Active column from the highest-priority source so the admin
   // reviews a filled-in candidate instead of an empty grid. Re-runs while
@@ -197,6 +218,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
   // --- Resolved data ---
   const sources = unmatchedData.sources;
+  const resolutionSource = sources.find((s) => s.id === resolution?.candidateCardId);
   const candidatePrintings = unmatchedData.candidatePrintings;
   const defaultCardId = unmatchedData.defaultCardId;
   const newModeCardId = newCardId ?? defaultCardId;
@@ -322,9 +344,29 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                 setActiveCard(updater);
               }}
               onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+              onResolveSubmission={(candidateCardId, mode) =>
+                setResolution({ candidateCardId, mode })
+              }
               isAdmin={isAdmin}
             />
           }
+        />
+        <SubmissionResolutionDialog
+          candidateCardId={resolution?.candidateCardId ?? null}
+          mode={resolution?.mode ?? "reply"}
+          onOpenChange={(open) => {
+            if (!open) {
+              setResolution(null);
+            }
+          }}
+          onConfirmed={() => {
+            if (resolution?.mode === "reject" && resolutionSource) {
+              ignoreCardSource.mutate({
+                provider: resolutionSource.provider,
+                externalId: resolutionSource.externalId,
+              });
+            }
+          }}
         />
       </section>
 

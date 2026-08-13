@@ -111,6 +111,21 @@ const mockCandidateCards = {
   removePrintingLinkOverrides: vi.fn(),
   checkByProvider: vi.fn(),
   deleteByProvider: vi.fn(),
+  reviewStateForCandidates: vi.fn(async () => new Map()),
+  proposalForCandidate: vi.fn(async () => null),
+};
+
+// The check verbs settle any user submission on the candidates they touched
+// (ADR-036). No pending rows here, so resolution no-ops for these tests.
+const mockCardSubmissions = {
+  pendingByCandidateCardIds: vi.fn(async () => []),
+  pendingByProvider: vi.fn(async () => []),
+  liveCardByNormName: vi.fn(async () => null),
+  liveSnapshot: vi.fn(async () => ({
+    snapshot: { card: null, printings: new Map() },
+    cardSlug: null,
+  })),
+  resolve: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -135,6 +150,7 @@ app.use("*", async (c, next) => {
     keywords: { ...mockKeywords, listCostKeywords: vi.fn().mockResolvedValue(["Equip", "Repeat"]) },
     adminEvents: mockAdminEvents,
     candidateCards: mockCandidateCards,
+    cardSubmissions: mockCardSubmissions,
     printingImages: {},
     markers: { listBySlugs: vi.fn(async () => []), setForPrinting: vi.fn() },
     providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
@@ -221,7 +237,10 @@ describe("POST /cards/candidate-printings/check-all", () => {
   });
 
   it("returns 200 with updated count", async () => {
-    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue(5);
+    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue({
+      updated: 5,
+      candidateCardIds: ["cc-1"],
+    });
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/check-all", {
       method: "POST",
@@ -238,7 +257,10 @@ describe("POST /cards/candidate-printings/check-all", () => {
   });
 
   it("works without optional fields", async () => {
-    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue(0);
+    mockCandidateCards.checkAllCandidatePrintings.mockResolvedValue({
+      updated: 0,
+      candidateCardIds: [],
+    });
 
     const res = await app.request("/api/admin/v1/cards/candidate-printings/check-all", {
       method: "POST",
@@ -257,7 +279,9 @@ describe("POST /cards/candidate-printings/:id/check", () => {
   });
 
   it("returns 204 on success", async () => {
-    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 1n });
+    // Returns the parent candidate id now, so submission resolution knows
+    // which submission this printing belongs to.
+    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ candidateCardId: "cc-1" });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
       method: "POST",
@@ -267,7 +291,7 @@ describe("POST /cards/candidate-printings/:id/check", () => {
   });
 
   it("returns 404 when not found", async () => {
-    mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ numUpdatedRows: 0n });
+    mockCandidateCards.checkCandidatePrinting.mockResolvedValue(undefined);
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
       method: "POST",
@@ -313,7 +337,10 @@ describe("POST /cards/:cardId/check-all", () => {
       slug: "fire-dragon",
     });
     mockMut.getCardAliases.mockResolvedValue([{ normName: "fire-dragon-alt" }]);
-    mockCandidateCards.checkAllCandidateCards.mockResolvedValue(3);
+    mockCandidateCards.checkAllCandidateCards.mockResolvedValue({
+      updated: 3,
+      candidateCardIds: ["cc-1"],
+    });
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/check-all`, { method: "POST" });
     expect(res.status).toBe(200);

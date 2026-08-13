@@ -101,6 +101,14 @@ async function linkedPrintingIds(
       lockUserSubmissions: vi.fn().mockResolvedValue(undefined),
       countRecentSubmissionsByUser: vi.fn().mockResolvedValue(0),
     },
+    cardSubmissions: {
+      countRecentByUser: vi.fn().mockResolvedValue(0),
+      liveSnapshot: vi.fn().mockResolvedValue({
+        snapshot: { card: null, printings: new Map() },
+        cardSlug: null,
+      }),
+      insert: vi.fn().mockResolvedValue("new-submission-id"),
+    },
   } as unknown as Repos;
 
   await run(((fn: (r: Repos) => Promise<unknown>) => fn(repos)) as Transact);

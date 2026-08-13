@@ -176,7 +176,9 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     if (!result.ok) {
       return;
     }
-    submit.mutate(buildSubmissionPayload(state, note));
+    // `initial` is the baseline: printings the contributor never touched are
+    // left out of the payload so the admin column shows only real proposals.
+    submit.mutate(buildSubmissionPayload(state, note, initial));
   };
 
   const errorAt = (path: string): string | undefined =>

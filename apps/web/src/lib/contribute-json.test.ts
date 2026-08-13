@@ -294,6 +294,71 @@ describe("buildSubmissionPayload", () => {
     expect(buildSubmissionPayload(fullState(), "   ").submissionNote).toBeNull();
     expect(buildSubmissionPayload(fullState(), null).submissionNote).toBeNull();
   });
+
+  describe("against a baseline", () => {
+    it("sends only the printing the contributor edited", () => {
+      // The correction flow prefills every printing of the card. Without this
+      // a one-field fix arrives as N staging rows proposing nothing, burying
+      // the single cell the admin has to look at.
+      const baseline = fullState();
+      const edited = fullState();
+      edited.printings[0] = { ...edited.printings[0], artist: "Someone New" };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.printings).toHaveLength(1);
+      expect(payload.printings[0].artist).toBe("Someone New");
+    });
+
+    it("sends nothing when only card fields changed", () => {
+      const baseline = fullState();
+      const edited = fullState();
+      edited.card = { ...edited.card, energy: 9 };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.printings).toEqual([]);
+      expect(payload.card.energy).toBe(9);
+    });
+
+    it("sends a printing the contributor added", () => {
+      const baseline = fullState();
+      const edited = fullState();
+      edited.printings = [
+        ...edited.printings,
+        { ...edited.printings[0], publicCode: "OGN-067/298" },
+      ];
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.printings).toHaveLength(1);
+      expect(payload.printings[0].public_code).toBe("OGN-067/298");
+    });
+
+    it("sends a printing whose identity was corrected", () => {
+      // Changing the finish is itself the correction, so it must go through.
+      const baseline = fullState();
+      const edited = fullState();
+      edited.printings[0] = { ...edited.printings[0], finish: "normal" };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.printings).toHaveLength(1);
+      expect(payload.printings[0].finish).toBe("normal");
+    });
+
+    it("does not treat a reordered slug list as an edit", () => {
+      const baseline = fullState();
+      baseline.printings[0] = { ...baseline.printings[0], markerSlugs: ["promo", "prerelease"] };
+      const edited = fullState();
+      edited.printings[0] = { ...edited.printings[0], markerSlugs: ["prerelease", "promo"] };
+
+      expect(buildSubmissionPayload(edited, null, baseline).printings).toEqual([]);
+    });
+
+    it("sends every printing when no baseline is given", () => {
+      // The image flow pre-populates its one printing with the URL being
+      // suggested, so filtering against it would drop the whole submission.
+      const payload = buildSubmissionPayload(fullState(), null);
+      expect(payload.printings.length).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe("buildImagePatchState", () => {

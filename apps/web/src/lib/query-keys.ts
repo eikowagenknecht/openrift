@@ -74,6 +74,11 @@ export const queryKeys = {
   collectionEvents: {
     all: (userId: string) => ["collection-events", userId] as const,
   },
+  cardSubmissions: {
+    all: (userId: string) => ["card-submissions", userId] as const,
+    forCandidate: (candidateCardId: string) =>
+      ["card-submissions", "candidate", candidateCardId] as const,
+  },
   ownedCount: {
     all: ["ownedCount"] as const,
   },

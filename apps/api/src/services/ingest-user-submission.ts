@@ -17,11 +17,16 @@
  * updated.
  */
 import { WellKnown } from "@openrift/shared";
-import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+import type {
+  CardSubmissionInput,
+  CardSubmissionKind,
+} from "@openrift/shared/contracts/card-submissions";
 import type { Insertable } from "kysely";
 
 import type { CandidateCardsTable } from "../db/index.js";
 import type { Transact } from "../deps.js";
+import { computeProposedDiff } from "../lib/card-submission-diff.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 import {
   buildCandidateCardFields,
@@ -37,8 +42,8 @@ import {
   resolvePrintingLink,
 } from "./candidate-links.js";
 
-/** The provider name every in-app user submission is ingested under. */
-export const USER_SUBMISSION_PROVIDER = "usersubmission";
+// USER_SUBMISSION_PROVIDER now lives in the shared contract so the admin UI
+// matches on the same literal. Import it from there, not from this module.
 
 /** Per-user cap on in-app submissions in a rolling 24h window (ADR-036). */
 const USER_SUBMISSION_DAILY_LIMIT = 50;
@@ -134,6 +139,40 @@ export function buildUserSubmissionCard(
 }
 
 /**
+ * Classify a submission for the contributor's own history.
+ *
+ * Inferred rather than taken from the client: the three `/contribute` flows all
+ * post the same payload shape, and a label the server can derive is one less
+ * thing to trust. The correction flow prefills every card field from the live
+ * card, so card-level data present means a correction; the image flow sends
+ * only what identifies the printing plus the URL.
+ *
+ * @param card The mapped candidate card.
+ * @param cardLinked Whether the submission matched a live card by name.
+ * @returns Which of the three flows this submission came from.
+ */
+export function inferSubmissionKind(card: IngestCard, cardLinked: boolean): CardSubmissionKind {
+  if (!cardLinked) {
+    return "new_card";
+  }
+  const hasCardData =
+    card.types.length > 0 ||
+    card.super_types.length > 0 ||
+    card.domains.length > 0 ||
+    card.tags.length > 0 ||
+    card.might !== null ||
+    card.energy !== null ||
+    card.power !== null ||
+    card.might_bonus !== null;
+  const everyPrintingCarriesAnImage =
+    card.printings.length > 0 && card.printings.every((printing) => printing.image_url !== null);
+  if (!hasCardData && everyPrintingCarriesAnImage) {
+    return "image";
+  }
+  return "correction";
+}
+
+/**
  * Outcome of an in-app submission. Discriminated so the route can map it to a
  * typed oRPC error without this service depending on oRPC.
  */
@@ -169,13 +208,18 @@ export function ingestUserSubmission(
 
   return transact(async (trxRepos) => {
     const repo = trxRepos.ingest;
+    const submissions = trxRepos.cardSubmissions;
 
     // ── Per-user daily cap ────────────────────────────────────────────────────
     // The advisory lock serializes this user's concurrent submissions: without
     // it, parallel requests all read the same COUNT under READ COMMITTED and
     // all pass the cap. The lock releases when the transaction ends.
+    //
+    // Counted on the submission ledger rather than on candidate_cards: the
+    // ledger is append-only, so purging staging can't hand a spammer a fresh
+    // allowance mid-day.
     await repo.lockUserSubmissions(userId);
-    const recent = await repo.countRecentSubmissionsByUser(userId, since);
+    const recent = await submissions.countRecentByUser(userId, since);
     if (recent >= USER_SUBMISSION_DAILY_LIMIT) {
       return { status: "rate_limited", limit: USER_SUBMISSION_DAILY_LIMIT };
     }
@@ -208,18 +252,21 @@ export function ingestUserSubmission(
     // Same index and same gate as the batch ingest, so a submission links
     // exactly where a provider upload of the same card would.
     const linkIndex = await loadCandidateLinkIndex(repo);
-    const cardLinked = resolveCardIdByName(linkIndex, card.name) !== null;
+    const liveCardId = resolveCardIdByName(linkIndex, card.name);
+    const cardLinked = liveCardId !== null;
 
     // ── Insert the candidate card + printings ────────────────────────────────
+    const candidateCardFields = buildCandidateCardFields(card);
     const cardInsert: Insertable<CandidateCardsTable> = {
       provider: USER_SUBMISSION_PROVIDER,
-      ...buildCandidateCardFields(card),
+      ...candidateCardFields,
       submittedByUserId: userId,
       submissionNote,
     };
     const candidateCardId = await repo.insertCandidateCard(cardInsert);
 
-    for (const printing of card.printings) {
+    const printingFields = card.printings.map((printing) => buildCandidatePrintingFields(printing));
+    for (const [index, printing] of card.printings.entries()) {
       const resolvedPrintingId = resolvePrintingLink(linkIndex, {
         externalId: printing.external_id,
         shortCode: printing.short_code,
@@ -232,9 +279,34 @@ export function ingestUserSubmission(
       await repo.insertCandidatePrinting({
         candidateCardId,
         printingId: resolvedPrintingId,
-        ...buildCandidatePrintingFields(printing),
+        ...printingFields[index],
       });
     }
+
+    // ── Record the durable outcome row ───────────────────────────────────────
+    // Snapshotting what actually differs from the live catalog *now* is what
+    // later lets review credit the contributor without attributing an admin's
+    // cell click to a column. A submission that changes nothing records an
+    // empty diff and resolves as already_correct rather than as an accept.
+    const { snapshot, cardSlug } = await submissions.liveSnapshot(
+      liveCardId,
+      card.printings.map((printing) => printing.short_code),
+    );
+    const proposedDiff = computeProposedDiff(
+      { card: candidateCardFields, printings: printingFields },
+      snapshot,
+    );
+    await submissions.insert({
+      userId,
+      provider: USER_SUBMISSION_PROVIDER,
+      externalId: card.external_id,
+      candidateCardId,
+      kind: inferSubmissionKind(card, cardLinked),
+      cardName: card.name,
+      cardSlug,
+      note: submissionNote,
+      proposedDiff,
+    });
 
     return { status: "ok", candidateCardId };
   });

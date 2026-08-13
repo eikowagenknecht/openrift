@@ -515,6 +515,7 @@ export type AdminEventAction =
   | "candidate-printing.unignore"
   | "candidate-card.ignore"
   | "candidate-card.unignore"
+  | "card-submission.resolution"
   | "image.set-from-candidate"
   | "image.activate"
   | "image.rotate"
@@ -539,6 +540,7 @@ export type AdminEventEntityType =
   | "printing"
   | "candidate-card"
   | "candidate-printing"
+  | "card-submission"
   | "image"
   | "errata"
   | "ban"
@@ -1402,6 +1404,73 @@ export interface IgnoredCandidatePrintingsTable {
   createdAt: CreatedAt;
 }
 
+// ─── Card submissions (migration 234, ADR-036) ───────────────────────────────
+
+/** What a contributor sent: a whole new card, a field correction, or an image. */
+export type CardSubmissionKind = "new_card" | "correction" | "image";
+
+/**
+ * Where a submission ended up. `already_correct` means the catalog already
+ * matched everything proposed, which is a distinct outcome from an admin
+ * declining it (`not_applied`) or rejecting it as junk (`rejected`).
+ */
+export type CardSubmissionStatus =
+  | "pending"
+  | "accepted"
+  | "already_correct"
+  | "not_applied"
+  | "rejected";
+
+/** Canned resolution reason; drives the sentence the contributor is shown. */
+export type CardSubmissionReason =
+  | "duplicate"
+  | "already_correct"
+  | "unverified"
+  | "not_a_card"
+  | "bad_image";
+
+/**
+ * Durable outcome record for in-app submissions. Deliberately not columns on
+ * `candidate_cards`: that table is staging and gets hard-deleted per provider,
+ * while a contributor's history has to outlive a cleanup.
+ */
+export interface CardSubmissionsTable {
+  id: Generated<string>;
+  /** FK users(id) ON DELETE CASCADE. */
+  userId: string;
+  /** Mirrors the candidate's natural key. CHECK: <> '' */
+  provider: string;
+  /** CHECK: <> '' */
+  externalId: string;
+  /** FK candidate_cards(id) ON DELETE SET NULL — outlives the staging row. */
+  candidateCardId: string | null;
+  kind: CardSubmissionKind;
+  /** Snapshot of the submitted name. CHECK: <> '' */
+  cardName: string;
+  /** Target card slug for corrections and images. CHECK: <> '' */
+  cardSlug: string | null;
+  /** Snapshot of `candidate_cards.submission_note`. CHECK: <> '' */
+  note: string | null;
+  /**
+   * Field names that differed from the live card when this was submitted.
+   * Resolution asks how many of these the catalog now agrees with, so an admin
+   * accepting the same value from another provider's column still credits the
+   * contributor. jsonb: read back through `parseJsonbRequired`.
+   */
+  proposedDiff: ColumnType<string[], string[] | undefined, string[]>;
+  status: ColumnType<CardSubmissionStatus, CardSubmissionStatus | undefined, CardSubmissionStatus>;
+  resolutionReason: CardSubmissionReason | null;
+  /** Free-text message shown to the contributor. CHECK: <> '' */
+  resolutionNote: string | null;
+  /** CHECK: set exactly when status <> 'pending'. */
+  resolvedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  resolvedByUserId: string | null;
+  /** The card the submission ended up in, once accepted. */
+  acceptedCardId: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 interface PrintingLinkOverridesTable {
   /** CHECK: <> '' */
   externalId: string;
@@ -2025,6 +2094,9 @@ export interface Database {
   // Ignored candidates (migration 031, renamed in 038)
   ignoredCandidateCards: IgnoredCandidateCardsTable;
   ignoredCandidatePrintings: IgnoredCandidatePrintingsTable;
+
+  // Card submissions (migration 234, ADR-036)
+  cardSubmissions: CardSubmissionsTable;
 
   // Printing link overrides (migration 033)
   printingLinkOverrides: PrintingLinkOverridesTable;

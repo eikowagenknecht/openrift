@@ -50,6 +50,14 @@ vi.mock("@/hooks/use-ignored-candidates", () => ({
   useIgnoreCandidateCard: () => stubMutation,
 }));
 
+// The section mounts the reject/reply dialog, which fetches the submission
+// behind a column. Stub the hooks so this stays a render test with no query
+// client in scope.
+vi.mock("@/hooks/use-admin-card-submissions", () => ({
+  useSubmissionForCandidate: () => ({ data: { submission: null } }),
+  useSetSubmissionResolution: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { CardFieldsSection } from "./card-fields-section";
 

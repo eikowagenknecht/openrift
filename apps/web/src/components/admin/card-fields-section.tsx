@@ -6,12 +6,15 @@ import type {
 } from "@openrift/shared";
 import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
-import { BanIcon, CheckCheckIcon, CopyCheckIcon } from "lucide-react";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+import { BanIcon, CheckCheckIcon, CopyCheckIcon, MessageSquareIcon } from "lucide-react";
+import { useState } from "react";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import type { CandidateCardFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import { CardErrataManager } from "@/components/admin/card-errata-manager";
+import { SubmissionResolutionDialog } from "@/components/admin/submission-resolution-dialog";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -35,6 +38,8 @@ interface CardSourceColumnActionsProps {
     source?: "manual" | "provider";
   }) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+  /** Opens the reject/reply dialog for a user-submission column. */
+  onResolveSubmission: (candidateCardId: string, mode: "reject" | "reply") => void;
   /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
   isAdmin: boolean;
 }
@@ -45,12 +50,17 @@ function CardSourceColumnActions({
   candidateCardFields,
   onAcceptField,
   onIgnoreSource,
+  onResolveSubmission,
   isAdmin,
 }: CardSourceColumnActionsProps) {
   if (!row) {
     return null;
   }
   const cardRow = row as CandidateCardResponse;
+  // A submission's external_id is minted per submission and never re-uploaded,
+  // so "ignore permanently" only ever means "reject this". Say that instead,
+  // and route it through the dialog so the contributor gets a reason.
+  const isUserSubmission = cardRow.provider === USER_SUBMISSION_PROVIDER;
   return (
     <>
       <DropdownMenuItem
@@ -73,17 +83,24 @@ function CardSourceColumnActions({
         <CopyCheckIcon className="mr-2" />
         Accept all fields
       </DropdownMenuItem>
+      {isAdmin && isUserSubmission && (
+        <DropdownMenuItem onClick={() => onResolveSubmission(cardRow.id, "reply")}>
+          <MessageSquareIcon className="mr-2" />
+          Reply to contributor
+        </DropdownMenuItem>
+      )}
       {isAdmin && (
         <DropdownMenuItem
-          onClick={() =>
-            onIgnoreSource({
-              provider: cardRow.provider,
-              externalId: row.externalId,
-            })
-          }
+          onClick={() => {
+            if (isUserSubmission) {
+              onResolveSubmission(cardRow.id, "reject");
+              return;
+            }
+            onIgnoreSource({ provider: cardRow.provider, externalId: row.externalId });
+          }}
         >
           <BanIcon className="mr-2" />
-          Ignore permanently
+          {isUserSubmission ? "Reject submission" : "Ignore permanently"}
         </DropdownMenuItem>
       )}
     </>
@@ -137,9 +154,16 @@ export function CardFieldsSection({
   const checkCandidateCard = useCheckCandidateCard(invalidates);
   const uncheckCandidateCard = useUncheckCandidateCard(invalidates);
   const ignoreCardSource = useIgnoreCandidateCard();
+  // The column menu is cloned per source column, so the dialog it opens lives
+  // here rather than inside the menu.
+  const [resolution, setResolution] = useState<{
+    candidateCardId: string;
+    mode: "reject" | "reply";
+  } | null>(null);
 
   const uncheckedCount = sources.filter((s) => !s.checkedAt).length;
   const submitters = buildSourceSubmitters(sources);
+  const resolutionSource = sources.find((s) => s.id === resolution?.candidateCardId);
 
   return (
     <section className="space-y-2">
@@ -185,9 +209,31 @@ export function CardFieldsSection({
                 candidateCardFields={candidateCardFields}
                 onAcceptField={(input) => acceptCardField.mutate(input)}
                 onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+                onResolveSubmission={(candidateCardId, mode) =>
+                  setResolution({ candidateCardId, mode })
+                }
                 isAdmin={isAdmin}
               />
             }
+          />
+          <SubmissionResolutionDialog
+            candidateCardId={resolution?.candidateCardId ?? null}
+            mode={resolution?.mode ?? "reply"}
+            onOpenChange={(open) => {
+              if (!open) {
+                setResolution(null);
+              }
+            }}
+            onConfirmed={() => {
+              // The rejection itself is the ignore; the dialog only owns the
+              // message that goes with it.
+              if (resolution?.mode === "reject" && resolutionSource) {
+                ignoreCardSource.mutate({
+                  provider: resolutionSource.provider,
+                  externalId: resolutionSource.externalId,
+                });
+              }
+            }}
           />
           {isAdmin && (
             <CardBanManager

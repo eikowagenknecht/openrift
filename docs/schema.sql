@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5V404Q1oYZLHQPx2c2FhAzfFdFc1TTSeliOZjLJCrPS8DpAgzdgkHgZPLyeeVwt
+\restrict gkbEjfEqJZdxkrdLcrlngh9j7KXmkbFISDNpPt00elQcwibQ6LvM90cc0XEirPX
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -814,6 +814,42 @@ CREATE TABLE public.card_sizes (
     label text NOT NULL,
     sort_order smallint NOT NULL,
     is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: card_submissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_submissions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    provider text NOT NULL,
+    external_id text NOT NULL,
+    candidate_card_id uuid,
+    kind text NOT NULL,
+    card_name text NOT NULL,
+    card_slug text,
+    note text,
+    proposed_diff jsonb DEFAULT '[]'::jsonb NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    resolution_reason text,
+    resolution_note text,
+    resolved_at timestamp with time zone,
+    resolved_by_user_id text,
+    accepted_card_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_submissions_card_name_not_empty CHECK ((card_name <> ''::text)),
+    CONSTRAINT chk_card_submissions_card_slug_not_empty CHECK ((card_slug <> ''::text)),
+    CONSTRAINT chk_card_submissions_external_id_not_empty CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_card_submissions_kind CHECK ((kind = ANY (ARRAY['new_card'::text, 'correction'::text, 'image'::text]))),
+    CONSTRAINT chk_card_submissions_note_not_empty CHECK ((note <> ''::text)),
+    CONSTRAINT chk_card_submissions_provider_not_empty CHECK ((provider <> ''::text)),
+    CONSTRAINT chk_card_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'not_a_card'::text, 'bad_image'::text])))),
+    CONSTRAINT chk_card_submissions_resolution_note_not_empty CHECK ((resolution_note <> ''::text)),
+    CONSTRAINT chk_card_submissions_resolved_at CHECK (((status = 'pending'::text) = (resolved_at IS NULL))),
+    CONSTRAINT chk_card_submissions_status CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'already_correct'::text, 'not_applied'::text, 'rejected'::text])))
 );
 
 
@@ -2753,6 +2789,14 @@ ALTER TABLE ONLY public.card_sizes
 
 
 --
+-- Name: card_submissions card_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_submissions
+    ADD CONSTRAINT card_submissions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: card_super_types card_super_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3904,6 +3948,27 @@ CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (do
 
 
 --
+-- Name: idx_card_submissions_candidate_card_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_submissions_candidate_card_id ON public.card_submissions USING btree (candidate_card_id) WHERE (candidate_card_id IS NOT NULL);
+
+
+--
+-- Name: idx_card_submissions_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_submissions_user_created ON public.card_submissions USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_card_submissions_user_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_submissions_user_status ON public.card_submissions USING btree (user_id, status);
+
+
+--
 -- Name: idx_card_tokens_token_card_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4562,6 +4627,13 @@ CREATE UNIQUE INDEX uq_card_bans_active ON public.card_bans USING btree (card_id
 
 
 --
+-- Name: uq_card_submissions_provider_external; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_card_submissions_provider_external ON public.card_submissions USING btree (provider, external_id);
+
+
+--
 -- Name: uq_card_trades_live; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4916,6 +4988,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_cards FOR EA
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: card_submissions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.card_submissions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5352,6 +5431,38 @@ ALTER TABLE ONLY public.card_errata
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_submissions card_submissions_accepted_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_submissions
+    ADD CONSTRAINT card_submissions_accepted_card_id_fkey FOREIGN KEY (accepted_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: card_submissions card_submissions_candidate_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_submissions
+    ADD CONSTRAINT card_submissions_candidate_card_id_fkey FOREIGN KEY (candidate_card_id) REFERENCES public.candidate_cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: card_submissions card_submissions_resolved_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_submissions
+    ADD CONSTRAINT card_submissions_resolved_by_user_id_fkey FOREIGN KEY (resolved_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: card_submissions card_submissions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_submissions
+    ADD CONSTRAINT card_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -6470,5 +6581,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5V404Q1oYZLHQPx2c2FhAzfFdFc1TTSeliOZjLJCrPS8DpAgzdgkHgZPLyeeVwt
+\unrestrict gkbEjfEqJZdxkrdLcrlngh9j7KXmkbFISDNpPt00elQcwibQ6LvM90cc0XEirPX
 

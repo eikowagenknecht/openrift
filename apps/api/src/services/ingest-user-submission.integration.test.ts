@@ -1,3 +1,4 @@
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -7,7 +8,6 @@ import {
   buildUserSubmissionCard,
   formatSubmissionDateStamp,
   ingestUserSubmission,
-  USER_SUBMISSION_PROVIDER,
 } from "./ingest-user-submission.js";
 
 // ---------------------------------------------------------------------------

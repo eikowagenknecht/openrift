@@ -9,6 +9,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { adminArtVariantsRouter } from "../routes/admin/art-variants.js";
 import { adminAuditEventsRouter } from "../routes/admin/audit-events.js";
 import { adminCacheRouter } from "../routes/admin/cache.js";
+import { adminCardSubmissionsRouter } from "../routes/admin/card-submissions.js";
 import { adminCardTagsRouter } from "../routes/admin/card-tags.js";
 import { adminCardTypesRouter } from "../routes/admin/card-types.js";
 import { adminCardBansRouter } from "../routes/admin/cards/bans.js";
@@ -109,6 +110,7 @@ const apiRouter = {
   adminCardImagesRouter,
   adminCardMutationsRouter,
   adminCardQueriesRouter,
+  adminCardSubmissionsRouter,
   adminCardTagsRouter,
   adminCatalogRouter,
   adminChangelogRouter,

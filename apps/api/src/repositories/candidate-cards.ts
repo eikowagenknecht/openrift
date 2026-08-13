@@ -19,6 +19,7 @@ import type {
   CandidatePrintingsTable,
   PrintingsTable,
 } from "../db/index.js";
+import type { ProposedCard, ProposedPrinting } from "../lib/card-submission-diff.js";
 
 /**
  * Canonical ORDER BY keys for candidate-printing queries, mirroring the
@@ -846,6 +847,88 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       );
     },
 
+    // ── Submission review state (ADR-036) ─────────────────────────────────
+
+    /**
+     * How far review has got on each candidate: whether the card itself is
+     * checked, and how many of its printings are not. A user submission is only
+     * settled once both are done, so checking one printing of a multi-printing
+     * submission doesn't resolve it early.
+     * @param candidateCardIds The candidates to report on.
+     * @returns A map from candidate id to its review state.
+     */
+    async reviewStateForCandidates(
+      candidateCardIds: string[],
+    ): Promise<Map<string, { checked: boolean; uncheckedPrintings: number }>> {
+      const states = new Map<string, { checked: boolean; uncheckedPrintings: number }>();
+      if (candidateCardIds.length === 0) {
+        return states;
+      }
+      const rows = await db
+        .selectFrom("candidateCards as cc")
+        .leftJoin("candidatePrintings as cp", (join) =>
+          join.onRef("cp.candidateCardId", "=", "cc.id").on("cp.checkedAt", "is", null),
+        )
+        .select(({ fn }) => [
+          "cc.id",
+          "cc.checkedAt",
+          fn.count<string>("cp.id").as("uncheckedPrintings"),
+        ])
+        .where("cc.id", "in", candidateCardIds)
+        .groupBy(["cc.id", "cc.checkedAt"])
+        .execute();
+      for (const row of rows) {
+        states.set(row.id, {
+          checked: row.checkedAt !== null,
+          uncheckedPrintings: Number(row.uncheckedPrintings),
+        });
+      }
+      return states;
+    },
+
+    /**
+     * The values a candidate proposed, in the shape the submission diff
+     * compares. Read back from staging rather than kept on the ledger so the
+     * review-time comparison uses exactly what the admin is looking at.
+     * @param candidateCardId The candidate to read.
+     * @returns The proposed card and printings, or null when the candidate is gone.
+     */
+    async proposalForCandidate(
+      candidateCardId: string,
+    ): Promise<{ card: ProposedCard; printings: ProposedPrinting[] } | null> {
+      const card = await db
+        .selectFrom("candidateCards")
+        .select(["name", "types", "might", "energy", "power", "mightBonus", "tags"])
+        .where("id", "=", candidateCardId)
+        .executeTakeFirst();
+      if (!card) {
+        return null;
+      }
+      const printings = await db
+        .selectFrom("candidatePrintings")
+        .select([
+          "shortCode",
+          // Identity, not compared: a short code alone does not distinguish a
+          // card's finishes and languages from one another.
+          "finish",
+          "markerSlugs",
+          "language",
+          "rarity",
+          "artist",
+          "artVariant",
+          "size",
+          "isSigned",
+          "flavorText",
+          "printedRulesText",
+          "printedEffectText",
+          "printedName",
+          "imageUrl",
+        ])
+        .where("candidateCardId", "=", candidateCardId)
+        .execute();
+      return { card, printings };
+    },
+
     // ── Candidate card checks ─────────────────────────────────────────────
 
     /**
@@ -875,9 +958,23 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     /**
      * Mark all candidate cards with matching normalized names OR linked to the
      * given card via candidate_printings → printings as checked.
-     * @returns The total number of rows updated.
+     *
+     * Returns the ids as well as the count so submission resolution knows which
+     * candidates this covers, rather than restating the match predicate in a
+     * second query where the two could drift.
+     *
+     * The ids are **every** matching candidate, not only the rows this call
+     * flipped. A candidate checked one entry at a time before its printings
+     * were done stays pending, and a later "check all" would otherwise update
+     * nothing and so resolve nothing, leaving the submission stuck. Resolution
+     * gates on the candidate being fully checked anyway, so a wider set is safe.
+     *
+     * @returns The rows updated and the matching candidate card ids.
      */
-    async checkAllCandidateCards(normNames: string[], cardId: string): Promise<number> {
+    async checkAllCandidateCards(
+      normNames: string[],
+      cardId: string,
+    ): Promise<{ updated: number; candidateCardIds: string[] }> {
       const now = new Date();
       // Candidate cards linked because their candidate_printings already have a printingId
       const linkedByPrintingId = db
@@ -897,32 +994,42 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .select("ps_match.candidateCardId")
         .where("ps_match.shortCode", "in", printingShortCodes);
 
-      const results = await db
+      const matches = (eb: ExpressionBuilder<Database, "candidateCards">) =>
+        eb.or([
+          eb("candidateCards.normName", "in", normNames),
+          eb("candidateCards.id", "in", linkedByPrintingId),
+          eb("candidateCards.id", "in", linkedByShortCode),
+        ]);
+
+      const rows = await db
         .updateTable("candidateCards")
         .set({ checkedAt: now })
-        .where((eb) =>
-          eb.or([
-            eb("candidateCards.normName", "in", normNames),
-            eb("candidateCards.id", "in", linkedByPrintingId),
-            eb("candidateCards.id", "in", linkedByShortCode),
-          ]),
-        )
+        .where(matches)
         .where("checkedAt", "is", null)
+        .returning("id")
         .execute();
-      return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+
+      const allMatching = await db
+        .selectFrom("candidateCards")
+        .select("id")
+        .where(matches)
+        .execute();
+
+      return { updated: rows.length, candidateCardIds: allMatching.map((row) => row.id) };
     },
 
     // ── Candidate printing checks ─────────────────────────────────────────
 
     /**
      * Mark a single candidate printing as checked.
-     * @returns Update result.
+     * @returns The parent candidate card id, or undefined when no row matched.
      */
-    checkCandidatePrinting(id: string): Promise<UpdateResult> {
+    checkCandidatePrinting(id: string): Promise<{ candidateCardId: string } | undefined> {
       return db
         .updateTable("candidatePrintings")
         .set({ checkedAt: new Date() })
         .where("id", "=", id)
+        .returning("candidateCardId")
         .executeTakeFirst();
     },
 
@@ -940,13 +1047,16 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /**
      * Mark all candidate printings for a given printing (and optional extra IDs) as checked.
-     * @returns The total number of rows updated.
+     * @returns The rows updated and the distinct parent candidate card ids.
      */
-    async checkAllCandidatePrintings(printingId?: string, extraIds?: string[]): Promise<number> {
+    async checkAllCandidatePrintings(
+      printingId?: string,
+      extraIds?: string[],
+    ): Promise<{ updated: number; candidateCardIds: string[] }> {
       if (!printingId && !extraIds?.length) {
-        return 0;
+        return { updated: 0, candidateCardIds: [] };
       }
-      const results = await db
+      const rows = await db
         .updateTable("candidatePrintings")
         .set({ checkedAt: new Date() })
         .where((eb) =>
@@ -956,8 +1066,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           ]),
         )
         .where("checkedAt", "is", null)
+        .returning("candidateCardId")
         .execute();
-      return results.reduce((sum, r) => sum + Number(r.numUpdatedRows), 0);
+      return {
+        updated: rows.length,
+        candidateCardIds: [...new Set(rows.map((row) => row.candidateCardId))],
+      };
     },
 
     /**

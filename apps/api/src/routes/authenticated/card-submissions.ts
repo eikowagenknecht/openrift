@@ -4,9 +4,11 @@ import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import { toCardSubmissionStatus } from "../../lib/card-submission-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
+import { buildKeysetCursor } from "../../repositories/query-helpers.js";
 import {
   buildUserSubmissionCard,
   formatSubmissionDateStamp,
@@ -15,6 +17,9 @@ import type { Variables } from "../../types.js";
 
 /** A card submission is small text + image URLs, never a binary upload. */
 const MAX_BODY_BYTES = 256 * 1024;
+
+/** Page size when the client doesn't ask for one. */
+const DEFAULT_LIST_LIMIT = 25;
 
 const os = implement(cardSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -58,6 +63,23 @@ export const cardSubmissionsRouter = {
     });
 
     return { ok: true };
+  }),
+
+  list: os.list.handler(async ({ input, context }) => {
+    const limit = input.limit ?? DEFAULT_LIST_LIMIT;
+    // The repo scopes by user id itself; the client never supplies one.
+    const rows = await context.repos.cardSubmissions.listByUser(context.userId, {
+      cursor: input.cursor ?? null,
+      limit,
+    });
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items.at(-1);
+    return {
+      items: items.map((row) => toCardSubmissionStatus(row)),
+      nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
+    };
   }),
 };
 

@@ -3,6 +3,10 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import {
+  rejectIgnoredSubmission,
+  reopenUnignoredSubmission,
+} from "../../services/card-submission-outcomes.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminIgnoredCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
@@ -42,6 +46,15 @@ export const adminIgnoredCandidatesRouter = {
     const { provider, externalId } = input;
     await ignoredCandidates.ignoreCard({ provider, externalId });
 
+    // For a user submission this action is a rejection, and the per-submission
+    // external_id makes the key exact (ADR-036). No-ops for scraped providers.
+    await rejectIgnoredSubmission(context.repos, {
+      provider,
+      externalId,
+      adminUserId: context.userId,
+      now: new Date(),
+    });
+
     await recordAdminEvent(context.repos, context.userId, {
       action: "candidate-card.ignore",
       entityType: "candidate-card",
@@ -54,6 +67,10 @@ export const adminIgnoredCandidatesRouter = {
     const { ignoredCandidates } = context.repos;
     const { provider, externalId } = input;
     await ignoredCandidates.unignoreCard(provider, externalId);
+
+    // Undoing the rejection puts the submission back in the queue, so a
+    // misclick doesn't leave a contributor looking at a wrong outcome.
+    await reopenUnignoredSubmission(context.repos, { provider, externalId });
 
     await recordAdminEvent(context.repos, context.userId, {
       action: "candidate-card.unignore",

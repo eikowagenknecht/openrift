@@ -14,6 +14,7 @@
 
 ### Highlights
 
+- feat(Cards): **See what happened to cards you sent in** — every submission from the contribute form now has a status page showing whether it was applied, already correct, or not used, with a reason when there is one.
 - feat(Cards): **Release dates per language** — a set now carries its own date for each language it comes out in, so cards you cannot buy in your language yet are marked as previews until that date passes.
 - feat(Groups): **Members page as a roster** — the group's members are now a searchable, sortable list showing how many cards each person offers and wants, with contact icons that reveal a handle and copy it on tap.
 - feat(Trades): **Check what you own before offering** — the available count on a card you would give away opens a breakdown of every variant you own and the collections holding them.

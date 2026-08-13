@@ -22,6 +22,15 @@ const mockRepo = {
 // Audit event sink (record-admin-event.ts); handlers write here best-effort.
 const mockAdminEvents = { insert: vi.fn() };
 
+// The ignore/unignore handlers also settle any user submission behind the key
+// (ADR-036). Returning null here is the scraped-provider case: no ledger row,
+// so the outcome service no-ops.
+const mockCardSubmissions = {
+  findByExternalId: vi.fn().mockResolvedValue(null),
+  resolve: vi.fn(),
+  reopen: vi.fn(),
+};
+
 // ---------------------------------------------------------------------------
 // Test app — mount the oRPC router directly (without the requireAdmin gate).
 // ---------------------------------------------------------------------------
@@ -31,7 +40,11 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { ignoredCandidates: mockRepo, adminEvents: mockAdminEvents } as never);
+  c.set("repos", {
+    ignoredCandidates: mockRepo,
+    adminEvents: mockAdminEvents,
+    cardSubmissions: mockCardSubmissions,
+  } as never);
   await next();
 });
 registerRouterForTest(app, adminIgnoredCandidatesRouter);
@@ -149,6 +162,35 @@ describe("POST /api/admin/v1/ignored-candidates/cards", () => {
       externalId: "12345",
     });
   });
+
+  it("rejects the user submission behind an ignored candidate", async () => {
+    // ADR-036: the per-submission external_id makes this key exact, so ignoring
+    // a submission column is its rejection.
+    mockRepo.ignoreCard.mockResolvedValue(undefined);
+    mockCardSubmissions.findByExternalId.mockResolvedValue({ id: "sub-1", status: "pending" });
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "usersubmission", externalId: "jinx--20260813-1200--u1" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockCardSubmissions.resolve).toHaveBeenCalledWith(
+      "sub-1",
+      expect.objectContaining({ status: "rejected", resolvedByUserId: USER_ID }),
+    );
+  });
+
+  it("leaves a scraped provider's candidate alone", async () => {
+    mockRepo.ignoreCard.mockResolvedValue(undefined);
+    mockCardSubmissions.findByExternalId.mockResolvedValue(null);
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "tcgplayer", externalId: "12345" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockCardSubmissions.resolve).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /api/admin/v1/ignored-candidates/cards", () => {
@@ -165,6 +207,18 @@ describe("DELETE /api/admin/v1/ignored-candidates/cards", () => {
     });
     expect(res.status).toBe(204);
     expect(mockRepo.unignoreCard).toHaveBeenCalledWith("tcgplayer", "12345");
+  });
+
+  it("returns a rejected submission to the queue when unignored", async () => {
+    mockRepo.unignoreCard.mockResolvedValue(undefined);
+    mockCardSubmissions.findByExternalId.mockResolvedValue({ id: "sub-1", status: "rejected" });
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "usersubmission", externalId: "jinx--20260813-1200--u1" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockCardSubmissions.reopen).toHaveBeenCalledWith("sub-1");
   });
 });
 
