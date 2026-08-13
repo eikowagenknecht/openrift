@@ -55,6 +55,7 @@ function makeRow(overrides: Partial<CandidateCardSummaryResponse> = {}) {
     candidateCount: 1,
     uncheckedCardCount: 0,
     uncheckedPrintingCount: 0,
+    unlinkedPrintingCount: 0,
     hasFavorite: false,
     favoriteStagingShortCodes: [],
     suggestedCardSlug: null,

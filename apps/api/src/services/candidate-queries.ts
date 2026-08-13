@@ -274,6 +274,22 @@ export async function buildCandidateCardList(
     return count;
   }
 
+  // Count candidate printings that have no accepted printing yet, across a
+  // normName group. No provider or checkedAt narrowing: these are the rows the
+  // detail page renders as "New:" groups, and it groups every unlinked
+  // candidate printing the same way.
+  function unlinkedPrintingCountForGroup(group: typeof candidateCards): number {
+    let count = 0;
+    for (const cc of group) {
+      for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
+        if (!cp.printingId) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
   // Aliases let a card match candidate cards under a different name —
   // e.g. card "Fireball" (normName "fireball") has alias "firbal" so it also claims that group
   const aliasNormNamesByCardId = new Map<string, string[]>();
@@ -320,6 +336,7 @@ export async function buildCandidateCardList(
       uncheckedCardCount:
         group?.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider)).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group, true) : 0,
+      unlinkedPrintingCount: group ? unlinkedPrintingCountForGroup(group) : 0,
       hasFavorite: group?.some((cc) => favoriteProviders.has(cc.provider)) ?? false,
       favoriteStagingShortCodes: group ? stagingIdsForGroup(group, true) : [],
       suggestedCardSlug: null,
@@ -359,6 +376,7 @@ export async function buildCandidateCardList(
       uncheckedCardCount: group.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider))
         .length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group, true),
+      unlinkedPrintingCount: unlinkedPrintingCountForGroup(group),
       hasFavorite: group.some((cc) => favoriteProviders.has(cc.provider)),
       favoriteStagingShortCodes: stagingIdsForGroup(group, true),
       suggestedCardSlug: findSuggestedCard(normName),

@@ -199,6 +199,7 @@ describe("GET /api/admin/v1/cards (candidate list)", () => {
         candidateCount: 1,
         uncheckedCardCount: 0,
         uncheckedPrintingCount: 0,
+        unlinkedPrintingCount: 0,
         hasFavorite: true,
         favoriteStagingShortCodes: [],
         suggestedCardSlug: null,

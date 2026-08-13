@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     tab: z.enum(["cards", "candidates", "unmatched"]).optional(),
     q: z.string().optional(),
     tableSort: z.string().optional(),
-    status: z.enum(["unchecked", "prices-to-assign"]).optional(),
+    status: z.enum(["unchecked", "new-printings", "prices-to-assign"]).optional(),
     // Source+language scope for the "prices to assign" filter, e.g. "cardmarket"
     // or "cardtrader:FR". Absent means all assignable buckets. Only meaningful
     // while `status` is "prices-to-assign".

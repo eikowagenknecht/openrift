@@ -32,6 +32,7 @@ import {
 import type { AcceptPrintingBody } from "@/hooks/use-admin-card-mutations";
 import { useAdminCardDetail } from "@/hooks/use-admin-card-queries";
 import { useCardReviewNavigation } from "@/hooks/use-card-review-navigation";
+import type { AdminCardListStatus } from "@/hooks/use-card-review-navigation";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { useSets } from "@/hooks/use-sets";
 import { queryKeys } from "@/lib/query-keys";
@@ -61,7 +62,7 @@ export function ExistingCardDetailPage({
   focusFinish,
   focusLanguage,
   setSlug,
-  priceStatus,
+  listStatus,
   priceScope,
 }: {
   identifier: string;
@@ -69,9 +70,9 @@ export function ExistingCardDetailPage({
   focusFinish?: string;
   focusLanguage?: string;
   setSlug?: string;
-  /** Set when the visit started from the list page's prices-to-assign filter. */
-  priceStatus?: "prices-to-assign";
-  /** Source+language scope for that filter; absent means all assignable buckets. */
+  /** The list page's status filter, when the visit started from one. */
+  listStatus?: AdminCardListStatus;
+  /** Source+language scope for the price filter; absent means all assignable buckets. */
   priceScope?: string;
 }) {
   const cardId = identifier;
@@ -114,7 +115,7 @@ export function ExistingCardDetailPage({
       identifier,
       detail: existingData,
       setSlug,
-      priceStatus,
+      listStatus,
       priceScope,
       isAdmin,
       invalidates: invalidateScope,

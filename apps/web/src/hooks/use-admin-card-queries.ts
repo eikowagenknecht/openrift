@@ -31,6 +31,17 @@ export function useAdminCardList() {
 }
 
 /**
+ * Non-suspending variant for pages that only need the list under a condition —
+ * the card detail page reads it to scope prev/next to the new-printings filter,
+ * and must not pay for the whole list when that filter is off.
+ *
+ * @returns The card-list query, disabled unless `enabled`.
+ */
+export function useAdminCardListWhen(enabled: boolean) {
+  return useQuery({ ...adminCardListQueryOptions, enabled });
+}
+
+/**
  * Fetches the unchecked list and returns the first card slug that isn't
  * `currentSlug`. When `allowedSlugs` is provided, only returns a slug that
  * appears in that set — used to keep check-all-and-next scoped to the active

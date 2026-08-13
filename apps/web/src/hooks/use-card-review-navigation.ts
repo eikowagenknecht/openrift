@@ -14,7 +14,11 @@ import {
   useCheckAllCandidateCards,
   useCheckAllCandidatePrintings,
 } from "@/hooks/use-admin-card-mutations";
-import { useAllCards, useNextUncheckedCard } from "@/hooks/use-admin-card-queries";
+import {
+  useAdminCardListWhen,
+  useAllCards,
+  useNextUncheckedCard,
+} from "@/hooks/use-admin-card-queries";
 import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
 import { selectAdminCardPrevNext } from "@/lib/admin-card-nav";
 import type { PrevNextSlugs } from "@/lib/admin-card-nav";
@@ -74,9 +78,15 @@ export function collectReviewCheckTargets(
  */
 interface CardReviewNavSearch {
   set?: string;
-  status?: "prices-to-assign";
+  status?: AdminCardListStatus;
   priceScope?: string;
 }
+
+/**
+ * List-page status filters that also narrow prev/next here. "unchecked" is not
+ * one of them — it has its own flow through "Check all & next".
+ */
+export type AdminCardListStatus = "prices-to-assign" | "new-printings";
 
 interface UseCardReviewNavigationOptions {
   /** Card slug from the route, which is also the current review-run position. */
@@ -85,9 +95,9 @@ interface UseCardReviewNavigationOptions {
   detail?: AdminCardDetailResponse;
   /** Active set filter carried over from the list page. */
   setSlug?: string;
-  /** Set when the visit started from the list page's prices-to-assign filter. */
-  priceStatus?: "prices-to-assign";
-  /** Source+language scope for that filter; absent means all assignable buckets. */
+  /** The list page's status filter, when the visit started from one. */
+  listStatus?: AdminCardListStatus;
+  /** Source+language scope for the price filter; absent means all assignable buckets. */
   priceScope?: string;
   /** Triage is full-admin, so the run and its hotkey are gated on it. */
   isAdmin: boolean;
@@ -109,7 +119,7 @@ export function useCardReviewNavigation({
   identifier,
   detail,
   setSlug,
-  priceStatus,
+  listStatus,
   priceScope,
   isAdmin,
   invalidates,
@@ -131,27 +141,41 @@ export function useCardReviewNavigation({
   // The corpus query stays subscribed rather than read once, and the
   // marketplace section invalidates it after every assignment, so a card drops
   // out of the run the moment its last staged product is bound.
-  const priceFilterActive = priceStatus === "prices-to-assign";
+  const priceFilterActive = listStatus === "prices-to-assign";
   const { data: unifiedMappings } = useUnifiedMappingsWhen(isAdmin && priceFilterActive);
   const activePriceScope = priceFilterActive ? (priceScope ?? ALL_ASSIGNABLE_SCOPE) : null;
   const assignBucketsBySlug = unifiedMappings
     ? buildPriceAssignBucketsBySlug(unifiedMappings.groups)
     : null;
+
+  // Same idea for the new-printings filter, over the list corpus rather than
+  // the marketplace one. The query stays subscribed, so accepting a card's last
+  // candidate printing drops it from the run once the list is invalidated.
+  const newPrintingsFilterActive = listStatus === "new-printings";
+  const { data: cardList } = useAdminCardListWhen(newPrintingsFilterActive);
+  const newPrintingSlugs =
+    newPrintingsFilterActive && cardList
+      ? new Set(
+          cardList
+            .filter((row) => row.cardSlug !== null && row.unlinkedPrintingCount > 0)
+            .map((row) => row.cardSlug as string),
+        )
+      : null;
+
   // Position is resolved in the full set-scoped ordering, then the nearest
   // matching card is found by scanning outward — so the buttons keep working
   // after this card itself falls out of the filter. Until the corpus data
-  // lands, `assignBucketsBySlug` is null and this falls back to plain
+  // lands, the filter's slug set is null and this falls back to plain
   // neighbours instead of flickering the buttons disabled.
   const prevNextCards: PrevNextSlugs = selectAdminCardPrevNext(
     scopedCards.map((c) => c.slug),
     identifier,
-    activePriceScope,
-    assignBucketsBySlug,
+    { priceScope: activePriceScope, assignBucketsBySlug, newPrintingSlugs },
   );
 
   const navSearch: CardReviewNavSearch = {
     ...(setSlug ? { set: setSlug } : {}),
-    ...(priceFilterActive ? { status: "prices-to-assign" as const } : {}),
+    ...(listStatus ? { status: listStatus } : {}),
     ...(priceFilterActive && priceScope ? { priceScope } : {}),
   };
 

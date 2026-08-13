@@ -50,22 +50,39 @@ export function selectPrevNextSlug(
 }
 
 /**
+ * The list page's active status filter, resolved to the corpus each one needs.
+ * At most one is ever set, because the list page's `status` param holds one
+ * value. A `null` corpus means "off, or still loading" — both fall back to
+ * plain neighbours rather than disabling the buttons mid-load.
+ */
+export interface AdminCardNavFilter {
+  /** Scope of the prices-to-assign filter, `null` when it is off. */
+  priceScope?: string | null;
+  /** Assignable buckets per slug; `null` while the corpus query loads. */
+  assignBucketsBySlug?: Map<string, PriceAssignBucket[]> | null;
+  /**
+   * Slugs with at least one candidate printing no accepted printing claims yet
+   * — the new-printings filter. `null` when it is off or still loading.
+   */
+  newPrintingSlugs?: Set<string> | null;
+}
+
+/**
  * Prev/next for the admin card detail page, composing the set scope (already
- * applied to `orderedSlugs`) with the list page's prices-to-assign filter.
- *
- * `priceScope` is `null` when that filter is off, and `assignBucketsBySlug` is
- * `null` while the corpus query is still loading — either way navigation falls
- * back to plain neighbours rather than disabling the buttons mid-load.
+ * applied to `orderedSlugs`) with whichever list-page filter is active.
  *
  * @returns The neighbouring slugs, each `null` when there is none.
  */
 export function selectAdminCardPrevNext(
   orderedSlugs: readonly string[],
   currentSlug: string,
-  priceScope: string | null,
-  assignBucketsBySlug: Map<string, PriceAssignBucket[]> | null,
+  filter: AdminCardNavFilter = {},
 ): PrevNextSlugs {
-  if (priceScope === null || assignBucketsBySlug === null) {
+  const { priceScope, assignBucketsBySlug, newPrintingSlugs } = filter;
+  if (newPrintingSlugs) {
+    return selectPrevNextSlug(orderedSlugs, currentSlug, (slug) => newPrintingSlugs.has(slug));
+  }
+  if (!priceScope || !assignBucketsBySlug) {
     return selectPrevNextSlug(orderedSlugs, currentSlug);
   }
   return selectPrevNextSlug(orderedSlugs, currentSlug, (slug) =>

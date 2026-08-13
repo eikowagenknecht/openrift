@@ -44,6 +44,12 @@ export const candidateCardSummarySchema = z.object({
   candidateCount: z.number(),
   uncheckedCardCount: z.number(),
   uncheckedPrintingCount: z.number(),
+  // Candidate printings not yet linked to an accepted printing, across every
+  // provider and regardless of `checkedAt` — exactly the rows the card detail
+  // page shows as "New:" groups. Wider than `favoriteStagingShortCodes`, which
+  // is favorites-and-unchecked only, so the list page can filter on the same
+  // population the detail page highlights.
+  unlinkedPrintingCount: z.number(),
   hasFavorite: z.boolean(),
   favoriteStagingShortCodes: z.array(z.string()),
   suggestedCardSlug: z.string().nullable(),

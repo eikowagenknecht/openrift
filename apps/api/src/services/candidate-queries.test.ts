@@ -534,8 +534,93 @@ describe("buildCandidateCardList", () => {
     expect(result[0].favoriteStagingShortCodes).toEqual([]);
     expect(result[0].uncheckedCardCount).toBe(0);
     expect(result[0].uncheckedPrintingCount).toBe(0);
+    expect(result[0].unlinkedPrintingCount).toBe(0);
     expect(result[0].hasFavorite).toBe(false);
     expect(result[0].suggestedCardSlug).toBeNull();
+  });
+
+  it("counts every unlinked candidate printing, checked or not, from any provider", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-fav", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+        { id: "cc-other", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        // Favorite + unchecked + unlinked: the only one the codes column shows.
+        { candidateCardId: "cc-fav", shortCode: "OGN-001", checkedAt: null, printingId: null },
+        // Checked but still unlinked, so the detail page keeps showing it.
+        {
+          candidateCardId: "cc-fav",
+          shortCode: "OGN-002",
+          checkedAt: new Date(),
+          printingId: null,
+        },
+        // Non-favorite provider, also unlinked.
+        { candidateCardId: "cc-other", shortCode: "OGN-003", checkedAt: null, printingId: null },
+        // Already accepted onto a printing: not a new printing any more.
+        { candidateCardId: "cc-fav", shortCode: "OGN-004", checkedAt: null, printingId: "p-1" },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].favoriteStagingShortCodes).toEqual(["OGN-001"]);
+    expect(result[0].unlinkedPrintingCount).toBe(3);
+  });
+
+  it("reports no unlinked printings when every candidate printing is accepted", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+        ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { candidateCardId: "cc-1", shortCode: "OGN-001", checkedAt: null, printingId: "p-1" },
+        ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].unlinkedPrintingCount).toBe(0);
+  });
+
+  it("counts unlinked candidate printings on unmatched rows too", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidateCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "cc-1", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+        ]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        { candidateCardId: "cc-1", shortCode: "OGN-001", checkedAt: null, printingId: null },
+        {
+          candidateCardId: "cc-1",
+          shortCode: "OGN-002",
+          checkedAt: new Date(),
+          printingId: null,
+        },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].cardSlug).toBeNull();
+    expect(result[0].unlinkedPrintingCount).toBe(2);
   });
 
   it("favoriteStagingShortCodes includes only codes from favorite providers", async () => {

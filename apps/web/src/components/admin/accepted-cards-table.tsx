@@ -30,6 +30,7 @@ import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
+import type { AdminCardListStatus } from "@/hooks/use-card-review-navigation";
 import { parseSortParam } from "@/lib/admin-cards-search";
 import {
   ALL_ASSIGNABLE_SCOPE,
@@ -270,15 +271,15 @@ const COLUMN_WIDTHS: Record<string, string> = {
 function buildColumns(
   coverageBySlug: Map<string, CardCoverage>,
   setSlug: string | undefined,
-  priceStatus: "prices-to-assign" | undefined,
+  listStatus: AdminCardListStatus | undefined,
   priceScope: string | undefined,
   isAdmin: boolean,
 ): ColumnDef<AdminCardTableFeatures, Row>[] {
-  // Clicking a row starts an assigning run, so hand the detail page the same
-  // filter the list is showing — its prev/next then walks only these cards.
+  // Clicking a row starts a review run, so hand the detail page the same filter
+  // the list is showing — its prev/next then walks only these cards.
   const detailSearch = {
     ...(setSlug ? { set: setSlug } : {}),
-    ...(priceStatus ? { status: priceStatus } : {}),
+    ...(listStatus ? { status: listStatus } : {}),
     ...(priceScope ? { priceScope } : {}),
   };
   return [
@@ -345,6 +346,11 @@ function buildColumns(
       cell: ({ row }) => {
         const codes = formatShortCodesArray(row.original.favoriteStagingShortCodes);
         const favoriteCount = row.original.favoriteStagingShortCodes.length;
+        // The codes above are favorites-and-unchecked only, while the detail
+        // page shows every unlinked candidate printing as a "New:" group. Name
+        // the difference so a row that looks empty here but violet there is
+        // explained instead of looking like a bug.
+        const otherUnlinked = row.original.unlinkedPrintingCount - favoriteCount;
         return (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
@@ -355,6 +361,14 @@ function buildColumns(
                 </span>
               ))}
             </span>
+            {otherUnlinked > 0 && (
+              <span
+                className="text-muted-foreground/70 text-xs"
+                title={`${otherUnlinked} more unlinked candidate printing${otherUnlinked === 1 ? "" : "s"} (already checked, or from a non-favorite source)`}
+              >
+                +{otherUnlinked} other
+              </span>
+            )}
             {isAdmin && row.original.cardSlug && favoriteCount > 0 && (
               <AcceptFavoriteButton cardSlug={row.original.cardSlug} count={favoriteCount} />
             )}
@@ -398,10 +412,15 @@ export function AcceptedCardsTable({
   });
 
   const priceFilterActive = activeStatus === "prices-to-assign";
+  // "unchecked" stays on the list: the detail page has its own flow for it.
+  const detailStatus: AdminCardListStatus | undefined =
+    activeStatus === "prices-to-assign" || activeStatus === "new-printings"
+      ? activeStatus
+      : undefined;
   const columns = buildColumns(
     coverageBySlug,
     setSlug,
-    priceFilterActive ? "prices-to-assign" : undefined,
+    detailStatus,
     priceFilterActive && priceScope !== ALL_ASSIGNABLE_SCOPE ? priceScope : undefined,
     isAdmin,
   );
@@ -409,6 +428,10 @@ export function AcceptedCardsTable({
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
+
+  // Cards the detail page would show at least one violet "New:" group for:
+  // a candidate printing that no accepted printing claims yet.
+  const newPrintingsCount = data.filter((r) => r.unlinkedPrintingCount > 0).length;
 
   // Shared with the detail page's prev/next so a run started from this filter
   // visits exactly the rows shown here.
@@ -472,12 +495,20 @@ export function AcceptedCardsTable({
   const pricesToAssignTotal = scopeCardCounts.size > 0;
   const activeScopeCount = data.filter((r) => matchesScope(r.cardSlug, priceScope)).length;
 
-  const filteredData =
-    activeStatus === "unchecked"
-      ? data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0)
-      : activeStatus === "prices-to-assign"
-        ? data.filter((r) => matchesScope(r.cardSlug, priceScope))
-        : data;
+  function matchesStatus(row: Row): boolean {
+    if (activeStatus === "unchecked") {
+      return row.uncheckedCardCount + row.uncheckedPrintingCount > 0;
+    }
+    if (activeStatus === "new-printings") {
+      return row.unlinkedPrintingCount > 0;
+    }
+    if (activeStatus === "prices-to-assign") {
+      return matchesScope(row.cardSlug, priceScope);
+    }
+    return true;
+  }
+
+  const filteredData = activeStatus ? data.filter((row) => matchesStatus(row)) : data;
 
   function toggleStatus(status: NonNullable<typeof activeStatus>) {
     void navigate({
@@ -581,6 +612,15 @@ export function AcceptedCardsTable({
             onClick={() => toggleStatus("unchecked")}
           >
             ★ Unchecked ({uncheckedCount})
+          </Button>
+        )}
+
+        {newPrintingsCount > 0 && (
+          <Button
+            variant={activeStatus === "new-printings" ? "default" : "outline"}
+            onClick={() => toggleStatus("new-printings")}
+          >
+            New printings ({newPrintingsCount})
           </Button>
         )}
 

@@ -18,7 +18,7 @@ function ExistingCardPage() {
         focusFinish={focusFinish}
         focusLanguage={focusLanguage}
         setSlug={set}
-        priceStatus={status}
+        listStatus={status}
         priceScope={priceScope}
       />
     </>

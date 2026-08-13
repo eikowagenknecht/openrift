@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   /** The (currentSlug, allowedSlugs) pair the hook passed to useNextUncheckedCard. */
   nextUncheckedArgs: { current: null as [string, Set<string> | null | undefined] | null },
   allCards: [] as { slug: string; setSlugs: string[] }[],
+  /** Rows the (conditionally enabled) admin card list query returns. */
+  cardList: [] as { cardSlug: string | null; unlinkedPrintingCount: number }[],
+  /** Whether the hook enabled that query this render. */
+  cardListEnabled: { current: false },
 }));
 
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => mocks.navigate }));
@@ -41,6 +45,10 @@ vi.mock("@/hooks/use-admin-card-queries", () => ({
   useNextUncheckedCard: (currentSlug: string, allowedSlugs?: Set<string> | null) => {
     mocks.nextUncheckedArgs.current = [currentSlug, allowedSlugs];
     return { fetchNext: mocks.fetchNext };
+  },
+  useAdminCardListWhen: (enabled: boolean) => {
+    mocks.cardListEnabled.current = enabled;
+    return { data: enabled ? mocks.cardList : undefined };
   },
 }));
 
@@ -169,6 +177,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.hotkeys.clear();
   mocks.nextUncheckedArgs.current = null;
+  mocks.cardListEnabled.current = false;
+  mocks.cardList = [];
   mocks.fetchNext.mockResolvedValue(null);
   mocks.allCards = [
     { slug: "ahri", setSlugs: ["ogn"] },
@@ -196,7 +206,7 @@ describe("useCardReviewNavigation", () => {
   it("carries the set and price filters through every navigation", () => {
     const { result } = renderNav({
       setSlug: "prox",
-      priceStatus: "prices-to-assign",
+      listStatus: "prices-to-assign",
       priceScope: "cardtrader:FR",
     });
 
@@ -209,6 +219,52 @@ describe("useCardReviewNavigation", () => {
       params: { cardSlug: "zed" },
       search: { set: "prox", status: "prices-to-assign", priceScope: "cardtrader:FR" },
     });
+  });
+
+  it("visits only cards with new printings while that filter is on", () => {
+    mocks.cardList = [
+      { cardSlug: "ahri", unlinkedPrintingCount: 0 },
+      { cardSlug: "yasuo", unlinkedPrintingCount: 2 },
+      { cardSlug: "zed", unlinkedPrintingCount: 1 },
+      // An unmatched candidate row has no card page to navigate to.
+      { cardSlug: null, unlinkedPrintingCount: 3 },
+    ];
+    const { result } = renderNav({ listStatus: "new-printings" });
+
+    expect(mocks.cardListEnabled.current).toBe(true);
+    // "ahri" has no unlinked candidate printings left, so it drops out.
+    expect(result.current.prevNextCards).toEqual({ prev: null, next: "zed" });
+  });
+
+  it("keeps navigating after the current card's new printings are accepted", () => {
+    mocks.cardList = [
+      { cardSlug: "ahri", unlinkedPrintingCount: 1 },
+      { cardSlug: "yasuo", unlinkedPrintingCount: 0 },
+      { cardSlug: "zed", unlinkedPrintingCount: 1 },
+    ];
+    const { result } = renderNav({ listStatus: "new-printings" });
+
+    expect(result.current.prevNextCards).toEqual({ prev: "ahri", next: "zed" });
+  });
+
+  it("carries the new-printings filter through every navigation", () => {
+    const { result } = renderNav({ listStatus: "new-printings", priceScope: "cardmarket" });
+
+    act(() => {
+      result.current.goToList();
+    });
+
+    // The price scope belongs to the other filter, so it stays out of the URL.
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      to: "/admin/cards",
+      search: { status: "new-printings" },
+    });
+  });
+
+  it("leaves the card list query disabled when no status filter is active", () => {
+    renderNav();
+
+    expect(mocks.cardListEnabled.current).toBe(false);
   });
 
   it("omits the price params when the filter is off", () => {

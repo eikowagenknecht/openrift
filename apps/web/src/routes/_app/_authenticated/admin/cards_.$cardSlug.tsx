@@ -21,10 +21,10 @@ interface CardDetailSearch {
   set?: string;
   /**
    * Carried over from the list page's status filter so prev/next walks the same
-   * subset. Only "prices-to-assign" narrows navigation here — "unchecked"
-   * already has its own flow via "Check all & next".
+   * subset. "unchecked" is not carried — it already has its own flow via
+   * "Check all & next".
    */
-  status?: "prices-to-assign";
+  status?: "prices-to-assign" | "new-printings";
   /** Source+language scope for `status=prices-to-assign`, e.g. "cardtrader:FR". */
   priceScope?: string;
 }
@@ -58,6 +58,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
       if (typeof search.priceScope === "string" && search.priceScope.length > 0) {
         result.priceScope = search.priceScope;
       }
+    }
+    if (search.status === "new-printings") {
+      result.status = "new-printings";
     }
     return result;
   },

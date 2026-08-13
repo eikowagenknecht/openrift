@@ -64,14 +64,24 @@ describe("selectAdminCardPrevNext", () => {
 
   it("walks every card when the price filter is off", () => {
     const buckets = new Map([["darius", [bucket()]]]);
-    expect(selectAdminCardPrevNext(cards, "braum", null, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: null,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: "ahri",
       next: "caitlyn",
     });
   });
 
   it("falls back to the unfiltered ordering while the corpus data is loading", () => {
-    expect(selectAdminCardPrevNext(cards, "braum", ALL_ASSIGNABLE_SCOPE, null)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: null,
+      }),
+    ).toEqual({
       prev: "ahri",
       next: "caitlyn",
     });
@@ -84,7 +94,12 @@ describe("selectAdminCardPrevNext", () => {
       ["caitlyn", []],
       ["darius", [bucket()]],
     ]);
-    expect(selectAdminCardPrevNext(cards, "braum", ALL_ASSIGNABLE_SCOPE, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: "ahri",
       next: "darius",
     });
@@ -99,14 +114,24 @@ describe("selectAdminCardPrevNext", () => {
       ["caitlyn", [bucket()]],
       ["darius", [bucket()]],
     ]);
-    expect(selectAdminCardPrevNext(cards, "braum", ALL_ASSIGNABLE_SCOPE, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: "ahri",
       next: "caitlyn",
     });
   });
 
   it("disables both directions when no card matches the filter", () => {
-    expect(selectAdminCardPrevNext(cards, "braum", ALL_ASSIGNABLE_SCOPE, new Map())).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: new Map(),
+      }),
+    ).toEqual({
       prev: null,
       next: null,
     });
@@ -114,7 +139,12 @@ describe("selectAdminCardPrevNext", () => {
 
   it("has no next once the last matching card is reached", () => {
     const buckets = new Map([["ahri", [bucket()]]]);
-    expect(selectAdminCardPrevNext(cards, "caitlyn", ALL_ASSIGNABLE_SCOPE, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "caitlyn", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: "ahri",
       next: null,
     });
@@ -128,7 +158,12 @@ describe("selectAdminCardPrevNext", () => {
       ["caitlyn", [bucket()]],
       ["darius", [bucket()]],
     ]);
-    expect(selectAdminCardPrevNext(setScoped, "braum", ALL_ASSIGNABLE_SCOPE, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(setScoped, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: null,
       next: "caitlyn",
     });
@@ -141,7 +176,12 @@ describe("selectAdminCardPrevNext", () => {
       ["caitlyn", [unassignableCtBucket("FR")]],
       ["darius", [bucket()]],
     ]);
-    expect(selectAdminCardPrevNext(cards, "braum", ALL_ASSIGNABLE_SCOPE, buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: ALL_ASSIGNABLE_SCOPE,
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: null,
       next: "darius",
     });
@@ -154,7 +194,37 @@ describe("selectAdminCardPrevNext", () => {
       ["caitlyn", [unassignableCtBucket("FR")]],
       ["darius", [bucket()]],
     ]);
-    expect(selectAdminCardPrevNext(cards, "braum", "cardtrader:FR", buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: "cardtrader:FR",
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
+      prev: "ahri",
+      next: "caitlyn",
+    });
+  });
+
+  it("visits only cards with new printings when that filter is on", () => {
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        newPrintingSlugs: new Set(["ahri", "braum", "darius"]),
+      }),
+    ).toEqual({ prev: "ahri", next: "darius" });
+  });
+
+  it("keeps navigating after the current card's new printings are accepted", () => {
+    // Same trap as the price filter: the current card is no longer in the set,
+    // so the position has to be resolved in the full ordering.
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        newPrintingSlugs: new Set(["ahri", "caitlyn"]),
+      }),
+    ).toEqual({ prev: "ahri", next: "caitlyn" });
+  });
+
+  it("falls back to the unfiltered ordering while the card list is loading", () => {
+    expect(selectAdminCardPrevNext(cards, "braum", { newPrintingSlugs: null })).toEqual({
       prev: "ahri",
       next: "caitlyn",
     });
@@ -165,7 +235,12 @@ describe("selectAdminCardPrevNext", () => {
       ["ahri", [bucket({ marketplace: "tcgplayer" })]],
       ["caitlyn", [bucket({ marketplace: "cardmarket" })]],
     ]);
-    expect(selectAdminCardPrevNext(cards, "braum", "cardmarket", buckets)).toEqual({
+    expect(
+      selectAdminCardPrevNext(cards, "braum", {
+        priceScope: "cardmarket",
+        assignBucketsBySlug: buckets,
+      }),
+    ).toEqual({
       prev: null,
       next: "caitlyn",
     });
