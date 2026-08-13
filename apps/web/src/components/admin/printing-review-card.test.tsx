@@ -120,6 +120,7 @@ function renderCard(
       marketplaceMappings={[]}
       sourceLabels={{}}
       sourceNames={{}}
+      sourceSubmitters={{}}
       providerSettings={[]}
       printingSourceFields={[]}
       setTotals={{}}

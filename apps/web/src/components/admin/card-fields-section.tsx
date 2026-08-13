@@ -22,6 +22,7 @@ import {
   useUncheckCandidateCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useIgnoreCandidateCard } from "@/hooks/use-ignored-candidates";
+import { buildSourceSubmitters } from "@/lib/candidate-submitter";
 
 interface CardSourceColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
@@ -138,6 +139,7 @@ export function CardFieldsSection({
   const ignoreCardSource = useIgnoreCandidateCard();
 
   const uncheckedCount = sources.filter((s) => !s.checkedAt).length;
+  const submitters = buildSourceSubmitters(sources);
 
   return (
     <section className="space-y-2">
@@ -159,6 +161,7 @@ export function CardFieldsSection({
             requiredKeys={["name", "types", "domains"]}
             activeRow={{ ...card }}
             candidateRows={sources}
+            submitters={submitters}
             providerSettings={providerSettings}
             onCellClick={(field, value) => {
               if (!isAcceptCardField(field)) {

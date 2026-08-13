@@ -49,7 +49,9 @@ function formatCandidateCard(
     | "externalId"
     | "extraData"
     | "checkedAt"
-  >,
+    | "submittedByUserId"
+    | "submissionNote"
+  > & { submittedByName: string | null },
 ): CandidateCardResponse {
   return {
     ...s,

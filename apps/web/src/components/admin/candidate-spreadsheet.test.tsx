@@ -313,6 +313,93 @@ describe("CandidateSpreadsheet rarity icon", () => {
   });
 });
 
+describe("CandidateSpreadsheet submitter attribution", () => {
+  const nameField: FieldDef = { key: "name", label: "Name" };
+
+  const cardRow = { id: "cc1", provider: "usersubmission", name: "Yasuo", checkedAt: null };
+
+  it("names the submitter under a user-submission column header", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[nameField]}
+        activeRow={null}
+        candidateRows={[cardRow as never]}
+        submitters={{ cc1: { userId: "u1", name: "tempest_fox", note: null } }}
+      />,
+    );
+
+    expect(screen.getByText("by tempest_fox")).toBeDefined();
+  });
+
+  it("renders no attribution for a column with no submitter", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[nameField]}
+        activeRow={null}
+        candidateRows={[{ ...cardRow, provider: "gallery" } as never]}
+        submitters={{}}
+      />,
+    );
+
+    expect(screen.queryByText(/^by /u)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show submission note" })).toBeNull();
+  });
+
+  it("keeps the note behind the message icon until it is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <CandidateSpreadsheet
+        fields={[nameField]}
+        activeRow={null}
+        candidateRows={[cardRow as never]}
+        submitters={{ cc1: { userId: "u1", name: "tempest_fox", note: "Energy is 3, not 4." } }}
+      />,
+    );
+
+    expect(screen.queryByText("Energy is 3, not 4.")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Show submission note" }));
+
+    expect(screen.getByText("Energy is 3, not 4.")).toBeDefined();
+  });
+
+  it("offers no note popover when the submitter left none", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={[nameField]}
+        activeRow={null}
+        candidateRows={[cardRow as never]}
+        submitters={{ cc1: { userId: "u1", name: "tempest_fox", note: null } }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Show submission note" })).toBeNull();
+  });
+
+  // A candidate printing carries no attribution of its own — an image
+  // suggestion's submitter lives on the parent candidate card.
+  it("resolves a printing row's submitter through its parent card id", () => {
+    const printingRow = {
+      id: "cp1",
+      candidateCardId: "cc1",
+      shortCode: "OGN-001",
+      checkedAt: null,
+    };
+
+    render(
+      <CandidateSpreadsheet
+        fields={[nameField]}
+        activeRow={null}
+        candidateRows={[printingRow as never]}
+        providerLabels={{ cc1: "usersubmission" }}
+        submitters={{ cc1: { userId: "u1", name: "ionia_main", note: null } }}
+      />,
+    );
+
+    expect(screen.getByText("by ionia_main")).toBeDefined();
+  });
+});
+
 describe("buildCandidateCardFields", () => {
   // Regression: without `type: "number"`, hand-typed Energy/Power/Might values
   // commit as strings and the accept endpoint rejects them with a generic

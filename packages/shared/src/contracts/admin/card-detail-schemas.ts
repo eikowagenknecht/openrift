@@ -61,6 +61,13 @@ export const candidateCardResponseSchema = z
     tags: z.array(z.string()),
     extraData: z.unknown().nullable(),
     checkedAt: z.string().nullable(),
+    /** Set only for `usersubmission` candidates — who contributed this row. */
+    submittedByUserId: z.string().nullable(),
+    /** The submitter's display name, resolved from the id. Null when the user
+     * never set one, or when the account has since been deleted. */
+    submittedByName: z.string().nullable(),
+    /** Free-text note the contributor attached to the submission. */
+    submissionNote: z.string().nullable(),
   })
   .openapi("CandidateCardResponse");
 

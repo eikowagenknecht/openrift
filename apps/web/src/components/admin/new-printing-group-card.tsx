@@ -32,6 +32,7 @@ import { PrintingIdLabel } from "@/components/admin/printing-id-label";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { SourceSubmitter } from "@/lib/candidate-submitter";
 
 const REQUIRED_PRINTING_KEYS = [
   "shortCode",
@@ -112,6 +113,7 @@ export function NewPrintingGroupCard({
   existingPrintings,
   providerLabels,
   providerNames,
+  providerSubmitters,
   providerSettings,
   setTotals,
   setReleaseYears,
@@ -133,6 +135,8 @@ export function NewPrintingGroupCard({
   existingPrintings: AdminPrintingResponse[];
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
+  /** Keyed by candidate card id — printing rows resolve theirs via their parent. */
+  providerSubmitters: Record<string, SourceSubmitter>;
   providerSettings: ProviderSettingResponse[];
   setTotals: Record<string, number>;
   /** Map from set slug to the year of its release date, for pre-filling Printed Year. */
@@ -369,6 +373,7 @@ export function NewPrintingGroupCard({
                 candidateRows={group.candidates}
                 providerLabels={providerLabels}
                 providerNames={providerNames}
+                submitters={providerSubmitters}
                 providerSettings={providerSettings}
                 costKeywords={costKeywords}
                 activeImageUrl={previewImageUrl}

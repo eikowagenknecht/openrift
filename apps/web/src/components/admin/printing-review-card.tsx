@@ -46,6 +46,7 @@ import {
   useUncheckCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
+import type { SourceSubmitter } from "@/lib/candidate-submitter";
 import { getStoredCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
 
 interface PrintingSourceColumnActionsProps {
@@ -102,6 +103,8 @@ interface PrintingReviewCardProps {
   marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
   sourceLabels: Record<string, string>;
   sourceNames: Record<string, string>;
+  /** Keyed by candidate card id — printing rows resolve theirs via their parent. */
+  sourceSubmitters: Record<string, SourceSubmitter>;
   providerSettings: ProviderSettingResponse[];
   printingSourceFields: FieldDef<CandidatePrintingFieldKey>[];
   setTotals: Record<string, number>;
@@ -136,6 +139,7 @@ export function PrintingReviewCard({
   marketplaceMappings,
   sourceLabels,
   sourceNames,
+  sourceSubmitters,
   providerSettings,
   printingSourceFields,
   setTotals,
@@ -274,6 +278,7 @@ export function PrintingReviewCard({
               candidateRows={allSources}
               providerLabels={sourceLabels}
               providerNames={sourceNames}
+              submitters={sourceSubmitters}
               providerSettings={providerSettings}
               activeImageUrl={printingWithImage.imageUrl}
               costKeywords={costKeywords}

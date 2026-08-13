@@ -33,6 +33,8 @@ import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-
 import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useProviderSettings } from "@/hooks/use-provider-settings";
+import type { SourceSubmitter } from "@/lib/candidate-submitter";
+import { buildSourceSubmitters } from "@/lib/candidate-submitter";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
 
 // ---------------------------------------------------------------------------
@@ -115,7 +117,11 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
 export function buildSourceLabels(
   sources: CandidateCardResponse[],
   canonicalName?: string | null,
-): { labels: Record<string, string>; names: Record<string, string> } {
+): {
+  labels: Record<string, string>;
+  names: Record<string, string>;
+  submitters: Record<string, SourceSubmitter>;
+} {
   const labels = Object.fromEntries(sources.map((s) => [s.id, s.provider]));
 
   const names = Object.fromEntries(
@@ -131,7 +137,7 @@ export function buildSourceLabels(
       }),
   );
 
-  return { labels, names };
+  return { labels, names, submitters: buildSourceSubmitters(sources) };
 }
 
 // ---------------------------------------------------------------------------

@@ -204,7 +204,11 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   // Active values came from the pre-seed and the admin hasn't touched them yet.
   const isPreseeded = !touched && Object.keys(activeCard).length > 0;
 
-  const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources);
+  const {
+    labels: sourceLabels,
+    names: sourceNames,
+    submitters: sourceSubmitters,
+  } = buildSourceLabels(sources);
 
   // Build printing groups
   const groups = buildPrintingGroups(unmatchedData.candidatePrintingGroups, candidatePrintings);
@@ -284,6 +288,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           requiredKeys={["name", "types", "domains"]}
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           candidateRows={sources}
+          submitters={sourceSubmitters}
           providerSettings={providerSettings}
           costKeywords={costKeywords}
           activeColumnBadge={
@@ -447,6 +452,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                     candidateRows={group.candidates}
                     providerLabels={sourceLabels}
                     providerNames={sourceNames}
+                    submitters={sourceSubmitters}
                     providerSettings={providerSettings}
                     onCheck={isAdmin ? (id) => checkPrintingSource.mutate(id) : undefined}
                     onUncheck={isAdmin ? (id) => uncheckPrintingSource.mutate(id) : undefined}

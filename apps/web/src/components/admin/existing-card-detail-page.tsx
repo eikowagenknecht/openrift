@@ -271,7 +271,11 @@ export function ExistingCardDetailPage({
   }
   const canonicalName = card.name;
 
-  const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources, canonicalName);
+  const {
+    labels: sourceLabels,
+    names: sourceNames,
+    submitters: sourceSubmitters,
+  } = buildSourceLabels(sources, canonicalName);
 
   // Build printing groups for ambiguous/unmatched sources
   const ambiguousGroups = buildPrintingGroups(
@@ -382,6 +386,7 @@ export function ExistingCardDetailPage({
               marketplaceMappings={marketplaceMappings}
               sourceLabels={sourceLabels}
               sourceNames={sourceNames}
+              sourceSubmitters={sourceSubmitters}
               providerSettings={providerSettings}
               printingSourceFields={printingSourceFields}
               setTotals={setTotals}
@@ -440,6 +445,7 @@ export function ExistingCardDetailPage({
               existingPrintings={printings}
               providerLabels={sourceLabels}
               providerNames={sourceNames}
+              providerSubmitters={sourceSubmitters}
               providerSettings={providerSettings}
               setTotals={setTotals}
               setReleaseYears={setReleaseYears}

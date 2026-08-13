@@ -664,11 +664,19 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Candidate cards for detail page, explicit columns. */
+    /**
+     * @returns Candidate cards for detail page, explicit columns. Columns are
+     * table-qualified because of the `users` join (`name` exists on both).
+     * `submittedByName` is only ever set for user submissions; the join
+     * resolves the stored id to something an admin can read. The submitter's
+     * email is deliberately not selected — this endpoint is also reachable by
+     * card-review grant holders, who have no business seeing contributor
+     * contact details.
+     */
     async candidateCardsForDetail(
       normName: string | string[],
     ): Promise<
-      Pick<
+      (Pick<
         Selectable<CandidateCardsTable>,
         | "id"
         | "provider"
@@ -687,34 +695,40 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "externalId"
         | "extraData"
         | "checkedAt"
-      >[]
+        | "submittedByUserId"
+        | "submissionNote"
+      > & { submittedByName: string | null })[]
     > {
       const rows = await db
         .selectFrom("candidateCards")
+        .leftJoin("users", "users.id", "candidateCards.submittedByUserId")
         .select([
-          "id",
-          "provider",
-          "name",
-          "types",
-          "superTypes",
-          "domains",
-          "might",
-          "energy",
-          "power",
-          "mightBonus",
-          "rulesText",
-          "effectText",
-          "tags",
-          "shortCode",
-          "externalId",
-          "extraData",
-          "checkedAt",
+          "candidateCards.id",
+          "candidateCards.provider",
+          "candidateCards.name",
+          "candidateCards.types",
+          "candidateCards.superTypes",
+          "candidateCards.domains",
+          "candidateCards.might",
+          "candidateCards.energy",
+          "candidateCards.power",
+          "candidateCards.mightBonus",
+          "candidateCards.rulesText",
+          "candidateCards.effectText",
+          "candidateCards.tags",
+          "candidateCards.shortCode",
+          "candidateCards.externalId",
+          "candidateCards.extraData",
+          "candidateCards.checkedAt",
+          "candidateCards.submittedByUserId",
+          "candidateCards.submissionNote",
+          "users.name as submittedByName",
         ])
         .where("candidateCards.normName", Array.isArray(normName) ? "in" : "=", normName)
         .where(notIgnoredCard("candidateCards"))
         .where(notHiddenSource("candidateCards"))
-        .orderBy("provider")
-        .orderBy("shortCode")
+        .orderBy("candidateCards.provider")
+        .orderBy("candidateCards.shortCode")
         .execute();
       return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
     },

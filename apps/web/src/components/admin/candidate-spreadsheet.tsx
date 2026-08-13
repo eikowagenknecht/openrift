@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   EllipsisVerticalIcon,
+  MessageSquareTextIcon,
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -56,6 +58,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { EnumLabels } from "@/hooks/use-enums";
+import type { SourceSubmitter } from "@/lib/candidate-submitter";
+import { submitterLabel } from "@/lib/candidate-submitter";
 import { getFilterIconPath } from "@/lib/icons";
 import type { FilterCategory } from "@/lib/icons";
 import type { DiffSegment } from "@/lib/text-diff";
@@ -276,6 +280,9 @@ interface CandidateSpreadsheetProps<TKey extends string = string> {
   providerLabels?: Record<string, string>;
   /** Map from candidateCardId -> candidate card name (e.g. "Yone - Blademaster (Overnumbered)"). */
   providerNames?: Record<string, string>;
+  /** Map from candidateCardId -> who contributed it, for `usersubmission` columns.
+   * Printing rows resolve theirs through the parent card id. */
+  submitters?: Record<string, SourceSubmitter>;
   /** Provider settings for sort order and visibility. Hidden providers are excluded. */
   providerSettings?: ProviderSettingResponse[];
   /** Field keys that must be selected before the card can be accepted. */
@@ -633,12 +640,45 @@ function MultiSelectCell({
   );
 }
 
+/**
+ * Attribution line under a user-submission column header: who contributed the
+ * candidate, plus their note behind a message icon. The note is free text up
+ * to 2000 chars, so it stays in a popover rather than being inlined into a
+ * 300px column.
+ * @returns The submitter line.
+ */
+function SubmitterLine({ submitter }: { submitter: SourceSubmitter }) {
+  const label = submitterLabel(submitter);
+  return (
+    <div className="text-muted-foreground flex items-center gap-1 font-normal">
+      <span className="min-w-0 truncate" title={label}>
+        by {label}
+      </span>
+      {submitter.note !== null && (
+        <Popover>
+          <PopoverTrigger
+            render={<Button variant="ghost" size="icon" className="size-5 shrink-0" />}
+            aria-label="Show submission note"
+          >
+            <MessageSquareTextIcon className="size-3.5" />
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-80">
+            <p className="text-muted-foreground mb-1 font-medium">Submission note</p>
+            <p className="whitespace-pre-wrap">{submitter.note}</p>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
 export function CandidateSpreadsheet<TKey extends string = string>({
   fields,
   activeRow,
   candidateRows,
   providerLabels,
   providerNames,
+  submitters,
   providerSettings,
   requiredKeys,
   onCellClick,
@@ -719,54 +759,61 @@ export function CandidateSpreadsheet<TKey extends string = string>({
                 {activeColumnBadge}
               </span>
             </th>
-            {sortedRows.map((row) => (
-              <th
-                key={row.id}
-                className={cn(
-                  "w-[300px] border-l px-3 py-2 text-left font-medium",
-                  isFavoriteProvider(row, providerLabels, favoriteProviders) &&
-                    "bg-blue-50 dark:bg-blue-950/30",
-                  isChecked(row) && "opacity-50",
-                  columnClassName?.(row),
-                )}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="min-w-0 break-words">
-                    {getProviderLabel(row, providerLabels)}
-                    {"candidateCardId" in row && providerNames?.[row.candidateCardId] && (
-                      <span className="text-muted-foreground ml-1">
-                        ({providerNames[row.candidateCardId]})
-                      </span>
-                    )}
-                  </span>
-                  {isChecked(row) && (
-                    <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
+            {sortedRows.map((row) => {
+              // Printing rows carry no attribution of their own — they inherit
+              // it from the candidate card they belong to.
+              const submitter =
+                submitters?.["candidateCardId" in row ? row.candidateCardId : row.id];
+              return (
+                <th
+                  key={row.id}
+                  className={cn(
+                    "w-[300px] border-l px-3 py-2 text-left font-medium",
+                    isFavoriteProvider(row, providerLabels, favoriteProviders) &&
+                      "bg-blue-50 dark:bg-blue-950/30",
+                    isChecked(row) && "opacity-50",
+                    columnClassName?.(row),
                   )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={<Button variant="ghost" size="icon" className="ml-auto shrink-0" />}
-                    >
-                      <EllipsisVerticalIcon className="size-3.5" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onCheck && !isChecked(row) && (
-                        <DropdownMenuItem onClick={() => onCheck(row.id)}>
-                          <CheckIcon className="mr-2 size-3.5" />
-                          Mark as checked
-                        </DropdownMenuItem>
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="min-w-0 break-words">
+                      {getProviderLabel(row, providerLabels)}
+                      {"candidateCardId" in row && providerNames?.[row.candidateCardId] && (
+                        <span className="text-muted-foreground ml-1">
+                          ({providerNames[row.candidateCardId]})
+                        </span>
                       )}
-                      {onUncheck && isChecked(row) && (
-                        <DropdownMenuItem onClick={() => onUncheck(row.id)}>
-                          <XIcon className="mr-2 size-3.5" />
-                          Mark as unchecked
-                        </DropdownMenuItem>
-                      )}
-                      {columnActions ? cloneElement(columnActions, { row }) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </th>
-            ))}
+                    </span>
+                    {isChecked(row) && (
+                      <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button variant="ghost" size="icon" className="ml-auto shrink-0" />}
+                      >
+                        <EllipsisVerticalIcon className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onCheck && !isChecked(row) && (
+                          <DropdownMenuItem onClick={() => onCheck(row.id)}>
+                            <CheckIcon className="mr-2 size-3.5" />
+                            Mark as checked
+                          </DropdownMenuItem>
+                        )}
+                        {onUncheck && isChecked(row) && (
+                          <DropdownMenuItem onClick={() => onUncheck(row.id)}>
+                            <XIcon className="mr-2 size-3.5" />
+                            Mark as unchecked
+                          </DropdownMenuItem>
+                        )}
+                        {columnActions ? cloneElement(columnActions, { row }) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {submitter && <SubmitterLine submitter={submitter} />}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
