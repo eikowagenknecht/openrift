@@ -1638,11 +1638,113 @@ describe("buildCardDetail", () => {
     const bySuggestion = new Map(
       result.candidatePrintingGroups.map((g) => [g.shortCodes[0], g.suggestedPrintingId]),
     );
-    // {promo} is 1 marker away from {} but 2 away from {launch-exclusive}.
+    // Both are missing {promo}; {launch-exclusive} also carries an extra marker.
     expect(bySuggestion.get("cp-1")).toBe("p-plain");
     // Code matches case-insensitively; finish mismatch still yields the foil.
     expect(bySuggestion.get("cp-2")).toBe("p-plain");
     expect(bySuggestion.get("cp-3")).toBeNull();
+  });
+
+  it("prefers a marker superset over an unmarked printing for near-miss groups", async () => {
+    const candidateCard = {
+      id: "cc-1",
+      provider: "riftcore",
+      name: "X",
+      type: null,
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      mightBonus: null,
+      rulesText: null,
+      effectText: null,
+      tags: [],
+      shortCode: null,
+      externalId: "ext",
+      extraData: null,
+      checkedAt: null,
+    };
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([candidateCard]),
+      candidatePrintingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "cp-1",
+          candidateCardId: "cc-1",
+          printingId: null,
+          shortCode: "UNL-169",
+          setId: "s1",
+          setName: "S",
+          rarity: "rare",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: ["promo"],
+          finish: "foil",
+          artist: "A",
+          publicCode: "169",
+          printedRulesText: null,
+          printedEffectText: null,
+          imageUrl: null,
+          flavorText: null,
+          externalId: "ext-p1",
+          extraData: null,
+          checkedAt: null,
+        },
+      ]),
+      // The unmarked printing sorts first canonically, so a symmetric marker
+      // distance would tie and hand it the suggestion.
+      printingsForDetail: vi.fn().mockResolvedValue([
+        {
+          id: "p-plain",
+          cardId: "card-1",
+          setId: "set-uuid-1",
+          shortCode: "UNL-169",
+          rarity: "rare",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: [],
+          finish: "foil",
+          language: "EN",
+          artist: "A",
+          publicCode: "169",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+          canonicalRank: 1,
+        },
+        {
+          id: "p-prerelease-promo",
+          cardId: "card-1",
+          setId: "set-uuid-1",
+          shortCode: "UNL-169",
+          rarity: "rare",
+          artVariant: "normal",
+          isSigned: false,
+          markerSlugs: ["prerelease", "promo"],
+          finish: "foil",
+          language: "EN",
+          artist: "A",
+          publicCode: "169",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+          comment: null,
+          canonicalRank: 2,
+        },
+      ]),
+      setInfoByIds: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "set-uuid-1", slug: "unl", name: "Unlocked", printedTotal: 298 },
+        ]),
+    });
+
+    const result = await buildCardDetail(repo, mpRepo(), "x");
+
+    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBe("p-prerelease-promo");
   });
 
   it("excludes linked candidate printings from grouping", async () => {

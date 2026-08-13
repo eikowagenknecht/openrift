@@ -20,6 +20,13 @@ import { USER_SUBMISSION_PROVIDER } from "./ingest-user-submission.js";
 type Repo = ReturnType<typeof candidateCardsRepo>;
 type MarketplaceMappingRepo = ReturnType<typeof marketplaceMappingRepo>;
 
+/** Near-miss printing suggestion weights — see `findSuggestedPrinting`. A finish
+ *  mismatch outranks any realistic marker distance, and a printing missing a
+ *  marker the source stated is a worse match than one carrying an extra. */
+const FINISH_MISMATCH_COST = 1000;
+const MISSING_MARKER_COST = 10;
+const EXTRA_MARKER_COST = 1;
+
 function toMarketplaceName(marketplace: string): AdminMarketplaceName | null {
   if (marketplace === "tcgplayer" || marketplace === "cardmarket" || marketplace === "cardtrader") {
     return marketplace;
@@ -589,11 +596,18 @@ async function buildDetailResponse(
       if (p.shortCode.toUpperCase() !== wantedCode || p.language !== wantedLanguage) {
         continue;
       }
-      const markerDistance =
-        p.markerSlugs.filter((s) => !wantedMarkers.has(s)).length +
-        markerSlugs.filter((s) => !p.markerSlugs.includes(s)).length;
-      // Finish mismatch outweighs any realistic marker distance.
-      const score = (p.finish === finish ? 0 : 100) + markerDistance;
+      // Marker distance is asymmetric on purpose. A printing carrying markers
+      // the source didn't mention is the common case — sources under-report
+      // ("promo" where the catalogue says "prerelease+promo") — while a
+      // printing lacking a marker the source did state is a different variant.
+      // A symmetric distance ties those two cases, and the canonical-rank
+      // tiebreak then hands the suggestion to the unmarked printing.
+      const missing = markerSlugs.filter((s) => !p.markerSlugs.includes(s)).length;
+      const extra = p.markerSlugs.filter((s) => !wantedMarkers.has(s)).length;
+      const score =
+        (p.finish === finish ? 0 : FINISH_MISMATCH_COST) +
+        missing * MISSING_MARKER_COST +
+        extra * EXTRA_MARKER_COST;
       if (!best || score < best.score || (score === best.score && p.canonicalRank < best.rank)) {
         best = { id: p.id, score, rank: p.canonicalRank };
       }
