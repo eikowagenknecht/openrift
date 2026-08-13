@@ -58,27 +58,27 @@
     "@tanstack/react-pacer-devtools": "0.14.0",
     "@tanstack/react-query-devtools": "5.101.4",
     "@techstark/opencv-js": "5.0.0-release.1",
-    "knip": "6.32.0",
+    "knip": "6.32.1",
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.10",
     "onnxruntime-node": "1.27.0",
     "oxfmt": "0.62.0",
     "oxlint": "1.77.0",
     "sharp": "0.35.3",
-    "syncpack": "15.3.2",
-    "turbo": "2.10.8"
+    "syncpack": "15.3.3",
+    "turbo": "2.10.9"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
     "// @tanstack/query-core": "Dedupe: query-db-collection and router-ssr-query peer-resolve an older query-core; TS treats identical-but-different-path type copies as distinct, collapsing createCollection generics to Record<string, unknown>.",
     "// hono, @hono/node-server, lodash": "better-auth → prisma → @prisma/dev pins old versions",
     "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly). Keep this pin in step with html2canvas-pro in apps/web: dependabot does not treat an npm: alias as the same package, so a mismatch silently ships both versions as separate chunks. Enforced by scripts/check-override-pins.ts.",
-    "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.4; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
+    "// kysely": "Dedupe: better-auth pins kysely 0.29.2 while the api uses 0.29.5; two kysely copies fork @better-auth/core into two identical-but-different-path type copies, breaking the api build.",
     "@hono/node-server": "1.19.14",
     "@tanstack/query-core": "5.101.4",
     "hono": "4.13.1",
     "html2canvas": "npm:html2canvas-pro@2.3.3",
-    "kysely": "0.29.4"
+    "kysely": "0.29.5"
   },
   "packageManager": "bun@1.3.11",
   "trustedDependencies": [

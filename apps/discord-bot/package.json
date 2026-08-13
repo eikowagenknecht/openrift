@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@openrift/shared": "workspace:*",
-    "@orpc/client": "1.14.15",
-    "@orpc/contract": "1.14.15",
-    "@orpc/openapi-client": "1.14.15",
+    "@orpc/client": "1.15.0",
+    "@orpc/contract": "1.15.0",
+    "@orpc/openapi-client": "1.15.0",
     "discord.js": "14.27.0"
   },
   "devDependencies": {
