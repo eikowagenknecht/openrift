@@ -58,15 +58,15 @@
     "@tanstack/react-pacer-devtools": "0.14.0",
     "@tanstack/react-query-devtools": "5.101.4",
     "@techstark/opencv-js": "5.0.0-release.1",
-    "knip": "6.32.0",
+    "knip": "6.32.1",
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.10",
     "onnxruntime-node": "1.27.0",
     "oxfmt": "0.62.0",
     "oxlint": "1.77.0",
     "sharp": "0.35.3",
-    "syncpack": "15.3.2",
-    "turbo": "2.10.8"
+    "syncpack": "15.3.3",
+    "turbo": "2.10.9"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
