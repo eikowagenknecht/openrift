@@ -101,6 +101,7 @@ describe("useEmailNotifications", () => {
       tradeRequests: false,
       tradeStatus: true,
       tradeRequestCadence: "30min",
+      cardSubmissions: false,
     });
   });
 
@@ -114,6 +115,7 @@ describe("useEmailNotifications", () => {
       tradeRequests: true,
       tradeStatus: true,
       tradeRequestCadence: "5min",
+      cardSubmissions: false,
     });
   });
 

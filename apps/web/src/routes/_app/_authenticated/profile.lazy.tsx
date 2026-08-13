@@ -5,6 +5,7 @@ import type { PageTocItem } from "@/components/layout/page-toc";
 import { SettingsGroup } from "@/components/layout/settings-group";
 import { SettingsLayout } from "@/components/layout/settings-layout";
 import { AccountInfoSection } from "@/components/profile/account-info-section";
+import { AdminNotificationsSection } from "@/components/profile/admin-notifications-section";
 import { ConnectedAccountsSection } from "@/components/profile/connected-accounts-section";
 import { ContactMethodsSection } from "@/components/profile/contact-methods-section";
 import { DangerZoneSection } from "@/components/profile/danger-zone-section";
@@ -16,6 +17,7 @@ import { PublicSharingSection } from "@/components/profile/public-sharing-sectio
 import { TradingSection } from "@/components/profile/trading-section";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
+import { useIsAdmin } from "@/hooks/use-admin";
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -40,11 +42,22 @@ const NAV_SECTIONS: PageTocItem[] = [
   { id: "danger-zone", label: "Danger Zone" },
 ];
 
+/** The admin group sits after Integrations, so the entry goes at that index. */
+const ADMIN_NAV_INDEX = NAV_SECTIONS.findIndex((item) => item.id === "account");
+
+const ADMIN_NAV_SECTIONS: PageTocItem[] = NAV_SECTIONS.toSpliced(ADMIN_NAV_INDEX, 0, {
+  id: "admin",
+  label: "Admin",
+});
+
 function ProfilePage() {
   const { data: session } = useSession();
   const languages = useLanguageList();
   const user = session?.user;
   const gravatarHash = useGravatarHash(user?.email);
+  // Admin access resolves client-side (the query is not prefetched here), so the
+  // section and its nav entry appear after hydration rather than during SSR.
+  const { data: isAdmin = false } = useIsAdmin();
 
   if (!user) {
     return null;
@@ -56,7 +69,7 @@ function ProfilePage() {
 
   return (
     <div className={cn("flex justify-center", PAGE_PADDING)}>
-      <SettingsLayout toc={NAV_SECTIONS} className="max-w-4xl">
+      <SettingsLayout toc={isAdmin ? ADMIN_NAV_SECTIONS : NAV_SECTIONS} className="max-w-4xl">
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">
             <UserAvatar
@@ -99,6 +112,12 @@ function ProfilePage() {
         <SettingsGroup id="integrations" title="Integrations">
           <MyDeckCheckKeysSection />
         </SettingsGroup>
+
+        {isAdmin && (
+          <SettingsGroup id="admin" title="Admin">
+            <AdminNotificationsSection />
+          </SettingsGroup>
+        )}
 
         <SettingsGroup id="account" title="Account">
           <AccountInfoSection

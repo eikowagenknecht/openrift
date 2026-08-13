@@ -71,6 +71,39 @@ describe("previewUnsubscribe", () => {
     );
     expect(onPreview.alreadyUnsubscribed).toBe(false);
   });
+
+  it("reads the opt-in admin channel against its own default, not the request one", async () => {
+    const token = signUnsubscribeToken(SECRET, USER_ID, "cardSubmissions");
+    // Opt-in, so an untouched preference already delivers nothing — reading it
+    // through the opt-out request gate would have claimed it was still on.
+    const offPreview = await previewUnsubscribe(makeRepos({}).repos, SECRET, token);
+    expect(offPreview).toEqual({
+      valid: true,
+      channel: "cardSubmissions",
+      channelLabel: "card submission alerts",
+      alreadyUnsubscribed: true,
+    });
+
+    const onPreview = await previewUnsubscribe(
+      makeRepos({ cardSubmissions: true }).repos,
+      SECRET,
+      token,
+    );
+    expect(onPreview.alreadyUnsubscribed).toBe(false);
+  });
+
+  it("reads the opt-out status channel against its own default", async () => {
+    const token = signUnsubscribeToken(SECRET, USER_ID, "tradeStatus");
+    const onPreview = await previewUnsubscribe(makeRepos({}).repos, SECRET, token);
+    expect(onPreview.alreadyUnsubscribed).toBe(false);
+
+    const offPreview = await previewUnsubscribe(
+      makeRepos({ tradeStatus: false }).repos,
+      SECRET,
+      token,
+    );
+    expect(offPreview.alreadyUnsubscribed).toBe(true);
+  });
 });
 
 describe("applyUnsubscribe", () => {

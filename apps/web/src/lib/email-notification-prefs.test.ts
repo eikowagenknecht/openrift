@@ -13,13 +13,20 @@ describe("resolveEmailNotificationGates", () => {
       tradeRequests: true, // request email is opt-out
       tradeStatus: true, // status email is opt-out
       tradeRequestCadence: "5min", // default cadence
+      cardSubmissions: false, // admin alert is opt-in
     });
     expect(resolveEmailNotificationGates({})).toEqual({
       tradeMatches: false,
       tradeRequests: true,
       tradeStatus: true,
       tradeRequestCadence: "5min",
+      cardSubmissions: false,
     });
+  });
+
+  it("the admin card-submission alert is on only when explicitly true", () => {
+    expect(resolveEmailNotificationGates({ cardSubmissions: true }).cardSubmissions).toBe(true);
+    expect(resolveEmailNotificationGates({ cardSubmissions: false }).cardSubmissions).toBe(false);
   });
 
   it("digest is on only when explicitly true", () => {

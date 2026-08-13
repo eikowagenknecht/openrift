@@ -72,7 +72,11 @@ export type EmailNotificationPreference = z.infer<typeof emailNotificationPrefer
  * to the boolean opt-in keys (not `keyof EmailNotificationPreference`) so the
  * non-boolean cadence field stays out of the on/off toggle path.
  */
-export type EmailNotificationChannel = "tradeMatches" | "tradeRequests" | "tradeStatus";
+export type EmailNotificationChannel =
+  | "tradeMatches"
+  | "tradeRequests"
+  | "tradeStatus"
+  | "cardSubmissions";
 
 /**
  * Human-readable label per channel, phrased to slot into "You'll no longer
@@ -83,6 +87,7 @@ export const EMAIL_NOTIFICATION_CHANNEL_LABELS: Record<EmailNotificationChannel,
   tradeMatches: "the daily match digest",
   tradeRequests: "trade-request emails",
   tradeStatus: "trade status updates",
+  cardSubmissions: "card submission alerts",
 };
 
 /** @returns Whether the daily match digest is enabled (opt-in: default off). */
@@ -100,6 +105,18 @@ export function isTradeRequestEmailEnabled(
 /** @returns Whether trade status-change emails are enabled (opt-out: default on). */
 export function isTradeStatusEmailEnabled(prefs: EmailNotificationPreference | undefined): boolean {
   return prefs?.tradeStatus !== false;
+}
+
+/**
+ * Whether the admin card-submission alert is enabled (opt-in: default off).
+ * Default-off on purpose — a second admin should never start receiving another
+ * admin's review mail just by being promoted (ADR-036).
+ * @returns Whether the alert is enabled.
+ */
+export function isCardSubmissionEmailEnabled(
+  prefs: EmailNotificationPreference | undefined,
+): boolean {
+  return prefs?.cardSubmissions === true;
 }
 
 /** @returns The recipient's trade-request email cadence (default when unset). */

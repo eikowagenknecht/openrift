@@ -14,6 +14,7 @@ const VALID_CHANNELS: readonly EmailNotificationChannel[] = [
   "tradeMatches",
   "tradeRequests",
   "tradeStatus",
+  "cardSubmissions",
 ];
 
 function base64url(input: Buffer | string): string {

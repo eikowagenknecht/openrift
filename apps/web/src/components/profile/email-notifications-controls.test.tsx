@@ -24,6 +24,7 @@ beforeEach(() => {
       tradeRequests: true,
       tradeStatus: true,
       tradeRequestCadence: "5min",
+      cardSubmissions: false,
     },
     isLoading: false,
     isSaving: false,

@@ -32,6 +32,9 @@ export function emailButton(label: string, href: string): string {
   return `<a href="${escapeHtml(href)}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:8px;">${escapeHtml(label)}</a>`;
 }
 
+/** Footer line for the trade emails this shell was built for (ADR-030). */
+const DEFAULT_FOOTER_NOTE = "You're receiving this because of your trading activity on OpenRift.";
+
 interface EmailLayoutParams {
   /** Bold heading shown at the top of the content card. */
   heading: string;
@@ -39,6 +42,12 @@ interface EmailLayoutParams {
   bodyHtml: string;
   /** Optional one-click unsubscribe link for this email's channel. */
   unsubscribe?: { url: string; label: string };
+  /**
+   * Why the recipient is getting this mail, shown above the unsubscribe line.
+   * Defaults to the trading-activity wording; non-trade emails (the admin
+   * card-submission alert) pass their own.
+   */
+  footerNote?: string;
 }
 
 /**
@@ -46,7 +55,7 @@ interface EmailLayoutParams {
  * @returns A complete HTML document string ready to pass to `sendEmail`.
  */
 export function renderEmailLayout(params: EmailLayoutParams): string {
-  const { heading, bodyHtml, unsubscribe } = params;
+  const { heading, bodyHtml, unsubscribe, footerNote = DEFAULT_FOOTER_NOTE } = params;
   const unsubscribeHtml = unsubscribe
     ? `<p style="margin:12px 0 0;color:${MUTED};font-size:12px;">${escapeHtml(unsubscribe.label)} — <a href="${escapeHtml(unsubscribe.url)}" style="color:${MUTED};">unsubscribe</a>.</p>`
     : "";
@@ -61,7 +70,7 @@ export function renderEmailLayout(params: EmailLayoutParams): string {
         <div style="color:${TEXT};font-size:14px;line-height:1.6;">${bodyHtml}</div>
       </div>
       <div style="padding:16px 4px 0;">
-        <p style="margin:0;color:${MUTED};font-size:12px;">You're receiving this because of your trading activity on OpenRift.</p>
+        <p style="margin:0;color:${MUTED};font-size:12px;">${escapeHtml(footerNote)}</p>
         ${unsubscribeHtml}
       </div>
     </div>

@@ -1,8 +1,10 @@
 import type { EmailNotificationChannel, EmailNotificationPreference } from "@openrift/shared/types";
 import {
   EMAIL_NOTIFICATION_CHANNEL_LABELS,
+  isCardSubmissionEmailEnabled,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
+  isTradeStatusEmailEnabled,
 } from "@openrift/shared/types";
 
 import type { Repos } from "../deps.js";
@@ -24,17 +26,29 @@ export interface UnsubscribeResult {
 
 /**
  * Whether the channel is already in its "off" state, honouring the per-channel
- * defaults (`tradeMatches` is opt-in, `tradeRequests` is opt-out). Used so the
- * confirmation page can say "already unsubscribed" instead of implying a change.
+ * defaults (`tradeMatches` and `cardSubmissions` are opt-in; the two other trade
+ * channels are opt-out). Used so the confirmation page can say "already
+ * unsubscribed" instead of implying a change.
  * @returns true if the channel currently delivers no mail.
  */
 function isChannelOff(
   channel: EmailNotificationChannel,
   prefs: EmailNotificationPreference | undefined,
 ): boolean {
-  return channel === "tradeMatches"
-    ? !isTradeMatchDigestEnabled(prefs)
-    : !isTradeRequestEmailEnabled(prefs);
+  switch (channel) {
+    case "tradeMatches": {
+      return !isTradeMatchDigestEnabled(prefs);
+    }
+    case "tradeStatus": {
+      return !isTradeStatusEmailEnabled(prefs);
+    }
+    case "cardSubmissions": {
+      return !isCardSubmissionEmailEnabled(prefs);
+    }
+    default: {
+      return !isTradeRequestEmailEnabled(prefs);
+    }
+  }
 }
 
 /**

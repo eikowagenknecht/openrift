@@ -74,6 +74,7 @@ import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { userSharesRepo } from "./repositories/user-shares.js";
 import { usersRepo } from "./repositories/users.js";
+import { notifyAdminsOfCardSubmission } from "./services/card-submission-notifications.js";
 import {
   acceptTrade,
   applyTradeSync,
@@ -191,6 +192,7 @@ export interface Services {
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
   ingestUserSubmission: typeof ingestUserSubmission;
+  notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   importErrata: typeof importErrata;
   createTrade: typeof createTrade;
   listTradeCopyOptions: typeof listTradeCopyOptions;
@@ -384,6 +386,7 @@ export const services: Services = {
   getMappingOverview,
   ingestCandidates,
   ingestUserSubmission,
+  notifyAdminsOfCardSubmission,
   importErrata,
   createTrade,
   listTradeCopyOptions,
@@ -402,10 +405,11 @@ export const services: Services = {
 };
 
 /**
- * Builds the services object, binding the ADR-030 trade-request email deps into
- * `createTrade` so the route handler keeps its plain `(repos, input)` call. When
- * `emailDeps` is absent (e.g. SMTP unconfigured, or in tests that don't assert
- * mail) `createTrade` simply skips the best-effort email.
+ * Builds the services object, binding the transactional-email deps into the two
+ * services that send from the request path — `createTrade` (ADR-030) and
+ * `notifyAdminsOfCardSubmission` (ADR-036) — so route handlers keep their plain
+ * `(repos, input)` calls. When `emailDeps` is absent (e.g. SMTP unconfigured, or
+ * in tests that don't assert mail) both simply skip their best-effort email.
  * @returns A {@link Services} object wired with the given email deps.
  */
 export function createServices(emailDeps?: TradeEmailDeps): Services {
@@ -415,5 +419,7 @@ export function createServices(emailDeps?: TradeEmailDeps): Services {
   return {
     ...services,
     createTrade: (repos, input) => createTrade(repos, input, emailDeps),
+    notifyAdminsOfCardSubmission: (repos, submission) =>
+      notifyAdminsOfCardSubmission(repos, submission, emailDeps),
   };
 }

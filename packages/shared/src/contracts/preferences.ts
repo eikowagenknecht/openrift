@@ -22,6 +22,11 @@ export const emailNotificationPreferenceSchema = z
     tradeRequests: z.boolean().optional(),
     tradeStatus: z.boolean().optional(),
     tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
+    // Admin-only channel (ADR-036): a new in-app card submission landed for
+    // review. Stored for anyone — the send side only ever reads it for users who
+    // hold the admin role, so a stray `true` on a normal account delivers
+    // nothing.
+    cardSubmissions: z.boolean().optional(),
   })
   .openapi("EmailNotificationPreference");
 

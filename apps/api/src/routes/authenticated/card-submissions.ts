@@ -46,6 +46,17 @@ export const cardSubmissionsRouter = {
     if (result.status === "invalid") {
       throw errors.BAD_REQUEST({ message: result.errors.join("; ") });
     }
+
+    // ADR-036: tell the admins who opted in that something is waiting for
+    // review. After the candidate row has committed, outside any transaction,
+    // and best-effort (the service swallows its own errors) so a mail failure
+    // can never fail a submission the contributor already made.
+    await context.services.notifyAdminsOfCardSubmission(context.repos, {
+      submitterUserId: context.userId,
+      card,
+      note: input.submissionNote ?? null,
+    });
+
     return { ok: true };
   }),
 };

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TRADE_REQUEST_EMAIL_CADENCE,
   getTradeRequestEmailCadence,
+  isCardSubmissionEmailEnabled,
   isTradeStatusEmailEnabled,
 } from "./preferences.js";
 
@@ -27,5 +28,17 @@ describe("isTradeStatusEmailEnabled", () => {
   it("is off only when explicitly disabled", () => {
     expect(isTradeStatusEmailEnabled({ tradeStatus: false })).toBe(false);
     expect(isTradeStatusEmailEnabled({ tradeStatus: true })).toBe(true);
+  });
+});
+
+describe("isCardSubmissionEmailEnabled", () => {
+  it("defaults off (opt-in) when unset, so a new admin is never auto-subscribed", () => {
+    expect(isCardSubmissionEmailEnabled(undefined)).toBe(false);
+    expect(isCardSubmissionEmailEnabled({})).toBe(false);
+  });
+
+  it("is on only when explicitly enabled", () => {
+    expect(isCardSubmissionEmailEnabled({ cardSubmissions: true })).toBe(true);
+    expect(isCardSubmissionEmailEnabled({ cardSubmissions: false })).toBe(false);
   });
 });

@@ -12,6 +12,9 @@ export interface MatchDigestRecipient {
   name: string | null;
 }
 
+/** An admin who has opted into the card-submission alert (ADR-036). */
+export type CardSubmissionRecipient = MatchDigestRecipient;
+
 /** The data needed to gate + address a transactional email to one user (ADR-030). */
 export interface EmailNotificationContext {
   email: string;
@@ -86,6 +89,28 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .where("u.emailVerified", "=", true)
         .where(
           sql<boolean>`((up.data #>> '{}')::jsonb -> 'emailNotifications' ->> 'tradeMatches') = 'true'`,
+        )
+        .execute();
+      return rows;
+    },
+
+    /**
+     * Admins who opted into the card-submission alert (ADR-036). The inner join
+     * on `admins` is the real gate: the preference is storable by anyone, but
+     * only an admin can ever be a recipient, so a demoted admin stops receiving
+     * these without their stored preference having to change. Same double-encoded
+     * JSONB unwrap as {@link listMatchDigestRecipients}.
+     * @returns Opted-in admin recipients with their email + name.
+     */
+    async listCardSubmissionRecipients(): Promise<CardSubmissionRecipient[]> {
+      const rows = await db
+        .selectFrom("userPreferences as up")
+        .innerJoin("users as u", "u.id", "up.userId")
+        .innerJoin("admins as a", "a.userId", "u.id")
+        .select(["u.id as userId", "u.email as email", "u.name as name"])
+        .where("u.emailVerified", "=", true)
+        .where(
+          sql<boolean>`((up.data #>> '{}')::jsonb -> 'emailNotifications' ->> 'cardSubmissions') = 'true'`,
         )
         .execute();
       return rows;

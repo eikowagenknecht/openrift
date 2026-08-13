@@ -5,6 +5,7 @@ import type {
 } from "@openrift/shared";
 import {
   getTradeRequestEmailCadence,
+  isCardSubmissionEmailEnabled,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   isTradeStatusEmailEnabled,
@@ -20,6 +21,8 @@ export interface EmailNotificationGates {
   tradeStatus: boolean;
   /** Delivery cadence shared by trade-request and trade-status emails. */
   tradeRequestCadence: TradeRequestEmailCadence;
+  /** Admin card-submission alert (ADR-036) — opt-in, so off unless enabled. */
+  cardSubmissions: boolean;
 }
 
 /**
@@ -36,6 +39,7 @@ export function resolveEmailNotificationGates(
     tradeRequests: isTradeRequestEmailEnabled(prefs),
     tradeStatus: isTradeStatusEmailEnabled(prefs),
     tradeRequestCadence: getTradeRequestEmailCadence(prefs),
+    cardSubmissions: isCardSubmissionEmailEnabled(prefs),
   };
 }
 

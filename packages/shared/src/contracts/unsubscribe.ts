@@ -5,7 +5,9 @@ const TAG = "Account";
 
 const tokenInput = z.object({ token: z.string().min(1) });
 
-const channelSchema = z.enum(["tradeMatches", "tradeRequests", "tradeStatus"]);
+// Keep in sync with `EmailNotificationChannel` (types/api/preferences.ts) — an
+// unlisted channel makes the whole unsubscribe handler fail to typecheck.
+const channelSchema = z.enum(["tradeMatches", "tradeRequests", "tradeStatus", "cardSubmissions"]);
 
 /**
  * One-click unsubscribe (ADR-030, RFC 8058). `preview` is a safe, read-only
