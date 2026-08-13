@@ -96,6 +96,7 @@ export const adminCatalogContract = {
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
         releases: setReleasesSchema.optional(),
+        setType: setFieldRules.setType,
       }),
     )
     .output(z.object({ id: z.string() })),

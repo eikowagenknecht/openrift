@@ -262,6 +262,7 @@ describe("POST /api/admin/v1/sets", () => {
         name: "New Set",
         printedTotal: 50,
         releases: { EN: { releasedAt: "2026-03-01", precision: "day" } },
+        setType: "main",
       }),
     });
     expect(res.status).toBe(201);
@@ -271,9 +272,33 @@ describe("POST /api/admin/v1/sets", () => {
       slug: "new-set",
       name: "New Set",
       printedTotal: 50,
+      setType: "main",
     });
     expect(mockSetsRepo.replaceReleases).toHaveBeenCalledWith(setId1, {
       EN: { releasedAt: "2026-03-01", precision: "day" },
+    });
+  });
+
+  // The chosen type used to be dropped on create, so every new set was born
+  // "main" and had to be edited straight afterwards.
+  it("creates a supplemental set as supplemental", async () => {
+    mockSetsRepo.createIfNotExists.mockResolvedValue(setId1);
+    const res = await app.request("/api/admin/v1/sets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "new-set",
+        name: "New Set",
+        printedTotal: 50,
+        setType: "supplemental",
+      }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockSetsRepo.createIfNotExists).toHaveBeenCalledWith({
+      slug: "new-set",
+      name: "New Set",
+      printedTotal: 50,
+      setType: "supplemental",
     });
   });
 
@@ -286,6 +311,7 @@ describe("POST /api/admin/v1/sets", () => {
         id: "existing-set",
         name: "Existing Set",
         printedTotal: 100,
+        setType: "main",
       }),
     });
     expect(res.status).toBe(409);
@@ -293,14 +319,15 @@ describe("POST /api/admin/v1/sets", () => {
     expect(json.message).toContain("already exists");
   });
 
-  it("creates set with optional releasedAt omitted", async () => {
+  it("creates a set with no releases", async () => {
     mockSetsRepo.createIfNotExists.mockResolvedValue(setId1);
     const res = await app.request("/api/admin/v1/sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: "new-set", name: "New Set", printedTotal: 50 }),
+      body: JSON.stringify({ id: "new-set", name: "New Set", printedTotal: 50, setType: "main" }),
     });
     expect(res.status).toBe(201);
+    expect(mockSetsRepo.replaceReleases).not.toHaveBeenCalled();
   });
 });
 

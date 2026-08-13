@@ -596,6 +596,7 @@ export function SetsPage() {
               id: d.id.trim(),
               name: d.name.trim(),
               printedTotal: isNaN(printedTotal) ? 0 : printedTotal,
+              setType: d.setType,
             });
           },
           validate: (d) => {

@@ -72,6 +72,7 @@ export function setsRepo(db: Kysely<Database>) {
       slug: string;
       name: string;
       printedTotal: number | null;
+      setType: "main" | "supplemental";
     }): Promise<string | null> {
       const result = await db
         .insertInto("sets")
@@ -79,6 +80,7 @@ export function setsRepo(db: Kysely<Database>) {
           slug: values.slug,
           name: values.name,
           printedTotal: values.printedTotal,
+          setType: values.setType,
           sortOrder: sql<number>`coalesce((select max(sort_order) from sets), 0) + 1`,
         })
         .onConflict((oc) => oc.column("slug").doNothing())

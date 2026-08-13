@@ -70,7 +70,12 @@ describe("setsRepo", () => {
   it("createIfNotExists returns id when inserted", async () => {
     const db = createMockDb([{ id: "s-new" }]);
     expect(
-      await setsRepo(db).createIfNotExists({ slug: "NEW", name: "New Set", printedTotal: null }),
+      await setsRepo(db).createIfNotExists({
+        slug: "NEW",
+        name: "New Set",
+        printedTotal: null,
+        setType: "main",
+      }),
     ).toBe("s-new");
   });
 
@@ -81,6 +86,7 @@ describe("setsRepo", () => {
         slug: "OGS",
         name: "Proving Grounds",
         printedTotal: null,
+        setType: "main",
       }),
     ).toBeNull();
   });

@@ -69,9 +69,15 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
       slug: "test-set-42b",
       name: "Test Set 42b",
       printedTotal: null,
+      setType: "supplemental",
     });
     expect(id).not.toBeNull();
     createdSetIds.push(id!);
+
+    // The column defaults to 'main', so a stored supplemental proves the
+    // chosen type survives the insert rather than the default winning.
+    const sets = await repo.listAll();
+    expect(sets.find((s) => s.id === id)!.setType).toBe("supplemental");
   });
 
   it("createIfNotExists returns null when slug already exists", async () => {
@@ -79,6 +85,7 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
       slug: "test-set-42b",
       name: "Different Name",
       printedTotal: 50,
+      setType: "main",
     });
     expect(id).toBeNull();
   });

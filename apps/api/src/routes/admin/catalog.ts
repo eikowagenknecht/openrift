@@ -54,9 +54,9 @@ export const adminCatalogRouter = {
 
   createSet: os.createSet.handler(async ({ input, context }) => {
     const { sets: setsRepo } = context.repos;
-    const { id, name, printedTotal, releases } = input;
+    const { id, name, printedTotal, releases, setType } = input;
 
-    const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal });
+    const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, setType });
     if (!setId) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Set with ID "${id}" already exists`);
     }

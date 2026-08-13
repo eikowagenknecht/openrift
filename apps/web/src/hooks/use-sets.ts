@@ -56,7 +56,13 @@ export function useUpdateSet() {
 
 const createSetFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { id: string; name: string; printedTotal: number; releases?: SetReleases }) => input,
+    (input: {
+      id: string;
+      name: string;
+      printedTotal: number;
+      releases?: SetReleases;
+      setType: "main" | "supplemental";
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -70,6 +76,7 @@ export function useCreateSet() {
       name: string;
       printedTotal: number;
       releases?: SetReleases;
+      setType: "main" | "supplemental";
     }) => createSetFn({ data: body }),
     invalidates: [queryKeys.admin.sets],
   });
