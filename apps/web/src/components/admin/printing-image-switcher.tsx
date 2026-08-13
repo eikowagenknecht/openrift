@@ -81,7 +81,15 @@ export function PrintingImageSwitcher({
   const setPrintingSourceImage = useSetCandidatePrintingImage(invalidates);
 
   const orderSort = sortByProviderOrder(providerSettings);
-  const sortedImages = images.toSorted((a, b) => orderSort(imageLabel(a), imageLabel(b)));
+  // The active image leads the strip and so is what the preview opens on —
+  // provider order would otherwise front a rehosted-but-inactive image and
+  // show something the site doesn't serve.
+  const sortedImages = images.toSorted((a, b) => {
+    if (a.isActive !== b.isActive) {
+      return a.isActive ? -1 : 1;
+    }
+    return orderSort(imageLabel(a), imageLabel(b));
+  });
   const sortedSourceImages = sourceImages.toSorted((a, b) => orderSort(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(

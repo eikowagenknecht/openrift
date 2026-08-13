@@ -28,6 +28,7 @@ import {
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
 import { GroupImagePreview } from "@/components/admin/image-preview";
+import { PrintingIdLabel } from "@/components/admin/printing-id-label";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,9 +272,14 @@ export function NewPrintingGroupCard({
           ) : (
             <ChevronRightIcon className="size-4" />
           )}
-          <span>
-            New: <span className="text-muted-foreground">{printingLabel || guessedId}</span> (
-            {group.candidates.length} source
+          <span className="inline-flex items-center gap-1">
+            New:
+            <PrintingIdLabel
+              label={printingLabel || guessedId}
+              language={(activePrinting.language as string | undefined) ?? null}
+              className="text-muted-foreground"
+            />
+            ({group.candidates.length} source
             {group.candidates.length === 1 ? "" : "s"})
           </span>
         </span>

@@ -21,9 +21,9 @@ import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import type { CandidatePrintingFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPrintingNormalizer,
-  computePrintingMatchStatus,
   deduplicateSourceImages,
 } from "@/components/admin/card-detail-shared";
+import { PrintingIdLabel } from "@/components/admin/printing-id-label";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
 import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
@@ -46,8 +46,7 @@ import {
   useUncheckCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
-import { cn } from "@/lib/utils";
-import { getCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
+import { getStoredCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
 
 interface PrintingSourceColumnActionsProps {
   row?: CandidateCardResponse | CandidatePrintingResponse;
@@ -109,14 +108,18 @@ interface PrintingReviewCardProps {
   costKeywords: readonly string[];
   /** Query keys this row's mutations invalidate. */
   invalidates: readonly (readonly unknown[])[];
+  /**
+   * Fold state to show until the page seeds the card's defaults — true for the
+   * first printing only, so a card never renders every row expanded.
+   */
+  defaultExpanded: boolean;
   /** Card-review grant holders only accept fields; triage and delete stay full-admin. */
   isAdmin: boolean;
 }
 
 /**
  * One accepted printing in the card review list: a foldable header carrying the
- * match status and triage actions, over the candidate spreadsheet for its
- * sources.
+ * triage actions, over the candidate spreadsheet for its sources.
  *
  * The row owns its own mutations and reads its own fold slice so the detail
  * page's `.map()` closes over nothing that changes per render, and toggling one
@@ -138,14 +141,16 @@ export function PrintingReviewCard({
   setTotals,
   costKeywords,
   invalidates,
+  defaultExpanded,
   isAdmin,
 }: PrintingReviewCardProps) {
   const printingId = printing.id;
   const printingLabel = printing.expectedPrintingId;
 
-  const isExpanded = useAdminCardFoldStore(
-    (state) => !getCollapsedPrintings(state, cardId).has(printingId),
-  );
+  const isExpanded = useAdminCardFoldStore((state) => {
+    const collapsed = getStoredCollapsedPrintings(state, cardId);
+    return collapsed === undefined ? defaultExpanded : !collapsed.has(printingId);
+  });
   const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
 
   const checkAllCandidatePrintings = useCheckAllCandidatePrintings(invalidates);
@@ -166,20 +171,6 @@ export function PrintingReviewCard({
     imageUrl: activeImage?.originalUrl ?? null,
   };
 
-  const matchStatus = computePrintingMatchStatus(
-    printing,
-    allSources,
-    sourceLabels,
-    providerSettings,
-    printingSourceFields,
-    setTotals,
-    costKeywords,
-  );
-  const headerBgClass =
-    matchStatus === "match"
-      ? "bg-green-50 dark:bg-green-950/30"
-      : "bg-yellow-50 dark:bg-yellow-950/30";
-
   // Deduplicate source images not yet accepted as printing images
   const sourceImagesForSwitcher = deduplicateSourceImages(
     allSources.filter(
@@ -194,15 +185,12 @@ export function PrintingReviewCard({
     <div data-printing-id={printingId} className="overflow-hidden rounded-md border">
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
       <div
-        className={cn(
-          "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90",
-          headerBgClass,
-        )}
+        className="bg-muted/40 flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90"
         onClick={() => togglePrintingFold(cardId, printingId)}
       >
         <span className="flex items-center gap-2">
           {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          <span>{printingLabel}</span>
+          <PrintingIdLabel label={printingLabel} language={printing.language} />
           <span className="text-muted-foreground font-normal">
             ({allSources.length} source
             {allSources.length === 1 ? "" : "s"})

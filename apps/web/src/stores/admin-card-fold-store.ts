@@ -8,16 +8,23 @@ interface AdminCardFoldState {
   togglePrinting: (cardId: string, printingId: string) => void;
   expandPrinting: (cardId: string, printingId: string) => void;
   setCollapsedForCard: (cardId: string, collapsed: Set<string>) => void;
+  initCollapsedForCard: (cardId: string, collapsed: Set<string>) => void;
   toggleSection: (sectionId: AdminCardSectionId) => void;
 }
 
-const EMPTY_SET: ReadonlySet<string> = new Set();
-
-export function getCollapsedPrintings(
+/**
+ * The card's stored fold set, or `undefined` when the card has not been seeded
+ * yet. Callers distinguish the two: an unseeded card falls back to the default
+ * (everything folded but the first printing), which is not the same as an
+ * explicitly empty set (everything open after "Expand all").
+ *
+ * @returns The stored collapsed ids, or `undefined` when the card is unseeded.
+ */
+export function getStoredCollapsedPrintings(
   state: AdminCardFoldState,
   cardId: string,
-): ReadonlySet<string> {
-  return state.collapsedByCard[cardId] ?? EMPTY_SET;
+): ReadonlySet<string> | undefined {
+  return state.collapsedByCard[cardId];
 }
 
 export function getCollapsedSections(state: AdminCardFoldState): ReadonlySet<AdminCardSectionId> {
@@ -55,6 +62,16 @@ export const useAdminCardFoldStore = create<AdminCardFoldState>()((set) => ({
     set((state) => ({
       collapsedByCard: { ...state.collapsedByCard, [cardId]: new Set(collapsed) },
     })),
+
+  // Seeds the card's default folds on first visit. A no-op afterwards, so a
+  // refetch never re-folds rows the admin just opened.
+  initCollapsedForCard: (cardId, collapsed) =>
+    set((state) => {
+      if (state.collapsedByCard[cardId]) {
+        return state;
+      }
+      return { collapsedByCard: { ...state.collapsedByCard, [cardId]: new Set(collapsed) } };
+    }),
 
   toggleSection: (sectionId) =>
     set((state) => {

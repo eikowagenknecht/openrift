@@ -2,7 +2,6 @@ import type {
   AdminPrintingImageResponse,
   AdminPrintingResponse,
   CandidatePrintingResponse,
-  ProviderSettingResponse,
 } from "@openrift/shared";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +39,11 @@ vi.mock("@/components/admin/printing-image-switcher", () => ({
 
 vi.mock("@/components/admin/printing-marketplace-cells", () => ({
   PrintingMarketplaceBadges: () => null,
+}));
+
+// The real chip reads language colors from the /init suspense query.
+vi.mock("@/components/language-chip", () => ({
+  LanguageChip: ({ code }: { code: string }) => <span>{code}</span>,
 }));
 
 vi.mock("@tanstack/react-router", () => ({ Link: () => null }));
@@ -121,6 +125,7 @@ function renderCard(
       setTotals={{}}
       costKeywords={[]}
       invalidates={[]}
+      defaultExpanded
       isAdmin
       {...props}
     />,
@@ -247,38 +252,18 @@ describe("PrintingReviewCard", () => {
     expect(captured.spreadsheet).not.toBeNull();
   });
 
-  it("marks a printing whose favorited source disagrees as a mismatch", () => {
-    const providerSettings = [
-      { provider: "piltover", isFavorite: true, sortOrder: 0 },
-    ] as unknown as ProviderSettingResponse[];
-    const printingSourceFields = [{ key: "artist", label: "Artist" }] as never[];
-
-    const { container } = renderCard({
-      printing: stubPrinting({ artist: "Riot" }),
-      candidatePrintings: [stubSource({ artist: "Someone Else" } as never)],
-      sourceLabels: { cc1: "piltover" },
-      providerSettings,
-      printingSourceFields,
+  it("renders the language prefix as a chip", () => {
+    const { getByText } = renderCard({
+      printing: stubPrinting({ expectedPrintingId: "EN:OGN-001::foil" }),
     });
 
-    expect(container.querySelector(".bg-yellow-50")).toBeTruthy();
-    expect(container.querySelector(".bg-green-50")).toBeNull();
+    expect(getByText("EN")).toBeTruthy();
+    expect(getByText("OGN-001::foil")).toBeTruthy();
   });
 
-  it("marks a printing whose favorited source agrees as a match", () => {
-    const providerSettings = [
-      { provider: "piltover", isFavorite: true, sortOrder: 0 },
-    ] as unknown as ProviderSettingResponse[];
-    const printingSourceFields = [{ key: "artist", label: "Artist" }] as never[];
+  it("starts folded when it is not the card's first printing", () => {
+    renderCard({ defaultExpanded: false });
 
-    const { container } = renderCard({
-      printing: stubPrinting({ artist: "Riot" }),
-      candidatePrintings: [stubSource({ artist: "Riot" } as never)],
-      sourceLabels: { cc1: "piltover" },
-      providerSettings,
-      printingSourceFields,
-    });
-
-    expect(container.querySelector(".bg-green-50")).toBeTruthy();
+    expect(captured.spreadsheet).toBeNull();
   });
 });

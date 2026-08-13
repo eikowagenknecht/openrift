@@ -35,13 +35,24 @@ import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { useSets } from "@/hooks/use-sets";
 import { queryKeys } from "@/lib/query-keys";
 import {
-  getCollapsedPrintings,
   getCollapsedSections,
+  getStoredCollapsedPrintings,
   useAdminCardFoldStore,
 } from "@/stores/admin-card-fold-store";
 
 /** Stable placeholder so the filter hook can run before the detail lands. */
 const NO_PRINTINGS: AdminPrintingResponse[] = [];
+
+/**
+ * The fold keys a freshly-opened card starts collapsed: every printing and
+ * every ambiguous-source group except the first printing, which stays open.
+ *
+ * @returns The keys to collapse on the card's first visit.
+ */
+function defaultCollapsedKeys(detail: AdminCardDetailResponse): string[] {
+  const groups = buildPrintingGroups(detail.candidatePrintingGroups, detail.candidatePrintings);
+  return [...detail.printings.slice(1).map((p) => p.id), ...groups.map((g) => g.groupKey)];
+}
 
 export function ExistingCardDetailPage({
   identifier,
@@ -109,11 +120,14 @@ export function ExistingCardDetailPage({
     });
 
   // --- State ---
-  const collapsedPrintings = useAdminCardFoldStore((state) => getCollapsedPrintings(state, cardId));
+  const storedCollapsedPrintings = useAdminCardFoldStore((state) =>
+    getStoredCollapsedPrintings(state, cardId),
+  );
   const collapsedSections = useAdminCardFoldStore((state) => getCollapsedSections(state));
   const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
   const expandPrintingFold = useAdminCardFoldStore((state) => state.expandPrinting);
   const setCollapsedForCard = useAdminCardFoldStore((state) => state.setCollapsedForCard);
+  const initCollapsedForCard = useAdminCardFoldStore((state) => state.initCollapsedForCard);
   const toggleSection = useAdminCardFoldStore((state) => state.toggleSection);
   const cardFieldsExpanded = !collapsedSections.has("cardFields");
   const marketplaceExpanded = !collapsedSections.has("marketplace");
@@ -132,6 +146,16 @@ export function ExistingCardDetailPage({
   );
   const pendingScrollTarget = useRef<string | null>(null);
   const focusHandledRef = useRef(false);
+
+  // A card opens folded down to its first printing, so a 30-printing card is a
+  // readable list instead of a wall of spreadsheets. Seeding runs before the
+  // focus effects below, which reach into a seeded card to open one row.
+  useEffect(() => {
+    if (!existingData) {
+      return;
+    }
+    initCollapsedForCard(cardId, new Set(defaultCollapsedKeys(existingData)));
+  }, [existingData, cardId, initCollapsedForCard]);
 
   // After accepting a printing, expand it and scroll into view once data refetches
   useEffect(() => {
@@ -255,6 +279,9 @@ export function ExistingCardDetailPage({
     ...printings.map((p) => p.id),
     ...ambiguousGroups.map((g) => g.groupKey),
   ];
+  // Until the seeding effect lands, read the folds the card is about to get.
+  const collapsedPrintings =
+    storedCollapsedPrintings ?? new Set(defaultCollapsedKeys(existingData));
   const allExpanded =
     allPrintingKeys.length > 0 && allPrintingKeys.every((k) => !collapsedPrintings.has(k));
 
@@ -352,6 +379,7 @@ export function ExistingCardDetailPage({
               setTotals={setTotals}
               costKeywords={costKeywords}
               invalidates={invalidateScope}
+              defaultExpanded={printing.id === printings[0]?.id}
               isAdmin={isAdmin}
             />
           ))}
