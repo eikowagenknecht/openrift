@@ -62,8 +62,8 @@
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.10",
     "onnxruntime-node": "1.27.0",
-    "oxfmt": "0.62.0",
-    "oxlint": "1.77.0",
+    "oxfmt": "0.63.0",
+    "oxlint": "1.78.0",
     "sharp": "0.35.3",
     "syncpack": "15.3.3",
     "turbo": "2.10.9"

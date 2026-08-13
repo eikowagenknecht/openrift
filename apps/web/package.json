@@ -38,7 +38,7 @@
     "@orpc/contract": "1.15.0",
     "@orpc/openapi-client": "1.15.0",
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
-    "@sentry/tanstackstart-react": "10.69.0",
+    "@sentry/tanstackstart-react": "10.70.0",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/query-db-collection": "1.2.1",
     "@tanstack/react-db": "0.1.95",
