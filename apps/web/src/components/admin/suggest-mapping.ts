@@ -1,5 +1,10 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
-import { marketplaceFinish, normalizeNameForMatching, WellKnown } from "@openrift/shared";
+import {
+  marketplaceCarriesLanguage,
+  marketplaceFinish,
+  normalizeNameForMatching,
+  WellKnown,
+} from "@openrift/shared";
 
 import type {
   MappingGroup,
@@ -213,11 +218,19 @@ function scorePrintingProduct(
  */
 function computeSuggestions(
   group: MappingGroup,
-  options: { enforceLanguage?: boolean } = {},
+  marketplace: AdminMarketplaceName,
 ): Map<string, Suggestion> {
-  const enforceLanguage = options.enforceLanguage ?? false;
+  // Only CardTrader puts the language in the SKU, so only there does a staged
+  // product's language have to equal the printing's.
+  const enforceLanguage = marketplace === "cardtrader";
   const crossLanguageEvidence = group.crossLanguageEvidence ?? new Map();
-  const unmapped = group.printings.filter((p) => p.externalId === null);
+  // Printings in a language the marketplace doesn't stock are dropped before
+  // scoring, so they can't be suggested directly and can't join the
+  // sibling-tie expansion below either — that expansion is what used to hand
+  // TCGplayer's English-only SKUs to SC printings.
+  const unmapped = group.printings.filter(
+    (p) => p.externalId === null && marketplaceCarriesLanguage(marketplace, p.language),
+  );
   const available = group.stagedProducts;
 
   if (unmapped.length === 0 || available.length === 0) {
@@ -420,9 +433,7 @@ export function computeProductSuggestions(
 ): Map<string, ProductSuggestion[]> {
   const out = new Map<string, ProductSuggestion[]>();
   for (const marketplace of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
-    const perPrinting = computeSuggestions(toMarketplaceGroup(group, marketplace), {
-      enforceLanguage: marketplace === "cardtrader",
-    });
+    const perPrinting = computeSuggestions(toMarketplaceGroup(group, marketplace), marketplace);
     for (const [printingId, { product, score }] of perPrinting) {
       const key = productSuggestionKey(
         marketplace,
@@ -466,10 +477,17 @@ function computeWeakProductSuggestions(
   const cardPrintingFinishes = new Set(
     group.printings.map((p) => marketplaceFinish(p.finish.toLowerCase())),
   );
-  const cardPrintingIds = new Set(group.printings.map((p) => p.printingId));
-
   for (const marketplace of ["tcgplayer", "cardmarket"] as const) {
     const { stagedProducts, assignedProducts, assignments } = group[marketplace];
+
+    // Sibling mirroring copies an existing mapping, so it has to respect the
+    // same language restriction the scorer does — otherwise a legacy SC
+    // binding on TCGplayer would keep seeding fresh SC suggestions.
+    const cardPrintingIds = new Set(
+      group.printings
+        .filter((p) => marketplaceCarriesLanguage(marketplace, p.language))
+        .map((p) => p.printingId),
+    );
 
     const printingsByExternalId = new Map<number, Set<string>>();
     for (const a of assignments) {

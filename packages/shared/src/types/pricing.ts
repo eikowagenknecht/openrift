@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { WellKnown } from "../well-known.js";
 import type { Currency } from "./api/trade-preferences.js";
 
 /**
@@ -28,6 +29,38 @@ export const MARKETPLACE_CURRENCY: Record<Marketplace, Currency> = {
   cardmarket: "EUR",
   cardtrader: "EUR",
 };
+
+/**
+ * Printing languages a marketplace's SKUs may be bound to, or `null` for no
+ * restriction.
+ *
+ * TCGplayer is a US storefront carrying English stock only, so one of its SKUs
+ * must never end up on a Simplified Chinese printing — the SC printing would
+ * inherit an English card's price. Its price guide is language-aggregate
+ * (`marketplace_products.language` is NULL), which is exactly why the mapping
+ * suggester used to fan a single SKU out across every sibling printing,
+ * English and Chinese alike.
+ *
+ * Cardmarket is also language-aggregate but genuinely does list non-English
+ * stock, so it stays unrestricted. CardTrader carries the language on the SKU
+ * itself and the suggester already matches it exactly, so a list would be
+ * redundant there.
+ */
+export const MARKETPLACE_PRINTING_LANGUAGES: Record<Marketplace, ReadonlySet<string> | null> = {
+  tcgplayer: new Set([WellKnown.language.EN]),
+  cardmarket: null,
+  cardtrader: null,
+};
+
+/**
+ * Whether a marketplace's SKUs may be bound to a printing in `language`.
+ *
+ * @returns True when the marketplace carries that language (or is unrestricted).
+ */
+export function marketplaceCarriesLanguage(marketplace: Marketplace, language: string): boolean {
+  const carried = MARKETPLACE_PRINTING_LANGUAGES[marketplace];
+  return carried === null || carried.has(language);
+}
 
 /**
  * Days a headline price may go unobserved before it is reported as stale.

@@ -1,5 +1,5 @@
 import type { UnifiedMappingGroupResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
 
 /** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
 type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
@@ -52,9 +52,11 @@ function direction(mapped: number, total: number): DirectionCoverage {
  * Compute marketplace coverage for one card.
  *
  * Printings-side: every printing has its own explicit marketplace variant (or
- * not) — totals are raw printing counts, mapped is the count with a direct
- * variant on that marketplace. Entries-side reads `assignedProducts` and
- * `stagedProducts` from the group.
+ * not) — mapped is the count with a direct variant on that marketplace. The
+ * total counts only printings the marketplace can actually carry, so a card
+ * with SC printings still reads "full" on TCGplayer once its English printings
+ * are mapped, instead of being stuck at "partial" forever. Entries-side reads
+ * `assignedProducts` and `stagedProducts` from the group.
  *
  * @returns Per-marketplace coverage, with independent printings + entries directions.
  */
@@ -63,16 +65,21 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
   const cmMappedPrintings = new Set(group.cardmarket.assignments.map((a) => a.printingId));
   const ctMappedPrintings = new Set(group.cardtrader.assignments.map((a) => a.printingId));
 
-  const printingsTotal = group.printings.length;
-  const tcgPrintingsMapped = group.printings.filter((p) =>
+  const tcgPrintings = group.printings.filter((p) =>
+    marketplaceCarriesLanguage("tcgplayer", p.language),
+  );
+  const cmPrintings = group.printings.filter((p) =>
+    marketplaceCarriesLanguage("cardmarket", p.language),
+  );
+  const ctPrintings = group.printings.filter((p) =>
+    marketplaceCarriesLanguage("cardtrader", p.language),
+  );
+
+  const tcgPrintingsMapped = tcgPrintings.filter((p) =>
     tcgMappedPrintings.has(p.printingId),
   ).length;
-  const cmPrintingsMapped = group.printings.filter((p) =>
-    cmMappedPrintings.has(p.printingId),
-  ).length;
-  const ctPrintingsMapped = group.printings.filter((p) =>
-    ctMappedPrintings.has(p.printingId),
-  ).length;
+  const cmPrintingsMapped = cmPrintings.filter((p) => cmMappedPrintings.has(p.printingId)).length;
+  const ctPrintingsMapped = ctPrintings.filter((p) => ctMappedPrintings.has(p.printingId)).length;
 
   const tcgEntriesMapped = group.tcgplayer.assignedProducts.length;
   const tcgEntriesTotal = tcgEntriesMapped + group.tcgplayer.stagedProducts.length;
@@ -83,15 +90,15 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
 
   return {
     tcgplayer: {
-      printings: direction(tcgPrintingsMapped, printingsTotal),
+      printings: direction(tcgPrintingsMapped, tcgPrintings.length),
       entries: direction(tcgEntriesMapped, tcgEntriesTotal),
     },
     cardmarket: {
-      printings: direction(cmPrintingsMapped, printingsTotal),
+      printings: direction(cmPrintingsMapped, cmPrintings.length),
       entries: direction(cmEntriesMapped, cmEntriesTotal),
     },
     cardtrader: {
-      printings: direction(ctPrintingsMapped, printingsTotal),
+      printings: direction(ctPrintingsMapped, ctPrintings.length),
       entries: direction(ctEntriesMapped, ctEntriesTotal),
     },
   };

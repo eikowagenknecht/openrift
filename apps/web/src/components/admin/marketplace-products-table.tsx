@@ -1,5 +1,5 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
 import { formatPrintingLabel, normalizeNameForMatching } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
@@ -530,6 +530,12 @@ function MarketplaceProductRow({
   const canReassign = !isAssigned && !product.isOverride;
   const nameMismatched = isCardNameMismatch(product.productName, cardName);
   const highlightLanguage = displayedProductLanguage(marketplace, product.language) ?? undefined;
+  // A marketplace that doesn't stock a language can't price its printings, so
+  // they drop out of the manual Assign dropdown the same way they drop out of
+  // the suggester.
+  const assignablePrintings = printings.filter((p) =>
+    marketplaceCarriesLanguage(marketplace, p.language),
+  );
 
   const recordedAt = new Date(product.recordedAt);
   const isStale = Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
@@ -687,7 +693,7 @@ function MarketplaceProductRow({
         <TableCell className="py-0">
           <div className="flex items-center justify-end gap-1">
             <AssignToPrintingButton
-              printings={printings}
+              printings={assignablePrintings}
               product={product}
               assignedPrintingIds={assignedPrintingIds}
               otherAssignedPrintingIds={otherAssignedPrintingIds}

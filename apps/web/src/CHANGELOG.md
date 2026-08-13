@@ -12,6 +12,7 @@
 ### Other
 
 - feat(Collection): **Hand the scanner to your phone** — on a desktop the scan page now shows a code you can point a phone at, since a rear camera reads cards better than a webcam.
+- fix(Cards): **No TCGplayer price on Chinese cards** — TCGplayer only sells English stock, so Simplified Chinese printings were showing the English card's price instead of none.
 - fix(Groups): **Own member page works again** — opening your own entry in a group's member list no longer fails with a trade error, and shows what you share with the group.
 
 ## 2026-08-12

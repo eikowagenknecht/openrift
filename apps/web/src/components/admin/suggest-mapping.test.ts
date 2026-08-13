@@ -208,10 +208,32 @@ describe("computeProductSuggestions", () => {
     ).toBe("p-sc");
   });
 
-  it("still suggests TCG/CM products across languages (those staging pools are EN-only)", () => {
-    // TCG/CM staging uses placeholder EN regardless of the physical printing
-    // language; the language gate is CT-only. Gating TCG/CM would suppress
-    // every legitimate non-EN-printing suggestion, since staging is never SC.
+  it("still suggests CM products across languages (that staging pool is EN-only)", () => {
+    // CM staging uses placeholder EN regardless of the physical printing
+    // language, and Cardmarket does list non-English stock, so the SKU-level
+    // language gate stays CT-only here. Gating CM would suppress every
+    // legitimate non-EN-printing suggestion, since staging is never SC.
+    const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
+    const result = computeProductSuggestions(
+      group([scPrinting], {
+        cardmarket: {
+          staged: [
+            staged({ externalId: 888, productName: "Ahri", finish: "foil", language: "EN" }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardmarket", 888, "foil", "EN"))?.[0]?.printingId).toBe(
+      "p-sc",
+    );
+  });
+
+  it("never suggests a non-EN printing for TCGplayer, which stocks English only", () => {
+    // Regression: TCGplayer is a US storefront with no Chinese stock, so its
+    // SKUs must not land on SC printings — the SC printing would inherit an
+    // English card's price. Same shape as the Cardmarket case above, which is
+    // still allowed.
     const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
     const result = computeProductSuggestions(
       group([scPrinting], {
@@ -223,9 +245,33 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 888, "foil", "EN"))?.[0]?.printingId).toBe(
-      "p-sc",
+    expect(result.get(productSuggestionKey("tcgplayer", 888, "foil", "EN"))).toBeUndefined();
+  });
+
+  it("suggests only the EN sibling for a language-aggregate TCG product", () => {
+    // The sibling expansion is what produced the bad rows: one TCGplayer SKU
+    // fanned out to both the EN and the SC printing. Only the EN chip is left.
+    const en = printing({ printingId: "p-en", language: "EN" });
+    const sc = printing({ printingId: "p-sc", language: "SC" });
+    const result = computeProductSuggestions(
+      group([en, sc], {
+        tcgplayer: {
+          staged: [
+            staged({
+              externalId: 847_346,
+              productName: "Acceptable Losses",
+              finish: "normal",
+              language: null,
+            }),
+          ],
+          assignments: [],
+        },
+      }),
     );
+    const suggested = result
+      .get(productSuggestionKey("tcgplayer", 847_346, "normal", null))
+      ?.map((s) => s.printingId);
+    expect(suggested).toEqual(["p-en"]);
   });
 
   it("suggests a metal printing for a foil-staging product whose name contains 'Metal'", () => {
@@ -685,7 +731,7 @@ describe("computeProductSuggestions", () => {
     });
     const result = computeProductSuggestions(
       group([normalEn, normalZh, altEn, altZh], {
-        tcgplayer: {
+        cardmarket: {
           // The "cheap" product (1300) has been accepted on p-normal and now
           // lives in assignedProducts — the "pricey" product (1301) still
           // needs to be resolved to the altart fan-out (EN + SC siblings).
@@ -719,7 +765,7 @@ describe("computeProductSuggestions", () => {
     // fan out, so both printings should come back as suggestions keyed by
     // the same product.
     const suggested = result
-      .get(productSuggestionKey("tcgplayer", 1301, "normal", null))
+      .get(productSuggestionKey("cardmarket", 1301, "normal", null))
       ?.map((s) => s.printingId)
       .toSorted();
     expect(suggested).toEqual(["p-alt-en", "p-alt-sc"]);
@@ -939,6 +985,37 @@ describe("computeProductSuggestions", () => {
     const weak = result.get(productSuggestionKey("cardmarket", 558, "normal", null));
     expect(weak?.map((s) => s.printingId).toSorted()).toEqual(["p-en-foil", "p-sc-foil"]);
     expect(weak?.every((s) => s.isWeak === true)).toBe(true);
+  });
+
+  it("drops the SC printing from a TCG weak suggestion even when a legacy SC binding exists", () => {
+    // Same shape as the Cardmarket multi-sibling case above, but on
+    // TCGplayer, and with the legacy SC binding this cleanup removes still in
+    // place. Mirroring it would keep seeding fresh SC suggestions.
+    const enFoil = printing({ printingId: "p-en-foil", finish: "foil", language: "EN" });
+    const scFoil = printing({
+      printingId: "p-sc-foil",
+      finish: "foil",
+      language: "SC",
+      shortCode: "OGN-001",
+    });
+    const result = computeProductSuggestions(
+      group([enFoil, scFoil], {
+        tcgplayer: {
+          staged: [
+            staged({ externalId: 558, productName: "Ahri", finish: "normal", language: null }),
+          ],
+          assigned: [
+            staged({ externalId: 558, productName: "Ahri", finish: "foil", language: null }),
+          ],
+          assignments: [
+            { externalId: 558, printingId: "p-en-foil", finish: "foil", language: null },
+            { externalId: 558, printingId: "p-sc-foil", finish: "foil", language: null },
+          ],
+        },
+      }),
+    );
+    const weak = result.get(productSuggestionKey("tcgplayer", 558, "normal", null));
+    expect(weak?.map((s) => s.printingId)).toEqual(["p-en-foil"]);
   });
 
   it("prefers a strong suggestion over a weak one when the printing finish does match", () => {

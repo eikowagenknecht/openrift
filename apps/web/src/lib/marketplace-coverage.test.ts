@@ -186,27 +186,30 @@ describe("computeCardCoverage", () => {
     expect(result.cardtrader.entries).toEqual({ status: "na", mapped: 0, total: 0 });
   });
 
-  it("counts per printing — EN-only mapping on a EN+SC card is partial on every marketplace", () => {
+  it("counts per printing — EN-only mapping on a EN+SC card is partial on the language-carrying marketplaces", () => {
     // Post per-SKU refactor: every printing has its own explicit variant (or
     // not), so a SC printing that isn't mapped shows as a gap regardless of
-    // the EN sibling's mapping.
+    // the EN sibling's mapping. TCGplayer is the exception — it stocks English
+    // only, so the SC printing isn't a gap there and the card reads full.
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", tcgExternalId: 100 }),
         printing({ printingId: "p-sc", language: "SC" }),
       ]),
     );
-    expect(result.tcgplayer.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
+    expect(result.tcgplayer.printings).toEqual({ status: "full", mapped: 1, total: 1 });
     expect(result.tcgplayer.entries).toEqual({ status: "full", mapped: 1, total: 1 });
     expect(result.cardmarket.printings).toEqual({ status: "none", mapped: 0, total: 2 });
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 2 });
   });
 
-  it("SC-only card shows full on the marketplace that maps it and none elsewhere", () => {
+  it("SC-only card shows full on the marketplace that maps it, and na on TCGplayer", () => {
+    // No English printing exists, so TCGplayer has nothing it could carry —
+    // that's "not applicable", not an unmapped gap.
     const result = computeCardCoverage(
       group([printing({ printingId: "p-sc", language: "SC", cmExternalId: 200 })]),
     );
-    expect(result.tcgplayer.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.tcgplayer.printings).toEqual({ status: "na", mapped: 0, total: 0 });
     expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 1 });
   });
@@ -300,7 +303,7 @@ describe("buildCoverageMapBySlug", () => {
   it("indexes coverage by card slug", () => {
     const map = buildCoverageMapBySlug([
       group([printing({ tcgExternalId: 100 })], { cardSlug: "fireball" }),
-      group([printing({ printingId: "p-2", language: "SC" })], {
+      group([printing({ printingId: "p-2", language: "EN" })], {
         cardSlug: "blizzard",
         cardId: "card-2",
       }),
