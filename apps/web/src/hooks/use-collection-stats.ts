@@ -322,11 +322,12 @@ function buildOwned(
     }
   }
 
+  const cardBySlug = indexCardsBySlug(stacks);
   const result = new Map<string, number>();
   for (const [key, slugMap] of copiesByKeyAndSlug) {
     let owned = 0;
     for (const [slug, copies] of slugMap) {
-      const card = stackCard(stacks, slug);
+      const card = cardBySlug.get(slug);
       if (!countsInPlaysetMode(card)) {
         continue;
       }
@@ -337,16 +338,25 @@ function buildOwned(
   return result;
 }
 
-function stackCard(
+/**
+ * Slug → playset-relevant card fields, built in one pass. Every printing of a
+ * card carries the same types and keywords, so the first stack to mention a
+ * slug wins. Indexing up front keeps the per-key loop above linear — resolving
+ * each slug by scanning the stack list made this quadratic, which a large
+ * collection felt on every filter toggle.
+ * @returns The card fields keyed by card slug.
+ */
+function indexCardsBySlug(
   stacks: StackedEntry[],
-  slug: string,
-): { types: CardType[]; keywords: string[] } | undefined {
+): Map<string, { types: CardType[]; keywords: string[] }> {
+  const bySlug = new Map<string, { types: CardType[]; keywords: string[] }>();
   for (const stack of stacks) {
-    if (stack.printing.card.slug === slug) {
-      return { types: stack.printing.card.types, keywords: stack.printing.card.keywords };
+    const { card } = stack.printing;
+    if (!bySlug.has(card.slug)) {
+      bySlug.set(card.slug, { types: card.types, keywords: card.keywords });
     }
   }
-  return undefined;
+  return bySlug;
 }
 
 // ── Stats computation ──────────────────────────────────────────────────────
@@ -897,10 +907,17 @@ export function useCollectionStats(
   // copy in the collection regardless of scope.
   const totalCopies = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
+  // Deliberately the unscoped stacks: owning an unreleased printing is a fact
+  // about the collection, not about the filters currently applied, so the
+  // visible catalog pool must not shrink as the user narrows the scope. It also
+  // keeps this result's identity stable across filter toggles, which is what
+  // lets `getAvailableFilters` and the filter bar downstream stay memoized —
+  // with the scoped stacks the catalog has enough unreleased printings that
+  // this allocated a fresh array on every single chip click.
   const { sets, printings } = excludeUnreleasedSets({
     sets: setList.sets,
     printings: allPrintings,
-    stacks,
+    stacks: allStacks,
   });
 
   const stats = computeCollectionStats({

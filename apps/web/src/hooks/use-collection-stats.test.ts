@@ -1,3 +1,8 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import { readFileSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import path from "node:path";
+
 import type { Card, Domain, Printing, SetListEntry } from "@openrift/shared";
 import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { afterEach, describe, expect, it } from "vitest";
@@ -713,6 +718,45 @@ describe("excludeUnreleasedSets", () => {
     const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
     expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
     expect(result.printings).toHaveLength(1);
+  });
+
+  it("drops an owned unreleased printing when handed scope-filtered stacks", () => {
+    // Pins why `useCollectionStats` must pass the *unscoped* stacks (guarded
+    // below): fed the scoped ones, narrowing the filters to another set makes
+    // the user's own unreleased printing vanish from the catalog pool, so the
+    // Sets dropdown loses entries as you filter. Ownership is a fact about the
+    // collection, not about the filters currently applied.
+    const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "preview" })];
+    const printings = [
+      stubPrinting({ setId: "set-1" }),
+      stubPrinting({ setId: "set-2", language: "FR", setReleased: false }),
+    ];
+    const ownedStack = stubStack({ setId: "set-2", language: "FR" });
+
+    const withAllStacks = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
+    expect(withAllStacks.sets.map((set) => set.id)).toEqual(["set-1", "set-2"]);
+
+    // What a scope of `{ sets: ["origins"] }` leaves of those stacks: nothing.
+    const scoped = filterStacksByScope([ownedStack], { sets: ["origins"] });
+    const withScopedStacks = excludeUnreleasedSets({ sets, printings, stacks: scoped });
+    expect(withScopedStacks.sets.map((set) => set.id)).toEqual(["set-1"]);
+  });
+});
+
+describe("useCollectionStats source invariants", () => {
+  // Regression (the /collections/stats mobile stutter): the catalog has enough
+  // unreleased printings that `excludeUnreleasedSets` always allocates a fresh
+  // array. Handing it the scope-filtered stacks made that array's identity
+  // change on every filter chip click, which re-ran `getAvailableFilters` over
+  // the whole catalog and re-rendered the entire filter bar each time. Passing
+  // `allStacks` keeps the result scope-independent, so React Compiler caches
+  // it across toggles. Source-level guard because vitest runs uncompiled code,
+  // where identity stability cannot be asserted directly — same reasoning as
+  // the memo-poisoning guard in use-card-filters.test.ts.
+  it("passes the unscoped stacks to excludeUnreleasedSets", () => {
+    const source = readFileSync(path.resolve(__dirname, "./use-collection-stats.ts"), "utf-8");
+    const call = /excludeUnreleasedSets\(\{[^}]*\}\)/u.exec(source);
+    expect(call?.[0]).toMatch(/stacks:\s*allStacks/u);
   });
 });
 

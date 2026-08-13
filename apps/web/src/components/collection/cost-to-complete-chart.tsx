@@ -530,6 +530,7 @@ export function CostToCompleteChart({
             stroke="var(--color-primary)"
             strokeWidth={2}
             fill="url(#costToCompleteFill)"
+            isAnimationActive={false}
             dot={false}
             activeDot={<CostToCompleteActiveDot marketplace={marketplace} searchUrl={searchUrl} />}
           />

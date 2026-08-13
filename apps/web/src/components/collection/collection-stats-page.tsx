@@ -12,7 +12,7 @@ import {
   SquareIcon,
   SquareStackIcon,
 } from "lucide-react";
-import { use, useState } from "react";
+import { use, useDeferredValue, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PieSectorDataItem } from "recharts";
 import { Label, Pie, PieChart, Sector } from "recharts";
@@ -541,6 +541,7 @@ function DistributionDonut({ data, config }: { data: DonutEntry[]; config: Chart
             innerRadius="55%"
             outerRadius="90%"
             strokeWidth={2}
+            isAnimationActive={false}
             shape={DonutActiveShape}
             onMouseEnter={(_, index) => setActiveIndex(index)}
             onMouseLeave={() => setActiveIndex(undefined)}
@@ -778,7 +779,19 @@ export function CollectionStatsPage() {
   const topBarSlot = use(TopBarSlotContext);
   const [collectionScope, setCollectionScope] = useState("all");
   const collectionId = collectionScope === "all" ? undefined : collectionScope;
-  const scope = useScopeFromFilters();
+  // Everything below the filter bar recomputes and re-renders five charts when
+  // the scope changes, which on a phone is a few hundred ms of work. Deferring
+  // it lets the chip flip and paint on the urgent render while the figures
+  // catch up in an interruptible one, so a rapid series of toggles doesn't
+  // queue a full recompute per tap.
+  //
+  // Safe to defer only because `scope` is identity-stable per URL state:
+  // `useScopeFromFilters` builds it from `useFilterValues().filters`, which the
+  // compiler keeps memoized (see the memo-poisoning guard in
+  // use-card-filters.test.ts). A scope that re-minted every render would make
+  // this a self-sustaining background render loop rather than a one-step lag.
+  const liveScope = useScopeFromFilters();
+  const scope = useDeferredValue(liveScope);
   const stats = useCollectionStats(collectionId, scope);
   const priceHistoryEnabled = useFeatureEnabled("price-history");
   const { orders } = useEnumOrders();
