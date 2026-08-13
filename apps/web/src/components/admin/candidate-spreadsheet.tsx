@@ -26,6 +26,15 @@ import type { CardTextVariant } from "@/components/contribute/card-text-input";
 import { ChipInput } from "@/components/contribute/form-fields";
 import { Button } from "@/components/ui/button";
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
+import {
   Command,
   CommandEmpty,
   CommandInput,
@@ -34,7 +43,6 @@ import {
 } from "@/components/ui/command";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -534,6 +542,97 @@ function TagChipCell({
   );
 }
 
+/** The `{ value, label }` pairs a dropdown-backed field offers, whether it carries
+ * labeled options or plain string options.
+ * @returns The field's options in a single shape. */
+function dropdownOptions(field: FieldDef): { value: string; label: string }[] {
+  if (field.labeledOptions) {
+    return field.labeledOptions.map((opt) => ({ value: opt.value, label: opt.label }));
+  }
+  return (field.options ?? []).map((opt) => ({ value: opt, label: opt }));
+}
+
+/**
+ * Inline editor for option-backed array fields (Markers, Distribution, Domains, …)
+ * in the active cell. A searchable combobox, so long option lists (markers,
+ * distribution channels) can be typed down instead of scrolled. Toggles are
+ * batched into a local draft and committed once, when the popup closes.
+ *
+ * @returns The multi-select editor for the active cell.
+ */
+function MultiSelectCell({
+  label,
+  options,
+  value,
+  onCommit,
+  onClose,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  /** Called only when the draft differs from `value`; null clears the field. */
+  onCommit: (next: string[] | null) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(value);
+  const items = options.map((opt) => opt.value);
+  const labelFor = (item: string) => options.find((opt) => opt.value === item)?.label ?? item;
+  const summary = draft.length > 0 ? draft.map((item) => labelFor(item)).join(", ") : "— select —";
+  return (
+    <Combobox<string, true>
+      multiple
+      open
+      items={items}
+      value={draft}
+      onValueChange={(next: string[]) => setDraft(next)}
+      itemToStringLabel={labelFor}
+      onOpenChange={(open) => {
+        if (open) {
+          return;
+        }
+        const original = new Set(value);
+        const changed = draft.length !== value.length || draft.some((item) => !original.has(item));
+        if (changed) {
+          onCommit(draft.length > 0 ? draft : null);
+        }
+        onClose();
+      }}
+    >
+      <ComboboxTrigger
+        render={
+          // oxlint-disable-next-line react/forbid-elements -- cell inline-edit trigger; needs full-width chrome-free layout Button can't provide
+          <button
+            type="button"
+            aria-label={`Edit ${label}`}
+            className="flex w-full items-center gap-1 rounded text-left text-sm"
+            onClick={(event: React.MouseEvent) => event.stopPropagation()}
+          />
+        }
+      >
+        <span
+          className={cn("min-w-0 flex-1 truncate", draft.length === 0 && "text-muted-foreground")}
+          title={draft.length > 0 ? summary : undefined}
+        >
+          {summary}
+        </span>
+      </ComboboxTrigger>
+      {/* Grow to the widest option (cell columns are narrow) instead of the
+          default anchor width, capped so it stays inside the viewport. */}
+      <ComboboxContent className="w-max max-w-[90vw] min-w-56">
+        <ComboboxInput placeholder={`Search ${label.toLowerCase()}…`} showTrigger={false} />
+        <ComboboxEmpty>No matches.</ComboboxEmpty>
+        <ComboboxList>
+          {(item: string) => (
+            <ComboboxItem key={item} value={item}>
+              {labelFor(item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 export function CandidateSpreadsheet<TKey extends string = string>({
   fields,
   activeRow,
@@ -570,7 +669,6 @@ export function CandidateSpreadsheet<TKey extends string = string>({
   });
 
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [pendingMultiSelect, setPendingMultiSelect] = useState<string[] | null>(null);
   const [collapsed, setCollapsed] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -772,89 +870,13 @@ export function CandidateSpreadsheet<TKey extends string = string>({
                       )}
                     </div>
                   ) : editingField === field.key && isMultiSelect(field) ? (
-                    (() => {
-                      const originalValues = Array.isArray(activeValue)
-                        ? (activeValue as string[])
-                        : [];
-                      const draftValues = pendingMultiSelect ?? originalValues;
-                      return (
-                        <DropdownMenu
-                          open
-                          onOpenChange={(open) => {
-                            if (open) {
-                              return;
-                            }
-                            const originalSet = new Set(originalValues);
-                            const changed =
-                              draftValues.length !== originalValues.length ||
-                              draftValues.some((v) => !originalSet.has(v));
-                            if (changed) {
-                              onActiveChange?.(
-                                field.key,
-                                draftValues.length > 0 ? draftValues : null,
-                              );
-                            }
-                            setEditingField(null);
-                            setPendingMultiSelect(null);
-                          }}
-                        >
-                          <DropdownMenuTrigger
-                            render={
-                              // oxlint-disable-next-line react/forbid-elements -- cell inline-edit trigger; needs full-width chrome-free layout Button can't provide
-                              <button
-                                type="button"
-                                aria-label={`Edit ${field.label}`}
-                                className="flex w-full items-center gap-1 rounded text-left text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            }
-                          >
-                            <span
-                              className={cn(
-                                "min-w-0 flex-1 truncate",
-                                draftValues.length === 0 && "text-muted-foreground",
-                              )}
-                              title={
-                                draftValues.length > 0
-                                  ? resolveLabel(field, draftValues)
-                                  : undefined
-                              }
-                            >
-                              {draftValues.length > 0
-                                ? resolveLabel(field, draftValues)
-                                : "— select —"}
-                            </span>
-                            <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {(field.labeledOptions
-                              ? field.labeledOptions.map((lo) => ({
-                                  value: lo.value,
-                                  label: lo.label,
-                                }))
-                              : (field.options ?? []).map((opt) => ({ value: opt, label: opt }))
-                            ).map(({ value, label }) => {
-                              const selected = draftValues.includes(value);
-                              return (
-                                <DropdownMenuCheckboxItem
-                                  key={value}
-                                  checked={selected}
-                                  onSelect={(e) => e.preventDefault()}
-                                  onCheckedChange={() => {
-                                    const next = selected
-                                      ? draftValues.filter((v) => v !== value)
-                                      : [...draftValues, value];
-                                    setPendingMultiSelect(next);
-                                  }}
-                                >
-                                  {label}
-                                </DropdownMenuCheckboxItem>
-                              );
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      );
-                    })()
+                    <MultiSelectCell
+                      label={field.label}
+                      options={dropdownOptions(field)}
+                      value={Array.isArray(activeValue) ? (activeValue as string[]) : []}
+                      onCommit={(next) => onActiveChange?.(field.key, next)}
+                      onClose={() => setEditingField(null)}
+                    />
                   ) : editingField === field.key && hasDropdown(field) ? (
                     <Select
                       value={hasValue(activeValue) ? String(activeValue) : ""}

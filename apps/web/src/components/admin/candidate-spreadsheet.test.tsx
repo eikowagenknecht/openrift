@@ -43,9 +43,9 @@ describe("CandidateSpreadsheet multi-select", () => {
     await user.click(screen.getByText("champion"));
 
     // Toggle two items: deselect Champion, select Unit and Spell.
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "champion" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "spell" }));
+    await user.click(screen.getByRole("option", { name: "champion" }));
+    await user.click(screen.getByRole("option", { name: "unit" }));
+    await user.click(screen.getByRole("option", { name: "spell" }));
 
     // No mutation fired during the intermediate toggles.
     expect(onActiveChange).not.toHaveBeenCalled();
@@ -72,8 +72,8 @@ describe("CandidateSpreadsheet multi-select", () => {
 
     await user.click(screen.getByText("champion"));
     // Toggle Unit on then off — ends where it started.
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
+    await user.click(screen.getByRole("option", { name: "unit" }));
+    await user.click(screen.getByRole("option", { name: "unit" }));
     await user.keyboard("{Escape}");
 
     expect(onActiveChange).not.toHaveBeenCalled();
@@ -93,11 +93,39 @@ describe("CandidateSpreadsheet multi-select", () => {
     );
 
     await user.click(screen.getByText("champion"));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "champion" }));
+    await user.click(screen.getByRole("option", { name: "champion" }));
     await user.keyboard("{Escape}");
 
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(onActiveChange).toHaveBeenCalledWith("markerSlugs", null);
+  });
+
+  it("filters the options by the search field", async () => {
+    const user = userEvent.setup();
+    const onActiveChange = vi.fn();
+
+    render(
+      <CandidateSpreadsheet
+        fields={[markerField]}
+        activeRow={{ markerSlugs: ["champion"] }}
+        candidateRows={[]}
+        onActiveChange={onActiveChange}
+      />,
+    );
+
+    await user.click(screen.getByText("champion"));
+
+    // The search field takes focus on open, so the filter is typeable right away.
+    const search = screen.getByPlaceholderText("Search markers…");
+    expect(document.activeElement).toBe(search);
+    await user.keyboard("spe");
+
+    // Only the matching option stays in the list.
+    expect(screen.queryByRole("option", { name: "champion" })).toBeNull();
+    await user.click(screen.getByRole("option", { name: "spell" }));
+    await user.keyboard("{Escape}");
+
+    expect(onActiveChange).toHaveBeenCalledWith("markerSlugs", ["champion", "spell"]);
   });
 });
 
