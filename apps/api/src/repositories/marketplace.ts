@@ -789,13 +789,24 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // window start.
       //
       // A printing first priced after `startDay` (a set released mid-window,
-      // or one the scraper picked up late) has no price to freeze at and falls
-      // back to its earliest snapshot. Contributing zero instead would read as
-      // an enormous gain the moment the card is acquired.
+      // or one the scraper picked up late) is left out of the map entirely.
+      // The accumulator below then charges it the day's own price on both
+      // lines, so it adds nothing to the gap — the honest answer, since no
+      // price at the window start means no return over the window to measure.
+      //
+      // Its earliest snapshot is emphatically NOT a stand-in. Cards enter the
+      // price data at release, when they are at their most expensive, so
+      // freezing there books a loss the holder never took. The first cut of
+      // this did exactly that: on the All range of one real collection it
+      // reported a 13892 EUR baseline against 4329 EUR today, with 82% of that
+      // baseline coming from the fallback on 44% of the copies.
       const baselinePrice = new Map<string, number>();
       for (const [printingId, days] of sortedPriceDays) {
         const idx = days.findLastIndex((day) => day <= startDay);
-        const price = priceMap.get(printingId)?.get(idx === -1 ? days[0] : days[idx]);
+        if (idx === -1) {
+          continue;
+        }
+        const price = priceMap.get(printingId)?.get(days[idx]);
         if (price !== undefined) {
           baselinePrice.set(printingId, price);
         }
@@ -834,9 +845,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
             continue;
           }
           valueCents += price * count;
-          // The two maps are built from the same price rows, so a missing
-          // baseline can't happen. Falling back to the day's own price keeps
-          // such a printing out of the gap rather than inventing a swing.
+          // No baseline means the printing had no price on the window's first
+          // day, so charge it the day's own price and let it contribute
+          // nothing to the gap. See the map above for why its first-ever price
+          // is the wrong thing to reach for.
           baselineValueCents += (baselinePrice.get(printingId) ?? price) * count;
         }
         reversed.push({ date: dayStr, valueCents, baselineValueCents, copyCount });

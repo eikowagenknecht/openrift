@@ -134,8 +134,11 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
         // by the same amount.
         { marketplaceProductId: flatSku.id, recordedAt: dayOffset(6), marketCents: 200 },
         { marketplaceProductId: flatSku.id, recordedAt: dayOffset(0), marketCents: 200 },
-        // Late: no price at all until day 2, though the copy is held from day 6.
+        // Late: no price at all until day 2, though the copy is held from day
+        // 6, and then a rise. Freezing at its first-ever 500 would book a 400
+        // gain over a window it had no starting price for.
         { marketplaceProductId: lateSku.id, recordedAt: dayOffset(2), marketCents: 500 },
+        { marketplaceProductId: lateSku.id, recordedAt: dayOffset(0), marketCents: 900 },
       ])
       .execute();
 
@@ -248,23 +251,24 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     expect(threeDays.at(-1)!.valueCents).toBe(300);
   });
 
-  it("keeps a printing out of both lines on days it has no price", async () => {
+  it("reports no return for a printing that had no price at the range start", async () => {
     const series = await seriesFor(lateCollectionId);
 
-    // The copy is held from day six but unpriced until day two. Counting it in
-    // the baseline while the real line skips it would render a gap in the
-    // price history as a loss.
+    // Held from day six, unpriced until day two, then 500 -> 900. There is no
+    // day-six price to freeze at, so the honest return over this window is
+    // zero: the two lines track each other exactly, including on the days the
+    // printing is unpriced and both read zero.
     for (const point of series) {
       expect(point.copyCount).toBe(1);
-      if (point.valueCents === 0) {
-        expect(point.baselineValueCents).toBe(0);
-      }
+      expect(point.baselineValueCents).toBe(point.valueCents);
     }
     expect(series[0].valueCents).toBe(0);
-    // Falls back to the earliest snapshot, so the days it is priced show no
-    // movement rather than a jump from nothing.
-    expect(series.at(-1)!.valueCents).toBe(500);
-    expect(series.at(-1)!.baselineValueCents).toBe(500);
+    // Charged its own current price rather than its first-ever 500, which
+    // would have shown a 400 gain the holder never made. Pricing every
+    // late-listed card at its release-day high is what made the All range read
+    // 3x the real collection value.
+    expect(series.at(-1)!.valueCents).toBe(900);
+    expect(series.at(-1)!.baselineValueCents).toBe(900);
   });
 
   it("leaves the real line equal to the Stats card figure", async () => {
