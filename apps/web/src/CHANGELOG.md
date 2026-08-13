@@ -6,6 +6,10 @@
 
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
 
+### Other
+
+- feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
+
 ## 2026-08-13
 
 ### Highlights
