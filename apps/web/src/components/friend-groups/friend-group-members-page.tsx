@@ -1,10 +1,13 @@
 import type {
+  FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupRole,
+  FriendGroupShareResponse,
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ChevronRightIcon,
   EllipsisVerticalIcon,
   FolderIcon,
   ShieldIcon,
@@ -12,13 +15,14 @@ import {
   UserPlusIcon,
   ZapIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { SearchInput } from "@/components/filters/search-input";
+import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { cardLinkVariants } from "@/components/ui/card-link";
 import { CountPill } from "@/components/ui/count-pill";
 import {
   DropdownMenu,
@@ -27,7 +31,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SectionHeading } from "@/components/ui/section-heading";
+import { Pressable } from "@/components/ui/pressable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
@@ -42,15 +53,124 @@ import { cn } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
-import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
+import { LIST_INTENT_ICON } from "./list-intent-meta";
 import { PendingRequestsBand } from "./pending-requests-band";
+import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
+
+/** How the roster toolbar can order the members. */
+export type MemberSortKey = "recent" | "name" | "traded";
+
+const MEMBER_SORT_OPTIONS: { value: MemberSortKey; label: string }[] = [
+  { value: "traded", label: "Most traded with you" },
+  { value: "recent", label: "Recently joined" },
+  { value: "name", label: "Name" },
+];
+
+/** How many cards a member puts in front of the group, and where. */
+export interface MemberShareVolume {
+  /** Cards across the tradelists they share. */
+  offered: number;
+  /** Cards across the wishlists they share. */
+  wanted: number;
+  /** How many collections they share. */
+  collections: number;
+}
+
+/** @returns A zeroed volume to accumulate into. */
+function emptyVolume(): MemberShareVolume {
+  return { offered: 0, wanted: 0, collections: 0 };
+}
+
+/**
+ * Adds up how many cards each member offers and wants across the lists they
+ * share with the group, plus how many collections they share. Organize lists
+ * carry no trading meaning, so they are left out.
+ * @param shares Every list shared with the group.
+ * @param collectionShares Every collection shared with the group.
+ * @returns Volumes keyed by user id. Members who share nothing are absent.
+ */
+export function memberShareVolumes(
+  shares: FriendGroupShareResponse[],
+  collectionShares: FriendGroupCollectionShareResponse[],
+): Map<string, MemberShareVolume> {
+  const volumes = new Map<string, MemberShareVolume>();
+  for (const share of shares) {
+    if (share.listIntent === "organize") {
+      continue;
+    }
+    const volume = volumes.get(share.userId) ?? emptyVolume();
+    if (share.listIntent === "trade") {
+      volume.offered += share.entryCount;
+    } else {
+      volume.wanted += share.entryCount;
+    }
+    volumes.set(share.userId, volume);
+  }
+  for (const share of collectionShares) {
+    const volume = volumes.get(share.userId) ?? emptyVolume();
+    volume.collections += 1;
+    volumes.set(share.userId, volume);
+  }
+  return volumes;
+}
+
+/**
+ * Narrows the roster to members whose name contains the query.
+ * @param members The full roster.
+ * @param query The raw search text; blank keeps everyone.
+ * @returns The matching members, in the order given.
+ */
+export function filterMembersByName(
+  members: FriendGroupMemberResponse[],
+  query: string,
+): FriendGroupMemberResponse[] {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") {
+    return members;
+  }
+  return members.filter((member) => (member.userName ?? "").toLowerCase().includes(needle));
+}
+
+/**
+ * Nameless members sort last; the rest compare by the viewer's locale.
+ * @returns The usual negative/zero/positive comparator result.
+ */
+function compareNames(a: FriendGroupMemberResponse, b: FriendGroupMemberResponse): number {
+  if (a.userName === null || b.userName === null) {
+    return a.userName === b.userName ? 0 : a.userName === null ? 1 : -1;
+  }
+  return a.userName.localeCompare(b.userName);
+}
+
+/**
+ * Orders the roster for one of the toolbar's sort options.
+ * @param members The members to order.
+ * @param sort The chosen order.
+ * @param cardsTradedByMember Cards the viewer traded with each member, keyed by user id.
+ * @returns A new, ordered array.
+ */
+export function sortMembers(
+  members: FriendGroupMemberResponse[],
+  sort: MemberSortKey,
+  cardsTradedByMember: Record<string, number>,
+): FriendGroupMemberResponse[] {
+  if (sort === "name") {
+    return members.toSorted(compareNames);
+  }
+  if (sort === "traded") {
+    return members.toSorted((a, b) => {
+      const byTraded = (cardsTradedByMember[b.userId] ?? 0) - (cardsTradedByMember[a.userId] ?? 0);
+      return byTraded === 0 ? compareNames(a, b) : byTraded;
+    });
+  }
+  return members.toSorted((a, b) => Date.parse(b.joinedAt) - Date.parse(a.joinedAt));
+}
 
 /**
  * The Members page: pending join requests (admins only) as the page's action
- * band above the roster, then the members as a card grid (the "team wall") —
- * each card with a role-ringed avatar, role/You/New chips, join date, the
- * member's lifetime traded count, share pills, contact chips, and the admin
- * role actions.
+ * band, then a searchable, sortable roster. Each row carries the member's
+ * identity and role, how many cards they offer and want with the group, their
+ * contact channels, and the admin role actions.
  * @returns The members-page content.
  */
 export function MembersPageContent({
@@ -62,61 +182,89 @@ export function MembersPageContent({
 }) {
   const viewerId = useRequiredUserId();
   const viewerRole = data.viewerRole ?? "member";
-  // Per-member counts of what each shares with the group, shown neutrally on
-  // their row. Organize lists don't count toward trading, so only wish/trade
-  // lists and collections are tallied.
-  const wishlistCountByUser = new Map<string, number>();
-  const tradelistCountByUser = new Map<string, number>();
-  for (const share of data.shares) {
-    if (share.listIntent === "wish") {
-      wishlistCountByUser.set(share.userId, (wishlistCountByUser.get(share.userId) ?? 0) + 1);
-    } else if (share.listIntent === "trade") {
-      tradelistCountByUser.set(share.userId, (tradelistCountByUser.get(share.userId) ?? 0) + 1);
-    }
-  }
-  const collectionCountByUser = new Map<string, number>();
-  for (const share of data.collectionShares) {
-    collectionCountByUser.set(share.userId, (collectionCountByUser.get(share.userId) ?? 0) + 1);
-  }
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<MemberSortKey>("traded");
 
-  const ownerCount = data.members.filter((member) => member.role === "owner").length;
-  const adminCount = data.members.filter((member) => member.role === "admin").length;
-  const roleTally = [
-    `${ownerCount} ${ownerCount === 1 ? "owner" : "owners"}`,
-    ...(adminCount > 0 ? [`${adminCount} ${adminCount === 1 ? "admin" : "admins"}`] : []),
-  ].join(" · ");
+  const volumes = memberShareVolumes(data.shares, data.collectionShares);
+  const rows = sortMembers(
+    filterMembersByName(data.members, query),
+    sort,
+    data.cardsTradedByMember,
+  );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {isAdmin(viewerRole) && data.pendingRequests.length > 0 ? (
         <PendingRequestsBand slug={slug} requests={data.pendingRequests} />
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline gap-2.5">
-          <SectionHeading count={data.members.length}>Members</SectionHeading>
-          <span className="text-muted-foreground/60 text-xs">{roleTally}</span>
-        </div>
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5">
-          {data.members.map((member) => (
-            <li key={member.userId}>
-              <MemberCard
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Search members…"
+          ariaLabel="Search members"
+          className="w-full max-w-xs"
+        />
+        <Select
+          items={MEMBER_SORT_OPTIONS}
+          value={sort}
+          onValueChange={(next: MemberSortKey | null) => setSort(next ?? "traded")}
+        >
+          <SelectTrigger className="w-52" aria-label="Sort members">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MEMBER_SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground">No members match your search.</p>
+      ) : (
+        <Card className="gap-0 py-0">
+          <ul className="divide-border divide-y">
+            {rows.map((member) => (
+              <MemberRow
+                key={member.userId}
                 slug={slug}
+                groupName={data.group.name}
                 member={member}
                 viewerId={viewerId}
                 viewerRole={viewerRole}
-                shareCounts={{
-                  wishlists: wishlistCountByUser.get(member.userId) ?? 0,
-                  tradelists: tradelistCountByUser.get(member.userId) ?? 0,
-                  collections: collectionCountByUser.get(member.userId) ?? 0,
-                }}
+                volume={volumes.get(member.userId) ?? emptyVolume()}
                 cardsTraded={data.cardsTradedByMember[member.userId] ?? 0}
               />
-            </li>
-          ))}
-        </ul>
-      </section>
+            ))}
+          </ul>
+        </Card>
+      )}
     </div>
+  );
+}
+
+/**
+ * The Members page's top-bar action: the group's lifetime traded tally, linking
+ * to the Trades page. Visible to every member, hidden until the group has
+ * traded at least one card. Reads the (already-loaded) group from the cache so
+ * the route can pass it as a plain element.
+ * @returns The traded-tally action, or null.
+ */
+export function MembersTradedAction({ slug }: { slug: string }) {
+  const { data } = useFriendGroupDetail(slug);
+  if (data.cardsTradedCount === 0) {
+    return null;
+  }
+  return (
+    <PageTopBarButton render={<Link to="/groups/$slug/trades" params={{ slug }} />}>
+      <ZapIcon className="size-4" />
+      {data.cardsTradedCount} cards traded
+    </PageTopBarButton>
   );
 }
 
@@ -166,7 +314,7 @@ export function MembersInviteAction({ slug }: { slug: string }) {
  * admins. Plain members carry no chip, so a chip always means something. */
 const ROLE_BADGE_VARIANT = { owner: "warning", admin: "violet" } as const;
 
-/** Avatar rings echo the role chips, so leadership reads at wall distance. */
+/** Avatar rings echo the role chips, so leadership reads down the column. */
 const ROLE_AVATAR_RING = {
   owner: "ring-2 ring-amber-500/70 ring-offset-2 ring-offset-card",
   admin: "ring-2 ring-violet-500/60 ring-offset-2 ring-offset-card",
@@ -181,42 +329,68 @@ function isNewMember(joinedAt: string): boolean {
   return Date.now() - Date.parse(joinedAt) < NEW_MEMBER_WINDOW_MS;
 }
 
-function MemberCard({
+/**
+ * The viewer's own row when they share nothing with the group: the one place
+ * on this page where a blank share column is worth acting on rather than just
+ * reporting.
+ * @returns The nudge and its share dialog.
+ */
+function SelfShareNudge({ slug, groupName }: { slug: string; groupName: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable
+        className="text-primary relative text-sm font-medium hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        Share a tradelist so others can find matches with you
+      </Pressable>
+      <ShareListsWithGroupDialog
+        slug={slug}
+        groupName={groupName}
+        open={open}
+        onOpenChange={setOpen}
+        cancelLabel="Cancel"
+        preselectAll={false}
+      />
+    </>
+  );
+}
+
+function MemberRow({
   slug,
+  groupName,
   member,
   viewerId,
   viewerRole,
-  shareCounts,
+  volume,
   cardsTraded,
 }: {
   slug: string;
+  groupName: string;
   member: FriendGroupMemberResponse;
   viewerId: string;
   viewerRole: FriendGroupRole;
-  shareCounts: { wishlists: number; tradelists: number; collections: number };
+  volume: MemberShareVolume;
   /** Cards the viewer has traded with this member here; 0 on the viewer's own card. */
   cardsTraded: number;
 }) {
   const isSelf = member.userId === viewerId;
-  // Only the non-zero shares render, as icon pills reusing the app's
-  // list-intent icons. Nothing extra renders when a member shares nothing.
-  const sharePills = [
-    {
-      key: "wish",
-      icon: LIST_INTENT_ICON.wish,
-      count: shareCounts.wishlists,
-      noun: LIST_INTENT_NOUN.wish,
-    },
-    {
-      key: "trade",
-      icon: LIST_INTENT_ICON.trade,
-      count: shareCounts.tradelists,
-      noun: LIST_INTENT_NOUN.trade,
-    },
-    { key: "collection", icon: FolderIcon, count: shareCounts.collections, noun: "collection" },
-  ].filter((pill) => pill.count > 0);
   const updateRole = useUpdateFriendGroupRole();
   const kickMember = useKickFriendGroupMember();
+
+  // Only the non-zero volumes render, as icon pills reusing the app's
+  // list-intent icons.
+  const volumePills = [
+    { key: "offered", icon: LIST_INTENT_ICON.trade, count: volume.offered, noun: "offered" },
+    { key: "wanted", icon: LIST_INTENT_ICON.wish, count: volume.wanted, noun: "wanted" },
+    {
+      key: "collections",
+      icon: FolderIcon,
+      count: volume.collections,
+      noun: volume.collections === 1 ? "collection" : "collections",
+    },
+  ].filter((pill) => pill.count > 0);
 
   const canKick =
     isAdmin(viewerRole) &&
@@ -229,7 +403,63 @@ function MemberCard({
   const canDemote = viewerRole === "owner" && !isSelf && member.role === "admin";
 
   return (
-    <Card className={cn(cardLinkVariants(), "relative h-full gap-3 p-4")}>
+    // The whole row is the click target for the member page: the identity
+    // link stretches over it via the ::before overlay (the shared-list-row
+    // pattern), so the volume pills and the chevron read as part of one row
+    // that opens the member's shares. The secondary controls (contact chips,
+    // admin menu, the nudge) sit above the overlay via `relative`.
+    <li className="hover:bg-muted/50 relative flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 transition-colors">
+      <Link
+        to="/groups/$slug/members/$userId"
+        params={{ slug, userId: member.userId }}
+        className="flex min-w-0 flex-1 basis-56 items-center gap-3 before:absolute before:inset-0 before:content-['']"
+      >
+        <UserAvatar
+          image={member.userImage}
+          name={member.userName}
+          gravatarHash={member.gravatarHash}
+          className={cn("shrink-0", ROLE_AVATAR_RING[member.role])}
+        />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium break-words">{member.userName ?? "Unknown user"}</span>
+            {member.role === "member" ? null : (
+              <Badge variant={ROLE_BADGE_VARIANT[member.role]}>{ROLE_LABEL[member.role]}</Badge>
+            )}
+            {isSelf ? <Badge variant="muted">You</Badge> : null}
+            {isNewMember(member.joinedAt) ? <Badge variant="success">New</Badge> : null}
+          </span>
+          <span className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
+            <span>
+              Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
+            </span>
+            {cardsTraded > 0 ? (
+              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                <ZapIcon className="size-3" />
+                {cardsTraded} traded with you
+              </span>
+            ) : null}
+          </span>
+        </span>
+      </Link>
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        {volumePills.length > 0 ? (
+          volumePills.map((pill) => (
+            <CountPill key={pill.key} variant="ghost" className="px-0">
+              <pill.icon className="size-3" />
+              {pill.count} {pill.noun}
+            </CountPill>
+          ))
+        ) : isSelf ? (
+          <SelfShareNudge slug={slug} groupName={groupName} />
+        ) : (
+          <span className="text-muted-foreground/60 text-xs">Nothing shared yet</span>
+        )}
+      </div>
+
+      <ContactMethodChips methods={member.contactMethods} compact className="relative" />
+
       {canKick || canPromote || canDemote ? (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -238,7 +468,7 @@ function MemberCard({
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Member actions"
-                className="absolute top-2.5 right-2.5"
+                className="relative"
               />
             }
           >
@@ -274,53 +504,13 @@ function MemberCard({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
-      <Link
-        to="/groups/$slug/members/$userId"
-        params={{ slug, userId: member.userId }}
-        className="flex min-w-0 items-center gap-3 pr-8"
-      >
-        <UserAvatar
-          image={member.userImage}
-          name={member.userName}
-          gravatarHash={member.gravatarHash}
-          className={cn("size-13 shrink-0", ROLE_AVATAR_RING[member.role])}
-        />
-        <span className="flex min-w-0 flex-col gap-1">
-          <span className="font-medium break-words">{member.userName ?? "Unknown user"}</span>
-          <span className="flex flex-wrap items-center gap-1">
-            {member.role === "member" ? null : (
-              <Badge variant={ROLE_BADGE_VARIANT[member.role]}>{ROLE_LABEL[member.role]}</Badge>
-            )}
-            {isSelf ? <Badge variant="muted">You</Badge> : null}
-            {isNewMember(member.joinedAt) ? <Badge variant="success">New</Badge> : null}
-          </span>
-        </span>
-      </Link>
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
-        <span>
-          Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
-        </span>
-        {cardsTraded > 0 ? (
-          <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-            <ZapIcon className="size-3" />
-            {cardsTraded} traded with you
-          </span>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-        {sharePills.length > 0 ? (
-          sharePills.map((pill) => (
-            <CountPill key={pill.key} variant="ghost" className="px-0">
-              <pill.icon className="size-3" />
-              {pill.count} {pill.count === 1 ? pill.noun : `${pill.noun}s`}
-            </CountPill>
-          ))
-        ) : (
-          <span className="text-muted-foreground/60 text-xs">Nothing shared yet</span>
-        )}
-      </div>
-      <ContactMethodChips methods={member.contactMethods} className="mt-auto" />
-    </Card>
+      ) : (
+        // Menu-less rows (the viewer's own, and everyone for non-admins) keep
+        // the icon-sm button's footprint so the chevron column stays aligned.
+        <span className="size-7 shrink-0" aria-hidden="true" />
+      )}
+
+      <ChevronRightIcon className="text-muted-foreground/50 size-4 shrink-0" aria-hidden="true" />
+    </li>
   );
 }

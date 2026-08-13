@@ -3,6 +3,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import {
   MembersInviteAction,
   MembersPageContent,
+  MembersTradedAction,
 } from "@/components/friend-groups/friend-group-members-page";
 import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
 
@@ -16,7 +17,12 @@ function GroupMembersRoute() {
     <FriendGroupSectionFrame
       slug={slug}
       title="Members"
-      actions={<MembersInviteAction slug={slug} />}
+      actions={
+        <>
+          <MembersTradedAction slug={slug} />
+          <MembersInviteAction slug={slug} />
+        </>
+      }
       render={(data) => <MembersPageContent slug={slug} data={data} />}
     />
   );

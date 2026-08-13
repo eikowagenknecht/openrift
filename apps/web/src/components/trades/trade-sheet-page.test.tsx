@@ -1,13 +1,27 @@
 import type { CardTradeSheetResponse } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sheet = vi.hoisted(() => ({ current: null as CardTradeSheetResponse | null }));
+
+// What the counterparty shares in the anchor group; gates "View their lists".
+// Defaults to one tradelist so the link-focused tests below see the link.
+const groupDetail = vi.hoisted(() => ({
+  shares: [{ userId: "member-1", listIntent: "trade" }] as {
+    userId: string;
+    listIntent: string;
+  }[],
+  collectionShares: [] as { userId: string }[],
+}));
 
 vi.mock("@/hooks/use-card-trades", () => ({
   useTradeSheet: () => ({ data: sheet.current }),
   useUserTrades: () => ({ data: { items: [] } }),
+}));
+
+vi.mock("@/hooks/use-friend-groups", () => ({
+  useFriendGroupDetail: () => ({ data: groupDetail }),
 }));
 
 vi.mock("@/hooks/use-cards", () => ({
@@ -117,6 +131,11 @@ function makeSheet(overrides: Partial<CardTradeSheetResponse> = {}): CardTradeSh
 }
 
 describe("TradeSheetPage", () => {
+  beforeEach(() => {
+    groupDetail.shares = [{ userId: "member-1", listIntent: "trade" }];
+    groupDetail.collectionShares = [];
+  });
+
   it("keeps the shared-lists link on a sheet that has suggestions", () => {
     sheet.current = makeSheet({ othersHaveYourWants: [makeMatch()] });
     render(<TradeSheetPage userId="member-1" fromGroupSlug="allerlei-spielerei" />);
@@ -166,5 +185,25 @@ describe("TradeSheetPage", () => {
       "href",
       "/groups/allerlei-spielerei/members/member-1",
     );
+  });
+
+  // The link's promise is their lists; when they share nothing in the anchor
+  // group it led straight to an empty member page, so it stands down. An
+  // organize list alone doesn't count — the member page never renders those.
+  it("hides the lists link when they share nothing viewable in the anchor group", () => {
+    sheet.current = makeSheet();
+    groupDetail.shares = [{ userId: "member-1", listIntent: "organize" }];
+    render(<TradeSheetPage userId="member-1" fromGroupSlug="allerlei-spielerei" />);
+
+    expect(screen.queryByRole("link", { name: "View their lists" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the lists link for a shared collection alone", () => {
+    sheet.current = makeSheet();
+    groupDetail.shares = [];
+    groupDetail.collectionShares = [{ userId: "member-1" }];
+    render(<TradeSheetPage userId="member-1" fromGroupSlug="allerlei-spielerei" />);
+
+    expect(screen.getByRole("link", { name: "View their lists" })).toBeInTheDocument();
   });
 });

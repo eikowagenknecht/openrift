@@ -1,18 +1,20 @@
 import type { ListIntent } from "@openrift/shared";
 import { isTradedCardTrade } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
+import { HandshakeIcon } from "lucide-react";
 
 import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
-import { Heading } from "@/components/heading";
+import { EmptyState } from "@/components/empty-state";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
+import { PersonPageHeader } from "@/components/person-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardList } from "@/components/ui/card-list";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useTradeSheet, useUserTrades } from "@/hooks/use-card-trades";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
 import {
   bucketMemberTrades,
   countTradeSuggestions,
@@ -76,17 +78,34 @@ function tradeSummaryLine(
   return parts.length > 0 ? parts.join(" · ") : "Nothing traded yet";
 }
 
-export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
-  const { data } = useFriendGroupMemberDetail(slug, userId);
-  const { data: groupDetail } = useFriendGroupDetail(slug);
-  const { data: tradesData } = useGroupTrades(groupDetail.group.id);
+/**
+ * The Trades section: the one-line state of play and the hand-off button to
+ * the person-level trade sheet. Its own component because it fetches that
+ * sheet, which the API (rightly) refuses to open for the viewer themself —
+ * the page mounts this only for other members.
+ * @returns The trades section.
+ */
+function MemberTradeSection({
+  slug,
+  userId,
+  groupId,
+  memberName,
+  hasSharedAnything,
+}: {
+  slug: string;
+  userId: string;
+  groupId: string;
+  memberName: string;
+  /** Whether the member shares any list or collection with this group. */
+  hasSharedAnything: boolean;
+}) {
+  const { data: tradesData } = useGroupTrades(groupId);
   const { data: allTradesData } = useUserTrades();
   // The same pooled matches the trade sheet renders, rather than this group's
   // own: the summary below stands in for that page, and a group-scoped count
   // under person-scoped trade counts said "nothing" about a member the sheet
   // then showed suggestions for.
   const { data: sheet } = useTradeSheet(userId);
-  const { member } = data;
 
   // Drop match suggestions that already have a live trade with this member for
   // the same card — here or in another shared group — so a suggestion and the
@@ -100,12 +119,50 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const tradedCount = liveTrades.filter(
     (trade) => trade.counterparty.userId === userId && isTradedCardTrade(trade),
   ).length;
-  const tradeSummary = tradeSummaryLine(
-    active.length + actionNeeded.length,
-    actionNeeded.length,
-    countTradeSuggestions(incomingMatches, outgoingMatches),
-    tradedCount,
+  const openCount = active.length + actionNeeded.length;
+  const matchCount = countTradeSuggestions(incomingMatches, outgoingMatches);
+  const tradeSummary = tradeSummaryLine(openCount, actionNeeded.length, matchCount, tradedCount);
+
+  // A member with no shares AND nothing between the two of you would show a
+  // "Nothing traded yet" card pointing at an empty trade sheet, right above a
+  // "hasn't shared anything" line: two empties stacked. Fold both facts into
+  // one honest empty state instead.
+  if (!hasSharedAnything && openCount === 0 && matchCount === 0 && tradedCount === 0) {
+    return (
+      <EmptyState
+        icon={HandshakeIcon}
+        title="Nothing here yet"
+        description={`${memberName} hasn't shared any lists or collections with this group, and the two of you haven't traded.`}
+      />
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Trades</SectionHeading>
+      <Card className="flex-row flex-wrap items-center justify-between gap-3 p-3">
+        <p className="min-w-0">{tradeSummary}</p>
+        <Button render={<Link to="/trades/$userId" params={{ userId }} search={{ from: slug }} />}>
+          Open trade sheet
+        </Button>
+      </Card>
+      {hasSharedAnything ? null : (
+        // The shares sections below render nothing for this member, so the
+        // sharing gap is said here, under the (non-empty) trade summary.
+        <p className="text-muted-foreground">
+          {memberName} hasn&apos;t shared any collections or lists with this group yet.
+        </p>
+      )}
+    </section>
   );
+}
+
+export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
+  const { data } = useFriendGroupMemberDetail(slug, userId);
+  const { data: groupDetail } = useFriendGroupDetail(slug);
+  const viewerId = useRequiredUserId();
+  const isSelf = userId === viewerId;
+  const { member } = data;
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));
   const hasShares = sortedShares.length > 0;
@@ -127,38 +184,31 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           the provider mounts — the same as on the group's Trades page. */}
       <CardDetailOverlayProvider>
         <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-          <header className="flex items-center gap-4">
-            <UserAvatar
+          <header>
+            <PersonPageHeader
               image={member.userImage}
               name={member.userName}
               gravatarHash={member.gravatarHash}
-              size="lg"
-              className="size-14"
-            />
-            <div className="flex flex-col gap-1">
-              <Heading level={1}>{member.userName ?? "Unknown user"}</Heading>
-              <Badge variant="outline" className="w-fit text-xs">
-                {ROLE_LABEL[member.role]}
-              </Badge>
+            >
+              <Badge variant="outline">{ROLE_LABEL[member.role]}</Badge>
               <ContactMethodChips methods={member.contactMethods} />
-            </div>
+            </PersonPageHeader>
           </header>
 
           {/* Everything about trading with this member — the live rows, the
               suggestions and the history — lives on the person-level trade
               sheet, which pools every group the two share. This page keeps the
-              headline and hands off. */}
-          <section className="flex flex-col gap-3">
-            <SectionHeading>Trades</SectionHeading>
-            <Card className="flex-row flex-wrap items-center justify-between gap-3 p-3">
-              <p className="min-w-0">{tradeSummary}</p>
-              <Button
-                render={<Link to="/trades/$userId" params={{ userId }} search={{ from: slug }} />}
-              >
-                Open trade sheet
-              </Button>
-            </Card>
-          </section>
+              headline and hands off. On the viewer's own page there is no
+              counterparty, so the section stands down. */}
+          {isSelf ? null : (
+            <MemberTradeSection
+              slug={slug}
+              userId={userId}
+              groupId={groupDetail.group.id}
+              memberName={member.userName ?? "This member"}
+              hasSharedAnything={hasShares || hasCollections}
+            />
+          )}
 
           {hasCollections ? (
             <section className="flex flex-col gap-3">
@@ -198,10 +248,12 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
               })
             : null}
 
-          {!hasShares && !hasCollections ? (
+          {/* Non-self pages say the sharing gap inside the trade section (or
+              its combined empty state); only the viewer's own page needs it
+              here, phrased at them. */}
+          {isSelf && !hasShares && !hasCollections ? (
             <p className="text-muted-foreground">
-              {member.userName ?? "This member"} hasn&apos;t shared any collections or lists with
-              this group yet.
+              You haven&apos;t shared any collections or lists with this group yet.
             </p>
           ) : null}
         </div>

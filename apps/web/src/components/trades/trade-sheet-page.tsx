@@ -18,8 +18,8 @@ import { BulkTradeActions } from "@/components/friend-groups/trade-bulk-actions"
 import { TradeCardmarketExportDialog } from "@/components/friend-groups/trade-cardmarket-export-dialog";
 import { TradeRow } from "@/components/friend-groups/trade-row";
 import type { TradeBadgeState } from "@/components/friend-groups/trade-row-parts";
-import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
+import { PersonPageHeader } from "@/components/person-page-header";
 import { TradeBalanceBar } from "@/components/trades/trade-balance-bar";
 import { TradeSettleSection } from "@/components/trades/trade-settle-section";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,9 @@ import {
 import { IconChip } from "@/components/ui/icon-chip";
 import type { IconChipTone } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { UserAvatar } from "@/components/user-avatar";
 import { useTradeSheet, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
+import { useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { splitTradeLedger, stepSequence } from "@/lib/trade-sheet";
 
@@ -186,6 +186,15 @@ export function TradeSheetPage({
   // shared link) falls back to the first shared group; the API guarantees at
   // least one, so the back arrow and the lists link always have somewhere to go.
   const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
+  const { data: anchorGroupDetail } = useFriendGroupDetail(anchorGroup.slug);
+  // "View their lists" opens their member page in the anchor group, which
+  // renders their wish/trade lists and collections there — organize lists
+  // never show. When none of that exists the page is one big empty state, so
+  // the link stands down instead of promising lists that aren't there.
+  const hasListsToSee =
+    anchorGroupDetail.shares.some(
+      (share) => share.userId === userId && share.listIntent !== "organize",
+    ) || anchorGroupDetail.collectionShares.some((share) => share.userId === userId);
   const name = sheet.counterparty.name ?? "Member";
   // Which group a trade sits in only tells the viewer something when there is
   // more than one it could have been, so a single shared group names nothing.
@@ -239,70 +248,58 @@ export function TradeSheetPage({
           vertical-gap rule: the bar's own pb sits inside its blur band. */}
       <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3 pb-12">
         <header className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <UserAvatar
-                image={sheet.counterparty.image}
-                name={sheet.counterparty.name}
-                gravatarHash={sheet.counterparty.gravatarHash}
-                size="lg"
-                className="size-12"
-              />
-              <div className="flex min-w-0 flex-col gap-1">
-                {/* Level 2's face at level 1: the sheet is about a person, not a
-                    product, and the page-title size would shout their name
-                    across a page whose job is the rows under it. */}
-                <Heading level={2} as="h1" className="truncate">
-                  {name}
-                </Heading>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <ContactMethodChips methods={sheet.counterparty.contactMethods} />
-                  {groupNames === null
-                    ? null
-                    : sheet.groups.map((group) => (
-                        <Badge key={group.id} variant="outline">
-                          {group.name}
-                        </Badge>
-                      ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {/* The sheet holds the ledger and the suggestions, never the
-                  lists they came out of, so browsing what this person shares
-                  needs a way off the page. It sits in the header rather than
-                  only in the empty state below, which is where it used to
-                  live: the moment a single suggestion appeared the empty state
-                  stopped rendering and the link went with it. */}
-              <Button
-                variant="outline"
-                size="sm"
-                render={
-                  <Link
-                    to="/groups/$slug/members/$userId"
-                    params={{ slug: anchorGroup.slug, userId }}
-                  />
-                }
-              >
-                View their lists
-              </Button>
-              {reserved.length > 0 ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}
+          <PersonPageHeader
+            image={sheet.counterparty.image}
+            name={name}
+            gravatarHash={sheet.counterparty.gravatarHash}
+            actions={
+              <>
+                {/* The sheet holds the ledger and the suggestions, never the
+                    lists they came out of, so browsing what this person shares
+                    needs a way off the page. It sits in the header rather than
+                    only in the empty state below, which is where it used to
+                    live: the moment a single suggestion appeared the empty state
+                    stopped rendering and the link went with it. */}
+                {hasListsToSee ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    render={
+                      <Link
+                        to="/groups/$slug/members/$userId"
+                        params={{ slug: anchorGroup.slug, userId }}
+                      />
+                    }
                   >
-                    <EllipsisVerticalIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                      Export for Cardmarket
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-            </div>
-          </div>
+                    View their lists
+                  </Button>
+                ) : null}
+                {reserved.length > 0 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}
+                    >
+                      <EllipsisVerticalIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                        Export for Cardmarket
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </>
+            }
+          >
+            <ContactMethodChips methods={sheet.counterparty.contactMethods} />
+            {groupNames === null
+              ? null
+              : sheet.groups.map((group) => (
+                  <Badge key={group.id} variant="outline">
+                    {group.name}
+                  </Badge>
+                ))}
+          </PersonPageHeader>
 
           <TradeBalanceBar trades={live} />
         </header>

@@ -4,12 +4,14 @@
 
 ### Highlights
 
+- feat(Groups): **Members page as a roster** — the group's members are now a searchable, sortable list showing how many cards each person offers and wants, with contact icons that reveal a handle and copy it on tap.
 - feat(Trades): **Check what you own before offering** — the available count on a card you would give away opens a breakdown of every variant you own and the collections holding them.
 - feat(Groups): **Possible trades on the groups list** — each group card now shows how many possible trades it holds, so you can see where to go without opening every group.
 
 ### Other
 
 - feat(Collection): **Hand the scanner to your phone** — on a desktop the scan page now shows a code you can point a phone at, since a rear camera reads cards better than a webcam.
+- fix(Groups): **Own member page works again** — opening your own entry in a group's member list no longer fails with a trade error, and shows what you share with the group.
 
 ## 2026-08-12
 
