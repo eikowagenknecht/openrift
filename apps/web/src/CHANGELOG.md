@@ -6,6 +6,10 @@
 
 - feat(Groups): **Possible trades on the groups list** — each group card now shows how many possible trades it holds, so you can see where to go without opening every group.
 
+### Other
+
+- feat(Collection): **Hand the scanner to your phone** — on a desktop the scan page now shows a code you can point a phone at, since a rear camera reads cards better than a webcam.
+
 ## 2026-08-12
 
 ### Highlights

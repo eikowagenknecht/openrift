@@ -45,6 +45,7 @@ import {
 import type { LockedCard, ScannerSettings } from "@/hooks/use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
 import { useCards } from "@/hooks/use-cards";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useCollections } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useLanguageLabels } from "@/hooks/use-enums";
@@ -782,6 +783,10 @@ export function ScanPage() {
   // stays: the user keeps the header, the loading rows and the way back out.
   const layout = useScanLayout();
   const immersive = layout !== "boxed" && active;
+  // A boxed layout on a coarse pointer is a tablet, whose rear camera is
+  // already the good one. Only a mouse-driven desktop gets the phone offer.
+  const coarsePointer = useCoarsePointer();
+  const phoneHandoff = layout === "boxed" && !coarsePointer;
   const trayAnchorRef = useRef<HTMLDivElement>(null);
 
   // Hides the app header and stops the page scrolling under the viewfinder;
@@ -887,6 +892,7 @@ export function ScanPage() {
           cvReady={cvReady}
           embedderReady={embedderReady}
           engineProgress={engineProgress}
+          showPhoneHint={phoneHandoff}
           onStart={handleStart}
         />
       )}

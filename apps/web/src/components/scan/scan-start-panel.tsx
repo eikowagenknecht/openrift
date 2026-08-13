@@ -2,7 +2,9 @@ import { CameraIcon, LayersIcon, ScanSquareIcon, SunIcon } from "lucide-react";
 
 import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Button } from "@/components/ui/button";
+import { QrCode } from "@/components/ui/qr-code";
 import type { EngineProgress } from "@/hooks/use-scan-engine";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +31,12 @@ interface ScanStartPanelProps {
   cvReady: boolean;
   embedderReady: boolean;
   engineProgress: EngineProgress;
+  /**
+   * Whether to offer the hand-off to a phone. The desktop camera path works,
+   * it is just the weaker one, so this is an offer rather than a warning and
+   * it never blocks starting the webcam.
+   */
+  showPhoneHint: boolean;
   onStart: () => void;
 }
 
@@ -50,6 +58,7 @@ export function ScanStartPanel({
   cvReady,
   embedderReady,
   engineProgress,
+  showPhoneHint,
   onStart,
 }: ScanStartPanelProps) {
   return (
@@ -87,6 +96,25 @@ export function ScanStartPanel({
               label="Recognition model"
               done={embedderReady}
               progress={engineProgress.encoder}
+            />
+          </div>
+        )}
+
+        {/* Shown while the engine loads as well as when it is ready, so the
+            hand-off is available during the wait rather than only after it.
+            The wording promises nothing about the session: the tray lives in
+            this browser's local storage and does not travel with the link. */}
+        {showPhoneHint && (
+          <div className="flex w-full flex-col items-center gap-2 border-t border-white/15 pt-4">
+            <p className="font-medium">Better on a phone</p>
+            <p className="text-xs text-white/60">
+              Its rear camera reads cards more reliably. Point it at the code to open this page
+              there.
+            </p>
+            <QrCode
+              value={`${getSiteUrl()}/scan`}
+              size={96}
+              label="QR code for the scanning page"
             />
           </div>
         )}
