@@ -33,14 +33,16 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
-import { useTradeActionCounts } from "@/hooks/use-card-trades";
+import { useTradeActionCounts, useUserTrades } from "@/hooks/use-card-trades";
 import {
   useAcceptFriendGroupInvite,
   useCreateFriendGroup,
   useDeclineFriendGroupInvite,
+  useFriendGroupMatchPanels,
   useFriendGroups,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { countTradeSuggestionsBySlug } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
@@ -165,6 +167,13 @@ export function GroupsIndexPage() {
   const actionCountByGroup = new Map(
     (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry]),
   );
+  // The matcher's suggestions per group, the same number each group's own
+  // Trades band leads with. Read here rather than served with the group list
+  // because matching is the app's most expensive read: the cards paint from the
+  // list and each count arrives when its group answers.
+  const { data: allTradesData } = useUserTrades();
+  const matchPanels = useFriendGroupMatchPanels(data.items.map((row) => row.slug));
+  const suggestionsBySlug = countTradeSuggestionsBySlug(matchPanels, allTradesData?.items ?? []);
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
   // Set right after a member joins a group (accepts an invite) or creates one,
@@ -333,6 +342,9 @@ export function GroupsIndexPage() {
               // requests to review) gets the StatTile accent ring so the
               // group that needs you stands out from across the grid.
               const needsViewer = (actions?.count ?? 0) > 0 || row.pendingRequestCount > 0;
+              // Undefined until this group's matcher answers, which is why the
+              // segment is dropped rather than shown as zero.
+              const suggestions = suggestionsBySlug.get(row.slug);
               return (
                 <CardLink
                   key={row.id}
@@ -386,6 +398,14 @@ export function GroupsIndexPage() {
                       {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
                       <span className="mx-1.5 opacity-60">·</span>
                       {row.sharedListCount} shared {row.sharedListCount === 1 ? "list" : "lists"}
+                      {suggestions !== undefined && suggestions > 0 ? (
+                        <>
+                          <span className="mx-1.5 opacity-60">·</span>
+                          <span className="text-foreground font-medium">
+                            {suggestions} possible {suggestions === 1 ? "trade" : "trades"}
+                          </span>
+                        </>
+                      ) : null}
                     </p>
                   </div>
                 </CardLink>

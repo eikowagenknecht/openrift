@@ -6,6 +6,7 @@ import {
   bucketMemberTrades,
   collapseTradeAnnotations,
   countTradeSuggestions,
+  countTradeSuggestionsBySlug,
   describeCounterpartySource,
   describeViewerSource,
   dominantTradeBadge,
@@ -425,6 +426,55 @@ describe("countTradeSuggestions", () => {
 function stubCounterparty(userId: string, name: string | null): CardTradeResponse["counterparty"] {
   return { userId, name, image: null, gravatarHash: `${userId}-hash`, contactMethods: [] };
 }
+
+describe("countTradeSuggestionsBySlug", () => {
+  it("counts each group on its own, keyed by slug", () => {
+    const counts = countTradeSuggestionsBySlug(
+      [
+        { slug: "tuesday-crew", incoming: [stubSuggestion(), stubSuggestion()], outgoing: [] },
+        {
+          slug: "store-league",
+          incoming: [],
+          outgoing: [stubSuggestion({ buyEntryId: "entry-2", printingId: "printing-2" })],
+        },
+      ],
+      [],
+    );
+    expect(counts.get("tuesday-crew")).toBe(1);
+    expect(counts.get("store-league")).toBe(1);
+  });
+
+  it("counts a suggestion two groups both reach in both of them", () => {
+    const row = stubSuggestion();
+    const counts = countTradeSuggestionsBySlug(
+      [
+        { slug: "tuesday-crew", incoming: [row], outgoing: [] },
+        { slug: "store-league", incoming: [row], outgoing: [] },
+      ],
+      [],
+    );
+    expect(counts.get("tuesday-crew")).toBe(1);
+    expect(counts.get("store-league")).toBe(1);
+  });
+
+  it("drops suggestions a live trade has taken over", () => {
+    const counts = countTradeSuggestionsBySlug(
+      [{ slug: "tuesday-crew", incoming: [stubSuggestion()], outgoing: [] }],
+      [
+        stubTrade({
+          status: "pending",
+          printingId: "printing-1",
+          counterparty: stubCounterparty("user-2", "Ashe"),
+        }),
+      ],
+    );
+    expect(counts.get("tuesday-crew")).toBe(0);
+  });
+
+  it("returns no entry for a group with no panels yet", () => {
+    expect(countTradeSuggestionsBySlug([], []).get("tuesday-crew")).toBeUndefined();
+  });
+});
 
 describe("groupTradesByCounterparty", () => {
   it("groups trades by counterparty, preserving input order within a group", () => {

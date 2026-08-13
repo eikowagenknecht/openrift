@@ -164,6 +164,40 @@ export function countTradeSuggestions(
   return tradeSuggestionKeys(incoming, outgoing).size;
 }
 
+/** One group's match panels, tagged with the group they came from. */
+export interface GroupMatchPanels<TMatch> {
+  slug: string;
+  /** The group's match rows where the card comes to the viewer. */
+  incoming: readonly TMatch[];
+  /** The group's match rows where the card goes to the other member. */
+  outgoing: readonly TMatch[];
+}
+
+/**
+ * The suggestion count each group amounts to, for a surface showing several
+ * groups at once (the groups index). Each group is counted on its own terms, so
+ * a card two groups can both reach counts in both: the number sits on a card
+ * that leads into one group, whose own Trades band states the same figure.
+ * @param groups Each group's match rows.
+ * @param trades The viewer's trades across all groups, so a suggestion a live
+ *   trade has already taken over stops counting (see {@link withoutLiveTradeMatches}).
+ * @returns The suggestion count per group slug.
+ */
+export function countTradeSuggestionsBySlug<TMatch extends MatchSuggestionFields>(
+  groups: readonly GroupMatchPanels<TMatch>[],
+  trades: readonly CardTradeResponse[],
+): Map<string, number> {
+  return new Map(
+    groups.map((group) => [
+      group.slug,
+      countTradeSuggestions(
+        withoutLiveTradeMatches(group.incoming, trades),
+        withoutLiveTradeMatches(group.outgoing, trades),
+      ),
+    ]),
+  );
+}
+
 /**
  * The trades hub band's headline and sub-line. The headline counts the *people*
  * waiting on the viewer, not the trades: a pile of 59 open rows is usually a

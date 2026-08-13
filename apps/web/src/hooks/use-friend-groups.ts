@@ -6,6 +6,7 @@ import type {
   FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
   FriendGroupMatchesResponse,
+  FriendGroupMatchRow,
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupPendingInvitesCountResponse,
@@ -28,6 +29,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
+import type { GroupMatchPanels } from "@/lib/trade-derivation";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // ── Server functions: queries ───────────────────────────────────────────────
@@ -197,6 +199,13 @@ function friendGroupMatchesQueryOptions(userId: string, slug: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.matches(userId, slug),
     queryFn: () => fetchGroupMatches({ data: slug }),
+    // Matching is the app's most expensive read and three surfaces now mount it
+    // (the groups index, a group's overview, its trades page), so walking the
+    // index into a group would otherwise run the same matcher twice within
+    // seconds. Everything the viewer does to a trade invalidates this key, which
+    // refetches regardless of the window; what waits out the minute is only a
+    // suggestion someone else's list edit created.
+    staleTime: 60_000,
   });
 }
 
@@ -262,6 +271,39 @@ export function useFriendGroupMatchesForSlugs(
       othersHaveYourWants: results.flatMap((result) => result.data?.othersHaveYourWants ?? []),
       othersWantYourHaves: results.flatMap((result) => result.data?.othersWantYourHaves ?? []),
     }),
+  });
+}
+
+/**
+ * The same rows kept apart per group, for a surface that shows several groups
+ * side by side and needs a number for each (the groups index).
+ *
+ * Non-suspending for the reason {@link useFriendGroupMatchesForSlugs} gives:
+ * matching is the most expensive read in the app, so the cards paint at once and
+ * each group's count fills in when that group answers. A group still loading is
+ * simply absent from the result rather than reported as zero.
+ * @param slugs The groups to read.
+ * @returns One entry per group that has answered, in `slugs` order.
+ */
+export function useFriendGroupMatchPanels(
+  slugs: readonly string[],
+): GroupMatchPanels<FriendGroupMatchRow>[] {
+  const userId = useRequiredUserId();
+  return useQueries({
+    queries: slugs.map((slug) => friendGroupMatchesQueryOptions(userId, slug)),
+    combine: (results) =>
+      results.flatMap((result, index) => {
+        const slug = slugs[index];
+        return result.data === undefined || slug === undefined
+          ? []
+          : [
+              {
+                slug,
+                incoming: result.data.othersHaveYourWants,
+                outgoing: result.data.othersWantYourHaves,
+              },
+            ];
+      }),
   });
 }
 

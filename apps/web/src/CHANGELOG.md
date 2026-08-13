@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-13
+
+### Highlights
+
+- feat(Groups): **Possible trades on the groups list** — each group card now shows how many possible trades it holds, so you can see where to go without opening every group.
+
 ## 2026-08-12
 
 ### Highlights
