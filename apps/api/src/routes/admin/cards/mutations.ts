@@ -971,6 +971,9 @@ export const adminCardMutationsRouter = {
       context.repos;
     const { cardId, ...printingFields } = input;
 
+    // Explicit admin create (including the duplicate-a-printing flow), so an
+    // identity collision is a mistake, not a re-run: reject it instead of
+    // letting the shared upsert silently overwrite the existing printing.
     const printingId = await acceptPrinting(
       context.transact,
       { catalogMutations, printingImages, markers, distributionChannels, printingEvents },
@@ -978,6 +981,7 @@ export const adminCardMutationsRouter = {
       printingFields,
       [],
       context.io,
+      { requireNew: true },
     );
 
     const card = await catalogMutations.getCardById(cardId);

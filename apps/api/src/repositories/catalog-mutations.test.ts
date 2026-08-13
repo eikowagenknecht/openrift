@@ -92,6 +92,20 @@ describe("catalogMutationsRepo", () => {
     expect(await catalogMutationsRepo(db).getSetIdBySlug("OGS")).toEqual({ id: "s-1" });
   });
 
+  it("findPrintingIdByIdentity returns the matching printing id", async () => {
+    const db = createMockDb([{ id: "p-1" }]);
+    expect(
+      await catalogMutationsRepo(db).findPrintingIdByIdentity({
+        cardId: "c-1",
+        shortCode: "OGS-001",
+        finish: "normal",
+        size: "standard",
+        markerSlugs: [],
+        language: "EN",
+      }),
+    ).toEqual({ id: "p-1" });
+  });
+
   it("upsertPrinting returns the printing id", async () => {
     const db = createMockDb([{ id: "p-1" }]);
     const result = await catalogMutationsRepo(db).upsertPrinting({

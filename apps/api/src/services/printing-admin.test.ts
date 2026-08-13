@@ -239,6 +239,7 @@ describe("acceptPrinting", () => {
       catalogMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
+        findPrintingIdByIdentity: vi.fn(async () => null),
         upsertPrinting: vi.fn(async () => "p-uuid"),
       },
       candidateCards: {
@@ -353,6 +354,105 @@ describe("acceptPrinting", () => {
         io,
       ),
     ).rejects.toThrow("already belongs to a different card");
+  });
+
+  it("throws CONFLICT with requireNew when the card already has this printing identity", async () => {
+    const upsertPrinting = vi.fn(async () => "p-uuid");
+    const repos = baseRepos({
+      catalogMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+        getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "card-uuid" })),
+        findPrintingIdByIdentity: vi.fn(async () => ({ id: "existing-uuid" })),
+        upsertPrinting,
+      },
+    });
+    const transact = mockTransact(withTrxExtras(repos));
+
+    await expect(
+      acceptPrinting(
+        transact,
+        repos as any,
+        "card-uuid",
+        { shortCode: "OGN-001", setId: "ogn", artist: "A", publicCode: "001" },
+        [],
+        io,
+        { requireNew: true },
+      ),
+    ).rejects.toThrow('This card already has a printing with short code "OGN-001"');
+    // The upsert would have silently overwritten the existing row.
+    expect(upsertPrinting).not.toHaveBeenCalled();
+  });
+
+  it("matches the identity on finish, size, language and markers under requireNew", async () => {
+    const findPrintingIdByIdentity = vi.fn(async () => null);
+    const repos = baseRepos({
+      catalogMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
+        findPrintingIdByIdentity,
+        upsertPrinting: vi.fn(async () => "p-uuid"),
+      },
+      markers: {
+        listBySlugs: vi.fn(async () => [{ id: "m-1", slug: "promo" }]),
+        setForPrinting: vi.fn(async () => {}),
+      },
+    });
+    const transact = mockTransact(withTrxExtras(repos));
+
+    await acceptPrinting(
+      transact,
+      repos as any,
+      "card-uuid",
+      {
+        shortCode: "OGN-001",
+        setId: "ogn",
+        artist: "A",
+        publicCode: "001",
+        finish: "foil",
+        size: "oversized",
+        language: "DE",
+        markerSlugs: ["promo"],
+      },
+      [],
+      io,
+      { requireNew: true },
+    );
+
+    expect(findPrintingIdByIdentity).toHaveBeenCalledWith({
+      cardId: "card-uuid",
+      shortCode: "OGN-001",
+      finish: "foil",
+      size: "oversized",
+      language: "DE",
+      markerSlugs: ["promo"],
+    });
+  });
+
+  it("keeps upserting without requireNew so ingest re-runs stay idempotent", async () => {
+    const upsertPrinting = vi.fn(async () => "existing-uuid");
+    const findPrintingIdByIdentity = vi.fn(async () => ({ id: "existing-uuid" }));
+    const repos = baseRepos({
+      catalogMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+        getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "card-uuid" })),
+        findPrintingIdByIdentity,
+        upsertPrinting,
+      },
+    });
+    const transact = mockTransact(withTrxExtras(repos));
+
+    const result = await acceptPrinting(
+      transact,
+      repos as any,
+      "card-uuid",
+      { shortCode: "OGN-001", setId: "ogn", artist: "A", publicCode: "001" },
+      ["cp-1"],
+      io,
+    );
+
+    expect(result).toBe("existing-uuid");
+    expect(findPrintingIdByIdentity).not.toHaveBeenCalled();
+    expect(upsertPrinting).toHaveBeenCalledTimes(1);
   });
 
   it("creates a printing and syncs marker/channel joins", async () => {

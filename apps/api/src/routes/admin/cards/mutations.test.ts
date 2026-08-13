@@ -1241,6 +1241,8 @@ describe("POST /cards/:cardId/printings", () => {
       expect.objectContaining({ shortCode: "FD", setId: "origin" }),
       [],
       mockIo,
+      // Explicit admin create: an identity collision must 409, not upsert.
+      { requireNew: true },
     );
   });
 });

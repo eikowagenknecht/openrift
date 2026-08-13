@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTransact } from "../deps.js";
+import { createRepos, createTransact } from "../deps.js";
+import type { Io } from "../io.js";
 import { createDbContext, syncCardCardTypes } from "../test/integration-context.js";
-import { updatePrintingMarkers } from "./printing-admin.js";
+import { acceptPrinting, updatePrintingMarkers } from "./printing-admin.js";
 
 // ---------------------------------------------------------------------------
 // Regression: editing one sibling printing's markers must not trip the
@@ -158,5 +159,167 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       .where("id", "=", printingEmptyId)
       .executeTakeFirstOrThrow();
     expect(untouched.markerSlugs).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression: the admin "create printing" flow (and the duplicate-a-printing
+// shortcut behind it) went through the same upsert as the ingest paths, so
+// submitting an unchanged duplicate overwrote the source printing and reported
+// success. `requireNew` makes that identity collision a 409 instead.
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!ctx)("acceptPrinting requireNew (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { db } = ctx!;
+  const transact = createTransact(db);
+  const io = {} as Io;
+
+  const SET_SLUG = "PADM2-TEST";
+  const CARD_SLUG = "PADM2-001";
+  const SHORT_CODE = "PADM2-001";
+
+  const repos = createRepos(db);
+  // Deliberately without `printingEvents`: the new-printing feed is not what
+  // this test is about, and leaving it out keeps teardown to the rows below.
+  const acceptRepos = {
+    catalogMutations: repos.catalogMutations,
+    printingImages: repos.printingImages,
+    markers: repos.markers,
+    distributionChannels: repos.distributionChannels,
+  };
+
+  const fields = {
+    shortCode: SHORT_CODE,
+    setId: SET_SLUG,
+    setName: "Printing Admin Require-New Set",
+    rarity: "common",
+    artist: "Original Artist",
+    publicCode: SHORT_CODE,
+  };
+
+  let setId = "";
+  let cardId = "";
+  let printingId = "";
+
+  beforeAll(async () => {
+    const [setRow] = await db
+      .insertInto("sets")
+      .values({
+        slug: SET_SLUG,
+        name: "Printing Admin Require-New Set",
+        printedTotal: 1,
+        sortOrder: 952,
+      })
+      .returning("id")
+      .execute();
+    setId = setRow.id;
+
+    const [cardRow] = await db
+      .insertInto("cards")
+      .values({
+        slug: CARD_SLUG,
+        name: "Printing Admin Require-New Card",
+        type: "unit",
+        might: null,
+        energy: 1,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        tags: [],
+      })
+      .returning("id")
+      .execute();
+    cardId = cardRow.id;
+    await syncCardCardTypes(db);
+
+    await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
+
+    const [printingRow] = await db
+      .insertInto("printings")
+      .values({
+        cardId,
+        setId,
+        shortCode: SHORT_CODE,
+        rarity: "common",
+        artVariant: "normal",
+        isSigned: false,
+        finish: "normal",
+        artist: "Original Artist",
+        publicCode: `${SHORT_CODE}/1`,
+        language: "EN",
+        size: "standard",
+      })
+      .returning("id")
+      .execute();
+    printingId = printingRow.id;
+  });
+
+  afterAll(async () => {
+    await db.deleteFrom("printings").where("cardId", "=", cardId).execute();
+    await db.deleteFrom("cards").where("id", "=", cardId).execute();
+    await db.deleteFrom("sets").where("id", "=", setId).execute();
+  });
+
+  it("rejects a duplicate of an existing printing instead of overwriting it", async () => {
+    await expect(
+      acceptPrinting(
+        transact,
+        acceptRepos,
+        cardId,
+        { ...fields, artist: "Overwriting Artist" },
+        [],
+        io,
+        {
+          requireNew: true,
+        },
+      ),
+    ).rejects.toThrow(`This card already has a printing with short code "${SHORT_CODE}"`);
+
+    const unchanged = await db
+      .selectFrom("printings")
+      .select("artist")
+      .where("id", "=", printingId)
+      .executeTakeFirstOrThrow();
+    expect(unchanged.artist).toBe("Original Artist");
+  });
+
+  it("allows a duplicate that differs in a field the identity covers", async () => {
+    const newId = await acceptPrinting(
+      transact,
+      acceptRepos,
+      cardId,
+      { ...fields, finish: "foil" },
+      [],
+      io,
+      { requireNew: true },
+    );
+
+    expect(newId).not.toBe(printingId);
+    const created = await db
+      .selectFrom("printings")
+      .select("finish")
+      .where("id", "=", newId)
+      .executeTakeFirstOrThrow();
+    expect(created.finish).toBe("foil");
+  });
+
+  it("still upserts without requireNew so ingest re-runs stay idempotent", async () => {
+    const sameId = await acceptPrinting(
+      transact,
+      acceptRepos,
+      cardId,
+      { ...fields, artist: "Ingest Artist" },
+      [],
+      io,
+    );
+
+    expect(sameId).toBe(printingId);
+    const updated = await db
+      .selectFrom("printings")
+      .select("artist")
+      .where("id", "=", printingId)
+      .executeTakeFirstOrThrow();
+    expect(updated.artist).toBe("Ingest Artist");
   });
 });

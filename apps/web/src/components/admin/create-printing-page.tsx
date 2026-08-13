@@ -37,6 +37,7 @@ import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
+import { printingFormDefaults } from "@/lib/printing-form-defaults";
 import { cn } from "@/lib/utils";
 
 export function CreatePrintingPage({
@@ -72,42 +73,37 @@ export function CreatePrintingPage({
     .map((node) => ({ value: node.channel.slug, label: node.breadcrumb }))
     .toSorted((a, b) => a.label.localeCompare(b.label));
 
-  const firstSet = sets[0]?.slug ?? "";
   const source = duplicateFrom
     ? (cardDetail?.printings.find((p) => p.id === duplicateFrom) ?? null)
     : null;
+  const defaults = printingFormDefaults(source, {
+    setSlug: sets[0]?.slug ?? "",
+    rarity: orders.rarities[0] ?? WellKnown.rarity.COMMON,
+    artVariant: orders.artVariants[0] ?? "normal",
+    finish: orders.finishes[0] ?? "normal",
+    size: orders.cardSizes[0] ?? WellKnown.cardSize.STANDARD,
+    language: languages[0]?.code ?? WellKnown.language.EN,
+  });
 
-  const [shortCode, setShortCode] = useState(source?.shortCode ?? "");
-  const [setId, setSetId] = useState<string>(source?.setSlug ?? firstSet);
-  const [rarity, setRarity] = useState<string>(
-    source?.rarity ?? orders.rarities[0] ?? WellKnown.rarity.COMMON,
-  );
-  const [artVariant, setArtVariant] = useState<string>(
-    source?.artVariant ?? orders.artVariants[0] ?? "normal",
-  );
-  const [finish, setFinish] = useState<string>(source?.finish ?? orders.finishes[0] ?? "normal");
-  const [size, setSize] = useState<string>(orders.cardSizes[0] ?? WellKnown.cardSize.STANDARD);
-  const [isSigned, setIsSigned] = useState(source?.isSigned ?? false);
-  const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(
-    source?.markerSlugs ?? [],
-  );
+  const [shortCode, setShortCode] = useState(defaults.shortCode);
+  const [setId, setSetId] = useState<string>(defaults.setId);
+  const [rarity, setRarity] = useState<string>(defaults.rarity);
+  const [artVariant, setArtVariant] = useState<string>(defaults.artVariant);
+  const [finish, setFinish] = useState<string>(defaults.finish);
+  const [size, setSize] = useState<string>(defaults.size);
+  const [isSigned, setIsSigned] = useState(defaults.isSigned);
+  const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(defaults.markerSlugs);
   const [selectedChannelSlugs, setSelectedChannelSlugs] = useState<string[]>(
-    source?.distributionChannelSlugs ?? [],
+    defaults.distributionChannelSlugs,
   );
-  const [artist, setArtist] = useState(source?.artist ?? "");
-  const [publicCode, setPublicCode] = useState(source?.publicCode ?? "");
-  const [language, setLanguage] = useState<string>(
-    source?.language ?? languages[0]?.code ?? WellKnown.language.EN,
-  );
-  const [printedName, setPrintedName] = useState(source?.printedName ?? "");
-  const [printedYear, setPrintedYear] = useState<string>(
-    source?.printedYear !== undefined && source.printedYear !== null
-      ? String(source.printedYear)
-      : "",
-  );
-  const [printedRulesText, setPrintedRulesText] = useState(source?.printedRulesText ?? "");
-  const [printedEffectText, setPrintedEffectText] = useState(source?.printedEffectText ?? "");
-  const [flavorText, setFlavorText] = useState(source?.flavorText ?? "");
+  const [artist, setArtist] = useState(defaults.artist);
+  const [publicCode, setPublicCode] = useState(defaults.publicCode);
+  const [language, setLanguage] = useState<string>(defaults.language);
+  const [printedName, setPrintedName] = useState(defaults.printedName);
+  const [printedYear, setPrintedYear] = useState<string>(defaults.printedYear);
+  const [printedRulesText, setPrintedRulesText] = useState(defaults.printedRulesText);
+  const [printedEffectText, setPrintedEffectText] = useState(defaults.printedEffectText);
+  const [flavorText, setFlavorText] = useState(defaults.flavorText);
   const [imageUrl, setImageUrl] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 

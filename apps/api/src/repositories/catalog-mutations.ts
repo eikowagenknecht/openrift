@@ -14,6 +14,21 @@ import type { Kysely, Selectable, Updateable } from "kysely";
 import type { CardsTable, Database, PrintingsTable } from "../db/index.js";
 
 /**
+ * The field set `uq_printings_identity` (migration 092) makes unique — i.e. the
+ * key `upsertPrinting` matches an existing row on. `findPrintingIdByIdentity`
+ * and the upsert share it so a caller checking "does this already exist?"
+ * cannot drift from what the upsert actually treats as the same printing.
+ */
+export interface PrintingIdentity {
+  cardId: string;
+  shortCode: string;
+  finish: Finish;
+  size: CardSize;
+  markerSlugs: string[];
+  language: string;
+}
+
+/**
  * Write path for the accepted catalog: cards, printings, their junction tables
  * (domains, types, super types, name aliases), and the image-file rows a
  * printing delete has to clean up. Used by the admin card-source management
@@ -27,8 +42,32 @@ import type { CardsTable, Database, PrintingsTable } from "../db/index.js";
  * @returns An object with catalog mutation methods bound to the given `db`.
  */
 export function catalogMutationsRepo(db: Kysely<Database>) {
+  function findPrintingIdByIdentity(
+    identity: PrintingIdentity,
+  ): Promise<{ id: string } | undefined> {
+    return db
+      .selectFrom("printings")
+      .select("id")
+      .where("cardId", "=", identity.cardId)
+      .where("shortCode", "=", identity.shortCode)
+      .where("finish", "=", identity.finish)
+      .where("size", "=", identity.size)
+      .where("markerSlugs", "=", sql<string[]>`${[...identity.markerSlugs].sort()}::text[]`)
+      .where("language", "=", identity.language)
+      .executeTakeFirst();
+  }
+
   return {
     // ── Printing lookups ──────────────────────────────────────────────────
+
+    /**
+     * Look a printing up by the identity `upsertPrinting` matches on, scoped to
+     * one card. Callers that must insert (rather than silently update) check
+     * this first and reject a hit.
+     *
+     * @returns The existing printing's UUID, or undefined when none matches.
+     */
+    findPrintingIdByIdentity,
 
     /** @returns A printing's differentiator fields by UUID. */
     getPrintingDifferentiatorsById(id: string) {
@@ -326,16 +365,7 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       printedYear: number | null;
     }): Promise<string> {
       const sortedSlugs = [...values.markerSlugs].sort();
-      const existing = await db
-        .selectFrom("printings")
-        .select("id")
-        .where("cardId", "=", values.cardId)
-        .where("shortCode", "=", values.shortCode)
-        .where("finish", "=", values.finish)
-        .where("size", "=", values.size)
-        .where("markerSlugs", "=", sql<string[]>`${sortedSlugs}::text[]`)
-        .where("language", "=", values.language)
-        .executeTakeFirst();
+      const existing = await findPrintingIdByIdentity(values);
       if (existing) {
         await db
           .updateTable("printings")

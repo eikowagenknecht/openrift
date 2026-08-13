@@ -243,6 +243,12 @@ interface AcceptPrintingFields {
 
 /**
  * Create a new printing from admin-selected fields and link all sources in the group.
+ *
+ * The write is an upsert, so the ingest paths (candidate accept, gallery,
+ * favorites) can be re-run without duplicating rows. Callers where the admin
+ * explicitly asked for a *new* printing pass `requireNew` so an identity
+ * collision surfaces as a 409 instead of quietly updating the existing row.
+ *
  * @returns The new printing UUID.
  */
 export async function acceptPrinting(
@@ -258,6 +264,7 @@ export async function acceptPrinting(
   printingFields: AcceptPrintingFields,
   candidatePrintingIds: string[],
   io: Io,
+  options: { requireNew?: boolean } = {},
 ): Promise<string> {
   if (!printingFields.setId) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingFields.setId is required");
@@ -310,6 +317,25 @@ export async function acceptPrinting(
       ERROR_CODES.CONFLICT,
       `Printing "${printingFields.shortCode}:${finish}:${language}" already belongs to a different card`,
     );
+  }
+
+  if (options.requireNew) {
+    const identical = await mut.findPrintingIdByIdentity({
+      cardId,
+      shortCode: printingFields.shortCode,
+      finish,
+      size,
+      markerSlugs,
+      language,
+    });
+    if (identical) {
+      const markerPart = markerSlugs.length > 0 ? markerSlugs.join("+") : "no markers";
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        `This card already has a printing with short code "${printingFields.shortCode}" (${finish}, ${size}, ${language}, ${markerPart}). Change the short code, finish, size, language, or markers to create a separate printing (art variant, rarity and signed alone are not enough), or edit the existing printing instead.`,
+      );
+    }
   }
 
   let insertedId = "";
