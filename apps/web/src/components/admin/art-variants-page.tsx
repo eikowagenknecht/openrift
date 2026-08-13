@@ -17,7 +17,7 @@ import {
   useReorderArtVariants,
   useUpdateArtVariant,
 } from "@/hooks/use-art-variants";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface ArtVariantRow {
   slug: string;
@@ -59,13 +59,6 @@ export function ArtVariantsPage() {
   const reorderMutation = useReorderArtVariants();
   const { artVariants } = data;
 
-  function moveArtVariant(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(artVariants, index, direction, (variant) => variant.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -102,7 +95,8 @@ export function ArtVariantsPage() {
           }),
       }}
       reorder={{
-        onMove: moveArtVariant,
+        moves: flatReorder(artVariants, (variant) => variant.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

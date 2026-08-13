@@ -17,7 +17,7 @@ import {
   useReorderCardTypes,
   useUpdateCardType,
 } from "@/hooks/use-card-types";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface CardTypeRow {
   slug: string;
@@ -59,13 +59,6 @@ export function CardTypesPage() {
   const reorderMutation = useReorderCardTypes();
   const { cardTypes } = data;
 
-  function moveCardType(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(cardTypes, index, direction, (cardType) => cardType.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -101,7 +94,8 @@ export function CardTypesPage() {
           }),
       }}
       reorder={{
-        onMove: moveCardType,
+        moves: flatReorder(cardTypes, (cardType) => cardType.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

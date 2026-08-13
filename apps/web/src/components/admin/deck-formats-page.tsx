@@ -17,7 +17,7 @@ import {
   useReorderDeckFormats,
   useUpdateDeckFormat,
 } from "@/hooks/use-deck-formats";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface DeckFormatRow {
   slug: string;
@@ -59,13 +59,6 @@ export function DeckFormatsPage() {
   const reorderMutation = useReorderDeckFormats();
   const { deckFormats } = data;
 
-  function moveDeckFormat(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(deckFormats, index, direction, (format) => format.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -100,7 +93,8 @@ export function DeckFormatsPage() {
           }),
       }}
       reorder={{
-        onMove: moveDeckFormat,
+        moves: flatReorder(deckFormats, (format) => format.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       delete={{

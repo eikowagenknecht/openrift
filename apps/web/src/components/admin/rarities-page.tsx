@@ -21,7 +21,7 @@ import {
   useReorderRarities,
   useUpdateRarity,
 } from "@/hooks/use-rarities";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface RarityRow {
   slug: string;
@@ -80,13 +80,6 @@ export function RaritiesPage() {
   const reorderMutation = useReorderRarities();
   const { rarities } = data;
 
-  function moveRarity(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(rarities, index, direction, (rarity) => rarity.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -127,7 +120,8 @@ export function RaritiesPage() {
           }),
       }}
       reorder={{
-        onMove: moveRarity,
+        moves: flatReorder(rarities, (rarity) => rarity.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

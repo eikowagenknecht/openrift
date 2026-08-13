@@ -44,7 +44,7 @@ import {
   useSets,
   useUpdateSet,
 } from "@/hooks/use-sets";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface SetDraft {
   id: string;
@@ -545,13 +545,6 @@ export function SetsPage() {
   const deleteMutation = useDeleteSet();
   const { sets } = data;
 
-  function moveSet(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(sets, index, direction, (s) => s.id);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   // Release rows are edited in their own table below, so a set edit re-sends
   // the map it already had rather than dropping every language.
   const releasesById = new Map(sets.map((set) => [set.id, set.releases]));
@@ -572,7 +565,8 @@ export function SetsPage() {
           </PageDescription>
         }
         reorder={{
-          onMove: moveSet,
+          moves: flatReorder(sets, (s) => s.id),
+          onReorder: (keys) => reorderMutation.mutateAsync(keys),
           isPending: reorderMutation.isPending,
         }}
         export={{

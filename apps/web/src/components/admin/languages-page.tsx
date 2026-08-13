@@ -18,7 +18,7 @@ import {
   useReorderLanguages,
   useUpdateLanguage,
 } from "@/hooks/use-languages";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface LanguageDraft {
   code: string;
@@ -132,13 +132,6 @@ export function LanguagesPage() {
   const reorderMutation = useReorderLanguages();
   const { languages } = data;
 
-  function moveLanguage(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(languages, index, direction, (lang) => lang.code);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -187,7 +180,8 @@ export function LanguagesPage() {
           }),
       }}
       reorder={{
-        onMove: moveLanguage,
+        moves: flatReorder(languages, (lang) => lang.code),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

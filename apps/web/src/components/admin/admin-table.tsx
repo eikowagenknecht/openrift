@@ -1,3 +1,20 @@
+import type { DragEndEvent, DragStartEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ColumnDef, RowData, SortingState } from "@tanstack/react-table";
 import {
   FlexRender,
@@ -11,9 +28,10 @@ import {
   ArrowUpIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
+  GripVerticalIcon,
   Trash2Icon,
 } from "lucide-react";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -39,6 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ReorderMoves } from "@/lib/admin-reorder";
 import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
 
@@ -176,8 +195,16 @@ interface AdminTableProps<TData, TDraft = TData> {
   };
 
   // --- Reorder ---
+  // Rows get a drag handle plus up/down buttons, and sorting is switched off so
+  // the displayed order is always the stored one.
   reorder?: {
-    onMove: (index: number, direction: -1 | 1) => void;
+    /** Move math over the current row order — build with `flatReorder` / `treeReorder`. */
+    moves: ReorderMoves;
+    /**
+     * Commits the new order. Return the mutation's promise so a failed save
+     * rolls the rows back to the server's order.
+     */
+    onReorder: (keys: string[]) => Promise<unknown> | void;
     isPending?: boolean;
   };
 
@@ -301,6 +328,19 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
   const [deleteError, setDeleteError] = useState("");
 
+  // Key order shown right after a drop, before the save's refetch lands. See
+  // `showsPendingOrder` below.
+  const [pendingOrder, setPendingOrder] = useState<{ keys: string[]; from: string } | null>(null);
+  /** Key of the row being dragged, so the rows it can't land on stand down. */
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    // A distance threshold so a click on the handle isn't read as a drag, and
+    // the keyboard sensor so the handle does something when tabbed to.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const enableSort = !reorder;
   const tanStackColumns = toTanStackColumns(adminColumns, enableSort);
 
@@ -321,6 +361,54 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
   const hasActions = Boolean(edit || del || actions || addChild);
   const totalCols = adminColumns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
+
+  // --- Row order ---
+  // Row-model order, so a sortable table keeps rendering in its sorted order (a
+  // reorderable one has sorting switched off, leaving the stored order).
+  const rows = table.getRowModel().rows;
+  const rowKeys = rows.map((row) => row.id);
+  // The reorder mutations only invalidate, so the rows would snap back to the
+  // old order until the refetch lands. Keep the dropped order on screen while
+  // the data still reads exactly as it did at drop time. Any change at all (the
+  // confirming refetch, an added row) retires it, so a save that comes back
+  // different can't strand a stale order.
+  const orderSignature = rowKeys.join("\u0000");
+  const showsPendingOrder = pendingOrder !== null && pendingOrder.from === orderSignature;
+  const orderedKeys = showsPendingOrder ? pendingOrder.keys : rowKeys;
+  // While the dropped order is still unconfirmed, `reorder.moves` describes the
+  // pre-move order, so a second move would compute from the wrong list.
+  const reorderLocked = Boolean(reorder?.isPending) || showsPendingOrder;
+
+  async function commitReorder(keys: string[] | null) {
+    if (!reorder || !keys) {
+      return;
+    }
+    setPendingOrder({ keys, from: orderSignature });
+    try {
+      await reorder.onReorder(keys);
+    } catch {
+      // Back to the server's order. The global mutation error toast reports the
+      // failure itself.
+      setPendingOrder(null);
+    }
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveKey(String(event.active.id));
+  }
+
+  function handleDragCancel() {
+    setActiveKey(null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveKey(null);
+    if (!reorder || !over || active.id === over.id) {
+      return;
+    }
+    void commitReorder(reorder.moves.moveTo(String(active.id), String(over.id)));
+  }
 
   // --- Add handlers ---
   function startAdding(draft?: TDraft, underKey: string | null = null) {
@@ -402,7 +490,7 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
   // --- Render ---
   const headerGroups = table.getHeaderGroups();
-  const rows = table.getRowModel().rows;
+  const rowByKey = new Map(rows.map((row) => [row.id, row]));
 
   const addRow =
     adding && addDraft ? (
@@ -484,100 +572,89 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
         : toolbar}
 
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            {headerGroups.map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {reorder && <TableHead className="w-16">Order</TableHead>}
-                {headerGroup.headers.map((header) => {
-                  const meta = header.column.columnDef.meta as AdminColumnMeta<TDraft> | undefined;
-                  const canSort = header.column.getCanSort();
-                  const sorted = header.column.getIsSorted();
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        meta?.width,
-                        alignClass(meta?.align),
-                        canSort && "cursor-pointer select-none",
-                      )}
-                      title={meta?.headerTitle}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    >
-                      <span className={cn(canSort && "inline-flex items-center gap-1")}>
-                        <FlexRender header={header} />
-                        {canSort &&
-                          (sorted ? (
-                            sorted === "asc" ? (
-                              <ArrowUpIcon className="text-foreground inline h-3.5 w-3.5" />
+        <ReorderProvider
+          enabled={Boolean(reorder)}
+          sensors={sensors}
+          items={orderedKeys}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <Table>
+            <TableHeader>
+              {headerGroups.map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {reorder && <TableHead className="w-24">Order</TableHead>}
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta as
+                      | AdminColumnMeta<TDraft>
+                      | undefined;
+                    const canSort = header.column.getCanSort();
+                    const sorted = header.column.getIsSorted();
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={cn(
+                          meta?.width,
+                          alignClass(meta?.align),
+                          canSort && "cursor-pointer select-none",
+                        )}
+                        title={meta?.headerTitle}
+                        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      >
+                        <span className={cn(canSort && "inline-flex items-center gap-1")}>
+                          <FlexRender header={header} />
+                          {canSort &&
+                            (sorted ? (
+                              sorted === "asc" ? (
+                                <ArrowUpIcon className="text-foreground inline h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowDownIcon className="text-foreground inline h-3.5 w-3.5" />
+                              )
                             ) : (
-                              <ArrowDownIcon className="text-foreground inline h-3.5 w-3.5" />
-                            )
-                          ) : (
-                            <ChevronsUpDownIcon className="text-muted-foreground/50 inline h-3.5 w-3.5" />
-                          ))}
-                      </span>
-                    </TableHead>
-                  );
-                })}
-                {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {/* Top-of-table add row (only when not adding under a parent) */}
-            {addingUnderKey === null && addRow}
+                              <ChevronsUpDownIcon className="text-muted-foreground/50 inline h-3.5 w-3.5" />
+                            ))}
+                        </span>
+                      </TableHead>
+                    );
+                  })}
+                  {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {/* Top-of-table add row (only when not adding under a parent) */}
+              {addingUnderKey === null && addRow}
 
-            {/* Empty state */}
-            {rows.length === 0 && !adding && (
-              <TableRow>
-                <TableCell colSpan={totalCols} className="text-muted-foreground h-24 text-center">
-                  {emptyText}
-                </TableCell>
-              </TableRow>
-            )}
+              {/* Empty state */}
+              {rows.length === 0 && !adding && (
+                <TableRow>
+                  <TableCell colSpan={totalCols} className="text-muted-foreground h-24 text-center">
+                    {emptyText}
+                  </TableCell>
+                </TableRow>
+              )}
 
-            {/* Data rows */}
-            {rows.map((row) => {
-              const original = row.original;
-              const index = row.index;
-              const isEditing = editingKey === row.id && editDraft !== null;
-              const childCfg = addChild;
-              const showAddChild =
-                childCfg && (childCfg.canAddChild ? childCfg.canAddChild(original) : true);
+              {/* Data rows, in the displayed order (which may be a just-dropped
+                order the save hasn't confirmed yet). */}
+              {orderedKeys.map((key) => {
+                const row = rowByKey.get(key);
+                if (!row) {
+                  return null;
+                }
+                const original = row.original;
+                const index = row.index;
+                const isEditing = editingKey === row.id && editDraft !== null;
+                const childCfg = addChild;
+                const showAddChild =
+                  childCfg && (childCfg.canAddChild ? childCfg.canAddChild(original) : true);
 
-              return (
-                <Fragment key={row.id}>
-                  <TableRow>
-                    {reorder && (
-                      <TableCell>
-                        <div className="flex items-center gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={index === 0 || reorder.isPending}
-                            onClick={() => reorder.onMove(index, -1)}
-                          >
-                            <ArrowUpIcon className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={index === rows.length - 1 || reorder.isPending}
-                            onClick={() => reorder.onMove(index, 1)}
-                          >
-                            <ArrowDownIcon className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-
+                const cells = (
+                  <>
                     {/* getAllCells, not getVisibleCells: see the same call in
-                        admin-card-table-shared.tsx. Equivalent while no column
-                        can hide; re-pair them if columnVisibilityFeature is
-                        ever registered. */}
+                      admin-card-table-shared.tsx. Equivalent while no column
+                      can hide; re-pair them if columnVisibilityFeature is
+                      ever registered. */}
                     {row.getAllCells().map((cell) => {
                       const meta = cell.column.columnDef.meta as
                         | AdminColumnMeta<TDraft>
@@ -636,15 +713,185 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
                         )}
                       </TableCell>
                     )}
-                  </TableRow>
-                  {addingUnderKey === row.id && addRow}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
+                  </>
+                );
+
+                return (
+                  <Fragment key={row.id}>
+                    {reorder ? (
+                      <ReorderableRow
+                        id={row.id}
+                        locked={reorderLocked}
+                        // A drag in progress can only land on rows the move math
+                        // accepts, which on the channels tree means siblings.
+                        droppable={activeKey === null || reorder.moves.canDropOn(activeKey, key)}
+                        canMoveUp={reorder.moves.canStep(key, -1)}
+                        canMoveDown={reorder.moves.canStep(key, 1)}
+                        onMove={(direction) => {
+                          void commitReorder(reorder.moves.step(key, direction));
+                        }}
+                      >
+                        {cells}
+                      </ReorderableRow>
+                    ) : (
+                      <TableRow>{cells}</TableRow>
+                    )}
+                    {addingUnderKey === row.id && addRow}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </ReorderProvider>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Internal: reorder chrome
+// ---------------------------------------------------------------------------
+
+/**
+ * Puts the table inside a dnd-kit sortable context, or renders it untouched on
+ * the tables that don't reorder.
+ *
+ * @returns The table, wrapped when reordering is on.
+ */
+function ReorderProvider({
+  enabled,
+  sensors,
+  items,
+  onDragStart,
+  onDragEnd,
+  onDragCancel,
+  children,
+}: {
+  enabled: boolean;
+  sensors: SensorDescriptor<SensorOptions>[];
+  items: string[];
+  onDragStart: (event: DragStartEvent) => void;
+  onDragEnd: (event: DragEndEvent) => void;
+  onDragCancel: () => void;
+  children: ReactNode;
+}) {
+  if (!enabled) {
+    return children;
+  }
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      // Rows only ever swap places in one column, so a drag has no business
+      // leaving the vertical axis.
+      modifiers={[restrictToVerticalAxis]}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={onDragCancel}
+    >
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+/**
+ * A data row on a reorderable table: draggable by its grip, with the up/down
+ * buttons beside it for single steps and keyboard use.
+ *
+ * @returns The row, including its leading Order cell.
+ */
+function ReorderableRow({
+  id,
+  locked,
+  droppable,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  children,
+}: {
+  id: string;
+  /** True while a previous move is still being saved — everything is inert. */
+  locked: boolean;
+  /** Whether the row currently being dragged is allowed to land here. */
+  droppable: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMove: (direction: -1 | 1) => void;
+  children: ReactNode;
+}) {
+  // Destructured into locals before the JSX: member access on the hook's return
+  // object in render makes the React Compiler bail. Matches SortableSidebarRow.
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: locked ? true : { draggable: false, droppable: !droppable } });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      // The dragged row is lifted out of the flow visually, so it needs its own
+      // background to stop the rows it passes showing through.
+      className={cn(isDragging && "bg-background relative z-10 shadow-lg")}
+    >
+      <TableCell>
+        <div className="flex items-center gap-0.5">
+          {/* oxlint-disable-next-line react/forbid-elements -- dnd-kit drag activator, sized to sit with the two icon buttons */}
+          <button
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            type="button"
+            disabled={locked}
+            aria-label="Drag to reorder"
+            className={cn(
+              "text-muted-foreground hover:text-foreground flex h-6 w-5 items-center justify-center rounded-md",
+              // dnd-kit's PointerSensor needs the browser to keep sending
+              // pointer events; the default touch-action pans the page instead
+              // and the pointercancel that follows kills the drag.
+              "touch-none outline-hidden",
+              "focus-visible:ring-ring focus-visible:ring-2",
+              locked ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing",
+            )}
+          >
+            <GripVerticalIcon className="h-3.5 w-3.5" />
+          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            aria-label="Move up"
+            disabled={!canMoveUp || locked}
+            onClick={() => onMove(-1)}
+          >
+            <ArrowUpIcon className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            aria-label="Move down"
+            disabled={!canMoveDown || locked}
+            onClick={() => onMove(1)}
+          >
+            <ArrowDownIcon className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </TableCell>
+      {children}
+    </TableRow>
   );
 }
 

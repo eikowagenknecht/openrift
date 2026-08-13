@@ -47,7 +47,7 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { cn } from "@/lib/utils";
@@ -840,13 +840,6 @@ function ManageProvidersCard({
       helperReviewable: settingsMap.get(name)?.helperReviewable ?? false,
     }));
 
-  function moveProvider(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(rows, index, direction, (r) => r.name);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -865,7 +858,8 @@ function ManageProvidersCard({
           getRowKey={(r) => r.name}
           emptyText="No providers yet."
           reorder={{
-            onMove: moveProvider,
+            moves: flatReorder(rows, (r) => r.name),
+            onReorder: (keys) => reorderMutation.mutateAsync(keys),
             isPending: reorderMutation.isPending,
           }}
           delete={{

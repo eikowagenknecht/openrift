@@ -3,7 +3,7 @@ import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { useDeckZones, useReorderDeckZones, useUpdateDeckZone } from "@/hooks/use-deck-zones";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface DeckZoneRow {
   slug: string;
@@ -37,13 +37,6 @@ export function DeckZonesPage() {
   const reorderMutation = useReorderDeckZones();
   const { deckZones } = data;
 
-  function moveZone(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(deckZones, index, direction, (zone) => zone.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -66,7 +59,8 @@ export function DeckZonesPage() {
           }),
       }}
       reorder={{
-        onMove: moveZone,
+        moves: flatReorder(deckZones, (zone) => zone.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
     />

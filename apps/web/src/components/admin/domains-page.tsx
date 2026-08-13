@@ -21,7 +21,7 @@ import {
   useReorderDomains,
   useUpdateDomain,
 } from "@/hooks/use-domains";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface DomainRow {
   slug: string;
@@ -80,13 +80,6 @@ export function DomainsPage() {
   const reorderMutation = useReorderDomains();
   const { domains } = data;
 
-  function moveDomain(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(domains, index, direction, (domain) => domain.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -127,7 +120,8 @@ export function DomainsPage() {
           }),
       }}
       reorder={{
-        onMove: moveDomain,
+        moves: flatReorder(domains, (domain) => domain.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

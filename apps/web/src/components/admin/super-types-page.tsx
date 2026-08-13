@@ -17,7 +17,7 @@ import {
   useSuperTypes,
   useUpdateSuperType,
 } from "@/hooks/use-super-types";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface SuperTypeRow {
   slug: string;
@@ -59,13 +59,6 @@ export function SuperTypesPage() {
   const reorderMutation = useReorderSuperTypes();
   const { superTypes } = data;
 
-  function moveSuperType(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(superTypes, index, direction, (superType) => superType.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -100,7 +93,8 @@ export function SuperTypesPage() {
           }),
       }}
       reorder={{
-        onMove: moveSuperType,
+        moves: flatReorder(superTypes, (superType) => superType.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { flatReorder } from "@/lib/admin-reorder";
+
 import type { AdminCellSlotProps, AdminColumnDef } from "./admin-table";
 import { AdminTable } from "./admin-table";
 
@@ -198,5 +200,99 @@ describe("AdminTable sorting", () => {
   it("leaves rows in source order when no column is sorted", () => {
     renderScored();
     expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+  });
+});
+
+// The drag itself is dnd-kit's (pointer simulation in jsdom buys little), but
+// everything around it is this component's: which buttons are live at the ends
+// of the list, what the arrows commit, and that the dropped order stays on
+// screen until the save comes back.
+describe("AdminTable reorder", () => {
+  const reorderRows: Row[] = [
+    { slug: "a", label: "Alpha" },
+    { slug: "b", label: "Beta" },
+    { slug: "c", label: "Gamma" },
+  ];
+
+  function renderReorder(onReorder: (keys: string[]) => Promise<unknown>) {
+    return render(
+      <AdminTable
+        columns={columns}
+        data={reorderRows}
+        getRowKey={(r) => r.slug}
+        reorder={{
+          moves: flatReorder(reorderRows, (r) => r.slug),
+          onReorder,
+        }}
+      />,
+    );
+  }
+
+  /**
+   * Reads the rendered label column top to bottom.
+   * @returns The row labels in render order.
+   */
+  function renderedLabels(): string[] {
+    return screen
+      .getAllByRole("row")
+      .slice(1) // header row
+      .map((tr) => within(tr).getAllByRole("cell").at(-1)?.textContent ?? "");
+  }
+
+  it("gives every row a drag handle", () => {
+    renderReorder(vi.fn().mockResolvedValue(undefined));
+    expect(screen.getAllByRole("button", { name: "Drag to reorder" })).toHaveLength(3);
+  });
+
+  it("disables the arrows that would push a row out of the list", () => {
+    renderReorder(vi.fn().mockResolvedValue(undefined));
+    const up = screen.getAllByRole("button", { name: "Move up" });
+    const down = screen.getAllByRole("button", { name: "Move down" });
+
+    expect(up[0]).toBeDisabled();
+    expect(up[1]).toBeEnabled();
+    expect(down[2]).toBeDisabled();
+    expect(down[1]).toBeEnabled();
+  });
+
+  it("sends the whole key list when a row steps down", async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn().mockResolvedValue(undefined);
+    renderReorder(onReorder);
+
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+
+    expect(onReorder).toHaveBeenCalledWith(["b", "a", "c"]);
+  });
+
+  // The reorder mutations only invalidate, so the `data` prop still holds the
+  // old order for as long as the refetch takes. Without the pending order the
+  // row would visibly snap back in the meantime.
+  it("keeps showing the new order while the save is in flight", async () => {
+    const user = userEvent.setup();
+    let settle = () => {};
+    // oxlint-disable-next-line promise/avoid-new -- a promise the test resolves by hand to hold the save open
+    const pending = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    renderReorder(() => pending);
+
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+
+    expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+    // A second move can't be computed off the stale order, so it stays locked.
+    expect(screen.getAllByRole("button", { name: "Move down" })[0]).toBeDisabled();
+    settle();
+  });
+
+  it("falls back to the server order when the save fails", async () => {
+    const user = userEvent.setup();
+    renderReorder(vi.fn().mockRejectedValue(new Error("nope")));
+
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+
+    await vi.waitFor(() => {
+      expect(renderedLabels()).toEqual(["Alpha", "Beta", "Gamma"]);
+    });
   });
 });

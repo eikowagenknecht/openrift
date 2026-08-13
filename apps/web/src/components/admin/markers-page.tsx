@@ -20,7 +20,7 @@ import {
   useReorderMarkers,
   useUpdateMarker,
 } from "@/hooks/use-markers";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface MarkerDraft {
   id: string;
@@ -59,13 +59,6 @@ export function MarkersPage() {
   const deleteMutation = useDeleteMarker();
   const reorderMutation = useReorderMarkers();
   const markers = data.markers;
-
-  function moveMarker(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(markers, index, direction, (m) => m.id);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
 
   return (
     <AdminTable
@@ -106,7 +99,8 @@ export function MarkersPage() {
           }),
       }}
       reorder={{
-        onMove: moveMarker,
+        moves: flatReorder(markers, (m) => m.id),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

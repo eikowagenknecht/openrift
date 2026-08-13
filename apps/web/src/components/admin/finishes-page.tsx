@@ -17,7 +17,7 @@ import {
   useReorderFinishes,
   useUpdateFinish,
 } from "@/hooks/use-finishes";
-import { swapForReorder } from "@/lib/admin-reorder";
+import { flatReorder } from "@/lib/admin-reorder";
 
 interface FinishRow {
   slug: string;
@@ -59,13 +59,6 @@ export function FinishesPage() {
   const reorderMutation = useReorderFinishes();
   const { finishes } = data;
 
-  function moveFinish(index: number, direction: -1 | 1) {
-    const reordered = swapForReorder(finishes, index, direction, (finish) => finish.slug);
-    if (reordered) {
-      reorderMutation.mutate(reordered);
-    }
-  }
-
   return (
     <AdminTable
       columns={columns}
@@ -100,7 +93,8 @@ export function FinishesPage() {
           }),
       }}
       reorder={{
-        onMove: moveFinish,
+        moves: flatReorder(finishes, (finish) => finish.slug),
+        onReorder: (keys) => reorderMutation.mutateAsync(keys),
         isPending: reorderMutation.isPending,
       }}
       export={{

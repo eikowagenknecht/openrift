@@ -30,6 +30,7 @@ import {
   useReorderDistributionChannels,
   useUpdateDistributionChannel,
 } from "@/hooks/use-distribution-channels";
+import { treeReorder } from "@/lib/admin-reorder";
 import type { ChannelTreeNode } from "@/lib/distribution-channel-tree";
 import { buildChannelTree, canReparent } from "@/lib/distribution-channel-tree";
 
@@ -254,28 +255,14 @@ export function DistributionChannelsPage() {
   const nodeById = new Map(tree.map((n) => [n.channel.id, n]));
   const labelById = new Map(channels.map((c) => [c.id, c.label]));
 
-  function moveChannel(index: number, direction: -1 | 1) {
-    const current = orderedChannels[index];
-    if (!current) {
-      return;
-    }
-    // Sibling-scoped reorder: swap with the prev/next channel sharing the same
-    // parentId, then submit the full id list (other rows keep their existing
-    // sort_order because their relative position in the array is unchanged).
-    const sameParent = orderedChannels.filter((c) => c.parentId === current.parentId);
-    const siblingIndex = sameParent.findIndex((c) => c.id === current.id);
-    const targetIndex = siblingIndex + direction;
-    if (targetIndex < 0 || targetIndex >= sameParent.length) {
-      return;
-    }
-    const swapped = [...sameParent];
-    [swapped[siblingIndex], swapped[targetIndex]] = [swapped[targetIndex], swapped[siblingIndex]];
-    const swappedIterator = swapped.values();
-    const reordered = orderedChannels.map((c) =>
-      c.parentId === current.parentId ? (swappedIterator.next().value ?? c) : c,
-    );
-    reorderMutation.mutate(reordered.map((c) => c.id));
-  }
+  // Sibling-scoped: a channel only moves among the channels sharing its parent,
+  // and it takes its own children along. `orderedChannels` is depth-first, which
+  // is what makes a subtree a contiguous block the move can splice.
+  const reorderMoves = treeReorder(
+    orderedChannels,
+    (channel) => channel.id,
+    (channel) => channel.parentId,
+  );
 
   const columns: AdminColumnDef<DistributionChannelResponse, ChannelDraft>[] = [
     {
@@ -400,7 +387,8 @@ export function DistributionChannelsPage() {
         validate: (d) => validateSlugAndLabel(d.slug, d.label, "nexus-night-2025"),
       }}
       reorder={{
-        onMove: moveChannel,
+        moves: reorderMoves,
+        onReorder: (ids) => reorderMutation.mutateAsync(ids),
         isPending: reorderMutation.isPending,
       }}
       delete={{
