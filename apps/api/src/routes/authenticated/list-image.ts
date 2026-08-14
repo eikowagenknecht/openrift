@@ -3,7 +3,11 @@ import { Hono } from "hono";
 import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { renderListImage, siteHostFromOrigin } from "../../services/list-image.js";
+import {
+  renderListImage,
+  shareUrlFromOrigin,
+  siteHostFromOrigin,
+} from "../../services/list-image.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -31,15 +35,26 @@ export const listImageRoute = new Hono<{ Variables: Variables }>()
     assertFound(list, "Not found");
 
     const entries = await lists.entriesWithDetailsAnon(list.id, list.kind);
-    const png = await renderListImage(io, {
-      ownerName: c.get("user")?.name ?? "Anonymous",
-      listName: list.name,
-      intent: list.intent,
-      kind: list.kind,
-      entries,
-      siteHost: siteHostFromOrigin(config.corsOrigin),
-      canonicalPrintings,
-    });
+    // Only a list that is *currently* public gets a QR: `findByShareToken`
+    // requires `is_public`, so encoding a revoked list's stale token would put a
+    // 404 on the image. No token, no mark — the renderer drops it.
+    const png = await renderListImage(
+      io,
+      {
+        ownerName: c.get("user")?.name ?? "Anonymous",
+        listName: list.name,
+        intent: list.intent,
+        kind: list.kind,
+        entries,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl:
+          list.isPublic && list.shareToken
+            ? shareUrlFromOrigin(config.corsOrigin, `/lists/share/${list.shareToken}`)
+            : undefined,
+        canonicalPrintings,
+      },
+      c.req.query("size") === "hq" ? 2 : 1,
+    );
 
     return new Response(png, {
       status: 200,

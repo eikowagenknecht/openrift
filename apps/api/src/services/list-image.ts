@@ -78,6 +78,20 @@ export function siteHostFromOrigin(corsOrigin: string | undefined): string | und
   }
 }
 
+/**
+ * Builds an absolute share URL for a QR from `CORS_ORIGIN` and a site-relative
+ * path. Same first-origin rule as `siteHostFromOrigin`: the first entry of the
+ * allow-list is the canonical site origin.
+ * @returns The absolute URL, or undefined when there is no configured origin.
+ */
+export function shareUrlFromOrigin(
+  corsOrigin: string | undefined,
+  path: string,
+): string | undefined {
+  const firstOrigin = corsOrigin?.split(",")[0]?.trim();
+  return firstOrigin ? `${firstOrigin}${path}` : undefined;
+}
+
 /** @returns The caption label for a list's intent. */
 function intentLabel(intent: string): string {
   if (intent === "trade") {
@@ -126,25 +140,33 @@ export interface ListImageData {
   kind: string;
   entries: readonly ListEntryRow[];
   siteHost?: string;
+  /** Absolute share URL for the QR; absent when the list isn't shared. */
+  shareUrl?: string;
   canonicalPrintings: Repos["canonicalPrintings"];
 }
 
 /**
- * Renders one list's share image from its enriched entries.
+ * Renders one list's share image from its enriched entries. `scale` renders the
+ * same layout at N× for the HQ download.
  * @returns PNG bytes ready to return as `image/png`.
  */
-export async function renderListImage(io: Io, data: ListImageData): Promise<Buffer> {
+export async function renderListImage(io: Io, data: ListImageData, scale = 1): Promise<Buffer> {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
   // same printing so the grid shows one tile per printing with the total count.
   const display = data.kind === "copy" ? mergeCopyRows(data.entries) : data.entries;
   const cards = await buildCards(topByQuantity(display), data.canonicalPrintings);
-  return renderShareImage(io, {
-    ownerName: data.ownerName,
-    title: data.listName,
-    intentLabel: intentLabel(data.intent),
-    unit: unitForKind(data.kind),
-    cards,
-    totalCount: display.length,
-    siteHost: data.siteHost,
-  });
+  return renderShareImage(
+    io,
+    {
+      ownerName: data.ownerName,
+      title: data.listName,
+      intentLabel: intentLabel(data.intent),
+      unit: unitForKind(data.kind),
+      cards,
+      totalCount: display.length,
+      siteHost: data.siteHost,
+      shareUrl: data.shareUrl,
+    },
+    scale,
+  );
 }

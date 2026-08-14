@@ -8,6 +8,7 @@ import {
   deckShareImageUrl,
   downloadImageFromPost,
   downloadImageFromUrl,
+  listOwnerImageUrl,
   listShareImageUrl,
   shareImageVersion,
   tierListOwnerImageUrl,
@@ -38,6 +39,20 @@ describe("listShareImageUrl", () => {
   it("builds an absolute /api/v1 list image URL with the version param", () => {
     expect(listShareImageUrl("https://openrift.app", "tok123", 42)).toBe(
       "https://openrift.app/api/v1/lists/share/tok123/image.png?v=42",
+    );
+  });
+});
+
+describe("listOwnerImageUrl", () => {
+  it("builds the owner-authenticated list image URL by list id", () => {
+    expect(listOwnerImageUrl("https://openrift.app", "list-1", 42)).toBe(
+      "https://openrift.app/api/v1/lists/list-1/image.png?v=42",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(listOwnerImageUrl("https://openrift.app", "list-1", 42, "hq")).toBe(
+      "https://openrift.app/api/v1/lists/list-1/image.png?v=42&size=hq",
     );
   });
 });

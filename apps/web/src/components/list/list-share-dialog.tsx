@@ -119,7 +119,7 @@ export function ListShareDialog({
     // is shared (the public/og image needs a share token). Computed before the
     // try: React Compiler can't yet lower a logical expression inside try/catch,
     // and these pure values can't throw.
-    const url = listOwnerImageUrl(getSiteUrl(), listId, shareImageVersion(updatedAt));
+    const url = listOwnerImageUrl(getSiteUrl(), listId, shareImageVersion(updatedAt), "hq");
     const safeName = listName.replaceAll(/[^\w -]+/gu, "_").trim() || "list";
     // React Compiler can't yet lower try/finally; reset in both paths instead.
     try {

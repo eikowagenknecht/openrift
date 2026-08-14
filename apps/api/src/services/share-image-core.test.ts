@@ -1,6 +1,42 @@
 import { describe, expect, it } from "vitest";
 
-import { CARD_RADIUS_FRACTION, cardRadiusPx } from "./share-image-core.js";
+import { CARD_RADIUS_FRACTION, baselineNudge, cardRadiusPx } from "./share-image-core.js";
+
+describe("baselineNudge", () => {
+  // Each expectation is an offset measured off a rendered PNG, with both runs at
+  // `lineHeight: 1` — the line height every caller pins. Measured by lit-pixel
+  // histogram rather than by lowest lit row, since a "g" or "y" descender hangs
+  // below the baseline and would read as the bottom of the run.
+  it("matches the measured offset for the title / byline pairing", () => {
+    expect(baselineNudge(34, 22)).toBe(-2);
+  });
+
+  it("matches the measured offset for the title / metadata pairing", () => {
+    expect(baselineNudge(34, 20)).toBe(-2);
+  });
+
+  it("matches the measured offset for the overflow tile's pairing", () => {
+    expect(baselineNudge(34, 21)).toBe(-2);
+  });
+
+  it("scales with the gap, not with either size on its own", () => {
+    // Large gaps, where the integer measurement pins the slope tightly.
+    expect(baselineNudge(200, 20)).toBe(-25);
+    expect(baselineNudge(100, 20)).toBe(-11);
+    expect(baselineNudge(40, 20)).toBe(-3);
+  });
+
+  it("leaves equally-sized runs alone, since their boxes already agree", () => {
+    expect(baselineNudge(26, 26)).toBe(0);
+  });
+
+  it("never pushes the smaller run down", () => {
+    for (let size = 8; size <= 60; size++) {
+      expect(baselineNudge(size, size)).toBe(0);
+      expect(baselineNudge(size + 10, size)).toBeLessThan(0);
+    }
+  });
+});
 
 describe("cardRadiusPx", () => {
   it("rounds to 5% of the tile's short edge", () => {

@@ -1,15 +1,22 @@
 import { tierRowColor } from "@openrift/shared";
-import QRCode from "qrcode";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
 import {
+  CARD_ASPECT,
   COLORS,
-  cardArtDataUri,
+  QR_SIZE,
+  TILE_BORDER,
+  baselineNudge,
   cardRadiusPx,
+  cardTile,
   element,
+  elideTitle,
+  qrDataUri,
+  qrMark,
   renderTreeToPng,
+  tileArtDataUri,
 } from "./share-image-core.js";
 
 /**
@@ -34,14 +41,12 @@ const HEIGHT = 630;
 const PAD = 24;
 const GAP = 10;
 
-/** Portrait card aspect (width / height); landscape art letterboxes within the box. */
-const CARD_ASPECT = 0.715;
-const TILE_BORDER = 1;
 const TILE_GAP = 4;
 
 const TITLE_H = 52;
-const FOOTER_H = 56;
-const QR_SIZE = 52;
+/** The footer is exactly the mark's height: the QR is the tallest thing in it,
+ * and the host label centres against it. */
+const FOOTER_H = QR_SIZE;
 
 /** Width of a row's label chip. Fits three characters at the largest row height. */
 const LABEL_W = 58;
@@ -52,11 +57,15 @@ const ROW_PAD = 5;
 /** Longest title kept before eliding, so it never collides with the right cluster. */
 const TITLE_MAX_CHARS = 46;
 
+/** The title row's three type sizes. Named because the baseline corrections are
+ * derived from the gaps between them, so a size change must reach both places. */
+const TITLE_SIZE = 34;
+const BYLINE_SIZE = 22;
+const META_SIZE = 20;
+
 /** @returns The title, truncated with an ellipsis when longer than the cap. */
 export function truncateTierListTitle(title: string): string {
-  return title.length > TITLE_MAX_CHARS
-    ? `${title.slice(0, TITLE_MAX_CHARS - 1).trimEnd()}…`
-    : title;
+  return elideTitle(title, TITLE_MAX_CHARS);
 }
 
 /** One stored board entry, before its art is resolved. */
@@ -129,78 +138,6 @@ export function measureBoard(
   const tileW = Math.max(9, Math.floor(tileH * CARD_ASPECT));
   const maxTilesPerRow = Math.max(1, Math.floor((tilesAreaW + TILE_GAP) / (tileW + TILE_GAP)));
   return { rowH, tileH, tileW, maxTilesPerRow };
-}
-
-/** @returns The art data URI for `imageId` at the scaled tile size, or null. */
-function artUri(
-  io: Io,
-  imageId: string | null,
-  tileW: number,
-  tileH: number,
-  scale: number,
-): Promise<string | null> {
-  if (!imageId) {
-    return Promise.resolve(null);
-  }
-  // Generate at the content-box size (inside the tile border) so the art fills
-  // that box exactly and stays centred rather than clipping bottom-right.
-  const contentW = tileW - 2 * TILE_BORDER;
-  const contentH = tileH - 2 * TILE_BORDER;
-  return cardArtDataUri(
-    io,
-    imageId,
-    contentW * scale,
-    contentH * scale,
-    cardRadiusPx(contentW, contentH) * scale,
-  );
-}
-
-/**
- * One card tile: the art, or a name-only fallback when the art is missing. No
- * quantity badge — a tier list ranks a card once, so there is nothing to count.
- * @returns The tile element.
- */
-function cardTile(
-  card: TierListImageCard,
-  dataUri: string | null,
-  tileW: number,
-  tileH: number,
-): Element {
-  const contentW = tileW - 2 * TILE_BORDER;
-  const contentH = tileH - 2 * TILE_BORDER;
-  const image: Element = dataUri
-    ? { type: "img", props: { src: dataUri, width: contentW, height: contentH } }
-    : element(
-        "div",
-        {
-          display: "flex",
-          width: contentW,
-          height: contentH,
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 3,
-          textAlign: "center",
-          fontSize: Math.max(7, Math.round(tileW * 0.17)),
-          fontWeight: 600,
-          color: COLORS.muted,
-          lineHeight: 1.15,
-        },
-        card.cardName,
-      );
-
-  return element(
-    "div",
-    {
-      display: "flex",
-      width: tileW,
-      height: tileH,
-      borderRadius: cardRadiusPx(tileW, tileH),
-      overflow: "hidden",
-      backgroundColor: COLORS.surface,
-      border: `${TILE_BORDER}px solid ${COLORS.surfaceBorder}`,
-    },
-    image,
-  );
 }
 
 /**
@@ -381,21 +318,11 @@ export async function renderTierListImage(
         Promise.all(
           row.cards
             .slice(0, metrics.maxTilesPerRow)
-            .map((card) => artUri(io, card.imageId, metrics.tileW, metrics.tileH, scale)),
+            .map((card) => tileArtDataUri(io, card.imageId, metrics.tileW, metrics.tileH, scale)),
         ),
       ),
     ),
-    input.shareUrl
-      ? QRCode.toDataURL(input.shareUrl, {
-          errorCorrectionLevel: "M",
-          width: QR_SIZE * scale,
-          // The 2-module quiet zone is white rather than transparent, so it
-          // doubles as the light plate the code needs and the mark's footprint
-          // stays exactly QR_SIZE for the layout maths.
-          margin: 2,
-          color: { dark: "#000000", light: "#ffffff" },
-        }).catch(() => null)
-      : Promise.resolve(null),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
   ]);
 
   // ── Title row ─────────────────────────────────────────────────────────────
@@ -404,6 +331,8 @@ export async function renderTierListImage(
   // on the right. Baseline-aligning the whole row instead puts the count's
   // baseline on the 34px title's, which reads as a misaligned header — and the
   // flexible spacer between them has no text baseline at all to align to.
+  // The type roles match the deck and list images too, so the three read as one
+  // family: gold marks who made it, muted carries the incidental metadata.
   const titleRow = element(
     "div",
     {
@@ -415,13 +344,13 @@ export async function renderTierListImage(
     },
     element(
       "div",
-      { display: "flex", flexDirection: "row", flexShrink: 1, alignItems: "baseline" },
+      { display: "flex", flexDirection: "row", alignItems: "flex-end", flexGrow: 1 },
       element(
         "div",
         {
           display: "flex",
           flexShrink: 1,
-          fontSize: 34,
+          fontSize: TITLE_SIZE,
           lineHeight: 1,
           fontWeight: 700,
           color: COLORS.text,
@@ -436,29 +365,28 @@ export async function renderTierListImage(
               display: "flex",
               flexShrink: 0,
               marginLeft: 12,
-              fontSize: 19,
+              fontSize: BYLINE_SIZE,
               lineHeight: 1,
-              color: COLORS.muted,
-              // satori leaves the smaller run ~2px low next to the 34px title;
-              // nudge it up so the two share one baseline (as in deck-image).
-              transform: "translateY(-2px)",
+              fontWeight: 600,
+              color: COLORS.gold,
+              transform: `translateY(${baselineNudge(TITLE_SIZE, BYLINE_SIZE)}px)`,
             },
             `by ${input.ownerName}`,
           )
         : false,
-    ),
-    element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
-    element(
-      "div",
-      {
-        display: "flex",
-        flexShrink: 0,
-        fontSize: 19,
-        lineHeight: 1,
-        fontWeight: 600,
-        color: COLORS.gold,
-      },
-      `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`,
+      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+      element(
+        "div",
+        {
+          display: "flex",
+          flexShrink: 0,
+          fontSize: META_SIZE,
+          lineHeight: 1,
+          color: COLORS.muted,
+          transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
+        },
+        `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`,
+      ),
     ),
   );
 
@@ -470,9 +398,8 @@ export async function renderTierListImage(
     ),
   );
 
-  // Dark-on-white QR rather than gold-on-transparent: an inverted-polarity code
-  // is refused by cheaper scanners, and this image is the artifact most likely
-  // to be scanned off a paused video frame.
+  // Host label left, mark right — the same bottom-right mark the deck image
+  // carries, at the same size.
   const footer: Child =
     hasFooter &&
     element(
@@ -488,17 +415,12 @@ export async function renderTierListImage(
       input.siteHost
         ? element(
             "div",
-            { display: "flex", fontSize: 19, fontWeight: 600, color: COLORS.muted },
+            { display: "flex", fontSize: 20, fontWeight: 600, color: COLORS.muted },
             input.siteHost,
           )
         : false,
       element("div", { display: "flex", flexGrow: 1 }),
-      qrUri
-        ? ({
-            type: "img",
-            props: { src: qrUri, width: QR_SIZE, height: QR_SIZE, style: { borderRadius: 5 } },
-          } as Element)
-        : false,
+      qrUri ? qrMark(qrUri) : false,
     );
 
   const root = element(

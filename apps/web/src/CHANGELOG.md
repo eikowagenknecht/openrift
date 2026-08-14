@@ -6,6 +6,7 @@
 
 - feat(Decks): **Deck variants and checkpoints** — save a snapshot of a deck before rebuilding it, keep a budget build next to the full one, link two decks you already have, and compare any two versions; variants group under one deck-list entry.
 - feat(Decks): **Variant history on the deck page** — a branch graph under the deck title shows checkpoints and sibling builds, what changed at each step, and jumps straight into a full comparison.
+- feat(Collection): **Share images name the list** — a shared list, collection, or bundle now unfurls with its name, its owner, and a scannable code back to it, instead of an unlabelled wall of card art.
 - feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
 - fix(Cards): **Snappier card browser** — filters now apply in about half the time, and scrolling the grid holds a steady frame rate on phones.
@@ -17,6 +18,7 @@
 
 - fix(Cards): **Card data stops re-downloading every day** — the cached card list expired at midnight and came down again in full on your next visit, even when nothing about the cards had changed. It now stays until they actually change.
 - feat(Decks): **Compare against your own decks** — the compare dialog now lists your decks to pick from, so seeing how two of your builds differ no longer means exporting one of them first.
+- feat(App): **One look for every export image** — deck, list, and tier list images now share a heading, a scan code at one readable size, and matching card tiles, and list downloads come at the same high resolution as decks.
 - feat(App): **Frosted bars are optional** — blurring the page behind the header and toolbars costs frame rate while scrolling, so it is off by default with a switch in Display settings.
 - feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
 - feat(Decks): **Drag the deck cover to frame it** — the cover preview can be dragged up and down to pick the part of the art you want, and the focus slider follows along.

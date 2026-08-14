@@ -32,15 +32,22 @@ export function listShareImageUrl(siteUrl: string, shareToken: string, version: 
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * lists. The share dialog's download uses this so it works whether or not the
  * list is publicly shared (the public/og route needs a share token).
+ * `size: "hq"` requests the 2× download, as the deck and tier-list images do.
  * @returns The image URL.
  */
-export function listOwnerImageUrl(siteUrl: string, listId: string, version: number): string {
-  return `${siteUrl}${API_BASE}/lists/${listId}/image.png?v=${version}`;
+export function listOwnerImageUrl(
+  siteUrl: string,
+  listId: string,
+  version: number,
+  size?: "hq",
+): string {
+  const base = `${siteUrl}${API_BASE}/lists/${listId}/image.png?v=${version}`;
+  return size === "hq" ? `${base}&size=hq` : base;
 }
 
 /**
  * Absolute URL of the server-rendered share image for a shared deck (ADR-031),
- * used as the og:image. `size: "hq"` requests the 3× download variant.
+ * used as the og:image. `size: "hq"` requests the 2× download variant.
  * @returns The deck image URL.
  */
 export function deckShareImageUrl(

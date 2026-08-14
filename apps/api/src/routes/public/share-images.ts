@@ -15,6 +15,7 @@ import {
 import {
   buildCards,
   renderListImage,
+  shareUrlFromOrigin,
   siteHostFromOrigin,
   topByQuantity,
 } from "../../services/list-image.js";
@@ -117,15 +118,20 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     assertFound(found, "Not found");
 
     const entries = await lists.entriesWithDetailsAnon(found.list.id, found.list.kind);
-    const png = await renderListImage(io, {
-      ownerName: found.ownerName ?? "Anonymous",
-      listName: found.list.name,
-      intent: found.list.intent,
-      kind: found.list.kind,
-      entries,
-      siteHost: siteHostFromOrigin(config.corsOrigin),
-      canonicalPrintings,
-    });
+    const png = await renderListImage(
+      io,
+      {
+        ownerName: found.ownerName ?? "Anonymous",
+        listName: found.list.name,
+        intent: found.list.intent,
+        kind: found.list.kind,
+        entries,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl: shareUrlFromOrigin(config.corsOrigin, `/lists/share/${token}`),
+        canonicalPrintings,
+      },
+      c.req.query("size") === "hq" ? 2 : 1,
+    );
 
     return pngResponse(png);
   })
@@ -150,15 +156,20 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       await buildCards(topByQuantity(entriesPerList.flat()), canonicalPrintings),
     );
 
-    const png = await renderShareImage(io, {
-      ownerName: owner.displayName ?? "Anonymous",
-      title: "Wish & trade lists",
-      intentLabel: `${summaries.length} ${summaries.length === 1 ? "list" : "lists"}`,
-      unit: { one: "card", many: "cards" },
-      cards,
-      totalCount: cards.length,
-      siteHost: siteHostFromOrigin(config.corsOrigin),
-    });
+    const png = await renderShareImage(
+      io,
+      {
+        ownerName: owner.displayName ?? "Anonymous",
+        title: "Wish & trade lists",
+        intentLabel: `${summaries.length} ${summaries.length === 1 ? "list" : "lists"}`,
+        unit: { one: "card", many: "cards" },
+        cards,
+        totalCount: cards.length,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl: shareUrlFromOrigin(config.corsOrigin, `/users/share/${token}`),
+      },
+      c.req.query("size") === "hq" ? 2 : 1,
+    );
 
     return pngResponse(png);
   })
@@ -180,16 +191,21 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       COLLECTION_SHARE_CARD_CAP,
     );
 
-    const png = await renderShareImage(io, {
-      ownerName: found.ownerName ?? "Anonymous",
-      title: found.collection.name,
-      intentLabel: "Collection",
-      // Collections are printing-level (one tile per distinct printing).
-      unit: { one: "printing", many: "printings" },
-      cards,
-      totalCount: totalDistinct,
-      siteHost: siteHostFromOrigin(config.corsOrigin),
-    });
+    const png = await renderShareImage(
+      io,
+      {
+        ownerName: found.ownerName ?? "Anonymous",
+        title: found.collection.name,
+        intentLabel: "Collection",
+        // Collections are printing-level (one tile per distinct printing).
+        unit: { one: "printing", many: "printings" },
+        cards,
+        totalCount: totalDistinct,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl: shareUrlFromOrigin(config.corsOrigin, `/collections/share/${token}`),
+      },
+      c.req.query("size") === "hq" ? 2 : 1,
+    );
 
     return pngResponse(png);
   })
@@ -210,8 +226,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     // The rasterize cost grows super-linearly with output pixels (see ADR-031),
     // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
     const scale = c.req.query("size") === "hq" ? 2 : 1;
-    const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
-    const shareUrl = firstOrigin ? `${firstOrigin}/decks/share/${token}` : undefined;
+    const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/decks/share/${token}`);
 
     const png = await renderDeckImage(
       io,
@@ -244,8 +259,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
 
     const rows = await buildTierListImageRows(repos, found.tierList.tiers);
     const scale = c.req.query("size") === "hq" ? 2 : 1;
-    const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
-    const shareUrl = firstOrigin ? `${firstOrigin}/tier-lists/share/${token}` : undefined;
+    const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/tier-lists/share/${token}`);
 
     const png = await renderTierListImage(
       io,

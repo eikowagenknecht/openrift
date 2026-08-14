@@ -1,4 +1,5 @@
 import { Resvg } from "@resvg/resvg-js";
+import QRCode from "qrcode";
 import satori from "satori";
 
 import type { Io } from "../io.js";
@@ -6,10 +7,15 @@ import { CARD_MEDIA_DIR } from "./images/paths.js";
 
 /**
  * Shared primitives for the server-rendered share images (ADR-024, ADR-031):
- * the satori hyperscript, the bundled fonts, the card-art / SVG transcoders, and
- * the satori → resvg finish. The list/bundle renderer (`share-image.ts`) and the
- * deck renderer (`deck-image.ts`) both compose these; the layouts live in those
- * files, the reusable bits live here.
+ * the satori hyperscript, the bundled fonts, the card-art / SVG transcoders, the
+ * card tile, the QR mark, and the satori → resvg finish. The list/bundle
+ * renderer (`share-image.ts`), the deck renderer (`deck-image.ts`) and the
+ * tier-list renderer (`tier-list-image.ts`) all compose these; the layouts live
+ * in those files, everything the three share lives here.
+ *
+ * A constant that governs how the three *look* the same — the palette, the card
+ * aspect, the tile, the mark size — belongs here rather than being restated per
+ * renderer, which is how the surfaces drifted apart in the first place.
  *
  * satori speaks a CSS subset: every container with more than one child needs an
  * explicit `display: "flex"`, the default flex direction is `row`, and colors
@@ -27,6 +33,28 @@ export const COLORS = {
   muted: "#9aa0ab", // --muted-foreground
   gold: "#cdac6e", // --primary     oklch(0.74 0.09 80)
 } as const;
+
+/** Portrait card aspect (width / height); landscape art letterboxes within the box. */
+export const CARD_ASPECT = 0.715;
+
+/**
+ * Tile border width. The art is sized to the box inside it so it stays centered:
+ * satori uses border-box, so an art image the full tile size is pinned top-left
+ * and clipped bottom-right, shifting the card down-right. Sizing to the content
+ * box centers it within the border.
+ */
+export const TILE_BORDER = 1;
+
+/**
+ * Scannable mark size, one value for every image that carries one. Sized for the
+ * worst case these images meet — a code read off a paused stream frame or a feed
+ * thumbnail — rather than for whatever space a given layout happened to have
+ * spare, which is what made the tier list's mark 52px and the deck's 84px.
+ */
+export const QR_SIZE = 84;
+
+/** Corner radius on the QR's white plate. */
+const QR_RADIUS = 6;
 
 /** Largest self-hosted variant (short edge ~800px); the tiles are big, so use it. */
 const CARD_ART_VARIANT = "full";
@@ -217,6 +245,219 @@ export async function svgToPngDataUri(
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolves a tile's art at the render scale. Generated at the content-box size
+ * (inside the tile border) so the art fills that box exactly and stays centered
+ * rather than clipping bottom-right.
+ * @returns The art data URI, or null when there is no art or it is unreadable.
+ */
+export function tileArtDataUri(
+  io: Io,
+  imageId: string | null,
+  tileW: number,
+  tileH: number,
+  scale: number,
+): Promise<string | null> {
+  if (!imageId) {
+    return Promise.resolve(null);
+  }
+  const contentW = tileW - 2 * TILE_BORDER;
+  const contentH = tileH - 2 * TILE_BORDER;
+  return cardArtDataUri(
+    io,
+    imageId,
+    contentW * scale,
+    contentH * scale,
+    cardRadiusPx(contentW, contentH) * scale,
+  );
+}
+
+/** A card as a tile needs it: a name for the art-less fallback, and a count. */
+export interface TileCard {
+  cardName: string;
+  /** Copies held; the badge is drawn only above one. Tier-list tiles omit it —
+   * a tier list ranks a card once, so there is nothing to count. */
+  quantity?: number;
+}
+
+/**
+ * One card tile: the art, or a name-only fallback, plus a quantity badge when
+ * the card is held in multiples. Card images already bake in cost/power/name/
+ * text, so a tile is just art plus the badge — there is no per-card chrome to
+ * re-composite.
+ *
+ * Every measurement is a fraction of the tile rather than a fixed pixel value,
+ * so one tile serves the deck grid's ~90px cells, the list grid's ~180px cells
+ * and a tier row's tiles alike without per-surface constants to drift apart.
+ * @returns The tile element.
+ */
+export function cardTile(
+  card: TileCard,
+  dataUri: string | null,
+  tileW: number,
+  tileH: number,
+): Element {
+  const contentW = tileW - 2 * TILE_BORDER;
+  const contentH = tileH - 2 * TILE_BORDER;
+  const image: Element = dataUri
+    ? { type: "img", props: { src: dataUri, width: contentW, height: contentH } }
+    : element(
+        "div",
+        {
+          display: "flex",
+          width: contentW,
+          height: contentH,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: Math.max(3, Math.round(tileW * 0.05)),
+          textAlign: "center",
+          fontSize: Math.max(7, Math.round(tileW * 0.16)),
+          fontWeight: 600,
+          color: COLORS.muted,
+          lineHeight: 1.2,
+        },
+        card.cardName,
+      );
+
+  const quantity = card.quantity ?? 1;
+  // Proportional between the bounds, so the badge stays legible on the deck
+  // grid's small tiles without ballooning on a five-card list where each tile is
+  // 300px tall — past ~40px it stops reading as a badge and starts competing
+  // with the art.
+  const badgeH = Math.min(40, Math.max(20, Math.round(tileH * 0.18)));
+  const inset = Math.max(5, Math.round(tileH * 0.03));
+  const badge =
+    quantity > 1 &&
+    element(
+      "div",
+      {
+        display: "flex",
+        position: "absolute",
+        bottom: inset,
+        right: inset,
+        alignItems: "center",
+        justifyContent: "center",
+        height: badgeH,
+        minWidth: badgeH,
+        paddingLeft: Math.round(badgeH * 0.18),
+        paddingRight: Math.round(badgeH * 0.18),
+        borderRadius: Math.round(badgeH * 0.28),
+        backgroundColor: "rgba(8,9,12,0.82)",
+        color: COLORS.text,
+        fontSize: Math.round(badgeH * 0.62),
+        fontWeight: 700,
+      },
+      `×${quantity}`,
+    );
+
+  return element(
+    "div",
+    {
+      display: "flex",
+      position: "relative",
+      width: tileW,
+      height: tileH,
+      borderRadius: cardRadiusPx(tileW, tileH),
+      overflow: "hidden",
+      backgroundColor: COLORS.surface,
+      border: `${TILE_BORDER}px solid ${COLORS.surfaceBorder}`,
+    },
+    image,
+    badge,
+  );
+}
+
+/**
+ * Truncates a title to `max` characters with an ellipsis. Elided in code rather
+ * than with `overflow: hidden` so the title stays a plain text node whose flex
+ * baseline is its text baseline — an overflow-clipped node reports its box
+ * bottom as the baseline instead, which pushes an adjacent byline off it.
+ * @returns The title, truncated when longer than the cap.
+ */
+export function elideTitle(title: string, max: number): string {
+  return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
+}
+
+/**
+ * Slope of the baseline error against the font-size gap, for runs that set
+ * `lineHeight: 1`. Fitted on rendered output with gaps of 20–180px, where the
+ * integer-pixel measurement pins it tightly: 40/20 → 3px, 100/20 → 11px,
+ * 200/20 → 26px.
+ *
+ * It is specific to that line height. The same measurement at satori's default
+ * line height gives 0.29, because the error is
+ * `gap × (lineHeight + descent − ascent) / 2` and only the line height varies.
+ * Runs that do not pin `lineHeight: 1` need the other constant — which is the
+ * trap: applying this one to a default-line-height pair under-corrects by half,
+ * and applying the other one to a `lineHeight: 1` pair lifts the smaller run
+ * twice as far as it should go.
+ */
+const BASELINE_ERROR_SLOPE_LH1 = 0.14;
+
+/**
+ * Vertical correction for a smaller text run set beside a larger one — a byline
+ * next to a title, "more" next to "+30".
+ *
+ * satori does not implement `alignItems: "baseline"`: it bottom-aligns the boxes
+ * instead (measured, it produces output byte-identical to `flex-end`). Bottom
+ * aligned, the smaller run's baseline lands low by the difference in the space
+ * each box reserves beneath its baseline, which is a fixed fraction of the font
+ * size — hence a correction linear in the size gap.
+ *
+ * **Both runs must set `lineHeight: 1`**, which every title row and the list
+ * image's overflow tile do. The constant is only right for that line height; see
+ * BASELINE_ERROR_SLOPE_LH1.
+ *
+ * Apply as `transform: translateY(...)` on the smaller run, and bottom-align the
+ * row that holds them (`alignItems: "flex-end"`) so they start from a shared
+ * edge — a row that centres its children instead leaves each box centred on its
+ * own height, which no per-run offset can then reconcile.
+ * @returns The px offset (negative, i.e. upward) for the smaller run.
+ */
+export function baselineNudge(largerFontSize: number, smallerFontSize: number): number {
+  const gap = largerFontSize - smallerFontSize;
+  // Equal (or inverted) sizes need no correction, and returning a plain 0 keeps
+  // `-0` out of the emitted `translateY(-0px)`.
+  return gap <= 0 ? 0 : -Math.round(gap * BASELINE_ERROR_SLOPE_LH1);
+}
+
+/**
+ * Encodes `url` as a scannable code at the render scale. Dark-on-white rather
+ * than gold-on-transparent: a light-on-dark code is inverted polarity, which
+ * older and cheaper scanners refuse, and these images are the artifacts most
+ * likely to be scanned off a stranger's phone. The 2-module quiet zone is white
+ * rather than transparent, so it doubles as the light plate the code needs and
+ * the mark's footprint stays exactly QR_SIZE for the layout maths.
+ * @returns The QR data URI, or null when encoding fails.
+ */
+export function qrDataUri(url: string, scale: number): Promise<string | null> {
+  return QRCode.toDataURL(url, {
+    errorCorrectionLevel: "M",
+    width: QR_SIZE * scale,
+    margin: 2,
+    color: { dark: "#000000", light: "#ffffff" },
+  }).catch(() => null);
+}
+
+/**
+ * The QR image element, at the shared mark size unless a layout genuinely can't
+ * fit it (a code inside a narrow grid tile). Only ever pass a smaller `size` —
+ * the source is generated at QR_SIZE, so scaling down resamples cleanly while
+ * scaling up would blur the modules.
+ * @returns The mark element.
+ */
+export function qrMark(dataUri: string, size = QR_SIZE): Element {
+  return {
+    type: "img",
+    props: {
+      src: dataUri,
+      width: size,
+      height: size,
+      style: { borderRadius: QR_RADIUS },
+    },
+  };
 }
 
 /**

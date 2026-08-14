@@ -1,11 +1,18 @@
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
 import {
+  CARD_ASPECT,
   COLORS,
-  cardArtDataUri,
+  QR_SIZE,
+  baselineNudge,
   cardRadiusPx,
+  cardTile,
   element,
+  elideTitle,
+  qrDataUri,
+  qrMark,
   renderTreeToPng,
+  tileArtDataUri,
 } from "./share-image-core.js";
 
 /**
@@ -15,27 +22,40 @@ import {
  * routes and offered as a downloadable attachment, so a pasted link unfurls with
  * card art in WhatsApp and Discord.
  *
- * Layout: a slim caption bar across the top (owner, intent, count, brand) and a
- * full-bleed grid of card art filling the rest. The grid columns/rows are
- * computed so the cards are as large as the space allows and the rows stay
- * balanced (no stubby last row). The deck renderer (`deck-image.ts`) builds a
- * richer layout from the same primitives.
+ * Layout opens with the same title row the deck and tier-list images use (name,
+ * owner, and what the list is), then gives the rest of the canvas to the card
+ * grid, whose columns/rows are computed so the cards are as large as the space
+ * allows and the rows stay balanced (no stubby last row).
+ *
+ * The host + QR mark moves to wherever it is free (`markPlacement`): into the
+ * overflow tile, into a trailing cell, or into a footer band. Unlike the deck
+ * and tier-list images — which have fixed furniture to hang a footer off — this
+ * one is nothing but grid, so a reserved band came straight out of the card art.
+ *
+ * This used to carry a bordered caption bar that never drew the list's name,
+ * which made a shared wishlist unfurl as an anonymous wall of art. The title row
+ * replaced it: the name is the one thing a recipient needs, and the shared
+ * heading means the three share images now read as one product.
  */
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const TOP_BAR_H = 66;
-/** Horizontal padding for the bar and the grid area, and the grid's bottom pad. */
-const PAD = 18;
+const PAD = 24;
+const GAP = 10;
+const TITLE_H = 52;
+/** The footer is exactly the mark's height: the QR is the tallest thing in it. */
+const FOOTER_H = QR_SIZE;
 const GRID_GAP = 12;
 /** Card tiles shown before collapsing the remainder into a "+N more" tile (2 rows of 6). */
 const MAX_TILES = 12;
-/** Portrait card aspect (width / height); landscape cards letterbox within the same box. */
-const CARD_ASPECT = 0.715;
-/** Tile border width. Art is sized to the box inside it so it stays centered:
- * satori uses border-box, so a full-cell-sized image is pinned top-left and
- * clipped bottom-right, shifting the card down-right. */
-const TILE_BORDER = 1;
+/** Longest title kept before eliding, so it never collides with the right cluster. */
+const TITLE_MAX_CHARS = 46;
+
+/** The title row's three type sizes. Named because the baseline corrections are
+ * derived from the gaps between them, so a size change must reach both places. */
+const TITLE_SIZE = 34;
+const BYLINE_SIZE = 22;
+const META_SIZE = 20;
 
 /** One card in the grid. `imageId` is the resolved image_files.id, or null when no art exists. */
 export interface ShareImageCard {
@@ -46,11 +66,11 @@ export interface ShareImageCard {
 
 /** Everything the renderer needs to draw a list or bundle share image. */
 export interface ShareImageInput {
-  /** Public display name of the owner, shown in the caption bar. */
+  /** Public display name of the owner, shown next to the title. */
   ownerName: string;
-  /** List name (kept for callers/tests; not drawn, the bar stays minimal). */
+  /** List name, drawn as the title. */
   title: string;
-  /** Caption label, e.g. "Trade list" or "Wishlist". */
+  /** What the list is, e.g. "Trade list" or "Wishlist". */
   intentLabel: string;
   /** Singular/plural unit for the count, e.g. { one: "printing", many: "printings" }. */
   unit: { one: string; many: string };
@@ -58,8 +78,11 @@ export interface ShareImageInput {
   cards: readonly ShareImageCard[];
   /** Headline count, e.g. number of distinct cards across the list/bundle. */
   totalCount: number;
-  /** Host shown in the bar (e.g. "openrift.app"); omitted when empty. */
+  /** Host shown in the footer (e.g. "openrift.app"); omitted when empty. */
   siteHost?: string;
+  /** Absolute share URL encoded in the QR; the QR is dropped when absent (an
+   * owner downloading an unshared list has no link to encode). */
+  shareUrl?: string;
 }
 
 interface GridSpec {
@@ -84,86 +107,74 @@ function computeGrid(count: number, areaW: number, areaH: number): GridSpec {
   return { cols, cellW, cellH };
 }
 
+/** Where the host + scan code end up for a given list. */
+export type MarkPlacement =
+  /** Inside the overflow tile, which the grid was already spending a cell on. */
+  | "tile"
+  /** A trailing grid cell of its own. */
+  | "cell"
+  /** A band below the grid, in slack the cards could not have used anyway. */
+  | "footer"
+  /** Nowhere: nothing to link to and no host to name. */
+  | "none";
+
 /**
- * Builds one grid cell: the card art (or a name-only fallback) plus a quantity
- * badge when the card is held in multiples.
- * @returns The cell element.
+ * Picks where the mark goes, on one rule — it must never be the reason the card
+ * art shrinks.
+ *
+ * An overflow tile is free, because the grid already spends a cell on it. With
+ * no overflow the two candidates trade off against the grid's binding
+ * constraint: a one-row grid is limited by width, so the footer sits in vertical
+ * slack the cards could not have used, while a two-row grid is limited by height,
+ * where every pixel the footer takes comes off the art and a trailing cell is far
+ * cheaper. Rather than encode that as a row-count rule, size both and keep the
+ * one that leaves the cards larger.
+ * @returns The chosen placement.
  */
-function cardCell(
-  card: ShareImageCard,
-  dataUri: string | null,
-  cellW: number,
-  cellH: number,
-): Element {
-  // Art / fallback fill the content box inside the border so they stay centered.
-  const contentW = cellW - 2 * TILE_BORDER;
-  const contentH = cellH - 2 * TILE_BORDER;
-  const image: Element = dataUri
-    ? { type: "img", props: { src: dataUri, width: contentW, height: contentH } }
-    : element(
-        "div",
-        {
-          display: "flex",
-          width: contentW,
-          height: contentH,
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 12,
-          textAlign: "center",
-          fontSize: 21,
-          fontWeight: 600,
-          color: COLORS.muted,
-          lineHeight: 1.25,
-        },
-        card.cardName,
-      );
-
-  const badge =
-    card.quantity > 1 &&
-    element(
-      "div",
-      {
-        display: "flex",
-        position: "absolute",
-        bottom: 8,
-        right: 8,
-        alignItems: "center",
-        justifyContent: "center",
-        height: 34,
-        minWidth: 34,
-        paddingLeft: 9,
-        paddingRight: 9,
-        borderRadius: 9,
-        backgroundColor: "rgba(8,9,12,0.82)",
-        color: COLORS.text,
-        fontSize: 22,
-        fontWeight: 700,
-      },
-      `×${card.quantity}`,
-    );
-
-  return element(
-    "div",
-    {
-      display: "flex",
-      position: "relative",
-      width: cellW,
-      height: cellH,
-      borderRadius: cardRadiusPx(cellW, cellH),
-      overflow: "hidden",
-      backgroundColor: COLORS.surface,
-      border: `${TILE_BORDER}px solid ${COLORS.surfaceBorder}`,
-    },
-    image,
-    badge,
-  );
+export function markPlacement(
+  cardCount: number,
+  overflow: boolean,
+  hasMark: boolean,
+  areaW: number,
+  fullAreaH: number,
+): MarkPlacement {
+  // An overflowing list needs the tile whether or not there is a mark to put in
+  // it, so the mark rides along for free either way.
+  if (overflow) {
+    return "tile";
+  }
+  if (!hasMark) {
+    return "none";
+  }
+  const asFooter = computeGrid(Math.max(cardCount, 1), areaW, fullAreaH - FOOTER_H - GAP);
+  const asCell = computeGrid(cardCount + 1, areaW, fullAreaH);
+  return asCell.cellW > asFooter.cellW ? "cell" : "footer";
 }
 
 /**
- * Builds the "+N more" tile shown when the list exceeds the grid capacity.
- * @returns The overflow tile element.
+ * The tile that closes the grid: "+N more", the scan code, and the host, in one
+ * card-shaped cell. Folding the mark into the overflow tile is what lets the
+ * grid keep the full canvas — the tile is a cell the layout already spends, so
+ * the code and the host ride along for nothing. The dashed border marks it as a
+ * stand-in rather than a card, matching the tier-list image's overflow chip.
+ *
+ * Every part is optional: an unshared list has no code, a list that fits has no
+ * "+N more", and the tile is only built when at least one of them is present.
+ * @returns The tile element.
  */
-function moreCell(moreCount: number, cellW: number, cellH: number): Element {
+function markCell(
+  moreCount: number,
+  qrUri: string | null,
+  siteHost: string | undefined,
+  cellW: number,
+  cellH: number,
+): Element {
+  // Sized off the cell so the tile reads the same in a six-across grid (~180px)
+  // and a seven-across one (~150px).
+  const qrSize = Math.min(QR_SIZE, cellW - 28);
+  const moreFont = Math.round(cellW * 0.19);
+  const hostFont = Math.max(11, Math.round(cellW * 0.075));
+
   return element(
     "div",
     {
@@ -173,26 +184,106 @@ function moreCell(moreCount: number, cellW: number, cellH: number): Element {
       height: cellH,
       alignItems: "center",
       justifyContent: "center",
+      gap: Math.round(cellH * 0.045),
       borderRadius: cardRadiusPx(cellW, cellH),
       backgroundColor: COLORS.surface,
-      border: `1px solid ${COLORS.surfaceBorder}`,
-      color: COLORS.muted,
-      fontSize: 26,
-      fontWeight: 700,
+      border: `1px dashed ${COLORS.surfaceBorder}`,
     },
-    element("div", { display: "flex", color: COLORS.gold, fontSize: 40 }, `+${moreCount}`),
-    element("div", { display: "flex", marginTop: 4 }, "more"),
+    moreCount > 0
+      ? element(
+          "div",
+          { display: "flex", flexDirection: "row", alignItems: "baseline" },
+          element(
+            "div",
+            { display: "flex", color: COLORS.gold, fontSize: moreFont, fontWeight: 700 },
+            `+${moreCount}`,
+          ),
+          element(
+            "div",
+            {
+              display: "flex",
+              marginLeft: 6,
+              color: COLORS.muted,
+              fontSize: Math.round(moreFont * 0.62),
+              fontWeight: 600,
+              transform: `translateY(${baselineNudge(moreFont, Math.round(moreFont * 0.62))}px)`,
+            },
+            "more",
+          ),
+        )
+      : false,
+    qrUri ? qrMark(qrUri, qrSize) : false,
+    siteHost
+      ? element(
+          "div",
+          { display: "flex", color: COLORS.muted, fontSize: hostFont, fontWeight: 600 },
+          siteHost,
+        )
+      : false,
   );
 }
 
 /**
- * Builds the slim top caption bar.
- * @returns The bar element.
+ * The title row: the list's name with the owner's byline on one baseline, and
+ * what the list is plus its size as a muted cluster on the right. Identical in
+ * construction and type roles to the deck and tier-list heading rows — gold
+ * marks who made it, muted carries the incidental metadata.
+ * @returns The title row element.
  */
-function captionBar(input: ShareImageInput): Element {
-  const sep = (): Element =>
-    element("div", { display: "flex", color: COLORS.muted, marginLeft: 10, marginRight: 10 }, "·");
+function titleRow(input: ShareImageInput): Element {
   const countLabel = `${input.totalCount} ${input.totalCount === 1 ? input.unit.one : input.unit.many}`;
+
+  // One bottom-aligned row holds all three runs, rather than a baseline-aligned
+  // left group centred beside a separately-centred right one: two centred boxes
+  // of different heights each sit on their own centre line, so their baselines
+  // step apart by half the height difference and no per-run offset can close it.
+  // Sharing one bottom edge is what makes the nudges below meaningful.
+  const runs = element(
+    "div",
+    { display: "flex", flexDirection: "row", alignItems: "flex-end", flexGrow: 1 },
+    element(
+      "div",
+      {
+        display: "flex",
+        flexShrink: 1,
+        fontSize: TITLE_SIZE,
+        lineHeight: 1,
+        fontWeight: 700,
+        color: COLORS.text,
+        whiteSpace: "nowrap",
+      },
+      elideTitle(input.title, TITLE_MAX_CHARS),
+    ),
+    input.ownerName
+      ? element(
+          "div",
+          {
+            display: "flex",
+            flexShrink: 0,
+            marginLeft: 12,
+            fontSize: BYLINE_SIZE,
+            lineHeight: 1,
+            fontWeight: 600,
+            color: COLORS.gold,
+            transform: `translateY(${baselineNudge(TITLE_SIZE, BYLINE_SIZE)}px)`,
+          },
+          `by ${input.ownerName}`,
+        )
+      : false,
+    element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+    element(
+      "div",
+      {
+        display: "flex",
+        flexShrink: 0,
+        fontSize: META_SIZE,
+        lineHeight: 1,
+        color: COLORS.muted,
+        transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
+      },
+      `${input.intentLabel} · ${countLabel}`,
+    ),
+  );
 
   return element(
     "div",
@@ -200,47 +291,20 @@ function captionBar(input: ShareImageInput): Element {
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      height: TOP_BAR_H,
-      paddingLeft: PAD,
-      paddingRight: PAD,
-      borderBottom: `1px solid ${COLORS.surfaceBorder}`,
-      fontSize: 24,
+      height: TITLE_H,
+      flexShrink: 0,
     },
-    element(
-      "div",
-      { display: "flex", flexDirection: "row", alignItems: "center" },
-      element("div", { display: "flex", color: COLORS.gold, fontWeight: 600 }, input.ownerName),
-      sep(),
-      element("div", { display: "flex", color: COLORS.muted }, input.intentLabel),
-      sep(),
-      element("div", { display: "flex", color: COLORS.muted }, countLabel),
-    ),
-    element(
-      "div",
-      { display: "flex", flexDirection: "row", alignItems: "center" },
-      element("div", {
-        display: "flex",
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: COLORS.gold,
-        marginRight: 10,
-      }),
-      element(
-        "div",
-        { display: "flex", color: COLORS.muted, fontWeight: 600 },
-        input.siteHost ?? "OpenRift",
-      ),
-    ),
+    runs,
   );
 }
 
 /**
- * Renders a list or bundle share image to a PNG buffer (ADR-024).
+ * Renders a list or bundle share image to a PNG buffer (ADR-024). `scale`
+ * renders the same base layout at N× resolution for the HQ download, as the
+ * deck and tier-list renderers do.
  * @returns PNG bytes ready to return as `image/png`.
  */
-export async function renderShareImage(io: Io, input: ShareImageInput): Promise<Buffer> {
+export async function renderShareImage(io: Io, input: ShareImageInput, scale = 1): Promise<Buffer> {
   // Surface multiples first, then alphabetical, so the grid leads with the most
   // tradeable cards. Collapse the overflow into a single "+N more" tile.
   const ordered = [...input.cards].sort(
@@ -252,27 +316,26 @@ export async function renderShareImage(io: Io, input: ShareImageInput): Promise<
   const overflow = input.totalCount > MAX_TILES;
   const shown = overflow ? ordered.slice(0, MAX_TILES - 1) : ordered.slice(0, MAX_TILES);
   const moreCount = overflow ? input.totalCount - shown.length : 0;
-  const cellCount = shown.length + (overflow ? 1 : 0);
 
+  const hasMark = Boolean(input.siteHost) || Boolean(input.shareUrl);
   const areaW = WIDTH - PAD * 2;
-  const areaH = HEIGHT - TOP_BAR_H - PAD;
+  const fullAreaH = HEIGHT - PAD * 2 - TITLE_H - GAP;
+  const placement = markPlacement(shown.length, overflow, hasMark, areaW, fullAreaH);
+
+  const cellCount = shown.length + (placement === "tile" || placement === "cell" ? 1 : 0);
+  const areaH = placement === "footer" ? fullAreaH - FOOTER_H - GAP : fullAreaH;
   const { cols, cellW, cellH } = computeGrid(Math.max(cellCount, 1), areaW, areaH);
 
-  // Content-box size (inside the tile border) so the art stays centered, at 2×
-  // for crispness when platforms upscale the preview.
-  const artW = cellW - 2 * TILE_BORDER;
-  const artH = cellH - 2 * TILE_BORDER;
-  const dataUris = await Promise.all(
-    shown.map((card) =>
-      card.imageId
-        ? cardArtDataUri(io, card.imageId, artW * 2, artH * 2, cardRadiusPx(artW, artH) * 2)
-        : Promise.resolve(null),
-    ),
-  );
+  const [dataUris, qrUri] = await Promise.all([
+    Promise.all(shown.map((card) => tileArtDataUri(io, card.imageId, cellW, cellH, scale))),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+  ]);
 
-  const cells: Child[] = shown.map((card, index) => cardCell(card, dataUris[index], cellW, cellH));
-  if (overflow) {
-    cells.push(moreCell(moreCount, cellW, cellH));
+  const cells: Child[] = shown.map((card, index) =>
+    cardTile(card, dataUris[index] ?? null, cellW, cellH),
+  );
+  if (placement === "tile" || placement === "cell") {
+    cells.push(markCell(moreCount, qrUri, input.siteHost, cellW, cellH));
   }
 
   // Fixed-width wrapping container so exactly `cols` tiles sit per row (balanced
@@ -298,10 +361,34 @@ export async function renderShareImage(io: Io, input: ShareImageInput): Promise<
       flexGrow: 1,
       alignItems: "center",
       justifyContent: "center",
-      padding: PAD,
     },
     grid,
   );
+
+  // Host label left, mark right — the same bottom-right footer the deck and
+  // tier-list images carry. Only drawn when the grid left room for it.
+  const footer: Child =
+    placement === "footer" &&
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        height: FOOTER_H,
+        marginTop: GAP,
+        flexShrink: 0,
+      },
+      input.siteHost
+        ? element(
+            "div",
+            { display: "flex", fontSize: 20, fontWeight: 600, color: COLORS.muted },
+            input.siteHost,
+          )
+        : false,
+      element("div", { display: "flex", flexGrow: 1 }),
+      qrUri ? qrMark(qrUri) : false,
+    );
 
   const root = element(
     "div",
@@ -310,14 +397,19 @@ export async function renderShareImage(io: Io, input: ShareImageInput): Promise<
       flexDirection: "column",
       width: WIDTH,
       height: HEIGHT,
+      padding: PAD,
       backgroundColor: COLORS.background,
+      backgroundImage:
+        "radial-gradient(80% 120% at 0% 0%, rgba(205,172,110,0.14) 0%, transparent 60%)",
       color: COLORS.text,
       fontFamily: "Hanken Grotesk",
       overflow: "hidden",
     },
-    captionBar(input),
+    titleRow(input),
+    element("div", { display: "flex", height: GAP, flexShrink: 0 }),
     gridArea,
+    footer,
   );
 
-  return renderTreeToPng(io, root, WIDTH, HEIGHT);
+  return renderTreeToPng(io, root, WIDTH, HEIGHT, scale);
 }

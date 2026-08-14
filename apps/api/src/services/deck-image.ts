@@ -1,17 +1,22 @@
 import { WellKnown } from "@openrift/shared";
-import QRCode from "qrcode";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
 import {
+  CARD_ASPECT,
   COLORS,
+  QR_SIZE,
+  baselineNudge,
   blurredArtBackdropDataUri,
-  cardArtDataUri,
-  cardRadiusPx,
+  cardTile,
   element,
+  elideTitle,
+  qrDataUri,
+  qrMark,
   renderTreeToPng,
   svgToPngDataUri,
+  tileArtDataUri,
 } from "./share-image-core.js";
 
 /**
@@ -24,10 +29,11 @@ import {
  * fill whatever space the grid leaves, with the QR mark pinned bottom-right.
  *
  * Two resolutions share one layout via the `scale` arg: the og:image renders at
- * 1× (1200×630); the download renders at 3× by embedding raster sources (card
+ * 1× (1200×630); the download renders at 2× by embedding raster sources (card
  * art, glyphs, QR) at the matching resolution while satori lays out once at base
- * size. Card images already bake in cost/power/name/text, so a tile is just the
- * card art plus a quantity badge — no per-card chrome to re-composite.
+ * size. The tile itself, the QR mark, and the card aspect come from
+ * `share-image-core` so this image and the list and tier-list images stay one
+ * family.
  */
 
 const WIDTH = 1200;
@@ -35,18 +41,17 @@ const HEIGHT = 630;
 const PAD = 22;
 const GAP = 10;
 const BODY_GAP = 16;
-/** Portrait card aspect (width / height); landscape art letterboxes within the box. */
-const CARD_ASPECT = 0.715;
 /** Battlefield art is landscape; its tiles use this aspect. */
 const BATTLEFIELD_ASPECT = 1.4;
-/** Tile border width. The art is sized to the box inside it so it stays centered:
- * satori uses border-box, so an art image the full tile size is pinned top-left
- * and clipped bottom-right, shifting the card down-right. Sizing to the content
- * box centers it within the border. */
-const TILE_BORDER = 1;
 
 const TITLE_H = 46;
 const LEFT_W = 250;
+
+/** The title row's three type sizes. Named because the baseline corrections are
+ * derived from the gaps between them, so a size change must reach both places. */
+const TITLE_SIZE = 34;
+const BYLINE_SIZE = 22;
+const META_SIZE = 20;
 
 /**
  * Domain colors for the deck-image background glow. Mirrors
@@ -82,7 +87,6 @@ function legendGlowBackground(domains: readonly string[]): string | undefined {
   return `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`;
 }
 
-const QR_SIZE = 84;
 /** Legend domain glyphs, shown top-right beside the card count (no amounts). */
 const DOMAIN_ICON = 30;
 /** Section header (label + underline) reserved height, for grid-area math. */
@@ -171,107 +175,6 @@ function packGrid(count: number, areaW: number, areaH: number, aspect: number): 
   return best;
 }
 
-/** @returns The art data URI for `imageId` at the scaled tile size, or null. */
-function artUri(
-  io: Io,
-  imageId: string | null,
-  tileW: number,
-  tileH: number,
-  scale: number,
-): Promise<string | null> {
-  if (!imageId) {
-    return Promise.resolve(null);
-  }
-  // Generate at the content-box size (inside the tile border) so the art fills
-  // that box exactly and stays centered rather than clipping bottom-right.
-  const contentW = tileW - 2 * TILE_BORDER;
-  const contentH = tileH - 2 * TILE_BORDER;
-  return cardArtDataUri(
-    io,
-    imageId,
-    contentW * scale,
-    contentH * scale,
-    cardRadiusPx(contentW, contentH) * scale,
-  );
-}
-
-/**
- * Builds one card tile: the art (or a name-only fallback) and a quantity badge
- * when held in multiples. Badge size tracks the tile so it stays legible in the
- * dense main grid and the larger hero/sideboard tiles alike.
- * @returns The tile element.
- */
-function cardTile(
-  card: DeckImageCard,
-  dataUri: string | null,
-  tileW: number,
-  tileH: number,
-): Element {
-  const badgeH = Math.max(20, Math.round(tileH * 0.18));
-  // Art / fallback fill the content box inside the border so they stay centered.
-  const contentW = tileW - 2 * TILE_BORDER;
-  const contentH = tileH - 2 * TILE_BORDER;
-  const image: Element = dataUri
-    ? { type: "img", props: { src: dataUri, width: contentW, height: contentH } }
-    : element(
-        "div",
-        {
-          display: "flex",
-          width: contentW,
-          height: contentH,
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 8,
-          textAlign: "center",
-          fontSize: Math.max(12, Math.round(tileW * 0.16)),
-          fontWeight: 600,
-          color: COLORS.muted,
-          lineHeight: 1.2,
-        },
-        card.cardName,
-      );
-
-  const badge =
-    card.quantity > 1 &&
-    element(
-      "div",
-      {
-        display: "flex",
-        position: "absolute",
-        bottom: 5,
-        right: 5,
-        alignItems: "center",
-        justifyContent: "center",
-        height: badgeH,
-        minWidth: badgeH,
-        paddingLeft: 6,
-        paddingRight: 6,
-        borderRadius: Math.round(badgeH * 0.28),
-        backgroundColor: "rgba(8,9,12,0.82)",
-        color: COLORS.text,
-        fontSize: Math.round(badgeH * 0.62),
-        fontWeight: 700,
-      },
-      `×${card.quantity}`,
-    );
-
-  return element(
-    "div",
-    {
-      display: "flex",
-      position: "relative",
-      width: tileW,
-      height: tileH,
-      borderRadius: cardRadiusPx(tileW, tileH),
-      overflow: "hidden",
-      backgroundColor: COLORS.surface,
-      border: `${TILE_BORDER}px solid ${COLORS.surfaceBorder}`,
-    },
-    image,
-    badge,
-  );
-}
-
 /**
  * Sums rune quantities per domain (a rune carries one domain; a multi-domain
  * rune folds into "rainbow"), so the identity panel can show one glyph per
@@ -346,17 +249,13 @@ function deckSection(label: string, tiles: Child[], marginTop = 0): Element {
 }
 
 /** Longest deck title kept before eliding; bounds the title so it never runs into
- * the right-aligned format/count. Elided in code (not via `overflow: hidden`) so
- * the title stays a plain text node whose flex baseline is its text baseline —
- * an overflow-clipped node reports its box bottom as the baseline instead, which
- * pushes the "by Name" byline off the title's baseline. */
+ * the right-aligned format/count. Shorter than the tier list's cap because this
+ * row also carries the domain glyphs. */
 const TITLE_MAX_CHARS = 34;
 
 /** @returns The deck title, truncated with an ellipsis when longer than the cap. */
 export function truncateTitle(title: string): string {
-  return title.length > TITLE_MAX_CHARS
-    ? `${title.slice(0, TITLE_MAX_CHARS - 1).trimEnd()}…`
-    : title;
+  return elideTitle(title, TITLE_MAX_CHARS);
 }
 
 /** @returns A presentable format label from a deck-format slug. */
@@ -575,7 +474,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
     domainUris,
     qrUri,
   ] = await Promise.all([
-    legend ? artUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
+    legend ? tileArtDataUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
     // The backdrop is blurred anyway, so render it at half resolution and let
     // satori scale it up — the payload stays small even at the HQ scale. A
     // custom cover replaces the legend art here (and only here).
@@ -589,28 +488,24 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       : Promise.resolve(null),
     grid
       ? Promise.all(
-          gridCards.map((card) => artUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
+          gridCards.map((card) => tileArtDataUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
         )
       : Promise.resolve([]),
     Promise.all(
-      battlefields.map((card) => artUri(io, card.imageId, battlefieldTileW, bottomTileH, scale)),
+      battlefields.map((card) =>
+        tileArtDataUri(io, card.imageId, battlefieldTileW, bottomTileH, scale),
+      ),
     ),
     Promise.all(
-      sideboard.map((card) => artUri(io, card.imageId, sideboardTileW, sideboardTileH, scale)),
+      sideboard.map((card) =>
+        tileArtDataUri(io, card.imageId, sideboardTileW, sideboardTileH, scale),
+      ),
     ),
-    Promise.all(runeCards.map((card) => artUri(io, card.imageId, runeTileW, runeTileH, scale))),
+    Promise.all(
+      runeCards.map((card) => tileArtDataUri(io, card.imageId, runeTileW, runeTileH, scale)),
+    ),
     Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
-    input.shareUrl
-      ? QRCode.toDataURL(input.shareUrl, {
-          errorCorrectionLevel: "M",
-          width: QR_SIZE * scale,
-          // The 2-module quiet zone is white rather than transparent, so it
-          // doubles as the light plate the code needs. That keeps the mark's
-          // footprint at exactly QR_SIZE for the layout maths below.
-          margin: 2,
-          color: { dark: "#000000", light: "#ffffff" },
-        }).catch(() => null)
-      : Promise.resolve(null),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
   ]);
 
   const hasFooterMark = Boolean(qrUri) || Boolean(input.siteHost);
@@ -642,13 +537,13 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
     },
     element(
       "div",
-      { display: "flex", flexDirection: "row", flexShrink: 1, alignItems: "baseline" },
+      { display: "flex", flexDirection: "row", alignItems: "flex-end", flexGrow: 1 },
       element(
         "div",
         {
           display: "flex",
           flexShrink: 1,
-          fontSize: 34,
+          fontSize: TITLE_SIZE,
           lineHeight: 1,
           fontWeight: 700,
           color: COLORS.text,
@@ -664,13 +559,11 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
               display: "flex",
               flexShrink: 0,
               marginLeft: 12,
-              fontSize: 22,
+              fontSize: BYLINE_SIZE,
               lineHeight: 1,
               fontWeight: 600,
               color: COLORS.gold,
-              // satori's baseline alignment leaves the smaller run ~2px low next
-              // to the 34px title; nudge it up so the two share one baseline.
-              transform: "translateY(-2px)",
+              transform: `translateY(${baselineNudge(TITLE_SIZE, BYLINE_SIZE)}px)`,
             },
             // "by Name" rather than "· Name": the middle dot is a mid-height glyph
             // that floats oddly beside the much larger deck title, whereas plain
@@ -678,20 +571,34 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
             `by ${input.ownerName}`,
           )
         : false,
-    ),
-    element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
-    element(
-      "div",
-      { display: "flex", flexDirection: "row", flexShrink: 0, alignItems: "center", gap: 14 },
+      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
       element(
         "div",
-        { display: "flex", fontSize: 20, lineHeight: 1, color: COLORS.muted },
+        {
+          display: "flex",
+          flexShrink: 0,
+          fontSize: META_SIZE,
+          lineHeight: 1,
+          color: COLORS.muted,
+          transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
+        },
         `${input.formatLabel} · ${mainCardCount}${sideboardCount > 0 ? ` + ${sideboardCount}` : ""} ${mainCardCount + sideboardCount === 1 ? "card" : "cards"}`,
       ),
       domainIcons.length > 0
         ? element(
             "div",
-            { display: "flex", flexDirection: "row", alignItems: "center", gap: 6 },
+            {
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              marginLeft: 14,
+              gap: 6,
+              // The glyphs are art, not type, so they centre on the metadata run
+              // rather than sitting on its baseline. In a bottom-aligned row that
+              // means offsetting by the run's own nudge plus half the height
+              // difference between a glyph and the text box.
+              transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE) + (DOMAIN_ICON - META_SIZE) / 2}px)`,
+            },
             ...domainIcons,
           )
         : false,
@@ -759,10 +666,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
       runeCards.map((card, index) => cardTile(card, runeUris[index] ?? null, runeTileW, runeTileH)),
     );
 
-  // Scannable host label beside the QR, bottom-right. The code is dark-on-white
-  // rather than gold-on-transparent: a light-on-dark code is inverted polarity,
-  // which older and cheaper scanners refuse, and this image is the artifact most
-  // likely to be scanned off a stranger's phone.
+  // Scannable host label beside the QR, bottom-right.
   const footerMark =
     hasFooterMark &&
     element(
@@ -775,12 +679,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
             input.siteHost,
           )
         : false,
-      qrUri
-        ? {
-            type: "img",
-            props: { src: qrUri, width: QR_SIZE, height: QR_SIZE, style: { borderRadius: 6 } },
-          }
-        : false,
+      qrUri ? qrMark(qrUri) : false,
     );
 
   const bottomRow =
