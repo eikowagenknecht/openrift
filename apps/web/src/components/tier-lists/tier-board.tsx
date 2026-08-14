@@ -1,9 +1,9 @@
 import type { Card, Printing, TierRow } from "@openrift/shared";
+import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierCardTile } from "@/components/tier-lists/tier-card-tile";
-import { TIER_LABEL_INK, tierColor } from "@/components/tier-lists/tier-colors";
 import { Pressable } from "@/components/ui/pressable";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +92,7 @@ export function TierBoard({ rows, onCardClick, className }: TierBoardProps) {
     <div className={cn("flex flex-col gap-1.5", className)}>
       {rows.map((row, rowIndex) => (
         <TierRowFrame
-          key={`${row.label}-${rowIndex}`}
+          key={rowIndex}
           rowIndex={rowIndex}
           label={<span className="truncate">{row.label}</span>}
         >

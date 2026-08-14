@@ -1,4 +1,3 @@
-import type { DeckZone } from "@openrift/shared";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { PlayIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -37,7 +36,7 @@ function PresentPage() {
       <Suspense fallback={<StageFallback />}>
         <DeckPresentation
           deckId={deck}
-          zone={zone as DeckZone | undefined}
+          zone={zone}
           index={i ?? 0}
           onIndexChange={setIndex}
           onExit={() => {

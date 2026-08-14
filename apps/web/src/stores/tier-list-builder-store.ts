@@ -1,5 +1,9 @@
 import type { TierRow } from "@openrift/shared";
-import { MAX_TIER_ROWS } from "@openrift/shared/contracts/tier-lists";
+import {
+  MAX_CARDS_PER_TIER,
+  MAX_TIER_LIST_CARDS,
+  MAX_TIER_ROWS,
+} from "@openrift/shared/contracts/tier-lists";
 import { create } from "zustand";
 
 /**
@@ -26,8 +30,13 @@ interface TierListBuilderState {
 
   /** Replaces the draft with a list's saved board. Clears `dirty`. */
   load: (listId: string, rows: readonly TierRow[]) => void;
-  /** Clears `dirty` after a successful save, keeping the current board. */
-  markSaved: () => void;
+  /**
+   * Clears `dirty` after a successful save — but only if `savedRows` is still
+   * the current board. Every edit replaces the `rows` array, so a drag that
+   * landed while the save was in flight fails the reference check and the
+   * "Unsaved changes" badge stays honest.
+   */
+  markSaved: (savedRows: readonly TierRow[]) => void;
   /** Drops the draft entirely (unmount, or navigating to another list). */
   reset: () => void;
 
@@ -103,11 +112,13 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
     set({ listId, rows: copied, rowIndexByCardId: indexRows(copied), dirty: false });
   },
 
-  markSaved: () => {
-    set({ dirty: false });
+  markSaved: (savedRows) => {
+    set((state) => (state.rows === savedRows ? { dirty: false } : state));
   },
 
   reset: () => {
+    // The fresh Map is load-bearing: spreading EMPTY alone would hand every
+    // reset the same shared instance as the initial state.
     set({ ...EMPTY, rowIndexByCardId: new Map() });
   },
 
@@ -128,6 +139,13 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       }));
       const target = stripped[rowIndex];
       if (!target) {
+        return state;
+      }
+      // Enforce the contract's caps here rather than letting the save 400
+      // after the ranking work is done. Post-strip counts, so moving a card
+      // within a full board is still allowed.
+      const total = stripped.reduce((sum, row) => sum + row.cardIds.length, 0);
+      if (target.cardIds.length >= MAX_CARDS_PER_TIER || total >= MAX_TIER_LIST_CARDS) {
         return state;
       }
       if (position === undefined) {

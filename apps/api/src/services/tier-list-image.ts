@@ -1,3 +1,4 @@
+import { TIER_COLORS } from "@openrift/shared";
 import QRCode from "qrcode";
 
 import type { Repos } from "../deps.js";
@@ -47,27 +48,6 @@ const LABEL_W = 58;
 const ROW_GAP = 8;
 /** Breathing room between a row's border and its tiles. */
 const ROW_PAD = 5;
-
-/**
- * Row colours by position, warm-to-cool so the ladder reads as a ranking even
- * when a creator renames the rows to something other than S/A/B/C/D. Twelve
- * entries, matching the contract's row cap, so a position always has a colour.
- * Concrete hex because satori has no oklch.
- */
-const TIER_COLORS = [
-  "#c4463f",
-  "#c9663a",
-  "#c08a33",
-  "#a89a35",
-  "#7f9b45",
-  "#4f9560",
-  "#3f8f80",
-  "#3d8098",
-  "#4a6da3",
-  "#5f60a0",
-  "#77579a",
-  "#8a5188",
-] as const;
 
 /** Longest title kept before eliding, so it never collides with the right cluster. */
 const TITLE_MAX_CHARS = 46;

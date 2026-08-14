@@ -86,6 +86,35 @@ describe("searchPrintingsByName", () => {
     expect(result[0]?.id).toBe("p-strong");
   });
 
+  it("keeps a card's first-seen position when a later printing upgrades its rank", () => {
+    // Card A appears first (substring match), card B second (prefix match),
+    // then a later printing of A also matches as a prefix. Within the prefix
+    // bucket, A must still sort before B — the upgrade must not push A behind
+    // cards discovered after its first printing.
+    const aWeak = stubPrinting({
+      id: "p-a-weak",
+      cardId: "c-a",
+      publicCode: "AAA-001",
+      card: { name: "A Tale of Yasuo" },
+    });
+    const b = stubPrinting({
+      id: "p-b",
+      cardId: "c-b",
+      publicCode: "BBB-001",
+      card: { name: "Yasuo's Resolve" },
+    });
+    const aStrong = stubPrinting({
+      id: "p-a-strong",
+      cardId: "c-a",
+      publicCode: "AAA-002",
+      card: { name: "Yasuo, the Unforgiven" },
+    });
+
+    const result = searchPrintingsByName("yasuo", [aWeak, b, aStrong]);
+
+    expect(result.map((printing) => printing.id)).toEqual(["p-a-strong", "p-b"]);
+  });
+
   it("drops non-matches", () => {
     expect(searchPrintingsByName("zaun", catalog)).toEqual([]);
   });

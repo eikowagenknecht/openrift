@@ -1,4 +1,5 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
+import type { DeckZone } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -14,13 +15,28 @@ import { getSiteUrl } from "@/lib/site-config";
  * malformed value so a hand-edited or stale URL opens the queue builder rather
  * than crashing the route.
  */
+/**
+ * Every zone slug, for validating the `zone` search param. `satisfies` keeps
+ * each entry a real `DeckZone`; a typo'd or stale zone in a URL falls back to
+ * a full deck walk instead of a blank stage.
+ */
+const DECK_ZONES = [
+  "main",
+  "sideboard",
+  "legend",
+  "champion",
+  "runes",
+  "battlefield",
+  "overflow",
+] as const satisfies readonly DeckZone[];
+
 const presentSearchSchema = z.object({
   /** Deck to walk, zone by zone. Takes precedence over `cards`. */
   deck: z.string().optional().catch(undefined),
   /** Ad-hoc queue of printing ids, in presentation order. */
   cards: z.array(z.string()).max(MAX_QUEUE_LENGTH).optional().catch(undefined),
   /** Restricts a deck walk to a single zone. */
-  zone: z.string().optional().catch(undefined),
+  zone: z.enum(DECK_ZONES).optional().catch(undefined),
   /** Position in the queue. Clamped against the resolved cards at render time. */
   i: z.number().int().nonnegative().optional().catch(undefined),
   /**

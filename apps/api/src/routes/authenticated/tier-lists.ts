@@ -63,7 +63,8 @@ export const tierListsRouter = {
     // A list with no rows has nothing to drag into, so an omitted board starts
     // on the default ladder rather than empty.
     const row = await context.repos.tierLists.create(context.userId, {
-      title: input.title.trim(),
+      // The contract's `.trim()` already normalized the title.
+      title: input.title,
       description: normalizeText(input.description) ?? null,
       setId: input.setId ?? null,
       tiers: input.tiers ?? defaultTiers(),
@@ -77,7 +78,7 @@ export const tierListsRouter = {
     // `undefined` key would still reach Kysely's SET clause and null the column.
     const values: Parameters<typeof context.repos.tierLists.update>[2] = {};
     if (title !== undefined) {
-      values.title = title.trim();
+      values.title = title;
     }
     const normalizedDescription = normalizeText(description);
     if (normalizedDescription !== undefined) {
@@ -87,7 +88,7 @@ export const tierListsRouter = {
       values.setId = setId;
     }
     if (tiers !== undefined) {
-      values.tiers = tiers.map((tier) => ({ label: tier.label.trim(), cardIds: tier.cardIds }));
+      values.tiers = tiers;
     }
 
     if (Object.keys(values).length === 0) {
@@ -108,12 +109,6 @@ export const tierListsRouter = {
     if (!deleted) {
       assertFound(undefined, NOT_FOUND);
     }
-  }),
-
-  getShare: os.getShare.handler(async ({ input, context }): Promise<TierListShareResponse> => {
-    const state = await context.repos.tierLists.getShareState(input.id, context.userId);
-    assertFound(state, NOT_FOUND);
-    return { shareToken: state.shareToken, isPublic: state.isPublic };
   }),
 
   // Idempotent enable: an already-shared list returns its existing token rather

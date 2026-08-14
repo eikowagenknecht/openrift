@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useRotateOverlayToken, useUpdateOverlaySettings } from "@/hooks/use-overlay";
+import { getSiteUrl } from "@/lib/site-config";
 
 const CORNERS: { value: OverlayCorner; label: string }[] = [
   { value: "top-left", label: "Top left" },
@@ -42,7 +43,7 @@ export function OverlaySettingsPanel({ channel }: { channel: OverlayChannelRespo
   const [draftScale, setDraftScale] = useState<number | null>(null);
   const shownScale = draftScale ?? payload.scale;
 
-  const sourceUrl = `${globalThis.location.origin}/overlay/${channel.token}`;
+  const sourceUrl = `${getSiteUrl()}/overlay/${channel.token}`;
 
   return (
     <div className="flex flex-col gap-6">

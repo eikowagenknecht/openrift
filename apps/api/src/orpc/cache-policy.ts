@@ -1,7 +1,7 @@
 // Edge/browser caching policy for the public oRPC reads, derived from the
 // contracts themselves so there is no second copy of the route table to keep in
 // sync. A public GET opts into caching by declaring `cache` on its contract
-// `.meta()` (`long` / `medium` / `short` / `sitemap`), into conditional GETs
+// `.meta()` (`long` / `medium` / `short` / `sitemap` / `revalidate`), into conditional GETs
 // with `etag: true`, and into the viewer-dependent `private` variant with
 // `cacheVary: "viewer"`.
 //

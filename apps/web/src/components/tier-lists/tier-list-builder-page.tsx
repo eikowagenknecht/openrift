@@ -80,9 +80,10 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  const { cardsById, printingsByCardId } = useCards();
+  const { cardsById, printingsByCardId, sets } = useCards();
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
+  const scopedSetSlug = sets.find((set) => set.id === tierList.setId)?.slug;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -101,19 +102,31 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   useEffect(() => {
     if (loadedListId !== tierList.id) {
       useTierListBuilderStore.getState().load(tierList.id, tierList.tiers);
+      // Seed the pool's set filter from the list's set scope, once per visit —
+      // a pre-filter the creator can still clear or change while working.
+      if (scopedSetSlug) {
+        void navigate({
+          to: ".",
+          search: (prev) => ({ ...prev, sets: [scopedSetSlug] }),
+          replace: true,
+        });
+      }
     }
-  }, [tierList.id, tierList.tiers, loadedListId]);
+  }, [tierList.id, tierList.tiers, loadedListId, scopedSetSlug, navigate]);
 
   // Leaving the builder drops the draft, so returning to a list always starts
   // from what the server has rather than a board from a previous visit.
   useEffect(() => useTierListBuilderStore.getState().reset, []);
 
   const handleSave = () => {
+    // Snapshot what actually goes to the server: markSaved compares against it,
+    // so a drag landing mid-save keeps the board dirty instead of being lost.
+    const rows = useTierListBuilderStore.getState().rows;
     updateTierList.mutate(
-      { id: tierList.id, tiers: useTierListBuilderStore.getState().rows },
+      { id: tierList.id, tiers: rows },
       {
         onSuccess: () => {
-          useTierListBuilderStore.getState().markSaved();
+          useTierListBuilderStore.getState().markSaved(rows);
         },
         // No toast here: the QueryClient's default mutation onError owns the
         // error message for every mutation.

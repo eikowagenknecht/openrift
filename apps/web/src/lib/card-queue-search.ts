@@ -52,8 +52,13 @@ export function searchPrintingsByName(
       continue;
     }
     const existing = bestByCard.get(printing.cardId);
-    if (existing === undefined || score < existing.rank) {
+    if (existing === undefined) {
       bestByCard.set(printing.cardId, { printing, rank: score, order: order++ });
+    } else if (score < existing.rank) {
+      // A later printing can outrank the first (its code matched, say). Keep
+      // the card's first-seen position, though — upgrading `order` too would
+      // sort the card behind cards discovered after it within the same bucket.
+      bestByCard.set(printing.cardId, { printing, rank: score, order: existing.order });
     }
   }
 

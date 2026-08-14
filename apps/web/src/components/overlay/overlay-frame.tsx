@@ -1,9 +1,11 @@
 import type { OverlayCorner, OverlayPayload, Printing } from "@openrift/shared";
 import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { useEffect, useState } from "react";
 
 import { QrCode } from "@/components/ui/qr-code";
 import { formatPublicCode } from "@/lib/format";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,8 +19,14 @@ const CORNER_CLASSES: Record<OverlayCorner, string> = {
   "bottom-right": "items-end justify-end",
 };
 
-/** How long the card takes to slide in or out. Slow enough to read as deliberate on video. */
-const TRANSITION_MS = 420;
+/**
+ * The slide's transform/opacity transition — 420ms, slow enough to read as
+ * deliberate on video. A class rather than an inline `style` so that
+ * `motion-reduce:transition-none` can actually override it (inline styles
+ * outrank any class).
+ */
+const TRANSITION_CLASS =
+  "[transition:transform_420ms_cubic-bezier(0.2,0.9,0.25,1),opacity_294ms_ease] motion-reduce:transition-none";
 
 /**
  * The card art, sized by height so the frame's `scale` setting means what it
@@ -71,9 +79,11 @@ function OverlayPlate({
   deckShareUrl: string | null;
 }) {
   const { card } = printing;
+  // Only null means "this card has no such stat" — 0 is a real value (0-cost
+  // cards exist) and still gets its chip.
   const stats = [
-    card.energy !== null && card.energy > 0 ? { label: "Energy", value: card.energy } : null,
-    card.power !== null && card.power > 0 ? { label: "Power", value: card.power } : null,
+    card.energy === null ? null : { label: "Energy", value: card.energy },
+    card.power === null ? null : { label: "Power", value: card.power },
     card.might === null ? null : { label: "Might", value: card.might },
   ].filter((stat): stat is { label: string; value: number } => stat !== null);
 
@@ -108,7 +118,9 @@ function OverlayPlate({
         {/* Attribution, deliberately small and beside the art rather than
             across it — a watermark over card art is exactly what we said we
             would not do. */}
-        <span className="pb-1 font-mono text-sm tracking-widest text-white/45">openrift.app</span>
+        <span className="pb-1 font-mono text-sm tracking-widest text-white/45">
+          {new URL(getSiteUrl()).host}
+        </span>
       </div>
     </div>
   );
@@ -137,7 +149,47 @@ export function OverlayFrame({
   printing: Printing | undefined;
   className?: string;
 }) {
-  const visible = payload.printingId !== null && printing !== undefined;
+  // What the frame actually paints. It lags `printing` on purpose, twice over:
+  // on a swap it keeps the previous card up until the next card's art has
+  // decoded (so a live stream never shows an empty slot mid-download), and on
+  // a clear it keeps the last card so the slide-out animates a card rather
+  // than an empty box.
+  const [displayed, setDisplayed] = useState<Printing | undefined>();
+
+  useEffect(() => {
+    if (!printing || printing === displayed) {
+      return;
+    }
+    const image = printing.images[0];
+    if (!image) {
+      // No art to wait for — the text fallback renders immediately.
+      setDisplayed(printing);
+      return;
+    }
+    let cancelled = false;
+    const loader = new Image();
+    loader.src = imageUrl(image.imageId, "full");
+    const swapWhenDecoded = async () => {
+      try {
+        await loader.decode();
+      } catch {
+        // decode() rejects for undecodable images; the swap still has to
+        // happen, or the overlay wedges on the previous card.
+      }
+      if (!cancelled) {
+        setDisplayed(printing);
+      }
+    };
+    void swapWhenDecoded();
+    return () => {
+      cancelled = true;
+    };
+  }, [printing, displayed]);
+
+  // Hidden until the pushed card is ready (so the slide-in starts with art in
+  // hand), and hidden again the moment the push is cleared or unresolvable
+  // (the retained `displayed` card is what slides out).
+  const visible = payload.printingId !== null && printing !== undefined && displayed !== undefined;
   // Slides out toward the edge it came from, so an exit reads as the card
   // leaving the scene rather than shrinking away in place.
   const hiddenOffset = payload.corner.endsWith("left")
@@ -154,19 +206,17 @@ export function OverlayFrame({
     >
       <div
         className={cn(
-          "flex items-end gap-5 motion-reduce:transition-none",
+          "flex items-end gap-5",
+          TRANSITION_CLASS,
           visible ? "translate-x-0 opacity-100" : cn(hiddenOffset, "opacity-0"),
         )}
-        style={{
-          height: `${payload.scale}%`,
-          transition: `transform ${TRANSITION_MS}ms cubic-bezier(0.2, 0.9, 0.25, 1), opacity ${Math.round(TRANSITION_MS * 0.7)}ms ease`,
-        }}
+        style={{ height: `${payload.scale}%` }}
       >
-        {printing && (
+        {displayed && (
           <>
-            <OverlayCardArt printing={printing} />
+            <OverlayCardArt printing={displayed} />
             {payload.showPlate && (
-              <OverlayPlate printing={printing} deckShareUrl={payload.deckShareUrl} />
+              <OverlayPlate printing={displayed} deckShareUrl={payload.deckShareUrl} />
             )}
           </>
         )}

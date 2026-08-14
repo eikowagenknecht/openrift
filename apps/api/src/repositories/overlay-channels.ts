@@ -15,11 +15,18 @@ export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "
 /**
  * postgres.js under Bun hands jsonb back as a string, so every read goes
  * through `parseJsonbRequired` — the column is NOT NULL, so there is no null
- * branch to fall back from.
- * @returns The row with a parsed payload.
+ * branch to fall back from. `version` is an int8, which postgres.js also
+ * returns as a string (it only registers number parsers for the 4-byte-and-
+ * smaller numeric OIDs), so it is coerced here despite the row type saying
+ * `number`.
+ * @returns The row with a parsed payload and a numeric version.
  */
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
-  return { ...row, payload: parseJsonbRequired<OverlayPayload>(row.payload) };
+  return {
+    ...row,
+    payload: parseJsonbRequired<OverlayPayload>(row.payload),
+    version: Number(row.version),
+  };
 }
 
 /**

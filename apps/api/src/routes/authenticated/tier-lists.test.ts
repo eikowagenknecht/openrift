@@ -176,6 +176,18 @@ describe("POST /tier-lists", () => {
 
     expect(status).toBe(400);
   });
+
+  it("rejects a whitespace-only title as a validation error, not a DB error", async () => {
+    // Regression: the contract used to validate before trimming, so "   "
+    // passed min(1), trimmed to "", and hit the DB's not-empty check as a 500.
+    const { status } = await request("/tier-lists", {
+      method: "POST",
+      body: JSON.stringify({ title: "   " }),
+    });
+
+    expect(status).toBe(400);
+    expect(mockTierListsRepo.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /tier-lists/{id}", () => {
@@ -205,6 +217,16 @@ describe("PATCH /tier-lists/{id}", () => {
     expect(mockTierListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
       tiers: [{ label: "S", cardIds: [] }],
     });
+  });
+
+  it("rejects a whitespace-only row label", async () => {
+    const { status } = await request(`/tier-lists/${LIST_ID}`, {
+      method: "PATCH",
+      body: JSON.stringify({ tiers: [{ label: "   ", cardIds: [] }] }),
+    });
+
+    expect(status).toBe(400);
+    expect(mockTierListsRepo.update).not.toHaveBeenCalled();
   });
 
   it("returns the current state without writing when nothing was sent", async () => {
@@ -252,15 +274,6 @@ describe("DELETE /tier-lists/{id}", () => {
 });
 
 describe("sharing", () => {
-  it("reports an owned but unshared list rather than 404ing", async () => {
-    mockTierListsRepo.getShareState.mockResolvedValue({ shareToken: null, isPublic: false });
-
-    const { status, body } = await request(`/tier-lists/${LIST_ID}/share`);
-
-    expect(status).toBe(200);
-    expect(body).toEqual({ shareToken: null, isPublic: false });
-  });
-
   it("mints a token the first time a list is shared", async () => {
     mockTierListsRepo.getShareState.mockResolvedValue({ shareToken: null, isPublic: false });
     mockTierListsRepo.setShare.mockResolvedValue({ shareToken: "token", isPublic: true });

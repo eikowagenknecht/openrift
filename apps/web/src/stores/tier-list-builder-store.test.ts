@@ -1,5 +1,9 @@
 import type { TierRow } from "@openrift/shared";
-import { MAX_TIER_ROWS } from "@openrift/shared/contracts/tier-lists";
+import {
+  MAX_CARDS_PER_TIER,
+  MAX_TIER_LIST_CARDS,
+  MAX_TIER_ROWS,
+} from "@openrift/shared/contracts/tier-lists";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
@@ -60,6 +64,46 @@ describe("load", () => {
     expect(state().listId).toBe("list-2");
     expect(state().rows).toHaveLength(1);
     expect([...state().rowIndexByCardId.keys()]).toEqual(["card-9"]);
+  });
+});
+
+describe("assign caps", () => {
+  /** @returns `count` distinct card ids with the given prefix. */
+  function ids(prefix: string, count: number): string[] {
+    return Array.from({ length: count }, (_unused, index) => `${prefix}-${index}`);
+  }
+
+  it("refuses to grow a row past the per-tier cap", () => {
+    state().load("list-caps", [
+      { label: "S", cardIds: ids("full", MAX_CARDS_PER_TIER) },
+      { label: "A", cardIds: [] },
+    ]);
+    state().assign("card-9", 0);
+    expect(rowsByLabel().S).toHaveLength(MAX_CARDS_PER_TIER);
+    expect(state().dirty).toBe(false);
+  });
+
+  it("still allows reordering within a full row", () => {
+    state().load("list-caps", [{ label: "S", cardIds: ids("full", MAX_CARDS_PER_TIER) }]);
+    state().assign(`full-${MAX_CARDS_PER_TIER - 1}`, 0, 0);
+    expect(rowsByLabel().S?.[0]).toBe(`full-${MAX_CARDS_PER_TIER - 1}`);
+    expect(rowsByLabel().S).toHaveLength(MAX_CARDS_PER_TIER);
+  });
+
+  it("refuses to grow the board past the total cap, while still allowing moves", () => {
+    // 400 + 400 + 200 = the total cap, with the target row far under its own cap.
+    state().load("list-total", [
+      { label: "S", cardIds: ids("a", MAX_CARDS_PER_TIER) },
+      { label: "A", cardIds: ids("b", MAX_CARDS_PER_TIER) },
+      { label: "B", cardIds: ids("c", MAX_TIER_LIST_CARDS - 2 * MAX_CARDS_PER_TIER) },
+    ]);
+    state().assign("card-9", 2);
+    expect(rowsByLabel().B).toHaveLength(MAX_TIER_LIST_CARDS - 2 * MAX_CARDS_PER_TIER);
+
+    // Moving a card already on the board doesn't change the total, so it stays legal.
+    state().assign("a-0", 2);
+    expect(rowsByLabel().B).toHaveLength(MAX_TIER_LIST_CARDS - 2 * MAX_CARDS_PER_TIER + 1);
+    expect(rowsByLabel().S).toHaveLength(MAX_CARDS_PER_TIER - 1);
   });
 });
 
@@ -250,9 +294,19 @@ describe("moveRow", () => {
 describe("markSaved and reset", () => {
   it("clears dirty while keeping the board", () => {
     state().assign("card-9", 0);
-    state().markSaved();
+    state().markSaved(state().rows);
     expect(state().dirty).toBe(false);
     expect(state().rowIndexByCardId.get("card-9")).toBe(0);
+  });
+
+  it("keeps the board dirty when it changed after the save snapshot", () => {
+    state().assign("card-9", 0);
+    const snapshot = state().rows;
+    // A drag lands while the save is in flight…
+    state().assign("card-10", 1);
+    // …so the save's success must not mark the newer edit as saved.
+    state().markSaved(snapshot);
+    expect(state().dirty).toBe(true);
   });
 
   it("drops the draft entirely", () => {

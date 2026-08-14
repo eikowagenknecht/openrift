@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { EyeOffIcon, PlayIcon } from "lucide-react";
-import { useState } from "react";
 
 import {
   PageDescription,
@@ -78,12 +78,29 @@ function LivePreview({
  *
  * @returns The overlay dashboard.
  */
+const route = getRouteApi("/_app/_authenticated/overlay");
+
+/** The stable empty queue, so an absent `cards` param isn't a fresh array per render. */
+const NO_QUEUE: string[] = [];
+
 export function OverlayDashboard() {
   const { data: channel } = useOverlayChannel();
   const { printingsById } = useCards();
   const pushCard = usePushOverlayCard();
   const clearOverlay = useClearOverlay();
-  const [queue, setQueue] = useState<string[]>([]);
+  const { cards } = route.useSearch();
+  const navigate = useNavigate();
+
+  const queue = cards ?? NO_QUEUE;
+  const setQueue = (ids: string[]) => {
+    // The queue lives in the URL (see the route's search schema) so it
+    // survives reloads; `replace` keeps edits from stacking history entries.
+    void navigate({
+      to: "/overlay",
+      search: (prev) => ({ ...prev, cards: ids.length > 0 ? ids : undefined }),
+      replace: true,
+    });
+  };
 
   const pushButton = (printing: Printing) => (
     <Button

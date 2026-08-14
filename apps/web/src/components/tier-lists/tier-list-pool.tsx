@@ -1,5 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { Printing } from "@openrift/shared";
+import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -14,7 +15,6 @@ import { CardStrip } from "@/components/cards/card-strip";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
-import { TIER_LABEL_INK, tierColor } from "@/components/tier-lists/tier-colors";
 import type { PoolCardDragData } from "@/components/tier-lists/tier-list-dnd-types";
 import { TierPicker } from "@/components/tier-lists/tier-picker";
 import { CountPillButton } from "@/components/ui/count-pill";
@@ -109,6 +109,14 @@ export function TierListPool() {
     }
   };
 
+  // Rebuilds the pool cell's rank pill for the card shown in the detail pane,
+  // drawer or modal — the overlay must never hide the control it covers. On a
+  // phone the drawer is the whole interaction surface, so without this a card
+  // could not be ranked from its own detail view.
+  const poolDetailActions = (printing: Printing) => (
+    <PoolCardStrip cardId={printing.cardId} cardName={printing.card.name} />
+  );
+
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
     <PoolCardCell
       item={item}
@@ -156,6 +164,7 @@ export function TierListPool() {
                 printingsByCardId={detailPanePrintingsByCardId}
                 showImages={showImages}
                 onSearchAndClose={handleSearchAndClose}
+                actions={poolDetailActions}
               />
             )
           }
@@ -166,6 +175,7 @@ export function TierListPool() {
             printingsByCardId={detailPanePrintingsByCardId}
             showImages={showImages}
             onSearchAndClose={handleSearchAndClose}
+            actions={poolDetailActions}
           />
         </CardViewer>
       </div>
@@ -203,6 +213,7 @@ function PoolCardCell({
 }: PoolCardCellProps) {
   const cardId = item.printing.cardId;
   const rowIndex = useTierListBuilderStore((state) => state.rowIndexByCardId.get(cardId) ?? null);
+  const isMobile = useIsMobile();
 
   const dragData: PoolCardDragData = { type: "tier-pool-card", cardId };
   // Destructure before JSX: member access on the hook's return object in render
@@ -210,6 +221,7 @@ function PoolCardCell({
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `tier-pool-card-${cardId}`,
     data: dragData,
+    disabled: isMobile,
   });
 
   return (
@@ -225,15 +237,20 @@ function PoolCardCell({
       dimmed={rowIndex !== null}
       strip={<PoolCardStrip cardId={cardId} cardName={item.printing.card.name} />}
       wrap={
-        <div
-          ref={setNodeRef}
-          {...listeners}
-          {...attributes}
-          // The PointerSensor needs the browser to keep sending pointer events;
-          // the default touch-action would pan the grid instead.
-          className="touch-none"
-          style={isDragging ? { opacity: 0.4 } : undefined}
-        />
+        // On touch, no draggable wrap at all (same as DraggableCard): ranking
+        // goes through the pill, and the wrap's `touch-none` would make the
+        // whole grid impossible to pan from a card.
+        isMobile ? undefined : (
+          <div
+            ref={setNodeRef}
+            {...listeners}
+            {...attributes}
+            // The PointerSensor needs the browser to keep sending pointer events;
+            // the default touch-action would pan the grid instead.
+            className="touch-none"
+            style={isDragging ? { opacity: 0.4 } : undefined}
+          />
+        )
       }
     />
   );

@@ -8,11 +8,12 @@ import { getSiteUrl } from "@/lib/site-config";
 export const Route = createFileRoute("/overlay_/$token")({
   // Never indexed: the token in the path is the only thing guarding the
   // channel, so this URL must not end up in a search result.
+  // No `path`: a canonical URL would have to contain the token, and the page
+  // is noindexed anyway.
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
       title: "Stream overlay",
-      path: "/overlay",
       noIndex: true,
     }),
   loader: async ({ context }) => {

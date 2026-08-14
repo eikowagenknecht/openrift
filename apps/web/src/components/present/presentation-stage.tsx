@@ -31,6 +31,46 @@ const KEY_HELP: { keys: string[]; what: string }[] = [
 ];
 
 /**
+ * The keyboard cheat sheet, toggled with `?`.
+ * @returns The help sheet overlay.
+ */
+function PresentationHelpSheet() {
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center pb-8">
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2 rounded-lg bg-black/80 px-6 py-5 backdrop-blur-sm">
+        {KEY_HELP.map((row) => (
+          <div key={row.what} className="contents">
+            <dt className="flex justify-end gap-1">
+              {row.keys.map((key) => (
+                <Kbd key={key}>{key}</Kbd>
+              ))}
+            </dt>
+            <dd className="text-sm text-white/70">{row.what}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/**
+ * The rules-text side panel, toggled with `T`.
+ * @returns The name, code, stats and text beside the card.
+ */
+function PresentationTextPanel({ printing }: { printing: CardViewerItem["printing"] }) {
+  return (
+    <div className="flex max-w-lg min-w-0 flex-col gap-4 self-center">
+      <h1 className="text-3xl font-semibold text-balance">{legendDisplayName(printing.card)}</h1>
+      <div className="font-mono text-sm tracking-wider text-white/50 uppercase">
+        {formatPublicCode(printing)}
+      </div>
+      <CardDetailStats printing={printing} />
+      <CardDetailText printing={printing} />
+    </div>
+  );
+}
+
+/**
  * The chrome-free card display: one card filling the frame on a near-black
  * ground, with the rules panel and thumbnail strip as keyboard-toggled layers
  * over it.
@@ -157,37 +197,13 @@ export function PresentationStage({
           <CardDetailArt printing={current.printing} showImages />
         </div>
 
-        {showText && (
-          <div className="flex max-w-lg min-w-0 flex-col gap-4 self-center">
-            <h1 className="text-3xl font-semibold text-balance">
-              {legendDisplayName(current.printing.card)}
-            </h1>
-            <div className="font-mono text-sm tracking-wider text-white/50 uppercase">
-              {formatPublicCode(current.printing)}
-            </div>
-            <CardDetailStats printing={current.printing} />
-            <CardDetailText printing={current.printing} />
-          </div>
-        )}
+        {showText && <PresentationTextPanel printing={current.printing} />}
       </div>
 
       {showStrip && <PresentationFilmstrip items={items} index={index} onSelect={onIndexChange} />}
 
       {showHelp ? (
-        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center pb-8">
-          <dl className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2 rounded-lg bg-black/80 px-6 py-5 backdrop-blur-sm">
-            {KEY_HELP.map((row) => (
-              <div key={row.what} className="contents">
-                <dt className="flex justify-end gap-1">
-                  {row.keys.map((key) => (
-                    <Kbd key={key}>{key}</Kbd>
-                  ))}
-                </dt>
-                <dd className="text-sm text-white/70">{row.what}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+        <PresentationHelpSheet />
       ) : (
         <div
           className={cn(

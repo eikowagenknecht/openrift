@@ -14,7 +14,6 @@ export interface PoolCardDragData {
 export interface BoardCardDragData {
   type: "tier-board-card";
   cardId: string;
-  fromRowIndex: number;
 }
 
 export type TierListDragData = PoolCardDragData | BoardCardDragData;

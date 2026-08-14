@@ -20,7 +20,9 @@ export const MAX_TIER_LIST_CARDS = 1000;
 export const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"] as const;
 
 export const tierRowSchema = z.object({
-  label: z.string().min(1).max(24),
+  // Trim before min(1): a whitespace-only label must fail validation here,
+  // not surface later as a DB constraint violation.
+  label: z.string().trim().min(1).max(24),
   cardIds: z.array(z.uuid()).max(MAX_CARDS_PER_TIER),
 });
 
@@ -43,7 +45,8 @@ export const tiersSchema = z
   }, "A card can only sit in one tier");
 
 const tierListFieldRules = {
-  title: z.string().min(1).max(120),
+  // Trim before min(1), same as the row label above.
+  title: z.string().trim().min(1).max(120),
   description: z.string().max(2000),
 };
 
@@ -153,11 +156,6 @@ export const tierListsContract = {
     })
     .input(idParamSchema)
     .errors(NOT_FOUND),
-  getShare: authedRoute
-    .route({ method: "GET", path: "/api/v1/tier-lists/{id}/share", tags: [TAG] })
-    .input(idParamSchema)
-    .errors(NOT_FOUND)
-    .output(tierListShareResponseSchema),
   share: authedRoute
     .route({ method: "POST", path: "/api/v1/tier-lists/{id}/share", tags: [TAG] })
     .input(idParamSchema)

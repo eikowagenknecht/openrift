@@ -2,7 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { ChevronDownIcon, ChevronUpIcon, SearchIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
@@ -40,6 +40,111 @@ function QueueThumb({ printing }: { printing: Printing }) {
 }
 
 /**
+ * The result rows under the search box.
+ * @returns The scrollable result panel.
+ */
+function QueueSearchResults({
+  results,
+  isFull,
+  onAdd,
+  resultAction,
+}: {
+  results: readonly Printing[];
+  isFull: boolean;
+  onAdd: (printing: Printing) => void;
+  resultAction?: (printing: Printing) => ReactNode;
+}) {
+  return (
+    <div className="border-border max-h-72 overflow-y-auto rounded-md border">
+      {results.length === 0 ? (
+        <p className="text-muted-foreground p-3 text-sm">No cards match that.</p>
+      ) : (
+        <ul>
+          {results.map((printing) => (
+            <li key={printing.id} className="hover:bg-accent/50 flex items-center gap-1 pr-2">
+              <Pressable
+                onClick={() => onAdd(printing)}
+                disabled={isFull}
+                className="flex min-w-0 flex-1 items-center gap-3 p-2 disabled:opacity-50"
+              >
+                <QueueThumb printing={printing} />
+                <span className="min-w-0 flex-1 truncate">{legendDisplayName(printing.card)}</span>
+                <span className="text-muted-foreground font-mono text-sm">
+                  {formatPublicCode(printing)}
+                </span>
+              </Pressable>
+              {resultAction?.(printing)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The assembled queue, with move and remove controls per row.
+ * @returns The ordered queue list.
+ */
+function QueueList({
+  ids,
+  printingsById,
+  onChange,
+  rowAction,
+}: {
+  ids: readonly string[];
+  printingsById: Record<string, Printing | undefined>;
+  onChange: (ids: string[]) => void;
+  rowAction?: (printing: Printing, index: number) => ReactNode;
+}) {
+  return (
+    <ol className="flex flex-col gap-1">
+      {ids.map((id, index) => {
+        const printing = printingsById[id];
+        if (!printing) {
+          return null;
+        }
+        return (
+          <li
+            key={`${id}-${index}`}
+            className="bg-card ring-border flex items-center gap-3 rounded-md p-2 ring-1"
+          >
+            <span className="text-muted-foreground w-6 shrink-0 text-center font-mono text-sm tabular-nums">
+              {index + 1}
+            </span>
+            <QueueThumb printing={printing} />
+            <span className="min-w-0 flex-1 truncate">{legendDisplayName(printing.card)}</span>
+            {rowAction?.(printing, index)}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onChange(moveQueueEntry(ids, index, -1))}
+              disabled={index === 0}
+              aria-label={`Move ${printing.card.name} earlier`}
+            >
+              <ChevronUpIcon className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onChange(moveQueueEntry(ids, index, 1))}
+              disabled={index === ids.length - 1}
+              aria-label={`Move ${printing.card.name} later`}
+            >
+              <ChevronDownIcon className="size-4" />
+            </Button>
+            <ChipRemoveButton
+              onClick={() => onChange(ids.filter((_unused, at) => at !== index))}
+              aria-label={`Remove ${printing.card.name} from the queue`}
+            />
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/**
  * Search-and-queue editor shared by presentation mode and the overlay
  * dashboard: a name/code search at the top, results below as full-width rows,
  * and the assembled queue underneath with move and remove controls.
@@ -72,8 +177,11 @@ export function CardQueueEditor({
 }) {
   const { allPrintings, printingsById } = useCards();
   const [query, setQuery] = useState("");
+  // Deferred so a keystroke paints the input immediately; the whole-catalog
+  // scan and the result-row rerender ride the lower-priority pass.
+  const deferredQuery = useDeferredValue(query);
 
-  const results = searchPrintingsByName(query, allPrintings);
+  const results = searchPrintingsByName(deferredQuery, allPrintings);
   const isFull = ids.length >= MAX_QUEUE_LENGTH;
 
   const add = (printing: Printing) => {
@@ -98,33 +206,13 @@ export function CardQueueEditor({
         />
       </div>
 
-      {query.trim() !== "" && (
-        <div className="border-border max-h-72 overflow-y-auto rounded-md border">
-          {results.length === 0 ? (
-            <p className="text-muted-foreground p-3 text-sm">No cards match that.</p>
-          ) : (
-            <ul>
-              {results.map((printing) => (
-                <li key={printing.id} className="hover:bg-accent/50 flex items-center gap-1 pr-2">
-                  <Pressable
-                    onClick={() => add(printing)}
-                    disabled={isFull}
-                    className="flex min-w-0 flex-1 items-center gap-3 p-2 disabled:opacity-50"
-                  >
-                    <QueueThumb printing={printing} />
-                    <span className="min-w-0 flex-1 truncate">
-                      {legendDisplayName(printing.card)}
-                    </span>
-                    <span className="text-muted-foreground font-mono text-sm">
-                      {formatPublicCode(printing)}
-                    </span>
-                  </Pressable>
-                  {resultAction?.(printing)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {deferredQuery.trim() !== "" && (
+        <QueueSearchResults
+          results={results}
+          isFull={isFull}
+          onAdd={add}
+          resultAction={resultAction}
+        />
       )}
 
       {isFull && (
@@ -139,49 +227,12 @@ export function CardQueueEditor({
           want to show them.
         </p>
       ) : (
-        <ol className="flex flex-col gap-1">
-          {ids.map((id, index) => {
-            const printing = printingsById[id];
-            if (!printing) {
-              return null;
-            }
-            return (
-              <li
-                key={`${id}-${index}`}
-                className="bg-card ring-border flex items-center gap-3 rounded-md p-2 ring-1"
-              >
-                <span className="text-muted-foreground w-6 shrink-0 text-center font-mono text-sm tabular-nums">
-                  {index + 1}
-                </span>
-                <QueueThumb printing={printing} />
-                <span className="min-w-0 flex-1 truncate">{legendDisplayName(printing.card)}</span>
-                {rowAction?.(printing, index)}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => onChange(moveQueueEntry(ids, index, -1))}
-                  disabled={index === 0}
-                  aria-label={`Move ${printing.card.name} earlier`}
-                >
-                  <ChevronUpIcon className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => onChange(moveQueueEntry(ids, index, 1))}
-                  disabled={index === ids.length - 1}
-                  aria-label={`Move ${printing.card.name} later`}
-                >
-                  <ChevronDownIcon className="size-4" />
-                </Button>
-                <ChipRemoveButton
-                  onClick={() => onChange(ids.filter((_unused, at) => at !== index))}
-                  aria-label={`Remove ${printing.card.name} from the queue`}
-                />
-              </li>
-            );
-          })}
-        </ol>
+        <QueueList
+          ids={ids}
+          printingsById={printingsById}
+          onChange={onChange}
+          rowAction={rowAction}
+        />
       )}
     </div>
   );

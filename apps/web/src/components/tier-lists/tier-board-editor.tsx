@@ -8,6 +8,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import { useState } from "react";
 
 import { resolveTierRows, TierRowFrame } from "@/components/tier-lists/tier-board";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
@@ -17,6 +18,7 @@ import type {
   TierCardDropData,
   TierRowDropData,
 } from "@/components/tier-lists/tier-list-dnd-types";
+import { TierPicker } from "@/components/tier-lists/tier-picker";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,11 +38,9 @@ interface TierBoardEditorProps {
   cardsById: Record<string, Card>;
   printingsByCardId: Map<string, Printing[]>;
   /**
-   * Tap handler for touch, where dragging is off. Opens the tier picker so a
-   * card can be moved or unranked without a drag.
+   * True on touch: drag is disabled and each tile opens the tier picker
+   * instead, so a card can be moved or unranked without a drag.
    */
-  onCardTap?: (view: TierCardView) => void;
-  /** True on touch: drag is disabled and tiles become tap targets instead. */
   tapToAssign: boolean;
 }
 
@@ -58,7 +58,6 @@ interface TierBoardEditorProps {
 export function TierBoardEditor({
   cardsById,
   printingsByCardId,
-  onCardTap,
   tapToAssign,
 }: TierBoardEditorProps) {
   const rows = useTierListBuilderStore((state) => state.rows);
@@ -74,7 +73,6 @@ export function TierBoardEditor({
           label={row.label}
           cards={row.cards}
           rowCount={resolved.length}
-          onCardTap={onCardTap}
           tapToAssign={tapToAssign}
         />
       ))}
@@ -93,18 +91,10 @@ interface EditableTierRowProps {
   label: string;
   cards: TierCardView[];
   rowCount: number;
-  onCardTap?: (view: TierCardView) => void;
   tapToAssign: boolean;
 }
 
-function EditableTierRow({
-  rowIndex,
-  label,
-  cards,
-  rowCount,
-  onCardTap,
-  tapToAssign,
-}: EditableTierRowProps) {
+function EditableTierRow({ rowIndex, label, cards, rowCount, tapToAssign }: EditableTierRowProps) {
   const renameRow = useTierListBuilderStore((state) => state.renameRow);
   const removeRow = useTierListBuilderStore((state) => state.removeRow);
   const moveRow = useTierListBuilderStore((state) => state.moveRow);
@@ -176,7 +166,6 @@ function EditableTierRow({
               view={view}
               rowIndex={rowIndex}
               position={position}
-              onTap={onCardTap}
               tapToAssign={tapToAssign}
             />
           ))
@@ -190,23 +179,31 @@ interface BoardCardProps {
   view: TierCardView;
   rowIndex: number;
   position: number;
-  onTap?: (view: TierCardView) => void;
   tapToAssign: boolean;
 }
 
 /**
  * A card sitting on the board. Both a drag source and a drop target: dropping
- * another card over it inserts before it, which is how a row gets ordered.
+ * another card over it inserts before it, which is how a row gets ordered. In
+ * tap-to-assign mode the tile opens the tier picker instead, same as the pool
+ * cell's pill.
  *
  * @returns The board card node.
  */
-function BoardCard({ view, rowIndex, position, onTap, tapToAssign }: BoardCardProps) {
+function BoardCard({ view, rowIndex, position, tapToAssign }: BoardCardProps) {
   const dragData: BoardCardDragData = {
     type: "tier-board-card",
     cardId: view.cardId,
-    fromRowIndex: rowIndex,
   };
   const dropData: TierCardDropData = { type: "tier-card", cardId: view.cardId, rowIndex, position };
+
+  // Labels captured at open, not subscribed — see PoolCardStrip for why.
+  const [picker, setPicker] = useState<{ open: boolean; labels: string[] }>({
+    open: false,
+    labels: [],
+  });
+  const assign = useTierListBuilderStore((state) => state.assign);
+  const unassign = useTierListBuilderStore((state) => state.unassign);
 
   // Destructure both hook returns into locals before JSX: member access on a
   // dnd-kit hook's return object in render makes the React Compiler bail with a
@@ -229,13 +226,25 @@ function BoardCard({ view, rowIndex, position, onTap, tapToAssign }: BoardCardPr
 
   if (tapToAssign) {
     return (
-      <Pressable
-        aria-label={`Move ${view.card.name}`}
-        className="rounded-sm"
-        onClick={() => onTap?.(view)}
-      >
-        <TierCardTile view={view} />
-      </Pressable>
+      <TierPicker
+        labels={picker.labels}
+        cardName={view.card.name}
+        currentRowIndex={rowIndex}
+        onPick={(target) => assign(view.cardId, target)}
+        onUnrank={() => unassign(view.cardId)}
+        open={picker.open}
+        onOpenChange={(open) => {
+          setPicker({
+            open,
+            labels: open ? useTierListBuilderStore.getState().rows.map((row) => row.label) : [],
+          });
+        }}
+        trigger={
+          <Pressable aria-label={`Move ${view.card.name}`} className="rounded-sm">
+            <TierCardTile view={view} />
+          </Pressable>
+        }
+      />
     );
   }
 

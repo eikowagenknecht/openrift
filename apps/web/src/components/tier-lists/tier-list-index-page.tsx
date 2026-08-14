@@ -1,5 +1,5 @@
 import type { TierListSummaryResponse } from "@openrift/shared";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { EllipsisVerticalIcon, LayersIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -8,7 +8,6 @@ import {
   PageDescription,
   PageTopBar,
   PageTopBarActions,
-  PageTopBarIconButton,
   PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
@@ -97,7 +96,6 @@ export function TierListIndexPage() {
 
 function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
   const { cardsById, printingsByCardId } = useCards();
-  const navigate = useNavigate();
   const deleteTierList = useDeleteTierList();
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -127,7 +125,9 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
         {tierList.isPublic && tierList.shareToken && <Badge variant="outline">Shared</Badge>}
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<PageTopBarIconButton aria-label={`${tierList.title} options`} />}
+            render={
+              <Button variant="ghost" size="icon-sm" aria-label={`${tierList.title} options`} />
+            }
           >
             <EllipsisVerticalIcon className="size-4" />
           </DropdownMenuTrigger>
@@ -172,9 +172,9 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                deleteTierList.mutate(tierList.id, {
-                  onSuccess: () => void navigate({ to: "/tier-lists" }),
-                });
+                // No navigation on success: this page *is* /tier-lists, and the
+                // mutation's invalidation refreshes the listing.
+                deleteTierList.mutate(tierList.id);
               }}
               disabled={deleteTierList.isPending}
             >

@@ -110,7 +110,6 @@ export const queryKeys = {
   tierLists: {
     all: (userId: string) => ["tier-lists", userId] as const,
     detail: (userId: string, id: string) => ["tier-lists", userId, id] as const,
-    share: (userId: string, id: string) => ["tier-lists", userId, id, "share"] as const,
     publicByToken: (token: string) => ["tier-lists", "share", token] as const,
   },
   lists: {

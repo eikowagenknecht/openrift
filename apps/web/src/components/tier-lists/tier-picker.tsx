@@ -1,8 +1,8 @@
+import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
 import { CornerUpLeftIcon } from "lucide-react";
 import type { MouseEvent, ReactElement } from "react";
 import { cloneElement } from "react";
 
-import { TIER_LABEL_INK, tierColor } from "@/components/tier-lists/tier-colors";
 import {
   Drawer,
   DrawerContent,
