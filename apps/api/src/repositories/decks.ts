@@ -233,23 +233,34 @@ export function decksRepo(db: Kysely<Database>) {
      */
     deleteByIdForUser(id: string, userId: string): Promise<{ numDeletedRows: bigint }> {
       return db.transaction().execute(async (trx) => {
-        const deleted = await trx
-          .deleteFrom("decks")
+        const target = await trx
+          .selectFrom("decks")
+          .select(["familyId", "isPrimary"])
           .where("id", "=", id)
           .where("userId", "=", userId)
-          .returning(["familyId", "isPrimary"])
+          .forUpdate()
           .executeTakeFirst();
-        if (!deleted) {
+        if (!target) {
           return { numDeletedRows: 0n };
         }
-        if (deleted.familyId) {
-          const survivors = await trx
-            .selectFrom("decks")
-            .select(["id", "isPrimary"])
-            .where("familyId", "=", deleted.familyId)
-            .where("userId", "=", userId)
-            .orderBy("updatedAt", "desc")
-            .execute();
+        // Read the recency order before the delete, not after: the FK detaching
+        // the predecessor pointers is an UPDATE, and the updated_at trigger
+        // stamps every touched survivor with the same transaction timestamp.
+        // Ordering afterwards would therefore be a tie broken at random.
+        const survivors = target.familyId
+          ? await trx
+              .selectFrom("decks")
+              .select(["id", "isPrimary"])
+              .where("familyId", "=", target.familyId)
+              .where("userId", "=", userId)
+              .where("id", "!=", id)
+              .orderBy("updatedAt", "desc")
+              .execute()
+          : [];
+
+        await trx.deleteFrom("decks").where("id", "=", id).where("userId", "=", userId).execute();
+
+        if (target.familyId) {
           if (survivors.length === 1) {
             // A family of one is no family.
             await trx
@@ -257,7 +268,7 @@ export function decksRepo(db: Kysely<Database>) {
               .set({ familyId: null, isPrimary: false, predecessorDeckId: null })
               .where("id", "=", survivors[0].id)
               .execute();
-          } else if (deleted.isPrimary && survivors.length > 1) {
+          } else if (target.isPrimary && survivors.length > 1) {
             await trx
               .updateTable("decks")
               .set({ isPrimary: true })
@@ -713,6 +724,19 @@ export function decksRepo(db: Kysely<Database>) {
           return "no-family" as const;
         }
 
+        // Read the recency order before anything writes: the splice below is an
+        // UPDATE, and the updated_at trigger stamps every row it touches with
+        // the same transaction timestamp. Ordering afterwards would put the
+        // spliced rows in a tie broken at random.
+        const survivors = await trx
+          .selectFrom("decks")
+          .select(["id", "isPrimary"])
+          .where("familyId", "=", departing.familyId)
+          .where("userId", "=", userId)
+          .where("id", "!=", id)
+          .orderBy("updatedAt", "desc")
+          .execute();
+
         // Splice the chain: B -> A -> C becomes B -> C when A leaves.
         await trx
           .updateTable("decks")
@@ -730,13 +754,6 @@ export function decksRepo(db: Kysely<Database>) {
           .where("id", "=", id)
           .execute();
 
-        const survivors = await trx
-          .selectFrom("decks")
-          .select(["id", "isPrimary"])
-          .where("familyId", "=", departing.familyId)
-          .where("userId", "=", userId)
-          .orderBy("updatedAt", "desc")
-          .execute();
         const [newest] = survivors;
         if (newest && survivors.length === 1) {
           // A family of one is no family.

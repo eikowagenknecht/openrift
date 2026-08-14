@@ -40,20 +40,20 @@ import type { CardNameIndex } from "./candidate-links.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
 /** `{ externalId, name }` of an event the upload created or changed. */
-export interface MetaIngestEventDetail {
+interface MetaIngestEventDetail {
   externalId: string;
   name: string;
 }
 
 /** A candidate deck the upload dropped because its event no longer lists it. */
-export interface MetaIngestDeckDetail {
+interface MetaIngestDeckDetail {
   eventExternalId: string;
   externalId: string;
   playerName: string;
 }
 
 /** Card names in one deck that matched no live card, so it cannot be accepted yet. */
-export interface MetaIngestUnresolvedCards {
+interface MetaIngestUnresolvedCards {
   eventExternalId: string;
   deckExternalId: string;
   names: string[];

@@ -195,15 +195,13 @@ describe.skipIf(!ctx)("metaRepo", () => {
       ).rejects.toThrow();
     });
 
-    it("rejects a finish tier above the bound", async () => {
+    it("rejects a finish tier below the bound", async () => {
       const eventId = await seedEvent(repo, "mta-bad-finish");
       const deckId = await seedDeck(repo, eventId, { playerName: "MTA Bound", finishTier: 1 });
+      // A placement starts at 1. There is no upper bound: the tier is the
+      // bracket a pilot finished in, and a large event's is arbitrarily deep.
       await expect(
-        db
-          .updateTable("metaDecks")
-          .set({ finishTier: 2048 })
-          .where("deckId", "=", deckId)
-          .execute(),
+        db.updateTable("metaDecks").set({ finishTier: 0 }).where("deckId", "=", deckId).execute(),
       ).rejects.toThrow();
     });
   });
@@ -414,6 +412,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       const context = await repo.contextForDeck(deckId);
       expect(context).toEqual({
+        listStatus: "full",
         playerName: "MTA Pilot",
         finishTier: 8,
         record: "6-2",

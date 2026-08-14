@@ -159,7 +159,7 @@ export function metaDeckFilterCounts(
 }
 
 /** A selectable value plus the label the control shows for it. */
-export interface MetaDeckFilterOption {
+interface MetaDeckFilterOption {
   value: string;
   label: string;
 }

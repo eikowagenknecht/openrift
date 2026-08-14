@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
  *   battlefield art fills it edge to edge while portrait art crops to its
  *   illustration band. Use as the lead of a list row.
  */
-export type CardArtThumbShape = "card" | "strip";
+type CardArtThumbShape = "card" | "strip";
 
 interface CardArtThumbProps {
   /** Frame shape. Defaults to `"card"`. */

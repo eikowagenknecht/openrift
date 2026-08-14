@@ -52,7 +52,7 @@ export interface TierCardDropData {
 }
 
 /** The card pool. Dropping here takes a card off the board. */
-export interface TierPoolDropData {
+interface TierPoolDropData {
   type: "tier-pool";
 }
 

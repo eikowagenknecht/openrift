@@ -40,8 +40,6 @@ export type {
   CandidateMetaDeckCard,
   CandidateMetaDecksTable,
   CandidateMetaEventsTable,
-  IgnoredCandidateMetaDecksTable,
-  IgnoredCandidateMetaEventsTable,
   TierListCard,
   TierListRow,
   TierListsTable,

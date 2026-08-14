@@ -446,11 +446,14 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   describe("setPredecessor", () => {
     it("points a member at another member of the same family", async () => {
+      // Two variants of one source: siblings, so neither already descends from
+      // the other and the repointing is not a loop.
       const source = await makeDeck("DV Parent Source");
-      const sibling = await copyOf(source.id, { mode: "variant" });
+      const first = await copyOf(source.id, { mode: "variant" });
+      const second = await copyOf(source.id, { mode: "variant" });
 
-      const updated = await decks.setPredecessor(source.id, userId, sibling.id);
-      expect(typeof updated === "object" && updated.predecessorDeckId).toBe(sibling.id);
+      const updated = await decks.setPredecessor(second.id, userId, first.id);
+      expect(typeof updated === "object" && updated.predecessorDeckId).toBe(first.id);
     });
 
     it("clears the pointer with null", async () => {
@@ -475,6 +478,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const grandchild = await copyOf(child.id, { mode: "variant" });
 
       expect(await decks.setPredecessor(source.id, userId, grandchild.id)).toBe("invalid");
+      // The direct child is the same loop, one step shorter.
+      expect(await decks.setPredecessor(source.id, userId, child.id)).toBe("invalid");
       // The rejected write leaves the row alone.
       const unchanged = await reload(source.id);
       expect(unchanged.predecessorDeckId).toBeNull();

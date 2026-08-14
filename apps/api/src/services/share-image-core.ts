@@ -179,7 +179,7 @@ async function loadFonts(io: Io): Promise<SatoriFont[]> {
  * times the render scale) so high-res renders embed crisp source art.
  * @returns A `data:image/png;base64,...` URI, or null if the file is unreadable.
  */
-export async function cardArtDataUri(
+async function cardArtDataUri(
   io: Io,
   imageId: string,
   widthPx: number,

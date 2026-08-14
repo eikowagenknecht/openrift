@@ -1011,7 +1011,7 @@ export interface CandidateMetaDecksTable {
  * the same key never re-enters the queue. The source key is the identity —
  * there is no surrogate id.
  */
-export interface IgnoredCandidateMetaEventsTable {
+interface IgnoredCandidateMetaEventsTable {
   /** PK part. CHECK: <> '' */
   provider: string;
   /** PK part. CHECK: <> '' */
@@ -1024,7 +1024,7 @@ export interface IgnoredCandidateMetaEventsTable {
  * well as the deck's, because deck external ids are only unique within their
  * event. @see IgnoredCandidateMetaEventsTable
  */
-export interface IgnoredCandidateMetaDecksTable {
+interface IgnoredCandidateMetaDecksTable {
   /** PK part. CHECK: <> '' */
   provider: string;
   /** PK part. The source's id for the deck's event. CHECK: <> '' */

@@ -46,7 +46,7 @@ export interface AcceptedMetaDeck {
 }
 
 /** A deck `acceptCandidateEventWithDecks` could not take, and why. */
-export interface SkippedMetaDeck {
+interface SkippedMetaDeck {
   candidateDeckId: string;
   externalId: string;
   playerName: string;

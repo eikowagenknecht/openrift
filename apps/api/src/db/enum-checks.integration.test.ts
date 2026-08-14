@@ -3,6 +3,11 @@ import { channelKindEnum } from "@openrift/shared/contracts/admin/distribution-c
 import { JOB_STATUSES, JOB_TRIGGERS } from "@openrift/shared/contracts/admin/job-runs";
 import { printingEventStatusSchema } from "@openrift/shared/contracts/admin/printing-events";
 import { scopeEnum } from "@openrift/shared/contracts/admin/site-settings";
+import {
+  cardSubmissionKindSchema,
+  cardSubmissionReasonSchema,
+  cardSubmissionStatusSchema,
+} from "@openrift/shared/contracts/card-submissions";
 import { CARD_TRADE_STATUSES, cardTradeSideSchema } from "@openrift/shared/contracts/card-trades";
 import { activityActionSchema } from "@openrift/shared/contracts/collection-events";
 import { deckCheckClaimSourceSchema } from "@openrift/shared/contracts/deck-check";
@@ -34,6 +39,7 @@ import {
   deckCheckReviewOutcomeSchema,
   listIntentResponseSchema,
   listKindResponseSchema,
+  metaListStatusSchema,
   podResultStatusSchema,
   podRoundStatusSchema,
   tradeTypeResponseSchema,
@@ -58,6 +64,10 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * is unique per table.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
+  chk_candidate_meta_decks_list_status: metaListStatusSchema.options,
+  chk_card_submissions_kind: cardSubmissionKindSchema.options,
+  chk_card_submissions_reason: cardSubmissionReasonSchema.options,
+  chk_card_submissions_status: cardSubmissionStatusSchema.options,
   chk_card_tokens_source: CARD_TOKEN_SOURCES,
   chk_card_trades_initiator: cardTradeSideSchema.options,
   chk_card_trades_status: CARD_TRADE_STATUSES,
@@ -81,6 +91,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_lists_kind: listKindResponseSchema.options,
   lists_rule_combine_check: listRuleCombineSchema.options,
   chk_loans_status: LOAN_STATUSES,
+  chk_meta_decks_list_status: metaListStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
   chk_pod_rounds_status: podRoundStatusSchema.options,
   chk_pods_result_status: podResultStatusSchema.options,

@@ -14,7 +14,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // the event row's deck count.
 
 /** One card row in a deck write. Built by the admin form's import parse. */
-export interface MetaDeckCardInput {
+interface MetaDeckCardInput {
   cardId: string;
   zone: DeckZone;
   quantity: number;

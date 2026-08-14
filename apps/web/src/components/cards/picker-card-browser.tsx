@@ -37,7 +37,7 @@ const PICKER_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
  * Views a picker offers. "copies" is an inventory view over what you own, which
  * is not what any picker is choosing between, so it is clamped away.
  */
-export type PickerView = "cards" | "printings";
+type PickerView = "cards" | "printings";
 
 /** Everything a picker's cell needs; the surface supplies the component. */
 export interface PickerCellProps {

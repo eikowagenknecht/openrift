@@ -6,7 +6,7 @@ import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
 import type { MetaDeckDiff } from "../../lib/meta-candidate-diff.js";
-import { diffMetaDeck, diffMetaEvent } from "../../lib/meta-candidate-diff.js";
+import { collapseCardEntries, diffMetaDeck, diffMetaEvent } from "../../lib/meta-candidate-diff.js";
 import {
   toMetaCandidateDeck,
   toMetaCandidateDetail,
@@ -20,11 +20,19 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
-/** @returns The candidate's resolved cards as diff entries; unresolved rows are dropped. */
+/**
+ * The candidate's resolved cards as diff entries. Unresolved rows are dropped,
+ * and rows that landed on the same card and zone are summed — the accept path
+ * folds them the same way before writing `deck_cards`, so without the collapse
+ * an accepted deck would keep reading as changed against the row it just wrote.
+ * @returns One entry per resolved card and zone.
+ */
 function resolvedEntries(deck: CandidateMetaDeckRow) {
-  return deck.cards
-    .filter((card) => card.cardId !== null)
-    .map((card) => ({ cardId: card.cardId as string, zone: card.zone, quantity: card.quantity }));
+  return collapseCardEntries(
+    deck.cards
+      .filter((card) => card.cardId !== null)
+      .map((card) => ({ cardId: card.cardId as string, zone: card.zone, quantity: card.quantity })),
+  );
 }
 
 /**

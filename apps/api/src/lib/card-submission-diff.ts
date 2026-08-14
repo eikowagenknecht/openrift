@@ -23,7 +23,7 @@
 import { buildPrintingLinkKey } from "../services/candidate-links.js";
 
 /** Live `cards` values a submission can be compared against. */
-export interface LiveCardSnapshot {
+interface LiveCardSnapshot {
   name: string;
   /** The denormalized primary type (ADR-037); the junction order is not read. */
   type: string;

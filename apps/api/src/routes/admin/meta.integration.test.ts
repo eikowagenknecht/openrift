@@ -5,8 +5,10 @@ import {
   adminReq,
   createTestContext,
   createUnauthenticatedTestContext,
+  refreshCardAggregates,
   req,
   seedTestUser,
+  syncCardCardTypes,
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
@@ -106,6 +108,12 @@ if (ctx) {
   await seedTestUser(db, { id: USER_ID });
   legendCardId = await seedCard("MTR Legend", "mtr-legend", "legend");
   mainCardId = await seedCard("MTR Main", "mtr-main", "spell");
+  // The public deck page enriches its card rows through mv_card_aggregates,
+  // which the harness refreshed before these two cards existed. Without the
+  // refresh the inner join drops them and the route 500s on the missing
+  // enrichment.
+  await syncCardCardTypes(db);
+  await refreshCardAggregates(db);
 
   afterAll(async () => {
     await db.deleteFrom("decks").where("id", "in", createdDeckIds).execute();
@@ -640,6 +648,7 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
         eventDate: "2026-08-01",
         format: FORMAT,
       },
+      listStatus: "full",
       playerName: "MTR Detail",
       finishTier: 4,
       record: "3-3",

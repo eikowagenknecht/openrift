@@ -20,7 +20,7 @@ const fetchSubmissionForCandidateFn = createServerFn({ method: "GET" })
  * @param candidateCardId The candidate column being inspected.
  * @returns Query options for the admin submission lookup.
  */
-export function submissionForCandidateQueryOptions(candidateCardId: string) {
+function submissionForCandidateQueryOptions(candidateCardId: string) {
   return queryOptions({
     queryKey: queryKeys.cardSubmissions.forCandidate(candidateCardId),
     queryFn: () => fetchSubmissionForCandidateFn({ data: { candidateCardId } }),

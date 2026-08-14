@@ -24,7 +24,7 @@ const fetchStagePresetsFn = createServerFn({ method: "GET" })
  * The signed-in creator's saved stage dressing.
  * @returns Query options for the preset list.
  */
-export function stagePresetsQueryOptions(userId: string) {
+function stagePresetsQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.stagePresets.all(userId),
     queryFn: () => fetchStagePresetsFn(),

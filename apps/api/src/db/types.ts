@@ -41,8 +41,6 @@ export type {
   CandidateMetaDeckCard,
   CandidateMetaDecksTable,
   CandidateMetaEventsTable,
-  IgnoredCandidateMetaDecksTable,
-  IgnoredCandidateMetaEventsTable,
   // Tier lists (migration 237)
   TierListCard,
   TierListRow,

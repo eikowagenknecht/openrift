@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-15
+
+### Other
+
+- fix(Decks): **Variant families pick the right main deck** — deleting or unlinking the main deck of a variant family could hand the role to any sibling; it now goes to the one you edited most recently.
+
 ## 2026-08-14
 
 ### Highlights

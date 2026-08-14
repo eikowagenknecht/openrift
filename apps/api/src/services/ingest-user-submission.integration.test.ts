@@ -59,6 +59,9 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
   const transact = createTransact(db);
 
   beforeEach(async () => {
+    // The ledger too, not just staging: it is unique on (provider, external_id),
+    // and two tests submitting the same slug within one minute mint the same id.
+    await db.deleteFrom("cardSubmissions").where("userId", "=", USER_ID).execute();
     await db
       .deleteFrom("candidatePrintings")
       .where(
@@ -125,19 +128,19 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     // Discover the cap from the rate_limited payload instead of importing the
     // (deliberately unexported) constant: flood past any plausible limit, read
     // `limit` back, then reset to exactly one below it.
+    //
+    // The cap counts the append-only submission ledger rather than staging, so
+    // the ledger is what the flood seeds.
     const seedRows = (count: number, offset: number) =>
       db
-        .insertInto("candidateCards")
+        .insertInto("cardSubmissions")
         .values(
           Array.from({ length: count }, (_, index) => ({
+            userId: USER_ID,
             provider: USER_SUBMISSION_PROVIDER,
             externalId: `seed--${offset + index}`,
-            name: `Seed ${offset + index}`,
-            types: ["unit"],
-            superTypes: [],
-            domains: ["fury"],
-            tags: [],
-            submittedByUserId: USER_ID,
+            kind: "new_card",
+            cardName: `Seed ${offset + index}`,
           })),
         )
         .execute();
@@ -148,11 +151,7 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     const limit = flooded.status === "rate_limited" ? flooded.limit : 0;
     expect(limit).toBeGreaterThan(0);
 
-    await db
-      .deleteFrom("candidateCards")
-      .where("provider", "=", USER_SUBMISSION_PROVIDER)
-      .where("submittedByUserId", "=", USER_ID)
-      .execute();
+    await db.deleteFrom("cardSubmissions").where("userId", "=", USER_ID).execute();
     await seedRows(limit - 1, 1000);
 
     // One slot left. Five concurrent submissions race for it: without the
@@ -168,11 +167,11 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     expect(okCount).toBe(1);
     expect(rateLimitedCount).toBe(4);
 
+    // The one winner fills the last slot and the ledger sits exactly at the cap.
     const remaining = await db
-      .selectFrom("candidateCards")
+      .selectFrom("cardSubmissions")
       .select("id")
-      .where("provider", "=", USER_SUBMISSION_PROVIDER)
-      .where("submittedByUserId", "=", USER_ID)
+      .where("userId", "=", USER_ID)
       .execute();
     expect(remaining).toHaveLength(limit);
   });

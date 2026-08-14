@@ -32,5 +32,3 @@ export const metaOverviewSearchSchema = z.object({
   from: z.string().optional().catch(undefined),
   to: z.string().optional().catch(undefined),
 });
-
-export type MetaOverviewSearch = z.infer<typeof metaOverviewSearchSchema>;

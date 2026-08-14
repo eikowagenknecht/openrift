@@ -117,7 +117,7 @@ export interface MetaStatsScope {
  * hand-entered event or deck; both set when a candidate was accepted, which is
  * how the next upload finds this row instead of proposing a duplicate.
  */
-export interface MetaSourceKey {
+interface MetaSourceKey {
   sourceProvider: string | null;
   sourceExternalId: string | null;
 }
@@ -128,7 +128,7 @@ export interface MetaSourceKey {
  * Kept apart from {@link MetaSourceKey} because `meta_events` has no such
  * column to write.
  */
-export interface MetaDeckSourceKey extends MetaSourceKey {
+interface MetaDeckSourceKey extends MetaSourceKey {
   sourceEventExternalId: string | null;
 }
 
