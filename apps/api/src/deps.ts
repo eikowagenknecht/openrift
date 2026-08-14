@@ -70,6 +70,7 @@ import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
 import { tagCategoriesRepo } from "./repositories/tag-categories.js";
 import { tagDefinitionsRepo } from "./repositories/tag-definitions.js";
+import { tierListsRepo } from "./repositories/tier-lists.js";
 import { tournamentsRepo } from "./repositories/tournaments.js";
 import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
@@ -148,6 +149,7 @@ export interface Repos {
   organizations: ReturnType<typeof organizationsRepo>;
   overlayChannels: ReturnType<typeof overlayChannelsRepo>;
   podTournaments: ReturnType<typeof podTournamentsRepo>;
+  tierLists: ReturnType<typeof tierListsRepo>;
   tournaments: ReturnType<typeof tournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
@@ -321,6 +323,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     userContactMethods: userContactMethodsRepo(db),
     organizations: organizationsRepo(db),
     podTournaments: podTournamentsRepo(db),
+    tierLists: tierListsRepo(db),
     tournaments: tournamentsRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),

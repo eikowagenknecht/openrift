@@ -75,6 +75,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the public API docs page (/developers), its footer link, and sitemap entry",
   },
   {
+    key: "tier-lists",
+    description: "Show the tier list maker (/tier-lists) and its public share pages",
+  },
+  {
     key: "trade-request-email",
     description: "Instant trade-request emails (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,

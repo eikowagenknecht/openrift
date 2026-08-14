@@ -75,6 +75,32 @@ export function deckImageFromCardsUrl(siteUrl: string, size?: "hq"): string {
 }
 
 /**
+ * Absolute URL of the server-rendered share image for a shared tier list, used
+ * as the og:image. `size: "hq"` requests the 2× download variant.
+ * @returns The tier list image URL.
+ */
+export function tierListShareImageUrl(
+  siteUrl: string,
+  shareToken: string,
+  version: number,
+  size?: "hq",
+): string {
+  const base = `${siteUrl}${API_BASE}/tier-lists/share/${shareToken}/image.png?v=${version}`;
+  return size === "hq" ? `${base}&size=hq` : base;
+}
+
+/**
+ * Absolute URL of the owner-authenticated image for one of the caller's own
+ * tier lists. The builder's export uses this so the download works before the
+ * list is shared at all (the public route needs a share token).
+ * @returns The tier list image URL.
+ */
+export function tierListOwnerImageUrl(siteUrl: string, id: string, size?: "hq"): string {
+  const base = `${siteUrl}${API_BASE}/tier-lists/${id}/image.png`;
+  return size === "hq" ? `${base}?size=hq` : base;
+}
+
+/**
  * Absolute URL of the server-rendered share image for a user's share bundle.
  * @returns The image URL, used as the og:image and the download source.
  */

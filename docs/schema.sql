@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict CrhvUkqN2VVujfeikT8ybydfmV4cqhpYI4XhFH7lBP11GihLPa06Xteucc7Me5R
+\restrict 1P3GTDWloN8cfUbE1QFOvFUcdBhyz3vVyZL9ZcXw11AAB6Fc1bqolgNV4k72icj
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2479,6 +2479,26 @@ CREATE TABLE public.tag_definitions (
 
 
 --
+-- Name: tier_lists; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tier_lists (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    title text NOT NULL,
+    description text,
+    set_id uuid,
+    tiers jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_public boolean DEFAULT false NOT NULL,
+    share_token text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_tier_lists_tiers_array CHECK ((jsonb_typeof(tiers) = 'array'::text)),
+    CONSTRAINT chk_tier_lists_title_not_empty CHECK ((title <> ''::text))
+);
+
+
+--
 -- Name: tournament_participants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3661,6 +3681,22 @@ ALTER TABLE ONLY public.tag_definitions
 
 
 --
+-- Name: tier_lists tier_lists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tier_lists
+    ADD CONSTRAINT tier_lists_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tier_lists tier_lists_share_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tier_lists
+    ADD CONSTRAINT tier_lists_share_token_key UNIQUE (share_token);
+
+
+--
 -- Name: tournament_participants tournament_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4583,6 +4619,13 @@ CREATE INDEX idx_tag_definitions_category_id ON public.tag_definitions USING btr
 
 
 --
+-- Name: idx_tier_lists_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tier_lists_user_id ON public.tier_lists USING btree (user_id);
+
+
+--
 -- Name: idx_tournament_participants_team; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5294,6 +5337,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tag_categories FOR EAC
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tag_definitions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tier_lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tier_lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -6521,6 +6571,22 @@ ALTER TABLE ONLY public.tag_definitions
 
 
 --
+-- Name: tier_lists tier_lists_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tier_lists
+    ADD CONSTRAINT tier_lists_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.sets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tier_lists tier_lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tier_lists
+    ADD CONSTRAINT tier_lists_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: tournament_participants tournament_participants_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6636,5 +6702,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict CrhvUkqN2VVujfeikT8ybydfmV4cqhpYI4XhFH7lBP11GihLPa06Xteucc7Me5R
+\unrestrict 1P3GTDWloN8cfUbE1QFOvFUcdBhyz3vVyZL9ZcXw11AAB6Fc1bqolgNV4k72icj
 

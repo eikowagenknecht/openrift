@@ -1,0 +1,177 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { idParamSchema, withParams } from "@openrift/shared/schemas";
+import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
+
+extendZodWithOpenApi(z);
+
+/** Rows a single tier list may hold. Enough for a granular ranking, far short
+ * of anything that would make the board unreadable or the image untenable. */
+export const MAX_TIER_ROWS = 12;
+
+/** Cards a single row may hold. A full-set review row is dozens, not hundreds. */
+export const MAX_CARDS_PER_TIER = 400;
+
+/** Cards a whole list may rank. Bounds the render cost of the share image. */
+export const MAX_TIER_LIST_CARDS = 1000;
+
+/** The default board a new list starts from. */
+export const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"] as const;
+
+export const tierRowSchema = z.object({
+  label: z.string().min(1).max(24),
+  cardIds: z.array(z.uuid()).max(MAX_CARDS_PER_TIER),
+});
+
+/**
+ * The whole board. Validated as a unit (rather than per row) because the
+ * cross-row rules — no card in two rows, a total card cap — only exist at this
+ * level. A card appearing twice would render twice and rank ambiguously, so it
+ * is rejected rather than silently deduplicated.
+ */
+export const tiersSchema = z
+  .array(tierRowSchema)
+  .max(MAX_TIER_ROWS)
+  .refine(
+    (rows) => rows.reduce((sum, row) => sum + row.cardIds.length, 0) <= MAX_TIER_LIST_CARDS,
+    `A tier list can hold at most ${MAX_TIER_LIST_CARDS} cards`,
+  )
+  .refine((rows) => {
+    const all = rows.flatMap((row) => row.cardIds);
+    return new Set(all).size === all.length;
+  }, "A card can only sit in one tier");
+
+const tierListFieldRules = {
+  title: z.string().min(1).max(120),
+  description: z.string().max(2000),
+};
+
+export const createTierListSchema = z.object({
+  title: tierListFieldRules.title,
+  description: tierListFieldRules.description.nullish(),
+  setId: z.uuid().nullish(),
+  /** Omitted on create, which starts the list on {@link DEFAULT_TIER_LABELS}. */
+  tiers: tiersSchema.optional(),
+});
+
+// isPublic is deliberately absent, matching decks: public state is owned by the
+// /share sub-resource alone, so a PATCH can never desync it from the token.
+export const updateTierListSchema = z.object({
+  title: tierListFieldRules.title.optional(),
+  description: tierListFieldRules.description.nullish(),
+  setId: z.uuid().nullish(),
+  tiers: tiersSchema.optional(),
+});
+
+export const tierRowResponseSchema = z
+  .object({ label: z.string(), cardIds: z.array(z.string()) })
+  .openapi("TierRowResponse");
+
+export const tierListResponseSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    setId: z.string().nullable(),
+    tiers: z.array(tierRowResponseSchema),
+    isPublic: z.boolean(),
+    shareToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("TierListResponse");
+
+/**
+ * List-page projection. Carries the ranked-card count and the first row's
+ * leading cards so the index can draw a preview strip without shipping every
+ * board in full.
+ */
+export const tierListSummaryResponseSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    setId: z.string().nullable(),
+    tierCount: z.number().int().nonnegative(),
+    cardCount: z.number().int().nonnegative(),
+    /** Leading card ids of the top non-empty row, for the index preview strip. */
+    previewCardIds: z.array(z.string()),
+    isPublic: z.boolean(),
+    shareToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("TierListSummaryResponse");
+
+export const tierListListResponseSchema = z
+  .object({ items: z.array(tierListSummaryResponseSchema) })
+  .openapi("TierListListResponse");
+
+export const tierListShareResponseSchema = z
+  .object({
+    // Nullable so GET .../share reports an owned-but-unshared list as
+    // { shareToken: null, isPublic: false } rather than 404ing.
+    shareToken: z.string().nullable(),
+    isPublic: z.boolean(),
+  })
+  .openapi("TierListShareResponse");
+
+const TAG = "Tier lists";
+const NOT_FOUND = { NOT_FOUND: { message: "Tier list not found" } };
+
+/**
+ * oRPC contract for creator-authored tier lists (migration 237), mounted at
+ * `/api/v1/tier-lists`. Every route is session-gated and user-scoped, so an id
+ * belonging to someone else reads as NOT_FOUND rather than FORBIDDEN — the
+ * caller learns nothing about lists that aren't theirs.
+ */
+export const tierListsContract = {
+  list: authedRoute
+    .route({ method: "GET", path: "/api/v1/tier-lists", tags: [TAG] })
+    .output(tierListListResponseSchema),
+  get: authedRoute
+    .route({ method: "GET", path: "/api/v1/tier-lists/{id}", tags: [TAG] })
+    .input(idParamSchema)
+    .errors(NOT_FOUND)
+    .output(tierListResponseSchema),
+  create: authedRoute
+    .route({ method: "POST", path: "/api/v1/tier-lists", tags: [TAG], successStatus: 201 })
+    .input(createTierListSchema)
+    .output(tierListResponseSchema),
+  update: authedRoute
+    .route({ method: "PATCH", path: "/api/v1/tier-lists/{id}", tags: [TAG] })
+    .input(withParams(idParamSchema, updateTierListSchema))
+    .errors(NOT_FOUND)
+    .output(tierListResponseSchema),
+  remove: authedRoute
+    .route({
+      method: "DELETE",
+      path: "/api/v1/tier-lists/{id}",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .input(idParamSchema)
+    .errors(NOT_FOUND),
+  getShare: authedRoute
+    .route({ method: "GET", path: "/api/v1/tier-lists/{id}/share", tags: [TAG] })
+    .input(idParamSchema)
+    .errors(NOT_FOUND)
+    .output(tierListShareResponseSchema),
+  share: authedRoute
+    .route({ method: "POST", path: "/api/v1/tier-lists/{id}/share", tags: [TAG] })
+    .input(idParamSchema)
+    .errors(NOT_FOUND)
+    .output(tierListShareResponseSchema),
+  unshare: authedRoute
+    .route({
+      method: "DELETE",
+      path: "/api/v1/tier-lists/{id}/share",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .input(idParamSchema)
+    .errors(NOT_FOUND),
+};
+
+export type TierListsContract = typeof tierListsContract;

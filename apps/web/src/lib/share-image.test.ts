@@ -10,6 +10,8 @@ import {
   downloadImageFromUrl,
   listShareImageUrl,
   shareImageVersion,
+  tierListOwnerImageUrl,
+  tierListShareImageUrl,
 } from "./share-image";
 
 describe("shareImageVersion", () => {
@@ -64,6 +66,34 @@ describe("deckOwnerImageUrl", () => {
   it("appends size=hq for the high-resolution download variant", () => {
     expect(deckOwnerImageUrl("https://openrift.app", "deck-1", "hq")).toBe(
       "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq",
+    );
+  });
+});
+
+describe("tierListShareImageUrl", () => {
+  it("builds an absolute /api/v1 tier list image URL with the version param", () => {
+    expect(tierListShareImageUrl("https://openrift.app", "tok123", 42)).toBe(
+      "https://openrift.app/api/v1/tier-lists/share/tok123/image.png?v=42",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(tierListShareImageUrl("https://openrift.app", "tok123", 42, "hq")).toBe(
+      "https://openrift.app/api/v1/tier-lists/share/tok123/image.png?v=42&size=hq",
+    );
+  });
+});
+
+describe("tierListOwnerImageUrl", () => {
+  it("builds the owner-authenticated tier list image URL by id", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1")).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", "hq")).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?size=hq",
     );
   });
 });

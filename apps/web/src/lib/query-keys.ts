@@ -107,6 +107,12 @@ export const queryKeys = {
   deckFolders: {
     all: (userId: string) => ["deck-folders", userId] as const,
   },
+  tierLists: {
+    all: (userId: string) => ["tier-lists", userId] as const,
+    detail: (userId: string, id: string) => ["tier-lists", userId, id] as const,
+    share: (userId: string, id: string) => ["tier-lists", userId, id, "share"] as const,
+    publicByToken: (token: string) => ["tier-lists", "share", token] as const,
+  },
   lists: {
     // intent: optional filter (buy | sell | organize). Cache miss for the
     // intent-filtered key is fine — different intents live in different UI

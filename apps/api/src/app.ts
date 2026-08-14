@@ -35,6 +35,7 @@ import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
+import { tierListImageRoute } from "./routes/authenticated/tier-list-image.js";
 import { createPublicChatRoute } from "./routes/public/chat.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
@@ -446,7 +447,8 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute)
-    .route("/api/v1", deckImageRoute);
+    .route("/api/v1", deckImageRoute)
+    .route("/api/v1", tierListImageRoute);
 
   // ── Auth + caching middleware for the oRPC routes ─────────────────────────
   // Auth is enforced per-procedure by the `requireUser` middleware on every

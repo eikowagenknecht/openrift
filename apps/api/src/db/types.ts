@@ -34,6 +34,9 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
+  // Tier lists (migration 237)
+  TierListRow,
+  TierListsTable,
   // Preconstructed products (migration 198, ADR-015)
   ProductsTable,
   // Friend groups (migration 134, 141)

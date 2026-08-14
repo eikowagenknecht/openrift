@@ -180,6 +180,7 @@ import * as m231 from "./231-deck-folders.js";
 import * as m232 from "./232-candidate-printing-printed-year.js";
 import * as m233 from "./233-set-language-releases.js";
 import * as m234 from "./234-card-submissions.js";
+import * as m237 from "./237-tier-lists.js";
 import * as m238 from "./238-overlay-channels.js";
 import * as noop from "./_noop.js";
 
@@ -420,5 +421,8 @@ export const migrations: Record<string, Migration> = {
   "232-candidate-printing-printed-year": m232,
   "233-set-language-releases": m233,
   "234-card-submissions": m234,
+  // 235 / 236 belong to the meta-archive work (ADR-014), which is not merged
+  // yet; the numbers stay reserved so it can land later without renumbering.
+  "237-tier-lists": m237,
   "238-overlay-channels": m238,
 };

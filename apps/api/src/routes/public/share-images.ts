@@ -20,6 +20,7 @@ import {
 } from "../../services/list-image.js";
 import type { ShareImageCard } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
+import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -222,6 +223,38 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl,
         coverImageId: await resolveCoverImageId(repos, found.deck),
+      },
+      scale,
+    );
+
+    return pngResponse(png);
+  })
+
+  // ── GET /tier-lists/share/:token/image.png ────────────────────────────────
+  .get("/tier-lists/share/:token/image.png", async (c) => {
+    const repos = c.get("repos");
+    const config = c.get("config");
+    const io = c.get("io");
+    const token = c.req.param("token");
+
+    // findByShareToken requires is_public, so a revoked link 404s here exactly
+    // as it does on the share page itself.
+    const found = await repos.tierLists.findByShareToken(token);
+    assertFound(found, "Not found");
+
+    const rows = await buildTierListImageRows(repos, found.tierList.tiers);
+    const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
+    const shareUrl = firstOrigin ? `${firstOrigin}/tier-lists/share/${token}` : undefined;
+
+    const png = await renderTierListImage(
+      io,
+      {
+        title: found.tierList.title,
+        ownerName: found.ownerName ?? "Anonymous",
+        rows,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl,
       },
       scale,
     );

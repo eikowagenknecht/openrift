@@ -744,6 +744,39 @@ interface DeckFolderEntriesTable {
   createdAt: CreatedAt;
 }
 
+/** One row of a tier list: a label plus the cards ranked into it, in order. */
+export interface TierListRow {
+  label: string;
+  cardIds: string[];
+}
+
+/**
+ * Creator-authored tier list (migration 237). The whole board lives in the
+ * `tiers` jsonb because it is only ever read and written whole — rows have no
+ * identity beyond their position, so there is nothing for a rows table to key
+ * on. Card ids are bare (no FK): the list ranks cards, and one that leaves the
+ * catalogue is skipped by the reader rather than blocking the delete.
+ *
+ * `tiers` reads back as a JSON *string* under Bun's postgres.js, so every read
+ * must go through `parseJsonbRequired` — the declared type here is the parsed
+ * shape, not what the driver hands over.
+ *
+ * CHECK: title <> ''; jsonb_typeof(tiers) = 'array'.
+ */
+export interface TierListsTable {
+  id: Generated<string>;
+  userId: string;
+  title: string;
+  description: string | null;
+  /** Optional scope hint: seeds the builder's set filter, labels the share page. */
+  setId: string | null;
+  tiers: Generated<TierListRow[]>;
+  isPublic: Generated<boolean>;
+  shareToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 /**
  * Unified list table — replaces the old trade_lists and wish_lists.
  *
@@ -2067,8 +2100,12 @@ export interface Database {
   deckFolders: DeckFoldersTable;
   deckFolderEntries: DeckFolderEntriesTable;
 
+  // Tier lists (migration 237)
+  tierLists: TierListsTable;
+
   // Stream overlay channels (migration 238)
   overlayChannels: OverlayChannelsTable;
+
   lists: ListsTable;
   listEntries: ListEntriesTable;
 

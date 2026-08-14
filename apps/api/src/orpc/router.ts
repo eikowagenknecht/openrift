@@ -68,6 +68,7 @@ import { loansRouter } from "../routes/authenticated/loans.js";
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { overlayRouter } from "../routes/authenticated/overlay.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
+import { tierListsRouter } from "../routes/authenticated/tier-lists.js";
 import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
 import { tournamentsRouter } from "../routes/authenticated/tournaments.js";
 import { userShareRouter } from "../routes/authenticated/user-share.js";
@@ -92,6 +93,7 @@ import { scanRouter } from "../routes/public/scan.js";
 import { setsRouter } from "../routes/public/sets.js";
 import { siteSettingsRouter } from "../routes/public/site-settings.js";
 import { sitemapRouter } from "../routes/public/sitemap.js";
+import { publicTierListsRouter } from "../routes/public/tier-lists.js";
 import { publicTournamentsRouter } from "../routes/public/tournaments.js";
 import { unsubscribeRouter } from "../routes/public/unsubscribe.js";
 import { publicUserShareRouter } from "../routes/public/user-share.js";
@@ -166,6 +168,7 @@ const apiRouter = {
   organizationsRouter,
   overlayRouter,
   preferencesRouter,
+  tierListsRouter,
   tournamentDeckCheckRouter,
   tournamentsRouter,
   userShareRouter,
@@ -190,6 +193,7 @@ const apiRouter = {
   siteSettingsRouter,
   scanRouter,
   sitemapRouter,
+  publicTierListsRouter,
   publicTournamentsRouter,
   unsubscribeRouter,
   publicUserShareRouter,
