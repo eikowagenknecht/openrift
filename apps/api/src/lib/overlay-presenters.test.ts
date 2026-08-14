@@ -56,9 +56,10 @@ describe("toOverlayState", () => {
 
 describe("applyOverlaySettings", () => {
   const base: OverlayPayload = {
+    ...DEFAULT_OVERLAY_PAYLOAD,
     printingId: "p-1",
     showPlate: true,
-    deckShareUrl: "https://openrift.app/decks/share/abc",
+    qrUrl: "https://openrift.app/decks/share/abc",
     corner: "bottom-right",
     scale: 70,
   };
@@ -73,21 +74,34 @@ describe("applyOverlaySettings", () => {
     expect(result.corner).toBe("top-left");
     expect(result.scale).toBe(70);
     expect(result.showPlate).toBe(true);
-    expect(result.deckShareUrl).toBe("https://openrift.app/decks/share/abc");
+    expect(result.qrUrl).toBe("https://openrift.app/decks/share/abc");
   });
 
   it("never touches the card — that is push's and clear's business", () => {
     expect(applyOverlaySettings(base, { scale: 40 }).printingId).toBe("p-1");
   });
 
-  it("treats an explicit null deckShareUrl as hide the QR", () => {
-    expect(applyOverlaySettings(base, { deckShareUrl: null }).deckShareUrl).toBeNull();
+  it("treats an explicit null qrUrl as hide the QR", () => {
+    expect(applyOverlaySettings(base, { qrUrl: null }).qrUrl).toBeNull();
   });
 
-  it("keeps the QR when deckShareUrl is absent from the patch", () => {
-    expect(applyOverlaySettings(base, { showPlate: false }).deckShareUrl).toBe(
+  it("keeps the QR when qrUrl is absent from the patch", () => {
+    expect(applyOverlaySettings(base, { showPlate: false }).qrUrl).toBe(
       "https://openrift.app/decks/share/abc",
     );
+  });
+
+  it("merges plateFields key by key, leaving the lines the patch does not name", () => {
+    const result = applyOverlaySettings(base, { plateFields: { rulesText: true } });
+
+    expect(result.plateFields).toEqual({ ...base.plateFields, rulesText: true });
+  });
+
+  it("moves the plate without touching anything else", () => {
+    const result = applyOverlaySettings(base, { platePosition: "above" });
+
+    expect(result.platePosition).toBe("above");
+    expect(result.corner).toBe("bottom-right");
   });
 
   it("turns a switch off — false is a value, not an absence", () => {

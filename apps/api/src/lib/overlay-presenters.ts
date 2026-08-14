@@ -36,9 +36,10 @@ export function toOverlayState(channel: OverlayChannel): OverlayStateResponse {
  * Merges a settings patch onto the current payload.
  *
  * Every field is optional and absent means "leave it alone", so the dashboard
- * can send one switch without restating the rest. `deckShareUrl` is nullish in
- * the contract because null is a meaningful value there (hide the QR) — only
- * `undefined` means untouched.
+ * can send one switch without restating the rest. `qrUrl` is nullish in the
+ * contract because null is a meaningful value there (hide the QR) — only
+ * `undefined` means untouched. `plateFields` merges key by key for the same
+ * reason: a patch naming one line must not clear the other four.
  *
  * @returns The payload with the patch applied.
  */
@@ -49,7 +50,11 @@ export function applyOverlaySettings(
   return {
     ...payload,
     ...(patch.showPlate !== undefined && { showPlate: patch.showPlate }),
-    ...(patch.deckShareUrl !== undefined && { deckShareUrl: patch.deckShareUrl ?? null }),
+    ...(patch.platePosition !== undefined && { platePosition: patch.platePosition }),
+    ...(patch.plateFields !== undefined && {
+      plateFields: { ...payload.plateFields, ...patch.plateFields },
+    }),
+    ...(patch.qrUrl !== undefined && { qrUrl: patch.qrUrl ?? null }),
     ...(patch.corner !== undefined && { corner: patch.corner }),
     ...(patch.scale !== undefined && { scale: patch.scale }),
   };

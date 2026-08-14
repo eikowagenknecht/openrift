@@ -1,6 +1,10 @@
-import type { OverlayChannelResponse, OverlayCorner } from "@openrift/shared";
+import type {
+  OverlayChannelResponse,
+  OverlayCorner,
+  OverlayPlateFields,
+  OverlayPlatePosition,
+} from "@openrift/shared";
 import { RefreshCwIcon } from "lucide-react";
-import { useState } from "react";
 
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
@@ -23,6 +27,26 @@ function isCorner(value: unknown): value is OverlayCorner {
   return CORNERS.some((corner) => corner.value === value);
 }
 
+const PLATE_POSITIONS: { value: OverlayPlatePosition; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" },
+  { value: "above", label: "Above" },
+  { value: "below", label: "Below" },
+];
+
+function isPlatePosition(value: unknown): value is OverlayPlatePosition {
+  return PLATE_POSITIONS.some((position) => position.value === value);
+}
+
+const PLATE_FIELDS: { key: keyof OverlayPlateFields; label: string }[] = [
+  { key: "name", label: "Card name" },
+  { key: "code", label: "Set code and foil" },
+  { key: "stats", label: "Energy, power and might" },
+  { key: "rulesText", label: "Rules text" },
+  { key: "flavorText", label: "Flavor text" },
+];
+
 /**
  * Scene setup: where the card sits, how big it is, what rides along with it,
  * and the browser-source URL to paste into OBS.
@@ -30,17 +54,27 @@ function isCorner(value: unknown): value is OverlayCorner {
  * These get set once against a layout and then left alone, which is why they
  * live apart from the search-and-push surface rather than in the same column.
  *
+ * @param props.draftScale The size being dragged, or null when the thumb is at rest.
+ * @param props.onDraftScaleChange Reports the dragged size so the preview can follow it.
  * @returns The settings panel.
  */
-export function OverlaySettingsPanel({ channel }: { channel: OverlayChannelResponse }) {
+export function OverlaySettingsPanel({
+  channel,
+  draftScale,
+  onDraftScaleChange,
+}: {
+  channel: OverlayChannelResponse;
+  draftScale: number | null;
+  onDraftScaleChange: (scale: number | null) => void;
+}) {
   const updateSettings = useUpdateOverlaySettings();
   const rotateToken = useRotateOverlayToken();
   const { payload } = channel;
 
-  // Local while dragging so the label tracks the thumb; the write happens on
-  // release. Each write bumps the version, and a dragged slider would push
-  // twenty of them straight at the poll.
-  const [draftScale, setDraftScale] = useState<number | null>(null);
+  // The draft lives in the dashboard rather than here so the live preview
+  // resizes with the thumb; the write still happens on release, because each
+  // one bumps the version and a dragged slider would push twenty of them
+  // straight at the poll.
   const shownScale = draftScale ?? payload.scale;
 
   const sourceUrl = `${getSiteUrl()}/overlay/${channel.token}`;
@@ -106,12 +140,12 @@ export function OverlaySettingsPanel({ channel }: { channel: OverlayChannelRespo
             onValueChange={(value) => {
               const next = Array.isArray(value) ? value[0] : value;
               if (typeof next === "number") {
-                setDraftScale(next);
+                onDraftScaleChange(next);
               }
             }}
             onValueCommitted={(value) => {
               const next = Array.isArray(value) ? value[0] : value;
-              setDraftScale(null);
+              onDraftScaleChange(null);
               if (typeof next === "number" && next !== payload.scale) {
                 updateSettings.mutate({ scale: next });
               }
@@ -121,38 +155,84 @@ export function OverlaySettingsPanel({ channel }: { channel: OverlayChannelRespo
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="font-semibold">What rides along</h2>
-
         <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="overlay-plate">Name and stats plate</Label>
+          <h2 className="font-semibold">Card plate</h2>
           <Switch
             id="overlay-plate"
+            aria-label="Card plate"
             checked={payload.showPlate}
             onCheckedChange={(checked) => updateSettings.mutate({ showPlate: checked })}
           />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="overlay-deck-url">Deck link for the QR code</Label>
-          <Input
-            id="overlay-deck-url"
-            type="url"
-            defaultValue={payload.deckShareUrl ?? ""}
-            placeholder="https://openrift.app/decks/share/…"
-            // Committed on blur, so a half-typed URL never reaches the stream.
-            onBlur={(event) => {
-              const next = event.target.value.trim();
-              const current = payload.deckShareUrl ?? "";
-              if (next !== current) {
-                updateSettings.mutate({ deckShareUrl: next === "" ? null : next });
-              }
-            }}
-          />
-          <p className="text-muted-foreground text-sm">
-            Paste a deck share link and viewers can scan it off the stream. Leave it empty to hide
-            the code.
-          </p>
-        </div>
+        {payload.showPlate && (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label>Where it sits</Label>
+              <ToggleGroup
+                aria-label="Plate position"
+                variant="outline"
+                value={[payload.platePosition]}
+                onValueChange={([next]) => {
+                  if (isPlatePosition(next)) {
+                    updateSettings.mutate({ platePosition: next });
+                  }
+                }}
+                className="grid w-full grid-cols-5"
+              >
+                {PLATE_POSITIONS.map((position) => (
+                  <ToggleGroupItem key={position.value} value={position.value}>
+                    {position.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="text-muted-foreground text-sm">
+                Auto keeps the plate on the card&apos;s inward side, so it follows the corner.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Label>What it shows</Label>
+              {PLATE_FIELDS.map((field) => (
+                <div key={field.key} className="flex items-center justify-between gap-4">
+                  <Label htmlFor={`overlay-plate-${field.key}`} className="font-normal">
+                    {field.label}
+                  </Label>
+                  <Switch
+                    id={`overlay-plate-${field.key}`}
+                    checked={payload.plateFields[field.key]}
+                    onCheckedChange={(checked) =>
+                      updateSettings.mutate({ plateFields: { [field.key]: checked } })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">QR code</h2>
+        <Label htmlFor="overlay-qr-url">Link to put on screen</Label>
+        <Input
+          id="overlay-qr-url"
+          type="url"
+          defaultValue={payload.qrUrl ?? ""}
+          placeholder="https://openrift.app/decks/share/…"
+          // Committed on blur, so a half-typed URL never reaches the stream.
+          onBlur={(event) => {
+            const next = event.target.value.trim();
+            const current = payload.qrUrl ?? "";
+            if (next !== current) {
+              updateSettings.mutate({ qrUrl: next === "" ? null : next });
+            }
+          }}
+        />
+        <p className="text-muted-foreground text-sm">
+          Any link works: a deck share page, your channel, whatever you want viewers to scan. It
+          shows next to the card even with the plate off. Leave it empty to hide the code.
+        </p>
       </section>
     </div>
   );

@@ -7,6 +7,8 @@ export type {
   OverlayChannelResponse,
   OverlayCorner,
   OverlayPayload,
+  OverlayPlateFields,
+  OverlayPlatePosition,
   OverlayPush,
   OverlaySettings,
   OverlayStateResponse,

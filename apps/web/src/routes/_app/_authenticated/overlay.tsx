@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { initQueryOptions } from "@/hooks/use-init";
 import { overlayChannelQueryOptions } from "@/hooks/use-overlay";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import type { FeatureFlags } from "@/lib/feature-flags";
@@ -43,9 +44,12 @@ export const Route = createFileRoute("/_app/_authenticated/overlay")({
   loader: async ({ context }) => {
     // The card picker and the live preview both resolve printings from the
     // catalog, and the channel read is what mints the token on first visit —
-    // both are on the critical path for the whole page.
+    // both are on the critical path for the whole page. Init carries the
+    // keyword styles the plate's rules text renders with, which is a suspending
+    // read inside the preview.
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),
+      context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(overlayChannelQueryOptions(context.userId)),
     ]);
   },

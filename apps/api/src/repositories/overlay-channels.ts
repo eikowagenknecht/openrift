@@ -1,5 +1,8 @@
 import type { OverlayPayload } from "@openrift/shared";
-import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
+import {
+  DEFAULT_OVERLAY_PAYLOAD,
+  normalizeOverlayPayload,
+} from "@openrift/shared/contracts/overlay";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -15,16 +18,18 @@ export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "
 /**
  * postgres.js under Bun hands jsonb back as a string, so every read goes
  * through `parseJsonbRequired` — the column is NOT NULL, so there is no null
- * branch to fall back from. `version` is an int8, which postgres.js also
- * returns as a string (it only registers number parsers for the 4-byte-and-
- * smaller numeric OIDs), so it is coerced here despite the row type saying
- * `number`.
+ * branch to fall back from. The parsed blob then goes through
+ * `normalizeOverlayPayload`, because the payload grows display switches without
+ * a migration and older rows are missing whichever ones came later.
+ * `version` is an int8, which postgres.js also returns as a string (it only
+ * registers number parsers for the 4-byte-and-smaller numeric OIDs), so it is
+ * coerced here despite the row type saying `number`.
  * @returns The row with a parsed payload and a numeric version.
  */
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
   return {
     ...row,
-    payload: parseJsonbRequired<OverlayPayload>(row.payload),
+    payload: normalizeOverlayPayload(parseJsonbRequired<OverlayPayload>(row.payload)),
     version: Number(row.version),
   };
 }

@@ -59,9 +59,10 @@ describe.skipIf(!ctx)("overlayChannelsRepo (integration)", () => {
 
   it("round-trips the jsonb payload as an object, not a string", async () => {
     const payload = {
+      ...DEFAULT_OVERLAY_PAYLOAD,
       printingId: "printing-1",
       showPlate: false,
-      deckShareUrl: "https://openrift.app/decks/share/abc",
+      qrUrl: "https://openrift.app/decks/share/abc",
       corner: "top-left" as const,
       scale: 45,
     };
@@ -71,6 +72,37 @@ describe.skipIf(!ctx)("overlayChannelsRepo (integration)", () => {
 
     expect(read?.payload).toEqual(payload);
     expect(typeof read?.payload).toBe("object");
+  });
+
+  it("fills a row written before the plate switches existed out to the current shape", async () => {
+    // Regression: the payload grows display switches without a migration, so a
+    // row stored earlier is missing whichever came later. Read back raw, the
+    // source would get `undefined` where it expects a boolean and paint nothing.
+    await db
+      .updateTable("overlayChannels")
+      .set({
+        payload: JSON.stringify({
+          printingId: "printing-1",
+          showPlate: true,
+          deckShareUrl: "https://openrift.app/decks/share/legacy",
+          corner: "top-left",
+          scale: 45,
+        }),
+      })
+      .where("userId", "=", OWNER)
+      .execute();
+
+    const read = await repo.findByUserId(OWNER);
+
+    expect(read?.payload).toEqual({
+      ...DEFAULT_OVERLAY_PAYLOAD,
+      printingId: "printing-1",
+      corner: "top-left",
+      scale: 45,
+      // The link set before the field was generalised carries over.
+      qrUrl: "https://openrift.app/decks/share/legacy",
+    });
+    expect("deckShareUrl" in (read?.payload ?? {})).toBe(false);
   });
 
   it("bumps the version on every payload write", async () => {

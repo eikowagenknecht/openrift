@@ -133,11 +133,11 @@ describe("POST /api/v1/overlay/me/push", () => {
     expect(mockRepo.setPayload).not.toHaveBeenCalled();
   });
 
-  it("rejects a deck share URL that isn't a URL", async () => {
+  it("rejects a QR link that isn't a URL", async () => {
     const res = await app.request("/api/v1/overlay/me/push", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ printingId: "p-1", deckShareUrl: "not a url" }),
+      body: JSON.stringify({ printingId: "p-1", qrUrl: "not a url" }),
     });
 
     expect(res.status).toBe(400);
@@ -149,9 +149,10 @@ describe("POST /api/v1/overlay/me/clear", () => {
     mockRepo.findByUserId.mockResolvedValue(
       stubChannel({
         payload: {
+          ...DEFAULT_OVERLAY_PAYLOAD,
           printingId: "p-1",
           showPlate: false,
-          deckShareUrl: "https://openrift.app/decks/share/abc",
+          qrUrl: "https://openrift.app/decks/share/abc",
           corner: "top-left",
           scale: 55,
         },
@@ -162,9 +163,10 @@ describe("POST /api/v1/overlay/me/clear", () => {
 
     expect(res.status).toBe(200);
     expect(mockRepo.setPayload).toHaveBeenCalledWith(USER_ID, {
+      ...DEFAULT_OVERLAY_PAYLOAD,
       printingId: null,
       showPlate: false,
-      deckShareUrl: "https://openrift.app/decks/share/abc",
+      qrUrl: "https://openrift.app/decks/share/abc",
       corner: "top-left",
       scale: 55,
     });

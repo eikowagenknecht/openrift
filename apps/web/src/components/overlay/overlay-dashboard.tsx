@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { EyeOffIcon, PlayIcon } from "lucide-react";
+import { useState } from "react";
 
 import {
   PageDescription,
@@ -17,8 +18,17 @@ import { CardQueueEditor } from "@/components/present/card-queue-editor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
+import { useMeasuredWidth } from "@/hooks/use-measured-width";
 import { useClearOverlay, useOverlayChannel, usePushOverlayCard } from "@/hooks/use-overlay";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+
+/**
+ * The canvas the preview paints at. 1080p is what an OBS browser source is set
+ * to in practice, and the number only has to be a plausible stage — everything
+ * in the frame is sized relative to it, so a source set to another size scales
+ * the same way.
+ */
+const OBS_CANVAS = { width: 1920, height: 1080 };
 
 /**
  * What the audience is seeing right now, rendered with the very component the
@@ -34,6 +44,8 @@ function LivePreview({
   payload: Parameters<typeof OverlayFrame>[0]["payload"];
   printing: Printing | undefined;
 }) {
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const boxWidth = useMeasuredWidth(box);
   const live = payload.printingId !== null && printing !== undefined;
   return (
     <section className="flex flex-col gap-2">
@@ -52,12 +64,27 @@ function LivePreview({
           Literal colors, not theme tokens: it represents "no background at
           all", so it must read the same in either theme. */}
       <div
+        ref={setBox}
         className="ring-border aspect-video overflow-hidden rounded-lg ring-1"
         style={{
           background: "repeating-conic-gradient(#20242e 0% 25%, #171a22 0% 50%) 50% / 20px 20px",
         }}
       >
-        <OverlayFrame payload={payload} printing={printing} />
+        {/* Painted at the canvas size a browser source actually runs at, then
+            scaled down to fit. The plate's type is sized in px, so rendering it
+            straight into a 400px-wide box would show a plate several times the
+            size it takes on stream — and the whole point of this panel is that
+            what is checked here is what goes out. */}
+        <div
+          className="origin-top-left"
+          style={{
+            width: OBS_CANVAS.width,
+            height: OBS_CANVAS.height,
+            transform: `scale(${boxWidth / OBS_CANVAS.width})`,
+          }}
+        >
+          <OverlayFrame payload={payload} printing={printing} />
+        </div>
       </div>
       <p className="text-muted-foreground truncate text-sm">
         {live ? legendDisplayName(printing.card) : "Push a card to put it on screen."}
@@ -90,6 +117,12 @@ export function OverlayDashboard() {
   const clearOverlay = useClearOverlay();
   const { cards } = route.useSearch();
   const navigate = useNavigate();
+
+  // The card size being dragged in the settings panel, or null when the thumb
+  // is at rest. It lives here rather than in the panel so the preview above can
+  // resize along with the drag, while the write to the channel still waits for
+  // the release.
+  const [draftScale, setDraftScale] = useState<number | null>(null);
 
   const queue = cards ?? NO_QUEUE;
   const setQueue = (ids: string[]) => {
@@ -152,10 +185,16 @@ export function OverlayDashboard() {
 
             <div className="flex flex-col gap-8">
               <LivePreview
-                payload={channel.payload}
+                payload={
+                  draftScale === null ? channel.payload : { ...channel.payload, scale: draftScale }
+                }
                 printing={livePrintingId === null ? undefined : printingsById[livePrintingId]}
               />
-              <OverlaySettingsPanel channel={channel} />
+              <OverlaySettingsPanel
+                channel={channel}
+                draftScale={draftScale}
+                onDraftScaleChange={setDraftScale}
+              />
             </div>
           </div>
         )}
