@@ -542,6 +542,20 @@ export const decksRouter = {
     return toDeck(result);
   }),
 
+  // ── PUT /decks/:id/predecessor ────────────────────────────────────────────
+  // Repoint a deck at the family member it came from, or clear the pointer.
+  setPredecessor: os.setPredecessor.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const result = await decks.setPredecessor(input.id, context.userId, input.predecessorDeckId);
+    if (result === "not-found") {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
+    }
+    if (result === "invalid") {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Decks cannot be linked");
+    }
+    return toDeck(result);
+  }),
+
   // ── POST /decks/:id/promote ───────────────────────────────────────────────
   // Make this variant front its family in the deck list.
   promotePrimary: os.promotePrimary.handler(async ({ input, context }) => {

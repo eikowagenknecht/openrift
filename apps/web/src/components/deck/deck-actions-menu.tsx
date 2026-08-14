@@ -4,12 +4,10 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
-  CopyIcon,
   EllipsisVerticalIcon,
   FlaskConicalIcon,
   FolderIcon,
   GitBranchIcon,
-  HistoryIcon,
   MonitorPlayIcon,
   PencilIcon,
   PinIcon,
@@ -48,7 +46,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckFolders, useSetDeckFolders } from "@/hooks/use-deck-folders";
-import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
   deckDetailQueryOptions,
   useDeleteDeck,
@@ -65,7 +62,6 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { DeckExportDialog } from "./deck-export-dialog";
 import { DeckRenameDialog } from "./deck-rename-dialog";
-import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
 import { DeckVariantsDialog } from "./deck-variants-dialog";
 import { ManageDeckFoldersDialog } from "./manage-deck-folders-dialog";
 import { ProxyExportDialog } from "./proxy-export-dialog";
@@ -96,10 +92,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [variantsOpen, setVariantsOpen] = useState(false);
-  // One create dialog, opened in whichever mode the menu item asked for. The
-  // mode outlives the close so the dialog doesn't switch copy while it fades.
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
 
   const { data: folders } = useDeckFolders();
   const setDeckFolders = useSetDeckFolders();
@@ -121,12 +113,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const stop = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-  };
-
-  const handleCreateVariant = (event: React.MouseEvent, mode: DeckVariantMode) => {
-    stop(event);
-    setCreateMode(mode);
-    setCreateOpen(true);
   };
 
   const handleDelete = () => {
@@ -272,20 +258,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => handleCreateVariant(event, "checkpoint")}
-          >
-            <HistoryIcon className="size-4" />
-            Save checkpoint…
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => handleCreateVariant(event, "variant")}
-          >
-            <CopyIcon className="size-4" />
-            New variant…
-          </DropdownMenuItem>
-          {/* Always available: the dialog is also where a standalone deck gets
-              linked to its first sibling. */}
+          {/* Always available, and the only variant entry in this menu: the
+              dialog is where a version is created, and also where a standalone
+              deck gets linked to its first sibling. */}
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
@@ -388,15 +363,12 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         onOpenChange={setRenameOpen}
       />
 
-      <DeckVariantCreateDialog
+      <DeckVariantsDialog
         deckId={deck.id}
         deckName={deck.name}
-        mode={createMode}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+        open={variantsOpen}
+        onOpenChange={setVariantsOpen}
       />
-
-      <DeckVariantsDialog deckId={deck.id} open={variantsOpen} onOpenChange={setVariantsOpen} />
 
       <ManageDeckFoldersDialog open={foldersOpen} onOpenChange={setFoldersOpen} />
     </>

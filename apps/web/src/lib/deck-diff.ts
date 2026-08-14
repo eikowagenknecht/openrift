@@ -35,8 +35,8 @@ export interface DeckDiff {
   cutCount: number;
 }
 
-// Display order for the diff's zone sections, mirroring the deck sidebar.
-const ZONE_DIFF_ORDER: readonly DeckZone[] = [
+/** Display order for the diff's zone sections, mirroring the deck sidebar. */
+export const ZONE_DIFF_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
   WellKnown.deckZone.RUNES,

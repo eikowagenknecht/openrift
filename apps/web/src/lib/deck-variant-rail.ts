@@ -24,12 +24,9 @@ export interface RailNode {
   fullName: string;
   isCurrent: boolean;
   isDraft: boolean;
-  /** 0 = the open deck's ancestry chain, 1 = everything else. */
-  lane: 0 | 1;
-  /**
-   * Horizontal slot, in chain steps. Chain nodes sit at whole slots; a branch
-   * node sits at its anchor's slot + 0.75 so the fork reads as "after" it.
-   */
+  /** Row, from the top. Lane 0 carries the open deck's own line of descent. */
+  lane: number;
+  /** Column, in generations from the family's oldest drawn ancestor. */
   x: number;
 }
 
@@ -37,8 +34,6 @@ export interface RailEdge {
   /** The older end (the predecessor). */
   fromId: string;
   toId: string;
-  /** chain = along lane 0; branch = lane 0 down to lane 1. */
-  kind: "chain" | "branch";
 }
 
 export interface RailLayout {
@@ -108,12 +103,84 @@ function ancestryChain(
 }
 
 /**
- * Lays out a family as rail nodes and edges. Lane 0 is the open deck's
- * ancestry chain, oldest at slot 0. Every other member goes to lane 1, newest
- * first: anchored after its predecessor when that predecessor is on the chain
- * (with a branch edge), otherwise unanchored at the left (no edge), which is
- * how members linked without lineage render. When the family exceeds
- * `maxNodes`, chain nodes win and the newest siblings fill what's left.
+ * Which members the rail draws when the family is larger than `maxNodes`. The
+ * open deck's ancestry wins the space (newest generations first, since those
+ * are the ones a reader is comparing against), and whatever is left goes to the
+ * most recently updated of the others.
+ *
+ * @returns The drawn members plus how many were left out.
+ */
+function selectDrawnMembers(
+  members: readonly RailMemberInput[],
+  chain: readonly RailMemberInput[],
+  maxNodes: number,
+): { drawn: RailMemberInput[]; overflowCount: number } {
+  const keptChain = chain.length > maxNodes ? chain.slice(chain.length - maxNodes) : chain;
+  const keptChainIds = new Set(keptChain.map((member) => member.id));
+  const rest = members
+    .filter((member) => !keptChainIds.has(member.id))
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const keptRest = rest.slice(0, Math.max(0, maxNodes - keptChain.length));
+  return {
+    drawn: [...keptChain, ...keptRest],
+    overflowCount: members.length - keptChain.length - keptRest.length,
+  };
+}
+
+/**
+ * Generation of every drawn member, counting from its oldest drawn ancestor. A
+ * pointer at a member that isn't drawn (dropped by the overflow, or in another
+ * family) reads as no pointer at all, which is what puts an adopted member at
+ * the left edge with no line into it.
+ *
+ * @returns Each member's column, and the drawn parent it descends from.
+ */
+function resolveGenerations(drawn: readonly RailMemberInput[]): {
+  depths: Map<string, number>;
+  parents: Map<string, string | null>;
+} {
+  const drawnIds = new Set(drawn.map((member) => member.id));
+  const parents = new Map<string, string | null>(
+    drawn.map((member) => [
+      member.id,
+      member.predecessorDeckId && drawnIds.has(member.predecessorDeckId)
+        ? member.predecessorDeckId
+        : null,
+    ]),
+  );
+  const depths = new Map<string, number>();
+  const depthOf = (id: string, walking: Set<string>): number => {
+    const known = depths.get(id);
+    if (known !== undefined) {
+      return known;
+    }
+    if (walking.has(id)) {
+      // A cycle the API shouldn't allow: cut it here so the family still draws.
+      parents.set(id, null);
+      depths.set(id, 0);
+      return 0;
+    }
+    walking.add(id);
+    const parentId = parents.get(id) ?? null;
+    const depth = parentId === null ? 0 : depthOf(parentId, walking) + 1;
+    depths.set(id, depth);
+    return depth;
+  };
+  for (const member of drawn) {
+    depthOf(member.id, new Set());
+  }
+  return { depths, parents };
+}
+
+/**
+ * Lays a variant family out as a branch graph. Every drawn member is placed in
+ * the column of its generation, and every predecessor pointer between two drawn
+ * members becomes an edge — including pointers that have nothing to do with the
+ * open deck, which is what makes the graph read as the family's history rather
+ * than as one deck's ancestry.
+ *
+ * Lane 0 is the open deck's own line: its ancestry runs along it, and each
+ * further branch takes the first row that is still free at its column.
  *
  * @returns The computed layout.
  */
@@ -130,58 +197,77 @@ export function buildRailLayout(
   }
 
   const chain = ancestryChain(byId, currentId);
-  const chainIndex = new Map(chain.map((member, index) => [member.id, index]));
-  const rest = members
-    .filter((member) => !chainIndex.has(member.id))
-    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const chainIds = new Set(chain.map((member) => member.id));
+  const { drawn, overflowCount } = selectDrawnMembers(members, chain, maxNodes);
+  const { depths, parents } = resolveGenerations(drawn);
 
-  const keptChain = chain.length > maxNodes ? chain.slice(chain.length - maxNodes) : chain;
-  const keptChainIndex = new Map(keptChain.map((member, index) => [member.id, index]));
-  const siblingBudget = Math.max(0, maxNodes - keptChain.length);
-  const keptRest = rest.slice(0, siblingBudget);
-  const overflowCount = chain.length - keptChain.length + (rest.length - keptRest.length);
+  const children = new Map<string, RailMemberInput[]>();
+  const roots: RailMemberInput[] = [];
+  for (const member of drawn) {
+    const parentId = parents.get(member.id) ?? null;
+    if (parentId === null) {
+      roots.push(member);
+      continue;
+    }
+    children.set(parentId, [...(children.get(parentId) ?? []), member]);
+  }
+
+  // The open deck's line runs straight, so at every fork the child that leads
+  // to it goes first; the rest follow newest-first.
+  const byDescent = (left: RailMemberInput, right: RailMemberInput): number => {
+    const leftOnChain = chainIds.has(left.id) ? 0 : 1;
+    const rightOnChain = chainIds.has(right.id) ? 0 : 1;
+    if (leftOnChain !== rightOnChain) {
+      return leftOnChain - rightOnChain;
+    }
+    return right.updatedAt.localeCompare(left.updatedAt);
+  };
+  roots.sort(byDescent);
 
   const nodes: RailNode[] = [];
-  const edges: RailEdge[] = [];
-  const usedSiblingSlots = new Set<number>();
+  const laneEnd: number[] = [];
+  /** @returns The row this node can occupy, reusing `preferred` when it is free. */
+  const claimLane = (preferred: number | null, x: number): number => {
+    if (preferred !== null && (laneEnd[preferred] ?? -1) < x) {
+      return preferred;
+    }
+    let lane = 0;
+    while ((laneEnd[lane] ?? -1) >= x) {
+      lane += 1;
+    }
+    return lane;
+  };
 
-  for (const member of keptChain) {
-    const index = keptChainIndex.get(member.id) ?? 0;
+  const place = (member: RailMemberInput, preferredLane: number | null): void => {
+    const x = depths.get(member.id) ?? 0;
+    const lane = claimLane(preferredLane, x);
+    laneEnd[lane] = x;
     nodes.push({
       id: member.id,
       label: railLabel(member.name, current.name, referenceYear),
       fullName: member.name,
       isCurrent: member.id === currentId,
       isDraft: member.isDraft,
-      lane: 0,
-      x: index,
+      lane,
+      x,
     });
-    const predecessorId = member.predecessorDeckId;
-    if (predecessorId && keptChainIndex.has(predecessorId)) {
-      edges.push({ fromId: predecessorId, toId: member.id, kind: "chain" });
-    }
+    const descendants = (children.get(member.id) ?? []).toSorted(byDescent);
+    descendants.forEach((child, index) => {
+      // The first child continues its parent's row; a fork starts a new one.
+      place(child, index === 0 ? lane : null);
+    });
+  };
+
+  for (const root of roots) {
+    place(root, chainIds.has(root.id) ? 0 : null);
   }
 
-  for (const member of keptRest) {
-    const anchorIndex = member.predecessorDeckId
-      ? keptChainIndex.get(member.predecessorDeckId)
-      : undefined;
-    let slot = anchorIndex === undefined ? 0 : anchorIndex;
-    while (usedSiblingSlots.has(slot)) {
-      slot += 1;
-    }
-    usedSiblingSlots.add(slot);
-    nodes.push({
-      id: member.id,
-      label: railLabel(member.name, current.name, referenceYear),
-      fullName: member.name,
-      isCurrent: false,
-      isDraft: member.isDraft,
-      lane: 1,
-      x: slot + 0.75,
-    });
-    if (anchorIndex !== undefined && member.predecessorDeckId) {
-      edges.push({ fromId: member.predecessorDeckId, toId: member.id, kind: "branch" });
+  const drawnIds = new Set(nodes.map((node) => node.id));
+  const edges: RailEdge[] = [];
+  for (const node of nodes) {
+    const parentId = parents.get(node.id) ?? null;
+    if (parentId !== null && drawnIds.has(parentId)) {
+      edges.push({ fromId: parentId, toId: node.id });
     }
   }
 

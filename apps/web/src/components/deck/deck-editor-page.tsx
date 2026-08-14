@@ -789,7 +789,12 @@ function DeckEditorContent({
         />
       )}
       {!isLocal && (
-        <DeckVariantsDialog deckId={deckId} open={variantsOpen} onOpenChange={setVariantsOpen} />
+        <DeckVariantsDialog
+          deckId={deckId}
+          deckName={data.deck.name}
+          open={variantsOpen}
+          onOpenChange={setVariantsOpen}
+        />
       )}
       {!isLocal && (
         <DeckShareDialog

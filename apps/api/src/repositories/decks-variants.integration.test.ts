@@ -442,6 +442,72 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
   });
 
+  // ── setPredecessor ────────────────────────────────────────────────────────
+
+  describe("setPredecessor", () => {
+    it("points a member at another member of the same family", async () => {
+      const source = await makeDeck("DV Parent Source");
+      const sibling = await copyOf(source.id, { mode: "variant" });
+
+      const updated = await decks.setPredecessor(source.id, userId, sibling.id);
+      expect(typeof updated === "object" && updated.predecessorDeckId).toBe(sibling.id);
+    });
+
+    it("clears the pointer with null", async () => {
+      const source = await makeDeck("DV Parent Clear");
+      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
+      const before = await reload(source.id);
+      expect(before.predecessorDeckId).toBe(checkpoint.id);
+
+      const updated = await decks.setPredecessor(source.id, userId, null);
+      expect(typeof updated === "object" && updated.predecessorDeckId).toBeNull();
+    });
+
+    it("rejects a deck pointed at itself", async () => {
+      const source = await makeDeck("DV Parent Self");
+      await copyOf(source.id, { mode: "variant" });
+      expect(await decks.setPredecessor(source.id, userId, source.id)).toBe("invalid");
+    });
+
+    it("rejects a pointer that would close a loop", async () => {
+      const source = await makeDeck("DV Parent Loop");
+      const child = await copyOf(source.id, { mode: "variant" });
+      const grandchild = await copyOf(child.id, { mode: "variant" });
+
+      expect(await decks.setPredecessor(source.id, userId, grandchild.id)).toBe("invalid");
+      // The rejected write leaves the row alone.
+      const unchanged = await reload(source.id);
+      expect(unchanged.predecessorDeckId).toBeNull();
+    });
+
+    it("rejects a predecessor from another family", async () => {
+      const source = await makeDeck("DV Parent Outsider Source");
+      await copyOf(source.id, { mode: "variant" });
+      const stranger = await makeDeck("DV Parent Outsider Stranger");
+      await copyOf(stranger.id, { mode: "variant" });
+
+      expect(await decks.setPredecessor(source.id, userId, stranger.id)).toBe("invalid");
+    });
+
+    it("rejects a standalone deck taking a predecessor", async () => {
+      const standalone = await makeDeck("DV Parent Standalone");
+      const other = await makeDeck("DV Parent Standalone Other");
+      expect(await decks.setPredecessor(standalone.id, userId, other.id)).toBe("invalid");
+    });
+
+    it("reports not-found for a missing deck and for another user's deck", async () => {
+      const foreign = await makeDeck("DV Parent Foreign", { owner: otherUserId });
+      const foreignSibling = await copyOf(foreign.id, { mode: "variant" }, otherUserId);
+
+      expect(await decks.setPredecessor(MISSING_DECK_ID, userId, null)).toBe("not-found");
+      expect(await decks.setPredecessor(foreign.id, userId, foreignSibling.id)).toBe("not-found");
+      // A predecessor the caller does not own is a miss, not a silent write.
+      const source = await makeDeck("DV Parent Foreign Target");
+      await copyOf(source.id, { mode: "variant" });
+      expect(await decks.setPredecessor(source.id, userId, foreignSibling.id)).toBe("not-found");
+    });
+  });
+
   // ── linkAsVariant ─────────────────────────────────────────────────────────
 
   describe("linkAsVariant", () => {

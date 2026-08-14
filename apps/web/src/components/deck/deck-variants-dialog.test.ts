@@ -2,7 +2,7 @@ import type { DeckSummaryResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { defaultCompareId, linkableDeckOptions } from "@/components/deck/deck-variants-dialog";
+import { linkableDeckOptions, parentOptions } from "@/components/deck/deck-variants-dialog";
 
 function stubMember(overrides: Partial<DeckSummaryResponse> & { id: string }): DeckSummaryResponse {
   return {
@@ -26,35 +26,40 @@ function stubMember(overrides: Partial<DeckSummaryResponse> & { id: string }): D
   };
 }
 
-describe("defaultCompareId", () => {
-  it("starts on the deck's own predecessor", () => {
+describe("parentOptions", () => {
+  it("offers every other member of the family", () => {
     const members = [
-      stubMember({ id: "live", predecessorDeckId: "checkpoint" }),
-      stubMember({ id: "checkpoint" }),
-      stubMember({ id: "budget" }),
+      stubMember({ id: "live", name: "Live" }),
+      stubMember({ id: "budget", name: "Budget" }),
+      stubMember({ id: "worlds", name: "Worlds" }),
     ];
-    expect(defaultCompareId("live", members)).toBe("checkpoint");
+    expect(parentOptions(members, "live")).toEqual([
+      { value: "budget", label: "Budget" },
+      { value: "worlds", label: "Worlds" },
+    ]);
   });
 
-  it("falls back to another member when the predecessor left the family", () => {
+  it("drops the deck's own descendants, however deep", () => {
     const members = [
-      stubMember({ id: "live", predecessorDeckId: "deleted" }),
-      stubMember({ id: "budget" }),
+      stubMember({ id: "root", name: "Root" }),
+      stubMember({ id: "child", name: "Child", predecessorDeckId: "root" }),
+      stubMember({ id: "grandchild", name: "Grandchild", predecessorDeckId: "child" }),
+      stubMember({ id: "cousin", name: "Cousin" }),
     ];
-    expect(defaultCompareId("live", members)).toBe("budget");
+    expect(parentOptions(members, "root")).toEqual([{ value: "cousin", label: "Cousin" }]);
   });
 
-  it("falls back to another member when there is no predecessor", () => {
-    const members = [stubMember({ id: "live" }), stubMember({ id: "budget" })];
-    expect(defaultCompareId("live", members)).toBe("budget");
+  it("finds descendants listed before their parent", () => {
+    const members = [
+      stubMember({ id: "grandchild", name: "Grandchild", predecessorDeckId: "child" }),
+      stubMember({ id: "child", name: "Child", predecessorDeckId: "root" }),
+      stubMember({ id: "root", name: "Root" }),
+    ];
+    expect(parentOptions(members, "root")).toEqual([]);
   });
 
-  it("returns the deck itself when it is the only member", () => {
-    expect(defaultCompareId("live", [stubMember({ id: "live" })])).toBe("live");
-  });
-
-  it("returns the deck itself when it is not in the list at all", () => {
-    expect(defaultCompareId("live", [])).toBe("live");
+  it("returns nothing for a lone member", () => {
+    expect(parentOptions([stubMember({ id: "live" })], "live")).toEqual([]);
   });
 });
 

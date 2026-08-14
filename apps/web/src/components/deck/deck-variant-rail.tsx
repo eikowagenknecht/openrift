@@ -3,17 +3,12 @@ import { ZONE_LABELS } from "@openrift/shared";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, CopyIcon, GitBranchIcon, HistoryIcon, PlusIcon } from "lucide-react";
+import { ArrowRightIcon, GitBranchIcon, PlusIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
 import type { DeckVariantMode } from "@/hooks/use-decks";
 import { deckDetailQueryOptions, useDecks } from "@/hooks/use-decks";
@@ -32,24 +27,22 @@ import { DeckVariantsDialog } from "./deck-variants-dialog";
 // The rail is a git-style branch graph of the deck's family (ADR-042): HTML
 // nodes positioned over an SVG that draws only the connections. Geometry lives
 // here because it is pure presentation; the graph itself (who sits where, in
-// which lane, at which slot) comes from lib/deck-variant-rail.
+// which lane, at which column) comes from lib/deck-variant-rail.
 
 /** How many members fit before the rail collapses the rest into "+N more". */
 const MAX_RAIL_NODES = 6;
-/** Horizontal distance between two chain steps. */
+/** Horizontal distance between two generations. */
 const SLOT_WIDTH = 168;
 /** Left inset so the first node's halo and focus ring aren't clipped. */
 const PAD_X = 20;
 /** Room to the right of the last node for its label. */
 const TRAILING_X = 150;
-/** Baseline of the ancestry chain. */
-const LANE_0_Y = 34;
-/** Baseline of the siblings. */
-const LANE_1_Y = 76;
-/** Tall enough for a lane-1 node plus its label below it. */
-const RAIL_HEIGHT_TWO_LANE = 104;
-/** No siblings, so nothing renders below the chain. */
-const RAIL_HEIGHT_ONE_LANE = 52;
+/** Baseline of lane 0. */
+const LANE_TOP_Y = 22;
+/** Vertical distance between two lanes: a dot plus its label below it. */
+const LANE_GAP = 46;
+/** Room under the last lane for its label. */
+const LANE_BOTTOM_PAD = 26;
 /** Width of a node's label box; it truncates rather than pushing the layout. */
 const LABEL_WIDTH = 140;
 
@@ -81,14 +74,14 @@ function nodeX(node: { x: number }): number {
 }
 
 /** @returns The pixel y of a lane's baseline. */
-function laneY(lane: 0 | 1): number {
-  return lane === 0 ? LANE_0_Y : LANE_1_Y;
+function laneY(lane: number): number {
+  return LANE_TOP_Y + lane * LANE_GAP;
 }
 
 /**
- * The SVG path for one connection. A chain step is a straight run along lane 0;
- * a branch leaves its anchor and eases down into lane 1, which is what makes
- * the fork read as a fork rather than a second unrelated row.
+ * The SVG path for one connection. A step along the same lane is a straight
+ * run; a fork eases down into its own lane, which is what makes it read as a
+ * fork rather than a second unrelated row.
  *
  * @returns The `d` attribute, or null when either end is missing.
  */
@@ -102,7 +95,7 @@ function edgePath(edge: RailEdge, byId: ReadonlyMap<string, RailNode>): string |
   const y1 = laneY(from.lane);
   const x2 = nodeX(to);
   const y2 = laneY(to.lane);
-  if (edge.kind === "chain") {
+  if (from.lane === to.lane) {
     return `M ${x1} ${y1} L ${x2} ${y2}`;
   }
   const bend = (x2 - x1) / 2;
@@ -110,7 +103,10 @@ function edgePath(edge: RailEdge, byId: ReadonlyMap<string, RailNode>): string |
 }
 
 /**
- * Places an edge's step-diff numbers clear of both the labels and the dots.
+ * Places an edge's step-diff numbers clear of both the labels and the dots:
+ * midway along the edge, just above the line it lands on. Labels hang below
+ * their dots, so the space above a line is always free.
+ *
  * @returns The pixel centre for the numbers, or null when either end is missing.
  */
 function edgeCountsPosition(
@@ -122,13 +118,7 @@ function edgeCountsPosition(
   if (!from || !to) {
     return null;
   }
-  if (edge.kind === "chain") {
-    // Below the chain line at the midpoint; the labels live above it.
-    return { left: (nodeX(from) + nodeX(to)) / 2, top: LANE_0_Y + 14 };
-  }
-  // On the flat run into the branch node, where the curve has levelled off —
-  // far enough left that the numbers clear the node's own dot.
-  return { left: nodeX(to) - 48, top: LANE_1_Y };
+  return { left: (nodeX(from) + nodeX(to)) / 2, top: laneY(to.lane) - 13 };
 }
 
 /**
@@ -173,12 +163,42 @@ async function loadRailCards(
   );
 }
 
-function EdgeCounts({ addCount, cutCount }: { addCount: number; cutCount: number }) {
+/**
+ * One edge's step diff, as the link into the full comparison. The numbers are
+ * the most direct handle on "what changed between these two", so they carry the
+ * navigation rather than sitting there as decoration.
+ *
+ * @returns The linked +N / −N chips.
+ */
+function EdgeCounts({
+  fromId,
+  toId,
+  addCount,
+  cutCount,
+}: {
+  fromId: string;
+  toId: string;
+  addCount: number;
+  cutCount: number;
+}) {
   return (
-    <span className="bg-background flex items-center gap-1 rounded px-1">
-      <span className={cn(CHIP_BASE, ADD_CHIP)}>+{addCount}</span>
-      <span className={cn(CHIP_BASE, CUT_CHIP)}>−{cutCount}</span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Link
+            to="/decks/$deckId/changes"
+            params={{ deckId: toId }}
+            search={{ from: fromId }}
+            aria-label="Show what changed"
+            className="focus-visible:ring-ring bg-background hover:ring-border flex items-center gap-1 rounded px-1 ring-1 ring-transparent transition-[box-shadow] outline-none focus-visible:ring-2"
+          />
+        }
+      >
+        <span className={cn(CHIP_BASE, ADD_CHIP)}>+{addCount}</span>
+        <span className={cn(CHIP_BASE, CUT_CHIP)}>−{cutCount}</span>
+      </TooltipTrigger>
+      <TooltipContent>Show what changed</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -236,19 +256,20 @@ function RailNodeDiff({
 
 function RailNodePopover({
   node,
+  openDeckId,
   updatedAt,
   ourCards,
   theirCards,
   cardsById,
-  onShowFullChanges,
   onBranchFrom,
 }: {
   node: RailNode;
+  /** The deck the rail belongs to, i.e. the other side of the comparison. */
+  openDeckId: string;
   updatedAt: string | undefined;
   ourCards: DeckCardResponse[] | undefined;
   theirCards: DeckCardResponse[] | undefined;
   cardsById: Record<string, Card>;
-  onShowFullChanges: () => void;
   onBranchFrom: () => void;
 }) {
   const updatedLabel = updatedAt
@@ -267,8 +288,8 @@ function RailNodePopover({
       </div>
       <RailNodeDiff ourCards={ourCards} theirCards={theirCards} cardsById={cardsById} />
       <div className="flex flex-wrap items-center gap-1 border-t pt-2">
-        {/* Not a PopoverClose: the navigation unmounts the whole rail, and
-            closing first would only race the route change. */}
+        {/* Neither link is a PopoverClose: the navigation unmounts the whole
+            rail, and closing first would only race the route change. */}
         <Button
           variant="ghost"
           size="sm"
@@ -277,9 +298,19 @@ function RailNodePopover({
           <ArrowRightIcon className="size-4" />
           Open deck
         </Button>
-        <PopoverClose render={<Button variant="ghost" size="sm" onClick={onShowFullChanges} />}>
+        <Button
+          variant="ghost"
+          size="sm"
+          render={
+            <Link
+              to="/decks/$deckId/changes"
+              params={{ deckId: openDeckId }}
+              search={{ from: node.id }}
+            />
+          }
+        >
           Show full changes
-        </PopoverClose>
+        </Button>
         <PopoverClose render={<Button variant="ghost" size="sm" onClick={onBranchFrom} />}>
           <GitBranchIcon className="size-4" />
           Branch from here
@@ -293,8 +324,9 @@ function RailNodeLabel({ node }: { node: RailNode }) {
   return (
     <span
       className={cn(
-        "text-2xs absolute left-2.5 flex items-center gap-1.5",
-        node.lane === 0 ? "bottom-full mb-2" : "top-full mt-2",
+        // Every label hangs below its dot: with more than two lanes, labels
+        // above would collide with the lane over them.
+        "text-2xs absolute top-full left-2.5 mt-2 flex items-center gap-1.5",
         node.isCurrent ? "text-foreground font-medium" : "text-muted-foreground",
       )}
       style={{ width: LABEL_WIDTH }}
@@ -309,8 +341,12 @@ function RailDot({ isCurrent }: { isCurrent: boolean }) {
   return (
     <span
       className={cn(
-        "block size-2 rounded-full",
-        isCurrent ? "bg-primary ring-primary/25 ring-4" : "bg-muted-foreground",
+        // The hover/open growth is on the dot rather than the trigger so the
+        // label beside it stays put.
+        "block size-2 rounded-full transition-[scale,background-color]",
+        isCurrent
+          ? "bg-primary ring-primary/25 ring-4"
+          : "bg-muted-foreground group-hover:bg-foreground group-focus-visible:bg-foreground group-data-popup-open:bg-foreground group-hover:scale-150 group-focus-visible:scale-150 group-data-popup-open:scale-150",
       )}
     />
   );
@@ -327,7 +363,6 @@ function VariantRailBody({ deckId }: { deckId: string }) {
   const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
   const [createTarget, setCreateTarget] = useState<{ id: string; name: string } | null>(null);
   const [variantsOpen, setVariantsOpen] = useState(false);
-  const [presetCompareId, setPresetCompareId] = useState<string | null>(null);
 
   const current = items.find((item) => item.deck.id === deckId);
   const familyId = current?.deck.familyId ?? null;
@@ -377,19 +412,14 @@ function VariantRailBody({ deckId }: { deckId: string }) {
     setCreateOpen(true);
   };
 
-  const handleShowChanges = (compareId: string | null) => {
-    setPresetCompareId(compareId);
-    setVariantsOpen(true);
-  };
-
   if (layout.nodes.length === 0) {
     return null;
   }
 
   const nodesById = new Map(layout.nodes.map((node) => [node.id, node]));
   const updatedById = new Map(members.map((member) => [member.id, member.updatedAt]));
-  const hasSiblings = layout.nodes.some((node) => node.lane === 1);
-  const height = hasSiblings ? RAIL_HEIGHT_TWO_LANE : RAIL_HEIGHT_ONE_LANE;
+  const maxLane = layout.nodes.reduce((deepest, node) => Math.max(deepest, node.lane), 0);
+  const height = laneY(maxLane) + LANE_BOTTOM_PAD;
   const maxX = layout.nodes.reduce((widest, node) => Math.max(widest, node.x), 0);
   const width = PAD_X + maxX * SLOT_WIDTH + TRAILING_X;
   const createTargetId = createTarget?.id ?? deckId;
@@ -436,7 +466,12 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                 className="absolute -translate-x-1/2 -translate-y-1/2"
                 style={{ left: position.left, top: position.top }}
               >
-                <EdgeCounts addCount={counts.addCount} cutCount={counts.cutCount} />
+                <EdgeCounts
+                  fromId={edge.fromId}
+                  toId={edge.toId}
+                  addCount={counts.addCount}
+                  cutCount={counts.cutCount}
+                />
               </span>
             );
           })}
@@ -458,31 +493,26 @@ function VariantRailBody({ deckId }: { deckId: string }) {
             }
             return (
               <Popover key={node.id}>
+                {/* The dot opens the comparison rather than the deck: the deck
+                    is one click further in, behind "Open deck". */}
                 <PopoverTrigger
-                  nativeButton={false}
                   openOnHover
                   delay={200}
                   closeDelay={120}
-                  className="focus-visible:ring-ring absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
+                  aria-label={node.fullName}
+                  className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                   style={position}
-                  render={
-                    <Link
-                      to="/decks/$deckId"
-                      params={{ deckId: node.id }}
-                      aria-label={node.fullName}
-                    />
-                  }
                 >
                   <RailDot isCurrent={false} />
                   <RailNodeLabel node={node} />
                 </PopoverTrigger>
                 <RailNodePopover
                   node={node}
+                  openDeckId={deckId}
                   updatedAt={updatedById.get(node.id)}
                   ourCards={cardsByDeck[deckId]}
                   theirCards={cardsByDeck[node.id]}
                   cardsById={cardsById}
-                  onShowFullChanges={() => handleShowChanges(node.id)}
                   onBranchFrom={() => handleCreate("variant", { id: node.id, name: node.fullName })}
                 />
               </Popover>
@@ -490,45 +520,31 @@ function VariantRailBody({ deckId }: { deckId: string }) {
           })}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1" style={{ height: LANE_0_Y * 2 }}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
+        <div className="flex shrink-0 items-center gap-1" style={{ height: LANE_TOP_Y * 2 }}>
+          <Tooltip>
+            <TooltipTrigger
               render={
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Add a variant"
+                  aria-label="New variant"
                   className="border-border rounded-full border border-dashed"
+                  onClick={() => handleCreate("variant", { id: deckId, name: openDeckName })}
                 />
               }
             >
               <PlusIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                onClick={() => handleCreate("checkpoint", { id: deckId, name: openDeckName })}
-              >
-                <HistoryIcon className="size-4" />
-                Save checkpoint…
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleCreate("variant", { id: deckId, name: openDeckName })}
-              >
-                <CopyIcon className="size-4" />
-                New variant…
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {layout.overflowCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              onClick={() => handleShowChanges(null)}
-            >
-              +{layout.overflowCount} more
-            </Button>
-          )}
+            </TooltipTrigger>
+            <TooltipContent>New variant</TooltipContent>
+          </Tooltip>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => setVariantsOpen(true)}
+          >
+            {layout.overflowCount > 0 ? `+${layout.overflowCount} more` : "Manage"}
+          </Button>
         </div>
       </nav>
 
@@ -541,10 +557,9 @@ function VariantRailBody({ deckId }: { deckId: string }) {
       />
       <DeckVariantsDialog
         deckId={deckId}
+        deckName={openDeckName}
         open={variantsOpen}
         onOpenChange={setVariantsOpen}
-        initialBaseId={presetCompareId === null ? undefined : deckId}
-        initialCompareId={presetCompareId ?? undefined}
       />
     </div>
   );

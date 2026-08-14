@@ -14,6 +14,7 @@ import { sql } from "kysely";
 
 import { parseJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
+import { createsCycle } from "../lib/deck-lineage.js";
 
 function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
   return value === null ? null : JSON.stringify(value);
@@ -756,6 +757,70 @@ export function decksRepo(db: Kysely<Database>) {
           .selectFrom("decks")
           .selectAll()
           .where("id", "=", id)
+          .executeTakeFirstOrThrow();
+        return withParsedJsonb(row);
+      });
+    },
+
+    /**
+     * Repoints a deck at another member of its own variant family as its
+     * predecessor, or clears the pointer with `null` (ADR-042). Both decks must
+     * belong to the same family and the same user. A predecessor that already
+     * descends from this deck would close the ancestry into a loop, so the walk
+     * up from the proposed parent rejects that case.
+     *
+     * @returns The updated row, or a literal describing why nothing changed.
+     */
+    setPredecessor(
+      id: string,
+      userId: string,
+      predecessorDeckId: string | null,
+    ): Promise<Selectable<DecksTable> | "not-found" | "invalid"> {
+      return db.transaction().execute(async (trx) => {
+        if (id === predecessorDeckId) {
+          return "invalid" as const;
+        }
+        const target = await trx
+          .selectFrom("decks")
+          .select(["id", "familyId"])
+          .where("id", "=", id)
+          .where("userId", "=", userId)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!target) {
+          return "not-found" as const;
+        }
+        if (predecessorDeckId !== null) {
+          if (target.familyId === null) {
+            return "invalid" as const;
+          }
+          const parent = await trx
+            .selectFrom("decks")
+            .select(["id", "familyId"])
+            .where("id", "=", predecessorDeckId)
+            .where("userId", "=", userId)
+            .executeTakeFirst();
+          if (!parent) {
+            return "not-found" as const;
+          }
+          if (parent.familyId !== target.familyId) {
+            return "invalid" as const;
+          }
+          const family = await trx
+            .selectFrom("decks")
+            .select(["id", "predecessorDeckId"])
+            .where("familyId", "=", target.familyId)
+            .where("userId", "=", userId)
+            .execute();
+          if (createsCycle(family, id, predecessorDeckId)) {
+            return "invalid" as const;
+          }
+        }
+        const row = await trx
+          .updateTable("decks")
+          .set({ predecessorDeckId })
+          .where("id", "=", id)
+          .returningAll()
           .executeTakeFirstOrThrow();
         return withParsedJsonb(row);
       });

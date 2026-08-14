@@ -331,6 +331,15 @@ export const linkDeckVariantSchema = z.object({
   markAsPreviousVersion: z.boolean().optional(),
 });
 
+/**
+ * PUT /decks/{id}/predecessor body (ADR-042): point a deck at another member of
+ * its family as the version it came from, or `null` to make it a root of the
+ * family's history.
+ */
+export const setDeckPredecessorSchema = z.object({
+  predecessorDeckId: z.uuid().nullable(),
+});
+
 const shareTokenParamSchema = z.object({ token: z.string().min(1) });
 const pinDeckBodySchema = z.object({ isPinned: z.boolean() });
 const archiveDeckBodySchema = z.object({ archived: z.boolean() });
@@ -345,8 +354,10 @@ const archiveDeckBodySchema = z.object({ archived: z.boolean() });
  * NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST; `replacePlan` → NOT_FOUND +
  * BAD_REQUEST (invalid plan content); `cloneShared` → NOT_FOUND (unknown
  * share token); `createVariant` → NOT_FOUND; `linkVariant` → NOT_FOUND +
- * BAD_REQUEST (the two decks can't be linked); `unlinkVariant` and
- * `promotePrimary` → NOT_FOUND + BAD_REQUEST (the deck has no variants).
+ * BAD_REQUEST (the two decks can't be linked); `setPredecessor` → NOT_FOUND +
+ * BAD_REQUEST (the pointer would leave the family or close a loop);
+ * `unlinkVariant` and `promotePrimary` → NOT_FOUND + BAD_REQUEST (the deck has
+ * no variants).
  */
 export const decksContract = {
   list: authedRoute
@@ -422,6 +433,14 @@ export const decksContract = {
     .errors({
       NOT_FOUND: { message: "Deck not found" },
       BAD_REQUEST: { message: "Deck has no variants" },
+    })
+    .output(deckResponseSchema),
+  setPredecessor: authedRoute
+    .route({ method: "PUT", path: "/api/v1/decks/{id}/predecessor", tags: [TAG] })
+    .input(withParams(idParamSchema, setDeckPredecessorSchema))
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Decks cannot be linked" },
     })
     .output(deckResponseSchema),
   promotePrimary: authedRoute

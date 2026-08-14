@@ -1,15 +1,11 @@
-import type { Card, DeckSummaryResponse } from "@openrift/shared";
-import { ZONE_LABELS } from "@openrift/shared";
-import type { QueryClient } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
+import type { DeckSummaryResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { UnlinkIcon } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { CopyIcon, EllipsisVerticalIcon, HistoryIcon } from "lucide-react";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -25,63 +27,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCards } from "@/hooks/use-cards";
+import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
-  deckDetailQueryOptions,
   useDecks,
   useLinkDeckVariant,
   usePromoteDeckPrimary,
+  useSetDeckPredecessor,
   useUnlinkDeckVariant,
 } from "@/hooks/use-decks";
-import { useRequiredUserId } from "@/lib/auth-session";
-import type { DeckDiff, DeckDiffEntry } from "@/lib/deck-diff";
-import { deckDiffCardsFrom, diffDecks } from "@/lib/deck-diff";
+import { buildRailLayout } from "@/lib/deck-variant-rail";
 import { formatAbsoluteDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
+import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
+
 interface DeckVariantsDialogProps {
   deckId: string;
+  /** The open deck's name, for the names a new variant or checkpoint defaults to. */
+  deckName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Preselects the "Deck" side of the comparison. Defaults to the open deck. */
-  initialBaseId?: string;
-  /** Preselects the "Compared with" side. Defaults to {@link defaultCompareId}. */
-  initialCompareId?: string;
 }
 
-/**
- * Diffs two family members in reading order: what the older list would need to
- * become the newer one.
- * @returns The diff between the two decks' cards.
- */
-async function loadVariantDiff(
-  queryClient: QueryClient,
-  userId: string,
-  fromDeckId: string,
-  toDeckId: string,
-  cardsById: Record<string, Card>,
-): Promise<DeckDiff> {
-  const [from, to] = await Promise.all([
-    queryClient.fetchQuery(deckDetailQueryOptions(userId, fromDeckId)),
-    queryClient.fetchQuery(deckDetailQueryOptions(userId, toDeckId)),
-  ]);
-  return diffDecks(
-    deckDiffCardsFrom(from.cards, cardsById),
-    deckDiffCardsFrom(to.cards, cardsById),
-  );
-}
+/** The parent picker's "this version starts the history" option. */
+const NO_PARENT = "none";
 
-/** @returns The family member the comparison starts on: the predecessor, else the next member. */
-export function defaultCompareId(deckId: string, members: readonly DeckSummaryResponse[]): string {
-  const current = members.find((member) => member.id === deckId);
-  const predecessorId = current?.predecessorDeckId;
-  if (predecessorId && members.some((member) => member.id === predecessorId)) {
-    return predecessorId;
-  }
-  const other = members.find((member) => member.id !== deckId);
-  return other?.id ?? deckId;
-}
+/** Indent per generation in the lineage list. */
+const GENERATION_INDENT = 18;
 
 /**
  * The decks that can still join this family: everything else the user owns,
@@ -99,54 +71,96 @@ export function linkableDeckOptions(
     .toSorted((left, right) => left.label.localeCompare(right.label));
 }
 
-const CHIP_BASE = "rounded px-1.5 font-mono text-xs font-bold tabular-nums";
-
-const CHIP_STYLES: Record<DeckDiffEntry["kind"], string> = {
-  add: "bg-green-500/10 text-green-600 dark:text-green-500",
-  cut: "bg-destructive/10 text-destructive",
-  change: "bg-amber-500/10 text-amber-700 dark:text-amber-500",
-};
-
-/** @returns The chip text, e.g. "+2", "−1", or "3→2". */
-function chipLabel(entry: DeckDiffEntry): string {
-  if (entry.kind === "add") {
-    return `+${entry.theirs}`;
+/**
+ * The family members a deck may be pointed at as the version it came from:
+ * everyone but itself and its own descendants, since either would close the
+ * history into a loop. The server enforces the same rule; this only keeps
+ * impossible choices out of the menu.
+ *
+ * @returns Picker options, by name.
+ */
+export function parentOptions(
+  members: readonly DeckSummaryResponse[],
+  deckId: string,
+): { value: string; label: string }[] {
+  const descendants = new Set([deckId]);
+  // Repeat until nothing new lands: one pass only reaches direct children,
+  // and members arrive in no particular order.
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const member of members) {
+      if (
+        member.predecessorDeckId !== null &&
+        descendants.has(member.predecessorDeckId) &&
+        !descendants.has(member.id)
+      ) {
+        descendants.add(member.id);
+        grew = true;
+      }
+    }
   }
-  if (entry.kind === "cut") {
-    return `−${entry.ours}`;
-  }
-  return `${entry.ours}→${entry.theirs}`;
+  return members
+    .filter((member) => !descendants.has(member.id))
+    .map((member) => ({ value: member.id, label: member.name }))
+    .toSorted((left, right) => left.label.localeCompare(right.label));
 }
 
-function VariantDiffRow({ entry }: { entry: DeckDiffEntry }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span className={cn(CHIP_BASE, CHIP_STYLES[entry.kind])}>{chipLabel(entry)}</span>
-      <span className="min-w-0 flex-1 truncate">{entry.cardName}</span>
-    </div>
-  );
-}
-
-function VariantMemberRow({
+function LineageRow({
   deck,
+  generation,
   isCurrent,
-  isPredecessor,
+  openDeckId,
+  parentChoices,
   canUnlink,
   onNavigate,
+  onSetParent,
   onPromote,
   onUnlink,
 }: {
   deck: DeckSummaryResponse;
+  /** Depth from the family's oldest version; drives the indent and the elbow. */
+  generation: number;
   isCurrent: boolean;
-  isPredecessor: boolean;
+  openDeckId: string;
+  parentChoices: { value: string; label: string }[];
   canUnlink: boolean;
   onNavigate: () => void;
+  onSetParent: (parentId: string | null) => void;
   onPromote: () => void;
   onUnlink: () => void;
 }) {
+  const parentItems = [{ value: NO_PARENT, label: "Starts the history" }, ...parentChoices];
   return (
-    <li className="flex items-center gap-2">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <li
+      className="flex min-w-0 items-start gap-2"
+      style={{ paddingLeft: generation * GENERATION_INDENT }}
+    >
+      <span className="relative flex w-3 shrink-0 justify-center pt-2">
+        {generation > 0 && (
+          // The elbow into this row's dot, from the column of the generation
+          // above it — the same fork the rail draws, turned on its side.
+          <span
+            aria-hidden
+            className="border-border absolute rounded-bl-sm border-b border-l"
+            style={{
+              left: -GENERATION_INDENT + 6,
+              top: -6,
+              width: GENERATION_INDENT - 6,
+              height: 14,
+            }}
+          />
+        )}
+        <span
+          aria-hidden
+          className={cn(
+            "size-2 rounded-full",
+            isCurrent ? "bg-primary ring-primary/25 ring-4" : "bg-muted-foreground",
+          )}
+        />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <Link
             to="/decks/$deckId"
@@ -159,124 +173,104 @@ function VariantMemberRow({
           {isCurrent && <Badge variant="subtle">Current</Badge>}
           {deck.isPrimary && <Badge variant="secondary">Primary</Badge>}
           {deck.isDraft && <Badge variant="warning">Draft</Badge>}
-          {isPredecessor && <Badge variant="muted">Previous version</Badge>}
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-2xs shrink-0">Came from</span>
+          <Select
+            items={parentItems}
+            value={deck.predecessorDeckId ?? NO_PARENT}
+            onValueChange={(value) => onSetParent(value === NO_PARENT ? null : (value ?? null))}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label={`Previous version of ${deck.name}`}
+              className="min-w-0 flex-1"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {parentItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <span className="text-muted-foreground text-2xs">
           Updated{" "}
           {formatAbsoluteDate(deck.updatedAt, { year: "numeric", month: "short", day: "numeric" })}
         </span>
       </div>
-      {!deck.isPrimary && (
-        <Button variant="ghost" size="sm" onClick={onPromote}>
-          Make primary
-        </Button>
-      )}
-      {canUnlink && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Remove ${deck.name} from variants`}
-                onClick={onUnlink}
-              />
-            }
-          >
-            <UnlinkIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>Remove from variants</TooltipContent>
-        </Tooltip>
-      )}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${deck.name}`} />}
+        >
+          <EllipsisVerticalIcon className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {!isCurrent && (
+            <DropdownMenuItem
+              render={
+                <Link
+                  to="/decks/$deckId/changes"
+                  params={{ deckId: openDeckId }}
+                  search={{ from: deck.id }}
+                />
+              }
+            >
+              Show changes
+            </DropdownMenuItem>
+          )}
+          {!deck.isPrimary && <DropdownMenuItem onClick={onPromote}>Make primary</DropdownMenuItem>}
+          {canUnlink && (
+            <DropdownMenuItem
+              onClick={onUnlink}
+              className="text-destructive focus:text-destructive"
+            >
+              Remove from variants
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </li>
   );
 }
 
 function VariantsDialogBody({
   deckId,
-  initialBaseId,
-  initialCompareId,
   onClose,
+  onCreate,
 }: {
   deckId: string;
-  initialBaseId?: string;
-  initialCompareId?: string;
   onClose: () => void;
+  onCreate: (mode: DeckVariantMode) => void;
 }) {
-  const userId = useRequiredUserId();
-  const queryClient = useQueryClient();
-  const { cardsById } = useCards();
   const { data: items } = useDecks();
   const promotePrimary = usePromoteDeckPrimary();
   const linkVariant = useLinkDeckVariant();
   const unlinkVariant = useUnlinkDeckVariant();
+  const setPredecessor = useSetDeckPredecessor();
+
+  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
 
   const current = items.find((item) => item.deck.id === deckId);
   const familyId = current?.deck.familyId ?? null;
   const members = items
     .filter((item) => (familyId ? item.deck.familyId === familyId : item.deck.id === deckId))
-    .map((item) => item.deck)
-    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  // A member someone else descends from is history, whichever way it was made.
-  const predecessorIds = new Set(
-    members.map((member) => member.predecessorDeckId).filter((id): id is string => id !== null),
-  );
+    .map((item) => item.deck);
 
-  const [baseId, setBaseId] = useState(initialBaseId ?? deckId);
-  const [compareId, setCompareId] = useState(
-    () => initialCompareId ?? defaultCompareId(deckId, members),
-  );
-  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
-  const [markAsPreviousVersion, setMarkAsPreviousVersion] = useState(false);
-  const [diff, setDiff] = useState<DeckDiff | null>(null);
-  const [diffPending, setDiffPending] = useState(false);
-  const [diffFailed, setDiffFailed] = useState(false);
-
-  useEffect(() => {
-    if (baseId === compareId) {
-      setDiff(null);
-      setDiffPending(false);
-      setDiffFailed(false);
-      return;
-    }
-    let cancelled = false;
-    setDiffPending(true);
-    setDiffFailed(false);
-    const run = async () => {
-      try {
-        const result = await loadVariantDiff(queryClient, userId, compareId, baseId, cardsById);
-        if (cancelled) {
-          return;
-        }
-        setDiff(result);
-        setDiffPending(false);
-      } catch {
-        if (cancelled) {
-          return;
-        }
-        setDiff(null);
-        setDiffPending(false);
-        setDiffFailed(true);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [queryClient, userId, baseId, compareId, cardsById]);
-
-  const selectItems = members.map((member) => ({ value: member.id, label: member.name }));
-  const baseName = members.find((member) => member.id === baseId)?.name ?? "this deck";
-  const compareName = members.find((member) => member.id === compareId)?.name ?? "the other deck";
-  const isIdentical = diff !== null && diff.zones.length === 0;
+  // The rail's graph, read as a list: the layout already walks the family
+  // parent-first, so rows arrive in an order where every parent is above its
+  // children and `x` is the generation to indent by.
+  const lineage = buildRailLayout(members, deckId, new Date().getFullYear(), members.length);
+  const membersById = new Map(members.map((member) => [member.id, member]));
 
   const linkOptions = linkableDeckOptions(
     items.map((item) => item.deck),
     new Set(members.map((member) => member.id)),
   );
-  // The other deck becomes this one's previous version, which only makes sense
-  // while this deck has no predecessor yet.
-  const canMarkPreviousVersion = (current?.deck.predecessorDeckId ?? null) === null;
 
   const handlePromote = (memberId: string) => {
     promotePrimary.mutate(memberId, {
@@ -292,20 +286,19 @@ function VariantsDialogBody({
     });
   };
 
+  const handleSetParent = (memberId: string, parentId: string | null) => {
+    setPredecessor.mutate({ deckId: memberId, predecessorDeckId: parentId });
+  };
+
   const handleLink = () => {
     if (linkTargetId === null) {
       return;
     }
     linkVariant.mutate(
-      {
-        deckId,
-        otherDeckId: linkTargetId,
-        markAsPreviousVersion: canMarkPreviousVersion && markAsPreviousVersion,
-      },
+      { deckId, otherDeckId: linkTargetId },
       {
         onSuccess: () => {
           setLinkTargetId(null);
-          setMarkAsPreviousVersion(false);
           toast.success("Decks linked");
         },
         // Errors are reported by the global mutation error toast.
@@ -316,19 +309,39 @@ function VariantsDialogBody({
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <ul className="flex min-w-0 flex-col gap-3">
-        {members.map((member) => (
-          <VariantMemberRow
-            key={member.id}
-            deck={member}
-            isCurrent={member.id === deckId}
-            isPredecessor={predecessorIds.has(member.id)}
-            canUnlink={members.length > 1}
-            onNavigate={onClose}
-            onPromote={() => handlePromote(member.id)}
-            onUnlink={() => handleUnlink(member.id)}
-          />
-        ))}
+        {lineage.nodes.map((node) => {
+          const deck = membersById.get(node.id);
+          if (!deck) {
+            return null;
+          }
+          return (
+            <LineageRow
+              key={deck.id}
+              deck={deck}
+              generation={node.x}
+              isCurrent={node.isCurrent}
+              openDeckId={deckId}
+              parentChoices={parentOptions(members, deck.id)}
+              canUnlink={members.length > 1}
+              onNavigate={onClose}
+              onSetParent={(parentId) => handleSetParent(deck.id, parentId)}
+              onPromote={() => handlePromote(deck.id)}
+              onUnlink={() => handleUnlink(deck.id)}
+            />
+          );
+        })}
       </ul>
+
+      <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+        <Button variant="secondary" size="sm" onClick={() => onCreate("variant")}>
+          <CopyIcon className="size-4" />
+          New variant…
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => onCreate("checkpoint")}>
+          <HistoryIcon className="size-4" />
+          Save checkpoint…
+        </Button>
+      </div>
 
       <div className="flex min-w-0 flex-col gap-3 border-t pt-4">
         <span className="font-medium">Link another deck</span>
@@ -358,18 +371,6 @@ function VariantsDialogBody({
                 </SelectContent>
               </Select>
             </div>
-            {canMarkPreviousVersion && (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="deck-variants-previous"
-                  checked={markAsPreviousVersion}
-                  onCheckedChange={(checked) => setMarkAsPreviousVersion(checked === true)}
-                />
-                <Label htmlFor="deck-variants-previous" className="font-normal">
-                  This is the newer version (link the other deck as its previous version)
-                </Label>
-              </div>
-            )}
             <div>
               <Button
                 variant="secondary"
@@ -383,123 +384,67 @@ function VariantsDialogBody({
           </>
         )}
       </div>
-
-      {members.length > 1 && (
-        <div className="flex min-w-0 flex-col gap-3 border-t pt-4">
-          <span className="font-medium">Show changes</span>
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <Label htmlFor="deck-variants-base">Deck</Label>
-              <Select
-                items={selectItems}
-                value={baseId}
-                onValueChange={(value) => setBaseId(value ?? baseId)}
-              >
-                <SelectTrigger id="deck-variants-base" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <Label htmlFor="deck-variants-compare">Compared with</Label>
-              <Select
-                items={selectItems}
-                value={compareId}
-                onValueChange={(value) => setCompareId(value ?? compareId)}
-              >
-                <SelectTrigger id="deck-variants-compare" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {baseId === compareId && (
-            <p className="text-muted-foreground text-sm">Pick two different variants to compare.</p>
-          )}
-          {diffPending && <p className="text-muted-foreground text-sm">Loading changes…</p>}
-          {diffFailed && (
-            <p className="text-destructive text-sm">Couldn&apos;t load the changes. Try again.</p>
-          )}
-          {diff && (
-            <div className="flex min-w-0 flex-col gap-3">
-              <p className="text-muted-foreground text-sm tabular-nums">
-                From {compareName} to {baseName} · {diff.sharedCount} cards shared
-                {isIdentical ? "" : ` · +${diff.addCount} · −${diff.cutCount}`}
-              </p>
-              {isIdentical ? (
-                <p className="text-sm">The two lists match, card for card.</p>
-              ) : (
-                <div className="flex max-h-[40dvh] min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain">
-                  {diff.zones.map((zoneDiff) => (
-                    <section key={zoneDiff.zone} className="flex min-w-0 flex-col gap-1.5">
-                      <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
-                        {ZONE_LABELS[zoneDiff.zone]}
-                      </span>
-                      {zoneDiff.entries.map((entry) => (
-                        <VariantDiffRow key={entry.cardId} entry={entry} />
-                      ))}
-                    </section>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
 /**
- * The variant family of a deck (ADR-042): every member with its badges, a
- * promote action, and the card-level changes between any two of them.
+ * The variant family of a deck (ADR-042), as its history: every member under
+ * the version it came from, with the lineage editable row by row. Comparing two
+ * versions lives on the changes page, not here.
+ *
  * @returns The variants dialog element.
  */
 export function DeckVariantsDialog({
   deckId,
+  deckName,
   open,
   onOpenChange,
-  initialBaseId,
-  initialCompareId,
 }: DeckVariantsDialogProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  // The mode outlives the close so the dialog doesn't switch copy while it fades.
+  const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
+
+  const handleCreate = (mode: DeckVariantMode) => {
+    setCreateMode(mode);
+    // The create dialog is a sibling, not a child: this dialog closes as it
+    // opens, so the two never stack.
+    onOpenChange(false);
+    setCreateOpen(true);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Variants</DialogTitle>
-          <DialogDescription>
-            Every version of this deck, and what changed between them.
-          </DialogDescription>
-        </DialogHeader>
-        {/* The body reads the deck list and the catalog, both suspending
-            queries — mounting it only while open keeps a closed dialog from
-            suspending the page that hosts it. */}
-        {open && (
-          <Suspense fallback={<p className="text-muted-foreground text-sm">Loading variants…</p>}>
-            <VariantsDialogBody
-              deckId={deckId}
-              initialBaseId={initialBaseId}
-              initialCompareId={initialCompareId}
-              onClose={() => onOpenChange(false)}
-            />
-          </Suspense>
-        )}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Variants</DialogTitle>
+            <DialogDescription>
+              Every version of this deck, and which one it came from.
+            </DialogDescription>
+          </DialogHeader>
+          {/* The body reads the deck list, a suspending query; mounting it only
+              while open keeps a closed dialog from suspending the page that
+              hosts it. */}
+          {open && (
+            <Suspense fallback={<p className="text-muted-foreground text-sm">Loading variants…</p>}>
+              <VariantsDialogBody
+                deckId={deckId}
+                onClose={() => onOpenChange(false)}
+                onCreate={handleCreate}
+              />
+            </Suspense>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <DeckVariantCreateDialog
+        deckId={deckId}
+        deckName={deckName}
+        mode={createMode}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      />
+    </>
   );
 }

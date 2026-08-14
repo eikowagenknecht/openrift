@@ -19,7 +19,11 @@ function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
   return <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />;
 }
 
-function AlertDialogOverlay({ className, ...props }: AlertDialogPrimitive.Backdrop.Props) {
+function AlertDialogOverlay({
+  className,
+  onClick, // custom: composed below so callers can still pass onClick
+  ...props
+}: AlertDialogPrimitive.Backdrop.Props) {
   return (
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
@@ -27,6 +31,13 @@ function AlertDialogOverlay({ className, ...props }: AlertDialogPrimitive.Backdr
         "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs",
         className,
       )}
+      onClick={(event) => {
+        // custom: portals move the DOM but not the React tree, so a backdrop
+        // custom: click inside a clickable ancestor (a deck tile <Link>) fired
+        // custom: that ancestor as the dialog closed.
+        event.stopPropagation(); // custom:
+        onClick?.(event); // custom:
+      }}
       {...props}
     />
   );

@@ -24,7 +24,11 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
+function DialogOverlay({
+  className,
+  onClick, // custom: composed below so callers can still pass onClick
+  ...props
+}: DialogPrimitive.Backdrop.Props) {
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
@@ -32,6 +36,14 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
         "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs",
         className,
       )}
+      onClick={(event) => {
+        // custom: same portal-vs-React-tree trap as the popup below, and the
+        // custom: one a user hits by habit: clicking the backdrop to dismiss a
+        // custom: dialog that sits inside a clickable ancestor (a deck tile
+        // custom: <Link>) dismissed it *and* opened that deck.
+        event.stopPropagation(); // custom:
+        onClick?.(event); // custom:
+      }}
       {...props}
     />
   );

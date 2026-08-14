@@ -531,6 +531,29 @@ export function useUnlinkDeckVariant() {
   });
 }
 
+const setDeckPredecessorFn = createServerFn({ method: "POST" })
+  .validator((input: { deckId: string; predecessorDeckId: string | null }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).setPredecessor({
+      id: data.deckId,
+      predecessorDeckId: data.predecessorDeckId,
+    }),
+  );
+
+export function useSetDeckPredecessor() {
+  const userId = useRequiredUserId();
+  // The rail and the lineage list read every member's pointer, so the whole
+  // decks prefix is refreshed rather than the one row that changed.
+  return useMutationWithInvalidation<
+    DeckResponse,
+    { deckId: string; predecessorDeckId: string | null }
+  >({
+    mutationFn: (input) => setDeckPredecessorFn({ data: input }),
+    invalidates: [queryKeys.decks.all(userId)],
+  });
+}
+
 const promoteDeckPrimaryFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])

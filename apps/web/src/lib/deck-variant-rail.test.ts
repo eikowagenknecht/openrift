@@ -52,7 +52,7 @@ describe("buildRailLayout", () => {
     expect(layout.edges).toEqual([]);
   });
 
-  it("lays the ancestry chain on lane 0, oldest at slot 0", () => {
+  it("lays the ancestry chain on lane 0, oldest at column 0", () => {
     const members = [
       member({ id: "old" }),
       member({ id: "mid", predecessorDeckId: "old" }),
@@ -67,12 +67,12 @@ describe("buildRailLayout", () => {
     ]);
     expect(layout.nodes.find((node) => node.id === "live")?.isCurrent).toBe(true);
     expect(layout.edges).toEqual([
-      { fromId: "old", toId: "mid", kind: "chain" },
-      { fromId: "mid", toId: "live", kind: "chain" },
+      { fromId: "old", toId: "mid" },
+      { fromId: "mid", toId: "live" },
     ]);
   });
 
-  it("anchors a sibling after its branch point with a branch edge", () => {
+  it("forks a sibling into the next lane, one generation after its parent", () => {
     const members = [
       member({ id: "old" }),
       member({ id: "live", predecessorDeckId: "old" }),
@@ -81,20 +81,45 @@ describe("buildRailLayout", () => {
     const layout = buildRailLayout(members, "live", YEAR);
     const budget = layout.nodes.find((node) => node.id === "budget");
     expect(budget?.lane).toBe(1);
-    expect(budget?.x).toBe(0.75);
+    expect(budget?.x).toBe(1);
     expect(budget?.isDraft).toBe(true);
-    expect(layout.edges).toContainEqual({ fromId: "old", toId: "budget", kind: "branch" });
+    expect(layout.edges).toContainEqual({ fromId: "old", toId: "budget" });
   });
 
-  it("renders a linked member without lineage as an unanchored lane-1 node", () => {
+  it("keeps the open deck on lane 0 even when it is the younger fork", () => {
+    const members = [
+      member({ id: "old" }),
+      member({ id: "other", predecessorDeckId: "old", updatedAt: "2026-08-10T00:00:00.000Z" }),
+      member({ id: "live", predecessorDeckId: "old", updatedAt: "2026-08-01T00:00:00.000Z" }),
+    ];
+    const layout = buildRailLayout(members, "live", YEAR);
+    expect(layout.nodes.find((node) => node.id === "live")?.lane).toBe(0);
+    expect(layout.nodes.find((node) => node.id === "other")?.lane).toBe(1);
+  });
+
+  it("draws lineage between members the open deck doesn't descend from", () => {
+    // Viewing "solo": the other two are a parent and its child, and that line
+    // has to show even though neither is an ancestor of the open deck.
+    const members = [
+      member({ id: "solo" }),
+      member({ id: "parent" }),
+      member({ id: "child", predecessorDeckId: "parent" }),
+    ];
+    const layout = buildRailLayout(members, "solo", YEAR);
+    expect(layout.edges).toEqual([{ fromId: "parent", toId: "child" }]);
+    expect(layout.nodes.find((node) => node.id === "child")?.x).toBe(1);
+  });
+
+  it("renders a linked member without lineage as its own root", () => {
     const members = [member({ id: "live" }), member({ id: "adopted" })];
     const layout = buildRailLayout(members, "live", YEAR);
     const adopted = layout.nodes.find((node) => node.id === "adopted");
     expect(adopted?.lane).toBe(1);
+    expect(adopted?.x).toBe(0);
     expect(layout.edges).toEqual([]);
   });
 
-  it("gives two siblings on the same anchor distinct slots, newest first", () => {
+  it("gives two siblings on the same parent distinct lanes, newest first", () => {
     const members = [
       member({ id: "live" }),
       member({ id: "older", predecessorDeckId: "live", updatedAt: "2026-08-01T00:00:00.000Z" }),
@@ -103,8 +128,8 @@ describe("buildRailLayout", () => {
     const layout = buildRailLayout(members, "live", YEAR);
     const newer = layout.nodes.find((node) => node.id === "newer");
     const older = layout.nodes.find((node) => node.id === "older");
-    expect(newer?.x).toBe(0.75);
-    expect(older?.x).toBe(1.75);
+    expect(newer).toMatchObject({ lane: 0, x: 1 });
+    expect(older).toMatchObject({ lane: 1, x: 1 });
   });
 
   it("survives a predecessor cycle", () => {
@@ -136,6 +161,8 @@ describe("buildRailLayout", () => {
     // Chain truncated to its newest three; c0's edge to c1 disappears with it.
     expect(tighter.nodes.map((node) => node.id)).toEqual(["c1", "c2", "live"]);
     expect(tighter.overflowCount).toBe(3);
-    expect(tighter.edges).not.toContainEqual({ fromId: "c0", toId: "c1", kind: "chain" });
+    expect(tighter.edges).not.toContainEqual({ fromId: "c0", toId: "c1" });
+    // c1 lost its parent with the truncation, so it starts the graph again.
+    expect(tighter.nodes.find((node) => node.id === "c1")?.x).toBe(0);
   });
 });
