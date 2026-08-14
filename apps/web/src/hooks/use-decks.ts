@@ -82,7 +82,7 @@ export function useDecks() {
  * Synthesize a deck-detail response for a browser-local deck (ADR-035) from the
  * local store — no server fetch, no session. Mirrors {@link DeckDetailResponse}
  * so every read-only builder consumer works unchanged; the owner-only fields
- * (isPublic / shareToken / isPinned / archivedAt / isWanted) are constants
+ * (isPublic / shareToken / isPinned / archivedAt) are constants
  * because a local deck has no server-side state.
  *
  * @returns The synthesized detail in `{ data }` form, matching `useDeckDetail`.
@@ -100,7 +100,6 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       description: deck?.description ?? null,
       format: deck?.format ?? WellKnown.deckFormat.CONSTRUCTED,
       formatConfig: deck?.formatConfig ?? null,
-      isWanted: false,
       isPublic: false,
       shareToken: null,
       isPinned: false,
@@ -153,7 +152,6 @@ const createDeckFn = createServerFn({ method: "POST" })
       name: string;
       description?: string | null;
       format: DeckFormat;
-      isWanted?: boolean;
       isPublic?: boolean;
       links?: DeckLink[];
     }) => input,
@@ -173,7 +171,6 @@ export function useCreateDeck() {
       name: string;
       description?: string | null;
       format: DeckFormat;
-      isWanted?: boolean;
       isPublic?: boolean;
       links?: DeckLink[];
     }) => createDeckFn({ data: body }),

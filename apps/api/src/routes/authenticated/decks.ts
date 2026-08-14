@@ -181,7 +181,6 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   description: "description",
   format: "format",
   formatConfig: "formatConfig",
-  isWanted: "isWanted",
   oddsConfig: "oddsConfig",
   coverCardId: "coverCardId",
   coverPrintingId: "coverPrintingId",
@@ -207,7 +206,6 @@ export const decksRouter = {
     const [deckRows, allCards, prefs, enumRows, buildableByCard, borrowedByCard] =
       await Promise.all([
         decks.listForUser(userId, {
-          wantedOnly: input.wanted === "true",
           includeArchived: input.includeArchived === "true",
         }),
         decks.allCardsForUser(userId),
@@ -400,7 +398,6 @@ export const decksRouter = {
       description: input.description ?? null,
       format: input.format,
       formatConfig,
-      isWanted: input.isWanted ?? false,
       isPublic: input.isPublic ?? false,
       links: input.links,
     });

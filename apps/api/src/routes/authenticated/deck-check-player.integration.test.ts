@@ -133,7 +133,6 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         description: null,
         format: "constructed",
         formatConfig: null,
-        isWanted: false,
         isPublic: false,
       });
       await repos.decks.replaceCards(deck.id, [

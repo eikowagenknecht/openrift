@@ -29,7 +29,6 @@ const deckCardFieldRules = {
 };
 
 export const decksQuerySchema = z.object({
-  wanted: z.enum(["true", "false"]).optional(),
   includeArchived: z.enum(["true", "false"]).optional(),
 });
 
@@ -45,7 +44,6 @@ export const createDeckSchema = z.object({
   description: z.string().max(8000).nullish(),
   format: deckFieldRules.format,
   formatConfig: formatConfigSchema.optional(),
-  isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
   // Outbound links (see updateDeckSchema). Accepted at creation so an import
   // that knows where the list came from can record it without a second call.
@@ -89,7 +87,6 @@ export const updateDeckSchema = z.object({
   description: z.string().max(8000).nullish(),
   format: deckFieldRules.format.optional(),
   formatConfig: formatConfigSchema.optional(),
-  isWanted: z.boolean().optional(),
   oddsConfig: deckOddsConfigSchema.nullish(),
   // Custom cover art: any card of the deck as the hero/tile backdrop, with an
   // optional pinned printing and vertical crop focus. Null clears back to the
@@ -170,7 +167,6 @@ export const deckResponseSchema = z
     description: z.string().nullable(),
     format: deckFormatSchema,
     formatConfig: formatConfigResponseSchema,
-    isWanted: z.boolean(),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     isPinned: z.boolean(),

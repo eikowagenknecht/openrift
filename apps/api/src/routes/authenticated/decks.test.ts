@@ -156,7 +156,6 @@ const dbDeck = {
   format: "constructed",
   formatConfig: null,
   oddsConfig: null,
-  isWanted: false,
   isPublic: false,
   shareToken: null,
   isPinned: false,
@@ -379,15 +378,6 @@ describe("GET /api/v1/decks", () => {
       { cardType: "gear", count: 4 },
     ]);
   });
-
-  it("passes wanted filter", async () => {
-    mockRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/v1/decks?wanted=true");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
-      wantedOnly: true,
-      includeArchived: false,
-    });
-  });
 });
 
 describe("POST /api/v1/decks", () => {
@@ -416,7 +406,6 @@ describe("POST /api/v1/decks", () => {
         name: "Fury Aggro",
         format: "freeform",
         description: "A fast deck",
-        isWanted: true,
         isPublic: true,
       }),
     });
@@ -673,20 +662,18 @@ describe("GET /api/v1/decks — wanted filter false", () => {
     mockRepo.listForUser.mockReset();
   });
 
-  it("passes wanted=false when query is not 'true'", async () => {
+  it("passes includeArchived=false when query param absent", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/v1/decks?wanted=false");
+    await app.request("/api/v1/decks");
     expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
-      wantedOnly: false,
       includeArchived: false,
     });
   });
 
-  it("passes wanted=false when query param absent", async () => {
+  it("passes includeArchived=false when query is not 'true'", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/v1/decks");
+    await app.request("/api/v1/decks?includeArchived=false");
     expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
-      wantedOnly: false,
       includeArchived: false,
     });
   });
@@ -695,7 +682,6 @@ describe("GET /api/v1/decks — wanted filter false", () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/decks?includeArchived=true");
     expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
-      wantedOnly: false,
       includeArchived: true,
     });
   });
@@ -719,7 +705,6 @@ describe("POST /api/v1/decks — argument passing", () => {
       description: null,
       format: "freeform",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
   });
@@ -741,18 +726,6 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.format).toBe("freeform");
-  });
-
-  it("updates isWanted field", async () => {
-    const updated = { ...dbDeck, isWanted: true };
-    mockRepo.update.mockResolvedValue(updated);
-    const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isWanted: true }),
-    });
-    expect(res.status).toBe(200);
-    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { isWanted: true });
   });
 
   // isPublic is no longer patchable — a deck's public state is owned solely by

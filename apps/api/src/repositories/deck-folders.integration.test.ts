@@ -27,7 +27,6 @@ async function seedDeck(owner: string, name: string): Promise<string> {
       description: null,
       format: "freeform",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     })
     .returning("id")

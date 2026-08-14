@@ -24,7 +24,6 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     description: row.description,
     format: row.format,
     formatConfig: row.formatConfig,
-    isWanted: row.isWanted,
     isPublic: row.isPublic,
     shareToken: row.shareToken,
     isPinned: row.isPinned,

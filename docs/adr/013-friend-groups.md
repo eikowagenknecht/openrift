@@ -101,7 +101,7 @@ We deliberately do not add per-user invite rate limits, a global "don't invite m
 
 ### Match view
 
-Computed live at query time, never materialised. Only `wish` ↔ `trade` shares participate. Deck-derived demand (the virtual shortfall from `is_wanted=true` decks in ADR-005) and `organize` lists are explicitly excluded. Users who want their deck wishes visible to a group must mirror them into an explicitly-shared wishlist. This keeps the model "what you opted in is what's visible" with no implicit coupling between decks and groups.
+Computed live at query time, never materialised. Only `wish` ↔ `trade` shares participate; `organize` lists are explicitly excluded. Users who want what a deck is missing visible to a group must mirror it into an explicitly-shared wishlist. This keeps the model "what you opted in is what's visible" with no implicit coupling between decks and groups.
 
 For viewer U in group G, two virtual sets:
 
@@ -146,7 +146,7 @@ List-share toggles live on the group page and on the list's share dialog. From `
 
 ### Cross-surface integration
 
-The match query has one explicit cross-surface consumer: the shopping list. When a card has an unmet demand (from a wishlist or wanted deck) and a co-member's shared tradelist contains a matching copy, the shopping-list row shows "available from $member · $group" inline, linking to the corresponding `/groups/$slug/members/$user_id`.
+The match query has one explicit cross-surface consumer: the shopping list. When a card has an unmet demand from a wishlist and a co-member's shared tradelist contains a matching copy, the shopping-list row shows "available from $member · $group" inline, linking to the corresponding `/groups/$slug/members/$user_id`.
 
 The card browser (`/cards`), collection (`/collections`), and deck builder (`/decks/$id`) stay group-agnostic: no badges, no per-cell group queries. This contains the perf surface to the shopping list, which is already a heavy aggregate query.
 
@@ -293,6 +293,5 @@ Match-view behaviour exercised by a vitest test covering:
 - Wish entry at `kind='printing'` matches only copies of that exact printing.
 - Lists not in `friend_group_list_shares` for the viewing group do not surface, even if shared with a different group.
 - `intent='organize'` lists shared with a group never appear in either match panel, but do appear on the member detail page.
-- Deck-derived demand (from `is_wanted` decks) never appears in the match view, only entries in explicitly-shared wishlists do.
 - The viewer's own lists never appear on either side of their own match view.
 - After a kick, the kicked user's previously-shared trade entries stop appearing for remaining members.

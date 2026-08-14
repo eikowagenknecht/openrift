@@ -70,7 +70,6 @@ const dbDeck = {
   format: "constructed" as const,
   formatConfig: null,
   oddsConfig: null,
-  isWanted: false,
   isPublic: true,
   shareToken: "tok-abc",
   coverCardId: null,

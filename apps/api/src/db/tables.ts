@@ -604,7 +604,6 @@ export interface DecksTable {
    * writes pre-stringified for postgres.js (Bun), reads through `parseJsonb`.
    */
   oddsConfig: ColumnType<DeckOddsConfig | null, string | null, string | null>;
-  isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
   isPinned: Generated<boolean>;

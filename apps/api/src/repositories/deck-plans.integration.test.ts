@@ -28,7 +28,6 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       description: null,
       format: "constructed",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
     createdDeckIds.push(deck.id);
@@ -232,7 +231,6 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       description: null,
       format: "constructed",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
     await plans.replaceForDeck(deck.id, {

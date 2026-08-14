@@ -42,7 +42,7 @@ export type { DeckOddsConfig, DeckOddsGroup } from "@openrift/shared/contracts/d
 
 export type DeckListResponse = z.infer<typeof deckListResponseSchema>;
 
-/** Slimmed-down deck fields for the list view (no isWanted/isPublic/shareToken/description). */
+/** Slimmed-down deck fields for the list view (no isPublic/shareToken/description). */
 export type DeckSummaryResponse = z.infer<typeof deckSummaryResponseSchema>;
 
 export type DeckListItemResponse = z.infer<typeof deckListItemResponseSchema>;

@@ -34,7 +34,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       description: "A test deck",
       format: "constructed",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
 
@@ -45,24 +44,21 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(deck.name).toBe("Test Deck Alpha");
     expect(deck.description).toBe("A test deck");
     expect(deck.format).toBe("constructed");
-    expect(deck.isWanted).toBe(false);
     expect(deck.isPublic).toBe(false);
   });
 
-  it("creates a wanted deck", async () => {
+  it("creates a deck in a non-default format", async () => {
     const deck = await repo.create({
       userId,
-      name: "Wanted Deck",
+      name: "Freeform Deck",
       description: null,
       format: "freeform",
       formatConfig: null,
-      isWanted: true,
       isPublic: false,
     });
 
     createdDeckIds.push(deck.id);
 
-    expect(deck.isWanted).toBe(true);
     expect(deck.format).toBe("freeform");
   });
 
@@ -82,22 +78,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     for (const d of decks) {
       expect(d.userId).toBe(userId);
     }
-  });
-
-  it("filters to wanted-only decks when wantedOnly is true", async () => {
-    const decks = await repo.listForUser(userId, { wantedOnly: true });
-
-    expect(decks.length).toBeGreaterThanOrEqual(1);
-    for (const d of decks) {
-      expect(d.isWanted).toBe(true);
-    }
-  });
-
-  it("returns all decks when wantedOnly is false", async () => {
-    const all = await repo.listForUser(userId, { wantedOnly: false });
-    const wanted = await repo.listForUser(userId, { wantedOnly: true });
-
-    expect(all.length).toBeGreaterThanOrEqual(wanted.length);
   });
 
   it("returns empty array for a different user", async () => {
@@ -295,7 +275,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       description: null,
       format: "constructed",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
 

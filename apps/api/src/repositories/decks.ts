@@ -100,16 +100,13 @@ export function decksRepo(db: Kysely<Database>) {
      */
     async listForUser(
       userId: string,
-      options?: { wantedOnly?: boolean; includeArchived?: boolean },
+      options?: { includeArchived?: boolean },
     ): Promise<Selectable<DecksTable>[]> {
       let query = db
         .selectFrom("decks")
         .selectAll()
         .where("userId", "=", userId)
         .orderBy((eb) => eb.fn("lower", ["name"]));
-      if (options?.wantedOnly) {
-        query = query.where("isWanted", "=", true);
-      }
       if (!options?.includeArchived) {
         query = query.where("archivedAt", "is", null);
       }
@@ -177,7 +174,6 @@ export function decksRepo(db: Kysely<Database>) {
       description: string | null;
       format: DeckFormat;
       formatConfig: DeckFormatConfig | null;
-      isWanted: boolean;
       isPublic: boolean;
       links?: DeckLink[];
     }): Promise<Selectable<DecksTable>> {
@@ -386,7 +382,6 @@ export function decksRepo(db: Kysely<Database>) {
             // Re-encode through serialize to handle the raw-string shape
             // postgres.js returns for jsonb reads.
             formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
-            isWanted: source.isWanted,
             isPublic: false,
           })
           .returningAll()
@@ -516,7 +511,7 @@ export function decksRepo(db: Kysely<Database>) {
 
     /**
      * Clones a publicly shared deck into `userId`'s account. The new deck is
-     * private (isPublic=false, isWanted=false) and named `Copy of <source name>`.
+     * private (isPublic=false) and named `Copy of <source name>`.
      * @returns The new deck row, or `undefined` if the token is not a public deck.
      */
     async cloneFromShareToken(
@@ -544,7 +539,6 @@ export function decksRepo(db: Kysely<Database>) {
             links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
             format: source.format,
             formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
-            isWanted: false,
             isPublic: false,
           })
           .returningAll()

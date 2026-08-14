@@ -182,6 +182,7 @@ import * as m233 from "./233-set-language-releases.js";
 import * as m234 from "./234-card-submissions.js";
 import * as m237 from "./237-tier-lists.js";
 import * as m238 from "./238-overlay-channels.js";
+import * as m239 from "./239-drop-deck-is-wanted.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -425,4 +426,5 @@ export const migrations: Record<string, Migration> = {
   // yet; the numbers stay reserved so it can land later without renumbering.
   "237-tier-lists": m237,
   "238-overlay-channels": m238,
+  "239-drop-deck-is-wanted": m239,
 };

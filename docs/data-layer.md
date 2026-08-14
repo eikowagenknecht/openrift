@@ -207,7 +207,7 @@ Indexes: `collection_id`, `(user_id, printing_id)`.
 
 ### `decks`
 
-User-built card decks. The `is_wanted` flag marks "want to build" decks for shopping list integration.
+User-built card decks.
 
 | Column        | Type        | Constraints                                 |
 | ------------- | ----------- | ------------------------------------------- |
@@ -216,7 +216,6 @@ User-built card decks. The `is_wanted` flag marks "want to build" decks for shop
 | `name`        | text        | not null                                    |
 | `description` | text        | nullable                                    |
 | `format`      | text        | not null (standard, freeform)               |
-| `is_wanted`   | boolean     | not null, default false                     |
 | `is_public`   | boolean     | not null, default false                     |
 | `share_token` | text        | nullable, unique                            |
 | `created_at`  | timestamptz | not null, default now()                     |
@@ -743,7 +742,6 @@ Source-specific secondary price columns:
 | PATCH  | `/api/decks/:id`                     | Update deck metadata                                 |
 | DELETE | `/api/decks/:id`                     | Delete deck                                          |
 | PUT    | `/api/decks/:id/cards`               | Replace all deck cards                               |
-| GET    | `/api/decks/:id/availability`        | Per-card availability for wanted deck                |
 | GET    | `/api/wish-lists`                    | List wish lists                                      |
 | POST   | `/api/wish-lists`                    | Create wish list                                     |
 | GET    | `/api/wish-lists/:id`                | Get wish list with items                             |

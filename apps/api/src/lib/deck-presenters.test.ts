@@ -25,7 +25,6 @@ describe("toDeck", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
       isPinned: false,
@@ -45,7 +44,6 @@ describe("toDeck", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
       isPinned: false,
@@ -69,7 +67,6 @@ describe("toDeck", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: false,
       isPublic: false,
       shareToken: null,
       isPinned: false,
@@ -91,7 +88,7 @@ describe("toDeck", () => {
 // ---------------------------------------------------------------------------
 
 describe("toPublicDeck", () => {
-  it("strips owner-only fields (shareToken, isPublic, userId, isWanted, collectionId)", () => {
+  it("strips owner-only fields (shareToken, isPublic, userId, collectionId)", () => {
     const result = toPublicDeck({
       id: "deck-1",
       userId: "user-1",
@@ -100,7 +97,6 @@ describe("toPublicDeck", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: false,
       isPublic: true,
       shareToken: "tok-abc",
       isPinned: false,
@@ -149,7 +145,6 @@ describe("toDeckSummary", () => {
       format: "constructed",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: true,
       isPublic: true,
       shareToken: "abc123",
       isPinned: true,
@@ -189,7 +184,6 @@ describe("toDeckSummary", () => {
       format: "freeform",
       formatConfig: null,
       oddsConfig: null,
-      isWanted: false,
       isPublic: false,
       shareToken: null,
       isPinned: false,

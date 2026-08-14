@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1P3GTDWloN8cfUbE1QFOvFUcdBhyz3vVyZL9ZcXw11AAB6Fc1bqolgNV4k72icj
+\restrict BD8yWaaIUDtJmMqGYiED2202UZTEyNTLxtBYa2Y4N3a6LoeVRLQuPvOFsToXJhL
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1313,7 +1313,6 @@ CREATE TABLE public.decks (
     name text NOT NULL,
     description text,
     format text NOT NULL,
-    is_wanted boolean DEFAULT false NOT NULL,
     is_public boolean DEFAULT false NOT NULL,
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -6702,5 +6701,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1P3GTDWloN8cfUbE1QFOvFUcdBhyz3vVyZL9ZcXw11AAB6Fc1bqolgNV4k72icj
+\unrestrict BD8yWaaIUDtJmMqGYiED2202UZTEyNTLxtBYa2Y4N3a6LoeVRLQuPvOFsToXJhL
 

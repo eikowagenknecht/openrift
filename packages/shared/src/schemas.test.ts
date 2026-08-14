@@ -183,7 +183,6 @@ describe("createDeckSchema", () => {
       name: "My Deck",
       description: "A great deck",
       format: "freeform",
-      isWanted: true,
       isPublic: false,
     });
     expect(result.success).toBe(true);

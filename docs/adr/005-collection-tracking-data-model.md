@@ -9,7 +9,7 @@ date: 2026-03-08
 
 OpenRift is a card browser with no concept of ownership. Users want to track which cards they own, where they're stored, what they want to trade, and what they still need, plus a full audit trail of how their collection changed over time.
 
-The data model must support: physical collections (storage locations), individual copy tracking, event-based mutation logging, deck building (card-level), wish lists (manual, dynamic, and deck-derived), and trade lists (manual and dynamic).
+The data model must support: physical collections (storage locations), individual copy tracking, event-based mutation logging, deck building (card-level), wish lists (manual and dynamic), and trade lists (manual and dynamic).
 
 ## Decision Drivers
 
@@ -81,27 +81,23 @@ A deck is a list of cards (not printings) with quantities, since deck building i
 
 Format rules are kept simple for now. User-configurable format definitions (e.g., "allow N cards of type X, require a Legend") are deferred.
 
-**Wanted flag:** Decks have an `is_wanted` boolean (default false). When true, the deck's card requirements feed the shopping list, counting only copies in collections where `available_for_deckbuilding = true`. When false, the deck is just a reference (an idea, a historical tournament deck, or an already-assembled deck whose cards live in a collection). There is no formal link between a deck and a collection. When the user physically assembles a deck, they move the copies into a collection (e.g., "Deck Box 1") with `available_for_deckbuilding = false` and toggle `is_wanted` off.
+There is no formal link between a deck and a collection. When the user physically assembles a deck, they move the copies into a collection (e.g., "Deck Box 1") with `available_for_deckbuilding = false`.
 
 Every deck has an owner (`user_id NOT NULL`). Curated public decks (e.g., top tournament decks) are owned by whichever user or bot account created them. An `is_public` boolean controls visibility: `is_public = true` → public and discoverable, `share_token IS NOT NULL` → unlisted but accessible via link, otherwise private. A user's personal deck list filters on `user_id = ? AND is_public = false`, so curated decks created by the same user don't clutter their view.
 
 ### Wish Lists
 
-Three sources of "what do I need":
+Wish lists answer "what do I need". A wish list can have manual items, dynamic rules, or both.
 
-1. **Deck requirements (virtual):** Not stored as wish list items. For each card in a wanted deck (`is_wanted = true`), the query counts available copies (in collections where `available_for_deckbuilding = true`) and computes the shortfall. Always accurate, never goes stale. No table needed.
+**Manual items** are user-curated. Each targets either a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing") with a `quantity_desired`. Items persist when fulfilled. The "still needed" count is computed at query time (`desired - owned`), so trading away a card automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment.
 
-2. **Wish lists:** A wish list can have manual items, dynamic rules, or both.
+**Dynamic rules** _(superseded by [ADR-034](034-dynamic-list-rules.md), see it for the rule schema and evaluation model)_ are a saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card", "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level Zod validation. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
 
-   **Manual items** are user-curated. Each targets either a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing") with a `quantity_desired`. Items persist when fulfilled. The "still needed" count is computed at query time (`desired - owned`), so trading away a card automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment.
+A single list can combine both, e.g. a "Spiritforged" wish list with a dynamic rule for all commons plus manually pinned rares.
 
-   **Dynamic rules** _(superseded by [ADR-034](034-dynamic-list-rules.md), see it for the rule schema and evaluation model)_ are a saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card", "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level Zod validation. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
+_UI note, Shopping list:_ A unified view merges both sources into a single "still needed" count per card. All demands stack additively. Each manual wish list item and dynamic wish list rule represents an independent need for physical cards. The total demand for a card is the sum across all sources, minus available copies (floored at 0). There is no deduplication between sources: if one list asks for 6 Fireballs and another asks for 4, the user needs 10 total copies. This matches the physical reality: each wish list target requires its own cards.
 
-   A single list can combine both, e.g. a "Spiritforged" wish list with a dynamic rule for all commons plus manually pinned rares.
-
-_UI note, Shopping list:_ A unified view merges all three sources into a single "still needed" count per card. All demands stack additively. Each wanted deck, manual wish list item, and dynamic wish list rule represents an independent need for physical cards. The total demand for a card is the sum across all sources, minus available copies (floored at 0). There is no deduplication between sources: if a wish list asks for 6 Fireballs and two decks each need 4, the user needs 14 total copies. This matches the physical reality: each deck and wish list target requires its own cards.
-
-Example: own 5 available Fireballs, Deck A wants 4, Deck B wants 4, wish list wants 6 → `4 + 4 + 6 - 5 = 9 needed`.
+Example: own 5 available Fireballs, one list wants 4, another wants 6 → `4 + 6 - 5 = 5 needed`.
 
 ### Trade Lists
 

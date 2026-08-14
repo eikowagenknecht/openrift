@@ -164,7 +164,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         description: null,
         format: "freeform",
         formatConfig: null,
-        isWanted: false,
         isPublic: false,
       })
       .returning("id")

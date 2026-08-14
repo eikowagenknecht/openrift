@@ -22,7 +22,9 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
   const { app } = ctx!;
 
   let deckId: string;
-  let wantedDeckId: string;
+  // Created alongside the others so the DELETE cases have a deck they can
+  // consume without disturbing the ones later tests still read.
+  let disposableDeckId: string;
 
   // ── POST /decks ───────────────────────────────────────────────────────────
 
@@ -37,7 +39,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("My Deck");
       expect(json.format).toBe("constructed");
-      expect(json.isWanted).toBe(false);
       expect(json.isPublic).toBe(false);
       deckId = json.id;
     });
@@ -52,15 +53,15 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(json.format).toBe("freeform");
     });
 
-    it("creates a wanted deck", async () => {
+    it("creates a deck with a description", async () => {
       const res = await app.fetch(
-        req("POST", "/decks", { name: "Want to Build", format: "constructed", isWanted: true }),
+        req("POST", "/decks", { name: "Third Deck", format: "constructed", description: "Notes" }),
       );
       expect(res.status).toBe(201);
 
       const json = await readJson(res);
-      expect(json.isWanted).toBe(true);
-      wantedDeckId = json.id;
+      expect(json.description).toBe("Notes");
+      disposableDeckId = json.id;
     });
 
     it("rejects creation without name", async () => {
@@ -89,18 +90,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const json = (await readJson(res)) as { items: unknown[] };
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items.length).toBe(3);
-    });
-
-    it("filters by wanted=true", async () => {
-      const res = await app.fetch(req("GET", "/decks?wanted=true"));
-      expect(res.status).toBe(200);
-
-      // The list item shape is { deck: { id, ... }, isValid, ... } — there is
-      // no top-level isWanted field, so verify the filter by identity: only the
-      // wanted deck created above comes back.
-      const json = (await readJson(res)) as { items: { deck: { id: string } }[] };
-      expect(json.items.length).toBe(1);
-      expect(json.items[0].deck.id).toBe(wantedDeckId);
     });
   });
 
@@ -246,12 +235,12 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
   describe("DELETE /decks/:id", () => {
     it("deletes a deck", async () => {
-      const res = await app.fetch(req("DELETE", `/decks/${wantedDeckId}`));
+      const res = await app.fetch(req("DELETE", `/decks/${disposableDeckId}`));
       expect(res.status).toBe(204);
     });
 
     it("returns 404 after deletion", async () => {
-      const res = await app.fetch(req("GET", `/decks/${wantedDeckId}`));
+      const res = await app.fetch(req("GET", `/decks/${disposableDeckId}`));
       expect(res.status).toBe(404);
     });
 
@@ -377,7 +366,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
         const detailJson = await readJson(detail);
         expect(detailJson.deck.name).toBe("Copy of Shareable");
         expect(detailJson.deck.isPublic).toBe(false);
-        expect(detailJson.deck.isWanted).toBe(false);
       })();
     });
 

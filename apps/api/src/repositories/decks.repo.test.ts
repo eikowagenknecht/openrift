@@ -13,7 +13,6 @@ const DECK = {
   // absent/NULL jsonb to null.
   formatConfig: null,
   oddsConfig: null,
-  isWanted: false,
   isPublic: false,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -26,10 +25,10 @@ describe("decksRepo", () => {
     expect(await repo.listForUser("u1")).toEqual([DECK]);
   });
 
-  it("listForUser with wantedOnly filters", async () => {
+  it("listForUser with includeArchived returns archived decks too", async () => {
     const db = createMockDb([]);
     const repo = decksRepo(db);
-    expect(await repo.listForUser("u1", { wantedOnly: true })).toEqual([]);
+    expect(await repo.listForUser("u1", { includeArchived: true })).toEqual([]);
   });
 
   it("getByIdForUser returns a deck", async () => {
@@ -59,7 +58,6 @@ describe("decksRepo", () => {
       description: null,
       format: "constructed",
       formatConfig: null,
-      isWanted: false,
       isPublic: false,
     });
     expect(result).toEqual(DECK);
