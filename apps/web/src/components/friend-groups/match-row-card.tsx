@@ -6,7 +6,12 @@ import type {
   MarketplaceInfo,
   Printing,
 } from "@openrift/shared";
-import { legendDisplayName, setIndexById, UNKNOWN_SET_INDEX } from "@openrift/shared";
+import {
+  getOrientation,
+  legendDisplayName,
+  setIndexById,
+  UNKNOWN_SET_INDEX,
+} from "@openrift/shared";
 import { useRef, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -433,11 +438,15 @@ function MatchRow({
         <TradeDirectionIcon incoming={incoming} />
 
         <CardArtThumb
+          shape="strip"
           imageId={match.imageId}
           alt={match.cardName}
+          landscape={
+            match.printing ? getOrientation(match.printing.card.types) === "landscape" : false
+          }
           rarity={match.rarity}
           domains={match.domains}
-          className="w-10"
+          className="h-10"
           loading="lazy"
         />
 

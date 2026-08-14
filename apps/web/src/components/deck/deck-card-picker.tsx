@@ -1,12 +1,12 @@
-import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -106,11 +106,16 @@ export function CardChip({
       onMouseLeave={() => onHoverCard?.(null)}
     >
       {frontImage ? (
-        <ImgWithFallback
-          src={imageUrl(frontImage.imageId, "400w")}
-          alt=""
-          className={cn("shrink-0 rounded-xs object-cover", landscape ? "h-5 w-8" : "h-7 w-5")}
-          fallback={null}
+        // One box for both orientations: it used to flip between h-5 w-8 and
+        // h-7 w-5, so a list mixing battlefields with ordinary cards jumped
+        // height row to row.
+        <CardArtThumb
+          shape="strip"
+          imageId={frontImage.imageId}
+          variant="400w"
+          landscape={landscape}
+          className="h-5"
+          loading="lazy"
         />
       ) : null}
       <span className="min-w-0 truncate">

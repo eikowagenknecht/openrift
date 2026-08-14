@@ -795,11 +795,14 @@ function PrintingCard({
         )}
       >
         <CardArtThumb
+          shape="strip"
           imageId={frontImage?.imageId}
           alt={legendDisplayName(printing.card)}
-          className="w-10"
+          landscape={getOrientation(printing.card.types) === "landscape"}
+          rarity={printing.rarity}
+          domains={printing.card.domains}
+          className="h-10"
           loading="lazy"
-          fallback={<span className="bg-muted/40 block size-full" />}
         />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

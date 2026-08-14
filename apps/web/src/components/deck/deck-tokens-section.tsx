@@ -1,10 +1,11 @@
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
 import { ImageOffIcon, InfoIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
-import { DECK_LIST_SECTION_CLASS, DeckListRowArt } from "@/components/deck/deck-overview-list";
+import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import {
   LANDSCAPE_THUMB_CLASS,
   LANDSCAPE_THUMB_STYLE,
@@ -19,8 +20,6 @@ import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getPipBackgroundStyle } from "@/lib/domain";
-import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -163,8 +162,6 @@ function TokenRow({
   onSelect: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
 }) {
-  const rarityIcon = getFilterIconPath("rarities", entry.printing.rarity);
-
   return (
     <div
       role="button"
@@ -181,27 +178,18 @@ function TokenRow({
       title={tokenTitle(entry)}
       className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
     >
-      <DeckListRowArt src={tokenImageUrl(entry, "120w")} />
-
-      <span
-        aria-hidden
-        className="w-0.5 shrink-0 self-stretch rounded-full"
-        style={getPipBackgroundStyle(entry.card.domains, domainColors)}
+      <CardMiniRow
+        className="self-stretch"
+        src={tokenImageUrl(entry, "120w")}
+        landscape={getOrientation(entry.card.types) === "landscape"}
+        domains={entry.card.domains}
+        domainColors={domainColors}
+        rarity={entry.printing.rarity}
+        rarityLabels={rarityLabels}
+        shortCode={entry.printing.shortCode}
+        loading="lazy"
+        hideMetaOnMobile
       />
-
-      <span className="hidden w-20 shrink-0 items-center gap-1.5 sm:flex">
-        {rarityIcon && (
-          <img
-            src={rarityIcon}
-            alt=""
-            title={rarityLabels[entry.printing.rarity]}
-            className="size-3.5 shrink-0"
-          />
-        )}
-        <span className="text-muted-foreground truncate font-mono text-xs">
-          {entry.printing.shortCode}
-        </span>
-      </span>
 
       {/* Keeps the names on the same x as the zones' rows, which spend this
           slot on the copy count. */}

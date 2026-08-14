@@ -1,4 +1,5 @@
 import type { CardTradeCopyOptionsResponse, CardTradeResponse } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon, HandshakeIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
@@ -83,9 +84,13 @@ function TallyRow({
     <li className="flex items-center gap-3 py-2">
       <TradeDirectionIcon incoming={trade.role === "receiver"} />
       <CardArtThumb
+        shape="strip"
         imageId={frontImageId(printing)}
         alt={cardName}
-        className="w-10"
+        landscape={card ? getOrientation(card.types) === "landscape" : false}
+        rarity={printing?.rarity}
+        domains={card?.domains}
+        className="h-10"
         loading="lazy"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">

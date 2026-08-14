@@ -1,5 +1,5 @@
 import type { GroupByField, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
@@ -28,7 +28,10 @@ interface StaticColumn {
 }
 
 const STATIC_COLUMNS: readonly StaticColumn[] = [
-  { key: "image", track: "60px", minPx: 60 },
+  // 72px holds an h-8 art strip (32px tall × ~45px wide at the landscape-card
+  // ratio) plus the cell's px-3. The column was 60px while the thumb was
+  // portrait and only ~29px wide.
+  { key: "image", track: "72px", minPx: 72 },
   { key: "name", track: "minmax(180px, 1fr)", minPx: 180 },
   { key: "set", track: "160px", minPx: 160 },
   { key: "type", track: "200px", minPx: 200 },
@@ -271,7 +274,17 @@ export function CardTableRow({
   const staticCellByKey: Record<StaticColumnKey, ReactNode> = {
     image: (
       <div className="px-3 py-1">
-        <CardArtThumb imageId={image?.imageId} className="h-10" loading="lazy" />
+        {/* Art only — the table already spends columns on rarity and code, so
+            the CardMiniRow cluster would duplicate them. */}
+        <CardArtThumb
+          shape="strip"
+          imageId={image?.imageId}
+          landscape={getOrientation(printing.card.types) === "landscape"}
+          rarity={printing.rarity}
+          domains={printing.card.domains}
+          className="h-8"
+          loading="lazy"
+        />
       </div>
     ),
     name: (

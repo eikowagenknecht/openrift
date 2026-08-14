@@ -69,9 +69,10 @@ export function ScanIdentifySheet({
             onClick={() => onPick(candidate)}
           >
             <CardArtThumb
+              shape="strip"
               imageId={candidate.key}
               variant="120w"
-              className="w-10"
+              className="h-9"
               landscape={candidate.landscape}
             />
             <span className="min-w-0 flex-1">

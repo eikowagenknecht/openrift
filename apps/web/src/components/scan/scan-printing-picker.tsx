@@ -76,9 +76,12 @@ export function ScanPrintingPicker({
           onClick={() => onPick(candidate)}
         >
           <CardArtThumb
+            shape="strip"
             imageId={candidate.images[0]?.imageId}
             variant="120w"
-            className="w-10"
+            className="h-9"
+            rarity={candidate.rarity}
+            domains={candidate.card.domains}
             landscape={getOrientation(candidate.card.types) === "landscape"}
           />
           <span className="min-w-0 flex-1">

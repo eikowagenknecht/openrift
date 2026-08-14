@@ -4,14 +4,14 @@ import {
   SIDEBOARD_MAXIMUM,
   WellKnown,
   formatHasSideboard,
-  imageUrl,
+  getOrientation,
   legendDisplayName,
   setIndexById,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
 
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import type {
   AnyDragData,
@@ -45,9 +45,8 @@ import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
-import { getPipBackgroundStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getTypeIconPath } from "@/lib/icons";
 import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
@@ -662,38 +661,6 @@ function GroupedRows({
   );
 }
 
-/**
- * The wide art crop a list row leads with, of the printing that row stands for.
- *
- * Three states land in the same neutral box: no printing resolved, a printing
- * with no image on file, and an image record whose file is missing on the
- * server (which happens — a printing can be catalogued before its art is
- * rehosted). Without the load handler that last case leaves the browser's
- * broken-image glyph sitting in the row, which is what the empty box exists to
- * avoid. Exported so the tokens band's rows degrade identically.
- *
- * @returns The art strip.
- */
-export function DeckListRowArt({ src }: { src?: string }) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const showArt = src !== undefined && src !== failedUrl;
-
-  return (
-    <span className="bg-muted/40 h-6 w-10 shrink-0 overflow-hidden rounded-sm border">
-      {showArt && (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          draggable={false}
-          onError={() => setFailedUrl(src)}
-          className="h-full w-full object-cover object-[50%_18%]"
-        />
-      )}
-    </span>
-  );
-}
-
 interface DeckListRowProps {
   card: DeckBuilderCard;
   entry: CardOwnership | undefined;
@@ -806,7 +773,6 @@ export function DeckListRow({
   // while "show my printings" is on, the deck's otherwise.
   const { printing, price, hoverPrintingId } = resolveRowPrinting(card, entry);
   const rarity = printing?.rarity;
-  const rarityIcon = rarity ? getFilterIconPath("rarities", rarity) : undefined;
   const missing = (entry?.shortfall ?? 0) > 0;
 
   const interactiveProps: React.HTMLAttributes<HTMLDivElement> = onCardClick
@@ -845,29 +811,18 @@ export function DeckListRow({
       {...interactiveProps}
       {...dragProps}
     >
-      <DeckListRowArt src={printing?.imageId ? imageUrl(printing.imageId, "120w") : undefined} />
-
-      <span
-        aria-hidden
-        className="w-0.5 shrink-0 self-stretch rounded-full"
-        style={getPipBackgroundStyle(card.domains, domainColors)}
+      <CardMiniRow
+        className="self-stretch"
+        imageId={printing?.imageId}
+        landscape={getOrientation(card.cardTypes) === "landscape"}
+        domains={card.domains}
+        domainColors={domainColors}
+        rarity={rarity}
+        rarityLabels={rarityLabels}
+        shortCode={printing?.shortCode}
+        loading="lazy"
+        hideMetaOnMobile
       />
-
-      <span className="hidden w-20 shrink-0 items-center gap-1.5 sm:flex">
-        {rarityIcon && (
-          <img
-            src={rarityIcon}
-            alt=""
-            title={rarity ? rarityLabels[rarity] : undefined}
-            className="size-3.5 shrink-0"
-          />
-        )}
-        {printing && (
-          <span className="text-muted-foreground truncate font-mono text-xs">
-            {printing.shortCode}
-          </span>
-        )}
-      </span>
 
       <span className="w-6 shrink-0 text-right tabular-nums">{card.quantity}×</span>
 

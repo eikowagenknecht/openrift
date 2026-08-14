@@ -1,4 +1,5 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftRightIcon, FolderIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -140,14 +141,21 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
   const viewerId = useRequiredUserId();
 
   const cardName = (cardId: string): string => cardsById[cardId]?.name ?? "a card";
-  const thumb = (printingId: string, alt: string): ReactNode => (
-    <CardArtThumb
-      imageId={frontImageId(printingsById[printingId])}
-      alt={alt}
-      className="w-7"
-      loading="lazy"
-    />
-  );
+  const thumb = (printingId: string, alt: string): ReactNode => {
+    const printing = printingsById[printingId];
+    return (
+      <CardArtThumb
+        shape="strip"
+        imageId={frontImageId(printing)}
+        alt={alt}
+        landscape={printing ? getOrientation(printing.card.types) === "landscape" : false}
+        rarity={printing?.rarity}
+        domains={printing?.card.domains}
+        className="h-7"
+        loading="lazy"
+      />
+    );
+  };
   const time = (
     <time className="text-muted-foreground text-2xs shrink-0">{formatRelativeTime(event.at)}</time>
   );

@@ -1,4 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
@@ -72,7 +73,17 @@ export function TradeRow({
     <Card className="relative flex-row flex-wrap items-center gap-x-3 gap-y-2 p-2">
       <TradeDirectionIcon incoming={incoming} />
 
-      <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
+      {/* Art only — the meta line below the name already carries code and rarity. */}
+      <CardArtThumb
+        shape="strip"
+        imageId={imageId}
+        alt={cardName}
+        landscape={card ? getOrientation(card.types) === "landscape" : false}
+        rarity={printing?.rarity}
+        domains={card?.domains}
+        className="h-10"
+        loading="lazy"
+      />
 
       {/* pr-8 keeps the first line clear of the overflow menu, which the settle
           actions pin to the card's top-right corner on phones; from sm up that

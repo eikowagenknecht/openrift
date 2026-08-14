@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { CardArtThumb } from "./card-art-thumb";
@@ -102,5 +102,92 @@ describe("CardArtThumb", () => {
     const frame = container.querySelector("span");
     expect(frame?.className).toContain("h-32");
     expect(frame?.className).toContain("self-start");
+  });
+
+  // Ported from the deleted DeckListRowArt, which grew these cases in the deck
+  // list. They belong to every shape now that one frame serves both.
+  describe("art missing on the server", () => {
+    it.each(["card", "strip"] as const)(
+      "drops back to the placeholder when the file 404s (%s)",
+      (shape) => {
+        // A printing can be catalogued before its art is rehosted, so the URL
+        // exists and 404s. Without this the row keeps the broken-image glyph.
+        const { container } = render(<CardArtThumb shape={shape} src="/gone-120w.webp" />);
+        const img = container.querySelector("img");
+        expect(img).not.toBeNull();
+
+        fireEvent.error(img!);
+        expect(container.querySelector("img")).toBeNull();
+      },
+    );
+
+    it("retries a different source after one failed", () => {
+      const { container, rerender } = render(<CardArtThumb shape="strip" src="/gone-120w.webp" />);
+      fireEvent.error(container.querySelector("img")!);
+
+      rerender(<CardArtThumb shape="strip" src="/other-120w.webp" />);
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    it("falls back to the rarity watermark rather than an empty box", () => {
+      // The old deck-row box went blank here; the shared frame keeps the card's
+      // identity visible instead.
+      const { container } = render(
+        <CardArtThumb shape="strip" src="/gone-120w.webp" rarity="showcase" domains={["fury"]} />,
+      );
+      fireEvent.error(container.querySelector("img")!);
+
+      const watermark = container.querySelector("img");
+      expect(watermark?.getAttribute("src")).toBe("/images/rarities/showcase-28x28.webp");
+    });
+  });
+
+  describe('shape="strip"', () => {
+    it("uses the landscape-card ratio instead of the portrait card frame", () => {
+      const { container } = render(<CardArtThumb shape="strip" src="/x-120w.webp" />);
+
+      const frame = container.querySelector("span");
+      // 88/63 is the inverse of --aspect-card, so battlefield art fills it exactly.
+      expect(frame?.className).toContain("aspect-[88/63]");
+      expect(frame?.className).not.toContain("aspect-card");
+      // Defaults to h-6 so rows line up without every call site restating it.
+      expect(frame?.className).toContain("h-6");
+    });
+
+    it("crops portrait art to the illustration band, not its middle", () => {
+      const { container } = render(<CardArtThumb shape="strip" src="/x-120w.webp" />);
+
+      const img = container.querySelector("img");
+      // At 24px tall a 50% crop lands on the type line; 18% lands on the art.
+      expect(img?.className).toContain("object-[50%_18%]");
+    });
+
+    it("leaves landscape art uncropped and unrotated", () => {
+      const { container } = render(<CardArtThumb shape="strip" src="/bf-120w.webp" landscape />);
+
+      const img = container.querySelector("img");
+      // The strip is already the art's own ratio: no crop offset, no rotation
+      // wrapper. This is the whole reason battlefields get a strip.
+      expect(img?.className).not.toContain("object-[50%_18%]");
+      expect(img?.parentElement?.style.transform ?? "").not.toContain("rotate");
+    });
+
+    it("sizes the placeholder glyph off the short axis so it stays square", () => {
+      const { container } = render(<CardArtThumb shape="strip" imageId={null} rarity="showcase" />);
+
+      const watermark = container.querySelector("img");
+      // A strip is wide, so height is the short axis — the mirror of the
+      // portrait frame's width-only constraint.
+      expect(watermark?.className).toContain("h-1/2");
+      expect(watermark?.className).not.toContain("w-1/2");
+    });
+
+    it("still overrides its default height from className", () => {
+      const { container } = render(<CardArtThumb shape="strip" src="/x.webp" className="h-9" />);
+
+      const frame = container.querySelector("span");
+      expect(frame?.className).toContain("h-9");
+      expect(frame?.className).not.toContain("h-6");
+    });
   });
 });

@@ -1,13 +1,14 @@
 import type { DeckZone } from "@openrift/shared";
-import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
+import { WellKnown, getOrientation, legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRightIcon, BoxIcon, HandHeartIcon, PackageSearchIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { MoveDialog } from "@/components/collection/move-dialog";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
-import { DECK_LIST_SECTION_CLASS, DeckListRowArt } from "@/components/deck/deck-overview-list";
+import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,8 +26,7 @@ import { getDeckCardKey } from "@/lib/deck-builder-card";
 import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
 import { GROUPED_ZONES } from "@/lib/deck-card-sort";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
-import { getPipBackgroundStyle } from "@/lib/domain";
-import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -613,29 +613,19 @@ function BoxRow({
   return (
     <div className="hover:bg-muted/40 flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
       {leading}
-      <DeckListRowArt src={copy?.imageId ? imageUrl(copy.imageId, "120w") : undefined} />
-      <span
-        aria-hidden
-        className="w-0.5 shrink-0 self-stretch rounded-full"
-        style={getPipBackgroundStyle(card.domains, labels.domainColors)}
-      />
       {/* The code stays on phones, unlike the deck list's: finding this exact
           printing in a binder is what the row is for. */}
-      <span className="flex w-20 shrink-0 items-center gap-1.5">
-        {copy && (
-          <>
-            <img
-              src={getFilterIconPath("rarities", copy.rarity)}
-              alt=""
-              title={labels.rarities[copy.rarity]}
-              className="size-3.5 shrink-0"
-            />
-            <span className="text-muted-foreground truncate font-mono text-xs">
-              {copy.shortCode}
-            </span>
-          </>
-        )}
-      </span>
+      <CardMiniRow
+        className="self-stretch"
+        imageId={copy?.imageId}
+        landscape={getOrientation(card.types) === "landscape"}
+        domains={card.domains}
+        domainColors={labels.domainColors}
+        rarity={copy?.rarity}
+        rarityLabels={labels.rarities}
+        shortCode={copy?.shortCode}
+        loading="lazy"
+      />
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
         {legendDisplayName({ name: card.name, types: card.types, tags: card.tags })}
       </span>

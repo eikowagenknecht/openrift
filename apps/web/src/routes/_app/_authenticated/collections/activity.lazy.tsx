@@ -1,5 +1,5 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -14,12 +14,12 @@ import {
 import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { EmptyState } from "@/components/empty-state";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import {
   Select,
   SelectContent,
@@ -273,22 +273,20 @@ function EventCard({
         <Icon className={cn("size-3.5", config.color)} />
       </div>
 
-      {event.imageId ? (
-        <ImgWithFallback
-          src={imageUrl(event.imageId, "120w")}
-          alt={displayName}
-          className="h-12 w-[2.15rem] shrink-0 rounded-sm object-cover"
-          fallback={
-            <div className="bg-muted flex h-12 w-[2.15rem] shrink-0 items-center justify-center rounded-sm">
-              <PackageIcon className="text-muted-foreground size-3.5" />
-            </div>
-          }
-        />
-      ) : (
-        <div className="bg-muted flex h-12 w-[2.15rem] shrink-0 items-center justify-center rounded-sm">
-          <PackageIcon className="text-muted-foreground size-3.5" />
-        </div>
-      )}
+      {/* A feed row can stand for a sealed product rather than a card, so the
+          empty frame keeps the package glyph instead of the card placeholder. */}
+      <CardArtThumb
+        shape="strip"
+        imageId={event.imageId}
+        alt={displayName}
+        className="h-9"
+        loading="lazy"
+        fallback={
+          <span className="bg-muted absolute inset-0 flex items-center justify-center">
+            <PackageIcon className="text-muted-foreground size-3.5" />
+          </span>
+        }
+      />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

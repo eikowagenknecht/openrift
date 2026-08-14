@@ -15,6 +15,7 @@
 - feat(App): **Frosted bars are optional** — blurring the page behind the header and toolbars costs frame rate while scrolling, so it is off by default with a switch in Display settings.
 - feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
 - feat(Decks): **Drag the deck cover to frame it** — the cover preview can be dragged up and down to pick the part of the art you want, and the focus slider follows along.
+- fix(App): **Clearer card thumbnails in lists** — every list row now leads with a wide crop of the art, so battlefields show whole instead of as a sliver and rows stop changing height between card shapes.
 - fix(Cards): **Hiding the detail panel stays hidden** — closing the side panel from the toolbar button popped the selected card back up as a dialog instead of putting it away.
 
 ## 2026-08-13

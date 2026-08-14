@@ -297,11 +297,12 @@ export function DeckMissingCardsDialog({
                     {/* Small card thumbnail alongside the two stacked rows on mobile;
                       hidden on desktop where the row is a single line. */}
                     <CardArtThumb
+                      shape="strip"
                       imageId={printing?.imageId}
                       landscape={printing?.landscape}
                       rarity={printing?.rarity}
                       loading="lazy"
-                      className="h-10 sm:hidden"
+                      className="h-9 sm:hidden"
                     />
                     {/* On mobile this column stacks the name over the price; on
                       desktop `contents` dissolves it so both align inline with

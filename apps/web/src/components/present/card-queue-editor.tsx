@@ -1,9 +1,10 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import { ChevronDownIcon, ChevronUpIcon, SearchIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useDeferredValue, useState } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { Input } from "@/components/ui/input";
@@ -19,22 +20,22 @@ import { cn } from "@/lib/utils";
  * @returns The thumbnail, or a name-only placeholder when the printing has no art.
  */
 function QueueThumb({ printing }: { printing: Printing }) {
-  const image = printing.images[0];
-  if (!image) {
-    return (
-      <span className="bg-muted text-2xs text-muted-foreground aspect-card flex w-8 shrink-0 items-center justify-center rounded-sm p-0.5 text-center leading-tight">
-        {printing.card.name.slice(0, 8)}
-      </span>
-    );
-  }
   return (
-    <img
-      src={imageUrl(image.imageId, "400w")}
-      alt=""
-      width={400}
-      height={558}
+    // Card-shaped, unlike the app's list rows: the queue mirrors what the stage
+    // will put on screen, so each entry reads as the whole card.
+    <CardArtThumb
+      imageId={printing.images[0]?.imageId}
+      variant="400w"
+      className="w-8"
       loading="lazy"
-      className="aspect-card w-8 shrink-0 rounded-sm object-cover"
+      landscape={getOrientation(printing.card.types) === "landscape"}
+      rarity={printing.rarity}
+      domains={printing.card.domains}
+      fallback={
+        <span className="bg-muted text-2xs text-muted-foreground absolute inset-0 flex items-center justify-center p-0.5 text-center leading-tight">
+          {printing.card.name.slice(0, 8)}
+        </span>
+      }
     />
   );
 }

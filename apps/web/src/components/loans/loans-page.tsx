@@ -1,4 +1,5 @@
 import type { LoanResponse } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 import { ChevronRightIcon, EllipsisVerticalIcon, HandHeartIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -83,7 +84,17 @@ function LoanRow({ loan }: { loan: LoanResponse }) {
   return (
     <Card className="gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="flex min-w-0 items-center gap-3 sm:contents">
-        <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
+        {/* Art only — CardMetaLine below the name already carries code and rarity. */}
+        <CardArtThumb
+          shape="strip"
+          imageId={imageId}
+          alt={cardName}
+          landscape={card ? getOrientation(card.types) === "landscape" : false}
+          rarity={printing?.rarity}
+          domains={card?.domains}
+          className="h-10"
+          loading="lazy"
+        />
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate font-medium">{quantityLabel}</span>

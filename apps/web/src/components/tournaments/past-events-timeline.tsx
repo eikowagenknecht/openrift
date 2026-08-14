@@ -23,7 +23,7 @@ function WinnerChip({ winner }: { winner: TournamentWinner }) {
     <span className="border-border-accent/40 bg-border-accent/10 flex shrink-0 items-center gap-2 rounded-md border py-1 pr-2.5 pl-2">
       <TrophyIcon className="text-border-accent size-3.5 shrink-0" aria-hidden="true" />
       {winner.legendImageId ? (
-        <CardArtThumb imageId={winner.legendImageId} className="h-9" />
+        <CardArtThumb shape="strip" imageId={winner.legendImageId} className="h-7" />
       ) : null}
       <span className="text-sm">
         <span className="sr-only">Winner: </span>

@@ -1,18 +1,21 @@
 import type { Printing } from "@openrift/shared";
-import { getOrientation, imageUrl } from "@openrift/shared";
+import { getOrientation } from "@openrift/shared";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { frontImageId } from "@/lib/card-meta";
 import { formatCardId } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 /**
- * Small front-face thumbnail for a printing, sized portrait or landscape from
- * the card type (Battlefields are landscape). Falls back to a muted box when no
- * image exists. Shared by the printing picker and the import catalog search so
- * the two stay visually consistent.
- * @returns The thumbnail image, or a placeholder box.
+ * Small front-face thumbnail for a printing. Shared by the printing picker and
+ * the import catalog search so the two stay visually consistent.
+ *
+ * One strip frame serves both orientations: a Battlefield's landscape art fills
+ * it exactly, and a portrait card crops to its illustration. The box used to
+ * flip between `h-10 w-14` and `h-14 w-10`, which made the option rows jump
+ * height as the list mixed the two.
+ *
+ * @returns The thumbnail.
  */
 export function PrintingThumbnail({
   printing,
@@ -21,24 +24,16 @@ export function PrintingThumbnail({
   printing: Printing;
   className?: string;
 }) {
-  const imageId = frontImageId(printing);
-  const thumbnail = imageId ? imageUrl(imageId, "120w") : null;
-  const landscape = getOrientation(printing.card.types) === "landscape";
-  const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
-
-  const placeholderBox = (
-    <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded", className)} />
-  );
-  return thumbnail ? (
-    <ImgWithFallback
-      src={thumbnail}
-      alt=""
-      className={cn(thumbnailSize, "shrink-0 rounded object-cover", className)}
-      draggable={false}
-      fallback={placeholderBox}
+  return (
+    <CardArtThumb
+      shape="strip"
+      imageId={frontImageId(printing)}
+      landscape={getOrientation(printing.card.types) === "landscape"}
+      rarity={printing.rarity}
+      domains={printing.card.domains}
+      className={className ?? "h-10"}
+      loading="lazy"
     />
-  ) : (
-    placeholderBox
   );
 }
 
