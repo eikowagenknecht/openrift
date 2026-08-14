@@ -25,6 +25,7 @@ export * from "./preferences.js";
 export * from "./pricing.js";
 export * from "./rules.js";
 export * from "./site-settings.js";
+export * from "./stage-preset.js";
 export * from "./tier-list.js";
 export * from "./tournament.js";
 export * from "./trade-preferences.js";

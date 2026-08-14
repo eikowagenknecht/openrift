@@ -4,8 +4,9 @@ import { OverlayFrame } from "@/components/overlay/overlay-frame";
 import { useCards } from "@/hooks/use-cards";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useOverlayState } from "@/hooks/use-overlay";
+import { deriveOverlayBoardScene } from "@/lib/overlay-board-scene";
 
-export const Route = createLazyFileRoute("/overlay_/$token")({
+export const Route = createLazyFileRoute("/stage_/source/$token")({
   component: OverlaySourcePage,
 });
 
@@ -27,13 +28,14 @@ const TRANSPARENT_PAGE_CSS = `
 
 function OverlaySourcePage() {
   const { token } = Route.useParams();
+  const { preset } = Route.useSearch();
   const hydrated = useHydrated();
 
   return (
     <>
       {/* oxlint-disable-next-line react/no-danger -- static constant above, no interpolation */}
       <style dangerouslySetInnerHTML={{ __html: TRANSPARENT_PAGE_CSS }} />
-      {hydrated && <OverlaySourceCanvas token={token} />}
+      {hydrated && <OverlaySourceCanvas token={token} presetId={preset} />}
     </>
   );
 }
@@ -45,20 +47,28 @@ function OverlaySourcePage() {
  *
  * @returns The overlay canvas.
  */
-function OverlaySourceCanvas({ token }: { token: string }) {
-  const { data } = useOverlayState(token);
-  const { printingsById } = useCards();
+function OverlaySourceCanvas({ token, presetId }: { token: string; presetId?: string }) {
+  const { data } = useOverlayState(token, presetId);
+  const { cardsById, printingsById, printingsByCardId } = useCards();
 
   if (!data) {
     return null;
   }
 
   const printingId = data.payload.printingId;
+  const pushedBoard = data.payload.board;
   return (
     <div className="fixed inset-0">
       <OverlayFrame
         payload={data.payload}
         printing={printingId === null ? undefined : printingsById[printingId]}
+        // Resolved here rather than inside the frame: the catalogue lives on
+        // this side of the boundary, and the frame paints what it is handed.
+        board={
+          pushedBoard === null
+            ? undefined
+            : deriveOverlayBoardScene(pushedBoard, cardsById, printingsByCardId)
+        }
       />
     </div>
   );

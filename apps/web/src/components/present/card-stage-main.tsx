@@ -1,11 +1,9 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
-import { CardDetailStats } from "@/components/cards/card-detail/card-detail-stats";
-import { CardDetailText } from "@/components/cards/card-detail/card-detail-text";
-import { formatPublicCode } from "@/lib/format";
+import { CardPlateContent } from "@/components/cards/card-plate";
+import { isChromaGround, useChromaPlate } from "@/components/present/stage-shell";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { cn } from "@/lib/utils";
 import { usePresentationStore } from "@/stores/presentation-store";
@@ -19,6 +17,13 @@ import { usePresentationStore } from "@/stores/presentation-store";
  * default is the width the card layout is framed around; the board layout stacks
  * this under a narrower hero and passes its own.
  *
+ * The lines inside are the same {@link CardPlateContent} the stream overlay
+ * paints, on the same per-field switches — set here from the stage's settings
+ * popover rather than a pushed payload.
+ *
+ * On a chroma ground it gets an opaque plate under it, because text sitting
+ * straight on the key is antialiased against it and comes out fringed.
+ *
  * @returns The name, code, stats and text beside the card.
  */
 export function PresentationTextPanel({
@@ -28,19 +33,18 @@ export function PresentationTextPanel({
   printing: Printing;
   className?: string;
 }) {
+  const plateFields = usePresentationStore((state) => state.plateFields);
+  const plate = useChromaPlate();
+
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col gap-4 self-center",
+        "flex shrink-0 flex-col self-center",
         className ?? "w-[32rem] max-w-[40vw]",
+        plate,
       )}
     >
-      <h1 className="text-3xl font-semibold text-balance">{legendDisplayName(printing.card)}</h1>
-      <div className="font-mono text-sm tracking-wider text-white/50 uppercase">
-        {formatPublicCode(printing)}
-      </div>
-      <CardDetailStats printing={printing} align="start" />
-      <CardDetailText printing={printing} />
+      <CardPlateContent printing={printing} fields={plateFields} size="stage" />
     </div>
   );
 }
@@ -55,6 +59,7 @@ export function PresentationTextPanel({
 export function CardStageMain({ items, index }: { items: PresentationItem[]; index: number }) {
   const showText = usePresentationStore((state) => state.showText);
   const cardScale = usePresentationStore((state) => state.cardScale);
+  const chroma = isChromaGround(usePresentationStore((state) => state.ground));
 
   // Which way the queue last moved, so the incoming card flies in from the side
   // it came from. Adjusted during render (React's documented pattern for state
@@ -80,11 +85,15 @@ export function CardStageMain({ items, index }: { items: PresentationItem[]; ind
       >
         {/* Keyed on the queue position so every step remounts the layer and
             replays the entry animation, sliding in from the side the queue
-            moved towards. */}
+            moved towards. The fade is dropped on a chroma ground: every frame
+            of it is a part-opaque card over the key, which the chroma filter
+            eats into rather than blends. The slide survives, being opaque
+            throughout. */}
         <div
           key={current.id}
           className={cn(
-            "animate-in fade-in absolute inset-0 duration-300 ease-out",
+            "animate-in absolute inset-0 duration-300 ease-out",
+            !chroma && "fade-in",
             forwards ? "slide-in-from-right-16" : "slide-in-from-left-16",
           )}
         >

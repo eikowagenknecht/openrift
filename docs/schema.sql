@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict gshPq4cvfyeBxtcsBjQuUMNO6NEoFmfLfhX9xYAmSPYGC7uu8cNBjhENAYGjlL3
+\restrict azJBM3ni1MQnbVYPmfCljpu184zfVs2qbaMmB2AaDKhR0eNtooOvtfWx33bx8fj
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2579,6 +2579,22 @@ CREATE TABLE public.site_settings (
 
 
 --
+-- Name: stage_presets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.stage_presets (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    name text NOT NULL,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_stage_presets_config_object CHECK ((jsonb_typeof(config) = 'object'::text)),
+    CONSTRAINT chk_stage_presets_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
 -- Name: super_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3832,6 +3848,14 @@ ALTER TABLE ONLY public.site_settings
 
 
 --
+-- Name: stage_presets stage_presets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stage_presets
+    ADD CONSTRAINT stage_presets_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: super_types super_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5072,6 +5096,13 @@ CREATE UNIQUE INDEX uq_meta_events_source ON public.meta_events USING btree (sou
 
 
 --
+-- Name: uq_stage_presets_user_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_stage_presets_user_name ON public.stage_presets USING btree (user_id, name);
+
+
+--
 -- Name: uq_tournament_participants_claim_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5629,6 +5660,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.set_releases FOR EACH 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: stage_presets trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.stage_presets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -6925,6 +6963,14 @@ ALTER TABLE ONLY public.set_releases
 
 
 --
+-- Name: stage_presets stage_presets_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stage_presets
+    ADD CONSTRAINT stage_presets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: tag_definitions tag_definitions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7056,5 +7102,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict gshPq4cvfyeBxtcsBjQuUMNO6NEoFmfLfhX9xYAmSPYGC7uu8cNBjhENAYGjlL3
+\unrestrict azJBM3ni1MQnbVYPmfCljpu184zfVs2qbaMmB2AaDKhR0eNtooOvtfWx33bx8fj
 

@@ -192,7 +192,7 @@ export function QueueSourcePicker({ onAdd }: { onAdd: (source: QueueSource) => v
       <p className="text-muted-foreground text-sm">
         <Link
           to="/login"
-          search={{ redirect: "/present", email: undefined }}
+          search={{ redirect: "/stage", email: undefined }}
           className="underline underline-offset-2"
         >
           Sign in

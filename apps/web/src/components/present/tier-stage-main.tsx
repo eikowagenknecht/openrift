@@ -1,9 +1,11 @@
 import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
 import { PresentationTextPanel } from "@/components/present/card-stage-main";
+import { isChromaGround, useChromaPlate } from "@/components/present/stage-shell";
 import { TierBoard } from "@/components/tier-lists/tier-board";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import type { ResolvedTierRow, TierQueueStop } from "@/lib/tier-list-presentation";
 import { revealedRows } from "@/lib/tier-list-presentation";
+import { cn } from "@/lib/utils";
 import { usePresentationStore } from "@/stores/presentation-store";
 
 /**
@@ -43,6 +45,8 @@ export function TierStageMain({
   const showHero = usePresentationStore((state) => state.showHero);
   const showText = usePresentationStore((state) => state.showText);
   const cardScale = usePresentationStore((state) => state.cardScale);
+  const chroma = isChromaGround(usePresentationStore((state) => state.ground));
+  const plate = useChromaPlate();
 
   const current = queue[index];
   if (!current) {
@@ -85,8 +89,14 @@ export function TierStageMain({
               style={{ maxHeight: `${cardScale * (showText ? 55 : 90)}%` }}
             >
               {/* Keyed on the stop so each step replays the fade, which is what
-                  reads as the card being *taken up* before it is placed. */}
-              <div key={current.id} className="animate-in fade-in absolute inset-0 duration-300">
+                  reads as the card being *taken up* before it is placed. On a
+                  chroma ground there is no fade to replay: a part-opaque card
+                  over the key comes out chewed rather than faded, so the card
+                  simply appears. */}
+              <div
+                key={current.id}
+                className={cn("absolute inset-0", !chroma && "animate-in fade-in duration-300")}
+              >
                 <CardDetailArt printing={current.printing} showImages disableTilt />
               </div>
             </div>
@@ -109,7 +119,10 @@ export function TierStageMain({
           emptyRowLabel={reveal ? "" : "Nothing here"}
           // Capped so a wide screen doesn't stretch each tier into a single
           // endless line — a ladder reads as a ladder only while the rows wrap.
-          className="w-full max-w-5xl"
+          // The plate matters more here than anywhere: the rows are drawn on a
+          // translucent card colour and the spotlight dims the rest to 30%, so
+          // on a chroma ground most of the board would key out with the ground.
+          className={cn("w-full max-w-5xl", plate)}
         />
       </div>
     </div>

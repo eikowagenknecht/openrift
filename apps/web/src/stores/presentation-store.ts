@@ -1,3 +1,4 @@
+import type { OverlayPlateFields, StageGround } from "@openrift/shared";
 import { create } from "zustand";
 
 import type { TierQueueDirection } from "@/lib/tier-list-presentation";
@@ -22,12 +23,25 @@ export function clampCardScale(scale: number): number {
 interface PresentationState {
   /** Rules-text panel beside the card. Off by default: the card is the point. */
   showText: boolean;
+  /**
+   * Which lines the text panel carries. All of them to start with — a creator
+   * who turns the panel on wants to see the card written out, and pares it back
+   * from there. Shares its shape with the stream overlay's plate, because the
+   * two surfaces render the same component.
+   */
+  plateFields: OverlayPlateFields;
   /** Thumbnail strip along the bottom showing the rest of the queue. */
   showStrip: boolean;
   /** Key-help overlay, opened with `?`. */
   showHelp: boolean;
   /** Card height as a share of the stage, so a capture can be framed to taste. */
   cardScale: number;
+  /**
+   * What the card sits against. Black is the stage as it reads on camera; the
+   * two chroma colours are there to be keyed out, so the card can be composited
+   * over a scene in OBS instead of over a black rectangle.
+   */
+  ground: StageGround;
   /**
    * Show the whole board instead of one card at a time. Only a source that has
    * a board (a tier list) offers it; everything else ignores it.
@@ -50,10 +64,12 @@ interface PresentationState {
   /** Which end of the ladder the run starts at. */
   direction: TierQueueDirection;
   toggleText: () => void;
+  togglePlateField: (key: keyof OverlayPlateFields) => void;
   toggleStrip: () => void;
   toggleHelp: () => void;
   closeHelp: () => void;
   setCardScale: (scale: number) => void;
+  setGround: (ground: StageGround) => void;
   toggleBoard: () => void;
   toggleHero: () => void;
   toggleReveal: () => void;
@@ -71,18 +87,23 @@ interface PresentationState {
  */
 export const usePresentationStore = create<PresentationState>()((set) => ({
   showText: false,
+  plateFields: { name: true, code: true, stats: true, rulesText: true, flavorText: true },
   showStrip: false,
   showHelp: false,
   cardScale: MAX_CARD_SCALE,
+  ground: "black",
   boardMode: true,
   showHero: true,
   reveal: false,
   direction: "best-first",
   toggleText: () => set((state) => ({ showText: !state.showText })),
+  togglePlateField: (key) =>
+    set((state) => ({ plateFields: { ...state.plateFields, [key]: !state.plateFields[key] } })),
   toggleStrip: () => set((state) => ({ showStrip: !state.showStrip })),
   toggleHelp: () => set((state) => ({ showHelp: !state.showHelp })),
   closeHelp: () => set({ showHelp: false }),
   setCardScale: (scale) => set({ cardScale: clampCardScale(scale) }),
+  setGround: (ground) => set({ ground }),
   toggleBoard: () => set((state) => ({ boardMode: !state.boardMode })),
   toggleHero: () => set((state) => ({ showHero: !state.showHero })),
   toggleReveal: () => set((state) => ({ reveal: !state.reveal })),

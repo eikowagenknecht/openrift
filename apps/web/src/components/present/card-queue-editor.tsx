@@ -5,26 +5,20 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import type { Printing } from "@openrift/shared";
 import { getOrientation, legendDisplayName } from "@openrift/shared";
-import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { useDeferredValue, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { ExpandToggle } from "@/components/ui/expand-toggle";
-import { Input } from "@/components/ui/input";
-import { Pressable } from "@/components/ui/pressable";
-import { useCards } from "@/hooks/use-cards";
-import { moveQueueEntry, searchPrintingsByName } from "@/lib/card-queue-search";
+import { moveQueueEntry } from "@/lib/card-queue-search";
 import { formatPublicCode } from "@/lib/format";
 import { moveToIndex } from "@/lib/move-to-index";
-import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 import { cn } from "@/lib/utils";
 
 /**
- * Small square card thumbnail for the picker and queue rows.
+ * Small square card thumbnail for the queue rows.
  * @returns The thumbnail, or a name-only placeholder when the printing has no art.
  */
 function QueueThumb({ printing }: { printing: Printing }) {
@@ -45,95 +39,6 @@ function QueueThumb({ printing }: { printing: Printing }) {
         </span>
       }
     />
-  );
-}
-
-/**
- * The result rows under the search box. One row per card — clicking it queues
- * the printing the viewer's language order puts first, which is what almost
- * every add wants. A card with more than one printing also gets a disclosure
- * chevron: open it and every variant of that card is individually queueable,
- * for the run where the promo or the alternate art is the point.
- *
- * @returns The scrollable result panel.
- */
-function QueueSearchResults({
-  results,
-  printingsByCardId,
-  isFull,
-  expandedCardId,
-  onToggleExpanded,
-  onAdd,
-  resultAction,
-}: {
-  results: readonly Printing[];
-  printingsByCardId: Map<string, Printing[]>;
-  isFull: boolean;
-  expandedCardId: string | null;
-  onToggleExpanded: (cardId: string) => void;
-  onAdd: (printing: Printing) => void;
-  resultAction?: (printing: Printing) => ReactNode;
-}) {
-  return (
-    <div className="border-border max-h-72 overflow-y-auto rounded-md border">
-      {results.length === 0 ? (
-        <p className="text-muted-foreground p-3 text-sm">No cards match that.</p>
-      ) : (
-        <ul>
-          {results.map((printing) => {
-            const siblings = printingsByCardId.get(printing.cardId) ?? [];
-            const expanded = expandedCardId === printing.cardId;
-            return (
-              <li key={printing.id} className="border-border not-last:border-b">
-                <div className="hover:bg-accent/50 flex items-center gap-1 pr-2">
-                  <Pressable
-                    onClick={() => onAdd(printing)}
-                    disabled={isFull}
-                    className="flex min-w-0 flex-1 items-center gap-3 p-2 disabled:opacity-50"
-                  >
-                    <QueueThumb printing={printing} />
-                    <span className="min-w-0 flex-1 truncate">
-                      {legendDisplayName(printing.card)}
-                    </span>
-                    <span className="text-muted-foreground font-mono text-sm">
-                      {formatPublicCode(printing)}
-                    </span>
-                  </Pressable>
-                  {siblings.length > 1 && (
-                    <ExpandToggle
-                      expanded={expanded}
-                      onClick={() => onToggleExpanded(printing.cardId)}
-                      aria-label={`Choose a printing of ${printing.card.name}`}
-                      className="shrink-0 p-1"
-                    />
-                  )}
-                  {resultAction?.(printing)}
-                </div>
-                {expanded && (
-                  <ul className="bg-muted/40">
-                    {siblings.map((sibling) => (
-                      <li key={sibling.id}>
-                        <Pressable
-                          onClick={() => onAdd(sibling)}
-                          disabled={isFull}
-                          className="hover:bg-accent/50 flex w-full items-center py-1.5 pr-2 pl-14 text-sm disabled:opacity-50"
-                        >
-                          <PrintingVariantLabel
-                            printing={sibling}
-                            siblings={siblings}
-                            code={<span className="font-mono">{formatPublicCode(sibling)}</span>}
-                          />
-                        </Pressable>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
   );
 }
 
@@ -339,109 +244,5 @@ export function QueueList({
         </ol>
       </SortableContext>
     </DndContext>
-  );
-}
-
-/**
- * Search-and-queue editor shared by presentation mode and the overlay
- * dashboard: a name/code search at the top, results below as full-width rows,
- * and the assembled queue underneath with move and remove controls.
- *
- * The caller owns the queue (a list of printing ids) so it can live in a URL,
- * a store, or server state as that surface needs. `rowAction` lets a surface
- * hang its own per-row control off a queue entry — the dashboard uses it for
- * "push this one live".
- *
- * @returns The queue editor.
- */
-export function CardQueueEditor({
-  ids,
-  onChange,
-  rowAction,
-  resultAction,
-  className,
-}: {
-  ids: readonly string[];
-  onChange: (ids: string[]) => void;
-  /** Extra control rendered at the end of each queue row. */
-  rowAction?: (printing: Printing, index: number) => ReactNode;
-  /**
-   * Extra control at the end of each search-result row. The overlay dashboard
-   * puts "push live" here, so a card the creator did not prepare still reaches
-   * the stream in one tap.
-   */
-  resultAction?: (printing: Printing) => ReactNode;
-  className?: string;
-}) {
-  const { allPrintings, printingsById, printingsByCardId } = useCards();
-  const [query, setQuery] = useState("");
-  // Which result row has its printing list open. One at a time: the panel is
-  // short, and two open cards push the rest of the results out of reach.
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
-  // Deferred so a keystroke paints the input immediately; the whole-catalog
-  // scan and the result-row rerender ride the lower-priority pass.
-  const deferredQuery = useDeferredValue(query);
-
-  const results = searchPrintingsByName(deferredQuery, allPrintings);
-  const isFull = ids.length >= MAX_QUEUE_LENGTH;
-
-  const add = (printing: Printing) => {
-    if (isFull) {
-      return;
-    }
-    onChange([...ids, printing.id]);
-    setQuery("");
-    setExpandedCardId(null);
-  };
-
-  return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      <div className="relative">
-        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search a card by name or code…"
-          aria-label="Search cards to add"
-          className="pl-9"
-          autoComplete="off"
-        />
-      </div>
-
-      {deferredQuery.trim() !== "" && (
-        <QueueSearchResults
-          results={results}
-          printingsByCardId={printingsByCardId}
-          isFull={isFull}
-          expandedCardId={expandedCardId}
-          onToggleExpanded={(cardId) =>
-            setExpandedCardId((current) => (current === cardId ? null : cardId))
-          }
-          onAdd={add}
-          resultAction={resultAction}
-        />
-      )}
-
-      {isFull && (
-        <p className="text-muted-foreground text-sm">
-          The queue holds {MAX_QUEUE_LENGTH} cards. Remove one to add another.
-        </p>
-      )}
-
-      {ids.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          Nothing queued yet. Search above and pick the cards you want to show, in the order you
-          want to show them.
-        </p>
-      ) : (
-        <QueueList
-          ids={ids}
-          printingsById={printingsById}
-          printingsByCardId={printingsByCardId}
-          onChange={onChange}
-          rowAction={rowAction}
-        />
-      )}
-    </div>
   );
 }

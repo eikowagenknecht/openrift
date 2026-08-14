@@ -17,7 +17,7 @@ function countIds(ids: readonly string[]): Map<string, number> {
 }
 
 /**
- * The queue being assembled on `/present`, before it is handed to the show.
+ * The queue being assembled on `/stage`, before it is handed to an output.
  *
  * It lives in a store rather than the page's `useState` because the queue
  * builder is a card browser: with the queue in component state, the grid's
@@ -26,8 +26,11 @@ function countIds(ids: readonly string[]): Map<string, number> {
  * is the derived index that makes the per-cell subscription a single number,
  * exactly as `rowIndexByCardId` does for the tier-list pool.
  *
+ * It is also what the OBS output's clicker steps, so both of the stage's
+ * outputs run the one queue rather than each keeping a list of its own.
+ *
  * The URL is still where a queue is *kept* — this is the draft between loading
- * one and starting the show.
+ * one and putting it on screen.
  */
 interface PresentQueueState {
   /** Printing ids in presentation order. A printing may repeat. */

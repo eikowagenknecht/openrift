@@ -30,6 +30,8 @@ describe("resolvePresentationKey", () => {
     ["R", "toggleReveal"],
     ["d", "toggleDirection"],
     ["D", "toggleDirection"],
+    ["p", "push"],
+    ["P", "push"],
     ["?", "toggleHelp"],
     ["Escape", "exit"],
   ])("maps %s to %s", (key, expected) => {
@@ -64,6 +66,10 @@ describe("BOARD_ACTIONS", () => {
     expect(BOARD_ACTIONS.has("next")).toBe(false);
     expect(BOARD_ACTIONS.has("toggleText")).toBe(false);
     expect(BOARD_ACTIONS.has("exit")).toBe(false);
+  });
+
+  it("leaves the OBS push out, since a board run can push too", () => {
+    expect(BOARD_ACTIONS.has("push")).toBe(false);
   });
 });
 

@@ -24,12 +24,10 @@ describe("visibleCreatorTools", () => {
   it("gates each flag independently", () => {
     const tierListsOnly = visibleCreatorTools({ "tier-lists": true, overlay: false });
     expect(tierListsOnly.map((tool) => tool.id)).toContain("tier-lists");
-    expect(tierListsOnly.map((tool) => tool.id)).not.toContain("overlay");
+    expect(tierListsOnly.map((tool) => tool.id)).not.toContain("stage");
 
     const overlayOnly = visibleCreatorTools({ "tier-lists": false, overlay: true });
-    expect(overlayOnly.map((tool) => tool.id)).toEqual(
-      expect.arrayContaining(["presentation", "overlay"]),
-    );
+    expect(overlayOnly.map((tool) => tool.id)).toContain("stage");
     expect(overlayOnly.map((tool) => tool.id)).not.toContain("tier-lists");
   });
 

@@ -1,18 +1,20 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
 import type { DeckZone } from "@openrift/shared";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { catalogQueryOptions } from "@/lib/catalog-query";
+import type { FeatureFlags } from "@/lib/feature-flags";
+import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
- * Presentation mode's search params. Every field falls back to undefined on a
+ * The stage's search params. Every field falls back to undefined on a
  * malformed value so a hand-edited or stale URL opens the queue builder rather
  * than crashing the route.
  */
@@ -35,7 +37,7 @@ const DECK_ZONES = [
 // params on top of its own. Ownership filters are hidden in this browser (see
 // QUEUE_HIDDEN_FILTER_SECTIONS) but the params stay in the schema: dropping
 // them would make a link copied from /cards fail validation here.
-const presentSearchSchema = filterSearchSchema.extend({
+const stageSearchSchema = filterSearchSchema.extend({
   /** Deck to walk, zone by zone. Takes precedence over everything below. */
   deck: z.string().optional().catch(undefined),
   /**
@@ -59,6 +61,21 @@ const presentSearchSchema = filterSearchSchema.extend({
   /** Position in the queue. Clamped against the resolved cards at render time. */
   i: z.number().int().nonnegative().optional().catch(undefined),
   /**
+   * What a `tier` list is on stage for. Absent, it is presented: the saved
+   * board, walked card by card. `rank` puts the editable board up instead, for
+   * ranking on camera.
+   */
+  mode: z.enum(["rank"]).optional().catch(undefined),
+  /**
+   * A saved stage preset, applied once when the stage opens. Lets a creator
+   * keep a recording link that arrives already dressed — green ground, text
+   * panel on, whatever that show is set up as.
+   *
+   * Ignored when signed out or when the id no longer resolves: a bookmark kept
+   * past the preset's deletion must still open the stage.
+   */
+  preset: z.string().optional().catch(undefined),
+  /**
    * Opens the queue builder with `cards` loaded instead of starting the show.
    * Leaving a queue presentation sets this, so Escape lands back on the queue
    * that was being presented rather than an empty builder.
@@ -66,17 +83,32 @@ const presentSearchSchema = filterSearchSchema.extend({
   edit: z.boolean().optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/_app/present")({
-  // Deliberately not indexed: a presentation URL is a working link for one
-  // creator's recording session, not a page anyone should land on from search.
+export const Route = createFileRoute("/_app/stage")({
+  // Deliberately not indexed: a stage URL is a working link for one creator's
+  // recording session, not a page anyone should land on from search.
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
-      title: "Presentation mode",
-      path: "/present",
+      title: "Stage",
+      description:
+        "Put Riftbound cards on screen: a full-screen show for window capture, and a transparent browser source you push cards to in OBS.",
+      path: "/stage",
       noIndex: true,
     }),
-  validateSearch: presentSearchSchema,
+  validateSearch: stageSearchSchema,
+  beforeLoad: async ({ context }) => {
+    // The same gate the dashboard carried before the two surfaces merged. It
+    // sits here rather than under `_authenticated` because building a queue and
+    // running a show need no account — only the OBS half does, and that block
+    // asks for a sign-in on its own. The source route (/stage/source/$token)
+    // stays ungated: it is viewer-facing and blanks itself for unknown tokens.
+    const flags = (await context.queryClient.ensureQueryData(
+      featureFlagsQueryOptions,
+    )) as FeatureFlags;
+    if (!featureEnabled(flags, "overlay")) {
+      throw redirect({ to: "/cards" });
+    }
+  },
   loader: async ({ context }) => {
     // Both the deck walk and the ad-hoc queue resolve their cards against the
     // catalog, and the stage reads zone labels off /init.

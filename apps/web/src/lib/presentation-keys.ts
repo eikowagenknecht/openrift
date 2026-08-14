@@ -1,7 +1,7 @@
 /**
- * Every action presentation mode's keyboard can trigger. The mapping lives
- * apart from the component so the key table is testable without a DOM, and so
- * the OBS control dashboard can reuse `prev`/`next` later.
+ * Every action the stage's keyboard can trigger. The mapping lives apart from
+ * the component so the key table is testable without a DOM, and so the OBS
+ * output can reuse `prev`/`next` later.
  */
 export type PresentationAction =
   | "prev"
@@ -15,6 +15,7 @@ export type PresentationAction =
   | "toggleHero"
   | "toggleReveal"
   | "toggleDirection"
+  | "push"
   | "exit";
 
 /**
@@ -90,6 +91,10 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "d":
     case "D": {
       return "toggleDirection";
+    }
+    case "p":
+    case "P": {
+      return "push";
     }
     case "?": {
       return "toggleHelp";

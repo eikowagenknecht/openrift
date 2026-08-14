@@ -101,7 +101,7 @@ const KNOWN_FLAGS: KnownFlag[] = [
   {
     key: "overlay",
     description:
-      "Show the stream overlay dashboard (/overlay) and the deck Present entry points. The OBS source (/overlay/<token>) and /present stay reachable by URL",
+      "Show the Stage (/stage) and the deck and tier-list Present entry points. The OBS source (/stage/source/<token>) stays reachable by URL",
   },
   {
     key: "creators",

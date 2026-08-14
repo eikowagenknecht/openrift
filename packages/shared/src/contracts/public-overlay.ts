@@ -24,7 +24,23 @@ export const publicOverlayContract = {
   state: oc
     .route({ method: "GET", path: "/api/v1/overlay/{token}/state", tags: ["Overlay"] })
     .meta({ auth: "public", cache: "revalidate", etag: true })
-    .input(z.object({ token: z.string().min(1).max(64) }))
+    .input(
+      z.object({
+        token: z.string().min(1).max(64),
+        /**
+         * Dresses the returned state with one of the channel owner's saved
+         * stage presets, so a browser-source URL can pin a scene without the
+         * dashboard having to push the dressing first.
+         *
+         * A preset that does not exist, or belongs to someone else, is ignored
+         * in silence — a URL pinned to a preset the creator has since deleted
+         * must keep painting the plain channel state, never blank the stream.
+         * Loosely typed for the same reason: a malformed id has to fall through
+         * to that same ignore, not answer a browser source with a 400.
+         */
+        presetId: z.string().max(64).optional(),
+      }),
+    )
     .output(overlayStateResponseSchema),
 };
 

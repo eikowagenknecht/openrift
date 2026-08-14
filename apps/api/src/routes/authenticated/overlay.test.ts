@@ -11,6 +11,22 @@ import { overlayRouter } from "./overlay";
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const UPDATED_AT = new Date("2026-08-14T10:30:00.000Z");
 
+/** @returns A distinct card id, since the board schema rejects a repeated one. */
+function cardId(at: number): string {
+  return `c0000000-0001-4000-a000-000000000${String(at).padStart(3, "0")}`;
+}
+
+/** Two ranked cards, which is enough to have a reveal with a middle. */
+const BOARD = {
+  title: "Origins, ranked",
+  tiers: [
+    { label: "S", cards: [{ cardId: cardId(1), printingId: null }] },
+    { label: "A", cards: [{ cardId: cardId(2), printingId: null }] },
+  ],
+  revealCount: 0,
+  direction: "best-first" as const,
+};
+
 function stubChannel(overrides: Record<string, unknown> = {}) {
   return {
     id: "chan-1",
@@ -122,6 +138,23 @@ describe("POST /api/v1/overlay/me/push", () => {
     );
   });
 
+  it("takes a board down when a card is pushed over it", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),
+    );
+
+    await app.request("/api/v1/overlay/me/push", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ printingId: "p-1" }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ printingId: "p-1", board: null }),
+    );
+  });
+
   it("rejects a scale outside the allowed range", async () => {
     const res = await app.request("/api/v1/overlay/me/push", {
       method: "POST",
@@ -144,7 +177,131 @@ describe("POST /api/v1/overlay/me/push", () => {
   });
 });
 
+describe("POST /api/v1/overlay/me/board", () => {
+  it("puts the board up and takes the card down", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({
+        payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-live", corner: "top-left" },
+      }),
+    );
+
+    const res = await app.request("/api/v1/overlay/me/board", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ board: BOARD }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(USER_ID, {
+      ...DEFAULT_OVERLAY_PAYLOAD,
+      printingId: null,
+      corner: "top-left",
+      board: { ...BOARD },
+    });
+  });
+
+  it("holds a reveal that starts past the last card inside the board", async () => {
+    await app.request("/api/v1/overlay/me/board", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ board: { ...BOARD, revealCount: 99 } }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ board: expect.objectContaining({ revealCount: 2 }) }),
+    );
+  });
+
+  it("rejects a board over the card cap", async () => {
+    const cards = Array.from({ length: 401 }, (_unused, at) => ({
+      cardId: cardId(at),
+      printingId: null,
+    }));
+    const res = await app.request("/api/v1/overlay/me/board", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        board: {
+          ...BOARD,
+          tiers: [
+            { label: "S", cards: cards.slice(0, 201) },
+            { label: "A", cards: cards.slice(201) },
+          ],
+        },
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockRepo.setPayload).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/v1/overlay/me/board/reveal", () => {
+  it("steps the reveal without touching the rest of the board", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),
+    );
+
+    const res = await app.request("/api/v1/overlay/me/board/reveal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revealCount: 1 }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({
+        board: { ...BOARD, revealCount: 1 },
+      }),
+    );
+  });
+
+  it("clamps a step past the last card", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),
+    );
+
+    await app.request("/api/v1/overlay/me/board/reveal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revealCount: 40 }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ board: expect.objectContaining({ revealCount: 2 }) }),
+    );
+  });
+
+  it("does nothing, quietly, when no board is up", async () => {
+    const res = await app.request("/api/v1/overlay/me/board/reveal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revealCount: 3 }),
+    });
+
+    // A stale reveal control on a phone must not put an error on the stream.
+    expect(res.status).toBe(200);
+    expect(mockRepo.setPayload).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/v1/overlay/me/clear", () => {
+  it("takes the board down along with the card", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),
+    );
+
+    await app.request("/api/v1/overlay/me/clear", { method: "POST" });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ board: null, printingId: null }),
+    );
+  });
+
   it("blanks the card but leaves the scene setup alone", async () => {
     mockRepo.findByUserId.mockResolvedValue(
       stubChannel({

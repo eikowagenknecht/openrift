@@ -81,8 +81,8 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const setArchived = useSetDeckArchived();
   const promotePrimary = usePromoteDeckPrimary();
   const { formats } = useDeckFormatList();
-  // Presentation mode is a creator tool that ships dark: the route works by
-  // URL, but nothing in the app points at it until the flag is on.
+  // The Stage is a creator tool that ships dark: the same flag hides this entry
+  // point and the route it leads to, so neither can be found until it is on.
   const overlayEnabled = useFeatureEnabled("overlay");
   const otherFormats = formats.filter((entry) => entry.slug !== deck.format);
 
@@ -192,7 +192,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <DropdownMenuItem
               onClick={(event: React.MouseEvent) => {
                 stop(event);
-                void navigate({ to: "/present", search: { deck: deck.id, i: 0 } });
+                void navigate({ to: "/stage", search: { deck: deck.id, i: 0 } });
               }}
             >
               <MonitorPlayIcon className="size-4" />

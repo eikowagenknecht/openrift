@@ -43,6 +43,40 @@ describe("presentation store", () => {
     expect(usePresentationStore.getState().showText).toBe(false);
   });
 
+  it("starts the text panel with every line on", () => {
+    expect(usePresentationStore.getState().plateFields).toEqual({
+      name: true,
+      code: true,
+      stats: true,
+      rulesText: true,
+      flavorText: true,
+    });
+  });
+
+  it("switches one line of the text panel without touching the others", () => {
+    usePresentationStore.getState().togglePlateField("flavorText");
+
+    const { plateFields } = usePresentationStore.getState();
+    expect(plateFields.flavorText).toBe(false);
+    expect(plateFields.rulesText).toBe(true);
+    expect(plateFields.name).toBe(true);
+  });
+
+  it("switches a line back on", () => {
+    usePresentationStore.getState().togglePlateField("stats");
+    usePresentationStore.getState().togglePlateField("stats");
+
+    expect(usePresentationStore.getState().plateFields.stats).toBe(true);
+  });
+
+  it("leaves the panel itself alone when a line is switched off", () => {
+    usePresentationStore.getState().toggleText();
+
+    usePresentationStore.getState().togglePlateField("name");
+
+    expect(usePresentationStore.getState().showText).toBe(true);
+  });
+
   it("closes help without touching the other layers", () => {
     usePresentationStore.getState().toggleText();
     usePresentationStore.getState().toggleHelp();
@@ -127,6 +161,30 @@ describe("presentation store", () => {
     usePresentationStore.getState().setCardScale(4);
 
     expect(usePresentationStore.getState().cardScale).toBe(MAX_CARD_SCALE);
+  });
+
+  it("starts on black, so nothing is keyed out until it is asked for", () => {
+    expect(usePresentationStore.getState().ground).toBe("black");
+  });
+
+  it("switches the ground to a chroma colour and back", () => {
+    usePresentationStore.getState().setGround("green");
+
+    expect(usePresentationStore.getState().ground).toBe("green");
+
+    usePresentationStore.getState().setGround("black");
+
+    expect(usePresentationStore.getState().ground).toBe("black");
+  });
+
+  it("leaves the other layers alone when the ground changes", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().setGround("magenta");
+
+    const state = usePresentationStore.getState();
+    expect(state.ground).toBe("magenta");
+    expect(state.showText).toBe(true);
+    expect(state.cardScale).toBe(MAX_CARD_SCALE);
   });
 });
 

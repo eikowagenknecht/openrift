@@ -1,4 +1,10 @@
-import type { OverlayChannelResponse, OverlayPush, OverlaySettings } from "@openrift/shared";
+import type {
+  OverlayChannelResponse,
+  OverlayPush,
+  OverlayPushBoard,
+  OverlaySetBoardReveal,
+  OverlaySettings,
+} from "@openrift/shared";
 import { overlayContract } from "@openrift/shared/contracts/overlay";
 import { publicOverlayContract } from "@openrift/shared/contracts/public-overlay";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,10 +46,10 @@ const overlayStateClient = browserApiOrpcClient(publicOverlayContract);
  *
  * @returns Query options for the channel's current state.
  */
-export function overlayStateQueryOptions(token: string) {
+export function overlayStateQueryOptions(token: string, presetId?: string) {
   return queryOptions({
-    queryKey: queryKeys.overlay.stateByToken(token),
-    queryFn: () => overlayStateClient.state({ token }),
+    queryKey: queryKeys.overlay.stateByToken(token, presetId),
+    queryFn: () => overlayStateClient.state({ token, presetId }),
     refetchInterval: OVERLAY_POLL_MS,
     // OBS keeps the page in a background-ish state; without this the poll
     // stops the moment the streamer clicks away and the card never updates.
@@ -58,10 +64,17 @@ export function overlayStateQueryOptions(token: string) {
 
 /**
  * Polls the overlay state for one channel token.
+ *
+ * `presetId` comes from the source URL's `?preset=`, and the API merges that
+ * preset's dressing into the state it returns — so one channel can feed two
+ * scenes dressed differently. An unknown id is ignored server-side rather than
+ * erroring, because a source pinned to a since-deleted preset has to keep
+ * painting rather than blank the stream.
+ *
  * @returns The query for the channel's current state.
  */
-export function useOverlayState(token: string) {
-  return useQuery(overlayStateQueryOptions(token));
+export function useOverlayState(token: string, presetId?: string) {
+  return useQuery(overlayStateQueryOptions(token, presetId));
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +137,39 @@ function useOverlayChannelMutation<TVariables = void>(
 /** @returns The mutation that puts a card on stream. */
 export function usePushOverlayCard() {
   return useOverlayChannelMutation((input: OverlayPush) => pushOverlayCardFn({ data: input }));
+}
+
+const pushOverlayBoardFn = createServerFn({ method: "POST" })
+  .validator((input: OverlayPushBoard) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<OverlayChannelResponse> =>
+    apiOrpcClient(overlayContract, context.cookie).pushBoard(data),
+  );
+
+/** @returns The mutation that puts a tier board on stream. */
+export function usePushOverlayBoard() {
+  return useOverlayChannelMutation((input: OverlayPushBoard) =>
+    pushOverlayBoardFn({ data: input }),
+  );
+}
+
+const setOverlayBoardRevealFn = createServerFn({ method: "POST" })
+  .validator((input: OverlaySetBoardReveal) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<OverlayChannelResponse> =>
+    apiOrpcClient(overlayContract, context.cookie).setBoardReveal(data),
+  );
+
+/**
+ * Steps the reveal of the board already on stream. Sends the count alone, so a
+ * creator holding Next does not put the whole ranking on the wire per press.
+ *
+ * @returns The mutation that moves the reveal.
+ */
+export function useSetOverlayBoardReveal() {
+  return useOverlayChannelMutation((input: OverlaySetBoardReveal) =>
+    setOverlayBoardRevealFn({ data: input }),
+  );
 }
 
 const clearOverlayFn = createServerFn({ method: "POST" })

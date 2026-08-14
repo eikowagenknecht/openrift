@@ -6,6 +6,7 @@ import type {
 } from "@openrift/shared";
 import { RefreshCwIcon } from "lucide-react";
 
+import { OverlayPresetsSection } from "@/components/overlay/overlay-presets-section";
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,8 @@ const PLATE_FIELDS: { key: keyof OverlayPlateFields; label: string }[] = [
  * and the browser-source URL to paste into OBS.
  *
  * These get set once against a layout and then left alone, which is why they
- * live apart from the search-and-push surface rather than in the same column.
+ * sit at the bottom of the OBS output, below the controls a creator reaches for
+ * mid-stream.
  *
  * @param props.draftScale The size being dragged, or null when the thumb is at rest.
  * @param props.onDraftScaleChange Reports the dragged size so the preview can follow it.
@@ -71,13 +73,13 @@ export function OverlaySettingsPanel({
   const rotateToken = useRotateOverlayToken();
   const { payload } = channel;
 
-  // The draft lives in the dashboard rather than here so the live preview
+  // The draft lives in the output panel rather than here so the live preview
   // resizes with the thumb; the write still happens on release, because each
   // one bumps the version and a dragged slider would push twenty of them
   // straight at the poll.
   const shownScale = draftScale ?? payload.scale;
 
-  const sourceUrl = `${getSiteUrl()}/overlay/${channel.token}`;
+  const sourceUrl = `${getSiteUrl()}/stage/source/${channel.token}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -234,6 +236,8 @@ export function OverlaySettingsPanel({
           shows next to the card even with the plate off. Leave it empty to hide the code.
         </p>
       </section>
+
+      <OverlayPresetsSection channel={channel} />
     </div>
   );
 }

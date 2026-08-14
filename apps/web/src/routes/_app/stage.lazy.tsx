@@ -1,6 +1,6 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { PlayIcon } from "lucide-react";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { BuilderWorkbench } from "@/components/layout/builder-workbench";
@@ -15,16 +15,20 @@ import { PresentCardBrowser } from "@/components/present/present-card-browser";
 import { PresentQueuePanel } from "@/components/present/present-queue-panel";
 import { QueuePresentation } from "@/components/present/queue-presentation";
 import type { QueueSource } from "@/components/present/queue-source-picker";
+import { RankLivePresentation } from "@/components/present/rank-live-presentation";
+import { StageOutputBlock } from "@/components/present/stage-output-block";
 import {
   OwnedTierListPresentation,
   SharedTierListPresentation,
 } from "@/components/present/tier-list-presentation";
 import { Badge } from "@/components/ui/badge";
+import { useStagePresets } from "@/hooks/use-stage-presets";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
+import { applyStagePresetConfig } from "@/lib/stage-preset-apply";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
-export const Route = createLazyFileRoute("/_app/present")({
-  component: PresentPage,
+export const Route = createLazyFileRoute("/_app/stage")({
+  component: StagePage,
 });
 
 /**
@@ -36,14 +40,33 @@ function StageFallback() {
   return <div className="fixed inset-0 z-50 bg-[#08090c]" />;
 }
 
-function PresentPage() {
-  const { deck, tier, tierShare, cards, zone, i, edit } = Route.useSearch();
+function StagePage() {
+  const { deck, tier, tierShare, cards, zone, i, edit, mode, preset } = Route.useSearch();
   const navigate = useNavigate();
+  const { data: presets } = useStagePresets();
+  const presetApplied = useRef(false);
+
+  // Dressing arrives once, on the first list the query hands back. Deliberately
+  // not re-run when the URL or the list changes later: a preset is a starting
+  // point, and reapplying it would undo every switch flipped since — including
+  // mid-recording.
+  useEffect(() => {
+    if (presetApplied.current || preset === undefined || presets === undefined) {
+      return;
+    }
+    presetApplied.current = true;
+    const found = presets.find((candidate) => candidate.id === preset);
+    // An id that no longer resolves (deleted, or someone else's) is silently
+    // dropped: a stale bookmark opens the stage undressed rather than failing.
+    if (found) {
+      applyStagePresetConfig(found.config);
+    }
+  }, [preset, presets]);
 
   const setIndex = (index: number) => {
     // `replace` so a walk through 40 cards doesn't bury the page the creator
     // came from under 40 history entries.
-    void navigate({ to: "/present", search: (prev) => ({ ...prev, i: index }), replace: true });
+    void navigate({ to: "/stage", search: (prev) => ({ ...prev, i: index }), replace: true });
   };
 
   if (deck) {
@@ -56,6 +79,19 @@ function PresentPage() {
           onIndexChange={setIndex}
           onExit={() => {
             void navigate({ to: "/decks/$deckId", params: { deckId: deck } });
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (tier && mode === "rank") {
+    return (
+      <Suspense fallback={<StageFallback />}>
+        <RankLivePresentation
+          tierListId={tier}
+          onExit={() => {
+            void navigate({ to: "/tier-lists/$tierListId", params: { tierListId: tier } });
           }}
         />
       </Suspense>
@@ -101,7 +137,7 @@ function PresentPage() {
           onIndexChange={setIndex}
           onExit={() => {
             void navigate({
-              to: "/present",
+              to: "/stage",
               search: (prev) => ({ ...prev, edit: true, i: undefined }),
             });
           }}
@@ -110,12 +146,13 @@ function PresentPage() {
     );
   }
 
-  return <PresentQueueBuilder initialIds={cards ?? []} />;
+  return <StageBuilder initialIds={cards ?? []} />;
 }
 
 /**
- * The pre-recording screen: assemble a queue of cards, then start the show.
- * Reached at `/present` with nothing to present, and on leaving a queue
+ * The stage's control surface: assemble a queue of cards, then send it to one
+ * of the two outputs — a full-screen show on this screen, or the OBS browser
+ * source. Reached at `/stage` with nothing to present, and on leaving a queue
  * presentation (which brings its queue back here for editing).
  *
  * The builder is an ordinary app page and carries the usual header and footer.
@@ -123,9 +160,9 @@ function PresentPage() {
  * rather than by living outside it. Laid out in the shared
  * {@link BuilderWorkbench}, the same shell the tier-list builder uses.
  *
- * @returns The queue builder page.
+ * @returns The stage builder page.
  */
-function PresentQueueBuilder({ initialIds }: { initialIds: readonly string[] }) {
+function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
   const navigate = useNavigate();
   const queued = usePresentQueueStore((state) => state.ids.length);
 
@@ -142,7 +179,7 @@ function PresentQueueBuilder({ initialIds }: { initialIds: readonly string[] }) 
     // The updater form keeps the browser's filters in the URL, so leaving the
     // show lands back on the same filtered view the queue was built from.
     const ids = usePresentQueueStore.getState().ids;
-    void navigate({ to: "/present", search: (prev) => ({ ...prev, cards: ids, i: 0 }) });
+    void navigate({ to: "/stage", search: (prev) => ({ ...prev, cards: ids, i: 0 }) });
   };
 
   const addSource = (source: QueueSource) => {
@@ -162,15 +199,20 @@ function PresentQueueBuilder({ initialIds }: { initialIds: readonly string[] }) 
 
   return (
     <BuilderWorkbench
-      asideClassName="lg:w-[34%] lg:max-w-sm"
+      // Wider than the tier builder's aside: it carries the queue and the OBS
+      // output's scene setup, whose placement controls need the room.
+      asideClassName="lg:w-[38%] lg:max-w-md"
       aside={
         <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
-          <PresentQueuePanel onAdd={addSource} />
+          <div className="flex flex-col gap-6">
+            <PresentQueuePanel onAdd={addSource} />
+            <StageOutputBlock onStart={start} canStart={queued > 0} />
+          </div>
         </Suspense>
       }
       topBar={
         <PageTopBar>
-          <PageTopBarTitle>Presentation mode</PageTopBarTitle>
+          <PageTopBarTitle>Stage</PageTopBarTitle>
           {queued > 0 && <Badge variant="outline">{queued} queued</Badge>}
           <PageTopBarActions>
             <PageTopBarPrimaryButton onClick={start} disabled={queued === 0}>

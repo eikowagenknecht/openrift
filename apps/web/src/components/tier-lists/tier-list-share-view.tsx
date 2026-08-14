@@ -45,8 +45,8 @@ interface TierListSharePageProps extends TierListShareViewProps {
 export function TierListShareView({ data, token }: TierListSharePageProps) {
   const { tierList, owner } = data;
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
-  // Presentation mode is a creator tool that ships dark: the route works by URL,
-  // but nothing in the app points at it until the flag is on.
+  // The Stage is a creator tool that ships dark: the same flag hides this entry
+  // point and the route it leads to, so neither can be found until it is on.
   const presentEnabled = useFeatureEnabled("overlay");
 
   return (
@@ -66,7 +66,7 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
                   co-stream does with one. */}
               <PageTopBarButton
                 render={
-                  <Link to="/present" search={{ tierShare: token, i: 0 }}>
+                  <Link to="/stage" search={{ tierShare: token, i: 0 }}>
                     <MonitorPlayIcon />
                     Present
                   </Link>

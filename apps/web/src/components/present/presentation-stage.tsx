@@ -1,15 +1,28 @@
-import { SettingsIcon, XIcon } from "lucide-react";
+import type { OverlayPlateFields, StageGround, StagePreset } from "@openrift/shared";
+import { BookmarkPlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { PresentationFilmstrip } from "@/components/present/presentation-filmstrip";
+import { MAX_PRESET_NAME_LENGTH } from "@/components/present/stage-preset-name-dialog";
+import { StageShell, StageTileSizeSlider } from "@/components/present/stage-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { useIdle } from "@/hooks/use-idle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { usePushOverlayCard } from "@/hooks/use-overlay";
+import { useCreateStagePreset, useStagePresets } from "@/hooks/use-stage-presets";
+import { useUserId } from "@/lib/auth-session";
 import {
   BOARD_ACTIONS,
   isTypingTarget,
@@ -18,21 +31,18 @@ import {
 } from "@/lib/presentation-keys";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { stepIndex } from "@/lib/presentation-queue";
-import { cn } from "@/lib/utils";
-import { TIER_TILE_WIDTHS, useDisplayStore } from "@/stores/display-store";
+import { applyStagePresetConfig, captureStagePreset } from "@/lib/stage-preset-apply";
+import { useDisplayStore } from "@/stores/display-store";
 import { MAX_CARD_SCALE, MIN_CARD_SCALE, usePresentationStore } from "@/stores/presentation-store";
-
-/** How long the stage waits before fading its own chrome out of the capture. */
-const IDLE_DELAY_MS = 2500;
 
 const KEY_HELP: { keys: string[]; what: string }[] = [
   { keys: ["←", "→"], what: "Step through the queue" },
   { keys: ["Space"], what: "Next card" },
   { keys: ["Home", "End"], what: "First / last card" },
-  { keys: ["T"], what: "Rules text panel" },
+  { keys: ["T"], what: "Text panel" },
   { keys: ["F"], what: "Thumbnail strip" },
   { keys: ["?"], what: "This help" },
-  { keys: ["Esc"], what: "Leave presentation mode" },
+  { keys: ["Esc"], what: "Leave the show" },
 ];
 
 /** Extra rows shown only when the run has a board behind it. */
@@ -43,12 +53,27 @@ const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
   { keys: ["D"], what: "Start from the bottom tier" },
 ];
 
+/** Shown only while signed in, since the push needs a channel to push to. */
+const PUSH_KEY_HELP: { keys: string[]; what: string }[] = [
+  { keys: ["P"], what: "Push this card to the OBS overlay" },
+];
+
 /**
  * The keyboard cheat sheet, toggled with `?`.
  * @returns The help sheet overlay.
  */
-function PresentationHelpSheet({ boardControls }: { boardControls: boolean }) {
-  const rows = boardControls ? [...KEY_HELP, ...BOARD_KEY_HELP] : KEY_HELP;
+function PresentationHelpSheet({
+  boardControls,
+  pushControls,
+}: {
+  boardControls: boolean;
+  pushControls: boolean;
+}) {
+  const rows = [
+    ...KEY_HELP,
+    ...(boardControls ? BOARD_KEY_HELP : []),
+    ...(pushControls ? PUSH_KEY_HELP : []),
+  ];
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-8">
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2 rounded-lg bg-black/80 px-6 py-5 backdrop-blur-sm">
@@ -69,7 +94,9 @@ function PresentationHelpSheet({ boardControls }: { boardControls: boolean }) {
 
 /**
  * One labelled switch in the settings popover, with the key that does the same
- * thing shown beside it.
+ * thing shown beside it. Rows with no key of their own (the text panel's
+ * per-line switches) leave the `hotkey` off.
+ *
  * @returns The switch row.
  */
 function StageToggleRow({
@@ -81,7 +108,7 @@ function StageToggleRow({
 }: {
   id: string;
   label: string;
-  hotkey: string;
+  hotkey?: string;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -90,8 +117,218 @@ function StageToggleRow({
       <Label htmlFor={id} className="flex-1">
         {label}
       </Label>
-      <Kbd>{hotkey}</Kbd>
+      {hotkey && <Kbd>{hotkey}</Kbd>}
       <Switch id={id} checked={checked} onCheckedChange={onToggle} />
+    </div>
+  );
+}
+
+/** The text panel's lines, worded as the stream overlay's settings word them. */
+const PLATE_FIELDS: { key: keyof OverlayPlateFields; label: string }[] = [
+  { key: "name", label: "Card name" },
+  { key: "code", label: "Set code and foil" },
+  { key: "stats", label: "Energy, power and might" },
+  { key: "rulesText", label: "Rules text" },
+  { key: "flavorText", label: "Flavor text" },
+];
+
+/**
+ * Which lines the text panel carries, shown only while the panel is on. Indented
+ * under the row that opens it, so it reads as trimming that panel rather than as
+ * five more stage layers.
+ *
+ * @returns The per-line switches for the settings popover.
+ */
+function PlateFieldSettings() {
+  const plateFields = usePresentationStore((state) => state.plateFields);
+  const togglePlateField = usePresentationStore((state) => state.togglePlateField);
+
+  return (
+    <div className="border-border ml-1 flex flex-col gap-2 border-l pl-3">
+      {PLATE_FIELDS.map((field) => (
+        <StageToggleRow
+          key={field.key}
+          id={`stage-plate-${field.key}`}
+          label={field.label}
+          checked={plateFields[field.key]}
+          onToggle={() => togglePlateField(field.key)}
+        />
+      ))}
+    </div>
+  );
+}
+
+const GROUNDS: { value: StageGround; label: string }[] = [
+  { value: "black", label: "Black" },
+  { value: "green", label: "Green" },
+  { value: "magenta", label: "Magenta" },
+];
+
+function isGround(value: unknown): value is StageGround {
+  return GROUNDS.some((option) => option.value === value);
+}
+
+/**
+ * What the stage sits on. Offered on every kind of show, not just the ones with
+ * a board: keying the card out of a black rectangle is the point of the setting,
+ * and a deck walk wants it as much as a ranking does.
+ *
+ * @returns The ground picker for the settings popover.
+ */
+function GroundSettings() {
+  const ground = usePresentationStore((state) => state.ground);
+  const setGround = usePresentationStore((state) => state.setGround);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Ground</Label>
+      <ToggleGroup
+        aria-label="Ground"
+        variant="outline"
+        value={[ground]}
+        onValueChange={([next]) => {
+          if (isGround(next)) {
+            setGround(next);
+          }
+        }}
+        className="grid w-full grid-cols-3"
+      >
+        {GROUNDS.map((option) => (
+          <ToggleGroupItem key={option.value} value={option.value}>
+            {option.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </div>
+  );
+}
+
+/**
+ * Saved dressing: apply one, or keep the current setup as a new one.
+ *
+ * Recall is always a deliberate pick — nothing here restores itself, because a
+ * scene from a previous recording silently reappearing on stage is exactly the
+ * surprise presentation mode's unpersisted store exists to avoid.
+ *
+ * Signed out there is nothing to show, so the block is left out rather than
+ * rendered empty: presets live on the account.
+ *
+ * Naming a new preset happens inline rather than in a dialog. A modal opened
+ * from inside this popover would have to survive the popover dismissing itself
+ * under it, and a stage that is being recorded is the last place to throw a
+ * modal over. The OBS output panel, which has no popover to fight, uses the
+ * shared dialog instead.
+ *
+ * @returns The presets block, or null while signed out.
+ */
+function StagePresetSettings() {
+  const userId = useUserId();
+  const { data: presets } = useStagePresets();
+  const createPreset = useCreateStagePreset();
+  const tierTileStep = useDisplayStore((state) => state.tierTileStep);
+  const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+
+  if (userId === null) {
+    return null;
+  }
+
+  const items = (presets ?? []).map((preset: StagePreset) => ({
+    value: preset.id,
+    label: preset.name,
+  }));
+
+  const apply = (id: string) => {
+    const preset = presets?.find((candidate) => candidate.id === id);
+    if (!preset) {
+      return;
+    }
+    setAppliedId(id);
+    applyStagePresetConfig(preset.config);
+  };
+
+  const trimmedName = name.trim();
+
+  const save = () => {
+    const config = captureStagePreset(usePresentationStore.getState(), tierTileStep);
+    createPreset.mutate(
+      { name: trimmedName, config },
+      {
+        // The field is only put away on success, so a duplicate name (or the
+        // preset cap) leaves the typed text there to be corrected. The failure
+        // itself is the global mutation toast's.
+        onSuccess: (preset) => {
+          setAppliedId(preset.id);
+          setNaming(false);
+          setName("");
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="stage-preset">Presets</Label>
+      <div className="flex items-center gap-2">
+        <Select
+          items={items}
+          value={appliedId}
+          onValueChange={(next) => {
+            if (typeof next === "string") {
+              apply(next);
+            }
+          }}
+        >
+          <SelectTrigger id="stage-preset" className="flex-1" disabled={items.length === 0}>
+            <SelectValue placeholder={items.length === 0 ? "None saved yet" : "Apply a preset"} />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={naming ? "Cancel saving a preset" : "Save current as preset"}
+          title={naming ? "Cancel" : "Save current as preset"}
+          onClick={() => {
+            setName("");
+            setNaming(!naming);
+          }}
+        >
+          {naming ? <XIcon /> : <BookmarkPlusIcon />}
+        </Button>
+      </div>
+
+      {naming && (
+        <div className="flex items-center gap-2">
+          <Input
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- the button just swapped itself for this field; leaving focus behind would strand a keyboard user on the stage
+            autoFocus
+            aria-label="Preset name"
+            value={name}
+            maxLength={MAX_PRESET_NAME_LENGTH}
+            placeholder="Green screen, plate off"
+            className="flex-1"
+            onChange={(event) => setName(event.target.value)}
+            // The stage's own key handler stands down inside a text field, so
+            // Enter is free to mean "save this one".
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && trimmedName !== "") {
+                save();
+              }
+            }}
+          />
+          <Button size="sm" disabled={trimmedName === "" || createPreset.isPending} onClick={save}>
+            Save
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -112,15 +349,6 @@ function BoardSettings() {
   const toggleHero = usePresentationStore((state) => state.toggleHero);
   const toggleReveal = usePresentationStore((state) => state.toggleReveal);
   const toggleDirection = usePresentationStore((state) => state.toggleDirection);
-  const tierTileStep = useDisplayStore((state) => state.tierTileStep);
-  const setTierTileStep = useDisplayStore((state) => state.setTierTileStep);
-
-  const handleTileStep = (value: number | readonly number[]) => {
-    const next = Array.isArray(value) ? value[0] : value;
-    if (typeof next === "number") {
-      setTierTileStep(next);
-    }
-  };
 
   return (
     <>
@@ -154,40 +382,19 @@ function BoardSettings() {
         checked={direction === "worst-first"}
         onToggle={toggleDirection}
       />
-      {boardMode && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="stage-tile-size">Board tile size</Label>
-          <Slider
-            id="stage-tile-size"
-            aria-label="Board tile size"
-            min={0}
-            max={TIER_TILE_WIDTHS.length - 1}
-            step={1}
-            value={[tierTileStep]}
-            onValueChange={handleTileStep}
-          />
-        </div>
-      )}
+      {boardMode && <StageTileSizeSlider />}
     </>
   );
 }
 
 /**
- * The stage's settings popover: card size, plus the layers that otherwise only
+ * The stage's settings, card size first, then the layers that otherwise only
  * answer to a key. A creator who never reads the help sheet can still find the
  * rules panel and the thumbnail strip.
  *
- * @returns The gear button and its popover.
+ * @returns The rows for the shell's settings popover.
  */
-function StageSettings({
-  open,
-  onOpenChange,
-  boardControls,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  boardControls: boolean;
-}) {
+function StageSettings({ boardControls }: { boardControls: boolean }) {
   const showText = usePresentationStore((state) => state.showText);
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
@@ -205,74 +412,92 @@ function StageSettings({
   };
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Presentation settings"
-            className="text-white/70 hover:bg-white/10 hover:text-white"
-          >
-            <SettingsIcon className="size-5" />
-          </Button>
-        }
-      />
-      <PopoverContent align="start" className="gap-3">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="stage-card-size">Card size</Label>
-            <span className="text-muted-foreground font-mono text-sm tabular-nums">
-              {Math.round(cardScale * 100)}%
-            </span>
-          </div>
-          <Slider
-            id="stage-card-size"
-            aria-label="Card size"
-            min={Math.round(MIN_CARD_SCALE * 100)}
-            max={Math.round(MAX_CARD_SCALE * 100)}
-            step={5}
-            value={[Math.round(cardScale * 100)]}
-            onValueChange={handleScale}
-          />
+    <>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="stage-card-size">Card size</Label>
+          <span className="text-muted-foreground font-mono text-sm tabular-nums">
+            {Math.round(cardScale * 100)}%
+          </span>
         </div>
-        <StageToggleRow
-          id="stage-show-text"
-          label="Rules text"
-          hotkey="T"
-          checked={showText}
-          onToggle={toggleText}
+        <Slider
+          id="stage-card-size"
+          aria-label="Card size"
+          min={Math.round(MIN_CARD_SCALE * 100)}
+          max={Math.round(MAX_CARD_SCALE * 100)}
+          step={5}
+          value={[Math.round(cardScale * 100)]}
+          onValueChange={handleScale}
         />
-        <StageToggleRow
-          id="stage-show-strip"
-          label="Thumbnail strip"
-          hotkey="F"
-          checked={showStrip}
-          onToggle={toggleStrip}
-        />
-        <StageToggleRow
-          id="stage-show-help"
-          label="Key list"
-          hotkey="?"
-          checked={showHelp}
-          onToggle={toggleHelp}
-        />
-        {boardControls && <BoardSettings />}
-      </PopoverContent>
-    </Popover>
+      </div>
+      <StageToggleRow
+        id="stage-show-text"
+        label="Text panel"
+        hotkey="T"
+        checked={showText}
+        onToggle={toggleText}
+      />
+      {showText && <PlateFieldSettings />}
+      <StageToggleRow
+        id="stage-show-strip"
+        label="Thumbnail strip"
+        hotkey="F"
+        checked={showStrip}
+        onToggle={toggleStrip}
+      />
+      <StageToggleRow
+        id="stage-show-help"
+        label="Key list"
+        hotkey="?"
+        checked={showHelp}
+        onToggle={toggleHelp}
+      />
+      {boardControls && <BoardSettings />}
+      <GroundSettings />
+      <StagePresetSettings />
+    </>
   );
 }
 
 /**
- * The chrome-free frame every presentation runs inside: a near-black ground, the
- * corner markers, the keyboard, the settings popover, the thumbnail strip and
- * the help sheet. What actually fills the middle arrives as `children` — one big
- * card for a deck walk or an ad-hoc queue, a tier board for a ranking — so a new
- * kind of show is a new middle rather than a new stage.
+ * `P` puts the card on stage onto the OBS browser source, so the same run can
+ * feed a window capture and an overlay without leaving the show.
  *
- * Forced into the dark palette regardless of the viewer's theme (the `dark`
- * class on the root) — the shared `CardDetail` parts style themselves from the
- * theme tokens, and a light-theme text panel on a black stage is unreadable.
+ * A component of its own, mounted only while signed in: the channel mutation
+ * needs a session, and the stage runs signed out. It binds the one key itself
+ * rather than reporting the push up to the stage's handler, which would mean
+ * threading a mutation through a component that may never have one.
+ *
+ * @returns Nothing — it only binds the key.
+ */
+function StageOverlayPushKey({ printingId }: { printingId: string }) {
+  const pushCard = usePushOverlayCard();
+  const mutate = pushCard.mutate;
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (resolvePresentationKey(event) !== "push") {
+        return;
+      }
+      event.preventDefault();
+      mutate({ printingId });
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [mutate, printingId]);
+
+  return null;
+}
+
+/**
+ * A show that walks a queue: the {@link StageShell}'s frame, plus everything
+ * that belongs to having a running order — the keyboard, the position marker,
+ * the thumbnail strip and the key list. What actually fills the middle arrives
+ * as `children` — one big card for a deck walk or an ad-hoc queue, a tier board
+ * for a ranking.
  *
  * @returns The presentation stage.
  */
@@ -295,23 +520,23 @@ export function PresentationStage({
   boardControls?: boolean;
   children: ReactNode;
 }) {
-  const idle = useIdle(IDLE_DELAY_MS);
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const userId = useUserId();
 
   const current = items[index];
 
-  // The stage is a fixed overlay inside the app shell, so the page behind it
-  // keeps its scrollbar — which lands on the right edge of the capture. Lock
-  // the document for as long as the show is up.
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
+  // Escape closes the help sheet first, so it never takes the creator out of
+  // the show when they only wanted the key list gone. The shell owns the key
+  // itself; this is what it does once it fires.
+  const handleEscape = () => {
+    const store = usePresentationStore.getState();
+    if (store.showHelp) {
+      store.closeHelp();
+      return;
+    }
+    onExit();
+  };
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -322,12 +547,19 @@ export function PresentationStage({
         return;
       }
       const action = resolvePresentationKey(event);
-      if (action === null) {
+      if (action === null || action === "exit") {
+        // Escape belongs to the shell, which is where leaving the stage lives.
         return;
       }
       // A run with no board leaves those keys alone rather than swallowing them
       // to do nothing.
       if (!boardControls && BOARD_ACTIONS.has(action)) {
+        return;
+      }
+      // The OBS push belongs to StageOverlayPushKey, which is only mounted
+      // while signed in. Swallowing it here would make the key dead for
+      // everyone, signed in included.
+      if (action === "push") {
         return;
       }
       event.preventDefault();
@@ -377,79 +609,46 @@ export function PresentationStage({
           store.toggleDirection();
           break;
         }
-        case "exit": {
-          // Escape closes the help sheet first, so it never takes the creator
-          // out of the show when they only wanted the key list gone.
-          if (store.showHelp) {
-            store.closeHelp();
-          } else {
-            onExit();
-          }
-          break;
-        }
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [boardControls, index, items.length, onExit, onIndexChange]);
+  }, [boardControls, index, items.length, onIndexChange]);
 
   if (!current) {
     return null;
   }
 
-  // The settings popover holds its trigger visible: a gear that fades out from
-  // under the cursor while its own panel is open reads as a glitch.
-  const visible = !idle || settingsOpen;
-  const fade = cn("transition-opacity duration-700", visible ? "opacity-100" : "opacity-0");
-  const chrome = cn("absolute z-10", fade);
-
   return (
-    <div className="dark fixed inset-0 z-50 flex flex-col bg-[#08090c] text-white">
-      <div className={cn(chrome, "top-4 left-4 flex items-center gap-1")}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onExit}
-          aria-label="Leave presentation mode"
-          className="text-white/70 hover:bg-white/10 hover:text-white"
-        >
-          <XIcon className="size-5" />
-        </Button>
-        <StageSettings
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          boardControls={boardControls}
-        />
-      </div>
-
-      <div className={cn(chrome, "top-4 right-4 text-right")}>
-        {title && <div className="text-sm text-white/50">{title}</div>}
-        <div className="font-mono text-sm tracking-widest text-white/70 uppercase tabular-nums">
-          {current.contextLabel ? `${current.contextLabel} · ` : ""}
-          {index + 1} / {items.length}
-        </div>
-      </div>
-
-      {children}
-
-      <div className="flex shrink-0 flex-col">
-        {showStrip && (
-          <PresentationFilmstrip items={items} index={index} onSelect={onIndexChange} />
-        )}
-        {/* In flow rather than pinned to the bottom edge: as an overlay it sat
-            on top of the thumbnail strip. The row keeps its space when the hint
-            fades, so nothing shifts under it. */}
-        <div
-          className={cn(
-            fade,
-            "text-2xs pb-4 text-center font-mono tracking-widest text-white/25 uppercase",
-          )}
-        >
-          Press ? for keys
-        </div>
-      </div>
-
-      {showHelp && <PresentationHelpSheet boardControls={boardControls} />}
-    </div>
+    <>
+      {userId !== null && <StageOverlayPushKey printingId={current.printing.id} />}
+      <StageShell
+        onExit={onExit}
+        onEscape={handleEscape}
+        settings={<StageSettings boardControls={boardControls} />}
+        title={
+          <>
+            {title && <div className="text-sm text-white/50">{title}</div>}
+            <div className="font-mono text-sm tracking-widest text-white/70 uppercase tabular-nums">
+              {current.contextLabel ? `${current.contextLabel} · ` : ""}
+              {index + 1} / {items.length}
+            </div>
+          </>
+        }
+        footer={
+          showStrip ? (
+            <PresentationFilmstrip items={items} index={index} onSelect={onIndexChange} />
+          ) : null
+        }
+        hint="Press ? for keys"
+        overlay={
+          showHelp ? (
+            <PresentationHelpSheet boardControls={boardControls} pushControls={userId !== null} />
+          ) : null
+        }
+      >
+        {children}
+      </StageShell>
+    </>
   );
 }

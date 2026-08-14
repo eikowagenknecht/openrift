@@ -9,11 +9,12 @@ import type { Variables } from "../../types.js";
 import { publicOverlayRouter } from "./overlay";
 
 const mockRepo = { findByToken: vi.fn() };
+const mockPresetRepo = { findByIdForUser: vi.fn() };
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   // No session: the OBS browser source has none, which is the point.
-  c.set("repos", { overlayChannels: mockRepo } as never);
+  c.set("repos", { overlayChannels: mockRepo, stagePresets: mockPresetRepo } as never);
   await next();
 });
 registerRouterForTest(app, publicOverlayRouter);
@@ -71,5 +72,81 @@ describe("GET /api/v1/overlay/{token}/state", () => {
     expect(json.token).toBeUndefined();
     expect(json.userId).toBeUndefined();
     expect(json.updatedAt).toBeUndefined();
+  });
+});
+
+describe("GET /api/v1/overlay/{token}/state?presetId=", () => {
+  const PRESET_ID = "80000000-0001-4000-a000-000000000001";
+
+  beforeEach(() => {
+    mockRepo.findByToken.mockResolvedValue({
+      id: "chan-1",
+      userId: "user-1",
+      token: "AbC123XyZ789",
+      payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1" },
+      version: 5,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  /** @returns The state response for the given query string. */
+  async function request(query: string): Promise<Response> {
+    return await app.request(`/api/v1/overlay/AbC123XyZ789/state${query}`);
+  }
+
+  it("dresses the state with the owner's preset", async () => {
+    mockPresetRepo.findByIdForUser.mockResolvedValue({
+      id: PRESET_ID,
+      userId: "user-1",
+      name: "Draft night",
+      config: { corner: "top-left", plateFields: { flavorText: true } },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const json = await readJson(await request(`?presetId=${PRESET_ID}`));
+
+    expect(mockPresetRepo.findByIdForUser).toHaveBeenCalledWith(PRESET_ID, "user-1");
+    expect(json.payload.corner).toBe("top-left");
+    expect(json.payload.plateFields).toEqual({
+      ...DEFAULT_OVERLAY_PAYLOAD.plateFields,
+      flavorText: true,
+    });
+    // The card and the version belong to the channel, not to the preset.
+    expect(json.payload.printingId).toBe("p-1");
+    expect(json.version).toBe(5);
+  });
+
+  it("ignores a preset that is unknown or someone else's rather than blanking the scene", async () => {
+    mockPresetRepo.findByIdForUser.mockResolvedValue(undefined);
+
+    const json = await readJson(await request(`?presetId=${PRESET_ID}`));
+
+    expect(json).toEqual({
+      version: 5,
+      payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1" },
+    });
+  });
+
+  it("degrades a corrupt stored config to no dressing at all", async () => {
+    mockPresetRepo.findByIdForUser.mockResolvedValue({
+      id: PRESET_ID,
+      userId: "user-1",
+      name: "Draft night",
+      config: { scale: 900, ground: "chartreuse" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const json = await readJson(await request(`?presetId=${PRESET_ID}`));
+
+    expect(json.payload).toEqual({ ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1" });
+  });
+
+  it("does not look a preset up when the URL names none", async () => {
+    await request("");
+
+    expect(mockPresetRepo.findByIdForUser).not.toHaveBeenCalled();
   });
 });

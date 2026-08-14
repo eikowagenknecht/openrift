@@ -2,6 +2,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
 import { authedRoute } from "./_base.js";
+import { tierRowSchema } from "./tier-lists.js";
 
 extendZodWithOpenApi(z);
 
@@ -34,6 +35,38 @@ export const overlayPlateFieldsSchema = z.object({
 });
 
 /**
+ * Cards a board pushed to the overlay may carry.
+ *
+ * Lower than what a stored tier list may hold: this board is a jsonb blob that
+ * every browser source re-reads on its poll, and a thousand tiles would be
+ * unreadable at stream size long before the payload became a problem.
+ */
+export const MAX_OVERLAY_BOARD_CARDS = 400;
+
+/**
+ * A ranking on screen, with the reveal it is partway through.
+ *
+ * A copy of the list rather than a reference to it: the board goes out as part
+ * of the payload the source already polls, so the overlay keeps painting the
+ * ranking as it was pushed even if the creator edits the underlying list
+ * mid-stream. `revealCount` is how many cards the run has placed, counted along
+ * the walk `direction` names, so the same board reveals top-down or bottom-up
+ * without the stored rows changing order.
+ */
+export const overlayBoardSchema = z
+  .object({
+    title: z.string().max(120),
+    tiers: z.array(tierRowSchema),
+    revealCount: z.number().int().min(0),
+    direction: z.enum(["best-first", "worst-first"]),
+  })
+  .refine(
+    (board) =>
+      board.tiers.reduce((sum, row) => sum + row.cards.length, 0) <= MAX_OVERLAY_BOARD_CARDS,
+    `A board on stream can hold at most ${MAX_OVERLAY_BOARD_CARDS} cards`,
+  );
+
+/**
  * What the OBS source is currently showing, plus how it is dressed.
  *
  * One opaque blob rather than columns: the browser source renders whatever the
@@ -44,6 +77,12 @@ export const overlayPlateFieldsSchema = z.object({
 export const overlayPayloadSchema = z.object({
   /** The printing on screen, or null for a cleared overlay. */
   printingId: z.string().nullable(),
+  /**
+   * The ranking on screen, or null when no board is up. Mutually exclusive with
+   * `printingId`: the scene shows one card or one board, so pushing either
+   * clears the other rather than stacking them in the same corner.
+   */
+  board: overlayBoardSchema.nullable(),
   /** The plate beside the card. Off leaves the bare card (and the QR, which stands alone). */
   showPlate: z.boolean(),
   platePosition: overlayPlatePositionSchema,
@@ -102,18 +141,38 @@ export const overlayPushSchema = z.object({
 /** Dressing-only update, e.g. moving the card to another corner mid-stream. */
 export const overlaySettingsSchema = z.object(overlayDressingShape);
 
+/**
+ * A board push. Deliberately carries no dressing: the board is pushed once and
+ * then stepped through, so the switches stay where the card pushes left them.
+ */
+export const overlayPushBoardSchema = z.object({ board: overlayBoardSchema });
+
+/**
+ * One step of the reveal. Only the count — resending the whole board on every
+ * arrow press would put a few hundred entries on the wire per beat of the run.
+ */
+export const overlaySetBoardRevealSchema = z.object({
+  revealCount: z.number().int().min(0),
+});
+
 export type OverlayCorner = z.infer<typeof overlayCornerSchema>;
 export type OverlayPlatePosition = z.infer<typeof overlayPlatePositionSchema>;
 export type OverlayPlateFields = z.infer<typeof overlayPlateFieldsSchema>;
+export type OverlayBoard = z.infer<typeof overlayBoardSchema>;
+/** Which end of the ladder a reveal walks from. */
+export type OverlayBoardDirection = OverlayBoard["direction"];
 export type OverlayPayload = z.infer<typeof overlayPayloadSchema>;
 export type OverlayStateResponse = z.infer<typeof overlayStateResponseSchema>;
 export type OverlayChannelResponse = z.infer<typeof overlayChannelResponseSchema>;
 export type OverlayPush = z.infer<typeof overlayPushSchema>;
 export type OverlaySettings = z.infer<typeof overlaySettingsSchema>;
+export type OverlayPushBoard = z.infer<typeof overlayPushBoardSchema>;
+export type OverlaySetBoardReveal = z.infer<typeof overlaySetBoardRevealSchema>;
 
 /** What a channel starts as, and what a cleared overlay falls back to. */
 export const DEFAULT_OVERLAY_PAYLOAD: OverlayPayload = {
   printingId: null,
+  board: null,
   showPlate: true,
   platePosition: "auto",
   plateFields: { name: true, code: true, stats: true, rulesText: false, flavorText: false },
@@ -131,6 +190,10 @@ export const DEFAULT_OVERLAY_PAYLOAD: OverlayPayload = {
  * through here, which is also where the old `deckShareUrl` key is carried over
  * to `qrUrl` so a link set before the field was generalised survives.
  *
+ * `board` is filled the same way, and explicitly rather than by the spread: a
+ * row stored with the key present but undefined would otherwise spread that
+ * `undefined` straight over the default.
+ *
  * @returns The payload with every field present.
  */
 export function normalizeOverlayPayload(stored: unknown): OverlayPayload {
@@ -144,6 +207,7 @@ export function normalizeOverlayPayload(stored: unknown): OverlayPayload {
     ...raw,
     plateFields: { ...DEFAULT_OVERLAY_PAYLOAD.plateFields, ...raw.plateFields },
     qrUrl: raw.qrUrl ?? deckShareUrl ?? null,
+    board: raw.board ?? null,
   };
 }
 
@@ -160,6 +224,14 @@ export const overlayContract = {
   push: authedRoute
     .route({ method: "POST", path: "/api/v1/overlay/me/push", tags: [TAG] })
     .input(overlayPushSchema)
+    .output(overlayChannelResponseSchema),
+  pushBoard: authedRoute
+    .route({ method: "POST", path: "/api/v1/overlay/me/board", tags: [TAG] })
+    .input(overlayPushBoardSchema)
+    .output(overlayChannelResponseSchema),
+  setBoardReveal: authedRoute
+    .route({ method: "POST", path: "/api/v1/overlay/me/board/reveal", tags: [TAG] })
+    .input(overlaySetBoardRevealSchema)
     .output(overlayChannelResponseSchema),
   clear: authedRoute
     .route({ method: "POST", path: "/api/v1/overlay/me/clear", tags: [TAG] })

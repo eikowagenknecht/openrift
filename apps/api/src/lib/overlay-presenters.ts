@@ -3,6 +3,7 @@ import type {
   OverlayPayload,
   OverlaySettings,
   OverlayStateResponse,
+  StagePresetConfig,
 } from "@openrift/shared";
 
 import type { OverlayChannel } from "../repositories/overlay-channels.js";
@@ -58,4 +59,27 @@ export function applyOverlaySettings(
     ...(patch.corner !== undefined && { corner: patch.corner }),
     ...(patch.scale !== undefined && { scale: patch.scale }),
   };
+}
+
+/**
+ * Dresses a payload with a saved stage preset, for a browser source that pins
+ * one in its URL.
+ *
+ * A preset sets only the switches it means to, so this is the settings merge
+ * exactly: a field the preset does not carry keeps the channel's own value, and
+ * `plateFields` merges one key deep so a preset that turns the rules text on
+ * does not clear the other four lines. The card on screen is never touched —
+ * the preset dresses the stage, the dashboard decides what stands on it.
+ *
+ * The preset's presentation-mode fields (`cardScale`, `showText`, `ground`,
+ * `tierTileStep`) have no counterpart in the overlay payload and are dropped
+ * here; presentation mode reads them from the preset itself.
+ *
+ * @returns The payload with the preset's set fields applied.
+ */
+export function applyStagePresetDressing(
+  payload: OverlayPayload,
+  config: StagePresetConfig,
+): OverlayPayload {
+  return applyOverlaySettings(payload, config);
 }

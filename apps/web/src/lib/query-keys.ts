@@ -140,8 +140,18 @@ export const queryKeys = {
   overlay: {
     /** @returns Key for the signed-in creator's own channel, as the dashboard sees it. */
     channel: (userId: string) => ["overlay", userId] as const,
-    /** @returns Key for the token-addressed state the OBS browser source polls. */
-    stateByToken: (token: string) => ["overlay", "state", token] as const,
+    /**
+     * The preset is part of the key because it is part of the answer: two
+     * browser sources on the same token but different presets are two
+     * differently dressed states, and a shared slot would serve one of them the
+     * other's payload.
+     * @returns Key for the token-addressed state the OBS browser source polls.
+     */
+    stateByToken: (token: string, presetId?: string) =>
+      ["overlay", "state", token, presetId ?? null] as const,
+  },
+  stagePresets: {
+    all: (userId: string) => ["stage-presets", userId] as const,
   },
   userShare: {
     state: (userId: string) => ["user-share", userId] as const,

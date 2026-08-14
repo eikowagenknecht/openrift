@@ -55,6 +55,7 @@ export type {
   OrganizationsTable,
   OrganizationMembersTable,
   OverlayChannelsTable,
+  StagePresetsTable,
   TournamentsTable,
   TournamentParticipantsTable,
   PodRoundsTable,

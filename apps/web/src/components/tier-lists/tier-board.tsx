@@ -65,6 +65,8 @@ interface TierRowFrameProps {
   trailing?: ReactNode;
   /** Set while a drag is hovering this row. */
   active?: boolean;
+  /** Overrides the reader's own tile size (see {@link TierBoard}). */
+  tileWidth?: number;
   children: ReactNode;
 }
 
@@ -87,9 +89,13 @@ export function TierRowFrame({
   leading,
   trailing,
   active,
+  tileWidth,
   children,
 }: TierRowFrameProps) {
-  const tileWidth = useTierTileWidth();
+  // Called unconditionally, override or not — a hook behind a `??` would be a
+  // conditional call, and the React Compiler needs the same hooks every render.
+  const readerWidth = useTierTileWidth();
+  const width = tileWidth ?? readerWidth;
 
   return (
     <div
@@ -109,7 +115,7 @@ export function TierRowFrame({
       </div>
       <div
         className="flex min-w-0 flex-1 flex-wrap content-center items-center gap-1 p-1"
-        style={{ minHeight: tierRowMinHeight(tileWidth) }}
+        style={{ minHeight: tierRowMinHeight(width) }}
       >
         {children}
       </div>
@@ -135,6 +141,13 @@ interface TierBoardProps {
   spotlight?: boolean;
   /** Text shown in a row with nothing in it. */
   emptyRowLabel?: string;
+  /**
+   * Tile width in pixels, overriding the reader's own board size. Set by
+   * surfaces whose size is somebody else's decision — the stream overlay sizes
+   * its board off the scene's scale slider, not off the display store, because
+   * the board is being drawn for the audience rather than for the creator.
+   */
+  tileWidth?: number;
   className?: string;
 }
 
@@ -152,9 +165,11 @@ export function TierBoard({
   focusCardId,
   spotlight,
   emptyRowLabel = "Nothing here",
+  tileWidth,
   className,
 }: TierBoardProps) {
-  const tileWidth = useTierTileWidth();
+  const readerWidth = useTierTileWidth();
+  const width = tileWidth ?? readerWidth;
   const focusRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
@@ -164,7 +179,13 @@ export function TierBoard({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {rows.map((row, rowIndex) => (
-        <TierRowFrame key={rowIndex} rowIndex={rowIndex} unranked={row.unranked} label={row.label}>
+        <TierRowFrame
+          key={rowIndex}
+          rowIndex={rowIndex}
+          unranked={row.unranked}
+          label={row.label}
+          tileWidth={tileWidth}
+        >
           {row.cards.length === 0 ? (
             <span className="text-muted-foreground px-1 text-sm italic">{emptyRowLabel}</span>
           ) : (
@@ -182,9 +203,9 @@ export function TierBoard({
                   )}
                 >
                   {onCardClick ? (
-                    <TierBoardCardButton view={view} width={tileWidth} onClick={onCardClick} />
+                    <TierBoardCardButton view={view} width={width} onClick={onCardClick} />
                   ) : (
-                    <TierCardTile view={view} width={tileWidth} />
+                    <TierCardTile view={view} width={width} />
                   )}
                 </span>
               );

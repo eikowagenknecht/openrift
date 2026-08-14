@@ -4,12 +4,16 @@
  * reach them from the package root, the same way the deck config types do.
  */
 export type {
+  OverlayBoard,
+  OverlayBoardDirection,
   OverlayChannelResponse,
   OverlayCorner,
   OverlayPayload,
   OverlayPlateFields,
   OverlayPlatePosition,
   OverlayPush,
+  OverlayPushBoard,
+  OverlaySetBoardReveal,
   OverlaySettings,
   OverlayStateResponse,
 } from "@openrift/shared/contracts/overlay";

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_app/creators")({
       siteUrl: getSiteUrl(),
       title: "For creators",
       description:
-        "Tools for Riftbound streamers and video makers: card lookups in chat, tier lists, presentation mode, and a stream overlay for OBS.",
+        "Tools for Riftbound streamers and video makers: card lookups in chat, tier lists, and the Stage for putting cards on screen or into OBS.",
       path: "/creators",
     }),
   beforeLoad: async ({ context }) => {

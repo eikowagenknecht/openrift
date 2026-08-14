@@ -59,6 +59,8 @@ export type {
   // Organizations + tournaments umbrella (migration 166/167, ADR-033)
   OrganizationsTable,
   OverlayChannelsTable,
+  // Saved creator-tool dressing (migration 242)
+  StagePresetsTable,
   OrganizationMembersTable,
   TournamentsTable,
   TournamentParticipantsTable,

@@ -68,6 +68,7 @@ import { rulesRepo } from "./repositories/rules.js";
 import { scanIndexRepo } from "./repositories/scan-index.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
+import { stagePresetsRepo } from "./repositories/stage-presets.js";
 import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
 import { tagCategoriesRepo } from "./repositories/tag-categories.js";
@@ -158,6 +159,7 @@ export interface Repos {
   organizations: ReturnType<typeof organizationsRepo>;
   overlayChannels: ReturnType<typeof overlayChannelsRepo>;
   podTournaments: ReturnType<typeof podTournamentsRepo>;
+  stagePresets: ReturnType<typeof stagePresetsRepo>;
   tierLists: ReturnType<typeof tierListsRepo>;
   tournaments: ReturnType<typeof tournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
@@ -339,6 +341,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     organizations: organizationsRepo(db),
     overlayChannels: overlayChannelsRepo(db),
     podTournaments: podTournamentsRepo(db),
+    stagePresets: stagePresetsRepo(db),
     tierLists: tierListsRepo(db),
     tournaments: tournamentsRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),

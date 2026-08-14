@@ -5,13 +5,14 @@ import type {
   OverlayPlatePosition,
   Printing,
 } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import { useEffect, useState } from "react";
 
-import { CardText } from "@/components/cards/card-text";
+import { CardPlateContent, hasCardPlateContent } from "@/components/cards/card-plate";
+import { TierBoard } from "@/components/tier-lists/tier-board";
 import { QrCode } from "@/components/ui/qr-code";
-import { formatPublicCode } from "@/lib/format";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
+import type { OverlayBoardScene } from "@/lib/overlay-board-scene";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
@@ -102,78 +103,91 @@ function OverlayCardArt({
 }
 
 /**
- * The card's lines beside the art, each one switchable.
+ * The card's lines beside the art, on the black plate the scene needs to keep
+ * them readable over live video. The lines themselves are the shared
+ * {@link CardPlateContent}, so the overlay and the presentation stage dress a
+ * card the same way.
  *
- * Errata wins over the printed wording: a stream showing a card's rules should
- * show the rules as they are played, not as they were misprinted.
+ * Forced into the dark palette (`dark` on the plate), because the parts inside
+ * style themselves from the theme tokens and neither surface that renders this
+ * one — the OBS browser source or the dashboard's live preview — sits in a
+ * dark-forced subtree. Without it, a creator on the light theme gets dark text
+ * on a black plate.
  *
  * @returns The plate, or null when every line it would carry is switched off or
  * empty for this card.
  */
 function OverlayPlate({ printing, fields }: { printing: Printing; fields: OverlayPlateFields }) {
-  const { card } = printing;
-  // Only null means "this card has no such stat" — 0 is a real value (0-cost
-  // cards exist) and still gets its chip.
-  const allStats = [
-    card.energy === null ? null : { label: "Energy", value: card.energy },
-    card.power === null ? null : { label: "Power", value: card.power },
-    card.might === null ? null : { label: "Might", value: card.might },
-  ].filter((stat): stat is { label: string; value: number } => stat !== null);
-
-  const stats = fields.stats ? allStats : [];
-  const rulesText = fields.rulesText
-    ? (card.errata?.correctedRulesText ?? printing.printedRulesText)
-    : null;
-  const effectText = fields.rulesText
-    ? (card.errata?.correctedEffectText ?? printing.printedEffectText)
-    : null;
-  const flavorText = fields.flavorText ? printing.flavorText : null;
-
-  const hasContent =
-    fields.name || fields.code || stats.length > 0 || rulesText || effectText || flavorText;
-  if (!hasContent) {
+  if (!hasCardPlateContent(printing, fields)) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg bg-black/85 px-5 py-4 text-white shadow-2xl ring-1 ring-white/10">
-      {fields.name && (
-        <div className="text-2xl leading-tight font-semibold text-balance">
-          {legendDisplayName(card)}
-        </div>
-      )}
-      {fields.code && (
-        <div className="font-mono text-sm tracking-wider text-white/50 uppercase">
-          {formatPublicCode(printing)}
-          {printing.finish === WellKnown.finish.FOIL ? " · Foil" : ""}
-        </div>
-      )}
-      {stats.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-2">
-          {stats.map((stat) => (
-            <span
-              key={stat.label}
-              className="rounded bg-white/10 px-2 py-0.5 font-mono text-sm tabular-nums"
-            >
-              {stat.value} {stat.label}
-            </span>
-          ))}
-        </div>
-      )}
-      {rulesText && (
-        <p className="mt-1 text-white/85">
-          {/* Keyword chips in their always-light treatment, and inert: the whole
-              frame is pointer-events-none, and a hover state on a stream is
-              nothing anyone can use. */}
-          <CardText text={rulesText} interactive={false} onDark />
-        </p>
-      )}
-      {effectText && (
-        <p className="mt-1 text-white/85">
-          <CardText text={effectText} interactive={false} onDark />
-        </p>
-      )}
-      {flavorText && <p className="mt-1 text-sm text-white/55 italic">{flavorText}</p>}
+    <div className="dark rounded-lg bg-black/85 px-5 py-4 text-white shadow-2xl ring-1 ring-white/10">
+      <CardPlateContent printing={printing} fields={fields} size="overlay" />
+    </div>
+  );
+}
+
+/**
+ * The tile sizes the scene's size slider spans for a board.
+ *
+ * Narrower than the range a card gets, and for the same reason it exists at
+ * all: a board is a grid of dozens of tiles, so the useful span runs from
+ * "a full set review still fits the scene" to "a five-card ladder reads from
+ * the back of the room", not from thumbnail to half the canvas.
+ */
+const BOARD_TILE_WIDTH = { min: 44, max: 110 };
+
+/**
+ * Maps the scene's `scale` (20–100, a card's height as a percentage) onto a
+ * board tile width, so the one slider means something on both scenes.
+ *
+ * @returns The tile width in pixels.
+ */
+export function boardTileWidth(scale: number): number {
+  const along = (Math.min(Math.max(scale, 20), 100) - 20) / 80;
+  return Math.round(BOARD_TILE_WIDTH.min + along * (BOARD_TILE_WIDTH.max - BOARD_TILE_WIDTH.min));
+}
+
+/**
+ * The ranking on screen: the board on an opaque panel, titled.
+ *
+ * Opaque rather than the plate's `bg-black/85`, because the rows draw
+ * themselves on a translucent card colour — over a transparent browser source
+ * that would composite straight onto live video and turn the ladder to mud.
+ * Forced `dark` for the same reason the plate is: nothing above this sits in a
+ * dark-forced subtree, so a creator on the light theme would otherwise get dark
+ * rows under white text.
+ *
+ * @returns The board panel.
+ */
+function OverlayBoardPanel({
+  title,
+  scene,
+  tileWidth,
+}: {
+  title: string;
+  scene: OverlayBoardScene;
+  tileWidth: number;
+}) {
+  return (
+    <div className="dark flex max-w-[92%] flex-col gap-2 rounded-lg bg-[#08090c] p-4 shadow-2xl ring-1 ring-white/10">
+      {/* Same treatment as the attribution badge and the stage's corner text:
+          small, mono, quiet enough that it labels the board without competing
+          with it. */}
+      <span className="font-mono text-sm tracking-widest text-white/45">{title}</span>
+      <TierBoard
+        rows={scene.rows}
+        focusCardId={scene.focusCardId}
+        // No focus means the reveal is over (or hasn't started), and a finished
+        // board is shown whole rather than with everything but one tile dimmed.
+        spotlight={scene.focusCardId !== null}
+        // Blank, not "Nothing here": a tier the run hasn't reached yet is
+        // waiting, and captioning it would put filler text on the stream.
+        emptyRowLabel=""
+        tileWidth={tileWidth}
+      />
     </div>
   );
 }
@@ -200,26 +214,36 @@ function OverlayFooter({ qrUrl }: { qrUrl: string | null }) {
 }
 
 /**
- * What the OBS browser source paints: the pushed card sliding in from the
- * scene's edge, optionally with a plate and a deck QR beside it.
+ * What the OBS browser source paints: whatever was pushed, sliding in from the
+ * scene's edge. A single card (optionally with a plate and a QR beside it), or
+ * a tier board — never both, since the payload's two slots displace each other.
  *
  * Rendered on a transparent ground with no backdrop blur — OBS composites this
  * over live video, and a blur would sample the page's own emptiness rather than
  * the scene behind it.
  *
- * Shared with the dashboard's live preview, so what the creator checks before
- * pushing is the same component their audience sees.
+ * Catalogue-free on purpose: the card arrives resolved as `printing`, and the
+ * board arrives worked out as `board`. Both call sites (the browser source and
+ * the dashboard's live preview) already hold the catalogue, and keeping the
+ * lookups out of here is what lets the preview be literally the same component
+ * the audience sees.
  *
  * @returns The overlay frame.
  */
 export function OverlayFrame({
   payload,
   printing,
+  board,
   className,
 }: {
   payload: OverlayPayload;
   /** The pushed card, or undefined when nothing is up or the id is unknown. */
   printing: Printing | undefined;
+  /**
+   * The pushed board resolved against the catalogue (see
+   * `deriveOverlayBoardScene`), or undefined when no board is up.
+   */
+  board?: OverlayBoardScene;
   className?: string;
 }) {
   // What the frame actually paints. It lags `printing` on purpose, twice over:
@@ -228,6 +252,15 @@ export function OverlayFrame({
   // a clear it keeps the last card so the slide-out animates a card rather
   // than an empty box.
   const [displayed, setDisplayed] = useState<Printing | undefined>();
+  // The board the frame paints, retained past a hide the same way `displayed`
+  // is, so taking a board down slides it out rather than blinking it away.
+  //
+  // Deliberately not decode-gated the way the card above is: a ladder is dozens
+  // of thumbnails and most are already cached from the list the creator built,
+  // so waiting on all of them would hold the whole board off the scene for the
+  // slowest one — and unlike a single card, a board that fills in tile by tile
+  // still reads.
+  const [shownBoard, setShownBoard] = useState<{ title: string; scene: OverlayBoardScene }>();
 
   useEffect(() => {
     if (!printing || printing === displayed) {
@@ -259,10 +292,37 @@ export function OverlayFrame({
     };
   }, [printing, displayed]);
 
+  const pushedBoard = payload.board;
+  useEffect(() => {
+    if (pushedBoard === null || board === undefined) {
+      // Nothing up, or the caller hasn't resolved it yet — either way the last
+      // board stays put and slides out.
+      return;
+    }
+    setShownBoard({ title: pushedBoard.title, scene: board });
+  }, [pushedBoard, board]);
+
+  const pushedPrintingId = payload.printingId;
+  useEffect(() => {
+    if (pushedPrintingId === null) {
+      return;
+    }
+    // A card push clears the board server-side, so the retained one has to go
+    // as well. Without this, clearing that card afterwards would slide a board
+    // the creator already moved on from back into the scene.
+    setShownBoard(undefined);
+  }, [pushedPrintingId]);
+
+  // Which of the two the frame is painting. The board wins while one is
+  // retained, since a card push is what drops the retained board.
+  const boardMode = shownBoard !== undefined;
   // Hidden until the pushed card is ready (so the slide-in starts with art in
   // hand), and hidden again the moment the push is cleared or unresolvable
-  // (the retained `displayed` card is what slides out).
-  const visible = payload.printingId !== null && printing !== undefined && displayed !== undefined;
+  // (the retained `displayed` card is what slides out). The board's own
+  // visibility is the push alone, for want of anything to wait on.
+  const visible = boardMode
+    ? pushedBoard !== null
+    : payload.printingId !== null && printing !== undefined && displayed !== undefined;
   const atTop = payload.corner.startsWith("top");
   const atLeft = payload.corner.endsWith("left");
   // Slides out toward the edge it came from, so an exit reads as the card
@@ -292,7 +352,7 @@ export function OverlayFrame({
       <div
         className={cn(
           "flex h-full gap-5",
-          stacked
+          boardMode || stacked
             ? cn(
                 "flex-col",
                 atLeft ? "items-start" : "items-end",
@@ -303,9 +363,19 @@ export function OverlayFrame({
           visible ? "translate-x-0 opacity-100" : cn(hiddenOffset, "opacity-0"),
         )}
       >
-        {(position === "left" || position === "above") && side}
-        {displayed && <OverlayCardArt printing={displayed} heightPercent={payload.scale} />}
-        {(position === "right" || position === "below") && side}
+        {shownBoard ? (
+          <OverlayBoardPanel
+            title={shownBoard.title}
+            scene={shownBoard.scene}
+            tileWidth={boardTileWidth(payload.scale)}
+          />
+        ) : (
+          <>
+            {(position === "left" || position === "above") && side}
+            {displayed && <OverlayCardArt printing={displayed} heightPercent={payload.scale} />}
+            {(position === "right" || position === "below") && side}
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,18 +1,26 @@
-import type { OverlayPayload } from "@openrift/shared";
+import type { OverlayBoard, OverlayPayload } from "@openrift/shared";
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { stubPrinting } from "@/test/factories";
+import type { OverlayBoardScene } from "@/lib/overlay-board-scene";
+import { stubCard, stubPrinting } from "@/test/factories";
 
-// Keyword styling is a suspending read against the init query, and none of it
-// changes what this file is about — which lines the plate carries, and where.
+// Keyword styling, enum labels and domain colors are all suspending reads
+// against the init query, and none of them change what this file is about —
+// which lines the plate carries, and where.
 vi.mock("@/components/cards/card-text", () => ({
   CardText: ({ text }: { text: string }) => <span>{text}</span>,
 }));
+vi.mock("@/hooks/use-enums", () => ({
+  useEnumOrders: () => ({ labels: { finishes: {}, cardSizes: {} } }),
+}));
+vi.mock("@/hooks/use-domain-colors", () => ({
+  useDomainColors: () => ({}),
+}));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { OverlayFrame, resolvePlatePosition } from "./overlay-frame";
+import { boardTileWidth, OverlayFrame, resolvePlatePosition } from "./overlay-frame";
 
 // With art, so the card renders as an image — the no-art fallback prints the
 // card's name, which would answer to the plate's own name assertions.
@@ -105,7 +113,10 @@ describe("OverlayFrame plate contents", () => {
 
     expect(getByText("Garen")).toBeInTheDocument();
     expect(getByText(/OGN-042/iu)).toBeInTheDocument();
-    expect(getByText("3 Energy")).toBeInTheDocument();
+    // The shared stat chips split the label from the value, so the label is
+    // what identifies the chip.
+    expect(getByText("Energy")).toBeInTheDocument();
+    expect(getByText("Power")).toBeInTheDocument();
   });
 
   it("drops a line that is switched off", () => {
@@ -119,7 +130,25 @@ describe("OverlayFrame plate contents", () => {
     );
 
     expect(queryByText("Garen")).not.toBeInTheDocument();
-    expect(queryByText("3 Energy")).not.toBeInTheDocument();
+    expect(queryByText("Energy")).not.toBeInTheDocument();
+  });
+
+  it("switches flavor independently of the rules text", () => {
+    const { getByText, queryByText } = render(
+      <OverlayFrame
+        payload={payload({
+          plateFields: {
+            ...DEFAULT_OVERLAY_PAYLOAD.plateFields,
+            rulesText: false,
+            flavorText: true,
+          },
+        })}
+        printing={PRINTING}
+      />,
+    );
+
+    expect(getByText("For Demacia.")).toBeInTheDocument();
+    expect(queryByText("Deal 2 damage.")).not.toBeInTheDocument();
   });
 
   it("shows rules and flavor text when switched on", () => {
@@ -170,7 +199,7 @@ describe("OverlayFrame plate contents", () => {
   });
 
   it("renders no plate at all when every line is off", () => {
-    const { queryByText } = render(
+    const { container, queryByText } = render(
       <OverlayFrame
         payload={payload({
           plateFields: {
@@ -186,6 +215,9 @@ describe("OverlayFrame plate contents", () => {
     );
 
     expect(queryByText("Garen")).not.toBeInTheDocument();
+    // Not just empty — the black plate itself has to go, or the scene carries a
+    // box with nothing in it.
+    expect(container.querySelector(String.raw`.bg-black\/85`)).toBeNull();
   });
 });
 
@@ -208,5 +240,136 @@ describe("OverlayFrame QR code", () => {
     );
 
     expect(queryByLabelText("QR code for the linked page")).not.toBeInTheDocument();
+  });
+});
+
+describe("boardTileWidth", () => {
+  it("spans the tile range across the scene's size slider", () => {
+    expect(boardTileWidth(20)).toBe(44);
+    expect(boardTileWidth(100)).toBe(110);
+    expect(boardTileWidth(60)).toBe(77);
+  });
+
+  it("holds a size outside the slider's range at the ends", () => {
+    expect(boardTileWidth(0)).toBe(44);
+    expect(boardTileWidth(500)).toBe(110);
+  });
+});
+
+/** The board push a scene carries, as the payload stores it. */
+const BOARD: OverlayBoard = {
+  title: "Origins, ranked",
+  tiers: [
+    { label: "S", cards: [{ cardId: "card-a", printingId: null }] },
+    { label: "A", cards: [{ cardId: "card-b", printingId: null }] },
+  ],
+  revealCount: 1,
+  direction: "best-first",
+};
+
+/** @returns One resolved board row holding `cardIds`. */
+function row(label: string, ...cardIds: string[]) {
+  return {
+    label,
+    cards: cardIds.map((cardId) => ({
+      cardId,
+      card: stubCard({ name: cardId }),
+      printing: stubPrinting({
+        id: `p-${cardId}`,
+        cardId,
+        images: [{ face: "front", imageId: `img-${cardId}` }],
+      }),
+      pinnedPrintingId: null,
+    })),
+  };
+}
+
+/**
+ * Walks up from a tile's art: the thumb's own span, then the sized tile, then
+ * the span the spotlight ring and dimming live on.
+ * @returns The tile and the spotlight wrapper around it.
+ */
+function tileFor(art: HTMLElement): { tile: HTMLElement; spotlight: HTMLElement } {
+  const tile = art.closest("span")?.parentElement as HTMLElement;
+  return { tile, spotlight: tile.parentElement as HTMLElement };
+}
+
+const SCENE: OverlayBoardScene = {
+  rows: [row("S", "card-a"), row("A")],
+  focusCardId: "card-a",
+  total: 2,
+};
+
+describe("OverlayFrame board", () => {
+  it("draws the board in place of the card cluster", () => {
+    const { getByText, queryByAltText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null })}
+        printing={PRINTING}
+        board={SCENE}
+      />,
+    );
+
+    expect(getByText("Origins, ranked")).toBeInTheDocument();
+    // Both tier labels, so an unreached row still holds its place on the ladder.
+    expect(getByText("S")).toBeInTheDocument();
+    expect(getByText("A")).toBeInTheDocument();
+    // The card is not painted alongside it — the corner holds one thing.
+    expect(queryByAltText("Garen")).toBeNull();
+  });
+
+  it("dims the board around the card just placed", () => {
+    const { getByAltText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    expect(tileFor(getByAltText("card-a")).spotlight.className).toContain("ring-amber-400");
+  });
+
+  it("leaves a finished board undimmed", () => {
+    const { getByAltText } = render(
+      <OverlayFrame
+        payload={payload({ board: { ...BOARD, revealCount: 2 }, printingId: null })}
+        printing={undefined}
+        board={{ ...SCENE, rows: [row("S", "card-a"), row("A", "card-b")], focusCardId: null }}
+      />,
+    );
+
+    expect(tileFor(getByAltText("card-b")).spotlight.className).not.toContain("opacity-30");
+  });
+
+  it("sizes the board's tiles off the scene's size slider", () => {
+    const { getByAltText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null, scale: 100 })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    expect(tileFor(getByAltText("card-a")).tile.style.width).toBe("110px");
+  });
+
+  it("keeps the board on screen for its slide-out after it is taken down", () => {
+    const { rerender, getByText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    rerender(
+      <OverlayFrame payload={payload({ board: null, printingId: null })} printing={undefined} />,
+    );
+
+    // Still mounted, moved off the edge — an exit has to animate a board rather
+    // than an empty box, same as the card path.
+    const boardCluster = getByText("Origins, ranked").closest("div")?.parentElement;
+    expect(boardCluster?.className).toContain("opacity-0");
   });
 });

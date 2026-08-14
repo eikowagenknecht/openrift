@@ -3,7 +3,12 @@ import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { describe, expect, it } from "vitest";
 
 import type { OverlayChannel } from "../repositories/overlay-channels.js";
-import { applyOverlaySettings, toOverlayChannel, toOverlayState } from "./overlay-presenters.js";
+import {
+  applyOverlaySettings,
+  applyStagePresetDressing,
+  toOverlayChannel,
+  toOverlayState,
+} from "./overlay-presenters.js";
 
 const UPDATED_AT = new Date("2026-08-14T10:30:00.000Z");
 
@@ -112,6 +117,70 @@ describe("applyOverlaySettings", () => {
     const original = { ...base };
 
     applyOverlaySettings(base, { corner: "top-right", scale: 30 });
+
+    expect(base).toEqual(original);
+  });
+});
+
+describe("applyStagePresetDressing", () => {
+  const base: OverlayPayload = {
+    ...DEFAULT_OVERLAY_PAYLOAD,
+    printingId: "p-1",
+    showPlate: true,
+    platePosition: "auto",
+    qrUrl: "https://openrift.app/decks/share/abc",
+    corner: "bottom-right",
+    scale: 70,
+  };
+
+  it("leaves the payload untouched for a preset that sets nothing", () => {
+    expect(applyStagePresetDressing(base, {})).toEqual(base);
+  });
+
+  it("applies only the fields the preset sets", () => {
+    const result = applyStagePresetDressing(base, { corner: "top-left", scale: 45 });
+
+    expect(result.corner).toBe("top-left");
+    expect(result.scale).toBe(45);
+    expect(result.showPlate).toBe(true);
+    expect(result.platePosition).toBe("auto");
+    expect(result.qrUrl).toBe("https://openrift.app/decks/share/abc");
+  });
+
+  it("merges plateFields key by key, leaving the lines the preset does not name", () => {
+    const result = applyStagePresetDressing(base, { plateFields: { flavorText: true } });
+
+    expect(result.plateFields).toEqual({ ...base.plateFields, flavorText: true });
+  });
+
+  it("treats an explicit null qrUrl as hide the QR", () => {
+    expect(applyStagePresetDressing(base, { qrUrl: null }).qrUrl).toBeNull();
+  });
+
+  it("turns a switch off — false is a value, not an absence", () => {
+    expect(applyStagePresetDressing(base, { showPlate: false }).showPlate).toBe(false);
+  });
+
+  it("never touches the card on screen", () => {
+    expect(applyStagePresetDressing(base, { scale: 30 }).printingId).toBe("p-1");
+  });
+
+  it("drops the presentation-mode fields, which the overlay has no place for", () => {
+    const result = applyStagePresetDressing(base, {
+      cardScale: 0.6,
+      showText: true,
+      ground: "magenta",
+      tierTileStep: 3,
+      scale: 55,
+    });
+
+    expect(result).toEqual({ ...base, scale: 55 });
+  });
+
+  it("does not mutate the input payload", () => {
+    const original = { ...base };
+
+    applyStagePresetDressing(base, { corner: "top-right", plateFields: { stats: false } });
 
     expect(base).toEqual(original);
   });

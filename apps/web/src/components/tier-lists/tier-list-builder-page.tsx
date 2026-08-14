@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
   EllipsisVerticalIcon,
+  ListOrderedIcon,
   MonitorPlayIcon,
   PencilIcon,
   SaveIcon,
@@ -76,8 +77,8 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const { cardsById, printingsByCardId } = useCards();
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
-  // Presentation mode is a creator tool that ships dark: the route works by URL,
-  // but nothing in the app points at it until the flag is on.
+  // The Stage is a creator tool that ships dark: the same flag hides this entry
+  // point and the route it leads to, so neither can be found until it is on.
   const presentEnabled = useFeatureEnabled("overlay");
   // Counted off the saved board rather than the draft: that is what the show
   // would actually put on screen.
@@ -185,13 +186,13 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                 <TierTileSizeControls />
                 {presentEnabled && rankedCount > 0 && (
                   <PageTopBarButton
-                    // Presentation mode reads the *saved* board, so an unsaved
-                    // draft would go on stage as whatever the server still
-                    // holds. The "Unsaved changes" badge sits in this same bar
-                    // and says why the button is off.
+                    // The stage reads the *saved* board, so an unsaved draft
+                    // would go up as whatever the server still holds. The
+                    // "Unsaved changes" badge sits in this same bar and says
+                    // why the button is off.
                     disabled={dirty}
                     onClick={() => {
-                      void navigate({ to: "/present", search: { tier: tierList.id, i: 0 } });
+                      void navigate({ to: "/stage", search: { tier: tierList.id, i: 0 } });
                     }}
                   >
                     <MonitorPlayIcon />
@@ -216,6 +217,24 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                     <EllipsisVerticalIcon className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {presentEnabled && (
+                      <DropdownMenuItem
+                        // Same reason the Present button is gated: the stage
+                        // reads the *saved* board. No `rankedCount` gate though
+                        // — a board with everything still unranked is exactly
+                        // what this is for.
+                        disabled={dirty}
+                        onClick={() => {
+                          void navigate({
+                            to: "/stage",
+                            search: { tier: tierList.id, mode: "rank" },
+                          });
+                        }}
+                      >
+                        <ListOrderedIcon />
+                        Rank live on stage
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
                       <PencilIcon />
                       Rename and describe

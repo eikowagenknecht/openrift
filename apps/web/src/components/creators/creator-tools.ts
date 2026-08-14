@@ -1,11 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  ListOrderedIcon,
-  MessageSquareIcon,
-  MonitorPlayIcon,
-  PackageOpenIcon,
-  TvMinimalPlayIcon,
-} from "lucide-react";
+import { ListOrderedIcon, MessageSquareIcon, MonitorPlayIcon, PackageOpenIcon } from "lucide-react";
 
 import type { IconChipTone } from "@/components/ui/icon-chip";
 
@@ -47,19 +41,11 @@ export const CREATOR_TOOLS: CreatorTool[] = [
     featureFlag: "tier-lists",
   },
   {
-    id: "presentation",
-    title: "Presentation mode",
-    blurb: "One card, full screen, no site chrome. Built for window capture.",
+    id: "stage",
+    title: "Stage",
+    blurb: "Cards on screen two ways: full screen for capture, or into OBS.",
     icon: MonitorPlayIcon,
     tone: "sky",
-    featureFlag: "overlay",
-  },
-  {
-    id: "overlay",
-    title: "Stream overlay",
-    blurb: "Push a card onto your stream from your phone, straight into OBS.",
-    icon: TvMinimalPlayIcon,
-    tone: "violet",
     featureFlag: "overlay",
   },
   {

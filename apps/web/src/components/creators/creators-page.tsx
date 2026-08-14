@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
 
 import { CreatorChatSection } from "@/components/creators/creator-chat-section";
-import { CreatorOverlaySection } from "@/components/creators/creator-overlay-section";
-import { CreatorPresentSection } from "@/components/creators/creator-present-section";
 import { CreatorSection } from "@/components/creators/creator-section";
+import { CreatorStageSection } from "@/components/creators/creator-stage-section";
 import type { CreatorTool } from "@/components/creators/creator-tools";
 import { visibleCreatorTools } from "@/components/creators/creator-tools";
 import {
@@ -112,12 +111,7 @@ export function CreatorsPage() {
           </CreatorSection>
         )}
 
-        {overlayEnabled && (
-          <>
-            <CreatorPresentSection />
-            <CreatorOverlaySection />
-          </>
-        )}
+        {overlayEnabled && <CreatorStageSection />}
 
         <CreatorSection id="segments" title="Segment material">
           <p>

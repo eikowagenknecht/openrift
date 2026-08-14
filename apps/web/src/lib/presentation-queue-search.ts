@@ -4,8 +4,8 @@ import { z } from "zod";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 
 /**
- * The `?cards=` search param, shared by presentation mode and the overlay
- * dashboard so the two surfaces can't drift on how a queue URL is read.
+ * The `?cards=` search param the stage arrives with, and the one place the
+ * queue's cap is applied to a URL.
  *
  * Over-long input is truncated to the limit rather than rejected. A `.max()`
  * refinement fails the whole param, and with the `.catch(undefined)` fallback

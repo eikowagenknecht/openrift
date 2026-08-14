@@ -9,6 +9,20 @@ import { ErrataNotice } from "./errata-notice";
 import { StatChip } from "./stat-chip";
 
 /**
+ * The card's flavor line. Its own component because the stream overlay and the
+ * presentation stage switch flavor on and off separately from the rules text,
+ * and there it renders without the blocks above it.
+ *
+ * @returns The flavor line, or null when the printing has none.
+ */
+export function CardDetailFlavorText({ printing }: { printing: Printing }) {
+  if (!printing.flavorText) {
+    return null;
+  }
+  return <p className="text-muted-foreground/70 px-1 text-sm italic">{printing.flavorText}</p>;
+}
+
+/**
  * Printed rules text, effect text and flavor, each with its errata notice when
  * the card has one.
  * @returns The card's text blocks.
@@ -16,9 +30,21 @@ import { StatChip } from "./stat-chip";
 export function CardDetailText({
   printing,
   onKeywordClick,
+  showFlavorText = true,
+  interactive = true,
 }: {
   printing: Printing;
   onKeywordClick?: (keyword: string) => void;
+  /**
+   * Off for callers that render {@link CardDetailFlavorText} themselves, so a
+   * flavor switch can act independently of the rules text.
+   */
+  showFlavorText?: boolean;
+  /**
+   * Off on capture surfaces (the OBS source, the presentation stage), where a
+   * keyword hover state is nothing the audience can use.
+   */
+  interactive?: boolean;
 }) {
   const { card } = printing;
   const domainColors = useDomainColors();
@@ -31,6 +57,7 @@ export function CardDetailText({
             <CardText
               text={card.errata?.correctedRulesText ?? printing.printedRulesText}
               onKeywordClick={onKeywordClick}
+              interactive={interactive}
             />
           </p>
           {card.errata?.correctedRulesText &&
@@ -56,6 +83,7 @@ export function CardDetailText({
               <CardText
                 text={card.errata?.correctedEffectText ?? printing.printedEffectText}
                 onKeywordClick={onKeywordClick}
+                interactive={interactive}
               />
             </p>
           )}
@@ -82,9 +110,7 @@ export function CardDetailText({
         </div>
       )}
 
-      {printing.flavorText && (
-        <p className="text-muted-foreground/70 px-1 text-sm italic">{printing.flavorText}</p>
-      )}
+      {showFlavorText && <CardDetailFlavorText printing={printing} />}
     </div>
   );
 }

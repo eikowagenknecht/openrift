@@ -70,6 +70,7 @@ import { loansRouter } from "../routes/authenticated/loans.js";
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { overlayRouter } from "../routes/authenticated/overlay.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
+import { stagePresetsRouter } from "../routes/authenticated/stage-presets.js";
 import { tierListsRouter } from "../routes/authenticated/tier-lists.js";
 import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
 import { tournamentsRouter } from "../routes/authenticated/tournaments.js";
@@ -173,6 +174,7 @@ const apiRouter = {
   organizationsRouter,
   overlayRouter,
   preferencesRouter,
+  stagePresetsRouter,
   tierListsRouter,
   tournamentDeckCheckRouter,
   tournamentsRouter,

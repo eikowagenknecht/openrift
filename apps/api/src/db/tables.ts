@@ -43,6 +43,7 @@ import type {
   RuleChangeType,
   RuleKind,
   RuleType,
+  StagePresetConfig,
   TournamentClaimSource,
   TournamentDeckPhase,
   TournamentDeckSubmission,
@@ -744,6 +745,31 @@ export interface OverlayChannelsTable {
   token: string;
   payload: ColumnType<OverlayPayload, string, string>;
   version: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A named bundle of on-screen dressing for the creator tools (migration 242):
+ * the stream overlay and presentation mode. Applying one merges its set fields
+ * over whatever the surface already shows, so every field inside `config` is
+ * optional and an absent key means "leave that switch alone".
+ *
+ * `config` follows the same write/read contract as `overlayChannels.payload`:
+ * writes pre-stringified for postgres.js under Bun, reads through
+ * `parseJsonbRequired` and then narrowed by the contract's zod schema, because
+ * unlike the payload this blob is presented to the browser source of a stream
+ * and a corrupt one must degrade rather than throw.
+ *
+ * CHECK: name <> ''; jsonb_typeof(config) = 'object'.
+ */
+export interface StagePresetsTable {
+  id: Generated<string>;
+  /** FK → users(id), CASCADE. */
+  userId: string;
+  /** UNIQUE with `userId` (`uq_stage_presets_user_name`) — presets are recalled by name. */
+  name: string;
+  config: ColumnType<StagePresetConfig, string, string>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2344,6 +2370,9 @@ export interface Database {
 
   // Stream overlay channels (migration 238)
   overlayChannels: OverlayChannelsTable;
+
+  // Saved creator-tool dressing (migration 242)
+  stagePresets: StagePresetsTable;
 
   lists: ListsTable;
   listEntries: ListEntriesTable;
