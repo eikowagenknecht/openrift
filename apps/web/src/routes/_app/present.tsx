@@ -36,8 +36,18 @@ const DECK_ZONES = [
 // QUEUE_HIDDEN_FILTER_SECTIONS) but the params stay in the schema: dropping
 // them would make a link copied from /cards fail validation here.
 const presentSearchSchema = filterSearchSchema.extend({
-  /** Deck to walk, zone by zone. Takes precedence over `cards`. */
+  /** Deck to walk, zone by zone. Takes precedence over everything below. */
   deck: z.string().optional().catch(undefined),
+  /**
+   * Tier list to present, by id. The creator's own list, so it needs a session;
+   * like `deck` it carries one id and resolves the cards from the catalog.
+   */
+  tier: z.string().optional().catch(undefined),
+  /**
+   * Publicly shared tier list to present, by share token. Lets a co-streamer
+   * run someone else's ranking without owning it.
+   */
+  tierShare: z.string().optional().catch(undefined),
   /**
    * Ad-hoc queue of printing ids, in presentation order. Truncated to the
    * queue limit rather than rejected — see {@link queueCardsSearchSchema}. A

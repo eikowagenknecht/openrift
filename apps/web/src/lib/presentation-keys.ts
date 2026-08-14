@@ -11,7 +11,21 @@ export type PresentationAction =
   | "toggleText"
   | "toggleStrip"
   | "toggleHelp"
+  | "toggleBoard"
+  | "toggleReveal"
+  | "toggleDirection"
   | "exit";
+
+/**
+ * The actions only a source with a board answers to. A stage without one
+ * resolves them and drops them untouched, so the key keeps whatever the browser
+ * or the OS does with it rather than being swallowed for nothing.
+ */
+export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<PresentationAction>([
+  "toggleBoard",
+  "toggleReveal",
+  "toggleDirection",
+]);
 
 interface KeyEventLike {
   key: string;
@@ -58,6 +72,18 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "f":
     case "F": {
       return "toggleStrip";
+    }
+    case "b":
+    case "B": {
+      return "toggleBoard";
+    }
+    case "r":
+    case "R": {
+      return "toggleReveal";
+    }
+    case "d":
+    case "D": {
+      return "toggleDirection";
     }
     case "?": {
       return "toggleHelp";

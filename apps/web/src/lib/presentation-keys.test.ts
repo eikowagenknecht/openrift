@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isTypingTarget, ownsSpaceKey, resolvePresentationKey } from "./presentation-keys";
+import {
+  BOARD_ACTIONS,
+  isTypingTarget,
+  ownsSpaceKey,
+  resolvePresentationKey,
+} from "./presentation-keys";
 
 describe("resolvePresentationKey", () => {
   it.each([
@@ -17,6 +22,12 @@ describe("resolvePresentationKey", () => {
     ["T", "toggleText"],
     ["f", "toggleStrip"],
     ["F", "toggleStrip"],
+    ["b", "toggleBoard"],
+    ["B", "toggleBoard"],
+    ["r", "toggleReveal"],
+    ["R", "toggleReveal"],
+    ["d", "toggleDirection"],
+    ["D", "toggleDirection"],
     ["?", "toggleHelp"],
     ["Escape", "exit"],
   ])("maps %s to %s", (key, expected) => {
@@ -35,6 +46,22 @@ describe("resolvePresentationKey", () => {
       expect(resolvePresentationKey({ key: "f", [modifier]: true })).toBeNull();
     },
   );
+});
+
+describe("BOARD_ACTIONS", () => {
+  it("holds exactly the actions a run without a board should leave alone", () => {
+    expect([...BOARD_ACTIONS].toSorted()).toEqual([
+      "toggleBoard",
+      "toggleDirection",
+      "toggleReveal",
+    ]);
+  });
+
+  it("does not claim an action every run answers to", () => {
+    expect(BOARD_ACTIONS.has("next")).toBe(false);
+    expect(BOARD_ACTIONS.has("toggleText")).toBe(false);
+    expect(BOARD_ACTIONS.has("exit")).toBe(false);
+  });
 });
 
 describe("isTypingTarget", () => {

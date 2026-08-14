@@ -9,11 +9,8 @@ import { usePresentQueueStore } from "@/stores/present-queue-store";
  * The queue being assembled: the bulk-fill sources, then the ordered list of
  * stops with its drag handles and per-row controls.
  *
- * The column this lives in is the sticky one and the browser beside it is the
- * window-scrolled one, not the other way round — the browser is a virtualized
- * grid whose virtualizer reads the *window* scroller, so putting it in an inner
- * scroll container renders it empty. The queue is at most 120 rows, so it takes
- * the inner scroll and stays in view while the creator works through a set.
+ * Rendered as the `aside` of a {@link BuilderWorkbench}, which owns why this is
+ * the sticky, inner-scrolled column and the browser beside it is not.
  *
  * @returns The queue panel.
  */

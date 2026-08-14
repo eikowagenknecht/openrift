@@ -1,11 +1,7 @@
-import { legendDisplayName } from "@openrift/shared";
 import { SettingsIcon, XIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
-import { CardDetailStats } from "@/components/cards/card-detail/card-detail-stats";
-import { CardDetailText } from "@/components/cards/card-detail/card-detail-text";
 import { PresentationFilmstrip } from "@/components/present/presentation-filmstrip";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
@@ -13,12 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { useZoneOrder } from "@/hooks/use-enums";
 import { useIdle } from "@/hooks/use-idle";
-import { formatPublicCode } from "@/lib/format";
-import { isTypingTarget, ownsSpaceKey, resolvePresentationKey } from "@/lib/presentation-keys";
+import {
+  BOARD_ACTIONS,
+  isTypingTarget,
+  ownsSpaceKey,
+  resolvePresentationKey,
+} from "@/lib/presentation-keys";
+import type { PresentationItem } from "@/lib/presentation-queue";
 import { stepIndex } from "@/lib/presentation-queue";
 import { cn } from "@/lib/utils";
+import { TIER_TILE_WIDTHS, useDisplayStore } from "@/stores/display-store";
 import { MAX_CARD_SCALE, MIN_CARD_SCALE, usePresentationStore } from "@/stores/presentation-store";
 
 /** How long the stage waits before fading its own chrome out of the capture. */
@@ -34,15 +35,23 @@ const KEY_HELP: { keys: string[]; what: string }[] = [
   { keys: ["Esc"], what: "Leave presentation mode" },
 ];
 
+/** Extra rows shown only when the run has a board behind it. */
+const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
+  { keys: ["B"], what: "Whole board / one card" },
+  { keys: ["R"], what: "Fill the board as you go" },
+  { keys: ["D"], what: "Start from the bottom tier" },
+];
+
 /**
  * The keyboard cheat sheet, toggled with `?`.
  * @returns The help sheet overlay.
  */
-function PresentationHelpSheet() {
+function PresentationHelpSheet({ boardControls }: { boardControls: boolean }) {
+  const rows = boardControls ? [...KEY_HELP, ...BOARD_KEY_HELP] : KEY_HELP;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-8">
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2 rounded-lg bg-black/80 px-6 py-5 backdrop-blur-sm">
-        {KEY_HELP.map((row) => (
+        {rows.map((row) => (
           <div key={row.what} className="contents">
             <dt className="flex justify-end gap-1">
               {row.keys.map((key) => (
@@ -87,6 +96,71 @@ function StageToggleRow({
 }
 
 /**
+ * The board layout's own settings: which shape the run takes, and how large the
+ * tiles on the ladder read. Split out so the card-only sources never render a
+ * row for a control that would do nothing.
+ *
+ * @returns The board rows for the settings popover.
+ */
+function BoardSettings() {
+  const boardMode = usePresentationStore((state) => state.boardMode);
+  const reveal = usePresentationStore((state) => state.reveal);
+  const direction = usePresentationStore((state) => state.direction);
+  const toggleBoard = usePresentationStore((state) => state.toggleBoard);
+  const toggleReveal = usePresentationStore((state) => state.toggleReveal);
+  const toggleDirection = usePresentationStore((state) => state.toggleDirection);
+  const tierTileStep = useDisplayStore((state) => state.tierTileStep);
+  const setTierTileStep = useDisplayStore((state) => state.setTierTileStep);
+
+  const handleTileStep = (value: number | readonly number[]) => {
+    const next = Array.isArray(value) ? value[0] : value;
+    if (typeof next === "number") {
+      setTierTileStep(next);
+    }
+  };
+
+  return (
+    <>
+      <StageToggleRow
+        id="stage-board-mode"
+        label="Whole board"
+        hotkey="B"
+        checked={boardMode}
+        onToggle={toggleBoard}
+      />
+      <StageToggleRow
+        id="stage-reveal"
+        label="Fill as you go"
+        hotkey="R"
+        checked={reveal}
+        onToggle={toggleReveal}
+      />
+      <StageToggleRow
+        id="stage-direction"
+        label="Start at the bottom"
+        hotkey="D"
+        checked={direction === "worst-first"}
+        onToggle={toggleDirection}
+      />
+      {boardMode && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="stage-tile-size">Board tile size</Label>
+          <Slider
+            id="stage-tile-size"
+            aria-label="Board tile size"
+            min={0}
+            max={TIER_TILE_WIDTHS.length - 1}
+            step={1}
+            value={[tierTileStep]}
+            onValueChange={handleTileStep}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * The stage's settings popover: card size, plus the layers that otherwise only
  * answer to a key. A creator who never reads the help sheet can still find the
  * rules panel and the thumbnail strip.
@@ -96,9 +170,11 @@ function StageToggleRow({
 function StageSettings({
   open,
   onOpenChange,
+  boardControls,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  boardControls: boolean;
 }) {
   const showText = usePresentationStore((state) => state.showText);
   const showStrip = usePresentationStore((state) => state.showStrip);
@@ -169,37 +245,18 @@ function StageSettings({
           checked={showHelp}
           onToggle={toggleHelp}
         />
+        {boardControls && <BoardSettings />}
       </PopoverContent>
     </Popover>
   );
 }
 
 /**
- * The rules-text side panel, toggled with `T`.
- *
- * Fixed width, and everything in it is left-aligned. Both matter on a stage
- * the viewer is watching: a panel sized to its contents would resize between a
- * wordy card and a vanilla one, shifting the artwork sideways on every step.
- *
- * @returns The name, code, stats and text beside the card.
- */
-function PresentationTextPanel({ printing }: { printing: CardViewerItem["printing"] }) {
-  return (
-    <div className="flex w-[32rem] max-w-[40vw] shrink-0 flex-col gap-4 self-center">
-      <h1 className="text-3xl font-semibold text-balance">{legendDisplayName(printing.card)}</h1>
-      <div className="font-mono text-sm tracking-wider text-white/50 uppercase">
-        {formatPublicCode(printing)}
-      </div>
-      <CardDetailStats printing={printing} align="start" />
-      <CardDetailText printing={printing} />
-    </div>
-  );
-}
-
-/**
- * The chrome-free card display: one card filling the frame on a near-black
- * ground, with the rules panel and thumbnail strip as keyboard-toggled layers
- * over it.
+ * The chrome-free frame every presentation runs inside: a near-black ground, the
+ * corner markers, the keyboard, the settings popover, the thumbnail strip and
+ * the help sheet. What actually fills the middle arrives as `children` — one big
+ * card for a deck walk or an ad-hoc queue, a tier board for a ranking — so a new
+ * kind of show is a new middle rather than a new stage.
  *
  * Forced into the dark palette regardless of the viewer's theme (the `dark`
  * class on the root) — the shared `CardDetail` parts style themselves from the
@@ -213,32 +270,23 @@ export function PresentationStage({
   onIndexChange,
   onExit,
   title,
+  boardControls = false,
+  children,
 }: {
-  items: CardViewerItem[];
+  items: PresentationItem[];
   index: number;
   onIndexChange: (index: number) => void;
   onExit: () => void;
-  /** Context line in the corner marker, e.g. the deck's name. */
+  /** Context line in the corner marker, e.g. the deck's or the list's name. */
   title?: string;
+  /** Offers the board layout's keys and settings. Only a ranking has a board. */
+  boardControls?: boolean;
+  children: ReactNode;
 }) {
   const idle = useIdle(IDLE_DELAY_MS);
-  const { zoneLabels } = useZoneOrder();
-  const showText = usePresentationStore((state) => state.showText);
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
-  const cardScale = usePresentationStore((state) => state.cardScale);
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // Which way the queue last moved, so the incoming card flies in from the side
-  // it came from. Adjusted during render (React's documented pattern for state
-  // derived from a changed prop) rather than in an effect, so the animation
-  // class is right on the first paint of the new card.
-  const [seenIndex, setSeenIndex] = useState(index);
-  const [forwards, setForwards] = useState(true);
-  if (seenIndex !== index) {
-    setForwards(index > seenIndex);
-    setSeenIndex(index);
-  }
 
   const current = items[index];
 
@@ -263,6 +311,11 @@ export function PresentationStage({
       }
       const action = resolvePresentationKey(event);
       if (action === null) {
+        return;
+      }
+      // A run with no board leaves those keys alone rather than swallowing them
+      // to do nothing.
+      if (!boardControls && BOARD_ACTIONS.has(action)) {
         return;
       }
       event.preventDefault();
@@ -296,6 +349,18 @@ export function PresentationStage({
           store.toggleHelp();
           break;
         }
+        case "toggleBoard": {
+          store.toggleBoard();
+          break;
+        }
+        case "toggleReveal": {
+          store.toggleReveal();
+          break;
+        }
+        case "toggleDirection": {
+          store.toggleDirection();
+          break;
+        }
         case "exit": {
           // Escape closes the help sheet first, so it never takes the creator
           // out of the show when they only wanted the key list gone.
@@ -310,13 +375,12 @@ export function PresentationStage({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [index, items.length, onExit, onIndexChange]);
+  }, [boardControls, index, items.length, onExit, onIndexChange]);
 
   if (!current) {
     return null;
   }
 
-  const zoneLabel = current.zone ? zoneLabels[current.zone] : null;
   // The settings popover holds its trigger visible: a gear that fades out from
   // under the cursor while its own panel is open reads as a glitch.
   const visible = !idle || settingsOpen;
@@ -335,38 +399,22 @@ export function PresentationStage({
         >
           <XIcon className="size-5" />
         </Button>
-        <StageSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+        <StageSettings
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          boardControls={boardControls}
+        />
       </div>
 
       <div className={cn(chrome, "top-4 right-4 text-right")}>
         {title && <div className="text-sm text-white/50">{title}</div>}
         <div className="font-mono text-sm tracking-widest text-white/70 uppercase tabular-nums">
-          {zoneLabel ? `${zoneLabel} · ` : ""}
+          {current.contextLabel ? `${current.contextLabel} · ` : ""}
           {index + 1} / {items.length}
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center gap-[4vw] p-[4vh]">
-        <div
-          className="aspect-card relative max-w-full shrink"
-          style={{ height: `${cardScale * 100}%` }}
-        >
-          {/* Keyed on the queue position so every step remounts the layer and
-              replays the entry animation, sliding in from the side the queue
-              moved towards. */}
-          <div
-            key={current.id}
-            className={cn(
-              "animate-in fade-in absolute inset-0 duration-300 ease-out",
-              forwards ? "slide-in-from-right-16" : "slide-in-from-left-16",
-            )}
-          >
-            <CardDetailArt printing={current.printing} showImages disableTilt />
-          </div>
-        </div>
-
-        {showText && <PresentationTextPanel printing={current.printing} />}
-      </div>
+      {children}
 
       <div className="flex shrink-0 flex-col">
         {showStrip && (
@@ -385,7 +433,7 @@ export function PresentationStage({
         </div>
       </div>
 
-      {showHelp && <PresentationHelpSheet />}
+      {showHelp && <PresentationHelpSheet boardControls={boardControls} />}
     </div>
   );
 }

@@ -1,6 +1,26 @@
 import type { Printing } from "@openrift/shared";
 
 /**
+ * One stop in a presentation run.
+ *
+ * Deliberately not `CardViewerItem`: that type carries grid concerns (the deck
+ * zone the highlight anchors at, the holding collection) that mean nothing on a
+ * stage, and it has no room for the corner marker's context line. What that
+ * line says is the source's business — a deck walk puts the zone there, a tier
+ * list puts the tier — so the stage never has to know where its queue came from.
+ *
+ * It stays structurally assignable to `CardViewerItem`, so a queue built here
+ * can still feed the detail overlay on a surface that has one.
+ */
+export interface PresentationItem {
+  /** Unique key for this stop. A printing may appear more than once in a run. */
+  id: string;
+  printing: Printing;
+  /** Short context for the corner marker, e.g. "Main deck" or "S". */
+  contextLabel?: string;
+}
+
+/**
  * Upper bound on how many printings a `?cards=` queue may carry. Keeps a
  * hand-edited or pathological URL from building a strip of thousands of
  * thumbnails, and keeps the URL itself inside what proxies will forward.

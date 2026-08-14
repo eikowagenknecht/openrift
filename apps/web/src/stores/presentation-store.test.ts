@@ -59,6 +59,38 @@ describe("presentation store", () => {
     expect(usePresentationStore.getState().showHelp).toBe(false);
   });
 
+  it("starts a ranking on the whole board, walked from the top tier down", () => {
+    const state = usePresentationStore.getState();
+    expect(state.boardMode).toBe(true);
+    expect(state.reveal).toBe(false);
+    expect(state.direction).toBe("best-first");
+  });
+
+  it("drops the board layout for one card at a time", () => {
+    usePresentationStore.getState().toggleBoard();
+
+    expect(usePresentationStore.getState().boardMode).toBe(false);
+    // The reveal is a board shape, so switching layouts must not silently arm it.
+    expect(usePresentationStore.getState().reveal).toBe(false);
+  });
+
+  it("turns the reveal on without touching the layout", () => {
+    usePresentationStore.getState().toggleReveal();
+
+    expect(usePresentationStore.getState().reveal).toBe(true);
+    expect(usePresentationStore.getState().boardMode).toBe(true);
+  });
+
+  it("flips the run between the two ends of the ladder", () => {
+    usePresentationStore.getState().toggleDirection();
+
+    expect(usePresentationStore.getState().direction).toBe("worst-first");
+
+    usePresentationStore.getState().toggleDirection();
+
+    expect(usePresentationStore.getState().direction).toBe("best-first");
+  });
+
   it("starts with the card filling the stage", () => {
     expect(usePresentationStore.getState().cardScale).toBe(MAX_CARD_SCALE);
   });

@@ -1,8 +1,10 @@
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import { useEffect, useRef } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Pressable } from "@/components/ui/pressable";
+import { frontImageId } from "@/lib/card-meta";
+import type { PresentationItem } from "@/lib/presentation-queue";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,7 +19,7 @@ export function PresentationFilmstrip({
   index,
   onSelect,
 }: {
-  items: CardViewerItem[];
+  items: PresentationItem[];
   index: number;
   onSelect: (index: number) => void;
 }) {
@@ -38,7 +40,6 @@ export function PresentationFilmstrip({
       <div className="flex items-end gap-2">
         {items.map((item, itemIndex) => {
           const isCurrent = itemIndex === index;
-          const image = item.printing.images[0];
           return (
             <Pressable
               key={item.id}
@@ -47,26 +48,25 @@ export function PresentationFilmstrip({
               aria-label={`Show ${legendDisplayName(item.printing.card)}`}
               aria-current={isCurrent ? "true" : undefined}
               className={cn(
-                "aspect-card w-14 shrink-0 overflow-hidden rounded transition-all duration-200",
+                "shrink-0 rounded transition-all duration-200",
                 isCurrent
                   ? "w-20 opacity-100 ring-2 ring-amber-400"
-                  : "opacity-45 hover:opacity-80",
+                  : "w-14 opacity-45 hover:opacity-80",
               )}
             >
-              {image ? (
-                <img
-                  src={imageUrl(image.imageId, "400w")}
-                  alt=""
-                  width={400}
-                  height={558}
-                  loading="lazy"
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span className="text-2xs flex size-full items-center justify-center bg-white/10 p-1 text-center leading-tight text-white/70">
-                  {item.printing.card.name}
-                </span>
-              )}
+              {/* Through the shared thumb rather than a bare `img`: it is the
+                  one place the three ways art can be missing land in the same
+                  domain-tinted placeholder, and the only one that turns
+                  battlefield art the right way up. */}
+              <CardArtThumb
+                imageId={frontImageId(item.printing)}
+                variant="400w"
+                rarity={item.printing.rarity}
+                domains={item.printing.card.domains}
+                landscape={getOrientation(item.printing.card.types) === "landscape"}
+                loading="lazy"
+                className="w-full"
+              />
             </Pressable>
           );
         })}

@@ -1,10 +1,14 @@
 import type { PublicTierListDetailResponse } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
+import { MonitorPlayIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import {
   PageDescription,
   PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
@@ -13,13 +17,20 @@ import { resolveTierRows, TierBoard } from "@/components/tier-lists/tier-board";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { tierRowsToQueue } from "@/lib/tier-list-presentation";
 import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface TierListShareViewProps {
   data: PublicTierListDetailResponse;
+}
+
+interface TierListSharePageProps extends TierListShareViewProps {
+  /** The share token from the URL, for the Present link. */
+  token: string;
 }
 
 /**
@@ -31,9 +42,12 @@ interface TierListShareViewProps {
  *
  * @returns The share page node.
  */
-export function TierListShareView({ data }: TierListShareViewProps) {
+export function TierListShareView({ data, token }: TierListSharePageProps) {
   const { tierList, owner } = data;
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
+  // Presentation mode is a creator tool that ships dark: the route works by URL,
+  // but nothing in the app points at it until the flag is on.
+  const presentEnabled = useFeatureEnabled("overlay");
 
   return (
     <>
@@ -45,6 +59,21 @@ export function TierListShareView({ data }: TierListShareViewProps) {
               by {owner.displayName} · {rankedCount} {rankedCount === 1 ? "card" : "cards"} ranked
             </span>
           </div>
+          {presentEnabled && rankedCount > 0 && (
+            <PageTopBarActions>
+              {/* A shared ranking is presentable by whoever holds the link, not
+                  just its owner — running someone else's list is half of what a
+                  co-stream does with one. */}
+              <PageTopBarButton
+                render={
+                  <Link to="/present" search={{ tierShare: token, i: 0 }}>
+                    <MonitorPlayIcon />
+                    Present
+                  </Link>
+                }
+              />
+            </PageTopBarActions>
+          )}
         </PageTopBar>
       </PageTopBarSticky>
 
@@ -82,12 +111,9 @@ function TierListShareBoardInner({ data }: TierListShareViewProps) {
 
   const rows = resolveTierRows(data.tierList.tiers, cardsById, printingsByCardId);
   // Every ranked card, in board order, so the detail overlay's next/previous
-  // walks the ranking the way it reads.
-  const items: CardViewerItem[] = rows.flatMap((row) =>
-    row.cards.flatMap((view): CardViewerItem[] =>
-      view.printing ? [{ id: view.printing.id, printing: view.printing }] : [],
-    ),
-  );
+  // walks the ranking the way it reads. Same flattening presentation mode runs
+  // on, which is why it lives in the shared helper.
+  const items: CardViewerItem[] = tierRowsToQueue(rows);
 
   const handleCardClick = (view: TierCardView) => {
     if (view.printing) {

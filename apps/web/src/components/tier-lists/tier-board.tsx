@@ -1,6 +1,7 @@
 import type { Card, Printing, TierRow } from "@openrift/shared";
 import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
 import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import {
@@ -116,38 +117,73 @@ interface TierBoardProps {
   rows: readonly { label: string; cards: TierCardView[] }[];
   /** Called when a tile is clicked; opens the card detail on the share page. */
   onCardClick?: (view: TierCardView) => void;
+  /**
+   * Card the board scrolls to keep in view. Presentation mode points this at
+   * the card the run is on, so a ladder taller than the stage follows the walk
+   * instead of leaving it offscreen.
+   */
+  focusCardId?: string | null;
+  /**
+   * Dims every tile but the focused one. On a capture this is what makes the
+   * board readable as "we are talking about this card" rather than a wall of art.
+   */
+  spotlight?: boolean;
+  /** Text shown in a row with nothing in it. */
+  emptyRowLabel?: string;
   className?: string;
 }
 
 /**
- * Read-only board. Used by the public share page and anywhere the ranking is
- * shown rather than edited. Empty rows are drawn — a deliberately empty bottom
- * tier is a statement about the set, not missing data.
+ * Read-only board. Used by the public share page, by presentation mode, and
+ * anywhere else the ranking is shown rather than edited. Empty rows are drawn —
+ * a deliberately empty bottom tier is a statement about the set, not missing
+ * data, and during a reveal it is a tier the run hasn't reached yet.
  *
  * @returns The board node.
  */
-export function TierBoard({ rows, onCardClick, className }: TierBoardProps) {
+export function TierBoard({
+  rows,
+  onCardClick,
+  focusCardId,
+  spotlight,
+  emptyRowLabel = "Nothing here",
+  className,
+}: TierBoardProps) {
   const tileWidth = useTierTileWidth();
+  const focusRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [focusCardId]);
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {rows.map((row, rowIndex) => (
         <TierRowFrame key={rowIndex} rowIndex={rowIndex} label={row.label}>
           {row.cards.length === 0 ? (
-            <span className="text-muted-foreground px-1 text-sm italic">Nothing here</span>
+            <span className="text-muted-foreground px-1 text-sm italic">{emptyRowLabel}</span>
           ) : (
-            row.cards.map((view) =>
-              onCardClick ? (
-                <TierBoardCardButton
+            row.cards.map((view) => {
+              const focused = Boolean(focusCardId) && view.cardId === focusCardId;
+              return (
+                <span
                   key={view.cardId}
-                  view={view}
-                  width={tileWidth}
-                  onClick={onCardClick}
-                />
-              ) : (
-                <TierCardTile key={view.cardId} view={view} width={tileWidth} />
-              ),
-            )
+                  ref={focused ? focusRef : undefined}
+                  // The ring stays inside the row's own `p-1`, so a spotlit tile
+                  // at either end is not clipped by the row's overflow.
+                  className={cn(
+                    "inline-flex rounded-sm transition-opacity duration-300",
+                    spotlight && (focused ? "ring-2 ring-amber-400" : "opacity-30"),
+                  )}
+                >
+                  {onCardClick ? (
+                    <TierBoardCardButton view={view} width={tileWidth} onClick={onCardClick} />
+                  ) : (
+                    <TierCardTile view={view} width={tileWidth} />
+                  )}
+                </span>
+              );
+            })
           )}
         </TierRowFrame>
       ))}

@@ -1,6 +1,7 @@
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import { CardStageMain } from "@/components/present/card-stage-main";
 import { PresentationStage } from "@/components/present/presentation-stage";
 import { useCards } from "@/hooks/use-cards";
+import type { PresentationItem } from "@/lib/presentation-queue";
 import { resolveQueuePrintings } from "@/lib/presentation-queue";
 
 /**
@@ -24,11 +25,13 @@ export function QueuePresentation({
   // The same printing may legitimately appear twice in a queue, so the item id
   // carries its position — a bare printing id would collide and React would
   // reuse one card's DOM for both stops.
-  const items: CardViewerItem[] = resolveQueuePrintings(printingIds, printingsById).map(
+  const items: PresentationItem[] = resolveQueuePrintings(printingIds, printingsById).map(
     (printing, position) => ({ id: `${position}:${printing.id}`, printing }),
   );
 
   return (
-    <PresentationStage items={items} index={index} onIndexChange={onIndexChange} onExit={onExit} />
+    <PresentationStage items={items} index={index} onIndexChange={onIndexChange} onExit={onExit}>
+      <CardStageMain items={items} index={index} />
+    </PresentationStage>
   );
 }

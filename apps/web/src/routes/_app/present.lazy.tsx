@@ -1,24 +1,25 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { PlayIcon } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { toast } from "sonner";
 
+import { BuilderWorkbench } from "@/components/layout/builder-workbench";
 import {
-  PAGE_TOP_BAR_STICKY,
   PageTopBar,
   PageTopBarActions,
-  PageTopBarHeightContext,
   PageTopBarPrimaryButton,
   PageTopBarTitle,
-  useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { DeckPresentation } from "@/components/present/deck-presentation";
 import { PresentCardBrowser } from "@/components/present/present-card-browser";
 import { PresentQueuePanel } from "@/components/present/present-queue-panel";
 import { QueuePresentation } from "@/components/present/queue-presentation";
 import type { QueueSource } from "@/components/present/queue-source-picker";
+import {
+  OwnedTierListPresentation,
+  SharedTierListPresentation,
+} from "@/components/present/tier-list-presentation";
 import { Badge } from "@/components/ui/badge";
-import { useHeaderHeight } from "@/hooks/use-header-height";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
@@ -36,7 +37,7 @@ function StageFallback() {
 }
 
 function PresentPage() {
-  const { deck, cards, zone, i, edit } = Route.useSearch();
+  const { deck, tier, tierShare, cards, zone, i, edit } = Route.useSearch();
   const navigate = useNavigate();
 
   const setIndex = (index: number) => {
@@ -55,6 +56,36 @@ function PresentPage() {
           onIndexChange={setIndex}
           onExit={() => {
             void navigate({ to: "/decks/$deckId", params: { deckId: deck } });
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (tier) {
+    return (
+      <Suspense fallback={<StageFallback />}>
+        <OwnedTierListPresentation
+          tierListId={tier}
+          index={i ?? 0}
+          onIndexChange={setIndex}
+          onExit={() => {
+            void navigate({ to: "/tier-lists/$tierListId", params: { tierListId: tier } });
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (tierShare) {
+    return (
+      <Suspense fallback={<StageFallback />}>
+        <SharedTierListPresentation
+          token={tierShare}
+          index={i ?? 0}
+          onIndexChange={setIndex}
+          onExit={() => {
+            void navigate({ to: "/tier-lists/share/$token", params: { token: tierShare } });
           }}
         />
       </Suspense>
@@ -89,21 +120,13 @@ function PresentPage() {
  *
  * The builder is an ordinary app page and carries the usual header and footer.
  * Only the show itself is chrome-free, and it gets there by covering the shell
- * rather than by living outside it.
- *
- * Two columns: the queue is the sticky, inner-scrolled one and the card browser
- * is the window-scrolled one, not the other way round. The browser is a
- * virtualized grid whose virtualizer reads the *window* scroller, so putting it
- * in an inner scroll container renders it empty — the same constraint the
- * tier-list builder works around.
+ * rather than by living outside it. Laid out in the shared
+ * {@link BuilderWorkbench}, the same shell the tier-list builder uses.
  *
  * @returns The queue builder page.
  */
 function PresentQueueBuilder({ initialIds }: { initialIds: readonly string[] }) {
   const navigate = useNavigate();
-  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
-  const topBarHeight = useMeasuredHeight(topBarSlot);
-  const headerHeight = useHeaderHeight();
   const queued = usePresentQueueStore((state) => state.ids.length);
 
   // Adopt whatever queue the URL arrived with, once. Leaving the builder drops
@@ -137,42 +160,30 @@ function PresentQueueBuilder({ initialIds }: { initialIds: readonly string[] }) 
     toast.success(`Added ${added} cards from ${source.label}.`);
   };
 
-  const stickyTop = headerHeight + topBarHeight;
-
   return (
-    <PageTopBarHeightContext value={topBarHeight}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
-          <PageTopBar>
-            <PageTopBarTitle>Presentation mode</PageTopBarTitle>
-            {queued > 0 && <Badge variant="outline">{queued} queued</Badge>}
-            <PageTopBarActions>
-              <PageTopBarPrimaryButton onClick={start} disabled={queued === 0}>
-                <PlayIcon />
-                Start presenting
-              </PageTopBarPrimaryButton>
-            </PageTopBarActions>
-          </PageTopBar>
-        </div>
-
-        <div className="px-safe flex flex-1 flex-col gap-4 px-3 pt-3 lg:flex-row">
-          <div className="w-full shrink-0 lg:w-[34%] lg:max-w-sm">
-            <div
-              className="lg:sticky lg:overflow-y-auto"
-              style={{ top: stickyTop, maxHeight: `calc(100dvh - ${stickyTop}px)` }}
-            >
-              <Suspense
-                fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}
-              >
-                <PresentQueuePanel onAdd={addSource} />
-              </Suspense>
-            </div>
-          </div>
-          <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
-            <PresentCardBrowser />
-          </Suspense>
-        </div>
-      </div>
-    </PageTopBarHeightContext>
+    <BuilderWorkbench
+      asideClassName="lg:w-[34%] lg:max-w-sm"
+      aside={
+        <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
+          <PresentQueuePanel onAdd={addSource} />
+        </Suspense>
+      }
+      topBar={
+        <PageTopBar>
+          <PageTopBarTitle>Presentation mode</PageTopBarTitle>
+          {queued > 0 && <Badge variant="outline">{queued} queued</Badge>}
+          <PageTopBarActions>
+            <PageTopBarPrimaryButton onClick={start} disabled={queued === 0}>
+              <PlayIcon />
+              Start presenting
+            </PageTopBarPrimaryButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      }
+    >
+      <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
+        <PresentCardBrowser />
+      </Suspense>
+    </BuilderWorkbench>
   );
 }

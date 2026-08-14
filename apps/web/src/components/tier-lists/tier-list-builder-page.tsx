@@ -6,27 +6,25 @@ import {
   EllipsisVerticalIcon,
   MaximizeIcon,
   MinimizeIcon,
+  MonitorPlayIcon,
   PencilIcon,
   SaveIcon,
   Share2Icon,
   Trash2Icon,
 } from "lucide-react";
-import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
+import { BuilderWorkbench } from "@/components/layout/builder-workbench";
 import {
-  PAGE_TOP_BAR_STICKY,
   PageTopBar,
   PageTopBarActions,
   PageTopBarBack,
   PageTopBarButton,
-  PageTopBarHeightContext,
   PageTopBarIconButton,
   PageTopBarPrimaryButton,
   PageTopBarTitle,
-  useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { TierBoardEditor } from "@/components/tier-lists/tier-board-editor";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
@@ -54,13 +52,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
-import { useHeaderHeight } from "@/hooks/use-header-height";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
 import { frontImageId } from "@/lib/card-meta";
 import { downloadImageFromUrl, tierListOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn } from "@/lib/utils";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 interface TierListBuilderPageProps {
@@ -69,20 +66,12 @@ interface TierListBuilderPageProps {
 
 /**
  * The tier list builder: the board on the left, the card pool on the right,
- * dragging between them.
- *
- * The board is the sticky column and the pool is the window-scrolled one, not
- * the other way round: the pool is a virtualized grid and its virtualizer reads
- * the *window* scroller, so putting it in an inner scroll container renders it
- * empty. A board is at most a dozen rows, so it takes the inner scroll instead
- * and stays in view while the creator scrolls the set.
+ * dragging between them. Laid out in the shared {@link BuilderWorkbench}, which
+ * owns why the board is the sticky column and the pool the scrolled one.
  *
  * @returns The builder page node.
  */
 export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
-  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
-  const topBarHeight = useMeasuredHeight(topBarSlot);
-  const headerHeight = useHeaderHeight();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
@@ -90,6 +79,12 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
   const scopedSetSlug = sets.find((set) => set.id === tierList.setId)?.slug;
+  // Presentation mode is a creator tool that ships dark: the route works by URL,
+  // but nothing in the app points at it until the flag is on.
+  const presentEnabled = useFeatureEnabled("overlay");
+  // Counted off the saved board rather than the draft: that is what the show
+  // would actually put on screen.
+  const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -176,109 +171,100 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
     });
   };
 
-  // -1 mirrors PAGE_TOP_BAR_STICKY's own -1px pin, so the board catches exactly
-  // at the bar's bottom edge instead of a pixel below it.
-  const stickyTop = headerHeight + topBarHeight - 1;
-
   return (
-    <PageTopBarHeightContext value={topBarHeight}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
-          <PageTopBar>
-            <PageTopBarBack to="/tier-lists" aria-label="All tier lists" />
-            <PageTopBarTitle>{tierList.title}</PageTopBarTitle>
-            {dirty && <Badge variant="outline">Unsaved changes</Badge>}
-            <PageTopBarActions>
-              <TierTileSizeControls />
-              <PageTopBarIconButton
-                aria-label={boardOnly ? "Show the card pool" : "Hide the card pool"}
-                onClick={() => setBoardOnly(!boardOnly)}
-              >
-                {boardOnly ? (
-                  <MinimizeIcon className="size-4" />
-                ) : (
-                  <MaximizeIcon className="size-4" />
-                )}
-              </PageTopBarIconButton>
-              <PageTopBarButton onClick={() => setShareOpen(true)}>
-                <Share2Icon />
-                Share
-              </PageTopBarButton>
-              <PageTopBarPrimaryButton
-                onClick={handleSave}
-                disabled={!dirty || updateTierList.isPending}
-              >
-                <SaveIcon />
-                Save
-              </PageTopBarPrimaryButton>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={<PageTopBarIconButton aria-label="Tier list options" />}
-                >
-                  <EllipsisVerticalIcon className="size-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
-                    <PencilIcon />
-                    Rename and describe
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void handleExport()}>
-                    <DownloadIcon />
-                    Download image
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                    <Trash2Icon />
-                    Delete tier list
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </PageTopBarActions>
-          </PageTopBar>
-        </div>
-
-        <TierListDndContext cardsById={cardsById} printingsByCardId={printingsByCardId}>
-          {/* No top padding here: the pool's toolbar is a blurred control band
-              that belongs flush under the page top bar (see the card-browser
-              toolbar tier in CLAUDE.md). Padding here would also push the
-              sticky board 12px below its pin point, so the board would travel
-              on the first scroll before catching. The board column carries the
-              gap inside its own sticky box instead. */}
-          <div
-            ref={previewContainerRef}
-            className="px-safe relative flex flex-1 flex-col gap-4 px-3 lg:flex-row"
-          >
+    <>
+      <TierListDndContext cardsById={cardsById} printingsByCardId={printingsByCardId}>
+        <BuilderWorkbench
+          asideClassName="lg:w-[46%] lg:max-w-3xl"
+          asideOnly={boardOnly}
+          columnsRef={previewContainerRef}
+          overlay={
             <HoveredCardPreview
               hoveredCard={isMobile ? null : hoveredCard}
               origin="main"
               containerRef={previewContainerRef}
             />
-            <div
-              className={cn(
-                "w-full",
-                boardOnly ? "lg:max-w-none" : "shrink-0 lg:w-[46%] lg:max-w-3xl",
-              )}
-            >
-              {/* pt-3 sits *inside* the sticky box so the board clears the top
-                  bar's frosted band without moving the box's flow position off
-                  its pin. The max height is lg-only: below that the board is a
-                  plain block in the page flow with nothing to scroll. */}
-              <div
-                className="pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--tier-board-top))] lg:overflow-y-auto"
-                style={{ top: stickyTop, "--tier-board-top": `${stickyTop}px` } as CSSProperties}
-              >
-                <TierBoardEditor
-                  cardsById={cardsById}
-                  printingsByCardId={printingsByCardId}
-                  tapToAssign={isMobile}
-                  onHoverCard={setHoveredView}
-                />
-              </div>
-            </div>
-            {!boardOnly && <TierListPool />}
-          </div>
-        </TierListDndContext>
-      </div>
+          }
+          aside={
+            <TierBoardEditor
+              cardsById={cardsById}
+              printingsByCardId={printingsByCardId}
+              tapToAssign={isMobile}
+              onHoverCard={setHoveredView}
+            />
+          }
+          topBar={
+            <PageTopBar>
+              <PageTopBarBack to="/tier-lists" aria-label="All tier lists" />
+              <PageTopBarTitle>{tierList.title}</PageTopBarTitle>
+              {dirty && <Badge variant="outline">Unsaved changes</Badge>}
+              <PageTopBarActions>
+                <TierTileSizeControls />
+                <PageTopBarIconButton
+                  aria-label={boardOnly ? "Show the card pool" : "Hide the card pool"}
+                  onClick={() => setBoardOnly(!boardOnly)}
+                >
+                  {boardOnly ? (
+                    <MinimizeIcon className="size-4" />
+                  ) : (
+                    <MaximizeIcon className="size-4" />
+                  )}
+                </PageTopBarIconButton>
+                <PageTopBarButton onClick={() => setShareOpen(true)}>
+                  <Share2Icon />
+                  Share
+                </PageTopBarButton>
+                <PageTopBarPrimaryButton
+                  onClick={handleSave}
+                  disabled={!dirty || updateTierList.isPending}
+                >
+                  <SaveIcon />
+                  Save
+                </PageTopBarPrimaryButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<PageTopBarIconButton aria-label="Tier list options" />}
+                  >
+                    <EllipsisVerticalIcon className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {presentEnabled && rankedCount > 0 && (
+                      <DropdownMenuItem
+                        // Presentation mode reads the *saved* board, so an
+                        // unsaved draft would go on stage as whatever the server
+                        // still holds. The "Unsaved changes" badge sits in this
+                        // same bar and says why the item is off.
+                        disabled={dirty}
+                        onClick={() => {
+                          void navigate({ to: "/present", search: { tier: tierList.id, i: 0 } });
+                        }}
+                      >
+                        <MonitorPlayIcon />
+                        Present
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
+                      <PencilIcon />
+                      Rename and describe
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void handleExport()}>
+                      <DownloadIcon />
+                      Download image
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                      <Trash2Icon />
+                      Delete tier list
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </PageTopBarActions>
+            </PageTopBar>
+          }
+        >
+          <TierListPool />
+        </BuilderWorkbench>
+      </TierListDndContext>
 
       <TierListDetailsDialog tierList={tierList} open={detailsOpen} onOpenChange={setDetailsOpen} />
       <TierListShareDialog
@@ -304,6 +290,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageTopBarHeightContext>
+    </>
   );
 }

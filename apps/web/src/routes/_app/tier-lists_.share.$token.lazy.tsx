@@ -10,5 +10,7 @@ export const Route = createLazyFileRoute("/_app/tier-lists_/share/$token")({
 function SharedTierListPage() {
   const { token } = Route.useParams();
   const { data } = usePublicTierList(token);
-  return <TierListShareView data={data} />;
+  // The public response deliberately omits the share token (reaching it already
+  // proves the token was known), so the Present link gets it from the URL.
+  return <TierListShareView data={data} token={token} />;
 }
