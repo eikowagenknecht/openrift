@@ -7,19 +7,33 @@ import { buttonVariants } from "@/components/ui/button";
 import { tierListQueryOptions } from "@/hooks/use-tier-lists";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierListId")({
   ssr: "data-only",
+  // The builder hosts a full card browser (the pool), so it carries the shared
+  // filter search params like /cards and the deck editor do.
+  validateSearch: filterSearchSchema,
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tier list", noIndex: true }),
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, search, location, params }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
     )) as FeatureFlags;
     if (!featureEnabled(flags, "tier-lists")) {
       throw redirect({ to: "/cards" });
+    }
+    // Strip unknown / malformed search params — same canonicalization as /cards.
+    const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
+    if (cleaned) {
+      throw redirect({
+        to: "/tier-lists/$tierListId",
+        params: { tierListId: params.tierListId },
+        search: cleaned,
+        replace: true,
+      });
     }
   },
   loader: async ({ context, params }) => {
