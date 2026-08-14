@@ -1,5 +1,5 @@
 import type { Card, Printing, TierRow } from "@openrift/shared";
-import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
@@ -10,6 +10,7 @@ import {
   useTierTileWidth,
 } from "@/components/tier-lists/tier-card-tile";
 import { Pressable } from "@/components/ui/pressable";
+import type { ResolvedTierRow } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,9 +28,10 @@ export function resolveTierRows(
   rows: readonly TierRow[],
   cardsById: Record<string, Card>,
   printingsByCardId: Map<string, Printing[]>,
-): { label: string; cards: TierCardView[] }[] {
+): ResolvedTierRow[] {
   return rows.map((row) => ({
     label: row.label,
+    unranked: row.unranked === true,
     cards: row.cards.flatMap((entry) => {
       const card = cardsById[entry.cardId];
       if (!card) {
@@ -53,6 +55,8 @@ export function resolveTierRows(
 
 interface TierRowFrameProps {
   rowIndex: number;
+  /** Draws the chip grey and off the ranking ramp. */
+  unranked?: boolean;
   /** The label chip. Static text on a read-only board, a rename control in the builder. */
   label: ReactNode;
   /** Controls shown before the label chip (e.g. the builder's drag handle). */
@@ -78,6 +82,7 @@ interface TierRowFrameProps {
  */
 export function TierRowFrame({
   rowIndex,
+  unranked,
   label,
   leading,
   trailing,
@@ -98,7 +103,7 @@ export function TierRowFrame({
         // wrap-anywhere, not truncate: a renamed tier ("Absolutely broken")
         // should read on more than one line rather than lose its tail.
         className="flex w-12 shrink-0 items-center justify-center px-1 text-center font-bold wrap-anywhere sm:w-14"
-        style={{ backgroundColor: tierColor(rowIndex), color: TIER_LABEL_INK }}
+        style={{ backgroundColor: tierRowColor(rowIndex, unranked), color: TIER_LABEL_INK }}
       >
         {label}
       </div>
@@ -114,7 +119,7 @@ export function TierRowFrame({
 }
 
 interface TierBoardProps {
-  rows: readonly { label: string; cards: TierCardView[] }[];
+  rows: readonly ResolvedTierRow[];
   /** Called when a tile is clicked; opens the card detail on the share page. */
   onCardClick?: (view: TierCardView) => void;
   /**
@@ -159,7 +164,7 @@ export function TierBoard({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {rows.map((row, rowIndex) => (
-        <TierRowFrame key={rowIndex} rowIndex={rowIndex} label={row.label}>
+        <TierRowFrame key={rowIndex} rowIndex={rowIndex} unranked={row.unranked} label={row.label}>
           {row.cards.length === 0 ? (
             <span className="text-muted-foreground px-1 text-sm italic">{emptyRowLabel}</span>
           ) : (

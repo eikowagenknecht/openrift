@@ -8,25 +8,16 @@ import { tierRowMinHeight } from "./tier-card-tile";
 const ASPECT = 88 / 63;
 
 describe("tierRowMinHeight", () => {
-  it("leaves room for a tile plus the row's own padding", () => {
-    // The whole point of the helper: a row that already fits a tile does not
-    // grow when the first card lands in it.
+  it("is exactly a tile plus the row's own padding, at every size", () => {
+    // The whole point of the helper: an empty row is the same height as a full
+    // one, so the ladder does not twitch as cards land. Exact rather than
+    // rounded — a pixel of slack was visible as the row settling.
     for (const width of TIER_TILE_WIDTHS) {
-      expect(tierRowMinHeight(width)).toBeGreaterThanOrEqual(width * ASPECT + 8);
-    }
-  });
-
-  it("stays tight — never more than a pixel of slack over the tile", () => {
-    for (const width of TIER_TILE_WIDTHS) {
-      expect(tierRowMinHeight(width)).toBeLessThan(width * ASPECT + 9);
+      expect(tierRowMinHeight(width)).toBe(width * ASPECT + 8);
     }
   });
 
   it("grows with the tile", () => {
     expect(tierRowMinHeight(112)).toBeGreaterThan(tierRowMinHeight(40));
-  });
-
-  it("returns whole pixels", () => {
-    expect(tierRowMinHeight(56) % 1).toBe(0);
   });
 });

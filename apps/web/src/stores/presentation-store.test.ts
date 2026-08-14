@@ -62,8 +62,26 @@ describe("presentation store", () => {
   it("starts a ranking on the whole board, walked from the top tier down", () => {
     const state = usePresentationStore.getState();
     expect(state.boardMode).toBe(true);
+    expect(state.showHero).toBe(true);
     expect(state.reveal).toBe(false);
     expect(state.direction).toBe("best-first");
+  });
+
+  it("hides the card beside the board without touching the rules text", () => {
+    usePresentationStore.getState().toggleText();
+
+    usePresentationStore.getState().toggleHero();
+
+    expect(usePresentationStore.getState().showHero).toBe(false);
+    expect(usePresentationStore.getState().showText).toBe(true);
+  });
+
+  it("hides the rules text without taking the card with it", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().toggleText();
+
+    expect(usePresentationStore.getState().showText).toBe(false);
+    expect(usePresentationStore.getState().showHero).toBe(true);
   });
 
   it("drops the board layout for one card at a time", () => {

@@ -85,7 +85,7 @@ function TierBoardPresentation({
       boardControls
     >
       {boardMode ? (
-        <TierStageMain rows={rows} queue={queue} index={index} />
+        <TierStageMain rows={rows} queue={queue} index={index} onIndexChange={onIndexChange} />
       ) : (
         <CardStageMain items={queue} index={index} />
       )}

@@ -30,7 +30,28 @@ export const TIER_COLORS = [
 /** Ink used on a tier chip. Dark on every ramp colour, in both themes. */
 export const TIER_LABEL_INK = "#14161d";
 
+/**
+ * The unranked row's colour: off the ramp entirely, so "these did not make the
+ * cut" never reads as a rank of its own. Grey rather than a darker red — the
+ * bottom of the ramp is already the worst tier, and a second red row would
+ * compete with it.
+ */
+export const TIER_UNRANKED_COLOR = "#8b8f9a";
+
 /** @returns The colour for a row at `index`, wrapping past the palette's end. */
 export function tierColor(index: number): string {
   return TIER_COLORS[index % TIER_COLORS.length] ?? TIER_COLORS[0];
+}
+
+/**
+ * The colour a board row is drawn in.
+ *
+ * The unranked row is deliberately not part of the ramp, so it keeps its grey
+ * wherever it sits and the ranked rows above it keep the colours they would
+ * have had without it.
+ *
+ * @returns The row's chip colour.
+ */
+export function tierRowColor(index: number, unranked?: boolean): string {
+  return unranked === true ? TIER_UNRANKED_COLOR : tierColor(index);
 }

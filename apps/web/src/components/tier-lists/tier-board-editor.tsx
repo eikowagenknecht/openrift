@@ -21,6 +21,7 @@ import type {
   TierCardDropData,
   TierRowDropData,
 } from "@/components/tier-lists/tier-list-dnd-types";
+import type { TierPickerRow } from "@/components/tier-lists/tier-picker";
 import { TierPicker } from "@/components/tier-lists/tier-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,7 +70,10 @@ export function TierBoardEditor({
 }: TierBoardEditorProps) {
   const rows = useTierListBuilderStore((state) => state.rows);
   const addRow = useTierListBuilderStore((state) => state.addRow);
+  const addUnrankedRow = useTierListBuilderStore((state) => state.addUnrankedRow);
   const resolved = resolveTierRows(rows, cardsById, printingsByCardId);
+  const hasUnranked = rows.some((row) => row.unranked === true);
+  const roomForMore = rows.length < MAX_TIER_ROWS;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -78,17 +82,30 @@ export function TierBoardEditor({
           key={rowIndex}
           rowIndex={rowIndex}
           label={row.label}
+          unranked={row.unranked}
           cards={row.cards}
           rowCount={resolved.length}
+          hasUnranked={hasUnranked}
           tapToAssign={tapToAssign}
           onHoverCard={onHoverCard}
         />
       ))}
-      {rows.length < MAX_TIER_ROWS && (
-        <Button variant="outline" className="border-dashed" onClick={addRow}>
-          <PlusIcon />
-          Add a tier
-        </Button>
+      {roomForMore && (
+        <div className="flex gap-1.5">
+          <Button variant="outline" className="flex-1 border-dashed" onClick={addRow}>
+            <PlusIcon />
+            Add a tier
+          </Button>
+          {!hasUnranked && (
+            // The cut pile: a place for cards the creator considered and passed
+            // on, so a viewer of the finished board can tell "not ranked" from
+            // "never looked at".
+            <Button variant="outline" className="flex-1 border-dashed" onClick={addUnrankedRow}>
+              <PlusIcon />
+              Add an unranked row
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -97,8 +114,12 @@ export function TierBoardEditor({
 interface EditableTierRowProps {
   rowIndex: number;
   label: string;
+  /** The grey cut pile, which is pinned to the bottom and cannot be reordered. */
+  unranked?: boolean;
   cards: TierCardView[];
   rowCount: number;
+  /** Whether the board carries an unranked row, which no ranked row may move below. */
+  hasUnranked: boolean;
   tapToAssign: boolean;
   onHoverCard?: (view: TierCardView | null) => void;
 }
@@ -106,8 +127,10 @@ interface EditableTierRowProps {
 function EditableTierRow({
   rowIndex,
   label,
+  unranked,
   cards,
   rowCount,
+  hasUnranked,
   tapToAssign,
   onHoverCard,
 }: EditableTierRowProps) {
@@ -144,7 +167,15 @@ function EditableTierRow({
   // The handle is the only drag source for a row: the label is an editable
   // control and the tiles are their own drag sources, so neither can double as
   // one. Hidden while tap-to-assign is on, where the menu does the reordering.
-  const handle = tapToAssign ? undefined : <RowDragHandle rowIndex={rowIndex} label={label} />;
+  // The unranked row is pinned to the bottom, so it gets no grip either.
+  const handle =
+    tapToAssign || unranked === true ? undefined : (
+      <RowDragHandle rowIndex={rowIndex} label={label} />
+    );
+
+  // A ranked row can only move down into another ranked slot: the last index
+  // belongs to the cut pile when the board has one.
+  const lastMovableIndex = hasUnranked ? rowCount - 2 : rowCount - 1;
 
   // A menu rather than a stack of icon buttons: three stacked buttons are
   // taller than the row itself, and reordering is a rare action next to
@@ -160,24 +191,34 @@ function EditableTierRow({
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            disabled={rowIndex === 0}
-            onClick={() => moveRow(rowIndex, rowIndex - 1)}
-          >
-            <ChevronUpIcon />
-            Move up
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={rowIndex === rowCount - 1}
-            onClick={() => moveRow(rowIndex, rowIndex + 1)}
-          >
-            <ChevronDownIcon />
-            Move down
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {unranked !== true && (
+            <>
+              <DropdownMenuItem
+                disabled={rowIndex === 0}
+                onClick={() => moveRow(rowIndex, rowIndex - 1)}
+              >
+                <ChevronUpIcon />
+                Move up
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={rowIndex >= lastMovableIndex}
+                onClick={() => moveRow(rowIndex, rowIndex + 1)}
+              >
+                <ChevronDownIcon />
+                Move down
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem variant="destructive" onClick={() => removeRow(rowIndex)}>
             <Trash2Icon />
-            {cards.length > 0 ? "Remove tier and unrank its cards" : "Remove tier"}
+            {unranked === true
+              ? cards.length > 0
+                ? "Remove row and return its cards to the pool"
+                : "Remove row"
+              : cards.length > 0
+                ? "Remove tier and unrank its cards"
+                : "Remove tier"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -188,6 +229,7 @@ function EditableTierRow({
     <div ref={setNodeRef}>
       <TierRowFrame
         rowIndex={rowIndex}
+        unranked={unranked}
         label={labelControl}
         leading={handle}
         trailing={controls}
@@ -271,9 +313,9 @@ function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }
   const dropData: TierCardDropData = { type: "tier-card", cardId: view.cardId, rowIndex, position };
 
   // Labels captured at open, not subscribed — see PoolCardStrip for why.
-  const [picker, setPicker] = useState<{ open: boolean; labels: string[] }>({
+  const [picker, setPicker] = useState<{ open: boolean; rows: TierPickerRow[] }>({
     open: false,
-    labels: [],
+    rows: [],
   });
   const assign = useTierListBuilderStore((state) => state.assign);
   const unassign = useTierListBuilderStore((state) => state.unassign);
@@ -300,7 +342,7 @@ function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }
   if (tapToAssign) {
     return (
       <TierPicker
-        labels={picker.labels}
+        rows={picker.rows}
         cardName={view.card.name}
         currentRowIndex={rowIndex}
         onPick={(target) => assign(view.cardId, target)}
@@ -309,7 +351,11 @@ function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }
         onOpenChange={(open) => {
           setPicker({
             open,
-            labels: open ? useTierListBuilderStore.getState().rows.map((row) => row.label) : [],
+            rows: open
+              ? useTierListBuilderStore
+                  .getState()
+                  .rows.map((row) => ({ label: row.label, unranked: row.unranked }))
+              : [],
           });
         }}
         trigger={

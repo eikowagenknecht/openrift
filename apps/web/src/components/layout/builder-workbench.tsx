@@ -19,12 +19,6 @@ interface BuilderWorkbenchProps {
   aside: ReactNode;
   /** Width utilities for the aside column at `lg`. */
   asideClassName?: string;
-  /**
-   * Hides the main column so the aside fills the width. A recording posture
-   * rather than a preference, so the caller owns the state and nothing here
-   * persists it.
-   */
-  asideOnly?: boolean;
   /** Ref on the two-column row, for an overlay anchored to it. */
   columnsRef?: Ref<HTMLDivElement>;
   /** Rendered inside the two-column row, before the columns. */
@@ -65,7 +59,6 @@ export function BuilderWorkbench({
   topBar,
   aside,
   asideClassName,
-  asideOnly,
   columnsRef,
   overlay,
   children,
@@ -88,19 +81,24 @@ export function BuilderWorkbench({
           className="px-safe relative flex flex-1 flex-col gap-4 px-3 lg:flex-row"
         >
           {overlay}
-          <div
-            className={cn("w-full", asideOnly ? "lg:max-w-none" : cn("shrink-0", asideClassName))}
-          >
+          <div className={cn("w-full shrink-0", asideClassName)}>
             {/* The max height is lg-only: below that the aside is a plain block
-                in the page flow with nothing to scroll. */}
+                in the page flow with nothing to scroll.
+
+                `-mx-1 px-1`: setting `overflow-y` computes `overflow-x` to
+                `auto` too, so the box clips at its content edge and shaves the
+                outset ring off whatever is inside (the tier rows' `ring-1`, a
+                focused control's 2px ring). The padding gives the ring room and
+                the negative margin pulls the column back to where it was, so
+                nothing moves. */}
             <div
-              className="pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--workbench-aside-top))] lg:overflow-y-auto"
+              className="-mx-1 px-1 pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--workbench-aside-top))] lg:overflow-y-auto"
               style={{ top: stickyTop, "--workbench-aside-top": `${stickyTop}px` } as CSSProperties}
             >
               {aside}
             </div>
           </div>
-          {!asideOnly && children}
+          {children}
         </div>
       </div>
     </PageTopBarHeightContext>

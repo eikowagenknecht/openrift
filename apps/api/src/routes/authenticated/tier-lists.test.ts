@@ -24,7 +24,6 @@ const mockTierListsRepo = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const LIST_ID = "70000000-0001-4000-a000-000000000001";
-const SET_ID = "50000000-0001-4000-a000-000000000001";
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
 
@@ -50,7 +49,6 @@ function dbRow(overrides: Record<string, unknown> = {}) {
     userId: USER_ID,
     title: "Origins — best commons",
     description: null,
-    setId: null,
     tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: null }] }],
     isPublic: false,
     shareToken: null,
@@ -137,7 +135,6 @@ describe("POST /tier-lists", () => {
     expect(mockTierListsRepo.create).toHaveBeenCalledWith(USER_ID, {
       title: "Origins",
       description: null,
-      setId: null,
       tiers: [
         { label: "S", cards: [] },
         { label: "A", cards: [] },
@@ -153,12 +150,12 @@ describe("POST /tier-lists", () => {
 
     await request("/tier-lists", {
       method: "POST",
-      body: JSON.stringify({ title: "  Origins  ", description: "   ", setId: SET_ID }),
+      body: JSON.stringify({ title: "  Origins  ", description: "   " }),
     });
 
     expect(mockTierListsRepo.create).toHaveBeenCalledWith(
       USER_ID,
-      expect.objectContaining({ title: "Origins", description: null, setId: SET_ID }),
+      expect.objectContaining({ title: "Origins", description: null }),
     );
   });
 

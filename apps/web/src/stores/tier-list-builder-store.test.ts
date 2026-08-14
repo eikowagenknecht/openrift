@@ -353,6 +353,96 @@ describe("moveRow", () => {
   });
 });
 
+describe("the unranked row", () => {
+  it("goes on at the bottom, flagged", () => {
+    state().addUnrankedRow();
+
+    const rows = state().rows;
+    expect(rows.at(-1)).toMatchObject({ label: "Unranked", unranked: true });
+    expect(rows.filter((row) => row.unranked === true)).toHaveLength(1);
+  });
+
+  it("is refused a second time", () => {
+    state().addUnrankedRow();
+    state().addUnrankedRow();
+
+    expect(state().rows.filter((row) => row.unranked === true)).toHaveLength(1);
+  });
+
+  it("keeps the bottom when a ranked row is added after it", () => {
+    state().addUnrankedRow();
+    state().addRow();
+
+    expect(state().rows.map((row) => row.label)).toEqual(["S", "A", "B", "F", "Unranked"]);
+  });
+
+  it("cannot be dragged out of the bottom slot", () => {
+    state().addUnrankedRow();
+    const before = state().rows.map((row) => row.label);
+
+    state().moveRow(3, 0);
+
+    expect(state().rows.map((row) => row.label)).toEqual(before);
+  });
+
+  it("cannot be displaced by a ranked row moving down", () => {
+    state().addUnrankedRow();
+
+    state().moveRow(2, 3);
+
+    expect(state().rows.at(-1)?.unranked).toBe(true);
+  });
+
+  it("still lets ranked rows reorder among themselves", () => {
+    state().addUnrankedRow();
+
+    state().moveRow(0, 2);
+
+    expect(state().rows.map((row) => row.label)).toEqual(["A", "B", "S", "Unranked"]);
+  });
+
+  it("holds cards like any other row", () => {
+    state().addUnrankedRow();
+
+    state().assign("card-1", 3);
+
+    expect(state().rowIndexByCardId.get("card-1")).toBe(3);
+    expect(
+      state()
+        .rows.at(-1)
+        ?.cards.map((card) => card.cardId),
+    ).toEqual(["card-1"]);
+  });
+
+  it("keeps its flag through a card edit", () => {
+    state().addUnrankedRow();
+
+    state().assign("card-1", 3);
+    state().unassign("card-1");
+
+    expect(state().rows.at(-1)?.unranked).toBe(true);
+  });
+
+  it("is refused once the board is full", () => {
+    while (state().rows.length < MAX_TIER_ROWS) {
+      state().addRow();
+    }
+
+    state().addUnrankedRow();
+
+    expect(state().rows).toHaveLength(MAX_TIER_ROWS);
+    expect(state().rows.some((row) => row.unranked === true)).toBe(false);
+  });
+
+  it("survives a load, and a board without one has no flagged rows", () => {
+    state().load("list-2", [tier("S", []), { ...tier("Cut", []), unranked: true }]);
+    expect(state().rows.at(-1)?.unranked).toBe(true);
+
+    state().load("list-3", board());
+    expect(state().rows.some((row) => row.unranked === true)).toBe(false);
+  });
+});
+
 describe("markSaved and reset", () => {
   it("clears dirty while keeping the board", () => {
     state().assign("card-9", 0);

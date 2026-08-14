@@ -1,4 +1,4 @@
-import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
 import { CornerUpLeftIcon } from "lucide-react";
 import type { MouseEvent, ReactElement } from "react";
 import { cloneElement } from "react";
@@ -21,9 +21,16 @@ import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 
+/** One option in the picker: a board row, in board order. */
+export interface TierPickerRow {
+  label: string;
+  /** The grey cut pile rather than a rank. */
+  unranked?: boolean;
+}
+
 interface TierPickerProps {
-  /** Row labels in board order; the index is the tier the option assigns to. */
-  labels: readonly string[];
+  /** Rows in board order; the index is the tier the option assigns to. */
+  rows: readonly TierPickerRow[];
   /** Card being ranked, shown as the drawer's heading on touch. */
   cardName: string;
   /** Index of the row the card currently sits in, or null when it is unranked. */
@@ -47,7 +54,7 @@ interface TierPickerProps {
  * @returns The picker node, including its trigger.
  */
 export function TierPicker({
-  labels,
+  rows,
   cardName,
   currentRowIndex,
   onPick,
@@ -71,7 +78,7 @@ export function TierPicker({
               <DrawerDescription>Pick a tier for this card.</DrawerDescription>
             </DrawerHeader>
             <div className="flex flex-col gap-1 p-3 pt-0">
-              {labels.map((label, rowIndex) => (
+              {rows.map((row, rowIndex) => (
                 <Pressable
                   key={rowIndex}
                   className={cn(
@@ -83,8 +90,8 @@ export function TierPicker({
                     onOpenChange(false);
                   }}
                 >
-                  <TierSwatch label={label} rowIndex={rowIndex} />
-                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <TierSwatch label={row.label} rowIndex={rowIndex} unranked={row.unranked} />
+                  <span className="min-w-0 flex-1 truncate">{row.label}</span>
                   {rowIndex === currentRowIndex && (
                     <span className="text-muted-foreground text-sm">Current</span>
                   )}
@@ -113,10 +120,10 @@ export function TierPicker({
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger render={trigger} />
       <DropdownMenuContent align="start">
-        {labels.map((label, rowIndex) => (
+        {rows.map((row, rowIndex) => (
           <DropdownMenuItem key={rowIndex} onClick={() => onPick(rowIndex)}>
-            <TierSwatch label={label} rowIndex={rowIndex} />
-            <span className="min-w-0 flex-1 truncate">{label}</span>
+            <TierSwatch label={row.label} rowIndex={rowIndex} unranked={row.unranked} />
+            <span className="min-w-0 flex-1 truncate">{row.label}</span>
             {rowIndex === currentRowIndex && (
               <span className="text-muted-foreground text-sm">Current</span>
             )}
@@ -136,12 +143,20 @@ export function TierPicker({
   );
 }
 
-function TierSwatch({ label, rowIndex }: { label: string; rowIndex: number }) {
+function TierSwatch({
+  label,
+  rowIndex,
+  unranked,
+}: {
+  label: string;
+  rowIndex: number;
+  unranked?: boolean;
+}) {
   return (
     <span
       aria-hidden
       className="text-2xs grid size-5 shrink-0 place-items-center rounded-sm font-bold"
-      style={{ backgroundColor: tierColor(rowIndex), color: TIER_LABEL_INK }}
+      style={{ backgroundColor: tierRowColor(rowIndex, unranked), color: TIER_LABEL_INK }}
     >
       {label.slice(0, 2)}
     </span>

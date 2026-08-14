@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict g7S2TTcHcs4oyAbAes9GedegrPGpk1Q9pXUBLTwAd4xQOVS5w02bEU1fHh68bsm
+\restrict gshPq4cvfyeBxtcsBjQuUMNO6NEoFmfLfhX9xYAmSPYGC7uu8cNBjhENAYGjlL3
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2631,7 +2631,6 @@ CREATE TABLE public.tier_lists (
     user_id text NOT NULL,
     title text NOT NULL,
     description text,
-    set_id uuid,
     tiers jsonb DEFAULT '[]'::jsonb NOT NULL,
     is_public boolean DEFAULT false NOT NULL,
     share_token text,
@@ -6934,14 +6933,6 @@ ALTER TABLE ONLY public.tag_definitions
 
 
 --
--- Name: tier_lists tier_lists_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tier_lists
-    ADD CONSTRAINT tier_lists_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.sets(id) ON DELETE SET NULL;
-
-
---
 -- Name: tier_lists tier_lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7065,5 +7056,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict g7S2TTcHcs4oyAbAes9GedegrPGpk1Q9pXUBLTwAd4xQOVS5w02bEU1fHh68bsm
+\unrestrict gshPq4cvfyeBxtcsBjQuUMNO6NEoFmfLfhX9xYAmSPYGC7uu8cNBjhENAYGjlL3
 

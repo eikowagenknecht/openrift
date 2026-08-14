@@ -15,9 +15,20 @@ function toTierCard(card: TierListCard): { cardId: string; printingId: string | 
   return { cardId: card.cardId, printingId: card.printingId };
 }
 
-/** @returns One board row as its response shape, detached from the row. */
+/**
+ * @returns One board row as its response shape, detached from the row. The
+ * unranked flag is sent only when set, so an ordinary board stays as small on
+ * the wire as it was before the row existed.
+ */
 function toTierRow(tier: TierListRow) {
-  return { label: tier.label, cards: tier.cards.map(toTierCard) };
+  const row: { label: string; cards: ReturnType<typeof toTierCard>[]; unranked?: boolean } = {
+    label: tier.label,
+    cards: tier.cards.map(toTierCard),
+  };
+  if (tier.unranked === true) {
+    row.unranked = true;
+  }
+  return row;
 }
 
 /**
@@ -29,7 +40,6 @@ export function toTierList(row: TierList): TierListResponse {
     id: row.id,
     title: row.title,
     description: row.description,
-    setId: row.setId,
     tiers: row.tiers.map(toTierRow),
     isPublic: row.isPublic,
     shareToken: row.shareToken,
@@ -53,7 +63,6 @@ export function toTierListSummary(row: TierList): TierListSummaryResponse {
     id: row.id,
     title: row.title,
     description: row.description,
-    setId: row.setId,
     tierCount: row.tiers.length,
     cardCount: row.tiers.reduce((sum, tier) => sum + tier.cards.length, 0),
     previewCards: firstFilled
@@ -77,7 +86,6 @@ export function toPublicTierList(row: TierList): PublicTierListResponse {
     id: row.id,
     title: row.title,
     description: row.description,
-    setId: row.setId,
     tiers: row.tiers.map(toTierRow),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

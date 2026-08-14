@@ -66,14 +66,13 @@ export const tierListsRouter = {
       // The contract's `.trim()` already normalized the title.
       title: input.title,
       description: normalizeText(input.description) ?? null,
-      setId: input.setId ?? null,
       tiers: input.tiers ?? defaultTiers(),
     });
     return toTierList(row);
   }),
 
   update: os.update.handler(async ({ input, context }): Promise<TierListResponse> => {
-    const { id, title, description, setId, tiers } = input;
+    const { id, title, description, tiers } = input;
     // Spread-in-place rather than a fully-optional object literal: an explicit
     // `undefined` key would still reach Kysely's SET clause and null the column.
     const values: Parameters<typeof context.repos.tierLists.update>[2] = {};
@@ -83,9 +82,6 @@ export const tierListsRouter = {
     const normalizedDescription = normalizeText(description);
     if (normalizedDescription !== undefined) {
       values.description = normalizedDescription;
-    }
-    if (setId !== undefined) {
-      values.setId = setId;
     }
     if (tiers !== undefined) {
       values.tiers = tiers;

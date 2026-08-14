@@ -24,6 +24,8 @@ describe("resolvePresentationKey", () => {
     ["F", "toggleStrip"],
     ["b", "toggleBoard"],
     ["B", "toggleBoard"],
+    ["c", "toggleHero"],
+    ["C", "toggleHero"],
     ["r", "toggleReveal"],
     ["R", "toggleReveal"],
     ["d", "toggleDirection"],
@@ -53,6 +55,7 @@ describe("BOARD_ACTIONS", () => {
     expect([...BOARD_ACTIONS].toSorted()).toEqual([
       "toggleBoard",
       "toggleDirection",
+      "toggleHero",
       "toggleReveal",
     ]);
   });

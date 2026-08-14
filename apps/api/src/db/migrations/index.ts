@@ -186,6 +186,7 @@ import * as m237 from "./237-tier-lists.js";
 import * as m238 from "./238-overlay-channels.js";
 import * as m239 from "./239-drop-deck-is-wanted.js";
 import * as m240 from "./240-deck-variants.js";
+import * as m241 from "./241-drop-tier-list-set.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -431,4 +432,5 @@ export const migrations: Record<string, Migration> = {
   "238-overlay-channels": m238,
   "239-drop-deck-is-wanted": m239,
   "240-deck-variants": m240,
+  "241-drop-tier-list-set": m241,
 };

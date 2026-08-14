@@ -15,7 +15,6 @@ export const publicTierListResponseSchema = z
     id: z.string(),
     title: z.string(),
     description: z.string().nullable(),
-    setId: z.string().nullable(),
     tiers: z.array(tierRowResponseSchema),
     createdAt: z.string(),
     updatedAt: z.string(),

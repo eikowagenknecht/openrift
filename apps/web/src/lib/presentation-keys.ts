@@ -12,6 +12,7 @@ export type PresentationAction =
   | "toggleStrip"
   | "toggleHelp"
   | "toggleBoard"
+  | "toggleHero"
   | "toggleReveal"
   | "toggleDirection"
   | "exit";
@@ -23,6 +24,7 @@ export type PresentationAction =
  */
 export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<PresentationAction>([
   "toggleBoard",
+  "toggleHero",
   "toggleReveal",
   "toggleDirection",
 ]);
@@ -76,6 +78,10 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "b":
     case "B": {
       return "toggleBoard";
+    }
+    case "c":
+    case "C": {
+      return "toggleHero";
     }
     case "r":
     case "R": {

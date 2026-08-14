@@ -15,7 +15,6 @@ function makeRow(overrides: Partial<TierList> = {}): TierList {
     userId: "a0000000-0001-4000-a000-000000000001",
     title: "Origins — best commons",
     description: "Limited only.",
-    setId: "50000000-0001-4000-a000-000000000001",
     tiers: [
       { label: "S", cards: entries([CARD(1), CARD(2)]) },
       { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
@@ -35,7 +34,6 @@ describe("toTierList", () => {
       id: "70000000-0001-4000-a000-000000000001",
       title: "Origins — best commons",
       description: "Limited only.",
-      setId: "50000000-0001-4000-a000-000000000001",
       tiers: [
         { label: "S", cards: entries([CARD(1), CARD(2)]) },
         { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
@@ -69,10 +67,8 @@ describe("toTierList", () => {
     expect(toTierList(makeRow({ tiers: [] })).tiers).toEqual([]);
   });
 
-  it("keeps a null description and set scope null", () => {
-    const response = toTierList(makeRow({ description: null, setId: null }));
-    expect(response.description).toBeNull();
-    expect(response.setId).toBeNull();
+  it("keeps a null description null", () => {
+    expect(toTierList(makeRow({ description: null })).description).toBeNull();
   });
 });
 
@@ -132,7 +128,6 @@ describe("toPublicTierList", () => {
       id: "70000000-0001-4000-a000-000000000001",
       title: "Origins — best commons",
       description: "Limited only.",
-      setId: "50000000-0001-4000-a000-000000000001",
       tiers: [
         { label: "S", cards: entries([CARD(1), CARD(2)]) },
         { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },

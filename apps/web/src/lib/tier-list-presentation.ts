@@ -9,6 +9,8 @@ import type { PresentationItem } from "@/lib/presentation-queue";
 export interface ResolvedTierRow {
   label: string;
   cards: TierCardView[];
+  /** The grey "considered and cut" row, always the last one. */
+  unranked?: boolean;
 }
 
 /**
@@ -95,7 +97,7 @@ export function revealedRows(
 ): ResolvedTierRow[] {
   const placed = new Set(queue.slice(0, Math.max(count, 0)).map((stop) => stop.id));
   return rows.map((row, rowIndex) => ({
-    label: row.label,
+    ...row,
     cards: row.cards.filter((view, position) =>
       view.printing ? placed.has(stopId(rowIndex, position, view.printing.id)) : false,
     ),

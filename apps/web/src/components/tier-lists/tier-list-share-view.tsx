@@ -101,13 +101,8 @@ function TierListShareBoard({ data }: TierListShareViewProps) {
 }
 
 function TierListShareBoardInner({ data }: TierListShareViewProps) {
-  const { cardsById, printingsByCardId, sets } = useCards();
+  const { cardsById, printingsByCardId } = useCards();
   const showImages = useDisplayStore((state) => state.showImages);
-  // Resolved here rather than shipped by the API for the same reason cards
-  // travel as bare ids: the client already holds the catalogue.
-  const setName = data.tierList.setId
-    ? sets.find((set) => set.id === data.tierList.setId)?.name
-    : undefined;
 
   const rows = resolveTierRows(data.tierList.tiers, cardsById, printingsByCardId);
   // Every ranked card, in board order, so the detail overlay's next/previous
@@ -123,7 +118,6 @@ function TierListShareBoardInner({ data }: TierListShareViewProps) {
 
   return (
     <>
-      {setName && <p className="text-muted-foreground text-sm">Ranking cards from {setName}.</p>}
       <TierBoard rows={rows} onCardClick={handleCardClick} />
       <SelectionDetailOverlays
         items={items}

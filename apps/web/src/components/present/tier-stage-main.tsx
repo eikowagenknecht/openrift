@@ -1,6 +1,7 @@
 import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
 import { PresentationTextPanel } from "@/components/present/card-stage-main";
 import { TierBoard } from "@/components/tier-lists/tier-board";
+import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import type { ResolvedTierRow, TierQueueStop } from "@/lib/tier-list-presentation";
 import { revealedRows } from "@/lib/tier-list-presentation";
 import { usePresentationStore } from "@/stores/presentation-store";
@@ -14,11 +15,15 @@ import { usePresentationStore } from "@/stores/presentation-store";
  * - **Spotlight** (reveal off). The finished board is up and the current card is
  *   ringed while the rest dim. The audience keeps the whole ranking in view
  *   while the talk moves card to card, which is what a "here is my list" segment
- *   wants.
+ *   wants. Clicking any tile jumps the run to that card.
  * - **Reveal** (reveal on). The board holds only what the run has already
  *   placed, and the current card waits beside it. Stepping forward is what drops
  *   it into its tier, so the ladder fills as the segment goes — the beat a
  *   ranking video is built on.
+ *
+ * The card beside the board (`C`) and its rules text (`T`) are independent: a
+ * creator frames the artwork and the wall of text separately, so turning the
+ * text off must not take the card with it.
  *
  * @returns The board layout, or null when the queue has nothing at this index.
  */
@@ -26,13 +31,16 @@ export function TierStageMain({
   rows,
   queue,
   index,
+  onIndexChange,
 }: {
   /** The full board, in board order regardless of which way the run walks it. */
   rows: readonly ResolvedTierRow[];
   queue: readonly TierQueueStop[];
   index: number;
+  onIndexChange: (index: number) => void;
 }) {
   const reveal = usePresentationStore((state) => state.reveal);
+  const showHero = usePresentationStore((state) => state.showHero);
   const showText = usePresentationStore((state) => state.showText);
   const cardScale = usePresentationStore((state) => state.cardScale);
 
@@ -47,41 +55,61 @@ export function TierStageMain({
   const focusCardId = reveal
     ? (queue[index - 1]?.printing.cardId ?? null)
     : current.printing.cardId;
-  // The hero is the reveal's whole point. Outside a reveal it stands in for the
-  // text panel's card, so `T` still has something to be a caption for.
-  const heroVisible = reveal || showText;
+  // A reveal is the card waiting to be placed, so it always holds one up.
+  const heroVisible = reveal || showHero || showText;
+
+  // Only outside a reveal: with the board complete, a tile is a place to jump
+  // to. Mid-reveal it would un-place everything after it, which is not what
+  // clicking a card you already ranked looks like it should do.
+  const handleCardClick = reveal
+    ? undefined
+    : (view: TierCardView) => {
+        const target = queue.findIndex((stop) => stop.printing.cardId === view.cardId);
+        if (target !== -1) {
+          onIndexChange(target);
+        }
+      };
 
   return (
     <div className="flex min-h-0 flex-1 items-stretch gap-[3vw] p-[3vh]">
       {heroVisible && (
-        <div className="flex min-h-0 max-w-[32vw] shrink-0 flex-col items-center justify-center gap-4">
-          <div
-            className="aspect-card relative min-h-0 shrink"
-            // A shorter card when the text panel is under it, so the pair still
-            // fits the stage rather than pushing the text off the bottom.
-            style={{ height: `${cardScale * (showText ? 55 : 85)}%` }}
-          >
-            {/* Keyed on the stop so each step replays the fade, which is what
-                reads as the card being *taken up* before it is placed. */}
-            <div key={current.id} className="animate-in fade-in absolute inset-0 duration-300">
-              <CardDetailArt printing={current.printing} showImages disableTilt />
+        // A fixed width, not one derived from the card box: a column that sized
+        // itself to whatever art had loaded reflowed the board on every step,
+        // which read as the ladder shaking.
+        <div className="flex min-h-0 w-[22rem] max-w-[30vw] shrink-0 flex-col items-center justify-center gap-4">
+          {showHero || reveal ? (
+            <div
+              className="aspect-card relative min-h-0 w-full shrink"
+              // A shorter card when the text panel is under it, so the pair
+              // still fits the stage rather than pushing the text off the bottom.
+              style={{ maxHeight: `${cardScale * (showText ? 55 : 90)}%` }}
+            >
+              {/* Keyed on the stop so each step replays the fade, which is what
+                  reads as the card being *taken up* before it is placed. */}
+              <div key={current.id} className="animate-in fade-in absolute inset-0 duration-300">
+                <CardDetailArt printing={current.printing} showImages disableTilt />
+              </div>
             </div>
-          </div>
-          {showText && (
-            <PresentationTextPanel printing={current.printing} className="w-[22rem] max-w-[32vw]" />
-          )}
+          ) : null}
+          {showText && <PresentationTextPanel printing={current.printing} className="w-full" />}
         </div>
       )}
 
       {/* `items-center` centres a short ladder; once it outgrows the stage the
-          container scrolls and the board's own focus scroll keeps up. */}
-      <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-y-auto">
+          container scrolls and the board's own focus scroll keeps up. The inner
+          padding (pulled back by the negative margin so nothing shifts) gives
+          the rows' outset ring somewhere to live: an overflow container clips
+          it flush against both edges otherwise. */}
+      <div className="-mx-1 flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-y-auto px-1 py-1">
         <TierBoard
           rows={shown}
           focusCardId={focusCardId}
           spotlight={!reveal}
+          onCardClick={handleCardClick}
           emptyRowLabel={reveal ? "" : "Nothing here"}
-          className="w-full"
+          // Capped so a wide screen doesn't stretch each tier into a single
+          // endless line — a ladder reads as a ladder only while the rows wrap.
+          className="w-full max-w-5xl"
         />
       </div>
     </div>

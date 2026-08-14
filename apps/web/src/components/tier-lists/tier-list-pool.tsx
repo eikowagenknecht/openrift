@@ -1,6 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { Printing } from "@openrift/shared";
-import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardCell } from "@/components/cards/card-cell";
@@ -8,6 +8,7 @@ import { CardStrip } from "@/components/cards/card-strip";
 import type { PickerCellProps } from "@/components/cards/picker-card-browser";
 import { PickerCardBrowser } from "@/components/cards/picker-card-browser";
 import type { PoolCardDragData } from "@/components/tier-lists/tier-list-dnd-types";
+import type { TierPickerRow } from "@/components/tier-lists/tier-picker";
 import { TierPicker } from "@/components/tier-lists/tier-picker";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -145,9 +146,9 @@ function PoolCardStrip({
   // would never compare equal and every cell in the grid would re-render on
   // every drag — exactly what the per-cell `rowIndex` subscription avoids. The
   // board cannot be edited while a picker is open, so the snapshot can't go stale.
-  const [picker, setPicker] = useState<{ open: boolean; labels: string[] }>({
+  const [picker, setPicker] = useState<{ open: boolean; rows: TierPickerRow[] }>({
     open: false,
-    labels: [],
+    rows: [],
   });
   const rowIndex = useTierListBuilderStore((state) => state.rowIndexByCardId.get(cardId) ?? null);
   const assign = useTierListBuilderStore((state) => state.assign);
@@ -155,11 +156,20 @@ function PoolCardStrip({
   const label = useTierListBuilderStore((state) =>
     rowIndex === null ? null : (state.rows[rowIndex]?.label ?? null),
   );
+  // Subscribed separately so the pill stays one primitive per selector: a
+  // selector returning the whole row would never compare equal.
+  const unranked = useTierListBuilderStore((state) =>
+    rowIndex === null ? false : state.rows[rowIndex]?.unranked === true,
+  );
 
   const handleOpenChange = (open: boolean) => {
     setPicker({
       open,
-      labels: open ? useTierListBuilderStore.getState().rows.map((row) => row.label) : [],
+      rows: open
+        ? useTierListBuilderStore
+            .getState()
+            .rows.map((row) => ({ label: row.label, unranked: row.unranked }))
+        : [],
     });
   };
 
@@ -167,7 +177,7 @@ function PoolCardStrip({
     <CardStrip
       center={
         <TierPicker
-          labels={picker.labels}
+          rows={picker.rows}
           cardName={cardName}
           currentRowIndex={rowIndex}
           onPick={(index) => assign(cardId, index, { printingId })}
@@ -181,7 +191,10 @@ function PoolCardStrip({
               style={
                 label === null
                   ? undefined
-                  : { backgroundColor: tierColor(rowIndex ?? 0), color: TIER_LABEL_INK }
+                  : {
+                      backgroundColor: tierRowColor(rowIndex ?? 0, unranked),
+                      color: TIER_LABEL_INK,
+                    }
               }
             >
               {label ?? "Rank"}

@@ -81,7 +81,13 @@ export {
 
 export { foldForSearch, squashForSearch } from "./search-fold.js";
 
-export { TIER_COLORS, TIER_LABEL_INK, tierColor } from "./tier-colors.js";
+export {
+  TIER_COLORS,
+  TIER_LABEL_INK,
+  TIER_UNRANKED_COLOR,
+  tierColor,
+  tierRowColor,
+} from "./tier-colors.js";
 
 export type { CardSearchIndex, SearchableCard, SearchablePrintingCodes } from "./card-search.js";
 export { buildCardIndex, findCard, searchCards } from "./card-search.js";

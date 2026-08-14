@@ -97,7 +97,6 @@ export function usePublicTierList(token: string) {
 interface CreateTierListBody {
   title: string;
   description?: string | null;
-  setId?: string | null;
 }
 
 const createTierListFn = createServerFn({ method: "POST" })
@@ -119,7 +118,6 @@ interface UpdateTierListBody {
   id: string;
   title?: string;
   description?: string | null;
-  setId?: string | null;
   tiers?: TierRow[];
 }
 

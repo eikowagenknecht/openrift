@@ -38,6 +38,7 @@ const KEY_HELP: { keys: string[]; what: string }[] = [
 /** Extra rows shown only when the run has a board behind it. */
 const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
   { keys: ["B"], what: "Whole board / one card" },
+  { keys: ["C"], what: "Current card beside the board" },
   { keys: ["R"], what: "Fill the board as you go" },
   { keys: ["D"], what: "Start from the bottom tier" },
 ];
@@ -104,9 +105,11 @@ function StageToggleRow({
  */
 function BoardSettings() {
   const boardMode = usePresentationStore((state) => state.boardMode);
+  const showHero = usePresentationStore((state) => state.showHero);
   const reveal = usePresentationStore((state) => state.reveal);
   const direction = usePresentationStore((state) => state.direction);
   const toggleBoard = usePresentationStore((state) => state.toggleBoard);
+  const toggleHero = usePresentationStore((state) => state.toggleHero);
   const toggleReveal = usePresentationStore((state) => state.toggleReveal);
   const toggleDirection = usePresentationStore((state) => state.toggleDirection);
   const tierTileStep = useDisplayStore((state) => state.tierTileStep);
@@ -127,6 +130,15 @@ function BoardSettings() {
         hotkey="B"
         checked={boardMode}
         onToggle={toggleBoard}
+      />
+      <StageToggleRow
+        id="stage-show-hero"
+        label="Current card"
+        hotkey="C"
+        // A reveal is the card waiting to be placed, so it holds the card up
+        // whatever this says — showing it off would be a lie about the stage.
+        checked={showHero || reveal}
+        onToggle={toggleHero}
       />
       <StageToggleRow
         id="stage-reveal"
@@ -351,6 +363,10 @@ export function PresentationStage({
         }
         case "toggleBoard": {
           store.toggleBoard();
+          break;
+        }
+        case "toggleHero": {
+          store.toggleHero();
           break;
         }
         case "toggleReveal": {

@@ -25,10 +25,16 @@ export function useTierTileWidth(): number {
  * The row height a tile of `tileWidth` needs, so a row is exactly as tall empty
  * as it is holding cards — dropping the first card into a tier must not resize
  * it under the pointer.
- * @returns The row's minimum height in pixels.
+ *
+ * Deliberately fractional. The tile's own height is `tileWidth × TILE_ASPECT`
+ * exactly (the thumb is `aspect-card`, which is the same 63/88), so rounding
+ * this up to whole pixels left an empty row up to a pixel taller than a full
+ * one — small, but it read as the ladder twitching as cards landed.
+ *
+ * @returns The row's minimum height in pixels, including its own padding.
  */
 export function tierRowMinHeight(tileWidth: number): number {
-  return Math.ceil(tileWidth * TILE_ASPECT) + ROW_PADDING;
+  return tileWidth * TILE_ASPECT + ROW_PADDING;
 }
 
 export interface TierCardView {

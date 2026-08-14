@@ -34,6 +34,14 @@ interface PresentationState {
    */
   boardMode: boolean;
   /**
+   * The current card, drawn large beside the board. Independent of
+   * {@link PresentationState.showText}: the card and its rules text are two
+   * things a creator frames separately, and turning the text off must not take
+   * the artwork with it. A reveal shows it regardless — the card waiting to be
+   * placed is what the reveal *is*.
+   */
+  showHero: boolean;
+  /**
    * Fill the board as the run goes rather than showing it complete. The card at
    * the current stop waits on the stage instead of sitting in its tier, so
    * stepping forward is what drops it in — the beat a ranking video is built on.
@@ -47,6 +55,7 @@ interface PresentationState {
   closeHelp: () => void;
   setCardScale: (scale: number) => void;
   toggleBoard: () => void;
+  toggleHero: () => void;
   toggleReveal: () => void;
   toggleDirection: () => void;
 }
@@ -66,6 +75,7 @@ export const usePresentationStore = create<PresentationState>()((set) => ({
   showHelp: false,
   cardScale: MAX_CARD_SCALE,
   boardMode: true,
+  showHero: true,
   reveal: false,
   direction: "best-first",
   toggleText: () => set((state) => ({ showText: !state.showText })),
@@ -74,6 +84,7 @@ export const usePresentationStore = create<PresentationState>()((set) => ({
   closeHelp: () => set({ showHelp: false }),
   setCardScale: (scale) => set({ cardScale: clampCardScale(scale) }),
   toggleBoard: () => set((state) => ({ boardMode: !state.boardMode })),
+  toggleHero: () => set((state) => ({ showHero: !state.showHero })),
   toggleReveal: () => set((state) => ({ reveal: !state.reveal })),
   toggleDirection: () =>
     set((state) => ({

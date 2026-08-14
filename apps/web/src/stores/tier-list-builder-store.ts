@@ -57,12 +57,21 @@ interface TierListBuilderState {
   /** Repins a ranked card's art. `printingId` null falls back to the default printing. */
   setPrinting: (cardId: string, printingId: string | null) => void;
 
+  /** Adds a ranked row, after the last ranked one so the unranked row stays last. */
   addRow: () => void;
+  /**
+   * Adds the grey "considered and cut" row at the bottom. A no-op once the
+   * board has one — the contract allows at most a single unranked row.
+   */
+  addUnrankedRow: () => void;
   /** Removes a row; the cards in it return to the pool. */
   removeRow: (rowIndex: number) => void;
   renameRow: (rowIndex: number, label: string) => void;
   moveRow: (fromIndex: number, toIndex: number) => void;
 }
+
+/** Default label for the unranked row. Renameable like any other row's. */
+const UNRANKED_ROW_LABEL = "Unranked";
 
 /** @returns `position` clamped to a valid insertion index for `cards`. */
 function clamp(position: number, cards: readonly TierCard[]): number {
@@ -95,6 +104,20 @@ function nextRowLabel(rows: readonly TierRow[]): string {
 }
 
 /**
+ * Where a new ranked row goes: the end of the ranked rows, which is one slot
+ * short of the end when an unranked row is holding the bottom.
+ * @returns The index a ranked row may be inserted at.
+ */
+function rankedRowCount(rows: readonly TierRow[]): number {
+  return rows.filter((row) => row.unranked !== true).length;
+}
+
+/** @returns True when the board already carries an unranked row. */
+function hasUnranked(rows: readonly TierRow[]): boolean {
+  return rows.some((row) => row.unranked === true);
+}
+
+/**
  * Applies a row-level edit, refreshing the derived set and marking the draft
  * dirty in one place so no action can forget either.
  * @returns The next slice of state.
@@ -116,7 +139,11 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
   ...EMPTY,
 
   load: (listId, rows) => {
+    // The flag is carried only when set, never stamped on as `false`: an
+    // ordinary board round-trips exactly as it arrived, and the jsonb it saves
+    // back stays as small as it was before the row existed.
     const copied = rows.map((row) => ({
+      ...(row.unranked === true ? { unranked: true } : {}),
       label: row.label,
       cards: row.cards.map((card) => ({ ...card })),
     }));
@@ -154,7 +181,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       // Strip the card from every row first, so a move within the board can't
       // leave a duplicate behind — the contract rejects a card in two tiers.
       const stripped = state.rows.map((row) => ({
-        label: row.label,
+        ...row,
         cards: row.cards.filter((card) => card.cardId !== cardId),
       }));
       const target = stripped[rowIndex];
@@ -188,7 +215,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       }
       return withRows(
         state.rows.map((row) => ({
-          label: row.label,
+          ...row,
           cards: row.cards.filter((card) => card.cardId !== cardId),
         })),
       );
@@ -208,7 +235,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
         state.rows.map((row, index) =>
           index === rowIndex
             ? {
-                label: row.label,
+                ...row,
                 cards: row.cards.map((card) =>
                   card.cardId === cardId ? { cardId, printingId } : card,
                 ),
@@ -223,7 +250,19 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       if (state.rows.length >= MAX_TIER_ROWS) {
         return state;
       }
-      return withRows([...state.rows, { label: nextRowLabel(state.rows), cards: [] }]);
+      // Inserted after the last *ranked* row rather than appended, so an
+      // unranked row keeps the bottom of the board.
+      const next = [...state.rows];
+      next.splice(rankedRowCount(state.rows), 0, { label: nextRowLabel(state.rows), cards: [] });
+      return withRows(next);
+    }),
+
+  addUnrankedRow: () =>
+    set((state) => {
+      if (state.rows.length >= MAX_TIER_ROWS || hasUnranked(state.rows)) {
+        return state;
+      }
+      return withRows([...state.rows, { label: UNRANKED_ROW_LABEL, cards: [], unranked: true }]);
     }),
 
   removeRow: (rowIndex) =>
@@ -255,6 +294,15 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
         toIndex < 0 ||
         toIndex >= rows.length
       ) {
+        return state;
+      }
+      // The unranked row is pinned to the bottom: it can't be dragged out of
+      // place, and no ranked row can be dropped below it. The contract rejects
+      // a board shaped otherwise, so catching it here keeps the save honest.
+      if (rows[fromIndex]?.unranked === true) {
+        return state;
+      }
+      if (hasUnranked(rows) && toIndex >= rows.length - 1) {
         return state;
       }
       const next = [...rows];

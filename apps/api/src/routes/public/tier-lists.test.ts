@@ -34,7 +34,6 @@ function sharedRow(overrides: Record<string, unknown> = {}) {
       userId: "user-1",
       title: "Origins ranked",
       description: null,
-      setId: null,
       tiers: [{ label: "S", cards: [{ cardId: "c-1", printingId: null }] }],
       isPublic: true,
       shareToken: "AbC123XyZ789",

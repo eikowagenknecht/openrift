@@ -771,6 +771,11 @@ export interface TierListCard {
 export interface TierListRow {
   label: string;
   cards: TierListCard[];
+  /**
+   * The grey "considered and cut" row, always the last one. Absent on boards
+   * saved before it existed, which `normalizeTiers` fills in as false.
+   */
+  unranked?: boolean;
 }
 
 /**
@@ -791,8 +796,6 @@ export interface TierListsTable {
   userId: string;
   title: string;
   description: string | null;
-  /** Optional scope hint: seeds the builder's set filter, labels the share page. */
-  setId: string | null;
   tiers: Generated<TierListRow[]>;
   isPublic: Generated<boolean>;
   shareToken: string | null;

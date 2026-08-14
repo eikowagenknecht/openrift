@@ -40,10 +40,17 @@ export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): Tier
           cardId: card.cardId,
           printingId: card.printingId ?? null,
         })),
+        // Carried only when set, matching the contract: an absent flag and a
+        // false one mean the same thing, and boards saved before the unranked
+        // row existed have no flag at all.
+        ...(tier.unranked === true ? { unranked: true } : {}),
       };
     }
     const legacy = (tier as LegacyTierListRow).cardIds ?? [];
-    return { label: tier.label, cards: legacy.map((cardId) => ({ cardId, printingId: null })) };
+    return {
+      label: tier.label,
+      cards: legacy.map((cardId) => ({ cardId, printingId: null })),
+    };
   });
 }
 
@@ -100,7 +107,6 @@ export function tierListsRepo(db: Kysely<Database>) {
       values: {
         title: string;
         description: string | null;
-        setId: string | null;
         tiers: TierListRow[];
       },
     ): Promise<TierList> {
@@ -110,7 +116,6 @@ export function tierListsRepo(db: Kysely<Database>) {
           userId,
           title: values.title,
           description: values.description,
-          setId: values.setId,
           // Kysely types the column as the parsed shape; postgres.js serializes
           // the array for the jsonb parameter, so no manual stringify here.
           tiers: values.tiers,
@@ -132,7 +137,6 @@ export function tierListsRepo(db: Kysely<Database>) {
       values: {
         title?: string;
         description?: string | null;
-        setId?: string | null;
         tiers?: TierListRow[];
       },
     ): Promise<TierList | undefined> {

@@ -1,4 +1,4 @@
-import { TIER_COLORS } from "@openrift/shared";
+import { tierRowColor } from "@openrift/shared";
 import QRCode from "qrcode";
 
 import type { Repos } from "../deps.js";
@@ -76,6 +76,8 @@ export interface TierListImageCard {
 export interface TierListImageRow {
   label: string;
   cards: readonly TierListImageCard[];
+  /** The grey "considered and cut" row, drawn off the ranking ramp. */
+  unranked?: boolean;
 }
 
 /** Everything the renderer needs to draw a tier-list share image. */
@@ -316,11 +318,11 @@ function boardRow(
  */
 export async function buildTierListImageRows(
   repos: Pick<Repos, "catalog" | "canonicalPrintings">,
-  tiers: readonly { label: string; cards: readonly TierListImageEntry[] }[],
+  tiers: readonly { label: string; cards: readonly TierListImageEntry[]; unranked?: boolean }[],
 ): Promise<TierListImageRow[]> {
   const entries = tiers.flatMap((tier) => [...tier.cards]);
   if (entries.length === 0) {
-    return tiers.map((tier) => ({ label: tier.label, cards: [] }));
+    return tiers.map((tier) => ({ label: tier.label, cards: [], unranked: tier.unranked }));
   }
   // Keyed on card *and* pinned printing: the same card cannot repeat across the
   // board, so one key per entry is already the deduplicated set.
@@ -341,6 +343,7 @@ export async function buildTierListImageRows(
 
   return tiers.map((tier) => ({
     label: tier.label,
+    unranked: tier.unranked,
     cards: [...tier.cards].flatMap((entry) => {
       const meta = metaById.get(entry.cardId);
       // A card deleted from the catalogue since the list was saved simply drops
@@ -463,12 +466,7 @@ export async function renderTierListImage(
     "div",
     { display: "flex", flexDirection: "column", height: boardH, gap: ROW_GAP },
     ...rows.map((row, index) =>
-      boardRow(
-        row,
-        TIER_COLORS[index % TIER_COLORS.length] ?? TIER_COLORS[0],
-        rowUris[index] ?? [],
-        metrics,
-      ),
+      boardRow(row, tierRowColor(index, row.unranked), rowUris[index] ?? [], metrics),
     ),
   );
 

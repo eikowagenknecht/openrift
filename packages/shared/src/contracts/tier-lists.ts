@@ -38,6 +38,16 @@ export const tierRowSchema = z.object({
   // not surface later as a DB constraint violation.
   label: z.string().trim().min(1).max(24),
   cards: z.array(tierCardSchema).max(MAX_CARDS_PER_TIER),
+  /**
+   * The "considered and cut" row: drawn grey, off the ranking ramp, and pinned
+   * to the bottom of the board.
+   *
+   * Optional rather than defaulted, unlike `printingId` above: a board has at
+   * most one of these and most have none, so stamping `false` onto every row
+   * would grow every stored board for a flag almost none of them use. An absent
+   * flag and a false one mean the same thing everywhere that reads it.
+   */
+  unranked: z.boolean().optional(),
 });
 
 /**
@@ -56,7 +66,18 @@ export const tiersSchema = z
   .refine((rows) => {
     const all = rows.flatMap((row) => row.cards.map((card) => card.cardId));
     return new Set(all).size === all.length;
-  }, "A card can only sit in one tier");
+  }, "A card can only sit in one tier")
+  .refine(
+    (rows) => rows.filter((row) => row.unranked).length <= 1,
+    "A tier list can have at most one unranked row",
+  )
+  .refine(
+    // Enforced here rather than left to the builder: the board is drawn from
+    // this array in reading order, and an unranked row anywhere but the bottom
+    // would put "did not make the cut" above a real tier.
+    (rows) => rows.every((row, index) => !row.unranked || index === rows.length - 1),
+    "The unranked row has to be the last one",
+  );
 
 const tierListFieldRules = {
   // Trim before min(1), same as the row label above.
@@ -67,7 +88,6 @@ const tierListFieldRules = {
 export const createTierListSchema = z.object({
   title: tierListFieldRules.title,
   description: tierListFieldRules.description.nullish(),
-  setId: z.uuid().nullish(),
   /** Omitted on create, which starts the list on {@link DEFAULT_TIER_LABELS}. */
   tiers: tiersSchema.optional(),
 });
@@ -77,7 +97,6 @@ export const createTierListSchema = z.object({
 export const updateTierListSchema = z.object({
   title: tierListFieldRules.title.optional(),
   description: tierListFieldRules.description.nullish(),
-  setId: z.uuid().nullish(),
   tiers: tiersSchema.optional(),
 });
 
@@ -86,7 +105,12 @@ export const tierCardResponseSchema = z
   .openapi("TierCardResponse");
 
 export const tierRowResponseSchema = z
-  .object({ label: z.string(), cards: z.array(tierCardResponseSchema) })
+  .object({
+    label: z.string(),
+    cards: z.array(tierCardResponseSchema),
+    /** True on the grey "considered and cut" row, which is always the last one. */
+    unranked: z.boolean().optional(),
+  })
   .openapi("TierRowResponse");
 
 export const tierListResponseSchema = z
@@ -94,7 +118,6 @@ export const tierListResponseSchema = z
     id: z.string(),
     title: z.string(),
     description: z.string().nullable(),
-    setId: z.string().nullable(),
     tiers: z.array(tierRowResponseSchema),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
@@ -113,7 +136,6 @@ export const tierListSummaryResponseSchema = z
     id: z.string(),
     title: z.string(),
     description: z.string().nullable(),
-    setId: z.string().nullable(),
     tierCount: z.number().int().nonnegative(),
     cardCount: z.number().int().nonnegative(),
     /** Leading entries of the top non-empty row, for the index preview strip. */

@@ -4,8 +4,6 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
   EllipsisVerticalIcon,
-  MaximizeIcon,
-  MinimizeIcon,
   MonitorPlayIcon,
   PencilIcon,
   SaveIcon,
@@ -75,10 +73,9 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  const { cardsById, printingsByCardId, sets } = useCards();
+  const { cardsById, printingsByCardId } = useCards();
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
-  const scopedSetSlug = sets.find((set) => set.id === tierList.setId)?.slug;
   // Presentation mode is a creator tool that ships dark: the route works by URL,
   // but nothing in the app points at it until the flag is on.
   const presentEnabled = useFeatureEnabled("overlay");
@@ -89,10 +86,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  // Board-only mode: hides the pool so the ranking fills the width for a screen
-  // capture. Deliberately not persisted — it is a recording posture, not a
-  // preference, and a creator who returns tomorrow wants the pool back.
-  const [boardOnly, setBoardOnly] = useState(false);
 
   // Floating preview for the tile under the pointer, the same affordance the
   // deck builder gives its rows. Anchored to the two-column container rather
@@ -117,17 +110,8 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   useEffect(() => {
     if (loadedListId !== tierList.id) {
       useTierListBuilderStore.getState().load(tierList.id, tierList.tiers);
-      // Seed the pool's set filter from the list's set scope, once per visit —
-      // a pre-filter the creator can still clear or change while working.
-      if (scopedSetSlug) {
-        void navigate({
-          to: ".",
-          search: (prev) => ({ ...prev, sets: [scopedSetSlug] }),
-          replace: true,
-        });
-      }
     }
-  }, [tierList.id, tierList.tiers, loadedListId, scopedSetSlug, navigate]);
+  }, [tierList.id, tierList.tiers, loadedListId]);
 
   // Leaving the builder drops the draft, so returning to a list always starts
   // from what the server has rather than a board from a previous visit.
@@ -176,7 +160,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
       <TierListDndContext cardsById={cardsById} printingsByCardId={printingsByCardId}>
         <BuilderWorkbench
           asideClassName="lg:w-[46%] lg:max-w-3xl"
-          asideOnly={boardOnly}
           columnsRef={previewContainerRef}
           overlay={
             <HoveredCardPreview
@@ -200,16 +183,21 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
               {dirty && <Badge variant="outline">Unsaved changes</Badge>}
               <PageTopBarActions>
                 <TierTileSizeControls />
-                <PageTopBarIconButton
-                  aria-label={boardOnly ? "Show the card pool" : "Hide the card pool"}
-                  onClick={() => setBoardOnly(!boardOnly)}
-                >
-                  {boardOnly ? (
-                    <MinimizeIcon className="size-4" />
-                  ) : (
-                    <MaximizeIcon className="size-4" />
-                  )}
-                </PageTopBarIconButton>
+                {presentEnabled && rankedCount > 0 && (
+                  <PageTopBarButton
+                    // Presentation mode reads the *saved* board, so an unsaved
+                    // draft would go on stage as whatever the server still
+                    // holds. The "Unsaved changes" badge sits in this same bar
+                    // and says why the button is off.
+                    disabled={dirty}
+                    onClick={() => {
+                      void navigate({ to: "/present", search: { tier: tierList.id, i: 0 } });
+                    }}
+                  >
+                    <MonitorPlayIcon />
+                    Present
+                  </PageTopBarButton>
+                )}
                 <PageTopBarButton onClick={() => setShareOpen(true)}>
                   <Share2Icon />
                   Share
@@ -228,21 +216,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                     <EllipsisVerticalIcon className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {presentEnabled && rankedCount > 0 && (
-                      <DropdownMenuItem
-                        // Presentation mode reads the *saved* board, so an
-                        // unsaved draft would go on stage as whatever the server
-                        // still holds. The "Unsaved changes" badge sits in this
-                        // same bar and says why the item is off.
-                        disabled={dirty}
-                        onClick={() => {
-                          void navigate({ to: "/present", search: { tier: tierList.id, i: 0 } });
-                        }}
-                      >
-                        <MonitorPlayIcon />
-                        Present
-                      </DropdownMenuItem>
-                    )}
                     <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
                       <PencilIcon />
                       Rename and describe
