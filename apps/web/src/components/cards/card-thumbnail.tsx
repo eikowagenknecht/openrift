@@ -150,6 +150,15 @@ export const AFTER_BORDER =
 
 const SHELL_INNER_CLASS = cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2");
 
+/**
+ * How many stacked sibling edges peek out behind the front card while the fan
+ * is closed. A card with a dozen printings otherwise draws a dozen offset
+ * silhouettes, which reads as clutter rather than depth. Deeper layers still
+ * render — they sit hidden under the last visible edge and fade in as the fan
+ * opens, so the fanned-out spread shows every printing.
+ */
+const MAX_CLOSED_STACK_EDGES = 5;
+
 // Tilt shell: wraps card image content with refs wired to useCardTilt and
 // applies TILT_STYLE (perspective + preserve-3d), promoting the card to its
 // own compositing layer for the tilt animation.
@@ -705,6 +714,12 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
+        // Only the shallowest MAX_CLOSED_STACK_EDGES layers are offset and
+        // visible while closed. The rest sit exactly under the last visible
+        // edge at zero opacity, then fade in as `--fan` rises, so opening the
+        // fan still spreads every printing.
+        const hiddenWhenClosed = depth > MAX_CLOSED_STACK_EDGES;
+        const closedDepth = Math.min(depth, MAX_CLOSED_STACK_EDGES);
         // Sibling faces are invisible until the hover fan-out — closed, only
         // the stacked edges peek out behind the front card. Defer the image
         // download and the placeholder DOM until the first hover, and skip
@@ -767,9 +782,11 @@ export const CardThumbnail = memo(function CardThumbnail({
               style={{
                 borderRadius: CARD_BORDER_RADIUS,
                 transformStyle: "preserve-3d",
-                translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
+                translate: `calc((1 - var(--fan, 0)) * ${closedDepth * fanStep}px) calc((1 - var(--fan, 0)) * ${closedDepth * fanStep}px)`,
                 rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
-                transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
+                opacity: hiddenWhenClosed ? "var(--fan, 0)" : undefined,
+                transition:
+                  "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out, opacity 200ms ease-out",
               }}
             >
               <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>

@@ -19,6 +19,7 @@
 - feat(Decks): **Drag the deck cover to frame it** — the cover preview can be dragged up and down to pick the part of the art you want, and the focus slider follows along.
 - fix(Decks): **Dismissing a dialog opened a deck** — clicking outside a dialog on the deck list closed it and opened the deck behind it in the same click.
 - fix(App): **Clearer card thumbnails in lists** — every list row now leads with a wide crop of the art, so battlefields show whole instead of as a sliver and rows stop changing height between card shapes.
+- fix(Cards): **Tidier printing stacks** — a card with many printings no longer draws a silhouette for every one of them, showing at most five stacked edges while the rest appear when you fan the stack out.
 - fix(Cards): **Hiding the detail panel stays hidden** — closing the side panel from the toolbar button popped the selected card back up as a dialog instead of putting it away.
 
 ## 2026-08-13

@@ -159,6 +159,38 @@ describe("CardThumbnail siblings", () => {
     expect(cover?.getAttribute("style")).toContain("--fan");
   });
 
+  // A card with many printings drew one offset silhouette per printing, which
+  // read as clutter. The closed stack is capped at five visible edges; the
+  // deeper layers still render (so the fan spreads all of them) but sit at
+  // zero opacity under the last visible edge until `--fan` rises.
+  it("shows at most five stacked edges while the fan is closed", () => {
+    const front = makePrintingWithImage("RB1-001");
+    const siblings = [
+      front,
+      ...Array.from({ length: 8 }, (_, i) => makePrintingWithImage(`RB1-001-v${i}`)),
+    ];
+    const { container } = render(
+      <CardThumbnail
+        printing={front}
+        onClick={() => {}}
+        showImages
+        siblings={siblings}
+        display={baseDisplay}
+      />,
+    );
+    const layers = [...container.querySelectorAll(".origin-bottom")];
+    // Every sibling still gets a layer, so the fanned-out spread is complete.
+    expect(layers).toHaveLength(8);
+
+    const styles = layers.map((layer) => layer.getAttribute("style") ?? "");
+    const visibleWhenClosed = styles.filter((style) => !style.includes("opacity: var(--fan"));
+    expect(visibleWhenClosed).toHaveLength(5);
+
+    // The capped layers are the deepest ones, so the five that stay visible
+    // are the ones nearest the front card (last in render order).
+    expect(styles.slice(-5).every((style) => !style.includes("opacity: var(--fan"))).toBe(true);
+  });
+
   // The fan-out is hover-driven (`hover:[--fan:1]`), so on coarse-pointer
   // devices the sibling images sit hidden behind the front card and only
   // their borders are ever visible. Loading the <img> is pure waste.
