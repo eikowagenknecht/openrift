@@ -15,11 +15,16 @@ const mockProductsRepo = {
   allSitemapEntries: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockMetaRepo = {
+  sitemapEntries: vi.fn(() => Promise.resolve({ events: [] as object[], decks: [] as object[] })),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     products: mockProductsRepo,
+    meta: mockMetaRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -41,6 +46,10 @@ describe("GET /api/v1/sitemap-data", () => {
     mockProductsRepo.allSitemapEntries.mockResolvedValue([
       { slug: "origins-proving-grounds", updatedAt: "2026-02-01T12:00:00.000Z" },
     ]);
+    mockMetaRepo.sitemapEntries.mockResolvedValue({
+      events: [{ slug: "summoner-skirmish-berlin", updatedAt: "2026-01-01T12:00:00.000Z" }],
+      decks: [{ slug: "aB3dE5gH7jK9", updatedAt: "2026-01-02T12:00:00.000Z" }],
+    });
 
     const res = await app.request("/api/v1/sitemap-data");
     expect(res.status).toBe(200);
@@ -49,6 +58,12 @@ describe("GET /api/v1/sitemap-data", () => {
     expect(json.sets).toEqual([{ slug: "origins", updatedAt: "2026-03-01T12:00:00.000Z" }]);
     expect(json.products).toEqual([
       { slug: "origins-proving-grounds", updatedAt: "2026-02-01T12:00:00.000Z" },
+    ]);
+    expect(json.metaEvents).toEqual([
+      { slug: "summoner-skirmish-berlin", updatedAt: "2026-01-01T12:00:00.000Z" },
+    ]);
+    expect(json.metaDecks).toEqual([
+      { slug: "aB3dE5gH7jK9", updatedAt: "2026-01-02T12:00:00.000Z" },
     ]);
     expect(mockCatalogRepo.allCardSitemapEntries).toHaveBeenCalledTimes(1);
     expect(mockCatalogRepo.allSetSitemapEntries).toHaveBeenCalledTimes(1);
@@ -59,6 +74,7 @@ describe("GET /api/v1/sitemap-data", () => {
     mockCatalogRepo.allCardSitemapEntries.mockResolvedValue([]);
     mockCatalogRepo.allSetSitemapEntries.mockResolvedValue([]);
     mockProductsRepo.allSitemapEntries.mockResolvedValue([]);
+    mockMetaRepo.sitemapEntries.mockResolvedValue({ events: [], decks: [] });
 
     const res = await app.request("/api/v1/sitemap-data");
     expect(res.status).toBe(200);
@@ -66,5 +82,7 @@ describe("GET /api/v1/sitemap-data", () => {
     expect(json.cards).toEqual([]);
     expect(json.sets).toEqual([]);
     expect(json.products).toEqual([]);
+    expect(json.metaEvents).toEqual([]);
+    expect(json.metaDecks).toEqual([]);
   });
 });

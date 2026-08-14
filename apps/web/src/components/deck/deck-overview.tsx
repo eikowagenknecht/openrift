@@ -437,6 +437,12 @@ interface DeckOverviewProps {
   /** Forwarded to the hero: action row under the status chips (copy CTA). */
   heroActions?: React.ReactNode;
   /**
+   * A callout about the deck as a whole, rendered between the hero and the tab
+   * strip so it stays visible on every tab. The meta archive uses it to say a
+   * list is only partly published; nothing else sets it.
+   */
+  notice?: React.ReactNode;
+  /**
    * The deck's server-stored draw-odds settings, forwarded to the test bench.
    * Omit for browser-local decks.
    */
@@ -471,6 +477,7 @@ export function DeckOverview({
   variantRailSlot,
   heroByline,
   heroActions,
+  notice,
   oddsConfig,
   onSaveOddsConfig,
 }: DeckOverviewProps) {
@@ -1374,6 +1381,7 @@ export function DeckOverview({
         byline={heroByline}
         actions={heroActions}
       />
+      {notice}
       {/* Renders nothing for a deck with no variants, so the hero and the tab
           strip keep their usual single gap between them. */}
       {variantRailSlot}

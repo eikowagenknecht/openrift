@@ -71,3 +71,23 @@ export type DeckZone =
   | "runes"
   | "battlefield"
   | "overflow";
+
+/**
+ * How much of an archived deck's list the meta archive holds (ADR-014). Sources
+ * publish at three levels of detail, and the archive keeps them apart rather
+ * than guessing from the card count.
+ *
+ * - `full`: the pilot's whole list.
+ * - `partial`: the main deck is complete, the side zones (battlefields, runes,
+ *   sideboard) may be missing. Card inclusion reads the main zone alone, so
+ *   these count there exactly like a full list.
+ * - `archetype`: the main deck is unknown; the cards are the legend and, where
+ *   the source named one, the champion.
+ *
+ * All three count towards legend play-rate. Only `archetype` is excluded from
+ * card inclusion, and only `archetype` has no public deck page.
+ */
+export type MetaListStatus = "full" | "partial" | "archetype";
+
+/** The {@link MetaListStatus} values, in decreasing completeness. */
+export const META_LIST_STATUSES = ["full", "partial", "archetype"] as const;

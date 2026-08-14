@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
 import { isAllowedLinkUrl } from "./link-hosts.js";
+import { META_LIST_STATUSES } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
 // Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
@@ -69,6 +70,14 @@ const DECK_ZONE_VALUES = [
 ] as const;
 export const deckZoneSchema = z.enum(DECK_ZONE_VALUES);
 export const cardFaceSchema = z.enum(["front", "back"]);
+
+/**
+ * How complete an archived deck's list is (ADR-014). Built from the same
+ * constant the `MetaListStatus` type is, so the wire vocabulary and the values
+ * the code branches on cannot drift apart. See that type for what each state
+ * means.
+ */
+export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
 
 // ── Health ───────────────────────────────────────────────────────────────────
 

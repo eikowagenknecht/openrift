@@ -34,6 +34,15 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
+  // Meta archive (migration 235, ADR-014)
+  MetaEventsTable,
+  MetaDecksTable,
+  // Meta archive candidate ingest (migration 236, ADR-014)
+  CandidateMetaDeckCard,
+  CandidateMetaDecksTable,
+  CandidateMetaEventsTable,
+  IgnoredCandidateMetaDecksTable,
+  IgnoredCandidateMetaEventsTable,
   // Tier lists (migration 237)
   TierListRow,
   TierListsTable,

@@ -81,6 +81,8 @@ const STATIC_PAGES: StaticPage[] = [
   // /promos always 302s to the EN page, so list the redirect target — sitemaps
   // should carry the final canonical URL (same rationale as the rules kinds).
   { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
+  { path: "/meta", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
+  { path: "/meta/decks", priority: "0.5", changefreq: "weekly", featureFlag: "meta" },
   { path: "/rules", priority: "0.5", changefreq: "monthly" },
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },
@@ -160,6 +162,23 @@ async function generateSitemap(): Promise<string> {
     urls.push(
       `  <url><loc>${siteUrl}/products/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
     );
+  }
+  // The meta archive ships behind its flag (ADR-014), so its URLs stay out of
+  // the sitemap until it is on — same reason flagged static pages and help
+  // articles are skipped above.
+  if (flags.meta === true) {
+    for (const entry of data.metaEvents) {
+      const lastmod = entry.updatedAt.slice(0, 10);
+      urls.push(
+        `  <url><loc>${siteUrl}/meta/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
+      );
+    }
+    for (const entry of data.metaDecks) {
+      const lastmod = entry.updatedAt.slice(0, 10);
+      urls.push(
+        `  <url><loc>${siteUrl}/meta/decks/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
+      );
+    }
   }
 
   return [

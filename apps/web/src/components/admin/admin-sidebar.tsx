@@ -33,6 +33,7 @@ import {
   SwatchBookIcon,
   TagIcon,
   TagsIcon,
+  TrophyIcon,
   UsersIcon,
 } from "lucide-react";
 
@@ -81,6 +82,7 @@ const contentPages = [
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
   { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
   { to: "/admin/errata" as const, icon: FileWarningIcon, title: "Errata" },
+  { to: "/admin/meta" as const, icon: TrophyIcon, title: "Meta Archive" },
 ];
 
 const marketplacePages = [

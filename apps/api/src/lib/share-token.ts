@@ -1,4 +1,4 @@
-import { isUniqueViolation } from "./pg-errors.js";
+import { isUniqueViolation, isUniqueViolationOn } from "./pg-errors.js";
 
 const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const SHARE_TOKEN_LENGTH = 12;
@@ -33,17 +33,31 @@ export function generateShareToken(): string {
  * astronomically unlikely, but tokens are UNIQUE-constrained, so without this
  * the once-in-forever collision would surface as a raw 500 instead of a
  * transparent retry. Non-unique-violation errors propagate immediately.
+ *
+ * Pass `constraint` when the callback writes more than the token-bearing row:
+ * without it any 23505 the write raises — a duplicate satellite row, say —
+ * burns all three attempts and then surfaces as a token problem.
+ *
+ * @param attempt The write, given a freshly minted token.
+ * @param options.constraint The token's unique constraint, when the callback can
+ *   raise 23505 from more than one index.
  * @returns Whatever the callback returns on its first successful attempt.
  */
 export async function withUniqueShareToken<Result>(
   attempt: (token: string) => Promise<Result>,
+  options?: { constraint?: string },
 ): Promise<Result> {
   const MAX_ATTEMPTS = 3;
+  const constraint = options?.constraint;
   for (let tries = 1; ; tries++) {
     try {
       return await attempt(generateShareToken());
     } catch (error) {
-      if (tries >= MAX_ATTEMPTS || !isUniqueViolation(error)) {
+      const collided =
+        constraint === undefined
+          ? isUniqueViolation(error)
+          : isUniqueViolationOn(error, constraint);
+      if (tries >= MAX_ATTEMPTS || !collided) {
         throw error;
       }
     }

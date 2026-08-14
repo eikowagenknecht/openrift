@@ -108,6 +108,14 @@ const mockEnums = {
   ),
 };
 
+/**
+ * The archive membership check the rotate guard runs (ADR-014). Defaults to
+ * "not an archive deck", which is what every deck in this file is.
+ */
+const mockMeta = {
+  isMetaDeck: vi.fn(() => Promise.resolve(false)),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -129,6 +137,7 @@ app.use("*", async (c, next) => {
     loans: mockLoans,
     catalog: mockCatalog,
     collections: mockCollections,
+    meta: mockMeta,
   } as never);
   await next();
 });
@@ -891,6 +900,8 @@ describe("POST /api/v1/decks/:id/share", () => {
 describe("POST /api/v1/decks/:id/share/rotate", () => {
   beforeEach(() => {
     mockRepo.setShareToken.mockReset();
+    mockMeta.isMetaDeck.mockReset();
+    mockMeta.isMetaDeck.mockResolvedValue(false);
   });
 
   it("mints a new token each call and sets isPublic=true", async () => {
@@ -911,6 +922,13 @@ describe("POST /api/v1/decks/:id/share/rotate", () => {
     mockRepo.setShareToken.mockResolvedValue(undefined);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/share/rotate`, { method: "POST" });
     expect(res.status).toBe(404);
+  });
+
+  it("returns 409 for an archived deck, leaving its permalink alone", async () => {
+    mockMeta.isMetaDeck.mockResolvedValue(true);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/share/rotate`, { method: "POST" });
+    expect(res.status).toBe(409);
+    expect(mockRepo.setShareToken).not.toHaveBeenCalled();
   });
 });
 

@@ -460,7 +460,12 @@ export const decksContract = {
   rotateShare: authedRoute
     .route({ method: "POST", path: "/api/v1/decks/{id}/share/rotate", tags: [TAG] })
     .input(idParamSchema)
-    .errors({ NOT_FOUND: { message: "Deck not found" } })
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      // An archived meta-archive deck's share token is its public permalink
+      // (ADR-014), so rotation is refused rather than silently breaking links.
+      CONFLICT: { message: "This deck's link cannot be rotated" },
+    })
     .output(deckShareResponseSchema),
   unshare: authedRoute
     .route({ method: "DELETE", path: "/api/v1/decks/{id}/share", tags: [TAG], successStatus: 204 })

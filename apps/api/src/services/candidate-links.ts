@@ -11,27 +11,39 @@
  * the three, so a user submission with a lowercase `public_code` or without a
  * rarity stayed permanently unlinked. Keeping the key and the gate here is what
  * stops that recurring.
+ *
+ * The name→card half is also what the meta archive's deck ingest resolves
+ * against (`ingest-meta-candidates.ts`, ADR-014), so an alias added once applies
+ * to every pipeline. That consumer needs no printing lookups, hence the narrower
+ * {@link CardNameIndex} it loads instead of the full index.
  */
 import { WellKnown } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { ingestRepo } from "../repositories/ingest.js";
 
-/** Live catalog lookups the candidate link resolution reads. */
-export interface CandidateLinkIndex {
+/** The live-catalog lookups that resolve a card *name* to a card id. */
+export interface CardNameIndex {
   /** Normalized card name to live card id. */
   cardIdByNorm: Map<string, string>;
   /** Normalized alias to live card id, consulted after {@link cardIdByNorm}. */
   cardIdByAliasNorm: Map<string, string>;
+}
+
+/** Live catalog lookups the candidate link resolution reads. */
+export interface CandidateLinkIndex extends CardNameIndex {
   /** {@link buildPrintingLinkKey} output to live printing id. */
   printingIdByKey: Map<string, string>;
   /** `"<externalId>:<finish>"` to the manually pinned live printing id. */
   printingIdByOverrideKey: Map<string, string>;
 }
 
-interface CandidateLinkSources {
+interface CardNameSources {
   cardNorms: readonly { id: string; normName: string }[];
   aliases: readonly { cardId: string; normName: string }[];
+}
+
+interface CandidateLinkSources extends CardNameSources {
   printings: readonly {
     id: string;
     shortCode: string;
@@ -42,11 +54,15 @@ interface CandidateLinkSources {
   linkOverrides: readonly { externalId: string; finish: string; printingId: string }[];
 }
 
-/** The subset of the ingest repo {@link loadCandidateLinkIndex} reads. */
-export type CandidateLinkRepo = Pick<
+/** The subset of the ingest repo {@link loadCardNameIndex} reads. */
+export type CardNameRepo = Pick<
   ReturnType<typeof ingestRepo>,
-  "allCardNorms" | "allCardNameAliases" | "allPrintingKeys" | "allPrintingLinkOverrides"
+  "allCardNorms" | "allCardNameAliases"
 >;
+
+/** The subset of the ingest repo {@link loadCandidateLinkIndex} reads. */
+export type CandidateLinkRepo = CardNameRepo &
+  Pick<ReturnType<typeof ingestRepo>, "allPrintingKeys" | "allPrintingLinkOverrides">;
 
 /**
  * Composite key identifying one live printing. Short codes are uppercased on
@@ -67,19 +83,41 @@ export function buildPrintingLinkKey(printing: {
 }
 
 /**
+ * Index the live cards and aliases a name lookup reads.
+ * @param sources Bulk-fetched card norm names and aliases.
+ * @returns The two name lookup maps.
+ */
+function buildCardNameIndex(sources: CardNameSources): CardNameIndex {
+  return {
+    cardIdByNorm: new Map(sources.cardNorms.map((c) => [c.normName, c.id])),
+    cardIdByAliasNorm: new Map(sources.aliases.map((a) => [a.normName, a.cardId])),
+  };
+}
+
+/**
  * Index the live catalog rows the resolution needs.
  * @param sources Bulk-fetched cards, aliases, printings and link overrides.
  * @returns The lookup maps consumed by the resolvers below.
  */
 export function buildCandidateLinkIndex(sources: CandidateLinkSources): CandidateLinkIndex {
   return {
-    cardIdByNorm: new Map(sources.cardNorms.map((c) => [c.normName, c.id])),
-    cardIdByAliasNorm: new Map(sources.aliases.map((a) => [a.normName, a.cardId])),
+    ...buildCardNameIndex(sources),
     printingIdByKey: new Map(sources.printings.map((p) => [buildPrintingLinkKey(p), p.id])),
     printingIdByOverrideKey: new Map(
       sources.linkOverrides.map((r) => [`${r.externalId}:${r.finish}`, r.printingId]),
     ),
   };
+}
+
+/**
+ * Bulk-fetch and index just the name→card lookups, for callers that resolve
+ * card names but never printings (the meta archive's deck ingest).
+ * @param repo The ingest repo (transactional or not).
+ * @returns The built {@link CardNameIndex}.
+ */
+export async function loadCardNameIndex(repo: CardNameRepo): Promise<CardNameIndex> {
+  const [cardNorms, aliases] = await Promise.all([repo.allCardNorms(), repo.allCardNameAliases()]);
+  return buildCardNameIndex({ cardNorms, aliases });
 }
 
 /**
@@ -104,7 +142,7 @@ export async function loadCandidateLinkIndex(repo: CandidateLinkRepo): Promise<C
  * @param name The candidate card name as submitted.
  * @returns The live card id, or null when nothing matches.
  */
-export function resolveCardIdByName(index: CandidateLinkIndex, name: string): string | null {
+export function resolveCardIdByName(index: CardNameIndex, name: string): string | null {
   // An empty key means the name held no letters or digits at all, so it
   // identifies nothing — resolving on it would link this candidate to whichever
   // unrelated card normalized the same way.

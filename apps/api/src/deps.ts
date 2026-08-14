@@ -53,6 +53,8 @@ import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
+import { metaCandidatesRepo } from "./repositories/meta-candidates.js";
+import { metaRepo } from "./repositories/meta.js";
 import { organizationsRepo } from "./repositories/organizations.js";
 import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
 import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
@@ -95,6 +97,7 @@ import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
+import { ingestMetaCandidates } from "./services/ingest-meta-candidates.js";
 import { ingestUserSubmission } from "./services/ingest-user-submission.js";
 import { moveListEntries } from "./services/lists.js";
 import {
@@ -106,6 +109,12 @@ import {
   writeOffLoan,
 } from "./services/loans.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
+import {
+  acceptCandidateDeck,
+  acceptCandidateEvent,
+  acceptCandidateEventWithDecks,
+  rematchMetaCandidates,
+} from "./services/meta-candidate-accept.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
 export interface Repos {
@@ -160,6 +169,8 @@ export interface Repos {
   loans: ReturnType<typeof loansRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
+  meta: ReturnType<typeof metaRepo>;
+  metaCandidates: ReturnType<typeof metaCandidatesRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   products: ReturnType<typeof productsRepo>;
   markers: ReturnType<typeof markersRepo>;
@@ -197,7 +208,12 @@ export interface Services {
   disposeCopies: typeof disposeCopies;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
+  ingestMetaCandidates: typeof ingestMetaCandidates;
   ingestUserSubmission: typeof ingestUserSubmission;
+  acceptCandidateEvent: typeof acceptCandidateEvent;
+  acceptCandidateEventWithDecks: typeof acceptCandidateEventWithDecks;
+  acceptCandidateDeck: typeof acceptCandidateDeck;
+  rematchMetaCandidates: typeof rematchMetaCandidates;
   notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   importErrata: typeof importErrata;
   createTrade: typeof createTrade;
@@ -343,6 +359,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     loans: loansRepo(db),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
+    meta: metaRepo(db),
+    metaCandidates: metaCandidatesRepo(db),
     printingImages: printingImagesRepo(db),
     products: productsRepo(db),
     markers: markersRepo(db),
@@ -394,7 +412,12 @@ export const services: Services = {
   disposeCopies,
   getMappingOverview,
   ingestCandidates,
+  ingestMetaCandidates,
   ingestUserSubmission,
+  acceptCandidateEvent,
+  acceptCandidateEventWithDecks,
+  acceptCandidateDeck,
+  rematchMetaCandidates,
   notifyAdminsOfCardSubmission,
   importErrata,
   createTrade,

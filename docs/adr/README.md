@@ -31,6 +31,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-010](010-pino-logging.md)**: Use pino for structured logging
 - **[ADR-011](011-compression-at-nginx-only.md)**: Handle HTTP compression in nginx only
 - **[ADR-013](013-friend-groups.md)**: Friend Groups for Trading Discovery
+- **[ADR-014](014-meta-archive.md)**: Meta Archive (rewritten 2026-08-14; the 2026-06 tournament-decks proposal re-homed after ADR-033 took the tournaments name)
 - **[ADR-016](016-caching-layers.md)**: Caching layers
 - **[ADR-017](017-trade-preferences.md)**: Trade Preferences on Shared Lists
 - **[ADR-018](018-user-share-bundle.md)**: User Share Bundle for Wish + Trade Lists
@@ -62,7 +63,6 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 
 ### Proposed
 
-- **[ADR-014](014-tournament-decks.md)**: Tournament Decks Archive
 - **[ADR-015](015-preconstructed-product-catalog.md)**: Preconstructed Product Catalog
 - **[ADR-020](020-double-sided-token-data-model.md)**: Double-Sided Token Data Model
 - **[ADR-039](039-card-lending.md)**: Card Lending Ledger

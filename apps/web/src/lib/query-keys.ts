@@ -44,6 +44,19 @@ export const queryKeys = {
     all: ["products"] as const,
     detail: (slug: string) => ["products", slug] as const,
   },
+  // Meta Archive (ADR-014): public, admin-curated — no user scoping. Admin
+  // mutations invalidate the `all` prefix: every public read (events, decks,
+  // stats, and both detail shapes) denormalizes event fields, so any write can
+  // stale any of them.
+  meta: {
+    all: ["meta"] as const,
+    events: ["meta", "events"] as const,
+    event: (slug: string) => ["meta", "events", slug] as const,
+    decks: ["meta", "decks"] as const,
+    deck: (token: string) => ["meta", "decks", token] as const,
+    stats: (format?: string, dateFrom?: string, dateTo?: string) =>
+      ["meta", "stats", format ?? null, dateFrom ?? null, dateTo ?? null] as const,
+  },
   init: {
     all: ["init"] as const,
   },
@@ -299,6 +312,16 @@ export const queryKeys = {
     deckFormats: ["admin", "deck-formats"] as const,
     formats: ["admin", "formats"] as const,
     markers: ["admin", "markers"] as const,
+    meta: {
+      events: ["admin", "meta", "events"] as const,
+      eventDecks: (eventId: string) => ["admin", "meta", "events", eventId, "decks"] as const,
+      // The candidate review queue (ADR-014). `candidate` nests under
+      // `candidates` on purpose, so invalidating the queue also refetches any
+      // open detail.
+      candidates: ["admin", "meta", "candidates"] as const,
+      candidate: (candidateId: string) => ["admin", "meta", "candidates", candidateId] as const,
+      ignored: ["admin", "meta", "ignored-candidates"] as const,
+    },
     customTags: ["admin", "custom-tags"] as const,
     customTagCategories: ["admin", "custom-tag-categories"] as const,
     cardTags: ["admin", "card-tags"] as const,

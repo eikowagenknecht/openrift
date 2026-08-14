@@ -33,6 +33,7 @@ import type {
   ListRules,
   LoanStatus,
   MarketplaceGroupKind,
+  MetaListStatus,
   OrganizationRole,
   OverlayPayload,
   PodResultStatus,
@@ -533,7 +534,8 @@ export type AdminEventAction =
   | "ban.update"
   | "ban.delete"
   | "provider.delete-candidates"
-  | "candidates.upload";
+  | "candidates.upload"
+  | "meta-candidates.upload";
 
 /** Entity vocabulary for {@link AdminEventsTable}. */
 export type AdminEventEntityType =
@@ -789,6 +791,211 @@ export interface TierListsTable {
   shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+// ─── Meta archive (migration 235, ADR-014) ──────────────────────────────────
+
+/**
+ * One archived competitive event (migration 235). Admin-curated: there is no
+ * submission flow. Metadata is deliberately light — riftdecks-equivalent, not
+ * more — so no location, standings, or multi-day representation.
+ */
+export interface MetaEventsTable {
+  id: Generated<string>;
+  /** UNIQUE, CHECK: ~ '^[a-z0-9][a-z0-9-]{2,49}$' — mutable, used in URLs, no redirect on rename */
+  slug: string;
+  /** CHECK: length 1..120 */
+  name: string;
+  /**
+   * `date` column, so the driver hands it back as `"2026-08-14"` rather than a
+   * `Date` (see the OID 1082 override in `db/connect.ts`). Multi-day events
+   * store the start.
+   */
+  eventDate: string;
+  /** FK → deck_formats.slug — same vocabulary as `decks.format` so filters compose */
+  format: string;
+  /** CHECK: NULL or > 0 */
+  playerCount: number | null;
+  /** CHECK: NULL or length 1..120 — free text, e.g. "Riot Games" */
+  organizer: string | null;
+  /** CHECK: NULL or length 1..2000 — canonical external link, rendered as attribution */
+  sourceUrl: string | null;
+  /** Markdown. CHECK: NULL or length <= 4000 */
+  notes: string | null;
+  /**
+   * Which ingest provider this event was accepted from (migration 236), NULL
+   * for a hand-entered event. Together with {@link sourceExternalId} it is what
+   * a later upload matches on to find this row and diff against it. Partial
+   * UNIQUE index over both columns, where both are NOT NULL.
+   */
+  sourceProvider: string | null;
+  /** The provider's own id for this event. See {@link sourceProvider}. */
+  sourceExternalId: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * Satellite row pairing an archived `decks` row with its event and placement
+ * (migration 235). The deck is the PK because a deck belongs to exactly one
+ * event. Both FKs cascade, but neither reaches the `decks` row itself — the
+ * admin delete-event path removes those explicitly.
+ */
+export interface MetaDecksTable {
+  /** PK — FK → decks.id, ON DELETE CASCADE */
+  deckId: string;
+  /** FK → meta_events.id, ON DELETE CASCADE */
+  metaEventId: string;
+  /** CHECK: length 1..80 — free text, no players table */
+  playerName: string;
+  /** CHECK: >= 1. Lower is better; equal tiers within an event are ties. */
+  finishTier: number;
+  /** CHECK: NULL or length 1..20 — free text, e.g. "5-1" */
+  record: string | null;
+  /**
+   * DEFAULT 'full'. CHECK: one of 'full' / 'partial' / 'archetype'. How much of
+   * the pilot's list `deck_cards` holds — see {@link MetaListStatus} for what
+   * each state means. All three count towards legend play-rate; 'archetype' is
+   * the one excluded from card inclusion, and the one whose
+   * `decks.share_token` stays NULL because it has no page. Promoting a deck out
+   * of 'archetype' is what mints the token.
+   */
+  listStatus: Generated<MetaListStatus>;
+  /** Ingest provider this deck was accepted from (migration 236); NULL when hand-entered. */
+  sourceProvider: string | null;
+  /** The provider's own id for this deck's event. See {@link sourceExternalId}. */
+  sourceEventExternalId: string | null;
+  /**
+   * The provider's own id for this deck, scoped to its event — sources number
+   * their lists per event, so only the triple with {@link sourceProvider} and
+   * {@link sourceEventExternalId} identifies a deck. Partial UNIQUE index over
+   * all three, where all three are NOT NULL.
+   */
+  sourceExternalId: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+// ─── Meta archive candidates (migration 236, ADR-014) ───────────────────────
+
+/**
+ * A proposed event, pushed by external tooling and awaiting an admin's accept
+ * (migration 236). `(provider, external_id)` is UNIQUE — the source's own key,
+ * which is what makes an upload idempotent and per-event replacing.
+ *
+ * `format` carries whatever the source called it and has no FK: an unknown
+ * format is something the review screen reports, not a reason to reject an
+ * upload.
+ */
+export interface CandidateMetaEventsTable {
+  id: Generated<string>;
+  /** CHECK: <> '' — implicit vocabulary, a new string is a new provider */
+  provider: string;
+  /** CHECK: <> '' — the source's stable id for this event */
+  externalId: string;
+  /** CHECK: length 1..120 */
+  name: string;
+  /** `date` column, handed back as `"2026-08-14"` (OID 1082 override in `db/connect.ts`). */
+  eventDate: string;
+  /** CHECK: <> '' — no FK to deck_formats, unlike the live column */
+  format: string;
+  /** CHECK: NULL or > 0 */
+  playerCount: number | null;
+  /** CHECK: NULL or length 1..120 */
+  organizer: string | null;
+  /** CHECK: NULL or length 1..2000 */
+  sourceUrl: string | null;
+  /** CHECK: NULL or length <= 4000 */
+  notes: string | null;
+  /** FK → meta_events.id ON DELETE SET NULL — the live row this was accepted into. */
+  metaEventId: string | null;
+  /** When an admin last reviewed this row. Reset to NULL whenever an upload changes it. */
+  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  /** Source fields that map to no column of ours. Written pre-serialized (see the repo). */
+  extraData: ColumnType<unknown, string | null, string | null>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** One card row inside {@link CandidateMetaDecksTable.cards}. */
+export interface CandidateMetaDeckCard {
+  /** The name exactly as the source wrote it — kept even when it resolves. */
+  name: string;
+  /** A `WellKnown.deckZone` value. */
+  zone: string;
+  quantity: number;
+  /** The shared name matcher's verdict; null while the name resolves to nothing. */
+  cardId: string | null;
+}
+
+/**
+ * A proposed deck under a candidate event (migration 236). Card lists are jsonb
+ * rather than a third staging table: they are written whole, read whole, and
+ * never queried across rows.
+ *
+ * `(candidate_event_id, external_id)` is UNIQUE. Deck external ids are scoped
+ * to their event, which is why the ignore list keys on the source's event id
+ * alongside the deck's rather than on the provider alone.
+ */
+export interface CandidateMetaDecksTable {
+  id: Generated<string>;
+  /** FK → candidate_meta_events.id ON DELETE CASCADE */
+  candidateEventId: string;
+  /** CHECK: <> '' */
+  externalId: string;
+  /** CHECK: length 1..80 */
+  playerName: string;
+  /** CHECK: >= 1 */
+  finishTier: number;
+  /** CHECK: NULL or length 1..20 */
+  record: string | null;
+  /** CHECK: NULL or length 1..120 — accept derives one when the source gave none. */
+  name: string | null;
+  /**
+   * jsonb. Written as a JSON string, and read back as one under Bun too — every
+   * read goes through `parseJsonbRequired`, same contract as `decks.links`.
+   */
+  cards: ColumnType<CandidateMetaDeckCard[], string, string>;
+  /**
+   * DEFAULT 'full'. Same CHECK and same vocabulary as
+   * {@link MetaDecksTable.listStatus}, which accepting copies it into. It is
+   * the source's own claim about its payload, never inferred from the card
+   * count.
+   */
+  listStatus: Generated<MetaListStatus>;
+  /** FK → decks.id ON DELETE SET NULL — the live archived deck this became. */
+  deckId: string | null;
+  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A candidate event the admin rejected (migration 236). Skipped at ingest, so
+ * the same key never re-enters the queue. The source key is the identity —
+ * there is no surrogate id.
+ */
+export interface IgnoredCandidateMetaEventsTable {
+  /** PK part. CHECK: <> '' */
+  provider: string;
+  /** PK part. CHECK: <> '' */
+  externalId: string;
+  createdAt: CreatedAt;
+}
+
+/**
+ * A rejected candidate deck (migration 236). Keyed on the source's event id as
+ * well as the deck's, because deck external ids are only unique within their
+ * event. @see IgnoredCandidateMetaEventsTable
+ */
+export interface IgnoredCandidateMetaDecksTable {
+  /** PK part. CHECK: <> '' */
+  provider: string;
+  /** PK part. The source's id for the deck's event. CHECK: <> '' */
+  eventExternalId: string;
+  /** PK part. CHECK: <> '' */
+  externalId: string;
+  createdAt: CreatedAt;
 }
 
 /**
@@ -2113,6 +2320,14 @@ export interface Database {
   // Deck folders (migration 231)
   deckFolders: DeckFoldersTable;
   deckFolderEntries: DeckFolderEntriesTable;
+
+  // Meta archive (migration 235, ADR-014)
+  metaEvents: MetaEventsTable;
+  metaDecks: MetaDecksTable;
+  candidateMetaEvents: CandidateMetaEventsTable;
+  candidateMetaDecks: CandidateMetaDecksTable;
+  ignoredCandidateMetaEvents: IgnoredCandidateMetaEventsTable;
+  ignoredCandidateMetaDecks: IgnoredCandidateMetaDecksTable;
 
   // Tier lists (migration 237)
   tierLists: TierListsTable;

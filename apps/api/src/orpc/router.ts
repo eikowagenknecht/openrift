@@ -36,6 +36,8 @@ import { adminKeywordsRouter } from "../routes/admin/keywords.js";
 import { adminLanguagesRouter } from "../routes/admin/languages.js";
 import { adminMarkersRouter } from "../routes/admin/markers.js";
 import { adminMarketplaceGroupsRouter } from "../routes/admin/marketplace-groups.js";
+import { adminMetaCandidatesRouter } from "../routes/admin/meta-candidates.js";
+import { adminMetaRouter } from "../routes/admin/meta.js";
 import { adminOperationsRouter } from "../routes/admin/operations.js";
 import { adminOrganizationsRouter } from "../routes/admin/organizations.js";
 import { adminPrintingEventsRouter } from "../routes/admin/printing-events.js";
@@ -83,6 +85,7 @@ import { featureFlagsRouter } from "../routes/public/feature-flags.js";
 import { initRouter } from "../routes/public/init.js";
 import { landingSummaryRouter } from "../routes/public/landing-summary.js";
 import { publicListsRouter } from "../routes/public/lists.js";
+import { metaRouter } from "../routes/public/meta.js";
 import { publicOverlayRouter } from "../routes/public/overlay.js";
 import { publicPodTournamentsRouter } from "../routes/public/pod-tournaments.js";
 import { pricesRouter } from "../routes/public/prices.js";
@@ -136,6 +139,8 @@ const apiRouter = {
   adminLanguagesRouter,
   adminMarkersRouter,
   adminMarketplaceGroupsRouter,
+  adminMetaCandidatesRouter,
+  adminMetaRouter,
   adminOperationsRouter,
   adminOrganizationsRouter,
   adminPrintingEventsRouter,
@@ -182,6 +187,7 @@ const apiRouter = {
   featureFlagsRouter,
   initRouter,
   landingSummaryRouter,
+  metaRouter,
   publicListsRouter,
   publicOverlayRouter,
   publicPodTournamentsRouter,

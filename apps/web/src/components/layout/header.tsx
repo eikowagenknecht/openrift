@@ -26,6 +26,7 @@ import {
   SparklesIcon,
   SunIcon,
   SwordsIcon,
+  TrendingUpIcon,
   TrophyIcon,
   UserIcon,
   UsersIcon,
@@ -196,7 +197,7 @@ interface NavItemConfig {
   lockedKey?: LockedFeatureKey;
   badge?: keyof NavBadgeCounts;
   /** Only rendered while this feature flag is on. */
-  flag?: "glossary";
+  flag?: "glossary" | "meta";
   /** Phone feature: shown in the mobile sheet only, never in the desktop nav. */
   mobileOnly?: boolean;
 }
@@ -213,6 +214,9 @@ const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   // Decks are available logged out (ADR-035: build local decks without an
   // account), so this entry is a plain link for everyone.
   { label: "Decks", to: "/decks", icon: BookOpenIcon },
+  // Only in the primary block, not also under Explore: the mobile sheet renders
+  // both lists, so an entry in each would show up twice there.
+  { label: "Meta", to: "/meta", icon: TrendingUpIcon, flag: "meta" },
   { label: "Groups", to: "/groups", icon: UsersIcon, lockedKey: "groups", badge: "groups" },
 ];
 
@@ -288,15 +292,15 @@ const MORE_NAV_SECTIONS: NavSectionConfig[] = [
   },
 ];
 
+/** The flags every flag-gated nav entry is checked against. */
+type NavFlags = Record<NonNullable<NavItemConfig["flag"]>, boolean>;
+
 /**
  * Whether a nav item renders in the current menu.
  * @returns True when the item's feature flag and platform constraints allow it.
  */
-function navItemVisible(
-  item: NavItemConfig,
-  opts: { showGlossary: boolean; mobile: boolean },
-): boolean {
-  if (item.flag === "glossary" && !opts.showGlossary) {
+function navItemVisible(item: NavItemConfig, opts: { flags: NavFlags; mobile: boolean }): boolean {
+  if (item.flag !== undefined && !opts.flags[item.flag]) {
     return false;
   }
   if (item.mobileOnly && !opts.mobile) {
@@ -467,30 +471,30 @@ function DesktopMoreItem({
 
 function DesktopNav({
   isLoggedIn,
-  showGlossary,
+  flags,
   badges,
   onLockedClick,
 }: {
   isLoggedIn: boolean;
-  showGlossary: boolean;
+  flags: NavFlags;
   badges: NavBadgeCounts;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
   return (
     <NavigationMenu>
       <NavigationMenuList className="gap-1">
-        {PRIMARY_NAV_ITEMS.filter((item) =>
-          navItemVisible(item, { showGlossary, mobile: false }),
-        ).map((item) => (
-          <NavigationMenuItem key={item.to}>
-            <DesktopPrimaryItem
-              item={item}
-              isLoggedIn={isLoggedIn}
-              badges={badges}
-              onLockedClick={onLockedClick}
-            />
-          </NavigationMenuItem>
-        ))}
+        {PRIMARY_NAV_ITEMS.filter((item) => navItemVisible(item, { flags, mobile: false })).map(
+          (item) => (
+            <NavigationMenuItem key={item.to}>
+              <DesktopPrimaryItem
+                item={item}
+                isLoggedIn={isLoggedIn}
+                badges={badges}
+                onLockedClick={onLockedClick}
+              />
+            </NavigationMenuItem>
+          ),
+        )}
         <NavigationMenuItem>
           <NavigationMenuTrigger className="text-muted-foreground hover:text-foreground focus:text-foreground data-popup-open:text-foreground">
             More
@@ -506,7 +510,7 @@ function DesktopNav({
                   </div>
                   <ul className="grid gap-1">
                     {section.items
-                      .filter((item) => navItemVisible(item, { showGlossary, mobile: false }))
+                      .filter((item) => navItemVisible(item, { flags, mobile: false }))
                       .map((item) => (
                         <li key={item.to}>
                           <DesktopMoreItem
@@ -720,14 +724,14 @@ function MobileNav({
   open,
   onOpenChange,
   isLoggedIn,
-  showGlossary,
+  flags,
   badges,
   onLockedClick,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isLoggedIn: boolean;
-  showGlossary: boolean;
+  flags: NavFlags;
   badges: NavBadgeCounts;
   onLockedClick: (key: LockedFeatureKey) => void;
 }) {
@@ -747,24 +751,24 @@ function MobileNav({
           </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 px-2">
-          {PRIMARY_NAV_ITEMS.filter((item) =>
-            navItemVisible(item, { showGlossary, mobile: true }),
-          ).map((item) => (
-            <MobileNavItem
-              key={item.to}
-              item={item}
-              isLoggedIn={isLoggedIn}
-              badges={badges}
-              onLockedClick={onLockedClick}
-            />
-          ))}
+          {PRIMARY_NAV_ITEMS.filter((item) => navItemVisible(item, { flags, mobile: true })).map(
+            (item) => (
+              <MobileNavItem
+                key={item.to}
+                item={item}
+                isLoggedIn={isLoggedIn}
+                badges={badges}
+                onLockedClick={onLockedClick}
+              />
+            ),
+          )}
           {MORE_NAV_SECTIONS.map((section) => (
             <Fragment key={section.label}>
               <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
                 {section.label}
               </div>
               {section.items
-                .filter((item) => navItemVisible(item, { showGlossary, mobile: true }))
+                .filter((item) => navItemVisible(item, { flags, mobile: true }))
                 .map((item) => (
                   <MobileNavItem
                     key={item.to}
@@ -902,9 +906,10 @@ function FeedbackPopover({
 export function Header() {
   const { data: session, isPending } = useSession();
   const glossaryEnabled = useFeatureEnabled("glossary");
+  const metaEnabled = useFeatureEnabled("meta");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lockedFeature, setLockedFeature] = useState<LockedFeatureKey | null>(null);
-  const showGlossary = glossaryEnabled;
+  const navFlags: NavFlags = { glossary: glossaryEnabled, meta: metaEnabled };
   const isLoggedIn = Boolean(session?.user);
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
@@ -946,7 +951,7 @@ export function Header() {
           <LogoLink />
           <DesktopNav
             isLoggedIn={isLoggedIn}
-            showGlossary={showGlossary}
+            flags={navFlags}
             badges={{ groups: groupsBadge, loans: loansBadge }}
             onLockedClick={setLockedFeature}
           />
@@ -978,7 +983,7 @@ export function Header() {
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
         isLoggedIn={isLoggedIn}
-        showGlossary={showGlossary}
+        flags={navFlags}
         badges={{ groups: groupsBadge, loans: loansBadge }}
         onLockedClick={setLockedFeature}
       />

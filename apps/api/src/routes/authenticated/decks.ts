@@ -3,7 +3,6 @@ import type {
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormat,
-  DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
   DeckShareResponse,
@@ -27,6 +26,7 @@ import type { z } from "zod";
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { assertDeleted, assertFound } from "../../lib/assertions.js";
+import { assertKnownFormat, validateFormatConfig } from "../../lib/deck-format-validation.js";
 import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../../lib/deck-presenters.js";
 import { withUniqueShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
@@ -35,81 +35,6 @@ import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { DeckUpdateInput } from "../../repositories/decks.js";
 import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
-
-async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: string): Promise<void> {
-  const row = await deckFormats.getBySlug(format);
-  if (!row) {
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown deck format: ${format}`);
-  }
-}
-
-/**
- * Per-format validation of `formatConfig`. Each format declares its own
- * shape; this helper dispatches by slug and rejects malformed values at the
- * API boundary so the DB never holds a config the runtime can't honor.
- *
- * Custom-Region accepts `null` (no regions picked yet) or
- * `{ tagSlugs: <slug>[] }` where each slug references an existing
- * custom_tags row with category='region'. At least one slug is required;
- * duplicates are deduped to keep the persisted payload tidy.
- *
- * @returns The normalized config to persist, or null when the user hasn't
- *   provided one yet. Throws AppError(400) for malformed values.
- */
-async function validateFormatConfig(
-  customTagsRepo: Repos["customTags"],
-  format: string,
-  config: Record<string, unknown> | null | undefined,
-): Promise<DeckFormatConfig | null> {
-  if (config === undefined || config === null) {
-    return null;
-  }
-
-  if (format === WellKnown.deckFormat.CUSTOM_REGION) {
-    const raw = config.tagSlugs;
-    if (!Array.isArray(raw) || raw.length === 0) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "formatConfig.tagSlugs must be a non-empty array for Custom - Region decks",
-      );
-    }
-    const slugs = [
-      ...new Set(raw.filter((slug): slug is string => typeof slug === "string" && slug !== "")),
-    ];
-    if (slugs.length !== raw.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "formatConfig.tagSlugs must contain unique non-empty strings",
-      );
-    }
-    const tags = await customTagsRepo.listBySlugs(slugs);
-    const tagBySlug = new Map(tags.map((tag) => [tag.slug, tag]));
-    for (const slug of slugs) {
-      const tag = tagBySlug.get(slug);
-      if (!tag) {
-        throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown custom tag slug: ${slug}`);
-      }
-      if (tag.category !== "region") {
-        throw new AppError(
-          400,
-          ERROR_CODES.BAD_REQUEST,
-          `Custom tag "${slug}" is not in the region category`,
-        );
-      }
-    }
-    return { tagSlugs: slugs };
-  }
-
-  // Other formats don't accept config today; reject anything non-null so we
-  // don't silently persist data that has no consumer.
-  throw new AppError(
-    400,
-    ERROR_CODES.BAD_REQUEST,
-    `Format "${format}" does not accept format_config`,
-  );
-}
 
 /**
  * Validates the card references in a deck plan (ADR-029): every referenced
@@ -713,8 +638,16 @@ export const decksRouter = {
   // 409 since setShareToken already supports the create-from-unshared path
   // cleanly and it matches the user-share rotate precedent.
   rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
-    const { decks } = context.repos;
+    const { decks, meta } = context.repos;
     const userId = context.userId;
+
+    // An archived deck's token is its public permalink (ADR-014). Owner
+    // scoping already makes this unreachable — the archive's synthetic owner
+    // has no session — but the invariant is stated here so a future path that
+    // rotates on someone's behalf cannot break every archive link.
+    if (await meta.isMetaDeck(input.id)) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "This deck's link cannot be rotated");
+    }
 
     const token = await withUniqueShareToken(async (candidate) => {
       const updated = await decks.setShareToken(input.id, userId, candidate, true);

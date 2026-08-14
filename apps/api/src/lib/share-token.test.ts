@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { generateShareToken, withUniqueShareToken } from "./share-token.js";
 
-function uniqueViolation(): Error {
+function uniqueViolation(constraintName?: string): Error {
   const error = new Error("duplicate key value violates unique constraint");
-  (error as Error & { code: string }).code = "23505";
+  Object.assign(error, { code: "23505", constraint_name: constraintName });
   return error;
 }
 
@@ -58,5 +58,39 @@ describe("withUniqueShareToken", () => {
     });
     await expect(withUniqueShareToken(attempt)).rejects.toThrow("Not found");
     expect(attempt).toHaveBeenCalledOnce();
+  });
+
+  describe("with a named constraint", () => {
+    const options = { constraint: "decks_share_token_key" };
+
+    it("retries a violation on that constraint", async () => {
+      const seen: string[] = [];
+      const attempt = vi.fn(async (token: string) => {
+        seen.push(token);
+        if (seen.length === 1) {
+          throw uniqueViolation("decks_share_token_key");
+        }
+        return token;
+      });
+      const result = await withUniqueShareToken(attempt, options);
+      expect(attempt).toHaveBeenCalledTimes(2);
+      expect(result).toBe(seen[1]);
+    });
+
+    it("propagates a violation from another constraint immediately", async () => {
+      const attempt = vi.fn(async () => {
+        throw uniqueViolation("uq_meta_decks_source");
+      });
+      await expect(withUniqueShareToken(attempt, options)).rejects.toThrow("duplicate key");
+      expect(attempt).toHaveBeenCalledOnce();
+    });
+
+    it("propagates a violation that names no constraint immediately", async () => {
+      const attempt = vi.fn(async () => {
+        throw uniqueViolation();
+      });
+      await expect(withUniqueShareToken(attempt, options)).rejects.toThrow("duplicate key");
+      expect(attempt).toHaveBeenCalledOnce();
+    });
   });
 });
