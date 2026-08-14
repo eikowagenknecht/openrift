@@ -13,6 +13,7 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { useFilterValues, useStaleGroupByGuard } from "@/hooks/use-card-filters";
+import { useSmUp } from "@/hooks/use-sm-up";
 import { resolveTopLevelUnits } from "@/lib/filter-sections";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -215,17 +216,25 @@ export function BrowserToolbar({
   // compact filter bar replaces it) the gap stays a constant mb-3 to avoid a
   // state-dependent shift with nothing below to group with.
   const { hasActiveFilters } = useFilterValues();
+  // The desktop chrome carries `hidden sm:flex`, but CSS-hiding alone still
+  // re-renders every chip (with fresh counts) on each filter change. Unmount
+  // it below `sm` instead. The CSS classes stay so SSR HTML (which renders the
+  // desktop chrome — useSmUp's server snapshot is true) shows nothing on
+  // phones until hydration drops the subtree.
+  const smUp = useSmUp();
   return (
     <>
       <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2 sm:mb-3" : "mb-3")}>
         <SearchBar totalCards={totalCards} filteredCount={filteredCount} />
-        <DesktopOptionsBar
-          className="hidden sm:flex"
-          showCopies={showCopies}
-          hideViewToggle={hideViewToggle}
-          groupByOptions={groupByOptions}
-          groupByValue={groupByValue}
-        />
+        {smUp && (
+          <DesktopOptionsBar
+            className="hidden sm:flex"
+            showCopies={showCopies}
+            hideViewToggle={hideViewToggle}
+            groupByOptions={groupByOptions}
+            groupByValue={groupByValue}
+          />
+        )}
         {extras}
         {/* Last, so the pane toggle is the rightmost control on every surface —
             surface extras vary, the dock button's position must not. */}
@@ -240,7 +249,7 @@ export function BrowserToolbar({
           <BrowserMobileFilters />
         </MobileOptionsDrawer>
       </div>
-      <BrowserCompactFilters />
+      {smUp && <BrowserCompactFilters />}
       {/* Mobile-only chip strip, kept in this sticky tier so search + chips pin
           as one block. On sm+ it collapses to display:none (the compact bar
           above surfaces the same filters inline). */}

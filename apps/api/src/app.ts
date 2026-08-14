@@ -28,7 +28,7 @@ import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { requireAdmin } from "./middleware/require-admin.js";
 import { versionHeadersMiddleware } from "./middleware/version-headers.js";
 import { generateContractOpenAPIDocument } from "./openapi-doc.js";
-import { ETAG_PATHS } from "./orpc/cache-policy.js";
+import { ETAG_PATHS, immutableWhenVersionMatches } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
@@ -466,6 +466,9 @@ export function createApp(deps: AppDeps) {
   mountDeckCheckIngestMiddleware(app);
   mountCardSubmissionsMiddleware(app);
   for (const path of ETAG_PATHS) {
+    // Outside etag() on purpose: the immutable upgrade reads the ETag header
+    // etag() sets, so it must run after etag()'s post-processing.
+    app.use(path, immutableWhenVersionMatches);
     app.use(path, etag());
   }
 
@@ -497,6 +500,15 @@ export function createApp(deps: AppDeps) {
     // under the public /decks/share/ read) from ever being labelled `public`.
     if (response.ok && (c.req.method === "GET" || isHead) && apiContext.cacheControl) {
       response.headers.set("Cache-Control", apiContext.cacheControl);
+    }
+    // A handler-computed ETag (see ApiContext.etag). Set before `etag()` sees
+    // the response, so it keeps this tag instead of hashing the body.
+    if (
+      response.ok &&
+      (c.req.method === "GET" || isHead) &&
+      apiContext.response.etag !== undefined
+    ) {
+      response.headers.set("ETag", `"${apiContext.response.etag}"`);
     }
     // The api-key rate limiter refused the session lookup and told us how long
     // to wait; the throw is already encoded into `response` by here, so the

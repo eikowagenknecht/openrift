@@ -1,8 +1,9 @@
 import { sortByLanguageAndCanonicalRank } from "@openrift/shared";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import type { UseCardsResult } from "@/lib/catalog-query";
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { useDisplayStore } from "@/stores/display-store";
 
 // Re-export for consumers that import catalogQueryOptions from here
@@ -17,6 +18,22 @@ export function useCards(): UseCardsResult {
   // identity here because the enriched shape contains a Map.
   const { data } = useSuspenseQuery(catalogQueryOptions);
   const userLanguages = useDisplayStore((state) => state.languages);
+  const queryClient = useQueryClient();
+
+  // The client fetches the user's languages first (see catalog-query.ts);
+  // pull the remaining languages in once the main thread is idle after first
+  // paint. Re-runs whenever the catalog entry changes (a version refetch gets
+  // a fresh tail); loadCatalogTail itself no-ops when nothing is missing.
+  // requestIdleCallback is missing on iOS Safari, hence the timeout fallback.
+  useEffect(() => {
+    const start = () => void loadCatalogTail(queryClient);
+    if (typeof requestIdleCallback === "function") {
+      const handle = requestIdleCallback(start, { timeout: 5000 });
+      return () => cancelIdleCallback(handle);
+    }
+    const timer = setTimeout(start, 1500);
+    return () => clearTimeout(timer);
+  }, [data, queryClient]);
 
   if (userLanguages.length === 0) {
     return data;

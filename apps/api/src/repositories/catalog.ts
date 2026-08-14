@@ -140,6 +140,45 @@ function withReleases<T extends { releases: SetReleases }>(row: T): T {
 }
 
 /**
+ * The rule-relevant half of the catalog content token. Kept at module scope so
+ * both `catalogContentVersion` (which is exactly this) and
+ * `catalogResponseVersion` (this plus images and copies) read from one query
+ * instead of two copies that can drift apart.
+ * @returns An opaque string that changes iff the rule-relevant catalog changes.
+ */
+async function ruleContentVersion(db: Kysely<Database>): Promise<string> {
+  const result = await sql<{ token: string }>`
+    SELECT md5(
+      coalesce((SELECT count(*) FROM cards)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM cards)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM printings)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM printings)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM sets)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM sets)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM card_bans)::text, '') || ':' ||
+      coalesce((SELECT max(created_at) FROM card_bans)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM card_errata)::text, '') || ':' ||
+      coalesce((SELECT max(created_at) FROM card_errata)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM markers)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM markers)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM printing_markers)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM distribution_channels)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM distribution_channels)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM printing_distribution_channels)::text, '') || '|' ||
+      coalesce((SELECT md5(string_agg(card_id::text || ':' || domain_slug || ':' || ordinal::text, ',' ORDER BY card_id, domain_slug)) FROM card_domains), '') || '|' ||
+      coalesce((SELECT md5(string_agg(card_id::text || ':' || super_type_slug, ',' ORDER BY card_id, super_type_slug)) FROM card_super_types), '') || '|' ||
+      coalesce((SELECT md5(string_agg(card_id::text || ':' || custom_tag_id::text, ',' ORDER BY card_id, custom_tag_id)) FROM card_custom_tags), '') || '|' ||
+      coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM set_releases)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) FROM set_releases)::text, '') || '|' ||
+      current_date::text
+    ) AS token
+  `.execute(db);
+  return result.rows[0]?.token ?? "";
+}
+
+/**
  * Read-only queries for the card catalog (sets + printings + cards).
  *
  * The `.select()` columns in each method define the public API contract —
@@ -360,35 +399,64 @@ export function catalogRepo(db: Kysely<Database>) {
      * or map building), so it can run on every ruled-list read.
      * @returns An opaque string that changes iff the rule-relevant catalog changes.
      */
-    async catalogContentVersion(): Promise<string> {
-      const result = await sql<{ token: string }>`
-        SELECT
-          coalesce((SELECT count(*) FROM cards)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM cards)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM printings)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM printings)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM sets)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM sets)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM card_bans)::text, '') || ':' ||
-          coalesce((SELECT max(created_at) FROM card_bans)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM card_errata)::text, '') || ':' ||
-          coalesce((SELECT max(created_at) FROM card_errata)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM markers)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM markers)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM printing_markers)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM distribution_channels)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM distribution_channels)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM printing_distribution_channels)::text, '') || '|' ||
-          coalesce((SELECT md5(string_agg(card_id::text || ':' || domain_slug || ':' || ordinal::text, ',' ORDER BY card_id, domain_slug)) FROM card_domains), '') || '|' ||
-          coalesce((SELECT md5(string_agg(card_id::text || ':' || super_type_slug, ',' ORDER BY card_id, super_type_slug)) FROM card_super_types), '') || '|' ||
-          coalesce((SELECT md5(string_agg(card_id::text || ':' || custom_tag_id::text, ',' ORDER BY card_id, custom_tag_id)) FROM card_custom_tags), '') || '|' ||
-          coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') || '|' ||
-          coalesce((SELECT count(*) FROM set_releases)::text, '') || ':' ||
-          coalesce((SELECT max(updated_at) FROM set_releases)::text, '') || '|' ||
-          current_date::text AS token
-      `.execute(db);
-      return result.rows[0]?.token ?? "";
+    catalogContentVersion(): Promise<string> {
+      return ruleContentVersion(db);
+    },
+
+    /**
+     * The content version of the assembled `/catalog` **response**, used as that
+     * response's ETag (see `routes/public/catalog.ts`).
+     *
+     * This is {@link catalogContentVersion} plus what the rule memo does not
+     * need but the response carries:
+     *
+     * - `printing_images` — the response embeds each printing's `images`.
+     * - `copies` — the response carries `totalCopies`.
+     * - `printing_markers` / `printing_distribution_channels` — content-hashed,
+     *   not counted. Both are timestamp-less junctions, so a same-cardinality
+     *   swap (drop one link, add another) leaves `count(*)` identical and would
+     *   not roll the token, while every printing's `markers` and
+     *   `distributionChannels` in the response changed. The rule token counts
+     *   them only, which is why they are restated here rather than shared.
+     *   `printing_markers` is *also* covered indirectly — its `_sync_iud`
+     *   trigger denormalizes slugs onto `printings`, bumping that row's
+     *   `updated_at` — but hashing it directly keeps the guarantee from resting
+     *   on a trigger side effect. `printing_distribution_channels` has no such
+     *   trigger and was genuinely uncovered until this hash.
+     *
+     * It reuses the rule token rather than restating its aggregates, because
+     * the failure mode of drifting out of sync is severe here: this token gates
+     * a year-long `immutable` entry, so anything reachable in `CatalogResponse`
+     * that it misses gets served stale to every client holding that URL.
+     * `assembleCatalogResponse`'s inputs are the checklist. `current_date` rides
+     * along inside the rule token, which also bounds the blast radius of any
+     * future gap: the token rolls at least once a day regardless.
+     *
+     * @returns An opaque string that changes iff the catalog response changes.
+     */
+    async catalogResponseVersion(): Promise<string> {
+      const [ruleToken, result] = await Promise.all([
+        ruleContentVersion(db),
+        sql<{ token: string }>`
+          SELECT md5(
+            coalesce((SELECT count(*) FROM printing_images)::text, '') || ':' ||
+            coalesce((SELECT max(updated_at) FROM printing_images)::text, '') || '|' ||
+            coalesce((SELECT count(*) FROM copies)::text, '') || '|' ||
+            coalesce((SELECT md5(string_agg(
+              printing_id::text || ':' || marker_id::text, ',' ORDER BY printing_id, marker_id
+            )) FROM printing_markers), '') || '|' ||
+            coalesce((SELECT md5(string_agg(
+              printing_id::text || ':' || channel_id::text || ':' || coalesce(distribution_note, ''),
+              ',' ORDER BY printing_id, channel_id
+            )) FROM printing_distribution_channels), '')
+          ) AS token
+        `.execute(db),
+      ]);
+      // Both halves are already md5 hex, so joining them needs no hashing here
+      // and yields a value safe in both an ETag header and a `?v=` query param.
+      // The raw aggregates carry timestamps (spaces, `+`) and would need
+      // escaping in both places.
+      return `${ruleToken}${result.rows[0]?.token ?? ""}`;
     },
 
     /**

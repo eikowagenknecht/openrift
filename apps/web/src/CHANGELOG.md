@@ -9,6 +9,8 @@
 - feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
 - fix(Cards): **Snappier card browser** — filters now apply in about half the time, and scrolling the grid holds a steady frame rate on phones.
+- fix(Cards): **Faster filtering on phones** — the filter drawer opens in about half the time, and once it is open each filter you tap applies a quarter quicker.
+- fix(Cards): **Quicker first load** — the card list now downloads your own languages first and fetches the rest quietly once the page is up, roughly halving what has to arrive before you see any cards.
 - fix(Collection): **Faster stats filtering** — the statistics page no longer stutters when you add or remove filters, and sets you own stop dropping out of the set picker as you narrow things down.
 
 ### Other

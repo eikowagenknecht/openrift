@@ -57,7 +57,7 @@ import { useUpdateList } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { pricesQueryOptions, usePrices } from "@/hooks/use-prices";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { rulePresetsFor } from "@/lib/rule-presets";
@@ -119,7 +119,12 @@ export function RuleEditorDialog({
       return;
     }
     load(currentRules, currentRuleCombine);
-    void queryClient.ensureQueryData(catalogQueryOptions);
+    // Rules preview evaluates against the whole catalog, so make sure the
+    // language-split fetch's tail is merged too (no-op when complete).
+    void (async () => {
+      await queryClient.ensureQueryData(catalogQueryOptions);
+      await loadCatalogTail(queryClient);
+    })();
     void queryClient.ensureQueryData(initQueryOptions);
     void queryClient.ensureQueryData(pricesQueryOptions);
     return () => reset();

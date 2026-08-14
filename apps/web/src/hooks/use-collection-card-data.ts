@@ -9,6 +9,7 @@ import type {
   SortOption,
 } from "@openrift/shared";
 import {
+  EMPTY_CARD_FILTERS,
   WellKnown,
   computeFilterCounts,
   filterCards,
@@ -19,6 +20,7 @@ import {
 import { useDeferredValue } from "react";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { EMPTY_FILTER_COUNTS } from "@/hooks/use-card-data";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
@@ -72,6 +74,12 @@ interface UseCollectionCardDataParams {
    * collection wants.
    */
   ownedCardTotalOverride?: Record<string, number>;
+  /**
+   * Whether the faceted chip counts are computed. Pass `false` while no chip
+   * surface is visible (on phones: the filter drawer is closed) — mirrors
+   * `useCatalogFilterMeta`. Defaults to `true`.
+   */
+  countsEnabled?: boolean;
 }
 
 /**
@@ -97,6 +105,7 @@ export function useCollectionCardData({
   ownedCountMin,
   ownedCountMax,
   ownedCardTotalOverride,
+  countsEnabled = true,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, collectionIdByCopyId, isReady } = useStackedCopies(collectionId);
@@ -106,10 +115,12 @@ export function useCollectionCardData({
   // Deferred inputs for the facet counts only — same rationale as
   // useCatalogFilterMeta: chip badges may lag one frame, the grid must not
   // wait for the counts pass. Deferred together because they share URL state.
-  const deferredFilters = useDeferredValue(filters);
-  const deferredOwnedFilter = useDeferredValue(ownedFilter);
-  const deferredOwnedCountMin = useDeferredValue(ownedCountMin);
-  const deferredOwnedCountMax = useDeferredValue(ownedCountMax);
+  // With the counts pass off (no chip surface visible) they pin to constants
+  // so a filter change doesn't even schedule the deferred re-render.
+  const deferredFilters = useDeferredValue(countsEnabled ? filters : EMPTY_CARD_FILTERS);
+  const deferredOwnedFilter = useDeferredValue(countsEnabled ? ownedFilter : undefined);
+  const deferredOwnedCountMin = useDeferredValue(countsEnabled ? ownedCountMin : null);
+  const deferredOwnedCountMax = useDeferredValue(countsEnabled ? ownedCountMax : null);
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
   const setSlugToName = new Map(sets.map((set) => [set.slug, set.name]));
@@ -243,11 +254,13 @@ export function useCollectionCardData({
       ownedFilterBucketBy,
     );
   }
-  const filterCounts = computeFilterCounts(universeForCounts, deferredFilters, {
-    countBy: view === "cards" ? "card" : "printing",
-    keywordReverseMap,
-    getPrice,
-  });
+  const filterCounts = countsEnabled
+    ? computeFilterCounts(universeForCounts, deferredFilters, {
+        countBy: view === "cards" ? "card" : "printing",
+        keywordReverseMap,
+        getPrice,
+      })
+    : EMPTY_FILTER_COUNTS;
 
   // In "cards" view, collapse to one tile per card — or per (cardId, set) /
   // (cardId, rarity) when grouped by set/rarity, so a card owned in N sets shows

@@ -89,6 +89,26 @@ describe("useCardData", () => {
     expect(result.current.availableFilters.rarities).toHaveLength(0);
   });
 
+  it("skips only the counts pass when countsEnabled is false, keeping availableFilters", () => {
+    const a = stubPrinting({ rarity: "common" });
+    const b = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [a, b],
+      countsEnabled: false,
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    // Grid pipeline still runs...
+    expect(result.current.sortedCards).toHaveLength(2);
+    // ...counts are the empty stand-in (no chip surface visible to read them)...
+    expect(result.current.filterCounts.rarities.size).toBe(0);
+    // ...but availableFilters stays live, unlike metaEnabled: false.
+    expect(result.current.availableFilters.rarities.length).toBeGreaterThan(0);
+  });
+
   it("leaves facet counts unchanged when the owned filter is empty", () => {
     const a = stubPrinting({ rarity: "common" });
     const b = stubPrinting({ rarity: "rare" });

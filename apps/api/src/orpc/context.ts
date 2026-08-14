@@ -59,6 +59,31 @@ export interface ApiContext {
    */
   cacheControl?: string;
   /**
+   * Output slots a *handler* can write to. A plain field would not work here:
+   * oRPC middlewares that extend the context (`next({ context })`) hand the
+   * handler a merged copy, so assigning `context.foo` inside a handler mutates
+   * that copy and never reaches the object the catch-all mount holds. This is a
+   * container, and the spread copies its reference, so writes through it are
+   * visible to everyone. (`cacheControl` and `retryAfterSeconds` above are set
+   * from the root context instead, which is why they can be plain fields.)
+   */
+  response: {
+    /**
+     * An ETag the handler computed from its own content version, rather than
+     * letting `etag()` hash the serialized body. The catch-all mount sets it on
+     * a successful GET; Hono's `etag()` keeps a tag that is already present and
+     * still does the `If-None-Match` → 304 handling around it.
+     *
+     * The catalog uses this so every language variant of one catalog state
+     * shares a tag (ETags are scoped per-URL, so one value across URLs is
+     * well-formed). That is what lets `immutableWhenVersionMatches` recognise
+     * `?v=<token>` on a `?langs=` variant — hashing the variant body would give
+     * it a tag that could never equal the token the client was handed for the
+     * whole catalog.
+     */
+    etag?: string;
+  };
+  /**
    * Output slot: seconds to wait, set when a session lookup was refused by the
    * api-key rate limiter. oRPC encodes a handler throw into a `Response` whose
    * headers we can't reach from the thrown error, so the catch-all mount reads
@@ -92,6 +117,7 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
       return c.get("user") ?? null;
     },
     reqHeader: (name) => c.req.header(name),
+    response: {},
   };
   return context;
 }

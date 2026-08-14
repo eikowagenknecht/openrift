@@ -1,8 +1,9 @@
+import type { Context, Next } from "hono";
 import { describe, expect, it } from "vitest";
 
 import { cacheControlInterceptor } from "./cache-control-interceptor.js";
 import type { CacheMeta } from "./cache-policy.js";
-import { ETAG_PATHS, resolveCacheControl } from "./cache-policy.js";
+import { ETAG_PATHS, immutableWhenVersionMatches, resolveCacheControl } from "./cache-policy.js";
 import type { ApiContext } from "./context.js";
 
 const LONG = "public, max-age=3600, stale-while-revalidate=86400";
@@ -33,6 +34,53 @@ describe("resolveCacheControl", () => {
   it("returns undefined when the procedure declares no cache meta", () => {
     expect(resolveCacheControl({}, false)).toBeUndefined();
     expect(resolveCacheControl({ etag: true }, true)).toBeUndefined();
+  });
+});
+
+describe("immutableWhenVersionMatches", () => {
+  const IMMUTABLE = "public, max-age=31536000, immutable";
+
+  /**
+   * Minimal Hono-context stand-in: a query map plus a mutable response.
+   * @returns The `Cache-Control` the middleware left on the response.
+   */
+  function run(query: Record<string, string>, headers: Record<string, string>) {
+    const res = new Response(null, { headers });
+    const c = { req: { query: (key: string) => query[key] }, res } as unknown as Context;
+    const next: Next = () => Promise.resolve();
+    return immutableWhenVersionMatches(c, next).then(() => res.headers.get("Cache-Control"));
+  }
+
+  it("upgrades to immutable when ?v matches the bare ETag", async () => {
+    await expect(run({ v: "abc123" }, { ETag: '"abc123"', "Cache-Control": LONG })).resolves.toBe(
+      IMMUTABLE,
+    );
+  });
+
+  it("matches weak ETags too", async () => {
+    await expect(run({ v: "abc123" }, { ETag: 'W/"abc123"', "Cache-Control": LONG })).resolves.toBe(
+      IMMUTABLE,
+    );
+  });
+
+  it("keeps the tier header when the token is stale", async () => {
+    await expect(run({ v: "older" }, { ETag: '"abc123"', "Cache-Control": LONG })).resolves.toBe(
+      LONG,
+    );
+  });
+
+  it("does nothing without a version token", async () => {
+    await expect(run({}, { ETag: '"abc123"', "Cache-Control": LONG })).resolves.toBe(LONG);
+  });
+
+  it("never upgrades a private response", async () => {
+    await expect(
+      run({ v: "abc123" }, { ETag: '"abc123"', "Cache-Control": SHORT_PRIVATE }),
+    ).resolves.toBe(SHORT_PRIVATE);
+  });
+
+  it("does nothing when the response carries no ETag", async () => {
+    await expect(run({ v: "abc123" }, { "Cache-Control": LONG })).resolves.toBe(LONG);
   });
 });
 

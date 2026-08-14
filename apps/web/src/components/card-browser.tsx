@@ -24,6 +24,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useChannelRegistry } from "@/hooks/use-enums";
+import { useFilterCountsVisible } from "@/hooks/use-filter-counts-visible";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -217,6 +218,9 @@ export function CardBrowser() {
   // owned filter is active — without it, every click busts downstream
   // memoization in the filter chrome.
   const ownedCountForMeta = ownedFilterActive ? ownedCountByPrinting : undefined;
+  // On phones the counts only show inside the options drawer; skip the whole
+  // counts pass (the most expensive part of a filter change) while it's closed.
+  const countsVisible = useFilterCountsVisible();
   const filterMeta = useCatalogFilterMeta({
     allPrintings,
     sets,
@@ -228,6 +232,7 @@ export function CardBrowser() {
     ownedCountByPrinting: ownedCountForMeta,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
+    countsEnabled: countsVisible,
     keywordReverseMap,
     channels,
   });

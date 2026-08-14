@@ -16,6 +16,7 @@
 
 // oxlint-disable-next-line no-restricted-imports -- ETAG_PATHS is walked out of every contract, so the barrel is the point here; apps/api runs unbundled on Bun.
 import * as contracts from "@openrift/shared/contracts";
+import type { Context, Next } from "hono";
 
 /** The cache lifetime tiers a contract can declare via `meta.cache`. */
 type CacheLevel = "long" | "medium" | "short" | "sitemap" | "revalidate";
@@ -93,6 +94,38 @@ function collectEtagPaths(): string[] {
 export const ETAG_PATHS: string[] = collectEtagPaths().map((path) =>
   path.replaceAll(/\{(?<param>[^}]+)\}/gu, ":$<param>"),
 );
+
+/**
+ * Hono middleware for the etag'd reads: when the request URL carries a
+ * `?v=<token>` that matches the response's own ETag, the URL is
+ * content-addressed — its body can never change (a content change rolls the
+ * token, see `lib/catalog-version.ts` in the web app), so the edge and the
+ * browser may cache it forever. Upgrades `Cache-Control` to immutable in that
+ * case; a missing or stale token keeps the tier header resolved from the
+ * contract meta. Registered OUTSIDE `etag()` so the ETag header exists by the
+ * time it runs. Only public responses are upgraded — the viewer-varying
+ * private reads never carry a version token, but stay guarded anyway.
+ *
+ * @param c - Hono context.
+ * @param next - Next middleware in the chain.
+ * @returns Resolves when downstream middleware has run and the header is set.
+ */
+export async function immutableWhenVersionMatches(c: Context, next: Next): Promise<void> {
+  await next();
+  const version = c.req.query("v");
+  if (!version) {
+    return;
+  }
+  const etagHeader = c.res.headers.get("ETag");
+  const cacheControl = c.res.headers.get("Cache-Control");
+  if (!etagHeader || !cacheControl?.startsWith("public")) {
+    return;
+  }
+  const bareTag = etagHeader.replace(/^W\//u, "").replaceAll('"', "");
+  if (bareTag === version) {
+    c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  }
+}
 
 /**
  * Resolves the `Cache-Control` value for a successful public read from its

@@ -14,6 +14,7 @@ import type { useFilterValues } from "@/hooks/use-card-filters";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollectionsMap } from "@/hooks/use-collections";
 import { useChannelRegistry } from "@/hooks/use-enums";
+import { useFilterCountsVisible } from "@/hooks/use-filter-counts-visible";
 import { useFriendGroupsList, useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -70,6 +71,9 @@ export function useCollectionGridData({
   const collectionsMap = useCollectionsMap();
   const channels = useChannelRegistry();
   const keywordReverseMap = useKeywordReverseMap();
+  // On phones the faceted counts only show inside the options drawer; skip
+  // the counts pass while it's closed (see useFilterCountsVisible).
+  const countsVisible = useFilterCountsVisible();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -164,6 +168,7 @@ export function useCollectionGridData({
     // this the slider's max silently flipped from box stock to personal on the
     // first owned-filter interaction.
     ownedCardTotalOverride: isGroupCollection ? personalCardTotals : undefined,
+    countsEnabled: countsVisible,
   });
 
   // ── Catalog data (drives "show library" view + the quick-add palette in
@@ -208,6 +213,7 @@ export function useCollectionGridData({
     // browse/select mode the collection hook's meta wins the ternaries below,
     // so don't pay the full-catalog counts pass on every filter change there.
     metaEnabled: showLibrary,
+    countsEnabled: countsVisible,
     keywordReverseMap,
     channels,
   });

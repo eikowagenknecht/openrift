@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -17,6 +17,10 @@ export const Route = createFileRoute("/_app/_authenticated/scan")({
       context.queryClient.ensureQueryData(catalogQueryOptions),
       context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId)),
     ]);
+    // The catalog's client fetch covers the user's languages first; the scanner
+    // must match printings of ANY language, so pull the remaining ones now
+    // (no-op when complete) without blocking the route transition on them.
+    void loadCatalogTail(context.queryClient);
   },
   errorComponent: RouteErrorFallback,
 });

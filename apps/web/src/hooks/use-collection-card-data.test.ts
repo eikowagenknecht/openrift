@@ -524,4 +524,29 @@ describe("useCollectionCardData", () => {
     expect(highCopies.result.current.filterCounts.rarities.get("rare")).toBe(1);
     expect(highCopies.result.current.filterCounts.rarities.get("common")).toBeUndefined();
   });
+
+  it("skips the counts pass when countsEnabled is false but keeps the grid data live", () => {
+    const common = stubPrinting({ rarity: "common", card: { slug: "common-card" } });
+    const rare = stubPrinting({ rarity: "rare", card: { slug: "rare-card" } });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(common), makeStack(rare)],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({
+        ...baseParams(),
+        filters: { ...EMPTY_CARD_FILTERS, rarities: ["rare"] },
+        countsEnabled: false,
+      }),
+    );
+    // Counts are the empty stand-in (no chip surface is visible to read them)…
+    expect(result.current.filterCounts.rarities.size).toBe(0);
+    // …while the grid pipeline still filters normally.
+    expect(result.current.sortedCards).toHaveLength(1);
+    expect(result.current.sortedCards[0].rarity).toBe("rare");
+    // Available filter options stay live for the active-filter strip labels.
+    expect(result.current.availableFilters.rarities.length).toBeGreaterThan(0);
+  });
 });

@@ -58,6 +58,8 @@ interface UseCardDataParams {
    * them twice or for a hidden filter panel. Defaults to `true`.
    */
   metaEnabled?: boolean;
+  /** See {@link UseCatalogFilterMetaParams.countsEnabled}. Defaults to `true`. */
+  countsEnabled?: boolean;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   /**
@@ -86,6 +88,15 @@ interface UseCatalogFilterMetaParams {
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
   enabled?: boolean;
+  /**
+   * Whether the faceted chip counts are computed. Pass `false` while no chip
+   * surface is visible (on phones: the filter drawer is closed) — the counts
+   * pass is the most expensive part of a filter change and its output is
+   * invisible there. Everything else (availableFilters, languages, labels)
+   * stays live so the active-filter strip keeps its labels. Defaults to
+   * `true`.
+   */
+  countsEnabled?: boolean;
   keywordReverseMap?: Map<string, string>;
   channels?: readonly DistributionChannel[];
   customTagAssignments?: Record<string, readonly string[]>;
@@ -165,7 +176,7 @@ const NO_OP_LABEL = (slug: string) => slug;
 /** Stable stand-in so a disabled {@link useCatalogFilterMeta} defers a constant. */
 const EMPTY_OWNED_FILTER: readonly OwnedBucket[] = [];
 
-const EMPTY_FILTER_COUNTS: FilterCounts = {
+export const EMPTY_FILTER_COUNTS: FilterCounts = {
   sets: new Map<string, number>(),
   languages: new Map<string, number>(),
   domains: new Map<string, number>(),
@@ -217,6 +228,7 @@ export function useCatalogFilterMeta({
   favoriteMarketplace,
   prices,
   enabled = true,
+  countsEnabled = true,
   keywordReverseMap,
   channels,
   customTagAssignments,
@@ -237,10 +249,14 @@ export function useCatalogFilterMeta({
   // deferred filter set) would otherwise defer a deferred value here, and each
   // extra `useDeferredValue` in the chain costs one more render pass before
   // the tree settles — for outputs this branch throws away.
-  const deferredFilters = useDeferredValue(enabled ? filters : EMPTY_CARD_FILTERS);
-  const deferredOwnedFilter = useDeferredValue(enabled ? ownedFilter : EMPTY_OWNED_FILTER);
-  const deferredOwnedCountMin = useDeferredValue(enabled ? ownedCountMin : null);
-  const deferredOwnedCountMax = useDeferredValue(enabled ? ownedCountMax : null);
+  // countsEnabled folds into the same gating: with the counts pass off, the
+  // deferred inputs pin to constants so a filter change doesn't even schedule
+  // the deferred re-render whose only output would be thrown away.
+  const countsLive = enabled && countsEnabled;
+  const deferredFilters = useDeferredValue(countsLive ? filters : EMPTY_CARD_FILTERS);
+  const deferredOwnedFilter = useDeferredValue(countsLive ? ownedFilter : EMPTY_OWNED_FILTER);
+  const deferredOwnedCountMin = useDeferredValue(countsLive ? ownedCountMin : null);
+  const deferredOwnedCountMax = useDeferredValue(countsLive ? ownedCountMax : null);
 
   if (!enabled) {
     return {
@@ -288,12 +304,14 @@ export function useCatalogFilterMeta({
       );
     }
   }
-  const filterCounts = computeFilterCounts(universeForCounts, deferredFilters, {
-    countBy: view === "cards" ? "card" : "printing",
-    keywordReverseMap,
-    getPrice,
-    customTagAssignments,
-  });
+  const filterCounts = countsLive
+    ? computeFilterCounts(universeForCounts, deferredFilters, {
+        countBy: view === "cards" ? "card" : "printing",
+        keywordReverseMap,
+        getPrice,
+        customTagAssignments,
+      })
+    : EMPTY_FILTER_COUNTS;
   const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
 
   return { availableFilters, availableLanguages, filterCounts, setDisplayLabel };
@@ -315,6 +333,7 @@ export function useCardData({
   prices,
   enabled = true,
   metaEnabled = true,
+  countsEnabled = true,
   keywordReverseMap,
   channels,
   customTagAssignments,
@@ -340,6 +359,7 @@ export function useCardData({
     favoriteMarketplace,
     prices,
     enabled: enabled && metaEnabled,
+    countsEnabled,
     keywordReverseMap,
     channels,
     customTagAssignments,

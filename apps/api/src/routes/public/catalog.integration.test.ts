@@ -233,6 +233,60 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.images[0].face).toBe("front");
     });
 
+    // The language split (see `catalogContract`): `?langs=` carries the core plus
+    // the caller's languages, `?exceptLangs=` the rest without the core. The seed
+    // has both EN and SC printings, so each half is non-empty here.
+    describe("language split", () => {
+      const languagesOf = (json: { printings: Record<string, { language: string }> }): string[] => [
+        ...new Set(Object.values(json.printings).map((p) => p.language)),
+      ];
+
+      it("?langs=EN returns only EN printings and the full cards map", async () => {
+        const res = await app.fetch(req("GET", "/catalog?langs=EN"));
+        expect(res.status).toBe(200);
+
+        const json = await readJson(res);
+        expect(languagesOf(json)).toEqual(["EN"]);
+        expect(Object.keys(json.cards).length).toBeGreaterThan(0);
+        expect(json.sets.length).toBeGreaterThan(0);
+      });
+
+      it("?exceptLangs=EN returns only non-EN printings and an empty cards map", async () => {
+        const res = await app.fetch(req("GET", "/catalog?exceptLangs=EN"));
+        expect(res.status).toBe(200);
+
+        const json = await readJson(res);
+        const languages = languagesOf(json);
+        expect(languages.length).toBeGreaterThan(0);
+        expect(languages).not.toContain("EN");
+        expect(json.cards).toEqual({});
+        expect(json.customTagAssignments).toEqual({});
+        // Sets ride along so the tail response stands on its own.
+        expect(json.sets.length).toBeGreaterThan(0);
+      });
+
+      it("the two halves partition the unsplit catalog's printings", async () => {
+        const full = await readJson(await app.fetch(req("GET", "/catalog")));
+        const head = await readJson(await app.fetch(req("GET", "/catalog?langs=EN")));
+        const tail = await readJson(await app.fetch(req("GET", "/catalog?exceptLangs=EN")));
+
+        expect([...Object.keys(head.printings), ...Object.keys(tail.printings)].toSorted()).toEqual(
+          Object.keys(full.printings).toSorted(),
+        );
+      });
+
+      it("rejects langs and exceptLangs together with 400", async () => {
+        const res = await app.fetch(req("GET", "/catalog?langs=EN&exceptLangs=SC"));
+        expect(res.status).toBe(400);
+      });
+
+      it("without either param the catalog spans several languages", async () => {
+        const res = await app.fetch(req("GET", "/catalog"));
+        const json = await readJson(res);
+        expect(languagesOf(json).length).toBeGreaterThan(1);
+      });
+    });
+
     it("returns Cache-Control header", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
       expect(res.headers.get("Cache-Control")).toBe(
@@ -250,6 +304,64 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
       const conditional = new Request("http://localhost/api/v1/catalog", {
         headers: { "If-None-Match": etag as string },
+      });
+      const second = await app.fetch(conditional);
+      expect(second.status).toBe(304);
+    });
+
+    // The web app fetches the catalog as `?v=<bare etag>` (a content-addressed
+    // URL — see lib/catalog-version.ts there). A matching token means the body
+    // can never change under that URL, so the response upgrades to immutable;
+    // a stale or absent token keeps the regular long-tier header.
+    it("serves immutable Cache-Control when ?v matches the ETag, long tier otherwise", async () => {
+      const first = await app.fetch(req("GET", "/catalog"));
+      const bareTag = (first.headers.get("ETag") as string).replaceAll('"', "");
+
+      const matching = await app.fetch(req("GET", `/catalog?v=${bareTag}`));
+      expect(matching.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+
+      const stale = await app.fetch(req("GET", "/catalog?v=some-older-token"));
+      expect(stale.headers.get("Cache-Control")).toBe(
+        "public, max-age=3600, stale-while-revalidate=86400",
+      );
+    });
+
+    // The real client request is a language variant carrying the FULL catalog's
+    // token (that is the only version the SSR loader knows). This is why the
+    // ETag is the catalog's content version rather than a hash of the body: a
+    // body hash would give the variant a tag that could never equal the token,
+    // and every production catalog fetch would silently fall back to the
+    // 1-hour tier.
+    it("serves immutable Cache-Control for a language variant carrying the full catalog's token", async () => {
+      const full = await app.fetch(req("GET", "/catalog"));
+      const bareTag = (full.headers.get("ETag") as string).replaceAll('"', "");
+
+      const variant = await app.fetch(req("GET", `/catalog?v=${bareTag}&langs=EN`));
+      expect(variant.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    });
+
+    it("gives every language variant of one catalog state the same ETag", async () => {
+      const [full, head, tail] = await Promise.all([
+        app.fetch(req("GET", "/catalog")),
+        app.fetch(req("GET", "/catalog?langs=EN")),
+        app.fetch(req("GET", "/catalog?exceptLangs=EN")),
+      ]);
+      const tag = full.headers.get("ETag");
+      expect(tag).toBeTruthy();
+      expect(head.headers.get("ETag")).toBe(tag);
+      expect(tail.headers.get("ETag")).toBe(tag);
+      // Sharing a tag across URLs is well-formed — If-None-Match is only ever
+      // compared within one URL — but the bodies must still differ.
+      expect(await head.text()).not.toBe(await tail.text());
+    });
+
+    // Sharing the tag must not break conditional GETs on the variant URLs.
+    it("still serves 304 for a matching If-None-Match on a variant URL", async () => {
+      const first = await app.fetch(req("GET", "/catalog?langs=EN"));
+      const etag = first.headers.get("ETag") as string;
+
+      const conditional = new Request("http://localhost/api/v1/catalog?langs=EN", {
+        headers: { "If-None-Match": etag },
       });
       const second = await app.fetch(conditional);
       expect(second.status).toBe(304);

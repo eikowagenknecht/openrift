@@ -99,6 +99,90 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
 }
 
 /**
+ * Parses a comma-joined language-code list ("EN,FR") into a normalized set.
+ * Printings store uppercase codes, so entries are uppercased before comparing
+ * and blanks are dropped. An unknown code is not an error: it simply matches no
+ * printing.
+ * @returns The uppercased codes.
+ */
+export function parseLanguageCodes(csv: string): Set<string> {
+  const codes = new Set<string>();
+  for (const part of csv.split(",")) {
+    const code = part.trim().toUpperCase();
+    if (code) {
+      codes.add(code);
+    }
+  }
+  return codes;
+}
+
+/**
+ * Which printings a catalog variant keeps, as normalized code sets (see
+ * {@link parseLanguageCodes}). The two are mutually exclusive, which the
+ * contract enforces; both absent means the full catalog.
+ */
+export interface CatalogLanguageFilter {
+  langs?: ReadonlySet<string>;
+  exceptLangs?: ReadonlySet<string>;
+}
+
+/**
+ * Copies the printing map, keeping only entries whose language passes `keep`.
+ * @returns A new map with the surviving printings.
+ */
+function pickPrintingsByLanguage(
+  printings: Record<string, CatalogResponsePrintingValue>,
+  keep: (language: string) => boolean,
+): Record<string, CatalogResponsePrintingValue> {
+  const picked: Record<string, CatalogResponsePrintingValue> = {};
+  for (const [id, printing] of Object.entries(printings)) {
+    if (keep(printing.language.toUpperCase())) {
+      picked[id] = printing;
+    }
+  }
+  return picked;
+}
+
+/**
+ * Derives a language-split variant of an assembled catalog (see the
+ * `catalogContract` doc for why the split exists). `langs` keeps the full core
+ * plus the printings in those languages; `exceptLangs` returns the complement
+ * and empties `cards` + `customTagAssignments`, so a client that already holds
+ * the core does not download it a second time. `sets` is kept either way, which
+ * costs 3KB and leaves the tail response self-contained.
+ *
+ * Pure: the input is never mutated, so the assembly it came from stays safe to
+ * share or memoize across requests.
+ *
+ * @returns The variant, or the input itself when no filter is given.
+ */
+export function filterCatalogResponseByLanguages(
+  catalog: CatalogResponse,
+  filter: CatalogLanguageFilter,
+): CatalogResponse {
+  const { langs, exceptLangs } = filter;
+  if (langs) {
+    return {
+      ...catalog,
+      printings: pickPrintingsByLanguage(catalog.printings, (language) => langs.has(language)),
+    };
+  }
+  if (exceptLangs) {
+    return {
+      sets: catalog.sets,
+      cards: {},
+      printings: pickPrintingsByLanguage(
+        catalog.printings,
+        (language) => !exceptLangs.has(language),
+      ),
+      totalCopies: catalog.totalCopies,
+      customTagAssignments: {},
+    };
+  }
+  return catalog;
+}
+
+/**
  * Joins a {@link CatalogResponse} into the flat `Printing[]` shape that the
  * shared `filterCards` evaluator expects (mirrors the web `enrichCatalog`
  * join). Printings whose set or card is missing are dropped.

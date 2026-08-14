@@ -19,6 +19,9 @@ const mockCatalogRepo = {
   cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
   markersList: vi.fn(() => Promise.resolve([])),
+  // The handler sets this as the response ETag (see the route doc for why the
+  // tag is a content version rather than a body hash).
+  catalogResponseVersion: vi.fn(() => Promise.resolve("test-catalog-version")),
 };
 
 const mockDistributionChannelsRepo = {
@@ -326,6 +329,77 @@ describe("GET /api/v1/catalog", () => {
     const versioned = await app.request("/api/v1/catalog?v=some-etag-token");
     expect(versioned.status).toBe(200);
     expect(await readJson(versioned)).toEqual(await readJson(plain));
+  });
+
+  // The language split: `?langs=` is the critical-path half (core + the user's
+  // languages), `?exceptLangs=` the tail the client merges in later.
+  describe("language split", () => {
+    const scPrintingRow = {
+      ...dbPrintingRow,
+      id: "OGS-001:rare:normal::SC",
+      slug: "OGS-001:rare:normal::SC",
+      language: "SC",
+    };
+
+    function seedTwoLanguages(): void {
+      seedDefaults({ printings: [dbPrintingRow, scPrintingRow], printingImages: [] });
+      mockCustomTagsRepo.assignmentsByCard.mockResolvedValue(new Map([["OGS-001", ["spicy"]]]));
+    }
+
+    it("langs returns only that language's printings, with the core intact", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog?langs=EN");
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      expect(Object.keys(json.printings)).toEqual(["OGS-001:rare:normal:"]);
+      expect(Object.keys(json.cards)).toHaveLength(1);
+      expect(json.customTagAssignments).toEqual({ "OGS-001": ["spicy"] });
+      expect(json.sets).toHaveLength(1);
+      expect(json.totalCopies).toBe(42);
+    });
+
+    it("langs matches case-insensitively and accepts several codes", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog?langs=en,sc");
+      const json = await readJson(res);
+      expect(Object.keys(json.printings)).toHaveLength(2);
+    });
+
+    it("exceptLangs returns the complement with cards and tags emptied", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog?exceptLangs=EN");
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      expect(Object.keys(json.printings)).toEqual(["OGS-001:rare:normal::SC"]);
+      expect(json.cards).toEqual({});
+      expect(json.customTagAssignments).toEqual({});
+      // Sets stay so the tail response is self-contained.
+      expect(json.sets).toHaveLength(1);
+    });
+
+    it("rejects langs and exceptLangs together with 400", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog?langs=EN&exceptLangs=SC");
+      expect(res.status).toBe(400);
+    });
+
+    it("returns the full catalog when neither param is given", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog");
+      const json = await readJson(res);
+      expect(Object.keys(json.printings)).toHaveLength(2);
+      expect(Object.keys(json.cards)).toHaveLength(1);
+    });
+
+    it("an unknown language code matches nothing instead of erroring", async () => {
+      seedTwoLanguages();
+      const res = await app.request("/api/v1/catalog?langs=ZZ");
+      expect(res.status).toBe(200);
+      const json = await readJson(res);
+      expect(json.printings).toEqual({});
+    });
   });
 
   it("returns multiple images for a single printing", async () => {

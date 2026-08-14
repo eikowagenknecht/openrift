@@ -1,6 +1,7 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
 import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
+import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -11,6 +12,7 @@ import { serverCache } from "@/lib/server-cache";
 import { apiErrorFromResponse } from "@/lib/server-fns/api-error";
 import { getApiUrl } from "@/lib/server-fns/api-url";
 import { activeClientIp } from "@/lib/server-fns/client-ip-context";
+import { useDisplayStore } from "@/stores/display-store";
 
 // The catalog is the LCP-critical, edge-cached payload. It is fetched with a
 // plain `fetch` (not the oRPC client) because the SSR cache needs the response
@@ -123,6 +125,129 @@ const fetchCatalogVersion = createServerFn({ method: "GET" }).handler((): Promis
   readCatalogVersionFromServerCache(),
 );
 
+// ── Language-split fetching (client only) ───────────────────────────────────
+// The catalog is ~5MB of JSON, 92% of it printings, and ~65% of those are
+// languages the user's grid never shows (the language filter auto-seeds to
+// the preferred languages). The client therefore fetches the catalog in two
+// parts: the primary variant (`?langs=EN,FR` — full core + only those
+// printings) on the critical path, and the complement (`?exceptLangs=…`,
+// printings only) lazily after first paint, merged into the same query entry
+// (see `loadCatalogTail`). The SSR server path keeps the full catalog.
+
+/**
+ * Per-response bookkeeping for the split fetch: which languages the primary
+ * variant covered (null once complete) and the version token it was fetched
+ * under. Keyed by object identity so it never leaks onto the wire shape.
+ */
+const catalogPartsMeta = new WeakMap<
+  CatalogResponse,
+  { version: string | null; pendingTailLangs: readonly string[] | null }
+>();
+
+/** Refetch guard: the last complete catalog per version (see queryFn). */
+let lastCompleteCatalog: { version: string; data: CatalogResponse } | null = null;
+
+/**
+ * Normalizes a language list for the catalog URL: uppercase, deduped, sorted,
+ * so equal selections always produce the same edge-cache key.
+ * @returns The normalized codes.
+ */
+export function normalizeCatalogLangs(langs: readonly string[]): string[] {
+  return [...new Set(langs.map((lang) => lang.toUpperCase()))].sort();
+}
+
+/**
+ * Builds the catalog fetch URL. Shared by the client fetch and the /cards SSR
+ * head's preload link, which MUST byte-match it (params in this order, same
+ * encoding) or the browser downloads the catalog twice.
+ * @returns The URL (relative when `origin` is empty).
+ */
+export function catalogFetchUrl(
+  origin: string,
+  version: string | null,
+  langs?: { langs: readonly string[] } | { exceptLangs: readonly string[] },
+): string {
+  const params = new URLSearchParams();
+  if (version !== null) {
+    params.set("v", version);
+  }
+  if (langs !== undefined) {
+    if ("langs" in langs) {
+      params.set("langs", langs.langs.join(","));
+    } else {
+      params.set("exceptLangs", langs.exceptLangs.join(","));
+    }
+  }
+  const search = params.toString();
+  const base = `${origin}/api/v1/catalog`;
+  return search === "" ? base : `${base}?${search}`;
+}
+
+/**
+ * The languages worth fetching on the critical path. The URL's `languages`
+ * filter wins when present (it is what the grid renders, and the /cards SSR
+ * head builds its catalog preload from the same request URL, so the two URLs
+ * byte-match — see the head in routes/_app/cards.tsx); the persisted
+ * preference is the fallback (it seeds that filter and drives every other
+ * surface's sort). Normalized via {@link normalizeCatalogLangs} so equal
+ * selections produce one edge-cache URL. Everything not covered arrives via
+ * the lazy tail (`loadCatalogTail`).
+ * Exported for tests; not part of the module's real surface.
+ * @returns The normalized language codes, or null when unknown (fetch full).
+ */
+export function primaryCatalogLanguages(): string[] | null {
+  let urlLanguages: string[] = [];
+  try {
+    const raw = new URLSearchParams(globalThis.location.search).get("languages");
+    if (raw !== null) {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        urlLanguages = parsed.filter((entry): entry is string => typeof entry === "string");
+      }
+    }
+  } catch {
+    // Malformed languages param: the router's search validation owns erroring;
+    // here it just contributes nothing to the primary set.
+  }
+  // /promos/<language> renders a route-chosen language that may not be in the
+  // user's preferences; make sure a direct visit covers it on the first fetch.
+  const promosLanguage = /^\/promos\/(?<lang>[A-Za-z]{2})(?:\/|$)/u.exec(
+    globalThis.location.pathname,
+  )?.groups?.lang;
+  if (promosLanguage !== undefined) {
+    urlLanguages.push(promosLanguage);
+  }
+  const base =
+    urlLanguages.length > 0 ? urlLanguages : (useDisplayStore.getState().languages ?? []);
+  const merged = normalizeCatalogLangs(base);
+  return merged.length > 0 ? merged : null;
+}
+
+/**
+ * Detects a full response served for a variant request (deploy skew: an older
+ * API ignores `langs`). One early-exiting scan; typically the first printing
+ * decides.
+ * Exported for tests; not part of the module's real surface.
+ * @returns Whether any printing falls outside the requested languages.
+ */
+export function hasPrintingsOutside(catalog: CatalogResponse, langs: readonly string[]): boolean {
+  const wanted = new Set(langs);
+  for (const printing of Object.values(catalog.printings)) {
+    if (!wanted.has(printing.language.toUpperCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether `catalog` is a primary variant still missing its tail languages.
+ * @returns The languages the tail fetch must exclude, or null when complete.
+ */
+export function catalogPendingTailLangs(catalog: CatalogResponse): readonly string[] | null {
+  return catalogPartsMeta.get(catalog)?.pendingTailLangs ?? null;
+}
+
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
 // would re-enter origin for every VU, which is exactly what we're avoiding.
@@ -140,10 +265,72 @@ async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
   // A failed token lookup must not fail the catalog fetch itself — degrade to
   // the unversioned URL instead.
   const version = consumeSeededCatalogVersion() ?? (await fetchCatalogVersion().catch(() => null));
-  const base = `${globalThis.location.origin}/api/v1/catalog`;
-  const url = version === null ? base : `${base}?v=${encodeURIComponent(version)}`;
+  // Same version, tail already merged: hand back the identical object so the
+  // enrich memo and every consumer keep reference identity across refetches.
+  if (version !== null && lastCompleteCatalog?.version === version) {
+    return lastCompleteCatalog.data;
+  }
+  const langs = primaryCatalogLanguages();
+  const url = catalogFetchUrl(
+    globalThis.location.origin,
+    version,
+    langs === null ? undefined : { langs },
+  );
   const res = await fetchCatalogResponse(url);
-  return (await res.json()) as CatalogResponse;
+  const catalog = (await res.json()) as CatalogResponse;
+  const pendingTailLangs = langs !== null && !hasPrintingsOutside(catalog, langs) ? langs : null;
+  catalogPartsMeta.set(catalog, { version, pendingTailLangs });
+  if (version !== null && pendingTailLangs === null) {
+    lastCompleteCatalog = { version, data: catalog };
+  }
+  return catalog;
+}
+
+/** Dedupes concurrent tail fetches across the hook's many consumers. */
+let tailInFlight = false;
+
+/**
+ * Fetches the languages the primary catalog variant left out (printings only)
+ * and merges them into the cached query entry. Scheduled from `useCards` at
+ * idle after first paint; no-ops when the catalog is already complete. The
+ * merge produces a new response object, so the enrich memo re-runs once and
+ * every consumer re-renders with the full printing set.
+ * @returns Resolves when the tail is merged (or found unnecessary).
+ */
+export async function loadCatalogTail(queryClient: QueryClient): Promise<void> {
+  const current = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
+  if (current === undefined) {
+    return;
+  }
+  const meta = catalogPartsMeta.get(current);
+  const pending = meta?.pendingTailLangs;
+  if (!meta || !pending || pending.length === 0 || tailInFlight) {
+    return;
+  }
+  tailInFlight = true;
+  try {
+    const url = catalogFetchUrl(globalThis.location.origin, meta.version, {
+      exceptLangs: pending,
+    });
+    const tailResponse = await fetchCatalogResponse(url);
+    const tail = (await tailResponse.json()) as CatalogResponse;
+    // The catalog rolled under us (a refetch replaced the entry): the newer
+    // primary schedules its own tail, so this one just stands down.
+    if (queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all) !== current) {
+      return;
+    }
+    const merged: CatalogResponse = {
+      ...current,
+      printings: { ...current.printings, ...tail.printings },
+    };
+    catalogPartsMeta.set(merged, { version: meta.version, pendingTailLangs: null });
+    if (meta.version !== null) {
+      lastCompleteCatalog = { version: meta.version, data: merged };
+    }
+    queryClient.setQueryData(queryKeys.catalog.all, merged);
+  } finally {
+    tailInFlight = false;
+  }
 }
 
 // Memoize by input identity. React Query's structural sharing can't preserve

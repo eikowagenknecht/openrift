@@ -10,7 +10,12 @@ import { fetchCardCounts, fetchCardFacets, fetchCardFilterCounts } from "@/lib/c
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { cardsSearchSchema } from "@/lib/cards-search-schema";
-import { catalogQueryOptions, readCatalogVersionFromServerCache } from "@/lib/catalog-query";
+import {
+  catalogFetchUrl,
+  catalogQueryOptions,
+  normalizeCatalogLangs,
+  readCatalogVersionFromServerCache,
+} from "@/lib/catalog-query";
 import { cleanedSearchForRedirect } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -70,6 +75,7 @@ export const Route = createFileRoute("/_app/cards")({
         counts: CardCounts;
         filterCounts: FilterCountsWire | null;
         catalogVersion: string | null;
+        catalogPreloadLangs: string[];
       }
     | Promise<{
         firstRow: FirstRowCard[];
@@ -79,6 +85,7 @@ export const Route = createFileRoute("/_app/cards")({
         counts: CardCounts;
         filterCounts: FilterCountsWire | null;
         catalogVersion: string | null;
+        catalogPreloadLangs: string[];
       }> => {
     if (globalThis.window !== undefined) {
       const empty = {
@@ -89,6 +96,7 @@ export const Route = createFileRoute("/_app/cards")({
         counts: { totalCards: 0, filteredCount: 0 },
         filterCounts: null,
         catalogVersion: null,
+        catalogPreloadLangs: [],
       };
       const warm =
         context.queryClient.getQueryData(catalogQueryOptions.queryKey) !== undefined &&
@@ -127,6 +135,17 @@ export const Route = createFileRoute("/_app/cards")({
         fetchCardFilterCounts({ data: ssrSearch }),
         readCatalogVersionFromServerCache(),
       ]);
+      // The head's catalog preload must byte-match the hydrated client's fetch
+      // (see catalogFetchUrl). The client fetches the URL's languages when the
+      // filter is set, otherwise its persisted preference — which the server
+      // can't see, so the store default (EN) is the best guess for a clean URL.
+      // A mismatch only wastes the preload; the real fetch still works.
+      // `location.search` is untyped in the loader; re-validate to read the
+      // languages filter (the schema already ran once for the route match).
+      const ssrLanguages = cardsSearchSchema.parse(ssrSearch).languages ?? [];
+      const catalogPreloadLangs = normalizeCatalogLangs(
+        ssrLanguages.length > 0 ? ssrLanguages : ["EN"],
+      );
       return {
         firstRow,
         facets: facetsPayload.facets,
@@ -135,6 +154,7 @@ export const Route = createFileRoute("/_app/cards")({
         counts,
         filterCounts,
         catalogVersion,
+        catalogPreloadLangs,
       };
     })();
   },
@@ -154,19 +174,30 @@ export const Route = createFileRoute("/_app/cards")({
     // first bytes and fetches it alongside the JS.
     //
     // The href has to match `fetchCatalogFromEdge`'s URL exactly or the browser
-    // downloads the catalog twice, so it is built from the same `?v=` token the
-    // loader seeds into `seedCatalogVersion` (see lib/catalog-version.ts).
+    // downloads the catalog twice, so it is built by the same `catalogFetchUrl`
+    // from the same `?v=` token the loader seeds into `seedCatalogVersion`
+    // (see lib/catalog-version.ts) and the same language split the client will
+    // request (`catalogPreloadLangs`, resolved in the SSR loader).
     const catalogVersion = loaderData?.catalogVersion ?? null;
-    const catalogHref =
-      catalogVersion === null
-        ? "/api/v1/catalog"
-        : `/api/v1/catalog?v=${encodeURIComponent(catalogVersion)}`;
+    const preloadLangs = loaderData?.catalogPreloadLangs ?? [];
+    const catalogHref = catalogFetchUrl(
+      "",
+      catalogVersion,
+      preloadLangs.length > 0 ? { langs: preloadLangs } : undefined,
+    );
     // CollectionPage only — the visible items depend on URL filters and the
     // full catalog is too large to inline as an ItemList. The Product JSON-LD
     // on each card detail page is the indexable signal for individual cards.
     return {
       ...head,
-      links: [...(head.links ?? []), { rel: "preload", as: "fetch", href: catalogHref }],
+      links: [
+        ...(head.links ?? []),
+        // crossOrigin must be set (and "anonymous", which maps to same-origin
+        // credentials) for the preload to match `fetch(url)`'s cors +
+        // same-origin-credentials request — without it Chrome discards the
+        // preload with a credentials-mode warning and re-downloads.
+        { rel: "preload", as: "fetch", href: catalogHref, crossOrigin: "anonymous" },
+      ],
       scripts: [
         collectionPageJsonLd({
           siteUrl,

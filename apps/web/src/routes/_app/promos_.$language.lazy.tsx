@@ -1,6 +1,6 @@
 import type { Printing, SortDirection, SortOption } from "@openrift/shared";
 import { filterCards, getAvailableFilters, legendDisplayName, sortCards } from "@openrift/shared";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PackageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -61,7 +61,7 @@ import {
 } from "@/hooks/use-responsive-columns";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
@@ -315,6 +315,12 @@ function PromosPage() {
   const viewMode: ViewMode = useDisplayStore((s) => s.displayMode);
 
   const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
+  // Promos list printings across languages; the client's language-split fetch
+  // may not cover them all, so pull the tail right away (no-op when complete).
+  const promosQueryClient = useQueryClient();
+  useEffect(() => {
+    void loadCatalogTail(promosQueryClient);
+  }, [promosQueryClient]);
   const setIdToSlug = new Map(catalog.sets.map((s) => [s.id, s.slug] as const));
   const setSlugToName = new Map(catalog.sets.map((s) => [s.slug, s.name] as const));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;

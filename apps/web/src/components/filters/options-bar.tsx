@@ -9,6 +9,7 @@ import {
   SlidersHorizontalIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
@@ -27,9 +28,11 @@ import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useSmUp } from "@/hooks/use-sm-up";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { useFilterDrawerStore } from "@/stores/filter-drawer-store";
 import { useGridViewportStore } from "@/stores/grid-viewport-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -386,8 +389,34 @@ export function MobileOptionsDrawer({
   children?: ReactNode;
   className?: string;
 }) {
+  // Published so data hooks can skip computing the faceted filter counts while
+  // no chip surface is visible (on phones that's whenever the drawer is
+  // closed). keepMounted keeps the filter panel mounted across open/close so
+  // an open just replays the slide-in instead of paying the full panel mount
+  // (~300ms on a mid-range phone). The idle pre-mount extends that to the
+  // FIRST open: shortly after load, once the main thread is idle, the panel
+  // mounts hidden. Desktop (sm and up) never opens this drawer, so it never
+  // pre-mounts there.
+  const openedOnce = useFilterDrawerStore((state) => state.openedOnce);
+  const setDrawerOpen = useFilterDrawerStore((state) => state.setOpen);
+  const smUp = useSmUp();
+  const [idlePremounted, setIdlePremounted] = useState(false);
+  useEffect(() => {
+    if (smUp || idlePremounted) {
+      return;
+    }
+    // requestIdleCallback is missing on iOS Safari (runtime floor 16.4) —
+    // fall back to a delay long enough to stay clear of the load work.
+    const premount = () => setIdlePremounted(true);
+    if (typeof requestIdleCallback === "function") {
+      const handle = requestIdleCallback(premount, { timeout: 8000 });
+      return () => cancelIdleCallback(handle);
+    }
+    const timer = setTimeout(premount, 3000);
+    return () => clearTimeout(timer);
+  }, [smUp, idlePremounted]);
   return (
-    <Drawer showSwipeHandle>
+    <Drawer showSwipeHandle onOpenChange={setDrawerOpen}>
       <DrawerTrigger
         render={
           <Button variant="outline" size="icon" className={cn("relative", className)}>
@@ -396,7 +425,13 @@ export function MobileOptionsDrawer({
         }
         aria-label="Options"
       />
-      <DrawerContent className="pb-4">
+      {/* data-ending-style:duration-250: the grid behind is already updated
+          when "Show N cards" is tapped, so a quicker exit reads as snappier —
+          the 450ms default made the dismiss the slowest part of filtering. */}
+      <DrawerContent
+        className="pb-4 data-ending-style:duration-250"
+        keepMounted={openedOnce || idlePremounted}
+      >
         <DrawerHeader className="sr-only">
           <DrawerTitle>Options</DrawerTitle>
           <DrawerDescription>Sort, display, and filter options</DrawerDescription>

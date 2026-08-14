@@ -89,12 +89,19 @@ function DrawerSwipeHandle({ className, ...props }: React.ComponentProps<"div">)
   );
 }
 
-function DrawerContent({ className, children, ...props }: DrawerPrimitive.Popup.Props) {
+function DrawerContent({
+  className,
+  children,
+  keepMounted, // custom: forwarded to DrawerPortal — expensive drawer content (mobile filter panel) stays mounted across open/close
+  ...props
+}: DrawerPrimitive.Popup.Props & { keepMounted?: boolean }) {
+  // custom: prop type widened with keepMounted (see above)
   const { hasSnapPoints, modal, showSwipeHandle, swipeDirection } = useDrawer();
   const swipeAxis = swipeDirection === "down" || swipeDirection === "up" ? "y" : "x";
 
   return (
-    <DrawerPortal data-slot="drawer-portal">
+    // custom: keepMounted passthrough on the portal (next line)
+    <DrawerPortal data-slot="drawer-portal" keepMounted={keepMounted}>
       {modal === true && <DrawerOverlay data-snap-points={hasSnapPoints ? "" : undefined} />}
       <DrawerPrimitive.Viewport
         data-slot="drawer-viewport"
