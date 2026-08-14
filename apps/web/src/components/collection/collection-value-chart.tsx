@@ -31,7 +31,11 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 // and matches the headline/secondary pairing on the card price history chart.
 const chartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
-  baselineValue: { label: "If prices hadn't changed", color: "var(--chart-2)" },
+  // On a shorter range this line is floored at the range start, so a card held
+  // for years enters at its price then rather than at what it cost. "Acquired"
+  // is still the honest word for the common case, and naming the floor as well
+  // would take a sentence the legend has no room for.
+  baselineValue: { label: "Value when acquired", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
 interface CollectionValueTooltipContentProps {
@@ -71,7 +75,7 @@ function CollectionValueTooltipContent({
             className="size-2 rounded-full"
             style={{ backgroundColor: "var(--color-baselineValue)" }}
           />
-          <span className="text-muted-foreground">At start-of-range prices</span>
+          <span className="text-muted-foreground">Value when acquired</span>
           <span className="ml-auto font-mono font-medium tabular-nums">
             {currencyFormatter(point.baselineValue)}
           </span>
@@ -219,9 +223,10 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
               connectNulls
               isAnimationActive={false}
             />
-            {/* Same holdings at day-one prices, so it moves only when cards are
-                bought or sold. Dashed and unfilled to read as the reference the
-                real line is measured against, not a second total. */}
+            {/* Same holdings at what each card was worth when it was acquired,
+                so it moves only when cards are bought or sold. Dashed and
+                unfilled to read as the reference the real line is measured
+                against, not a second total. */}
             <Line
               dataKey="baselineValue"
               type="monotone"
