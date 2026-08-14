@@ -30,6 +30,10 @@ interface DeckOverrides {
   championName?: string | null;
   legendDomains?: Domain[] | null;
   folderIds?: string[];
+  familyId?: string | null;
+  predecessorDeckId?: string | null;
+  isPrimary?: boolean;
+  isDraft?: boolean;
 }
 
 function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
@@ -44,6 +48,10 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
       coverPrintingId: null,
       coverPosition: null,
       collectionId: null,
+      familyId: overrides.familyId ?? null,
+      predecessorDeckId: overrides.predecessorDeckId ?? null,
+      isPrimary: overrides.isPrimary ?? false,
+      isDraft: overrides.isDraft ?? false,
       isPinned: overrides.isPinned ?? false,
       archivedAt: overrides.archivedAt ?? null,
       createdAt: overrides.createdAt ?? "2026-01-01T00:00:00.000Z",
@@ -73,6 +81,7 @@ const NO_FILTERS = {
   formats: [],
   formatsExclude: [],
   validity: "all" as const,
+  drafts: "all" as const,
   domains: [],
   domainsExclude: [],
   folders: [],
@@ -182,6 +191,30 @@ describe("filterDecks", () => {
       foldersExclude: [],
     });
     expect(invalidOnly.map((item) => item.deck.id)).toEqual(["b"]);
+  });
+
+  it("filters by draft state", () => {
+    const items = [makeItem({ id: "a", isDraft: true }), makeItem({ id: "b" })];
+    const withDrafts = (drafts: "all" | "hide" | "only") =>
+      filterDecks(items, { ...NO_FILTERS, drafts }).map((item) => item.deck.id);
+    expect(withDrafts("all")).toEqual(["a", "b"]);
+    expect(withDrafts("only")).toEqual(["a"]);
+    expect(withDrafts("hide")).toEqual(["b"]);
+  });
+
+  it("treats an absent draft filter as showing both", () => {
+    const items = [makeItem({ id: "a", isDraft: true }), makeItem({ id: "b" })];
+    const result = filterDecks(items, {
+      search: "",
+      formats: [],
+      formatsExclude: [],
+      domainsExclude: [],
+      validity: "all",
+      domains: [],
+      folders: [],
+      foldersExclude: [],
+    });
+    expect(result.map((item) => item.deck.id)).toEqual(["a", "b"]);
   });
 
   describe("domains", () => {
@@ -600,6 +633,14 @@ describe("filterAvailabilityFrom", () => {
     ).toBe(true);
   });
 
+  it("flags hasDrafts when at least one deck is a draft", () => {
+    expect(filterAvailabilityFrom([makeItem({})]).hasDrafts).toBe(false);
+    expect(
+      filterAvailabilityFrom([makeItem({ id: "a" }), makeItem({ id: "b", isDraft: true })])
+        .hasDrafts,
+    ).toBe(true);
+  });
+
   it("includes a grouping in usefulGroupings only when it would yield more than one bucket", () => {
     // All same legend, all same format, all same domains, all valid → no grouping is useful.
     const noneUseful = filterAvailabilityFrom([
@@ -677,6 +718,21 @@ describe("filterCountsFrom", () => {
     expect(counts.validity.get("invalid")).toBe(1);
     expect(counts.domains.get("fury")).toBe(2);
     expect(counts.domains.get("calm")).toBe(2);
+  });
+
+  it("counts each draft choice by what it would leave", () => {
+    const mixed = [
+      makeItem({ id: "a", isDraft: true }),
+      makeItem({ id: "b", isDraft: true }),
+      makeItem({ id: "c" }),
+    ];
+    const counts = filterCountsFrom(mixed, NO_FILTERS);
+    expect(counts.drafts.get("only")).toBe(2);
+    expect(counts.drafts.get("hide")).toBe(1);
+    // Counted against the other dimensions only, so picking one side doesn't
+    // zero out the other.
+    const picked = filterCountsFrom(mixed, { ...NO_FILTERS, drafts: "only" });
+    expect(picked.drafts.get("hide")).toBe(1);
   });
 
   it("counts a dimension against the other filters, not its own", () => {

@@ -34,6 +34,10 @@ describe("toDeck", () => {
       coverPosition: 35,
       links: '[{"url":"https://youtu.be/abc123","title":"Video guide"}]',
       collectionId: "collection-7",
+      familyId: "family-1",
+      predecessorDeckId: "deck-0",
+      isPrimary: true,
+      isDraft: true,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -53,6 +57,10 @@ describe("toDeck", () => {
       coverPosition: 35,
       links: [{ url: "https://youtu.be/abc123", title: "Video guide" }],
       collectionId: "collection-7",
+      familyId: "family-1",
+      predecessorDeckId: "deck-0",
+      isPrimary: true,
+      isDraft: true,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -76,6 +84,10 @@ describe("toDeck", () => {
       coverPosition: null,
       links: [],
       collectionId: null,
+      familyId: null,
+      predecessorDeckId: null,
+      isPrimary: false,
+      isDraft: false,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -107,6 +119,11 @@ describe("toPublicDeck", () => {
       links: [],
       // Where the owner stores the deck must never reach a public viewer.
       collectionId: "collection-7",
+      // Variant bookkeeping is the owner's business too.
+      familyId: "family-1",
+      predecessorDeckId: "deck-0",
+      isPrimary: true,
+      isDraft: true,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -128,6 +145,10 @@ describe("toPublicDeck", () => {
     expect("isPublic" in result).toBe(false);
     expect("userId" in result).toBe(false);
     expect("collectionId" in result).toBe(false);
+    expect("familyId" in result).toBe(false);
+    expect("predecessorDeckId" in result).toBe(false);
+    expect("isPrimary" in result).toBe(false);
+    expect("isDraft" in result).toBe(false);
   });
 });
 
@@ -154,6 +175,10 @@ describe("toDeckSummary", () => {
       coverPosition: 50,
       links: [],
       collectionId: null,
+      familyId: "family-1",
+      predecessorDeckId: null,
+      isPrimary: true,
+      isDraft: false,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -169,6 +194,10 @@ describe("toDeckSummary", () => {
       coverPrintingId: null,
       coverPosition: 50,
       collectionId: null,
+      familyId: "family-1",
+      predecessorDeckId: null,
+      isPrimary: true,
+      isDraft: false,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -193,6 +222,10 @@ describe("toDeckSummary", () => {
       coverPosition: null,
       links: [],
       collectionId: null,
+      familyId: null,
+      predecessorDeckId: null,
+      isPrimary: false,
+      isDraft: false,
       createdAt: NOW,
       updatedAt: LATER,
     });

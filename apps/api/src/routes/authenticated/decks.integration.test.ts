@@ -418,4 +418,197 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(cloneRes.status).toBe(404);
     });
   });
+
+  // ── POST /decks/:id/variants + POST /decks/:id/promote ───────────────────
+
+  describe("Deck variants (ADR-042)", () => {
+    const fakeId = "00000000-0000-4000-a000-000000000000";
+    let liveDeckId: string;
+    let checkpointId: string;
+    let variantId: string;
+
+    it("creates a standalone deck with the variant fields at their defaults", async () => {
+      const res = await app.fetch(
+        req("POST", "/decks", { name: "Versioned", format: "constructed" }),
+      );
+      expect(res.status).toBe(201);
+      const json = await readJson(res);
+      expect(json.familyId).toBeNull();
+      expect(json.predecessorDeckId).toBeNull();
+      expect(json.isPrimary).toBe(false);
+      expect(json.isDraft).toBe(false);
+      liveDeckId = json.id;
+    });
+
+    it("checkpoints the deck: 201, copy behind the live deck, family created", async () => {
+      const res = await app.fetch(
+        req("POST", `/decks/${liveDeckId}/variants`, { mode: "checkpoint" }),
+      );
+      expect(res.status).toBe(201);
+      const json = await readJson(res);
+      expect(json.id).not.toBe(liveDeckId);
+      expect(json.name).toBe("Versioned (checkpoint)");
+      expect(json.familyId).toBeTypeOf("string");
+      expect(json.predecessorDeckId).toBeNull();
+      expect(json.isPrimary).toBe(false);
+      expect(json.isPublic).toBe(false);
+      checkpointId = json.id;
+
+      // The live deck keeps its id, joins the same family as primary, and now
+      // points at the checkpoint.
+      const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
+      expect(live.deck.familyId).toBe(json.familyId);
+      expect(live.deck.isPrimary).toBe(true);
+      expect(live.deck.predecessorDeckId).toBe(checkpointId);
+    });
+
+    it("creates a sibling variant with an explicit name", async () => {
+      const res = await app.fetch(
+        req("POST", `/decks/${liveDeckId}/variants`, { mode: "variant", name: "Budget build" }),
+      );
+      expect(res.status).toBe(201);
+      const json = await readJson(res);
+      expect(json.name).toBe("Budget build");
+      expect(json.predecessorDeckId).toBe(liveDeckId);
+      expect(json.isPrimary).toBe(false);
+      variantId = json.id;
+
+      const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
+      expect(json.familyId).toBe(live.deck.familyId);
+    });
+
+    it("rejects a variant request without a mode", async () => {
+      const res = await app.fetch(req("POST", `/decks/${liveDeckId}/variants`, {}));
+      expect(res.status).toBe(400);
+    });
+
+    it("404s POST /decks/:id/variants for a non-existent deck", async () => {
+      const res = await app.fetch(req("POST", `/decks/${fakeId}/variants`, { mode: "variant" }));
+      expect(res.status).toBe(404);
+    });
+
+    it("promotes a variant to primary and demotes the previous one", async () => {
+      const res = await app.fetch(req("POST", `/decks/${variantId}/promote`));
+      expect(res.status).toBe(200);
+      const json = await readJson(res);
+      expect(json.id).toBe(variantId);
+      expect(json.isPrimary).toBe(true);
+
+      const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
+      expect(live.deck.isPrimary).toBe(false);
+      const checkpoint = await readJson(await app.fetch(req("GET", `/decks/${checkpointId}`)));
+      expect(checkpoint.deck.isPrimary).toBe(false);
+    });
+
+    it("400s promote for a deck that has no variants", async () => {
+      const created = await readJson(
+        await app.fetch(req("POST", "/decks", { name: "Standalone", format: "freeform" })),
+      );
+      const res = await app.fetch(req("POST", `/decks/${created.id}/promote`));
+      expect(res.status).toBe(400);
+    });
+
+    it("404s promote for a non-existent deck", async () => {
+      const res = await app.fetch(req("POST", `/decks/${fakeId}/promote`));
+      expect(res.status).toBe(404);
+    });
+
+    it("links an existing deck into the family and unlinks it again", async () => {
+      const outsider = await readJson(
+        await app.fetch(req("POST", "/decks", { name: "Outsider", format: "freeform" })),
+      );
+
+      const linkRes = await app.fetch(
+        req("POST", `/decks/${outsider.id}/link`, {
+          otherDeckId: liveDeckId,
+          markAsPreviousVersion: true,
+        }),
+      );
+      expect(linkRes.status).toBe(200);
+      const linked = await readJson(linkRes);
+      const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
+      expect(linked.familyId).toBe(live.deck.familyId);
+      expect(linked.predecessorDeckId).toBe(liveDeckId);
+      // The family already had a primary (the promoted variant), so it stays.
+      expect(linked.isPrimary).toBe(false);
+
+      const unlinkRes = await app.fetch(req("POST", `/decks/${outsider.id}/unlink`));
+      expect(unlinkRes.status).toBe(200);
+      const unlinked = await readJson(unlinkRes);
+      expect(unlinked.familyId).toBeNull();
+      expect(unlinked.isPrimary).toBe(false);
+      expect(unlinked.predecessorDeckId).toBeNull();
+    });
+
+    it("400s link for a deck linked to itself", async () => {
+      const res = await app.fetch(
+        req("POST", `/decks/${liveDeckId}/link`, { otherDeckId: liveDeckId }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("400s unlink for a deck that has no variants", async () => {
+      const created = await readJson(
+        await app.fetch(req("POST", "/decks", { name: "Unlinkable", format: "freeform" })),
+      );
+      const res = await app.fetch(req("POST", `/decks/${created.id}/unlink`));
+      expect(res.status).toBe(400);
+    });
+
+    it("404s link and unlink for a non-existent deck", async () => {
+      const linkRes = await app.fetch(
+        req("POST", `/decks/${fakeId}/link`, { otherDeckId: liveDeckId }),
+      );
+      expect(linkRes.status).toBe(404);
+      const unlinkRes = await app.fetch(req("POST", `/decks/${fakeId}/unlink`));
+      expect(unlinkRes.status).toBe(404);
+    });
+
+    it("404s variants and promote for another user's deck", () => {
+      const otherUser = createTestContext("a0000000-0008-4000-a000-000000000002");
+      if (!otherUser) {
+        return;
+      } // guarded by outer skipIf
+      return (async () => {
+        const theirs = await readJson(
+          await otherUser.app.fetch(req("POST", "/decks", { name: "Theirs", format: "freeform" })),
+        );
+        await otherUser.app.fetch(req("POST", `/decks/${theirs.id}/variants`, { mode: "variant" }));
+
+        const variantRes = await app.fetch(
+          req("POST", `/decks/${theirs.id}/variants`, { mode: "variant" }),
+        );
+        expect(variantRes.status).toBe(404);
+        const promoteRes = await app.fetch(req("POST", `/decks/${theirs.id}/promote`));
+        expect(promoteRes.status).toBe(404);
+        const linkRes = await app.fetch(
+          req("POST", `/decks/${theirs.id}/link`, { otherDeckId: liveDeckId }),
+        );
+        expect(linkRes.status).toBe(404);
+        // Their deck as the other side is just as invisible.
+        const linkOtherRes = await app.fetch(
+          req("POST", `/decks/${liveDeckId}/link`, { otherDeckId: theirs.id }),
+        );
+        expect(linkOtherRes.status).toBe(404);
+        const unlinkRes = await app.fetch(req("POST", `/decks/${theirs.id}/unlink`));
+        expect(unlinkRes.status).toBe(404);
+      })();
+    });
+
+    it("toggles the draft badge via PATCH /decks/:id", async () => {
+      const on = await app.fetch(req("PATCH", `/decks/${variantId}`, { isDraft: true }));
+      expect(on.status).toBe(200);
+      const onJson = await readJson(on);
+      expect(onJson.isDraft).toBe(true);
+
+      const detailRes = await app.fetch(req("GET", `/decks/${variantId}`));
+      const detail = await readJson(detailRes);
+      expect(detail.deck.isDraft).toBe(true);
+
+      const off = await app.fetch(req("PATCH", `/decks/${variantId}`, { isDraft: false }));
+      expect(off.status).toBe(200);
+      const offJson = await readJson(off);
+      expect(offJson.isDraft).toBe(false);
+    });
+  });
 });

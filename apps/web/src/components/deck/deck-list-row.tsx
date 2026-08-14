@@ -8,6 +8,7 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { useHomeCollection } from "@/hooks/use-home-collection";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { deckBoxPart } from "@/lib/deck-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
@@ -20,6 +21,7 @@ import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
+import { DraftBadge, VariantCountToggle } from "./deck-variant-controls";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
@@ -45,10 +47,15 @@ function DomainDot({ domain }: { domain: string }) {
 export function DeckListRow({
   item,
   folderLabels = {},
+  family,
+  onToggleFamily,
 }: {
   item: DeckListItemResponse;
   /** Folder id → name, for the deck's folder chips. Empty while signed out. */
   folderLabels?: Record<string, string>;
+  /** The deck's place in its variant family (ADR-042). Absent for a standalone deck. */
+  family?: DeckFamilyEntry;
+  onToggleFamily?: (familyId: string) => void;
 }) {
   const {
     deck,
@@ -78,6 +85,12 @@ export function DeckListRow({
       ? getDomainGradientStyle(legendDomains, "10", domainColors)
       : undefined;
 
+  // Built before the return so the narrowing survives into the JSX.
+  const variantToggle =
+    family && onToggleFamily && family.role === "front" && family.memberCount > 1 ? (
+      <VariantCountToggle family={family} onToggle={onToggleFamily} />
+    ) : null;
+
   // One element for both renderings, so the phone line and the columns can't
   // disagree about the deck's state.
   const formatText = (
@@ -99,6 +112,9 @@ export function DeckListRow({
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep rows consistent.
         "ring-foreground/10 focus-visible:ring-ring/50 group flex items-center gap-3 rounded-lg px-3 py-2 ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+        // A revealed sibling is indented under its family's front row, which is
+        // the only thing marking it as one — the rows are otherwise identical.
+        family?.role === "member" && "ml-4 sm:ml-8",
       )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
@@ -121,6 +137,8 @@ export function DeckListRow({
               />
             )}
             <span className="truncate font-medium">{deck.name}</span>
+            {deck.isDraft && <DraftBadge />}
+            {variantToggle}
           </div>
           <DeckIdentityLine
             legendCard={legendCard}

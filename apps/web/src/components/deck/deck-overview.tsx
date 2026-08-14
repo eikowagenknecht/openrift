@@ -426,6 +426,12 @@ interface DeckOverviewProps {
    * Plan tab is hidden — local decks have no plan.
    */
   planSlot?: React.ReactNode;
+  /**
+   * Editor only: the variant rail (ADR-042), drawn between the hero and the
+   * tab strip. Omitted for local decks and read-only views, neither of which
+   * has a variant family to show.
+   */
+  variantRailSlot?: React.ReactNode;
   /** Forwarded to the hero: owner attribution next to the deck name. */
   heroByline?: React.ReactNode;
   /** Forwarded to the hero: action row under the status chips (copy CTA). */
@@ -462,6 +468,7 @@ export function DeckOverview({
   onEditDescription,
   onCardClick,
   planSlot,
+  variantRailSlot,
   heroByline,
   heroActions,
   oddsConfig,
@@ -1367,6 +1374,9 @@ export function DeckOverview({
         byline={heroByline}
         actions={heroActions}
       />
+      {/* Renders nothing for a deck with no variants, so the hero and the tab
+          strip keep their usual single gap between them. */}
+      {variantRailSlot}
       <TabStrip
         tab={activeTab}
         onTabChange={setTab}

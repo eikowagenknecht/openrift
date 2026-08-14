@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Decks): **Deck variants and checkpoints** — save a snapshot of a deck before rebuilding it, keep a budget build next to the full one, link two decks you already have, and compare any two versions; variants group under one deck-list entry.
+- feat(Decks): **Variant history on the deck page** — a branch graph under the deck title shows checkpoints and sibling builds, what changed at each step, and jumps straight into a full comparison.
 - feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
 - fix(Cards): **Snappier card browser** — filters now apply in about half the time, and scrolling the grid holds a steady frame rate on phones.

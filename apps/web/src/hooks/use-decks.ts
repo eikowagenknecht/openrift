@@ -112,6 +112,11 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       links: deck?.links ?? [],
       // A browser-local deck has no server collections to be stored in.
       collectionId: null,
+      // Variant families (ADR-042) are server-only; local decks are standalone.
+      familyId: null,
+      predecessorDeckId: null,
+      isPrimary: false,
+      isDraft: false,
       createdAt: deck?.createdAt ?? "",
       updatedAt: deck?.updatedAt ?? "",
     },
@@ -284,6 +289,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
       coverPosition?: number | null;
       links?: DeckLink[];
       collectionId?: string | null;
+      isDraft?: boolean;
     }) => input,
   )
   .middleware([withCookies])
@@ -321,6 +327,7 @@ export function useUpdateDeck() {
       coverPosition?: number | null;
       links?: DeckLink[];
       collectionId?: string | null;
+      isDraft?: boolean;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       if (!userId) {
@@ -454,17 +461,89 @@ export function useSetDeckArchived() {
   });
 }
 
-const cloneDeckFn = createServerFn({ method: "POST" })
+/** How a variant copy relates to its source (ADR-042). */
+export type DeckVariantMode = "variant" | "checkpoint";
+
+const createDeckVariantFn = createServerFn({ method: "POST" })
+  .validator((input: { deckId: string; mode: DeckVariantMode; name?: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).createVariant({
+      id: data.deckId,
+      mode: data.mode,
+      ...(data.name ? { name: data.name } : {}),
+    }),
+  );
+
+export function useCreateDeckVariant() {
+  const userId = useRequiredUserId();
+  // The decks.all key prefix-matches every deck detail too, which matters for
+  // checkpoints: the live deck's predecessor pointer changes alongside the copy.
+  return useMutationWithInvalidation<
+    DeckResponse,
+    { deckId: string; mode: DeckVariantMode; name?: string }
+  >({
+    mutationFn: (input) => createDeckVariantFn({ data: input }),
+    invalidates: [queryKeys.decks.all(userId)],
+  });
+}
+
+const linkDeckVariantFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { deckId: string; otherDeckId: string; markAsPreviousVersion?: boolean }) => input,
+  )
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).linkVariant({
+      id: data.deckId,
+      otherDeckId: data.otherDeckId,
+      ...(data.markAsPreviousVersion ? { markAsPreviousVersion: true } : {}),
+    }),
+  );
+
+export function useLinkDeckVariant() {
+  const userId = useRequiredUserId();
+  // Linking rewrites the family (and possibly the primary) of every member on
+  // both sides, so nothing narrower than the decks prefix would stay correct.
+  return useMutationWithInvalidation<
+    DeckResponse,
+    { deckId: string; otherDeckId: string; markAsPreviousVersion?: boolean }
+  >({
+    mutationFn: (input) => linkDeckVariantFn({ data: input }),
+    invalidates: [queryKeys.decks.all(userId)],
+  });
+}
+
+const unlinkDeckVariantFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(({ context, data: deckId }): Promise<DeckResponse> =>
-    apiOrpcClient(decksContract, context.cookie).clone({ id: deckId }),
+    apiOrpcClient(decksContract, context.cookie).unlinkVariant({ id: deckId }),
   );
 
-export function useCloneDeck() {
+export function useUnlinkDeckVariant() {
   const userId = useRequiredUserId();
-  return useMutationWithInvalidation({
-    mutationFn: (deckId: string) => cloneDeckFn({ data: deckId }),
+  // Leaving a family can promote a survivor and splice the predecessor chain,
+  // so the whole decks prefix (list and details) is refetched.
+  return useMutationWithInvalidation<DeckResponse, string>({
+    mutationFn: (deckId) => unlinkDeckVariantFn({ data: deckId }),
+    invalidates: [queryKeys.decks.all(userId)],
+  });
+}
+
+const promoteDeckPrimaryFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(({ context, data: deckId }): Promise<DeckResponse> =>
+    apiOrpcClient(decksContract, context.cookie).promotePrimary({ id: deckId }),
+  );
+
+export function usePromoteDeckPrimary() {
+  const userId = useRequiredUserId();
+  // Promotion demotes another family member, so a targeted cache patch isn't
+  // enough; the prefix invalidation refreshes the list and both details.
+  return useMutationWithInvalidation<DeckResponse, string>({
+    mutationFn: (deckId) => promoteDeckPrimaryFn({ data: deckId }),
     invalidates: [queryKeys.decks.all(userId)],
   });
 }

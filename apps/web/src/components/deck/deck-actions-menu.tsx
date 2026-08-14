@@ -1,4 +1,4 @@
-import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -6,7 +6,10 @@ import {
   ArchiveRestoreIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  FlaskConicalIcon,
   FolderIcon,
+  GitBranchIcon,
+  HistoryIcon,
   MonitorPlayIcon,
   PencilIcon,
   PinIcon,
@@ -15,6 +18,7 @@ import {
   RefreshCwIcon,
   SettingsIcon,
   Share2Icon,
+  StarIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
@@ -44,10 +48,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckFolders, useSetDeckFolders } from "@/hooks/use-deck-folders";
+import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
   deckDetailQueryOptions,
-  useCloneDeck,
   useDeleteDeck,
+  usePromoteDeckPrimary,
   useSetDeckArchived,
   useSetDeckPinned,
   useUpdateDeck,
@@ -60,11 +65,13 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { DeckExportDialog } from "./deck-export-dialog";
 import { DeckRenameDialog } from "./deck-rename-dialog";
+import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
+import { DeckVariantsDialog } from "./deck-variants-dialog";
 import { ManageDeckFoldersDialog } from "./manage-deck-folders-dialog";
 import { ProxyExportDialog } from "./proxy-export-dialog";
 
 /**
- * Dropdown menu with deck actions (export, proxies, rename, format toggle, clone, delete).
+ * Dropdown menu with deck actions (export, proxies, rename, format toggle, variants, delete).
  * Owns its dialogs and mutations so both tile and list-row layouts can drop it in.
  * @returns The actions menu element.
  */
@@ -72,11 +79,11 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const userId = useRequiredUserId();
   const { deck } = item;
   const navigate = useNavigate();
-  const cloneDeck = useCloneDeck();
   const updateDeck = useUpdateDeck();
   const deleteDeck = useDeleteDeck();
   const setPinned = useSetDeckPinned();
   const setArchived = useSetDeckArchived();
+  const promotePrimary = usePromoteDeckPrimary();
   const { formats } = useDeckFormatList();
   // Presentation mode is a creator tool that ships dark: the route works by
   // URL, but nothing in the app points at it until the flag is on.
@@ -88,6 +95,11 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const [proxyOpen, setProxyOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [foldersOpen, setFoldersOpen] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
+  // One create dialog, opened in whichever mode the menu item asked for. The
+  // mode outlives the close so the dialog doesn't switch copy while it fades.
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
 
   const { data: folders } = useDeckFolders();
   const setDeckFolders = useSetDeckFolders();
@@ -111,14 +123,10 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     event.stopPropagation();
   };
 
-  const handleClone = (event: React.MouseEvent) => {
+  const handleCreateVariant = (event: React.MouseEvent, mode: DeckVariantMode) => {
     stop(event);
-    cloneDeck.mutate(deck.id, {
-      onSuccess: (data) => {
-        const newDeck = data as DeckResponse;
-        void navigate({ to: "/decks/$deckId", params: { deckId: newDeck.id } });
-      },
-    });
+    setCreateMode(mode);
+    setCreateOpen(true);
   };
 
   const handleDelete = () => {
@@ -264,9 +272,48 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onClick={handleClone}>
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => handleCreateVariant(event, "checkpoint")}
+          >
+            <HistoryIcon className="size-4" />
+            Save checkpoint…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => handleCreateVariant(event, "variant")}
+          >
             <CopyIcon className="size-4" />
-            Duplicate
+            New variant…
+          </DropdownMenuItem>
+          {/* Always available: the dialog is also where a standalone deck gets
+              linked to its first sibling. */}
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => {
+              stop(event);
+              setVariantsOpen(true);
+            }}
+          >
+            <GitBranchIcon className="size-4" />
+            Variants…
+          </DropdownMenuItem>
+          {deck.familyId !== null && !deck.isPrimary && (
+            <DropdownMenuItem
+              onClick={(event: React.MouseEvent) => {
+                stop(event);
+                promotePrimary.mutate(deck.id);
+              }}
+            >
+              <StarIcon className="size-4" />
+              Make primary
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => {
+              stop(event);
+              updateDeck.mutate({ deckId: deck.id, isDraft: !deck.isDraft });
+            }}
+          >
+            <FlaskConicalIcon className="size-4" />
+            {deck.isDraft ? "Remove draft mark" : "Mark as draft"}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
@@ -340,6 +387,16 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         open={renameOpen}
         onOpenChange={setRenameOpen}
       />
+
+      <DeckVariantCreateDialog
+        deckId={deck.id}
+        deckName={deck.name}
+        mode={createMode}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      />
+
+      <DeckVariantsDialog deckId={deck.id} open={variantsOpen} onOpenChange={setVariantsOpen} />
 
       <ManageDeckFoldersDialog open={foldersOpen} onOpenChange={setFoldersOpen} />
     </>

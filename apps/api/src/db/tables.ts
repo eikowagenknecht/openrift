@@ -627,6 +627,21 @@ export interface DecksTable {
    * never exposed on public/shared deck responses.
    */
   collectionId: string | null;
+  /**
+   * Groups variants of one deck into a family (ADR-042). NULL for standalone
+   * decks; assigned to both rows when a deck gains its first variant. Not an
+   * FK — it is a shared opaque id, not a reference to another table.
+   */
+  familyId: string | null;
+  /** FK → decks(id), SET NULL. Lineage: the variant this one was copied from. */
+  predecessorDeckId: string | null;
+  /**
+   * Fronts the family in the deck list. At most one per family
+   * (uq_decks_family_primary); meaningless while family_id is NULL.
+   */
+  isPrimary: Generated<boolean>;
+  /** Lifecycle badge only ("still tinkering"); no behavioral rules attach. */
+  isDraft: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

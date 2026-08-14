@@ -187,6 +187,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   coverPosition: "coverPosition",
   links: "links",
   collectionId: "collectionId",
+  isDraft: "isDraft",
 };
 
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);
@@ -568,6 +569,66 @@ export const decksRouter = {
     const newDeck = await decks.cloneDeck(input.id, userId);
     assertFound(newDeck, "Not found");
     return toDeck(newDeck);
+  }),
+
+  // ── POST /decks/:id/variants ──────────────────────────────────────────────
+  // Copy a deck into its variant family (ADR-042): a checkpoint slots the copy
+  // behind the live deck as its predecessor, a variant becomes an editable
+  // sibling. Creates the family (and marks the source primary) on first use.
+  createVariant: os.createVariant.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const newDeck = await decks.createVariantCopy(input.id, context.userId, {
+      mode: input.mode,
+      name: input.name,
+    });
+    assertFound(newDeck, "Not found");
+    return toDeck(newDeck);
+  }),
+
+  // ── POST /decks/:id/link ──────────────────────────────────────────────────
+  // Link a deck that already exists into this deck's variant family, merging
+  // the two families when both sides already have one.
+  linkVariant: os.linkVariant.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const result = await decks.linkAsVariant(input.id, context.userId, {
+      otherDeckId: input.otherDeckId,
+      markAsPreviousVersion: input.markAsPreviousVersion,
+    });
+    if (result === "not-found") {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
+    }
+    if (result === "invalid") {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Decks cannot be linked");
+    }
+    return toDeck(result);
+  }),
+
+  // ── POST /decks/:id/unlink ────────────────────────────────────────────────
+  // Take this deck out of its variant family, repairing what is left behind.
+  unlinkVariant: os.unlinkVariant.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const result = await decks.unlinkVariant(input.id, context.userId);
+    if (result === "not-found") {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
+    }
+    if (result === "no-family") {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Deck has no variants");
+    }
+    return toDeck(result);
+  }),
+
+  // ── POST /decks/:id/promote ───────────────────────────────────────────────
+  // Make this variant front its family in the deck list.
+  promotePrimary: os.promotePrimary.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const result = await decks.promoteToPrimary(input.id, context.userId);
+    if (result === "not-found") {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
+    }
+    if (result === "no-family") {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Deck has no variants");
+    }
+    return toDeck(result);
   }),
 
   // ── GET /decks/:id/export ────────────────────────────────────────────────

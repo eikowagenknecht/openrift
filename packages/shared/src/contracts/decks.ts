@@ -102,6 +102,8 @@ export const updateDeckSchema = z.object({
   // buildable for this deck even when the collection is excluded from deck
   // building. Null clears the link.
   collectionId: z.uuid().nullish(),
+  // Draft badge (ADR-042): "still tinkering". Display-only lifecycle state.
+  isDraft: z.boolean().optional(),
 });
 
 export const updateDeckCardsSchema = z.object({
@@ -180,6 +182,14 @@ export const deckResponseSchema = z
     links: z.array(deckLinkSchema),
     /** Owner-only: the collection the deck is stored in, or null. */
     collectionId: z.string().nullable(),
+    /** Variant family this deck belongs to (ADR-042), or null if standalone. */
+    familyId: z.string().nullable(),
+    /** The family member this one was copied from, or null. */
+    predecessorDeckId: z.string().nullable(),
+    /** Whether this variant fronts its family in the deck list. */
+    isPrimary: z.boolean(),
+    /** Draft badge: the owner marked this variant as work in progress. */
+    isDraft: z.boolean(),
   })
   .openapi("DeckResponse");
 
@@ -216,6 +226,14 @@ export const deckSummaryResponseSchema = z
     coverPosition: z.number().int().nullable(),
     /** Owner-only: the collection the deck is stored in, or null. */
     collectionId: z.string().nullable(),
+    /** Variant family this deck belongs to (ADR-042), or null if standalone. */
+    familyId: z.string().nullable(),
+    /** The family member this one was copied from, or null. */
+    predecessorDeckId: z.string().nullable(),
+    /** Whether this variant fronts its family in the deck list. */
+    isPrimary: z.boolean(),
+    /** Draft badge: the owner marked this variant as work in progress. */
+    isDraft: z.boolean(),
   })
   .openapi("DeckSummaryResponse");
 
@@ -292,6 +310,27 @@ export const deckExportResponseSchema = z
 
 const TAG = "Decks";
 
+/**
+ * POST /decks/{id}/variants body (ADR-042). `checkpoint` copies the current
+ * state away as a frozen-by-convention predecessor (the live deck keeps its
+ * id); `variant` creates an editable sibling descending from this deck.
+ */
+export const createDeckVariantSchema = z.object({
+  mode: z.enum(["variant", "checkpoint"]),
+  /** Name for the new row; defaults to the source name plus a mode suffix. */
+  name: deckFieldRules.name.optional(),
+});
+
+/**
+ * POST /decks/{id}/link body (ADR-042): join two decks that already exist into
+ * one variant family. `markAsPreviousVersion` also records the other deck as
+ * this one's predecessor, and is ignored when this deck already has one.
+ */
+export const linkDeckVariantSchema = z.object({
+  otherDeckId: z.uuid(),
+  markAsPreviousVersion: z.boolean().optional(),
+});
+
 const shareTokenParamSchema = z.object({ token: z.string().min(1) });
 const pinDeckBodySchema = z.object({ isPinned: z.boolean() });
 const archiveDeckBodySchema = z.object({ archived: z.boolean() });
@@ -305,7 +344,9 @@ const archiveDeckBodySchema = z.object({ archived: z.boolean() });
  * `setArchived`, `getShare`, `share`, `rotateShare`, `unshare` →
  * NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST; `replacePlan` → NOT_FOUND +
  * BAD_REQUEST (invalid plan content); `cloneShared` → NOT_FOUND (unknown
- * share token).
+ * share token); `createVariant` → NOT_FOUND; `linkVariant` → NOT_FOUND +
+ * BAD_REQUEST (the two decks can't be linked); `unlinkVariant` and
+ * `promotePrimary` → NOT_FOUND + BAD_REQUEST (the deck has no variants).
  */
 export const decksContract = {
   list: authedRoute
@@ -356,6 +397,40 @@ export const decksContract = {
     .route({ method: "POST", path: "/api/v1/decks/{id}/clone", tags: [TAG], successStatus: 201 })
     .input(idParamSchema)
     .errors({ NOT_FOUND: { message: "Deck not found" } })
+    .output(deckResponseSchema),
+  createVariant: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/v1/decks/{id}/variants",
+      tags: [TAG],
+      successStatus: 201,
+    })
+    .input(withParams(idParamSchema, createDeckVariantSchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
+    .output(deckResponseSchema),
+  linkVariant: authedRoute
+    .route({ method: "POST", path: "/api/v1/decks/{id}/link", tags: [TAG] })
+    .input(withParams(idParamSchema, linkDeckVariantSchema))
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Decks cannot be linked" },
+    })
+    .output(deckResponseSchema),
+  unlinkVariant: authedRoute
+    .route({ method: "POST", path: "/api/v1/decks/{id}/unlink", tags: [TAG] })
+    .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Deck has no variants" },
+    })
+    .output(deckResponseSchema),
+  promotePrimary: authedRoute
+    .route({ method: "POST", path: "/api/v1/decks/{id}/promote", tags: [TAG] })
+    .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Deck has no variants" },
+    })
     .output(deckResponseSchema),
   export: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/export", tags: [TAG] })

@@ -7,7 +7,7 @@ import {
   WellKnown,
 } from "@openrift/shared";
 
-import type { DeckListValidity } from "@/hooks/use-deck-list-filters";
+import type { DeckListDrafts, DeckListValidity } from "@/hooks/use-deck-list-filters";
 import type { DeckListGroupBy, DeckListSortField, SortDir } from "@/stores/deck-list-prefs-store";
 
 interface DeckListFilters {
@@ -16,6 +16,8 @@ interface DeckListFilters {
   formats: string[];
   formatsExclude: string[];
   validity: DeckListValidity;
+  /** Draft variants (ADR-042). Optional so older call sites keep compiling as "all". */
+  drafts?: DeckListDrafts;
   domains: Domain[];
   domainsExclude: Domain[];
   /** Folder ids, matched as a union. Empty means every folder. */
@@ -119,6 +121,16 @@ function deckMatchesValidity(item: DeckListItemWithNames, filter: DeckListValidi
   return !item.isValid;
 }
 
+function deckMatchesDrafts(item: DeckListItemWithNames, filter: DeckListDrafts = "all"): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "only") {
+    return item.deck.isDraft;
+  }
+  return !item.deck.isDraft;
+}
+
 /**
  * Domain filter, reading exactly as the card browser's does (`matchesDomains`
  * in `@openrift/shared`): one domain picks any deck playing it, several
@@ -149,6 +161,7 @@ export function filterDecks(
       deckMatchesSearch(item, trimmed) &&
       deckMatchesFormat(item, filters.formats, filters.formatsExclude) &&
       deckMatchesValidity(item, filters.validity) &&
+      deckMatchesDrafts(item, filters.drafts) &&
       deckMatchesDomains(item, filters.domains, filters.domainsExclude) &&
       deckMatchesFolders(item, filters.folders, filters.foldersExclude),
   );
@@ -350,6 +363,8 @@ export interface DeckListFilterAvailability {
   hasMixedValidity: boolean;
   /** True when at least one deck is archived — the show-archived toggle has something to reveal. */
   hasArchived: boolean;
+  /** True when at least one deck is a draft variant — the draft filter has something to isolate. */
+  hasDrafts: boolean;
   /** Group-by options that would produce more than one bucket (excludes "none"). */
   usefulGroupings: Set<Exclude<DeckListGroupBy, "none">>;
 }
@@ -359,6 +374,7 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
   let sawValid = false;
   let sawInvalid = false;
   let hasArchived = false;
+  let hasDrafts = false;
   const groupKeysByOption = {
     format: new Set<string>(),
     domains: new Set<string>(),
@@ -378,6 +394,9 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
     if (item.deck.archivedAt !== null) {
       hasArchived = true;
     }
+    if (item.deck.isDraft) {
+      hasDrafts = true;
+    }
     for (const option of GROUPING_OPTIONS) {
       for (const entry of groupEntriesOf(item, option)) {
         groupKeysByOption[option].add(entry.key);
@@ -394,6 +413,7 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
     hasMixedFormat: formats.size > 1,
     hasMixedValidity: sawValid && sawInvalid,
     hasArchived,
+    hasDrafts,
     usefulGroupings,
   };
 }
@@ -406,6 +426,8 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
 export interface DeckListFilterCounts {
   formats: Map<string, number>;
   validity: Map<"valid" | "invalid", number>;
+  /** Keyed by the choice itself: how many decks each draft setting would leave. */
+  drafts: Map<"hide" | "only", number>;
   domains: Map<Domain, number>;
   /** Keyed by folder id. A deck counts once per folder, so this sums past the deck count. */
   folders: Map<string, number>;
@@ -426,6 +448,7 @@ export function filterCountsFrom(
 ): DeckListFilterCounts {
   const formats = new Map<string, number>();
   const validity = new Map<"valid" | "invalid", number>();
+  const drafts = new Map<"hide" | "only", number>();
   const domains = new Map<Domain, number>();
   const folders = new Map<string, number>();
 
@@ -433,22 +456,27 @@ export function filterCountsFrom(
     const matchesSearch = deckMatchesSearch(item, filters.search);
     const matchesFormat = deckMatchesFormat(item, filters.formats, filters.formatsExclude);
     const matchesValidity = deckMatchesValidity(item, filters.validity);
+    const matchesDraft = deckMatchesDrafts(item, filters.drafts);
     const matchesDomain = deckMatchesDomains(item, filters.domains, filters.domainsExclude);
     const matchesFolder = deckMatchesFolders(item, filters.folders, filters.foldersExclude);
 
-    if (matchesSearch && matchesValidity && matchesDomain && matchesFolder) {
+    if (matchesSearch && matchesValidity && matchesDraft && matchesDomain && matchesFolder) {
       formats.set(item.deck.format, (formats.get(item.deck.format) ?? 0) + 1);
     }
-    if (matchesSearch && matchesFormat && matchesDomain && matchesFolder) {
+    if (matchesSearch && matchesFormat && matchesDraft && matchesDomain && matchesFolder) {
       const bucket = item.isValid ? "valid" : "invalid";
       validity.set(bucket, (validity.get(bucket) ?? 0) + 1);
+    }
+    if (matchesSearch && matchesFormat && matchesValidity && matchesDomain && matchesFolder) {
+      const bucket = item.deck.isDraft ? "only" : "hide";
+      drafts.set(bucket, (drafts.get(bucket) ?? 0) + 1);
     }
     // Domains count against the other dimensions only, like format and
     // legality do — the axis reads as a union at one pick, so counting it
     // against itself would zero out every option the user hasn't chosen. Same
     // identity basis the filter uses, and a deck counts once per identity
     // domain, so the column sums past the deck count.
-    if (matchesSearch && matchesFormat && matchesValidity && matchesFolder) {
+    if (matchesSearch && matchesFormat && matchesValidity && matchesDraft && matchesFolder) {
       for (const domain of domainComboOf(item)) {
         domains.set(domain, (domains.get(domain) ?? 0) + 1);
       }
@@ -456,12 +484,12 @@ export function filterCountsFrom(
     // Folders count against the other dimensions only, for the same reason
     // domains do: the axis is a union, so counting it against itself would zero
     // out every unpicked option. A deck in several folders counts in each.
-    if (matchesSearch && matchesFormat && matchesValidity && matchesDomain) {
+    if (matchesSearch && matchesFormat && matchesValidity && matchesDraft && matchesDomain) {
       for (const folderId of item.folderIds) {
         folders.set(folderId, (folders.get(folderId) ?? 0) + 1);
       }
     }
   }
 
-  return { formats, validity, domains, folders };
+  return { formats, validity, drafts, domains, folders };
 }

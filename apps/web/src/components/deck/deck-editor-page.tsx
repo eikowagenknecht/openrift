@@ -4,9 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   BoxIcon,
+  CopyIcon,
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
+  FlaskConicalIcon,
+  GitBranchIcon,
   GitCompareArrowsIcon,
+  HistoryIcon,
   ImageIcon,
   LinkIcon,
   PencilIcon,
@@ -34,6 +38,9 @@ import { DeckQuickAdd } from "@/components/deck/deck-quick-add";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
 import { DeckUndoControls, useDeckUndoShortcuts } from "@/components/deck/deck-undo-controls";
+import { DeckVariantCreateDialog } from "@/components/deck/deck-variant-create-dialog";
+import { DeckVariantRail } from "@/components/deck/deck-variant-rail";
+import { DeckVariantsDialog } from "@/components/deck/deck-variants-dialog";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
@@ -81,10 +88,12 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
+import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
   useDeckDetail,
   useEncodeDeckCards,
   useExportDeck,
+  useUpdateDeck,
   useUpdateDeckMeta,
 } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
@@ -179,13 +188,23 @@ function DeckEditorContent({
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
+  // One create dialog for both variant modes; the mode outlives the close so
+  // the dialog doesn't switch copy while it fades out.
+  const [variantCreateOpen, setVariantCreateOpen] = useState(false);
+  const [variantMode, setVariantMode] = useState<DeckVariantMode>("variant");
   const { update: updateDeckMeta } = useUpdateDeckMeta(deckId);
+  const updateDeck = useUpdateDeck();
   const exportDeck = useExportDeck();
   const encodeDeck = useEncodeDeckCards();
   const { formats } = useDeckFormatList();
   const otherFormats = formats.filter((entry) => entry.slug !== data.deck.format);
   const handleFormatChange = (slug: string) => {
     updateDeckMeta({ format: slug });
+  };
+  const openVariantCreate = (mode: DeckVariantMode) => {
+    setVariantMode(mode);
+    setVariantCreateOpen(true);
   };
 
   const handlePlayOnRiftAtlas = () => {
@@ -647,6 +666,36 @@ function DeckEditorContent({
                       <GitCompareArrowsIcon className="size-4" />
                       Compare with another deck…
                     </DropdownMenuItem>
+                    {/* Variants are server decks in a family (ADR-042), which a
+                        browser-local deck can't join until it's claimed. */}
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => openVariantCreate("checkpoint")}>
+                        <HistoryIcon className="size-4" />
+                        Save checkpoint…
+                      </DropdownMenuItem>
+                    )}
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => openVariantCreate("variant")}>
+                        <CopyIcon className="size-4" />
+                        New variant…
+                      </DropdownMenuItem>
+                    )}
+                    {/* Always available for a server deck: the dialog is also
+                        where a standalone deck gets linked to its first sibling. */}
+                    {!isLocal && (
+                      <DropdownMenuItem onClick={() => setVariantsOpen(true)}>
+                        <GitBranchIcon className="size-4" />
+                        Variants…
+                      </DropdownMenuItem>
+                    )}
+                    {!isLocal && (
+                      <DropdownMenuItem
+                        onClick={() => updateDeck.mutate({ deckId, isDraft: !data.deck.isDraft })}
+                      >
+                        <FlaskConicalIcon className="size-4" />
+                        {data.deck.isDraft ? "Remove draft mark" : "Mark as draft"}
+                      </DropdownMenuItem>
+                    )}
                     {otherFormats.length > 0 && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
@@ -729,6 +778,18 @@ function DeckEditorContent({
           open={homeCollectionOpen}
           onOpenChange={setHomeCollectionOpen}
         />
+      )}
+      {!isLocal && (
+        <DeckVariantCreateDialog
+          deckId={deckId}
+          deckName={data.deck.name}
+          mode={variantMode}
+          open={variantCreateOpen}
+          onOpenChange={setVariantCreateOpen}
+        />
+      )}
+      {!isLocal && (
+        <DeckVariantsDialog deckId={deckId} open={variantsOpen} onOpenChange={setVariantsOpen} />
       )}
       {!isLocal && (
         <DeckShareDialog
@@ -847,6 +908,9 @@ function DeckEditorContent({
                   onHoverCard={setHoveredMain}
                   onOverviewCardClick={handleOverviewCardClick}
                   onEditDescription={isLocal ? undefined : () => setDetailsOpen(true)}
+                  // Variant families are server-only (ADR-042), so a local
+                  // deck gets no rail at all.
+                  variantRailSlot={isLocal ? undefined : <DeckVariantRail deckId={deckId} />}
                 />
               </div>
               {!isMobile && activeZone === null && (

@@ -165,6 +165,10 @@ const dbDeck = {
   coverPosition: null,
   links: [],
   collectionId: null,
+  familyId: null,
+  predecessorDeckId: null,
+  isPrimary: false,
+  isDraft: false,
   createdAt: now,
   updatedAt: now,
 };

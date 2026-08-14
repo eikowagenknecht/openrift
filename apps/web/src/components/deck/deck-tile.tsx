@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { getFilterIconPath } from "@/lib/icons";
@@ -21,6 +22,7 @@ import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatBadge } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
+import { DraftBadge, VariantCountToggle } from "./deck-variant-controls";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
@@ -226,10 +228,15 @@ export function typeCountSummary(typeCounts: { cardType: string; count: number }
 export function DeckTile({
   item,
   folderLabels = {},
+  family,
+  onToggleFamily,
 }: {
   item: DeckListItemResponse;
   /** Folder id → name, for the deck's folder chips. Empty while signed out. */
   folderLabels?: Record<string, string>;
+  /** The deck's place in its variant family (ADR-042). Absent for a standalone deck. */
+  family?: DeckFamilyEntry;
+  onToggleFamily?: (familyId: string) => void;
 }) {
   const {
     deck,
@@ -266,6 +273,12 @@ export function DeckTile({
       ? getDomainGradientStyle(legendDomains, "18", domainColors)
       : undefined;
 
+  // Built before the return so the narrowing survives into the JSX.
+  const variantToggle =
+    family && onToggleFamily && family.role === "front" && family.memberCount > 1 ? (
+      <VariantCountToggle family={family} onToggle={onToggleFamily} />
+    ) : null;
+
   return (
     <Link
       to="/decks/$deckId"
@@ -285,6 +298,14 @@ export function DeckTile({
       <div className="bg-background/60 absolute top-2 right-2 z-10 rounded-md backdrop-blur-sm">
         {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
       </div>
+
+      {/* Opposite corner from the menu, on the same plate treatment: the art is
+          the only place on a tile with room for it. */}
+      {variantToggle && (
+        <div className="bg-background/60 absolute top-2 left-2 z-10 rounded-md backdrop-blur-sm">
+          {variantToggle}
+        </div>
+      )}
 
       <FannedPreview
         legendImage={legendImage}
@@ -312,6 +333,7 @@ export function DeckTile({
               />
             )}
             <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
+            {deck.isDraft && <DraftBadge />}
           </div>
           <DeckIdentityLine
             legendCard={legendCard}

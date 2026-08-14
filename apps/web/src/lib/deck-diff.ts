@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 /** One side's card list, reduced to the fields the diff cares about. */
@@ -52,6 +52,34 @@ const KIND_SORT_ORDER: Record<DeckDiffEntry["kind"], number> = {
   change: 1,
   cut: 2,
 };
+
+/**
+ * Reshapes a stored deck's cards for the diff, naming each one from the
+ * catalog. A card id the catalog doesn't know is dropped rather than shown
+ * nameless — it can only be a printing the current language filter hides or a
+ * row left over from a card that left the catalog.
+ *
+ * @returns The deck's cards in diff shape.
+ */
+export function deckDiffCardsFrom(
+  cards: readonly DeckCardResponse[],
+  cardsById: Record<string, Card>,
+): DeckDiffCard[] {
+  const result: DeckDiffCard[] = [];
+  for (const card of cards) {
+    const catalogCard = cardsById[card.cardId];
+    if (!catalogCard) {
+      continue;
+    }
+    result.push({
+      cardId: card.cardId,
+      cardName: catalogCard.name,
+      zone: card.zone,
+      quantity: card.quantity,
+    });
+  }
+  return result;
+}
 
 interface Aggregated {
   cardId: string;

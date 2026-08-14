@@ -9,6 +9,9 @@ const routeApi = getRouteApi("/_app/decks/");
 /** Absent = both, "valid" / "invalid" = require that state. */
 export type DeckListValidity = "all" | "valid" | "invalid";
 
+/** Draft variants (ADR-042): "all" = show them, "hide" / "only" = one side. */
+export type DeckListDrafts = "all" | "hide" | "only";
+
 export interface DeckListFilterValues {
   search: string;
   /** Deck-format slugs to require; empty means every format. */
@@ -16,6 +19,7 @@ export interface DeckListFilterValues {
   /** Deck-format slugs to reject (ADR-034). */
   formatsExclude: string[];
   validity: DeckListValidity;
+  drafts: DeckListDrafts;
   domains: Domain[];
   domainsExclude: Domain[];
   /** Folder ids to require; empty means every folder. */
@@ -38,6 +42,9 @@ export interface DeckListFilterActions {
   /** Cycles all → valid → invalid → all, matching the card browser's flag badges. */
   cycleValidity: () => void;
   setValidity: (value: DeckListValidity) => void;
+  /** Cycles all → only → hide → all, the same flag-badge cycle validity uses. */
+  cycleDrafts: () => void;
+  setDrafts: (value: DeckListDrafts) => void;
   setShowArchived: (value: boolean) => void;
   clearAllFilters: () => void;
 }
@@ -47,6 +54,13 @@ const VALIDITY_CYCLE: Record<DeckListValidity, DeckListValidity> = {
   all: "valid",
   valid: "invalid",
   invalid: "all",
+};
+
+/** Same cycle for drafts: require them, then reject them, then don't care. */
+const DRAFTS_CYCLE: Record<DeckListDrafts, DeckListDrafts> = {
+  all: "only",
+  only: "hide",
+  hide: "all",
 };
 
 /**
@@ -90,12 +104,14 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
   const folders = search.folders ?? [];
   const foldersExclude = search.foldersEx ?? [];
   const validity = search.validity ?? "all";
+  const drafts = search.drafts ?? "all";
 
   return {
     search: search.search ?? "",
     formats,
     formatsExclude,
     validity,
+    drafts,
     domains,
     domainsExclude,
     folders,
@@ -106,6 +122,7 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
       formats.length > 0 ||
       formatsExclude.length > 0 ||
       validity !== "all" ||
+      drafts !== "all" ||
       domains.length > 0 ||
       domainsExclude.length > 0 ||
       folders.length > 0 ||
@@ -129,6 +146,11 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
       const next = VALIDITY_CYCLE[validity];
       update({ validity: next === "all" ? undefined : next });
     },
+    setDrafts: (value) => update({ drafts: value === "all" ? undefined : value }),
+    cycleDrafts: () => {
+      const next = DRAFTS_CYCLE[drafts];
+      update({ drafts: next === "all" ? undefined : next });
+    },
     setShowArchived: (value) => update({ archived: value }),
     clearAllFilters: () =>
       update({
@@ -136,6 +158,7 @@ export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActio
         formats: undefined,
         formatsEx: undefined,
         validity: undefined,
+        drafts: undefined,
         domains: undefined,
         domainsEx: undefined,
         folders: undefined,

@@ -110,6 +110,11 @@ export function localDeckToListItem(
       // A browser-local deck can't reference a server collection (ADR-035),
       // so it never has a deck box.
       collectionId: null,
+      // Variant families (ADR-042) are server-only; local decks are standalone.
+      familyId: null,
+      predecessorDeckId: null,
+      isPrimary: false,
+      isDraft: false,
     },
     legendCardId: legend?.cardId ?? null,
     championCardId: champion?.cardId ?? null,

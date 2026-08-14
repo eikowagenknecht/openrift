@@ -24,12 +24,14 @@ export function DeckActiveFilters() {
     formats,
     formatsExclude,
     validity,
+    drafts,
     domains,
     domainsExclude,
     hasActiveFilters,
     setSearch,
     cycleFormat,
     setValidity,
+    setDrafts,
     cycleDomain,
     clearAllFilters,
   } = useDeckListFilters();
@@ -82,6 +84,8 @@ export function DeckActiveFilters() {
 
       {validity !== "all" &&
         chip("validity", "Legal", validity === "invalid", () => setValidity("all"))}
+
+      {drafts !== "all" && chip("drafts", "Draft", drafts === "hide", () => setDrafts("all"))}
 
       {domains.map((domain) =>
         chip(

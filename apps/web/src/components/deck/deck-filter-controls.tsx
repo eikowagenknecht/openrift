@@ -30,6 +30,7 @@ export function hasUsableDeckFilters(
     availability.hasMixedFormat ||
     availability.hasMixedValidity ||
     availability.hasArchived ||
+    availability.hasDrafts ||
     availableDomains.length > 1 ||
     folders.length > 0
   );
@@ -73,6 +74,7 @@ export function DeckFilterControls({
     formats,
     formatsExclude,
     validity,
+    drafts,
     domains,
     domainsExclude,
     folders,
@@ -81,6 +83,7 @@ export function DeckFilterControls({
     hasActiveFilters,
     cycleFormat,
     cycleValidity,
+    cycleDrafts,
     cycleDomain,
     cycleFolder,
     setShowArchived,
@@ -94,6 +97,7 @@ export function DeckFilterControls({
 
   const showFormat = availability.hasMixedFormat;
   const showValidity = availability.hasMixedValidity;
+  const showDrafts = availability.hasDrafts;
   const showDomains = availableDomains.length > 1;
   // One folder is still worth a control, unlike one format: it splits the list
   // into "in it" and "not in it", which is a real narrowing.
@@ -166,6 +170,18 @@ export function DeckFilterControls({
             validity === "invalid" ? counts.validity.get("invalid") : counts.validity.get("valid")
           }
           onClick={cycleValidity}
+        />
+      )}
+
+      {showDrafts && (
+        <FlagBadge
+          label="Draft"
+          triggerStyle={triggerStyle}
+          // Drafts (ADR-042) read as a flag like legality does: keep only the
+          // drafts, keep only the finished lists, or don't care.
+          state={drafts === "all" ? null : drafts === "only"}
+          count={drafts === "hide" ? counts.drafts.get("hide") : counts.drafts.get("only")}
+          onClick={cycleDrafts}
         />
       )}
 

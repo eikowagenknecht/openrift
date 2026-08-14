@@ -33,6 +33,8 @@ export const deckListSearchSchema = z.object({
   formatsEx: z.array(z.string()).optional().catch(undefined),
   domainsEx: z.array(z.string()).optional().catch(undefined),
   foldersEx: z.array(z.string()).optional().catch(undefined),
+  /** Draft variants (ADR-042): absent = show them, "hide" / "only" = narrow to one side. */
+  drafts: z.enum(["hide", "only"]).optional().catch(undefined),
   /** Present and true when archived decks are shown alongside the rest. */
   archived: z.boolean().optional().catch(undefined),
 });

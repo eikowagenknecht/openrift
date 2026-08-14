@@ -1,8 +1,10 @@
-import type { DeckZone } from "@openrift/shared";
+import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { stubCard } from "@/test/factories";
+
 import type { DeckDiffCard } from "./deck-diff";
-import { diffDecks } from "./deck-diff";
+import { deckDiffCardsFrom, diffDecks } from "./deck-diff";
 
 function card(
   cardId: string,
@@ -11,6 +13,17 @@ function card(
   cardName = cardId,
 ): DeckDiffCard {
   return { cardId, cardName, zone, quantity };
+}
+
+function deckCard(cardId: string, quantity: number, zone: DeckZone = "main"): DeckCardResponse {
+  return { cardId, zone, quantity, preferredPrintingId: null };
+}
+
+function catalog(names: Record<string, string>): Record<string, Card> {
+  const entries = Object.entries(names).map(
+    ([cardId, name]) => [cardId, stubCard({ name })] as const,
+  );
+  return Object.fromEntries(entries);
 }
 
 describe("diffDecks", () => {
@@ -144,5 +157,45 @@ describe("diffDecks", () => {
     const diff = diffDecks(ours, theirs);
 
     expect(diff.zones[0].entries[0].cardName).toBe("Our Name");
+  });
+});
+
+describe("deckDiffCardsFrom", () => {
+  it("names each card from the catalog", () => {
+    const result = deckDiffCardsFrom(
+      [deckCard("a", 2), deckCard("b", 1, "sideboard")],
+      catalog({ a: "Ashe", b: "Braum" }),
+    );
+
+    expect(result).toEqual([
+      { cardId: "a", cardName: "Ashe", zone: "main", quantity: 2 },
+      { cardId: "b", cardName: "Braum", zone: "sideboard", quantity: 1 },
+    ]);
+  });
+
+  it("drops card ids the catalog doesn't know", () => {
+    const result = deckDiffCardsFrom(
+      [deckCard("a", 2), deckCard("missing", 3)],
+      catalog({ a: "Ashe" }),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].cardId).toBe("a");
+  });
+
+  it("keeps one row per printing so split quantities survive", () => {
+    // The builder holds one card as several rows when printings are pinned;
+    // summing them is the diff's job, not this one's.
+    const result = deckDiffCardsFrom([deckCard("a", 1), deckCard("a", 2)], catalog({ a: "Ashe" }));
+
+    expect(result.map((entry) => entry.quantity)).toEqual([1, 2]);
+  });
+
+  it("returns nothing for an empty deck", () => {
+    expect(deckDiffCardsFrom([], catalog({ a: "Ashe" }))).toEqual([]);
+  });
+
+  it("returns nothing when the catalog is empty", () => {
+    expect(deckDiffCardsFrom([deckCard("a", 2)], {})).toEqual([]);
   });
 });

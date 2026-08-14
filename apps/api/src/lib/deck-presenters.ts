@@ -37,6 +37,10 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     links: parseJsonbRequired<DeckLink[]>(row.links),
     // Owner-only: where the owner stores this deck. `toPublicDeck` omits it.
     collectionId: row.collectionId,
+    familyId: row.familyId,
+    predecessorDeckId: row.predecessorDeckId,
+    isPrimary: row.isPrimary,
+    isDraft: row.isDraft,
   };
 }
 
@@ -58,6 +62,10 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
     // Owner-only, like on the full deck: the list only ever renders the
     // caller's own decks.
     collectionId: row.collectionId,
+    familyId: row.familyId,
+    predecessorDeckId: row.predecessorDeckId,
+    isPrimary: row.isPrimary,
+    isDraft: row.isDraft,
   };
 }
 

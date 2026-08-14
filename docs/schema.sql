@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict BD8yWaaIUDtJmMqGYiED2202UZTEyNTLxtBYa2Y4N3a6LoeVRLQuPvOFsToXJhL
+\restrict CH9zAvh94yg17oThYud9iuHOpEvdeUvo2rEq5RrQCjcczahUWd2V9K8YyeSMAbT
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1326,6 +1326,10 @@ CREATE TABLE public.decks (
     cover_position smallint,
     collection_id uuid,
     links jsonb DEFAULT '[]'::jsonb NOT NULL,
+    family_id uuid,
+    predecessor_deck_id uuid,
+    is_primary boolean DEFAULT false NOT NULL,
+    is_draft boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
@@ -4254,6 +4258,20 @@ CREATE INDEX idx_deck_matchup_swaps_plan ON public.deck_matchup_swaps USING btre
 
 
 --
+-- Name: idx_decks_family_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_decks_family_id ON public.decks USING btree (family_id) WHERE (family_id IS NOT NULL);
+
+
+--
+-- Name: idx_decks_predecessor_deck_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_decks_predecessor_deck_id ON public.decks USING btree (predecessor_deck_id) WHERE (predecessor_deck_id IS NOT NULL);
+
+
+--
 -- Name: idx_decks_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4741,6 +4759,13 @@ CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, car
 --
 
 CREATE UNIQUE INDEX uq_deck_folders_user_name ON public.deck_folders USING btree (user_id, lower(name));
+
+
+--
+-- Name: uq_decks_family_primary; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_decks_family_primary ON public.decks USING btree (family_id) WHERE (is_primary AND (family_id IS NOT NULL));
 
 
 --
@@ -6034,6 +6059,14 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: decks fk_decks_predecessor_deck; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT fk_decks_predecessor_deck FOREIGN KEY (predecessor_deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
+
+
+--
 -- Name: friend_group_collection_shares fk_friend_group_collection_shares_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6701,5 +6734,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BD8yWaaIUDtJmMqGYiED2202UZTEyNTLxtBYa2Y4N3a6LoeVRLQuPvOFsToXJhL
+\unrestrict CH9zAvh94yg17oThYud9iuHOpEvdeUvo2rEq5RrQCjcczahUWd2V9K8YyeSMAbT
 

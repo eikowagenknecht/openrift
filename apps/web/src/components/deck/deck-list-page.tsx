@@ -47,6 +47,8 @@ import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useUserId } from "@/lib/auth-session";
+import type { CollapsedDeckEntry } from "@/lib/deck-family";
+import { collapseFamilies } from "@/lib/deck-family";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
   availableDomainsFrom,
@@ -307,6 +309,7 @@ export function DeckListPage() {
     formats,
     formatsExclude,
     validity,
+    drafts,
     domains,
     domainsExclude,
     folders,
@@ -333,6 +336,7 @@ export function DeckListPage() {
     formats,
     formatsExclude,
     validity,
+    drafts,
     domains,
     domainsExclude,
     folders,
@@ -352,11 +356,37 @@ export function DeckListPage() {
       ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
       : "flex flex-col gap-1.5";
 
-  const renderItem = (item: DeckListItemWithNames) =>
+  // Variant families (ADR-042) collapse to their front entry until opened. The
+  // set is session-local on purpose: which families you expanded while browsing
+  // isn't worth a store or a URL param.
+  const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
+  const toggleFamily = (familyId: string) => {
+    setExpandedFamilies((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(familyId)) {
+        next.add(familyId);
+      }
+      return next;
+    });
+  };
+
+  const renderEntry = (entry: CollapsedDeckEntry<DeckListItemWithNames>) =>
     density === "grid" ? (
-      <DeckTile key={item.deck.id} item={item} folderLabels={folderLabels} />
+      <DeckTile
+        key={entry.item.deck.id}
+        item={entry.item}
+        folderLabels={folderLabels}
+        family={entry.family}
+        onToggleFamily={toggleFamily}
+      />
     ) : (
-      <DeckListRow key={item.deck.id} item={item} folderLabels={folderLabels} />
+      <DeckListRow
+        key={entry.item.deck.id}
+        item={entry.item}
+        folderLabels={folderLabels}
+        family={entry.family}
+        onToggleFamily={toggleFamily}
+      />
     );
 
   return (
@@ -476,12 +506,19 @@ export function DeckListPage() {
             </Empty>
           ) : (
             <div className="flex flex-col gap-2 pt-3">
-              {groups.map((group) => (
-                <div key={group.key}>
-                  <GroupHeader label={group.label} count={group.items.length} />
-                  <div className={containerClass}>{group.items.map(renderItem)}</div>
-                </div>
-              ))}
+              {groups.map((group) => {
+                // Collapsed here rather than inside the map below, so the item
+                // callback closes over the derived array alone.
+                const entries = collapseFamilies(group.items, expandedFamilies);
+                return (
+                  <div key={group.key}>
+                    <GroupHeader label={group.label} count={group.items.length} />
+                    <div className={containerClass}>
+                      {entries.map((entry) => renderEntry(entry))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
