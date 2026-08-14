@@ -50,7 +50,10 @@ PostgreSQL runs in Docker. Data persists in a bind mount at `./data/postgres` â€
 bun db:migrate    # Run pending migrations
 bun db:rollback   # Roll back the last migration
 bun make-admin -- <email>  # Grant admin role to a user
+bun db:dev-passwords       # Set every user's password to 1111 (local DB only)
 ```
+
+`bun db:dev-passwords` is meant for a database restored from a production dump: it sets one password for every account (`1111`, or a value passed as an argument), gives users who only signed up through Google, Discord, or an email code a password account so they can be signed in as too, and marks every email verified. It refuses to run unless `DATABASE_URL` points at localhost.
 
 API keys authenticate script calls to the API: send the key as an `x-api-key` header and the request runs as the key's owner (same permissions, including admin). Keys are created on the `/admin/api-keys` page and shown once at creation.
 
