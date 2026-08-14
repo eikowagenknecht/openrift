@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
 
-import { useDisplayStore } from "./display-store";
+import { TIER_TILE_WIDTHS, useDisplayStore } from "./display-store";
 
 let resetStore: () => void;
 
@@ -297,6 +297,22 @@ describe("useDisplayStore", () => {
       useDisplayStore.getState().setFrostedBars(false);
       expect(useDisplayStore.getState().frostedBars).toBe(false);
       expect(document.documentElement.dataset.frosted).toBeUndefined();
+    });
+
+    it("tierTileStep starts on the size the board was designed around", () => {
+      expect(TIER_TILE_WIDTHS[useDisplayStore.getState().tierTileStep]).toBe(56);
+    });
+
+    it("setTierTileStep walks the ladder", () => {
+      useDisplayStore.getState().setTierTileStep(4);
+      expect(useDisplayStore.getState().tierTileStep).toBe(4);
+    });
+
+    it("setTierTileStep clamps to the ends of the ladder", () => {
+      useDisplayStore.getState().setTierTileStep(-3);
+      expect(useDisplayStore.getState().tierTileStep).toBe(0);
+      useDisplayStore.getState().setTierTileStep(99);
+      expect(useDisplayStore.getState().tierTileStep).toBe(TIER_TILE_WIDTHS.length - 1);
     });
   });
 });

@@ -17,7 +17,7 @@ const NOT_FOUND = "Tier list not found";
 
 /** @returns A fresh S/A/B/C/D board, the shape a new list starts from. */
 function defaultTiers(): TierListRow[] {
-  return DEFAULT_TIER_LABELS.map((label) => ({ label, cardIds: [] }));
+  return DEFAULT_TIER_LABELS.map((label) => ({ label, cards: [] }));
 }
 
 /**

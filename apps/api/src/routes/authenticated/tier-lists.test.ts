@@ -26,6 +26,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const LIST_ID = "70000000-0001-4000-a000-000000000001";
 const SET_ID = "50000000-0001-4000-a000-000000000001";
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
+const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
@@ -50,7 +51,7 @@ function dbRow(overrides: Record<string, unknown> = {}) {
     title: "Origins — best commons",
     description: null,
     setId: null,
-    tiers: [{ label: "S", cardIds: [CARD_ID] }],
+    tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: null }] }],
     isPublic: false,
     shareToken: null,
     createdAt: now,
@@ -81,7 +82,14 @@ describe("GET /tier-lists", () => {
     expect(status).toBe(200);
     expect(mockTierListsRepo.listForUser).toHaveBeenCalledWith(USER_ID);
     expect(body).toMatchObject({
-      items: [{ id: LIST_ID, cardCount: 1, tierCount: 1, previewCardIds: [CARD_ID] }],
+      items: [
+        {
+          id: LIST_ID,
+          cardCount: 1,
+          tierCount: 1,
+          previewCards: [{ cardId: CARD_ID, printingId: null }],
+        },
+      ],
     });
   });
 
@@ -110,7 +118,9 @@ describe("GET /tier-lists/{id}", () => {
     const { status, body } = await request(`/tier-lists/${LIST_ID}`);
 
     expect(status).toBe(200);
-    expect(body).toMatchObject({ tiers: [{ label: "S", cardIds: [CARD_ID] }] });
+    expect(body).toMatchObject({
+      tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: null }] }],
+    });
     expect(mockTierListsRepo.getByIdForUser).toHaveBeenCalledWith(LIST_ID, USER_ID);
   });
 });
@@ -129,11 +139,11 @@ describe("POST /tier-lists", () => {
       description: null,
       setId: null,
       tiers: [
-        { label: "S", cardIds: [] },
-        { label: "A", cardIds: [] },
-        { label: "B", cardIds: [] },
-        { label: "C", cardIds: [] },
-        { label: "D", cardIds: [] },
+        { label: "S", cards: [] },
+        { label: "A", cards: [] },
+        { label: "B", cards: [] },
+        { label: "C", cards: [] },
+        { label: "D", cards: [] },
       ],
     });
   });
@@ -158,8 +168,8 @@ describe("POST /tier-lists", () => {
       body: JSON.stringify({
         title: "Origins",
         tiers: [
-          { label: "S", cardIds: [CARD_ID] },
-          { label: "A", cardIds: [CARD_ID] },
+          { label: "S", cards: [{ cardId: CARD_ID }] },
+          { label: "A", cards: [{ cardId: CARD_ID }] },
         ],
       }),
     });
@@ -196,13 +206,30 @@ describe("PATCH /tier-lists/{id}", () => {
 
     await request(`/tier-lists/${LIST_ID}`, {
       method: "PATCH",
-      body: JSON.stringify({ tiers: [{ label: "S", cardIds: [CARD_ID] }] }),
+      body: JSON.stringify({
+        tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: PRINTING_ID }] }],
+      }),
     });
 
     // Notably no `title` key: an undefined one would reach Kysely's SET clause
     // and null the column.
     expect(mockTierListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
-      tiers: [{ label: "S", cardIds: [CARD_ID] }],
+      tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: PRINTING_ID }] }],
+    });
+  });
+
+  it("stores an entry with no printing as an explicit null", async () => {
+    // The column holds what the contract parsed, so an omitted printing has to
+    // arrive at the repo already filled in rather than as a missing key.
+    mockTierListsRepo.update.mockResolvedValue(dbRow());
+
+    await request(`/tier-lists/${LIST_ID}`, {
+      method: "PATCH",
+      body: JSON.stringify({ tiers: [{ label: "S", cards: [{ cardId: CARD_ID }] }] }),
+    });
+
+    expect(mockTierListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
+      tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: null }] }],
     });
   });
 
@@ -211,18 +238,18 @@ describe("PATCH /tier-lists/{id}", () => {
 
     await request(`/tier-lists/${LIST_ID}`, {
       method: "PATCH",
-      body: JSON.stringify({ tiers: [{ label: "  S  ", cardIds: [] }] }),
+      body: JSON.stringify({ tiers: [{ label: "  S  ", cards: [] }] }),
     });
 
     expect(mockTierListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
-      tiers: [{ label: "S", cardIds: [] }],
+      tiers: [{ label: "S", cards: [] }],
     });
   });
 
   it("rejects a whitespace-only row label", async () => {
     const { status } = await request(`/tier-lists/${LIST_ID}`, {
       method: "PATCH",
-      body: JSON.stringify({ tiers: [{ label: "   ", cardIds: [] }] }),
+      body: JSON.stringify({ tiers: [{ label: "   ", cards: [] }] }),
     });
 
     expect(status).toBe(400);

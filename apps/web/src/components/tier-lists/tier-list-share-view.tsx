@@ -33,11 +33,11 @@ interface TierListShareViewProps {
  */
 export function TierListShareView({ data }: TierListShareViewProps) {
   const { tierList, owner } = data;
-  const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cardIds.length, 0);
+  const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky maxWidth="container">
         <PageTopBar>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
             <PageTopBarTitle>{tierList.title}</PageTopBarTitle>

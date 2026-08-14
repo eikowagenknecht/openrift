@@ -760,10 +760,17 @@ interface DeckFolderEntriesTable {
   createdAt: CreatedAt;
 }
 
+/** One ranked entry: the card, plus the printing the creator pinned for its art. */
+export interface TierListCard {
+  cardId: string;
+  /** Null falls back to the reader's default printing for the card. */
+  printingId: string | null;
+}
+
 /** One row of a tier list: a label plus the cards ranked into it, in order. */
 export interface TierListRow {
   label: string;
-  cardIds: string[];
+  cards: TierListCard[];
 }
 
 /**

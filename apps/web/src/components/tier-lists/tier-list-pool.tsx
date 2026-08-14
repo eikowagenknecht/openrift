@@ -114,7 +114,14 @@ export function TierListPool() {
   // phone the drawer is the whole interaction surface, so without this a card
   // could not be ranked from its own detail view.
   const poolDetailActions = (printing: Printing) => (
-    <PoolCardStrip cardId={printing.cardId} cardName={printing.card.name} />
+    <PoolCardStrip
+      cardId={printing.cardId}
+      cardName={printing.card.name}
+      // Same rule as the grid cell: a printings-view control stands for one
+      // printing and pins it; a cards-view control stands for the card, so it
+      // leaves whatever printing the entry already carries alone.
+      printingId={view === "printings" ? printing.id : undefined}
+    />
   );
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
@@ -215,7 +222,10 @@ function PoolCardCell({
   const rowIndex = useTierListBuilderStore((state) => state.rowIndexByCardId.get(cardId) ?? null);
   const isMobile = useIsMobile();
 
-  const dragData: PoolCardDragData = { type: "tier-pool-card", cardId };
+  // A printings-view cell is one specific printing, so ranking from it pins
+  // that art; a cards-view cell stands for the card and leaves the pin alone.
+  const printingId = view === "printings" ? item.printing.id : undefined;
+  const dragData: PoolCardDragData = { type: "tier-pool-card", cardId, printingId };
   // Destructure before JSX: member access on the hook's return object in render
   // makes the React Compiler bail (see CLAUDE.md / DraggableCard).
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
@@ -235,7 +245,9 @@ function PoolCardCell({
       siblings={siblings}
       priceRange={priceRange}
       dimmed={rowIndex !== null}
-      strip={<PoolCardStrip cardId={cardId} cardName={item.printing.card.name} />}
+      strip={
+        <PoolCardStrip cardId={cardId} cardName={item.printing.card.name} printingId={printingId} />
+      }
       wrap={
         // On touch, no draggable wrap at all (same as DraggableCard): ranking
         // goes through the pill, and the wrap's `touch-none` would make the
@@ -263,7 +275,16 @@ function PoolCardCell({
  *
  * @returns The strip node.
  */
-function PoolCardStrip({ cardId, cardName }: { cardId: string; cardName: string }) {
+function PoolCardStrip({
+  cardId,
+  cardName,
+  printingId,
+}: {
+  cardId: string;
+  cardName: string;
+  /** Printing this control stands for, when it stands for one; pinned on the entry. */
+  printingId?: string;
+}) {
   // Labels are captured when the picker opens rather than subscribed to. A
   // selector returning `rows.map(...)` builds a new array every time, so it
   // would never compare equal and every cell in the grid would re-render on
@@ -294,7 +315,7 @@ function PoolCardStrip({ cardId, cardName }: { cardId: string; cardName: string 
           labels={picker.labels}
           cardName={cardName}
           currentRowIndex={rowIndex}
-          onPick={(index) => assign(cardId, index)}
+          onPick={(index) => assign(cardId, index, { printingId })}
           onUnrank={() => unassign(cardId)}
           open={picker.open}
           onOpenChange={handleOpenChange}

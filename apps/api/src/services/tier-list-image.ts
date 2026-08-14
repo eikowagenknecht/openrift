@@ -59,6 +59,13 @@ export function truncateTierListTitle(title: string): string {
     : title;
 }
 
+/** One stored board entry, before its art is resolved. */
+export interface TierListImageEntry {
+  cardId: string;
+  /** Printing the creator pinned for the tile; null takes the card's default. */
+  printingId: string | null;
+}
+
 /** One ranked card the renderer needs; `imageId` is the resolved art, null when none. */
 export interface TierListImageCard {
   cardName: string;
@@ -309,31 +316,38 @@ function boardRow(
  */
 export async function buildTierListImageRows(
   repos: Pick<Repos, "catalog" | "canonicalPrintings">,
-  tiers: readonly { label: string; cardIds: readonly string[] }[],
+  tiers: readonly { label: string; cards: readonly TierListImageEntry[] }[],
 ): Promise<TierListImageRow[]> {
-  const allCardIds = tiers.flatMap((tier) => [...tier.cardIds]);
-  if (allCardIds.length === 0) {
+  const entries = tiers.flatMap((tier) => [...tier.cards]);
+  if (entries.length === 0) {
     return tiers.map((tier) => ({ label: tier.label, cards: [] }));
   }
-  const uniqueCardIds = [...new Set(allCardIds)];
+  // Keyed on card *and* pinned printing: the same card cannot repeat across the
+  // board, so one key per entry is already the deduplicated set.
+  const uniqueCardIds = [...new Set(entries.map((entry) => entry.cardId))];
   const [cardMetas, printingMetas] = await Promise.all([
     repos.catalog.cardsByIds(uniqueCardIds),
     repos.canonicalPrintings.resolvePrintingMetaForRows(
-      uniqueCardIds.map((cardId) => ({ cardId, preferredPrintingId: null })),
+      entries.map((entry) => ({
+        cardId: entry.cardId,
+        preferredPrintingId: entry.printingId,
+      })),
     ),
   ]);
   const metaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
   const imageIdByCardId = new Map(
-    uniqueCardIds.map((cardId, index) => [cardId, printingMetas[index]?.imageId ?? null]),
+    entries.map((entry, index) => [entry.cardId, printingMetas[index]?.imageId ?? null]),
   );
 
   return tiers.map((tier) => ({
     label: tier.label,
-    cards: [...tier.cardIds].flatMap((cardId) => {
-      const meta = metaById.get(cardId);
+    cards: [...tier.cards].flatMap((entry) => {
+      const meta = metaById.get(entry.cardId);
       // A card deleted from the catalogue since the list was saved simply drops
       // out of the image rather than rendering as a blank tile.
-      return meta ? [{ cardName: meta.name, imageId: imageIdByCardId.get(cardId) ?? null }] : [];
+      return meta
+        ? [{ cardName: meta.name, imageId: imageIdByCardId.get(entry.cardId) ?? null }]
+        : [];
     }),
   }));
 }
@@ -382,31 +396,65 @@ export async function renderTierListImage(
   ]);
 
   // ── Title row ─────────────────────────────────────────────────────────────
+  // Same construction as the deck image: title and byline share a baseline
+  // inside their own left group, and the count is a vertically-centred cluster
+  // on the right. Baseline-aligning the whole row instead puts the count's
+  // baseline on the 34px title's, which reads as a misaligned header — and the
+  // flexible spacer between them has no text baseline at all to align to.
   const titleRow = element(
     "div",
     {
       display: "flex",
       flexDirection: "row",
-      alignItems: "baseline",
+      alignItems: "center",
       height: TITLE_H,
       flexShrink: 0,
     },
     element(
       "div",
-      { display: "flex", fontSize: 34, fontWeight: 700, color: COLORS.text },
-      truncateTierListTitle(input.title),
+      { display: "flex", flexDirection: "row", flexShrink: 1, alignItems: "baseline" },
+      element(
+        "div",
+        {
+          display: "flex",
+          flexShrink: 1,
+          fontSize: 34,
+          lineHeight: 1,
+          fontWeight: 700,
+          color: COLORS.text,
+          whiteSpace: "nowrap",
+        },
+        truncateTierListTitle(input.title),
+      ),
+      input.ownerName
+        ? element(
+            "div",
+            {
+              display: "flex",
+              flexShrink: 0,
+              marginLeft: 12,
+              fontSize: 19,
+              lineHeight: 1,
+              color: COLORS.muted,
+              // satori leaves the smaller run ~2px low next to the 34px title;
+              // nudge it up so the two share one baseline (as in deck-image).
+              transform: "translateY(-2px)",
+            },
+            `by ${input.ownerName}`,
+          )
+        : false,
     ),
-    input.ownerName
-      ? element(
-          "div",
-          { display: "flex", marginLeft: 12, fontSize: 19, color: COLORS.muted },
-          `by ${input.ownerName}`,
-        )
-      : false,
-    element("div", { display: "flex", flexGrow: 1 }),
+    element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
     element(
       "div",
-      { display: "flex", fontSize: 19, fontWeight: 600, color: COLORS.gold },
+      {
+        display: "flex",
+        flexShrink: 0,
+        fontSize: 19,
+        lineHeight: 1,
+        fontWeight: 600,
+        color: COLORS.gold,
+      },
       `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`,
     ),
   );

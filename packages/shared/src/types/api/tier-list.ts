@@ -7,9 +7,13 @@ import type {
   tierListResponseSchema,
   tierListShareResponseSchema,
   tierListSummaryResponseSchema,
+  tierCardResponseSchema,
   tierRowResponseSchema,
 } from "@openrift/shared/contracts/tier-lists";
 import type { z } from "zod";
+
+/** One ranked entry: the card, plus the printing whose art the tile shows. */
+export type TierCard = z.infer<typeof tierCardResponseSchema>;
 
 /** One row of a tier list: a label plus the cards ranked into it, in order. */
 export type TierRow = z.infer<typeof tierRowResponseSchema>;

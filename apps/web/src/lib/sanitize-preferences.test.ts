@@ -8,6 +8,7 @@ import {
   sanitizePaneDocked,
   sanitizeServerResponse,
   sanitizeThemePreference,
+  sanitizeTierTileStep,
 } from "./sanitize-preferences";
 
 describe("sanitize-preferences — topLevelFilters", () => {
@@ -254,6 +255,27 @@ describe("sanitizePaneDocked", () => {
     // A pre-toggle blob carries displayMode and friends but no paneDocked, so
     // those users land on the modal rather than inheriting a docked pane.
     expect(sanitizePaneDocked({ displayMode: "grid", filtersExpanded: true }, false)).toBe(false);
+  });
+});
+
+describe("sanitizeTierTileStep", () => {
+  it("keeps a step inside the ladder", () => {
+    expect(sanitizeTierTileStep({ tierTileStep: 4 }, 6, 2)).toBe(4);
+    expect(sanitizeTierTileStep({ tierTileStep: 0 }, 6, 2)).toBe(0);
+  });
+
+  it("falls back for a step past the end of the ladder", () => {
+    // A blob written when the ladder was longer must not strand the board on a
+    // step that no longer exists.
+    expect(sanitizeTierTileStep({ tierTileStep: 9 }, 6, 2)).toBe(2);
+    expect(sanitizeTierTileStep({ tierTileStep: -1 }, 6, 2)).toBe(2);
+  });
+
+  it("falls back for a non-integer, a non-number, or a missing key", () => {
+    expect(sanitizeTierTileStep({ tierTileStep: 1.5 }, 6, 2)).toBe(2);
+    expect(sanitizeTierTileStep({ tierTileStep: "3" }, 6, 2)).toBe(2);
+    expect(sanitizeTierTileStep({ displayMode: "grid" }, 6, 2)).toBe(2);
+    expect(sanitizeTierTileStep(null, 6, 2)).toBe(2);
   });
 });
 

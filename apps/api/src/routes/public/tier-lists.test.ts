@@ -35,7 +35,7 @@ function sharedRow(overrides: Record<string, unknown> = {}) {
       title: "Origins ranked",
       description: null,
       setId: null,
-      tiers: [{ label: "S", cardIds: ["c-1"] }],
+      tiers: [{ label: "S", cards: [{ cardId: "c-1", printingId: null }] }],
       isPublic: true,
       shareToken: "AbC123XyZ789",
       createdAt: now,
@@ -56,7 +56,9 @@ describe("GET /api/v1/tier-lists/share/{token}", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.tierList.title).toBe("Origins ranked");
-    expect(json.tierList.tiers).toEqual([{ label: "S", cardIds: ["c-1"] }]);
+    expect(json.tierList.tiers).toEqual([
+      { label: "S", cards: [{ cardId: "c-1", printingId: null }] },
+    ]);
     expect(json.owner.displayName).toBe("Rell");
     expect(mockRepo.findByShareToken).toHaveBeenCalledWith("AbC123XyZ789");
   });

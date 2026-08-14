@@ -4,6 +4,10 @@ import type { TierList } from "../repositories/tier-lists.js";
 import { toPublicTierList, toTierList, toTierListSummary } from "./tier-list-presenters.js";
 
 const CARD = (n: number): string => `c0000000-0000-4000-a000-00000000000${n}`;
+const PRINTING = (n: number): string => `d0000000-0000-4000-a000-00000000000${n}`;
+
+/** @returns Entries for `cardIds`, all following the default printing. */
+const entries = (cardIds: string[]) => cardIds.map((cardId) => ({ cardId, printingId: null }));
 
 function makeRow(overrides: Partial<TierList> = {}): TierList {
   return {
@@ -13,9 +17,9 @@ function makeRow(overrides: Partial<TierList> = {}): TierList {
     description: "Limited only.",
     setId: "50000000-0001-4000-a000-000000000001",
     tiers: [
-      { label: "S", cardIds: [CARD(1), CARD(2)] },
-      { label: "A", cardIds: [CARD(3)] },
-      { label: "B", cardIds: [] },
+      { label: "S", cards: entries([CARD(1), CARD(2)]) },
+      { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
+      { label: "B", cards: [] },
     ],
     isPublic: true,
     shareToken: "AbCdEfGhIjKl",
@@ -33,9 +37,9 @@ describe("toTierList", () => {
       description: "Limited only.",
       setId: "50000000-0001-4000-a000-000000000001",
       tiers: [
-        { label: "S", cardIds: [CARD(1), CARD(2)] },
-        { label: "A", cardIds: [CARD(3)] },
-        { label: "B", cardIds: [] },
+        { label: "S", cards: entries([CARD(1), CARD(2)]) },
+        { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
+        { label: "B", cards: [] },
       ],
       isPublic: true,
       shareToken: "AbCdEfGhIjKl",
@@ -51,8 +55,14 @@ describe("toTierList", () => {
   it("copies card arrays rather than aliasing the row's", () => {
     const row = makeRow();
     const response = toTierList(row);
-    response.tiers[0]?.cardIds.push(CARD(9));
-    expect(row.tiers[0]?.cardIds).toHaveLength(2);
+    response.tiers[0]?.cards.push({ cardId: CARD(9), printingId: null });
+    expect(row.tiers[0]?.cards).toHaveLength(2);
+  });
+
+  it("carries each entry's pinned printing through", () => {
+    expect(toTierList(makeRow()).tiers[1]?.cards).toEqual([
+      { cardId: CARD(3), printingId: PRINTING(3) },
+    ]);
   });
 
   it("carries an empty board through as an empty tier array", () => {
@@ -77,38 +87,38 @@ describe("toTierListSummary", () => {
     const summary = toTierListSummary(
       makeRow({
         tiers: [
-          { label: "S", cardIds: [] },
-          { label: "A", cardIds: [CARD(4), CARD(5)] },
+          { label: "S", cards: [] },
+          { label: "A", cards: entries([CARD(4), CARD(5)]) },
         ],
       }),
     );
-    expect(summary.previewCardIds).toEqual([CARD(4), CARD(5)]);
+    expect(summary.previewCards).toEqual(entries([CARD(4), CARD(5)]));
   });
 
   it("caps the preview at six cards", () => {
     const many = Array.from({ length: 10 }, (_, index) => CARD(index));
-    const summary = toTierListSummary(makeRow({ tiers: [{ label: "S", cardIds: many }] }));
-    expect(summary.previewCardIds).toHaveLength(6);
-    expect(summary.previewCardIds).toEqual(many.slice(0, 6));
+    const summary = toTierListSummary(makeRow({ tiers: [{ label: "S", cards: entries(many) }] }));
+    expect(summary.previewCards).toHaveLength(6);
+    expect(summary.previewCards).toEqual(entries(many.slice(0, 6)));
   });
 
   it("previews nothing when no row holds a card", () => {
     const summary = toTierListSummary(
       makeRow({
         tiers: [
-          { label: "S", cardIds: [] },
-          { label: "A", cardIds: [] },
+          { label: "S", cards: [] },
+          { label: "A", cards: [] },
         ],
       }),
     );
-    expect(summary.previewCardIds).toEqual([]);
+    expect(summary.previewCards).toEqual([]);
     expect(summary.cardCount).toBe(0);
     expect(summary.tierCount).toBe(2);
   });
 
   it("reports zero for a list with no rows at all", () => {
     const summary = toTierListSummary(makeRow({ tiers: [] }));
-    expect(summary).toMatchObject({ tierCount: 0, cardCount: 0, previewCardIds: [] });
+    expect(summary).toMatchObject({ tierCount: 0, cardCount: 0, previewCards: [] });
   });
 
   it("does not ship the full board", () => {
@@ -124,9 +134,9 @@ describe("toPublicTierList", () => {
       description: "Limited only.",
       setId: "50000000-0001-4000-a000-000000000001",
       tiers: [
-        { label: "S", cardIds: [CARD(1), CARD(2)] },
-        { label: "A", cardIds: [CARD(3)] },
-        { label: "B", cardIds: [] },
+        { label: "S", cards: entries([CARD(1), CARD(2)]) },
+        { label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
+        { label: "B", cards: [] },
       ],
       createdAt: "2026-08-01T10:30:00.000Z",
       updatedAt: "2026-08-02T11:00:00.000Z",

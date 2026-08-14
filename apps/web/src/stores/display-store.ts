@@ -15,10 +15,21 @@ import {
   sanitizeFrostedBars,
   sanitizeOverrides,
   sanitizePaneDocked,
+  sanitizeTierTileStep,
 } from "@/lib/sanitize-preferences";
 
 /** Whether the card browser renders a grid of cards or a table of rows. */
 export type DisplayMode = "grid" | "table";
+
+/**
+ * Tile widths the tier board steps through, in pixels. A ladder rather than a
+ * free number: the board's rows size themselves off the tile, so arbitrary
+ * widths would let a creator land on a row height that reads as a mistake.
+ */
+export const TIER_TILE_WIDTHS = [40, 48, 56, 72, 88, 112] as const;
+
+/** Step the board starts on — the size the ladder was designed around. */
+const DEFAULT_TIER_TILE_STEP = 2;
 
 // ── Override types (nullable — null means "use default") ────────────────────
 
@@ -149,6 +160,13 @@ interface DisplayState {
    */
   frostedBars: boolean;
   setFrostedBars: (value: boolean) => void;
+  /**
+   * Index into {@link TIER_TILE_WIDTHS} for the tier board's card tiles.
+   * Device-local: how large the ladder should read depends on the screen the
+   * creator is recording from, not on their account.
+   */
+  tierTileStep: number;
+  setTierTileStep: (value: number) => void;
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -277,6 +295,9 @@ export const useDisplayStore = create<DisplayState>()(
       setPaneDocked: (value) => set({ paneDocked: value }),
       frostedBars: false,
       setFrostedBars: (value) => set({ frostedBars: value }),
+      tierTileStep: DEFAULT_TIER_TILE_STEP,
+      setTierTileStep: (value) =>
+        set({ tierTileStep: Math.max(0, Math.min(value, TIER_TILE_WIDTHS.length - 1)) }),
     }),
     {
       name: "user-preferences",
@@ -288,6 +309,7 @@ export const useDisplayStore = create<DisplayState>()(
         displayMode: state.displayMode,
         paneDocked: state.paneDocked,
         frostedBars: state.frostedBars,
+        tierTileStep: state.tierTileStep,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -301,6 +323,11 @@ export const useDisplayStore = create<DisplayState>()(
           displayMode: sanitizeDisplayMode(persisted, current.displayMode),
           paneDocked: sanitizePaneDocked(persisted, current.paneDocked),
           frostedBars: sanitizeFrostedBars(persisted, current.frostedBars),
+          tierTileStep: sanitizeTierTileStep(
+            persisted,
+            TIER_TILE_WIDTHS.length,
+            current.tierTileStep,
+          ),
         };
       },
     },

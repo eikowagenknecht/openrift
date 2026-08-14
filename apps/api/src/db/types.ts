@@ -44,6 +44,7 @@ export type {
   IgnoredCandidateMetaDecksTable,
   IgnoredCandidateMetaEventsTable,
   // Tier lists (migration 237)
+  TierListCard,
   TierListRow,
   TierListsTable,
   // Preconstructed products (migration 198, ADR-015)

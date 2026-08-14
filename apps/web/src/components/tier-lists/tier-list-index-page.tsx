@@ -41,6 +41,12 @@ import { formatAbsoluteDate } from "@/lib/format-date";
 import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
 /**
+ * Tile width for the index's preview strip. Fixed rather than following the
+ * board's size preference: this is a thumbnail of a list, not the board itself.
+ */
+const PREVIEW_TILE_WIDTH = 40;
+
+/**
  * "My tier lists": everything the signed-in creator has built, newest edit
  * first, with a preview strip of the top-ranked cards.
  *
@@ -52,7 +58,7 @@ export function TierListIndexPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky maxWidth="container">
         <PageTopBar>
           <PageTopBarTitle>Tier lists</PageTopBarTitle>
           <PageTopBarActions>
@@ -100,9 +106,25 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const preview = tierList.previewCardIds.flatMap((cardId) => {
-    const card = cardsById[cardId];
-    return card ? [{ cardId, card, printing: printingsByCardId.get(cardId)?.[0] }] : [];
+  const preview = tierList.previewCards.flatMap((entry) => {
+    const card = cardsById[entry.cardId];
+    if (!card) {
+      return [];
+    }
+    const printings = printingsByCardId.get(entry.cardId);
+    // Same fallback chain as the board: the creator's pinned printing when it
+    // still resolves, otherwise the card's default.
+    const pinned = entry.printingId
+      ? printings?.find((printing) => printing.id === entry.printingId)
+      : undefined;
+    return [
+      {
+        cardId: entry.cardId,
+        card,
+        printing: pinned ?? printings?.[0],
+        pinnedPrintingId: entry.printingId,
+      },
+    ];
   });
 
   return (
@@ -148,7 +170,7 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
       {preview.length > 0 && (
         <div className="flex gap-1 overflow-hidden">
           {preview.map((view) => (
-            <TierCardTile key={view.cardId} view={view} />
+            <TierCardTile key={view.cardId} view={view} width={PREVIEW_TILE_WIDTH} />
           ))}
         </div>
       )}

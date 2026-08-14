@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_app/tier-lists_/share/$token")({
       params.token,
       shareImageVersion(tierList.updatedAt),
     );
-    const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cardIds.length, 0);
+    const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
     return seoHead({
       siteUrl,
       title: tierList.title,

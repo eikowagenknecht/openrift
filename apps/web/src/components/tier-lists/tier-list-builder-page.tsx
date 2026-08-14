@@ -1,4 +1,5 @@
 import type { TierListResponse } from "@openrift/shared";
+import { getOrientation, imageUrl } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
@@ -10,9 +11,11 @@ import {
   Share2Icon,
   Trash2Icon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
@@ -26,10 +29,12 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { TierBoardEditor } from "@/components/tier-lists/tier-board-editor";
+import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierListDetailsDialog } from "@/components/tier-lists/tier-list-details-dialog";
 import { TierListDndContext } from "@/components/tier-lists/tier-list-dnd-context";
 import { TierListPool } from "@/components/tier-lists/tier-list-pool";
 import { TierListShareDialog } from "@/components/tier-lists/tier-list-share-dialog";
+import { TierTileSizeControls } from "@/components/tier-lists/tier-tile-size-controls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +57,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
+import { frontImageId } from "@/lib/card-meta";
 import { downloadImageFromUrl, tierListOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
@@ -92,6 +98,20 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   // capture. Deliberately not persisted — it is a recording posture, not a
   // preference, and a creator who returns tomorrow wants the pool back.
   const [boardOnly, setBoardOnly] = useState(false);
+
+  // Floating preview for the tile under the pointer, the same affordance the
+  // deck builder gives its rows. Anchored to the two-column container rather
+  // than the board's own sticky box, which clips its overflow.
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [hoveredView, setHoveredView] = useState<TierCardView | null>(null);
+  const hoveredImageId = hoveredView ? frontImageId(hoveredView.printing) : null;
+  const hoveredCard = hoveredImageId
+    ? {
+        thumbnailUrl: imageUrl(hoveredImageId, "400w"),
+        fullUrl: imageUrl(hoveredImageId, "full"),
+        landscape: getOrientation(hoveredView?.card.types ?? []) === "landscape",
+      }
+    : null;
 
   const updateTierList = useUpdateTierList();
   const deleteTierList = useDeleteTierList();
@@ -156,7 +176,9 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
     });
   };
 
-  const stickyTop = headerHeight + topBarHeight;
+  // -1 mirrors PAGE_TOP_BAR_STICKY's own -1px pin, so the board catches exactly
+  // at the bar's bottom edge instead of a pixel below it.
+  const stickyTop = headerHeight + topBarHeight - 1;
 
   return (
     <PageTopBarHeightContext value={topBarHeight}>
@@ -167,6 +189,7 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
             <PageTopBarTitle>{tierList.title}</PageTopBarTitle>
             {dirty && <Badge variant="outline">Unsaved changes</Badge>}
             <PageTopBarActions>
+              <TierTileSizeControls />
               <PageTopBarIconButton
                 aria-label={boardOnly ? "Show the card pool" : "Hide the card pool"}
                 onClick={() => setBoardOnly(!boardOnly)}
@@ -215,21 +238,40 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
         </div>
 
         <TierListDndContext cardsById={cardsById} printingsByCardId={printingsByCardId}>
-          <div className="px-safe flex flex-1 flex-col gap-4 px-3 pt-3 lg:flex-row">
+          {/* No top padding here: the pool's toolbar is a blurred control band
+              that belongs flush under the page top bar (see the card-browser
+              toolbar tier in CLAUDE.md). Padding here would also push the
+              sticky board 12px below its pin point, so the board would travel
+              on the first scroll before catching. The board column carries the
+              gap inside its own sticky box instead. */}
+          <div
+            ref={previewContainerRef}
+            className="px-safe relative flex flex-1 flex-col gap-4 px-3 lg:flex-row"
+          >
+            <HoveredCardPreview
+              hoveredCard={isMobile ? null : hoveredCard}
+              origin="main"
+              containerRef={previewContainerRef}
+            />
             <div
               className={cn(
                 "w-full",
                 boardOnly ? "lg:max-w-none" : "shrink-0 lg:w-[46%] lg:max-w-3xl",
               )}
             >
+              {/* pt-3 sits *inside* the sticky box so the board clears the top
+                  bar's frosted band without moving the box's flow position off
+                  its pin. The max height is lg-only: below that the board is a
+                  plain block in the page flow with nothing to scroll. */}
               <div
-                className="lg:sticky lg:overflow-y-auto"
-                style={{ top: stickyTop, maxHeight: `calc(100dvh - ${stickyTop}px)` }}
+                className="pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--tier-board-top))] lg:overflow-y-auto"
+                style={{ top: stickyTop, "--tier-board-top": `${stickyTop}px` } as CSSProperties}
               >
                 <TierBoardEditor
                   cardsById={cardsById}
                   printingsByCardId={printingsByCardId}
                   tapToAssign={isMobile}
+                  onHoverCard={setHoveredView}
                 />
               </div>
             </div>

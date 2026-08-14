@@ -5,16 +5,19 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   EllipsisVerticalIcon,
+  GripVerticalIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
 
 import { resolveTierRows, TierRowFrame } from "@/components/tier-lists/tier-board";
+import { TierCardPrintingMenu } from "@/components/tier-lists/tier-card-printing-menu";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
-import { TierCardTile } from "@/components/tier-lists/tier-card-tile";
+import { TierCardTile, useTierTileWidth } from "@/components/tier-lists/tier-card-tile";
 import type {
   BoardCardDragData,
+  RowHandleDragData,
   TierCardDropData,
   TierRowDropData,
 } from "@/components/tier-lists/tier-list-dnd-types";
@@ -27,8 +30,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
+import { Textarea } from "@/components/ui/textarea";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 /** Longest row label the chip can show; matches the contract's cap. */
@@ -42,12 +45,15 @@ interface TierBoardEditorProps {
    * instead, so a card can be moved or unranked without a drag.
    */
   tapToAssign: boolean;
+  /** Called as the pointer enters and leaves a tile, for the floating preview. */
+  onHoverCard?: (view: TierCardView | null) => void;
 }
 
 /**
  * The editable board. Rows are drop targets, cards on them are both drag
  * sources and drop targets (so releasing over a card inserts before it, which
- * is what gives ordering within a row without a sortable context per row).
+ * is what gives ordering within a row without a sortable context per row), and
+ * each row carries a handle so the ladder itself can be restacked.
  *
  * Reads rows straight from the builder store rather than taking them as props:
  * the board is the one surface that must re-render on every drag, so there is
@@ -59,6 +65,7 @@ export function TierBoardEditor({
   cardsById,
   printingsByCardId,
   tapToAssign,
+  onHoverCard,
 }: TierBoardEditorProps) {
   const rows = useTierListBuilderStore((state) => state.rows);
   const addRow = useTierListBuilderStore((state) => state.addRow);
@@ -74,6 +81,7 @@ export function TierBoardEditor({
           cards={row.cards}
           rowCount={resolved.length}
           tapToAssign={tapToAssign}
+          onHoverCard={onHoverCard}
         />
       ))}
       {rows.length < MAX_TIER_ROWS && (
@@ -92,27 +100,51 @@ interface EditableTierRowProps {
   cards: TierCardView[];
   rowCount: number;
   tapToAssign: boolean;
+  onHoverCard?: (view: TierCardView | null) => void;
 }
 
-function EditableTierRow({ rowIndex, label, cards, rowCount, tapToAssign }: EditableTierRowProps) {
+function EditableTierRow({
+  rowIndex,
+  label,
+  cards,
+  rowCount,
+  tapToAssign,
+  onHoverCard,
+}: EditableTierRowProps) {
   const renameRow = useTierListBuilderStore((state) => state.renameRow);
   const removeRow = useTierListBuilderStore((state) => state.removeRow);
   const moveRow = useTierListBuilderStore((state) => state.moveRow);
+  const tileWidth = useTierTileWidth();
 
   const dropData: TierRowDropData = { type: "tier-row", rowIndex };
   const { setNodeRef, isOver } = useDroppable({ id: `tier-row-${rowIndex}`, data: dropData });
 
   const labelControl = (
-    <Input
+    <Textarea
       value={label}
+      rows={1}
       maxLength={MAX_LABEL_LENGTH}
       aria-label={`Tier ${rowIndex + 1} label`}
-      onChange={(event) => renameRow(rowIndex, event.target.value)}
-      // Transparent so the chip's tier colour shows through: the input *is* the
-      // chip, rather than a control sitting on top of one.
-      className="h-auto border-0 bg-transparent px-0 text-center font-bold shadow-none focus-visible:ring-0 dark:bg-transparent"
+      // A tier label is one line of text however many lines it wraps onto, so
+      // Enter is swallowed and a pasted newline collapses to a space.
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+        }
+      }}
+      onChange={(event) => renameRow(rowIndex, event.target.value.replaceAll(/\s*\n\s*/gu, " "))}
+      // A textarea rather than an Input: an input scrolls its text sideways and
+      // hides the tail, while `field-sizing-content` lets this wrap and grow.
+      // Transparent so the chip's tier colour shows through: the control *is*
+      // the chip, rather than something sitting on top of one.
+      className="min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-center font-bold wrap-anywhere shadow-none focus-visible:ring-0 dark:bg-transparent"
     />
   );
+
+  // The handle is the only drag source for a row: the label is an editable
+  // control and the tiles are their own drag sources, so neither can double as
+  // one. Hidden while tap-to-assign is on, where the menu does the reordering.
+  const handle = tapToAssign ? undefined : <RowDragHandle rowIndex={rowIndex} label={label} />;
 
   // A menu rather than a stack of icon buttons: three stacked buttons are
   // taller than the row itself, and reordering is a rare action next to
@@ -154,7 +186,13 @@ function EditableTierRow({ rowIndex, label, cards, rowCount, tapToAssign }: Edit
 
   return (
     <div ref={setNodeRef}>
-      <TierRowFrame rowIndex={rowIndex} label={labelControl} trailing={controls} active={isOver}>
+      <TierRowFrame
+        rowIndex={rowIndex}
+        label={labelControl}
+        leading={handle}
+        trailing={controls}
+        active={isOver}
+      >
         {cards.length === 0 ? (
           <span className="text-muted-foreground px-1 text-sm italic">
             {tapToAssign ? "Tap a card below to rank it" : "Drop cards here"}
@@ -166,7 +204,9 @@ function EditableTierRow({ rowIndex, label, cards, rowCount, tapToAssign }: Edit
               view={view}
               rowIndex={rowIndex}
               position={position}
+              width={tileWidth}
               tapToAssign={tapToAssign}
+              onHoverCard={onHoverCard}
             />
           ))
         )}
@@ -175,22 +215,55 @@ function EditableTierRow({ rowIndex, label, cards, rowCount, tapToAssign }: Edit
   );
 }
 
+/**
+ * The grip that drags a whole row. Sits before the label chip so the ladder's
+ * rungs all present the same grab point, and so a drag never starts on the
+ * label's text cursor.
+ * @returns The handle node.
+ */
+function RowDragHandle({ rowIndex, label }: { rowIndex: number; label: string }) {
+  const dragData: RowHandleDragData = { type: "tier-row-handle", rowIndex };
+  // Destructure before JSX — member access on a dnd-kit hook's return in render
+  // makes the React Compiler bail (see CLAUDE.md / DraggableCard).
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `tier-row-handle-${rowIndex}`,
+    data: dragData,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      aria-label={`Reorder tier ${label}`}
+      // touch-none: the PointerSensor needs the browser to keep sending pointer
+      // events rather than scrolling the page from the grip.
+      className="text-muted-foreground hover:text-foreground flex w-5 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+      style={isDragging ? { opacity: 0.4 } : undefined}
+    >
+      <GripVerticalIcon className="size-4" />
+    </div>
+  );
+}
+
 interface BoardCardProps {
   view: TierCardView;
   rowIndex: number;
   position: number;
+  width: number;
   tapToAssign: boolean;
+  onHoverCard?: (view: TierCardView | null) => void;
 }
 
 /**
  * A card sitting on the board. Both a drag source and a drop target: dropping
  * another card over it inserts before it, which is how a row gets ordered. In
  * tap-to-assign mode the tile opens the tier picker instead, same as the pool
- * cell's pill.
+ * cell's pill. Right-click picks which printing supplies the art.
  *
  * @returns The board card node.
  */
-function BoardCard({ view, rowIndex, position, tapToAssign }: BoardCardProps) {
+function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }: BoardCardProps) {
   const dragData: BoardCardDragData = {
     type: "tier-board-card",
     cardId: view.cardId,
@@ -241,7 +314,7 @@ function BoardCard({ view, rowIndex, position, tapToAssign }: BoardCardProps) {
         }}
         trigger={
           <Pressable aria-label={`Move ${view.card.name}`} className="rounded-sm">
-            <TierCardTile view={view} />
+            <TierCardTile view={view} width={width} />
           </Pressable>
         }
       />
@@ -249,18 +322,22 @@ function BoardCard({ view, rowIndex, position, tapToAssign }: BoardCardProps) {
   }
 
   return (
-    <div ref={setDropRef}>
-      <div
-        ref={setDragRef}
-        {...listeners}
-        {...attributes}
-        // dnd-kit's PointerSensor needs the browser to keep sending pointer
-        // events; the default touch-action would pan the page instead.
-        className="cursor-grab touch-none active:cursor-grabbing"
-        style={isDragging ? { opacity: 0.4 } : undefined}
-      >
-        <TierCardTile view={view} />
+    <TierCardPrintingMenu cardId={view.cardId} pinnedPrintingId={view.pinnedPrintingId}>
+      <div ref={setDropRef}>
+        <div
+          ref={setDragRef}
+          {...listeners}
+          {...attributes}
+          onMouseEnter={() => onHoverCard?.(view)}
+          onMouseLeave={() => onHoverCard?.(null)}
+          // dnd-kit's PointerSensor needs the browser to keep sending pointer
+          // events; the default touch-action would pan the page instead.
+          className="cursor-grab touch-none active:cursor-grabbing"
+          style={isDragging ? { opacity: 0.4 } : undefined}
+        >
+          <TierCardTile view={view} width={width} />
+        </div>
       </div>
-    </div>
+    </TierCardPrintingMenu>
   );
 }

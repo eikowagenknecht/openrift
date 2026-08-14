@@ -1,4 +1,4 @@
-import type { TierRow } from "@openrift/shared";
+import type { TierCard, TierRow } from "@openrift/shared";
 import {
   MAX_CARDS_PER_TIER,
   MAX_TIER_LIST_CARDS,
@@ -44,10 +44,18 @@ interface TierListBuilderState {
    * Puts a card in a row, removing it from whichever row currently holds it.
    * `position` is an index into the target row **as it looks now**, so dropping
    * a card onto another card always lands it before that card; omitted appends.
+   * `printingId` pins the art: omit it to keep whatever the card is already
+   * pinned to, which is what a move within the board should do.
    */
-  assign: (cardId: string, rowIndex: number, position?: number) => void;
+  assign: (
+    cardId: string,
+    rowIndex: number,
+    options?: { position?: number; printingId?: string | null },
+  ) => void;
   /** Takes a card off the board entirely, back to the pool. */
   unassign: (cardId: string) => void;
+  /** Repins a ranked card's art. `printingId` null falls back to the default printing. */
+  setPrinting: (cardId: string, printingId: string | null) => void;
 
   addRow: () => void;
   /** Removes a row; the cards in it return to the pool. */
@@ -56,17 +64,17 @@ interface TierListBuilderState {
   moveRow: (fromIndex: number, toIndex: number) => void;
 }
 
-/** @returns `position` clamped to a valid insertion index for `cardIds`. */
-function clamp(position: number, cardIds: readonly string[]): number {
-  return Math.max(0, Math.min(position, cardIds.length));
+/** @returns `position` clamped to a valid insertion index for `cards`. */
+function clamp(position: number, cards: readonly TierCard[]): number {
+  return Math.max(0, Math.min(position, cards.length));
 }
 
 /** @returns Card id → row index, for every card on the board. */
 function indexRows(rows: readonly TierRow[]): Map<string, number> {
   const index = new Map<string, number>();
   for (const [rowIndex, row] of rows.entries()) {
-    for (const cardId of row.cardIds) {
-      index.set(cardId, rowIndex);
+    for (const card of row.cards) {
+      index.set(card.cardId, rowIndex);
     }
   }
   return index;
@@ -108,7 +116,10 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
   ...EMPTY,
 
   load: (listId, rows) => {
-    const copied = rows.map((row) => ({ label: row.label, cardIds: [...row.cardIds] }));
+    const copied = rows.map((row) => ({
+      label: row.label,
+      cards: row.cards.map((card) => ({ ...card })),
+    }));
     set({ listId, rows: copied, rowIndexByCardId: indexRows(copied), dirty: false });
   },
 
@@ -122,20 +133,29 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
     set({ ...EMPTY, rowIndexByCardId: new Map() });
   },
 
-  assign: (cardId, rowIndex, position) =>
+  assign: (cardId, rowIndex, options) =>
     set((state) => {
       if (rowIndex < 0 || rowIndex >= state.rows.length) {
         return state;
       }
+      const { position, printingId } = options ?? {};
       // Where the card sits right now, if it is already on the board. Read
       // before the strip below, because the strip is what shifts the indices.
-      const fromPosition = state.rows[rowIndex]?.cardIds.indexOf(cardId) ?? -1;
+      const fromPosition =
+        state.rows[rowIndex]?.cards.findIndex((card) => card.cardId === cardId) ?? -1;
+      // An omitted printingId means "keep whatever this card is pinned to", so
+      // a move between rows never silently resets a chosen alt art.
+      const pinned =
+        printingId === undefined
+          ? (state.rows.flatMap((row) => row.cards).find((card) => card.cardId === cardId)
+              ?.printingId ?? null)
+          : printingId;
 
       // Strip the card from every row first, so a move within the board can't
       // leave a duplicate behind — the contract rejects a card in two tiers.
       const stripped = state.rows.map((row) => ({
         label: row.label,
-        cardIds: row.cardIds.filter((id) => id !== cardId),
+        cards: row.cards.filter((card) => card.cardId !== cardId),
       }));
       const target = stripped[rowIndex];
       if (!target) {
@@ -144,19 +164,20 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       // Enforce the contract's caps here rather than letting the save 400
       // after the ranking work is done. Post-strip counts, so moving a card
       // within a full board is still allowed.
-      const total = stripped.reduce((sum, row) => sum + row.cardIds.length, 0);
-      if (target.cardIds.length >= MAX_CARDS_PER_TIER || total >= MAX_TIER_LIST_CARDS) {
+      const total = stripped.reduce((sum, row) => sum + row.cards.length, 0);
+      if (target.cards.length >= MAX_CARDS_PER_TIER || total >= MAX_TIER_LIST_CARDS) {
         return state;
       }
+      const entry: TierCard = { cardId, printingId: pinned };
       if (position === undefined) {
-        target.cardIds.push(cardId);
+        target.cards.push(entry);
         return withRows(stripped);
       }
       // Lifting the card out of this same row shifts everything after it left
       // by one, so a target index past the card's old slot needs the same
       // shift — otherwise dropping a card rightwards lands it one slot too far.
       const shifted = fromPosition >= 0 && fromPosition < position ? position - 1 : position;
-      target.cardIds.splice(clamp(shifted, target.cardIds), 0, cardId);
+      target.cards.splice(clamp(shifted, target.cards), 0, entry);
       return withRows(stripped);
     }),
 
@@ -168,8 +189,32 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       return withRows(
         state.rows.map((row) => ({
           label: row.label,
-          cardIds: row.cardIds.filter((id) => id !== cardId),
+          cards: row.cards.filter((card) => card.cardId !== cardId),
         })),
+      );
+    }),
+
+  setPrinting: (cardId, printingId) =>
+    set((state) => {
+      const rowIndex = state.rowIndexByCardId.get(cardId);
+      if (rowIndex === undefined) {
+        return state;
+      }
+      const current = state.rows[rowIndex]?.cards.find((card) => card.cardId === cardId);
+      if (!current || current.printingId === printingId) {
+        return state;
+      }
+      return withRows(
+        state.rows.map((row, index) =>
+          index === rowIndex
+            ? {
+                label: row.label,
+                cards: row.cards.map((card) =>
+                  card.cardId === cardId ? { cardId, printingId } : card,
+                ),
+              }
+            : row,
+        ),
       );
     }),
 
@@ -178,7 +223,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       if (state.rows.length >= MAX_TIER_ROWS) {
         return state;
       }
-      return withRows([...state.rows, { label: nextRowLabel(state.rows), cardIds: [] }]);
+      return withRows([...state.rows, { label: nextRowLabel(state.rows), cards: [] }]);
     }),
 
   removeRow: (rowIndex) =>

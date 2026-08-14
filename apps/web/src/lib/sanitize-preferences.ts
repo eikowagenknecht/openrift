@@ -231,6 +231,22 @@ export function sanitizeFrostedBars(data: unknown, fallback: boolean): boolean {
 }
 
 /**
+ * Reads the persisted tier-board tile size. Stored as a step index rather than
+ * a pixel width so widening the ladder later can't strand a saved value between
+ * two steps.
+ * @param data Raw persisted blob, any shape.
+ * @param stepCount How many steps the ladder currently has.
+ * @param fallback Step to use when the key is missing or out of range.
+ * @returns The stored step index, or the fallback.
+ */
+export function sanitizeTierTileStep(data: unknown, stepCount: number, fallback: number): number {
+  const raw = asRecord(data).tierTileStep;
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 && raw < stepCount
+    ? raw
+    : fallback;
+}
+
+/**
  * Reads the persisted theme preference, migrating the legacy `theme` key that
  * held it before the store split stored preference from resolved theme.
  * @param data Raw persisted blob, any shape.

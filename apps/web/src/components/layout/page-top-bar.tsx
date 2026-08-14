@@ -5,7 +5,7 @@ import { createContext, forwardRef, useLayoutEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
-import { cn } from "@/lib/utils";
+import { CONTAINER_WIDTH, cn } from "@/lib/utils";
 
 interface PageTopBarProps {
   children: React.ReactNode;
@@ -74,6 +74,8 @@ export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} sticky top-[calc(var(
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 
 const STICKY_MAX_WIDTH = {
+  /** The app's standard responsive content column (`CONTAINER_WIDTH`). */
+  container: CONTAINER_WIDTH,
   md: "max-w-md",
   "2xl": "max-w-2xl",
   "3xl": "max-w-3xl",

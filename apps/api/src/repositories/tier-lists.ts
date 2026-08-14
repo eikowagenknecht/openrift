@@ -18,14 +18,47 @@ export interface SharedTierList {
 }
 
 /**
+ * Rows written before entries carried a printing, kept only so a board saved
+ * then still reads back today.
+ */
+export interface LegacyTierListRow {
+  label: string;
+  cardIds?: string[];
+}
+
+/**
+ * Brings a stored row up to the current entry shape. A legacy `cardIds` row
+ * becomes entries pinned to no printing, which is exactly what it meant.
+ * @returns The row in the current shape.
+ */
+export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): TierListRow[] {
+  return tiers.map((tier) => {
+    if ("cards" in tier && Array.isArray(tier.cards)) {
+      return {
+        label: tier.label,
+        cards: tier.cards.map((card) => ({
+          cardId: card.cardId,
+          printingId: card.printingId ?? null,
+        })),
+      };
+    }
+    const legacy = (tier as LegacyTierListRow).cardIds ?? [];
+    return { label: tier.label, cards: legacy.map((cardId) => ({ cardId, printingId: null })) };
+  });
+}
+
+/**
  * postgres.js under Bun hands jsonb back as a raw JSON string even though the
  * Kysely row type claims the parsed shape, so every read of a `tier_lists` row
  * goes through this. Applied at the single exit point of each query rather than
  * at call sites, so a new query cannot forget it.
- * @returns The row with `tiers` guaranteed parsed.
+ * @returns The row with `tiers` guaranteed parsed and in the current shape.
  */
 function withParsedTiers<Row extends { tiers: TierListRow[] }>(row: Row): Row {
-  return { ...row, tiers: parseJsonbRequired<TierListRow[]>(row.tiers) };
+  return {
+    ...row,
+    tiers: normalizeTiers(parseJsonbRequired<(TierListRow | LegacyTierListRow)[]>(row.tiers)),
+  };
 }
 
 /**

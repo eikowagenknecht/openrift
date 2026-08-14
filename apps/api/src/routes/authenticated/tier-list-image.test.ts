@@ -53,7 +53,7 @@ function sharedList(overrides: Record<string, unknown> = {}) {
   return {
     id: "abc",
     title: "Origins — best commons",
-    tiers: [{ label: "S", cardIds: [] }],
+    tiers: [{ label: "S", cards: [] }],
     isPublic: true,
     shareToken: "AbCdEfGhIjKl",
     ...overrides,

@@ -19,11 +19,25 @@ export const MAX_TIER_LIST_CARDS = 1000;
 /** The default board a new list starts from. */
 export const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"] as const;
 
+/**
+ * One ranked entry. Ranking is per card — a card sits in exactly one tier
+ * however many printings it has — but the creator picks which printing supplies
+ * the tile art, so an alt art they dragged in is the one the board shows.
+ * `printingId` null means "whatever the reader's default printing is", which is
+ * what an entry ranked from the card view stays on.
+ */
+export const tierCardSchema = z.object({
+  cardId: z.uuid(),
+  // Defaulted rather than optional so the parsed board is always storable as
+  // written: the route never has to fill a hole before it hits the jsonb column.
+  printingId: z.uuid().nullable().default(null),
+});
+
 export const tierRowSchema = z.object({
   // Trim before min(1): a whitespace-only label must fail validation here,
   // not surface later as a DB constraint violation.
   label: z.string().trim().min(1).max(24),
-  cardIds: z.array(z.uuid()).max(MAX_CARDS_PER_TIER),
+  cards: z.array(tierCardSchema).max(MAX_CARDS_PER_TIER),
 });
 
 /**
@@ -36,11 +50,11 @@ export const tiersSchema = z
   .array(tierRowSchema)
   .max(MAX_TIER_ROWS)
   .refine(
-    (rows) => rows.reduce((sum, row) => sum + row.cardIds.length, 0) <= MAX_TIER_LIST_CARDS,
+    (rows) => rows.reduce((sum, row) => sum + row.cards.length, 0) <= MAX_TIER_LIST_CARDS,
     `A tier list can hold at most ${MAX_TIER_LIST_CARDS} cards`,
   )
   .refine((rows) => {
-    const all = rows.flatMap((row) => row.cardIds);
+    const all = rows.flatMap((row) => row.cards.map((card) => card.cardId));
     return new Set(all).size === all.length;
   }, "A card can only sit in one tier");
 
@@ -67,8 +81,12 @@ export const updateTierListSchema = z.object({
   tiers: tiersSchema.optional(),
 });
 
+export const tierCardResponseSchema = z
+  .object({ cardId: z.string(), printingId: z.string().nullable() })
+  .openapi("TierCardResponse");
+
 export const tierRowResponseSchema = z
-  .object({ label: z.string(), cardIds: z.array(z.string()) })
+  .object({ label: z.string(), cards: z.array(tierCardResponseSchema) })
   .openapi("TierRowResponse");
 
 export const tierListResponseSchema = z
@@ -98,8 +116,8 @@ export const tierListSummaryResponseSchema = z
     setId: z.string().nullable(),
     tierCount: z.number().int().nonnegative(),
     cardCount: z.number().int().nonnegative(),
-    /** Leading card ids of the top non-empty row, for the index preview strip. */
-    previewCardIds: z.array(z.string()),
+    /** Leading entries of the top non-empty row, for the index preview strip. */
+    previewCards: z.array(tierCardResponseSchema),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     createdAt: z.string(),
