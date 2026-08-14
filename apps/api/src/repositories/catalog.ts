@@ -1,7 +1,7 @@
 import { WellKnown } from "@openrift/shared";
 import type { SetReleases } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, RawBuilder, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import { parseJsonbRequired } from "../db/helpers.js";
@@ -140,41 +140,52 @@ function withReleases<T extends { releases: SetReleases }>(row: T): T {
 }
 
 /**
- * The rule-relevant half of the catalog content token. Kept at module scope so
- * both `catalogContentVersion` (which is exactly this) and
- * `catalogResponseVersion` (this plus images and copies) read from one query
- * instead of two copies that can drift apart.
- * @returns An opaque string that changes iff the rule-relevant catalog changes.
+ * The stored-catalog aggregates both tokens share, WITHOUT any notion of
+ * "today". Kept at module scope, and as a fragment rather than a query, so the
+ * two callers compose one expression instead of maintaining two copies that
+ * drift apart.
+ *
+ * The date is deliberately not in here. It belongs to exactly one of the two
+ * callers — see {@link catalogContentVersion} — and folding it in for both
+ * would roll the catalog's ETag at every UTC midnight, expiring every client's
+ * year-long `immutable` cache entry daily for no change in the bytes.
+ *
+ * Timestamps are pinned to UTC before being rendered because `timestamptz::text`
+ * formats in the *session* time zone. Without the pin, two API instances (or one
+ * instance after a config change) would compute different tokens for identical
+ * data, which for a cache key is a correctness bug rather than a cosmetic one.
  */
-async function ruleContentVersion(db: Kysely<Database>): Promise<string> {
-  const result = await sql<{ token: string }>`
-    SELECT md5(
+const STORED_CATALOG_AGGREGATES = sql<string>`
       coalesce((SELECT count(*) FROM cards)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM cards)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM cards)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM printings)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM printings)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM printings)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM sets)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM sets)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM sets)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM card_bans)::text, '') || ':' ||
-      coalesce((SELECT max(created_at) FROM card_bans)::text, '') || '|' ||
+      coalesce((SELECT max(created_at) AT TIME ZONE 'UTC' FROM card_bans)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM card_errata)::text, '') || ':' ||
-      coalesce((SELECT max(created_at) FROM card_errata)::text, '') || '|' ||
+      coalesce((SELECT max(created_at) AT TIME ZONE 'UTC' FROM card_errata)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM markers)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM markers)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM markers)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM printing_markers)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM distribution_channels)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM distribution_channels)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM distribution_channels)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM printing_distribution_channels)::text, '') || '|' ||
       coalesce((SELECT md5(string_agg(card_id::text || ':' || domain_slug || ':' || ordinal::text, ',' ORDER BY card_id, domain_slug)) FROM card_domains), '') || '|' ||
       coalesce((SELECT md5(string_agg(card_id::text || ':' || super_type_slug, ',' ORDER BY card_id, super_type_slug)) FROM card_super_types), '') || '|' ||
       coalesce((SELECT md5(string_agg(card_id::text || ':' || custom_tag_id::text, ',' ORDER BY card_id, custom_tag_id)) FROM card_custom_tags), '') || '|' ||
       coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM custom_tags)::text, '') || '|' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM custom_tags)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM set_releases)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) FROM set_releases)::text, '') || '|' ||
-      current_date::text
-    ) AS token
-  `.execute(db);
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM set_releases)::text, '')
+`;
+
+/**
+ * @returns The md5 of `expression`, or "" when the row is somehow absent.
+ */
+async function hashedToken(db: Kysely<Database>, expression: RawBuilder<string>): Promise<string> {
+  const result = await sql<{ token: string }>`SELECT md5(${expression}) AS token`.execute(db);
   return result.rows[0]?.token ?? "";
 }
 
@@ -389,26 +400,31 @@ export function catalogRepo(db: Kysely<Database>) {
      * tag. The hashes are over the junctions only (a few thousand rows at ADR-009
      * scale); `custom_tags` slug renames are caught by its own `updated_at`.
      *
-     * `current_date` is folded in because the assembled `Printing[]` carries
-     * `setReleased`, which is derived from the per-language release dates
-     * rather than stored (migration 233). Without it a set whose date passed
-     * at midnight would keep evaluating as unreleased until some unrelated
-     * admin edit happened to roll the token.
+     * `current_date` is folded in **here only**, because the assembled
+     * `Printing[]` this memo guards carries `setReleased`, derived from the
+     * per-language release dates rather than stored (migration 233). Without it
+     * a set whose date passed at midnight would keep evaluating as unreleased
+     * until some unrelated admin edit happened to roll the token.
+     *
+     * {@link catalogResponseVersion} deliberately does NOT inherit that term:
+     * the catalog *response* carries no date-derived field (`CatalogSetRow` has
+     * no `released` boolean on purpose, so clients derive it from the raw
+     * dates), so its bytes are identical either side of midnight.
      *
      * Far cheaper than the full assembly (aggregates only, no row materialization
      * or map building), so it can run on every ruled-list read.
      * @returns An opaque string that changes iff the rule-relevant catalog changes.
      */
     catalogContentVersion(): Promise<string> {
-      return ruleContentVersion(db);
+      return hashedToken(db, sql`${STORED_CATALOG_AGGREGATES} || '|' || current_date::text`);
     },
 
     /**
      * The content version of the assembled `/catalog` **response**, used as that
      * response's ETag (see `routes/public/catalog.ts`).
      *
-     * This is {@link catalogContentVersion} plus what the rule memo does not
-     * need but the response carries:
+     * This is the shared stored-catalog aggregates plus what the rule memo does
+     * not need but the response carries:
      *
      * - `printing_images` — the response embeds each printing's `images`.
      * - `copies` — the response carries `totalCopies`.
@@ -424,23 +440,27 @@ export function catalogRepo(db: Kysely<Database>) {
      *   on a trigger side effect. `printing_distribution_channels` has no such
      *   trigger and was genuinely uncovered until this hash.
      *
-     * It reuses the rule token rather than restating its aggregates, because
-     * the failure mode of drifting out of sync is severe here: this token gates
-     * a year-long `immutable` entry, so anything reachable in `CatalogResponse`
+     * It shares the stored aggregates rather than restating them, because the
+     * failure mode of drifting out of sync is severe here: this token gates a
+     * year-long `immutable` entry, so anything reachable in `CatalogResponse`
      * that it misses gets served stale to every client holding that URL.
-     * `assembleCatalogResponse`'s inputs are the checklist. `current_date` rides
-     * along inside the rule token, which also bounds the blast radius of any
-     * future gap: the token rolls at least once a day regardless.
+     * `assembleCatalogResponse`'s inputs are the checklist, and
+     * `catalog-response-version.integration.test.ts` mutates each of them to
+     * enforce it.
+     *
+     * Notably absent: `current_date`. Carrying it would roll this token at every
+     * UTC midnight and throw away every client's `immutable` entry daily, while
+     * the response bytes did not change at all.
      *
      * @returns An opaque string that changes iff the catalog response changes.
      */
     async catalogResponseVersion(): Promise<string> {
-      const [ruleToken, result] = await Promise.all([
-        ruleContentVersion(db),
+      const [storedToken, result] = await Promise.all([
+        hashedToken(db, STORED_CATALOG_AGGREGATES),
         sql<{ token: string }>`
           SELECT md5(
             coalesce((SELECT count(*) FROM printing_images)::text, '') || ':' ||
-            coalesce((SELECT max(updated_at) FROM printing_images)::text, '') || '|' ||
+            coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM printing_images)::text, '') || '|' ||
             coalesce((SELECT count(*) FROM copies)::text, '') || '|' ||
             coalesce((SELECT md5(string_agg(
               printing_id::text || ':' || marker_id::text, ',' ORDER BY printing_id, marker_id
@@ -456,7 +476,7 @@ export function catalogRepo(db: Kysely<Database>) {
       // and yields a value safe in both an ETag header and a `?v=` query param.
       // The raw aggregates carry timestamps (spaces, `+`) and would need
       // escaping in both places.
-      return `${ruleToken}${result.rows[0]?.token ?? ""}`;
+      return `${storedToken}${result.rows[0]?.token ?? ""}`;
     },
 
     /**
