@@ -393,6 +393,32 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     expect(renderDeckMock.mock.calls[0]![2]).toBe(2);
   });
 
+  it("renders the landscape canvas by default", async () => {
+    setupDeck();
+
+    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+    expect(renderDeckMock.mock.calls[0]![3]).toBe("landscape");
+  });
+
+  it("renders the vertical canvas when aspect=vertical", async () => {
+    setupDeck();
+
+    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=vertical");
+
+    expect(res.status).toBe(200);
+    expect(renderDeckMock.mock.calls[0]![3]).toBe("vertical");
+  });
+
+  it("ignores an unrecognized aspect rather than failing the render", async () => {
+    setupDeck();
+
+    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=square");
+
+    expect(res.status).toBe(200);
+    expect(renderDeckMock.mock.calls[0]![3]).toBe("landscape");
+  });
+
   it("returns 404 for an unknown deck token and does not render", async () => {
     mockDecksRepo.findByShareToken.mockResolvedValue(undefined);
 

@@ -24,6 +24,30 @@ import { CARD_MEDIA_DIR } from "./images/paths.js";
  * with sharp first.
  */
 
+/**
+ * Which canvas a share image renders on. `landscape` is the link-unfurl shape
+ * every og:image uses; `vertical` is a download-only export for the places a
+ * decklist is read on a phone held upright — a story, a photo-mode slide, or a
+ * background plate in a video editor. No crawler consumes a 9:16 og:image (they
+ * crop or letterbox it), so an aspect never reaches the `og:image` URL.
+ */
+export type ShareImageAspect = "landscape" | "vertical";
+
+/**
+ * Canvas size per aspect. 1200×630 is the og convention; 1080×1920 is the
+ * native upload resolution for every vertical surface, so the 1× vertical
+ * render is already the deliverable and `size=hq` is only editing headroom.
+ */
+export const CANVAS: Record<ShareImageAspect, { width: number; height: number }> = {
+  landscape: { width: 1200, height: 630 },
+  vertical: { width: 1080, height: 1920 },
+};
+
+/** @returns The aspect a request asked for; anything unrecognized stays landscape. */
+export function aspectFromQuery(value: string | undefined): ShareImageAspect {
+  return value === "vertical" ? "vertical" : "landscape";
+}
+
 // Concrete approximations of the site's dark theme (apps/web/src/index.css).
 export const COLORS = {
   background: "#14161d", // --background  oklch(0.16 0.025 260)

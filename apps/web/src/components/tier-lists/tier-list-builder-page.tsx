@@ -2,11 +2,12 @@ import type { TierListResponse } from "@openrift/shared";
 import { getOrientation, imageUrl } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  DownloadIcon,
   EllipsisVerticalIcon,
   ListOrderedIcon,
   MonitorPlayIcon,
   PencilIcon,
+  RectangleHorizontalIcon,
+  RectangleVerticalIcon,
   SaveIcon,
   Share2Icon,
   Trash2Icon,
@@ -55,6 +56,7 @@ import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
 import { frontImageId } from "@/lib/card-meta";
+import type { ShareImageAspect } from "@/lib/share-image";
 import { downloadImageFromUrl, tierListOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
@@ -134,13 +136,20 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
     );
   };
 
-  const handleExport = async () => {
-    const safeName = tierList.title.replaceAll(/[^\w -]+/gu, "_").trim() || "tier-list";
+  const handleExport = async (aspect: ShareImageAspect) => {
+    const base = tierList.title.replaceAll(/[^\w -]+/gu, "_").trim() || "tier-list";
+    // The wide board renders at 2× for screen and print. The tall one does not:
+    // 1× is already 1080×1920, the size every vertical surface uploads at.
+    const vertical = aspect === "vertical";
+    const url = tierListOwnerImageUrl(
+      getSiteUrl(),
+      tierList.id,
+      vertical ? undefined : "hq",
+      aspect,
+    );
+    const fileName = `${base}${vertical ? "-vertical" : ""}.png`;
     try {
-      await downloadImageFromUrl(
-        tierListOwnerImageUrl(getSiteUrl(), tierList.id, "hq"),
-        `${safeName}.png`,
-      );
+      await downloadImageFromUrl(url, fileName);
     } catch {
       // A download is not a mutation, so it never reaches the global mutation
       // error handler and has to say so itself.
@@ -239,9 +248,13 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                       <PencilIcon />
                       Rename and describe
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void handleExport()}>
-                      <DownloadIcon />
-                      Download image
+                    <DropdownMenuItem onClick={() => void handleExport("landscape")}>
+                      <RectangleHorizontalIcon />
+                      Download wide image
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void handleExport("vertical")}>
+                      <RectangleVerticalIcon />
+                      Download tall image
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>

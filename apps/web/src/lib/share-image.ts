@@ -9,6 +9,33 @@
 const API_BASE = "/api/v1";
 
 /**
+ * Canvas an image is rendered on. `landscape` (the default everywhere) is the
+ * link-unfurl shape every og:image uses; `vertical` is the 9:16 download for a
+ * story, a photo-mode slide, or a plate in a video editor. Only decks and tier
+ * lists render vertically, and only as a download — no crawler consumes a 9:16
+ * og:image, so an og URL never carries the parameter.
+ */
+export type ShareImageAspect = "landscape" | "vertical";
+
+/**
+ * Appends query parameters to a URL that may already carry some.
+ * @returns The URL with the given parameters added, skipping empty ones.
+ */
+function withParams(base: string, params: Record<string, string | undefined>): string {
+  const entries = Object.entries(params).filter(([, value]) => value !== undefined);
+  if (entries.length === 0) {
+    return base;
+  }
+  const query = entries.map(([key, value]) => `${key}=${value}`).join("&");
+  return `${base}${base.includes("?") ? "&" : "?"}${query}`;
+}
+
+/** @returns The `aspect` query value for a canvas, or undefined for the default. */
+function aspectParam(aspect?: ShareImageAspect): string | undefined {
+  return aspect === "vertical" ? "vertical" : undefined;
+}
+
+/**
  * Epoch-ms cache-bust token derived from a list's ISO `updatedAt`.
  * @returns The epoch milliseconds, or 0 when the input is missing or invalid.
  */
@@ -63,12 +90,20 @@ export function deckShareImageUrl(
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * decks (ADR-031). The export dialog's "Image" download uses this so it works
- * whether or not the deck is shared. `size: "hq"` requests the 2× download.
+ * whether or not the deck is shared. `size: "hq"` requests the 2× download and
+ * `aspect: "vertical"` the 9:16 one.
  * @returns The deck image URL.
  */
-export function deckOwnerImageUrl(siteUrl: string, deckId: string, size?: "hq"): string {
-  const base = `${siteUrl}${API_BASE}/decks/${deckId}/image.png`;
-  return size === "hq" ? `${base}?size=hq` : base;
+export function deckOwnerImageUrl(
+  siteUrl: string,
+  deckId: string,
+  size?: "hq",
+  aspect?: ShareImageAspect,
+): string {
+  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, {
+    size,
+    aspect: aspectParam(aspect),
+  });
 }
 
 /**
@@ -76,9 +111,15 @@ export function deckOwnerImageUrl(siteUrl: string, deckId: string, size?: "hq"):
  * download an image of a browser-local deck that has no server row.
  * @returns The render endpoint URL.
  */
-export function deckImageFromCardsUrl(siteUrl: string, size?: "hq"): string {
-  const base = `${siteUrl}${API_BASE}/decks/image`;
-  return size === "hq" ? `${base}?size=hq` : base;
+export function deckImageFromCardsUrl(
+  siteUrl: string,
+  size?: "hq",
+  aspect?: ShareImageAspect,
+): string {
+  return withParams(`${siteUrl}${API_BASE}/decks/image`, {
+    size,
+    aspect: aspectParam(aspect),
+  });
 }
 
 /**
@@ -100,11 +141,19 @@ export function tierListShareImageUrl(
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * tier lists. The builder's export uses this so the download works before the
  * list is shared at all (the public route needs a share token).
+ * `aspect: "vertical"` requests the 9:16 export.
  * @returns The tier list image URL.
  */
-export function tierListOwnerImageUrl(siteUrl: string, id: string, size?: "hq"): string {
-  const base = `${siteUrl}${API_BASE}/tier-lists/${id}/image.png`;
-  return size === "hq" ? `${base}?size=hq` : base;
+export function tierListOwnerImageUrl(
+  siteUrl: string,
+  id: string,
+  size?: "hq",
+  aspect?: ShareImageAspect,
+): string {
+  return withParams(`${siteUrl}${API_BASE}/tier-lists/${id}/image.png`, {
+    size,
+    aspect: aspectParam(aspect),
+  });
 }
 
 /**

@@ -83,6 +83,24 @@ describe("deckOwnerImageUrl", () => {
       "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq",
     );
   });
+
+  it("appends aspect=vertical for the 9:16 export", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", undefined, "vertical")).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png?aspect=vertical",
+    );
+  });
+
+  it("omits the aspect for the default canvas", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", undefined, "landscape")).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png",
+    );
+  });
+
+  it("carries both parameters when both are asked for", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", "hq", "vertical")).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq&aspect=vertical",
+    );
+  });
 });
 
 describe("tierListShareImageUrl", () => {
@@ -111,6 +129,12 @@ describe("tierListOwnerImageUrl", () => {
       "https://openrift.app/api/v1/tier-lists/tl-1/image.png?size=hq",
     );
   });
+
+  it("appends aspect=vertical for the 9:16 export", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", undefined, "vertical")).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?aspect=vertical",
+    );
+  });
 });
 
 describe("deckImageFromCardsUrl", () => {
@@ -123,6 +147,12 @@ describe("deckImageFromCardsUrl", () => {
   it("appends size=hq for the high-resolution download variant", () => {
     expect(deckImageFromCardsUrl("https://openrift.app", "hq")).toBe(
       "https://openrift.app/api/v1/decks/image?size=hq",
+    );
+  });
+
+  it("appends aspect=vertical for the 9:16 export", () => {
+    expect(deckImageFromCardsUrl("https://openrift.app", undefined, "vertical")).toBe(
+      "https://openrift.app/api/v1/decks/image?aspect=vertical",
     );
   });
 });

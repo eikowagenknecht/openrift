@@ -19,6 +19,7 @@ import {
   siteHostFromOrigin,
   topByQuantity,
 } from "../../services/list-image.js";
+import { aspectFromQuery } from "../../services/share-image-core.js";
 import type { ShareImageCard } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
@@ -225,7 +226,11 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     // the og:image. The first CORS origin is the canonical site origin for the QR.
     // The rasterize cost grows super-linearly with output pixels (see ADR-031),
     // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
+    // `?aspect=vertical` serves the 9:16 export off the same share token; the
+    // og:image itself never carries the param, so the cached crawler URL is
+    // untouched and the two aspects are separate immutable cache entries.
     const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const aspect = aspectFromQuery(c.req.query("aspect"));
     const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/decks/share/${token}`);
 
     const png = await renderDeckImage(
@@ -240,6 +245,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         coverImageId: await resolveCoverImageId(repos, found.deck),
       },
       scale,
+      aspect,
     );
 
     return pngResponse(png);
@@ -259,6 +265,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
 
     const rows = await buildTierListImageRows(repos, found.tierList.tiers);
     const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const aspect = aspectFromQuery(c.req.query("aspect"));
     const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/tier-lists/share/${token}`);
 
     const png = await renderTierListImage(
@@ -271,6 +278,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         shareUrl,
       },
       scale,
+      aspect,
     );
 
     return pngResponse(png);
@@ -307,6 +315,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     }));
 
     const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const aspect = aspectFromQuery(c.req.query("aspect"));
     const imageCards = await buildDeckImageCardsFromRefs(repos, refs, { skipUnknown: true });
     const png = await renderDeckImage(
       io,
@@ -328,6 +337,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         siteHost: siteHostFromOrigin(config.corsOrigin),
       },
       scale,
+      aspect,
     );
 
     return new Response(png, {

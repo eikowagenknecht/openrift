@@ -1,21 +1,36 @@
-import { WellKnown } from "@openrift/shared";
-
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
-import type { Child, Element } from "./share-image-core.js";
+import type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
 import {
+  BATTLEFIELD_ASPECT,
+  BODY_GAP,
+  GAP,
+  SECTION_HEADER_H,
+  deckBackdropUri,
+  deckHeroBackdrop,
+  deckMetaLabel,
+  deckSection,
+  domainIconElements,
+  glyphUri,
+  legendGlowBackground,
+  packGrid,
+  runeCountsByDomain,
+  splitDeckZones,
+  truncateTitle,
+} from "./deck-image-parts.js";
+import { renderDeckImageVertical } from "./deck-image-vertical.js";
+import type { ShareImageAspect } from "./share-image-core.js";
+import {
+  CANVAS,
   CARD_ASPECT,
   COLORS,
   QR_SIZE,
   baselineNudge,
-  blurredArtBackdropDataUri,
   cardTile,
   element,
-  elideTitle,
   qrDataUri,
   qrMark,
   renderTreeToPng,
-  svgToPngDataUri,
   tileArtDataUri,
 } from "./share-image-core.js";
 
@@ -33,16 +48,16 @@ import {
  * art, glyphs, QR) at the matching resolution while satori lays out once at base
  * size. The tile itself, the QR mark, and the card aspect come from
  * `share-image-core` so this image and the list and tier-list images stay one
- * family.
+ * family, and the deck-shaped pieces both this and the 9:16 export are built
+ * from come from `deck-image-parts`.
+ *
+ * This file owns the landscape layout. `renderDeckImage` is still the one entry
+ * point: it hands a `vertical` request to `deck-image-vertical.ts`, which draws
+ * the same deck stacked for a 9:16 canvas.
  */
 
-const WIDTH = 1200;
-const HEIGHT = 630;
+const { width: WIDTH, height: HEIGHT } = CANVAS.landscape;
 const PAD = 22;
-const GAP = 10;
-const BODY_GAP = 16;
-/** Battlefield art is landscape; its tiles use this aspect. */
-const BATTLEFIELD_ASPECT = 1.4;
 
 const TITLE_H = 46;
 const LEFT_W = 250;
@@ -53,82 +68,17 @@ const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
 
-/**
- * Domain colors for the deck-image background glow. Mirrors
- * `DEFAULT_DOMAIN_COLORS` in apps/web/src/lib/domain.ts; kept as a local
- * constant rather than a repo lookup because the renderer has no existing path
- * to the domain enum's DB-backed colors and this is a flat, rarely-changing
- * palette.
- */
-const DOMAIN_GLOW_COLORS: Record<string, string> = {
-  fury: "#CB212D",
-  calm: "#16AA71",
-  mind: "#227799",
-  body: "#E2710C",
-  chaos: "#6B4891",
-  order: "#CDA902",
-  colorless: "#737373",
-};
-
-/**
- * Ambient background glow built from the legend's domain colors, mirroring
- * the web app's deck hero (`deckGlowStyle` in
- * apps/web/src/components/deck/deck-hero.tsx): one radial per domain,
- * anchored to opposite top corners so a dual-domain deck reads as a blend. A
- * deck with no legend keeps the flat background (returns undefined).
- * @returns A CSS `background-image` value, or undefined when there's no legend.
- */
-function legendGlowBackground(domains: readonly string[]): string | undefined {
-  if (domains.length === 0) {
-    return undefined;
-  }
-  const first = DOMAIN_GLOW_COLORS[domains[0] ?? ""] ?? DOMAIN_GLOW_COLORS.colorless;
-  const second = domains.length > 1 ? (DOMAIN_GLOW_COLORS[domains[1] ?? ""] ?? first) : first;
-  return `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`;
-}
-
 /** Legend domain glyphs, shown top-right beside the card count (no amounts). */
 const DOMAIN_ICON = 30;
-/** Section header (label + underline) reserved height, for grid-area math. */
-const SECTION_HEADER_H = 23;
 /** Base portrait sideboard tile height (grows to fill leftover space). */
 const SIDEBOARD_TILE_H = 96;
 /** Base landscape battlefield tile height; runes share this row and match it. */
 const BATTLEFIELD_BAND_TILE_H = 84;
-/** Battlefields shown (decks rarely exceed three). */
-const MAX_BATTLEFIELDS = 3;
 
-/** One deck card the renderer needs; `imageId` is the resolved art, null when none. */
-export interface DeckImageCard {
-  cardName: string;
-  quantity: number;
-  imageId: string | null;
-  energy: number | null;
-  /** Card domains, used to group runes by their domain glyph. */
-  domains: readonly string[];
-  /** Deck zone slug (legend / champion / main / runes / battlefield / sideboard / overflow). */
-  zone: string;
-}
-
-/** Everything the renderer needs to draw a deck share image. */
-export interface DeckImageInput {
-  deckName: string;
-  /** Owner display name shown next to the title; the chip is dropped when empty. */
-  ownerName?: string;
-  /** Presentable format label, e.g. "Constructed". */
-  formatLabel: string;
-  cards: readonly DeckImageCard[];
-  /** Host shown in the footer (e.g. "openrift.app"); omitted when empty. */
-  siteHost?: string;
-  /** Absolute deck share URL encoded in the QR; the QR is dropped when absent. */
-  shareUrl?: string;
-  /**
-   * Custom cover art for the blurred backdrop, mirroring the web hero. Null /
-   * absent keeps the legend-derived backdrop; the left hero panel stays the
-   * legend either way.
-   */
-  coverImageId?: string | null;
-}
+// Re-exported so the routes, the oEmbed handler, and the tests keep importing
+// the deck image's public surface from one module.
+export type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
+export { formatLabelFromSlug, truncateTitle } from "./deck-image-parts.js";
 
 /**
  * Resolves the deck's custom cover to a printable image id, honoring the
@@ -146,138 +96,6 @@ export async function resolveCoverImageId(
     { cardId: deck.coverCardId, preferredPrintingId: deck.coverPrintingId },
   ]);
   return metas[0]?.imageId ?? null;
-}
-
-interface PackedGrid {
-  cols: number;
-  tileW: number;
-  tileH: number;
-}
-
-/**
- * Picks the column count that makes `count` portrait tiles as large as possible
- * while fitting both dimensions of the area. Unlike the list grid this is not
- * capped at two rows — a deck shows its whole main list.
- * @returns The column count and floored tile dimensions.
- */
-function packGrid(count: number, areaW: number, areaH: number, aspect: number): PackedGrid {
-  let best: PackedGrid = { cols: 1, tileW: 0, tileH: 0 };
-  for (let cols = 1; cols <= count; cols++) {
-    const rows = Math.ceil(count / cols);
-    const tileWByWidth = (areaW - (cols - 1) * GAP) / cols;
-    const tileHByHeight = (areaH - (rows - 1) * GAP) / rows;
-    const tileH = Math.min(tileWByWidth / aspect, tileHByHeight);
-    const tileW = tileH * aspect;
-    if (tileW > best.tileW) {
-      best = { cols, tileW: Math.floor(tileW), tileH: Math.floor(tileH) };
-    }
-  }
-  return best;
-}
-
-/**
- * Sums rune quantities per domain (a rune carries one domain; a multi-domain
- * rune folds into "rainbow"), so the identity panel can show one glyph per
- * domain with its count.
- * @returns Domain → total rune count, highest first.
- */
-function runeCountsByDomain(runes: readonly DeckImageCard[]): { domain: string; count: number }[] {
-  const byDomain = new Map<string, number>();
-  for (const rune of runes) {
-    const [first] = rune.domains;
-    const domain = rune.domains.length === 1 && first ? first : "rainbow";
-    byDomain.set(domain, (byDomain.get(domain) ?? 0) + rune.quantity);
-  }
-  return [...byDomain.entries()]
-    .map(([domain, count]) => ({ domain, count }))
-    .sort((left, right) => right.count - left.count || left.domain.localeCompare(right.domain));
-}
-
-/**
- * Loads and rasterizes a rune-domain glyph to a PNG data URI at `sizePx`.
- * @returns The glyph data URI, or null when the glyph asset is absent.
- */
-async function glyphUri(
-  io: Io,
-  domain: string,
-  sizePx: number,
-  scale: number,
-): Promise<string | null> {
-  try {
-    const svg = await io.fs.readFile(`${import.meta.dirname}/../assets/glyphs/rune-${domain}.svg`);
-    return await svgToPngDataUri(io, svg, sizePx * scale);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * A titled section: a small gold label with a rule, then a wrapping row of tiles.
- * Used for the sideboard, battlefields, and runes bands under the main grid.
- * @returns The section element.
- */
-function deckSection(label: string, tiles: Child[], marginTop = 0): Element {
-  const header = element(
-    "div",
-    { display: "flex", flexDirection: "row", alignItems: "center", marginBottom: 8 },
-    element("div", {
-      display: "flex",
-      height: 1,
-      width: 28,
-      backgroundColor: COLORS.surfaceBorder,
-      marginRight: 10,
-    }),
-    element(
-      "div",
-      { display: "flex", fontSize: 15, fontWeight: 700, color: COLORS.gold, letterSpacing: 2 },
-      label,
-    ),
-    element("div", {
-      display: "flex",
-      flexGrow: 1,
-      height: 1,
-      backgroundColor: COLORS.surfaceBorder,
-      marginLeft: 10,
-    }),
-  );
-  return element(
-    "div",
-    { display: "flex", flexDirection: "column", marginTop },
-    header,
-    element("div", { display: "flex", flexDirection: "row", flexWrap: "wrap", gap: GAP }, ...tiles),
-  );
-}
-
-/** Longest deck title kept before eliding; bounds the title so it never runs into
- * the right-aligned format/count. Shorter than the tier list's cap because this
- * row also carries the domain glyphs. */
-const TITLE_MAX_CHARS = 34;
-
-/** @returns The deck title, truncated with an ellipsis when longer than the cap. */
-export function truncateTitle(title: string): string {
-  return elideTitle(title, TITLE_MAX_CHARS);
-}
-
-/** @returns A presentable format label from a deck-format slug. */
-export function formatLabelFromSlug(slug: string): string {
-  const spaced = slug.replaceAll("-", " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-/**
- * Compares two deck cards by energy (nulls last), then name, for cost-curve order.
- * @returns A standard comparator result (negative, zero, or positive).
- */
-function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
-  return (left.energy ?? 99) - (right.energy ?? 99) || left.cardName.localeCompare(right.cardName);
-}
-
-/** A deck card reference the renderer can enrich: identity, printing, zone, count. */
-export interface DeckImageCardRef {
-  cardId: string;
-  preferredPrintingId: string | null;
-  quantity: number;
-  zone: string;
 }
 
 /**
@@ -339,34 +157,23 @@ export async function buildDeckImageCards(
 
 /**
  * Renders a deck share image to a PNG buffer (ADR-031). `scale` renders the same
- * base layout at N× resolution for the HQ download.
+ * base layout at N× resolution for the HQ download; `aspect` picks the canvas
+ * (landscape for the og:image, vertical for the 9:16 export).
  * @returns PNG bytes ready to return as `image/png`.
  */
-export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1): Promise<Buffer> {
-  const zone = WellKnown.deckZone;
-  const legend = input.cards.find((card) => card.zone === zone.LEGEND) ?? null;
-  const runes = input.cards.filter((card) => card.zone === zone.RUNES);
-  const battlefields = input.cards
-    .filter((card) => card.zone === zone.BATTLEFIELD)
-    .slice(0, MAX_BATTLEFIELDS);
-  const sideboard = input.cards
-    .filter((card) => card.zone === zone.SIDEBOARD)
-    .sort(byEnergyThenName);
-  // Champions lead the grid (the deck's identity units), then the rest by cost.
-  const champions = input.cards
-    .filter((card) => card.zone === zone.CHAMPION)
-    .sort(byEnergyThenName);
-  const mainline = input.cards
-    .filter((card) => card.zone === zone.MAIN || card.zone === zone.OVERFLOW)
-    .sort(byEnergyThenName);
-  const gridCards = [...champions, ...mainline];
-  // Conventional deck size: champions + main only, reported separately from the
-  // sideboard. Overflow copies still show in the grid but are not counted (nor are
-  // legend, battlefields, or runes).
-  const mainCardCount = gridCards
-    .filter((card) => card.zone !== zone.OVERFLOW)
-    .reduce((sum, card) => sum + card.quantity, 0);
-  const sideboardCount = sideboard.reduce((sum, card) => sum + card.quantity, 0);
+export async function renderDeckImage(
+  io: Io,
+  input: DeckImageInput,
+  scale = 1,
+  aspect: ShareImageAspect = "landscape",
+): Promise<Buffer> {
+  if (aspect === "vertical") {
+    return renderDeckImageVertical(io, input, scale);
+  }
+
+  const zones = splitDeckZones(input.cards);
+  const { legend, runes, runeCards, battlefields, sideboard, gridCards } = zones;
+  const { mainCardCount, sideboardCount } = zones;
 
   // The left panel is the legend hero alone, vertically centred; the QR + host
   // mark moved to the bottom-right of the grid area.
@@ -379,10 +186,6 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
   // Legend fills the panel width (small inset), centred over the full height.
   const legendW = LEFT_W - 14;
   const legendH = Math.round(legendW / CARD_ASPECT);
-
-  const runeCards = [...runes].sort(
-    (left, right) => right.quantity - left.quantity || left.cardName.localeCompare(right.cardName),
-  );
 
   // Bottom band: sideboard on its own full-width row, then battlefields + runes
   // sharing the row beneath with the QR mark on the right. The section tiles grow
@@ -475,17 +278,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
     qrUri,
   ] = await Promise.all([
     legend ? tileArtDataUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
-    // The backdrop is blurred anyway, so render it at half resolution and let
-    // satori scale it up — the payload stays small even at the HQ scale. A
-    // custom cover replaces the legend art here (and only here).
-    (input.coverImageId ?? legend?.imageId)
-      ? blurredArtBackdropDataUri(
-          io,
-          input.coverImageId ?? legend?.imageId ?? "",
-          Math.round((WIDTH / 2) * scale),
-          Math.round((HEIGHT / 2) * scale),
-        )
-      : Promise.resolve(null),
+    deckBackdropUri(io, input.coverImageId ?? legend?.imageId, WIDTH, HEIGHT, scale),
     grid
       ? Promise.all(
           gridCards.map((card) => tileArtDataUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
@@ -513,19 +306,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
   // ── Title row ──────────────────────────────────────────────────────────────
   // Name + byline keep their shared text baseline in a left group; the count and
   // the deck's domain glyphs sit as a vertically-centred cluster on the right.
-  const domainIcons = domainUris
-    .map((uri) =>
-      uri
-        ? ({ type: "img", props: { src: uri, width: DOMAIN_ICON, height: DOMAIN_ICON } } as Element)
-        : element("div", {
-            display: "flex",
-            width: DOMAIN_ICON,
-            height: DOMAIN_ICON,
-            borderRadius: DOMAIN_ICON / 2,
-            backgroundColor: COLORS.gold,
-          }),
-    )
-    .slice(0, domains.length);
+  const domainIcons = domainIconElements(domainUris, DOMAIN_ICON);
   const titleRow = element(
     "div",
     {
@@ -582,7 +363,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
           color: COLORS.muted,
           transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
         },
-        `${input.formatLabel} · ${mainCardCount}${sideboardCount > 0 ? ` + ${sideboardCount}` : ""} ${mainCardCount + sideboardCount === 1 ? "card" : "cards"}`,
+        deckMetaLabel(input.formatLabel, mainCardCount, sideboardCount),
       ),
       domainIcons.length > 0
         ? element(
@@ -736,36 +517,7 @@ export async function renderDeckImage(io: Io, input: DeckImageInput, scale = 1):
   );
 
   const glowBackground = legend ? legendGlowBackground(legend.domains) : undefined;
-
-  // Full-art identity, mirroring the web deck hero: the legend's art blurred
-  // across the whole canvas at low opacity, under a vertical scrim that keeps
-  // the title row and the bottom band readable. The domain glow stays beneath
-  // and shows through the art's transparency.
-  const heroBackdrop =
-    backdropUri &&
-    element(
-      "div",
-      { display: "flex", position: "absolute", top: 0, left: 0, width: WIDTH, height: HEIGHT },
-      {
-        type: "img",
-        props: {
-          src: backdropUri,
-          width: WIDTH,
-          height: HEIGHT,
-          style: { opacity: 0.35 },
-        },
-      },
-      element("div", {
-        display: "flex",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: WIDTH,
-        height: HEIGHT,
-        backgroundImage:
-          "linear-gradient(to bottom, rgba(20,22,29,0.85) 0%, rgba(20,22,29,0.35) 30%, rgba(20,22,29,0.35) 65%, rgba(20,22,29,0.9) 100%)",
-      }),
-    );
+  const heroBackdrop = deckHeroBackdrop(backdropUri, WIDTH, HEIGHT);
 
   const root = element(
     "div",

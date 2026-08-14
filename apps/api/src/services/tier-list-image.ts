@@ -2,8 +2,9 @@ import { tierRowColor } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
-import type { Child, Element } from "./share-image-core.js";
+import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
 import {
+  CANVAS,
   CARD_ASPECT,
   COLORS,
   QR_SIZE,
@@ -34,25 +35,32 @@ import {
  * Two resolutions share one layout via `scale`: the og:image renders at 1×
  * (1200×630), the download at 2×, with raster sources embedded at the matching
  * resolution while satori lays out once at base size (ADR-031).
+ *
+ * The board also renders on the 9:16 vertical canvas as a download-only export.
+ * That is a second composition, not a resize: landscape divides its height
+ * evenly across the rows, which on a canvas three times as tall would leave each
+ * row mostly empty around a width-capped tile. Vertical instead sizes rows to
+ * their content and lets a crowded row wrap onto more than one line, so the
+ * extra height buys bigger cards. Landscape's geometry is deliberately left
+ * alone — it is what every published og:image already looks like.
  */
 
-const WIDTH = 1200;
-const HEIGHT = 630;
 const PAD = 24;
 const GAP = 10;
 
 const TILE_GAP = 4;
 
-const TITLE_H = 52;
 /** The footer is exactly the mark's height: the QR is the tallest thing in it,
  * and the host label centres against it. */
 const FOOTER_H = QR_SIZE;
 
-/** Width of a row's label chip. Fits three characters at the largest row height. */
-const LABEL_W = 58;
 const ROW_GAP = 8;
 /** Breathing room between a row's border and its tiles. */
 const ROW_PAD = 5;
+/** Floor on tile height, so a hopeless board still renders something. */
+const MIN_TILE_H = 12;
+/** Landscape's label chip. Fits three characters at the largest row height. */
+const LABEL_W = 58;
 
 /** Longest title kept before eliding, so it never collides with the right cluster. */
 const TITLE_MAX_CHARS = 46;
@@ -63,9 +71,64 @@ const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
 
+/**
+ * Per-canvas geometry. Everything that differs between the two compositions
+ * lives here rather than being branched on at each use, so a vertical tweak
+ * cannot silently move the landscape og:image.
+ */
+interface TierCanvas {
+  width: number;
+  height: number;
+  pad: number;
+  /** Width of a row's label chip. */
+  labelW: number;
+  titleSize: number;
+  bylineSize: number;
+  metaSize: number;
+  titleMaxChars: number;
+  /** Reserved height for the title area (one row landscape, two lines vertical). */
+  titleH: number;
+  /** Lines of tiles a single row may wrap onto before the "+N" chip takes over. */
+  maxLines: number;
+}
+
+const LANDSCAPE: TierCanvas = {
+  ...CANVAS.landscape,
+  pad: PAD,
+  labelW: LABEL_W,
+  titleSize: TITLE_SIZE,
+  bylineSize: BYLINE_SIZE,
+  metaSize: META_SIZE,
+  titleMaxChars: TITLE_MAX_CHARS,
+  titleH: 52,
+  maxLines: 1,
+};
+
+const VERTICAL: TierCanvas = {
+  ...CANVAS.vertical,
+  pad: 28,
+  labelW: 88,
+  // Type steps up with the canvas: a story is read at arm's length on a phone,
+  // where the landscape sizes would be a third of the frame's width.
+  titleSize: 46,
+  bylineSize: 28,
+  metaSize: 26,
+  // Narrower canvas and larger type, so fewer characters fit than landscape —
+  // and the byline no longer shares this line, so the whole width is the title's.
+  titleMaxChars: 30,
+  // Title line, then the byline and count on a second line beneath it.
+  titleH: 92,
+  maxLines: 3,
+};
+
+/** @returns The canvas geometry for an aspect. */
+function canvasFor(aspect: ShareImageAspect): TierCanvas {
+  return aspect === "vertical" ? VERTICAL : LANDSCAPE;
+}
+
 /** @returns The title, truncated with an ellipsis when longer than the cap. */
-export function truncateTierListTitle(title: string): string {
-  return elideTitle(title, TITLE_MAX_CHARS);
+export function truncateTierListTitle(title: string, max = TITLE_MAX_CHARS): string {
+  return elideTitle(title, max);
 }
 
 /** One stored board entry, before its art is resolved. */
@@ -117,6 +180,11 @@ interface BoardMetrics {
  * Sizes the board so every row fits the available height, then caps the tile
  * width so the fullest row still fits horizontally. Both constraints are
  * global rather than per row: a uniform tile is what makes the ranking legible.
+ *
+ * Landscape only. Rows here are a fixed share of the height whether or not
+ * their tiles fill it, which is right on a canvas where the height is the
+ * binding constraint. See `measureWrappedBoard` for the vertical canvas, where
+ * it is not.
  * @returns The shared row and tile geometry.
  */
 export function measureBoard(
@@ -124,20 +192,114 @@ export function measureBoard(
   cardsInFullestRow: number,
   areaW: number,
   areaH: number,
+  labelW = LABEL_W,
 ): BoardMetrics {
   const rowH = Math.floor((areaH - Math.max(0, rowCount - 1) * ROW_GAP) / Math.max(1, rowCount));
   const heightCap = rowH - 2 * ROW_PAD;
-  const tilesAreaW = areaW - LABEL_W - ROW_PAD;
+  const tilesAreaW = areaW - labelW - ROW_PAD;
   // Width cap only bites when a row genuinely overflows; a board whose rows all
   // fit keeps the taller tiles the height allows.
   const widthCap =
     cardsInFullestRow > 0
       ? (tilesAreaW - (cardsInFullestRow - 1) * TILE_GAP) / cardsInFullestRow / CARD_ASPECT
       : Number.POSITIVE_INFINITY;
-  const tileH = Math.max(12, Math.floor(Math.min(heightCap, widthCap)));
+  const tileH = Math.max(MIN_TILE_H, Math.floor(Math.min(heightCap, widthCap)));
   const tileW = Math.max(9, Math.floor(tileH * CARD_ASPECT));
   const maxTilesPerRow = Math.max(1, Math.floor((tilesAreaW + TILE_GAP) / (tileW + TILE_GAP)));
   return { rowH, tileH, tileW, maxTilesPerRow };
+}
+
+/**
+ * Board geometry where each row is as tall as its own content. Rows may differ
+ * in height because a crowded row wraps onto more lines than a sparse one, but
+ * the tile size is still global, so a card in S is the same size as a card in D.
+ */
+export interface WrappedBoardMetrics {
+  tileH: number;
+  tileW: number;
+  /** Tiles that fit one line at this size. */
+  tilesPerLine: number;
+  /** Lines each row wraps onto, index-aligned with the board's rows. */
+  linesPerRow: number[];
+  /** Each row's total height, index-aligned with the board's rows. */
+  rowHeights: number[];
+}
+
+/**
+ * Measures one candidate tile height: how each row wraps at that size, and
+ * whether the resulting board still fits the available height.
+ * @returns The per-row geometry and the board's total height.
+ */
+function wrapAtTileHeight(
+  cardCounts: readonly number[],
+  tilesAreaW: number,
+  tileH: number,
+  maxLines: number,
+): { metrics: Omit<WrappedBoardMetrics, "tileH">; totalH: number } {
+  const tileW = Math.max(9, Math.floor(tileH * CARD_ASPECT));
+  const tilesPerLine = Math.max(1, Math.floor((tilesAreaW + TILE_GAP) / (tileW + TILE_GAP)));
+  const linesPerRow = cardCounts.map((count) =>
+    Math.min(maxLines, Math.max(1, Math.ceil(count / tilesPerLine))),
+  );
+  const rowHeights = linesPerRow.map(
+    (lines) => lines * tileH + (lines - 1) * TILE_GAP + 2 * ROW_PAD,
+  );
+  const totalH =
+    rowHeights.reduce((sum, height) => sum + height, 0) +
+    Math.max(0, cardCounts.length - 1) * ROW_GAP;
+  return { metrics: { tileW, tilesPerLine, linesPerRow, rowHeights }, totalH };
+}
+
+/**
+ * Sizes a board whose rows wrap: picks the largest tile at which every row's
+ * wrapped height still fits the area. This is what turns the vertical canvas's
+ * extra height into bigger cards — dividing the height evenly instead (as
+ * landscape does) would give each row a tall box holding one short line of
+ * width-capped tiles.
+ *
+ * Total height rises monotonically with tile height (a bigger tile fits fewer
+ * per line, so rows wrap onto more lines, never fewer), which is what makes the
+ * search a binary one. If even the smallest tile overflows, the wrap allowance
+ * is spent one line at a time until the board fits.
+ * @returns The tile size, per-row line counts, and per-row heights.
+ */
+export function measureWrappedBoard(
+  cardCounts: readonly number[],
+  areaW: number,
+  areaH: number,
+  labelW: number,
+  maxLines: number,
+): WrappedBoardMetrics {
+  const tilesAreaW = Math.max(1, areaW - labelW - 2 * ROW_PAD);
+  if (cardCounts.length === 0) {
+    return { tileH: MIN_TILE_H, tileW: 9, tilesPerLine: 1, linesPerRow: [], rowHeights: [] };
+  }
+
+  for (let lines = Math.max(1, maxLines); lines >= 1; lines--) {
+    // Nothing can be taller than the whole area, and no wider than the row.
+    let low = MIN_TILE_H;
+    let high = Math.max(MIN_TILE_H, Math.floor(Math.min(areaH, tilesAreaW / CARD_ASPECT)));
+    if (wrapAtTileHeight(cardCounts, tilesAreaW, low, lines).totalH > areaH) {
+      // Even the floor overflows at this allowance; try one line fewer.
+      continue;
+    }
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (wrapAtTileHeight(cardCounts, tilesAreaW, mid, lines).totalH <= areaH) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return { tileH: low, ...wrapAtTileHeight(cardCounts, tilesAreaW, low, lines).metrics };
+  }
+
+  // More rows than the area can hold even as single lines of minimum tiles. The
+  // board overflows its box and clips, which still reads better than no board.
+  return {
+    tileH: MIN_TILE_H,
+    ...wrapAtTileHeight(cardCounts, tilesAreaW, MIN_TILE_H, 1).metrics,
+  };
 }
 
 /**
@@ -175,6 +337,23 @@ export function fitRowLabel(label: string, rowH: number): string {
   // Roughly two characters per 24px of row height, floored at three so a short
   // board never shows a bare initial where the chip has room for more.
   const max = Math.max(3, Math.round((rowH / 24) * 2));
+  return label.length > max ? label.slice(0, max) : label;
+}
+
+/** Average glyph advance as a fraction of the font size, for bold Hanken Grotesk. */
+const BOLD_CHAR_WIDTH_RATIO = 0.58;
+
+/**
+ * Truncates a row label to what its chip can show, measured against the chip's
+ * *width* rather than the row's height. The vertical board's rows are several
+ * times taller than landscape's while the chip is only slightly wider, so the
+ * height heuristic `fitRowLabel` uses would allow a label many times the chip's
+ * width. Landscape keeps that heuristic: it is what its published og:images
+ * already render, and its rows never get tall enough for the two to diverge far.
+ * @returns The label, truncated to fit the chip.
+ */
+export function fitRowLabelToChip(label: string, chipW: number, fontSize: number): string {
+  const max = Math.max(1, Math.floor(chipW / (fontSize * BOLD_CHAR_WIDTH_RATIO)));
   return label.length > max ? label.slice(0, max) : label;
 }
 
@@ -248,6 +427,115 @@ function boardRow(
 }
 
 /**
+ * One row of the vertical board: the same coloured chip and tiles, but the row
+ * is as tall as the lines its cards wrap onto, and the chip's type is sized off
+ * its own width so a renamed label cannot run past it.
+ * @returns The row element.
+ */
+function wrappedBoardRow(
+  row: TierListImageRow,
+  color: string,
+  uris: readonly (string | null)[],
+  metrics: WrappedBoardMetrics,
+  index: number,
+  labelW: number,
+): Element {
+  const rowH = metrics.rowHeights[index] ?? 0;
+  const lines = metrics.linesPerRow[index] ?? 1;
+  const capacity = lines * metrics.tilesPerLine;
+  const shown = row.cards.slice(0, capacity);
+  const hidden = row.cards.length - shown.length;
+  // The chip stands in for the last visible card, as on the landscape board.
+  const visible = hidden > 0 ? shown.slice(0, -1) : shown;
+  const hiddenTotal = row.cards.length - visible.length;
+
+  const labelSize = Math.max(12, Math.min(Math.round(rowH * 0.42), Math.round(labelW * 0.5)));
+
+  const label = element(
+    "div",
+    {
+      display: "flex",
+      width: labelW,
+      height: rowH,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: color,
+      color: "#14161d",
+      fontSize: labelSize,
+      fontWeight: 700,
+    },
+    fitRowLabelToChip(row.label, labelW, labelSize),
+  );
+
+  // Lines are cut explicitly rather than left to `flex-wrap`, so the cards
+  // spread evenly across them: wrapping a seven-card row at the line's capacity
+  // gives six tiles and a lone straggler, where an even cut gives four and
+  // three. Balanced lines never exceed the capacity the measurement solved for,
+  // because that capacity is what set the line count in the first place.
+  const perLine = Math.max(1, Math.ceil(visible.length / lines));
+  const tileLines: Element[] = [];
+  for (let start = 0; start < visible.length; start += perLine) {
+    const slice = visible.slice(start, start + perLine);
+    const isLast = start + perLine >= visible.length;
+    tileLines.push(
+      element(
+        "div",
+        { display: "flex", flexDirection: "row", gap: TILE_GAP, height: metrics.tileH },
+        ...slice.map((card, offset) =>
+          cardTile(card, uris[start + offset] ?? null, metrics.tileW, metrics.tileH),
+        ),
+        isLast && hiddenTotal > 0 && overflowChip(hiddenTotal, metrics.tileW, metrics.tileH),
+      ),
+    );
+  }
+  if (tileLines.length === 0 && hiddenTotal > 0) {
+    tileLines.push(
+      element(
+        "div",
+        { display: "flex", flexDirection: "row", height: metrics.tileH },
+        overflowChip(hiddenTotal, metrics.tileW, metrics.tileH),
+      ),
+    );
+  }
+
+  const tiles = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      // Top-aligned rather than centred: a row that wraps onto fewer lines than
+      // its neighbours should start its tiles at the same offset from the row's
+      // top edge, so the board still reads as a ladder.
+      justifyContent: "flex-start",
+      flexGrow: 1,
+      height: rowH,
+      paddingTop: ROW_PAD,
+      paddingLeft: ROW_PAD,
+      paddingRight: ROW_PAD,
+      gap: TILE_GAP,
+      overflow: "hidden",
+    },
+    ...tileLines,
+  );
+
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      height: rowH,
+      borderRadius: 6,
+      overflow: "hidden",
+      backgroundColor: "rgba(255,255,255,0.035)",
+      border: `1px solid ${COLORS.surfaceBorder}`,
+    },
+    label,
+    tiles,
+  );
+}
+
+/**
  * Resolves display art for a board's card ids and drops any that no longer
  * resolve, mirroring how the deck renderer tolerates a stale id. Granularity is
  * per card, so each one takes its default printing's image.
@@ -292,54 +580,38 @@ export async function buildTierListImageRows(
   }));
 }
 
+/** @returns The board's total ranked-card count. */
+function countRanked(rows: readonly TierListImageRow[]): number {
+  return rows.reduce((sum, row) => sum + row.cards.length, 0);
+}
+
+/** @returns The "N cards ranked" line. */
+function rankedLabel(rankedCount: number): string {
+  return `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`;
+}
+
 /**
- * Renders a tier-list share image to a PNG buffer. `scale` renders the same
- * base layout at N× resolution for the HQ download.
- * @returns PNG bytes ready to return as `image/png`.
+ * The landscape title row: title and byline share a baseline inside their own
+ * left group, and the count is a vertically-centred cluster on the right.
+ * Baseline-aligning the whole row instead puts the count's baseline on the 34px
+ * title's, which reads as a misaligned header — and the flexible spacer between
+ * them has no text baseline at all to align to. The type roles match the deck
+ * and list images, so the three read as one family: gold marks who made it,
+ * muted carries the incidental metadata.
+ * @returns The title row element.
  */
-export async function renderTierListImage(
-  io: Io,
+function landscapeTitle(
   input: TierListImageInput,
-  scale = 1,
-): Promise<Buffer> {
-  const rows = input.rows;
-  const rankedCount = rows.reduce((sum, row) => sum + row.cards.length, 0);
-
-  const innerW = WIDTH - PAD * 2;
-  const hasFooter = Boolean(input.siteHost) || Boolean(input.shareUrl);
-  const boardH = HEIGHT - PAD * 2 - TITLE_H - GAP - (hasFooter ? FOOTER_H + GAP : 0);
-
-  const fullestRow = rows.reduce((most, row) => Math.max(most, row.cards.length), 0);
-  const metrics = measureBoard(rows.length, fullestRow, innerW, boardH);
-
-  const [rowUris, qrUri] = await Promise.all([
-    Promise.all(
-      rows.map((row) =>
-        Promise.all(
-          row.cards
-            .slice(0, metrics.maxTilesPerRow)
-            .map((card) => tileArtDataUri(io, card.imageId, metrics.tileW, metrics.tileH, scale)),
-        ),
-      ),
-    ),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
-  ]);
-
-  // ── Title row ─────────────────────────────────────────────────────────────
-  // Same construction as the deck image: title and byline share a baseline
-  // inside their own left group, and the count is a vertically-centred cluster
-  // on the right. Baseline-aligning the whole row instead puts the count's
-  // baseline on the 34px title's, which reads as a misaligned header — and the
-  // flexible spacer between them has no text baseline at all to align to.
-  // The type roles match the deck and list images too, so the three read as one
-  // family: gold marks who made it, muted carries the incidental metadata.
-  const titleRow = element(
+  canvas: TierCanvas,
+  rankedCount: number,
+): Element {
+  return element(
     "div",
     {
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
-      height: TITLE_H,
+      height: canvas.titleH,
       flexShrink: 0,
     },
     element(
@@ -350,13 +622,13 @@ export async function renderTierListImage(
         {
           display: "flex",
           flexShrink: 1,
-          fontSize: TITLE_SIZE,
+          fontSize: canvas.titleSize,
           lineHeight: 1,
           fontWeight: 700,
           color: COLORS.text,
           whiteSpace: "nowrap",
         },
-        truncateTierListTitle(input.title),
+        truncateTierListTitle(input.title, canvas.titleMaxChars),
       ),
       input.ownerName
         ? element(
@@ -365,11 +637,11 @@ export async function renderTierListImage(
               display: "flex",
               flexShrink: 0,
               marginLeft: 12,
-              fontSize: BYLINE_SIZE,
+              fontSize: canvas.bylineSize,
               lineHeight: 1,
               fontWeight: 600,
               color: COLORS.gold,
-              transform: `translateY(${baselineNudge(TITLE_SIZE, BYLINE_SIZE)}px)`,
+              transform: `translateY(${baselineNudge(canvas.titleSize, canvas.bylineSize)}px)`,
             },
             `by ${input.ownerName}`,
           )
@@ -380,21 +652,186 @@ export async function renderTierListImage(
         {
           display: "flex",
           flexShrink: 0,
-          fontSize: META_SIZE,
+          fontSize: canvas.metaSize,
           lineHeight: 1,
           color: COLORS.muted,
-          transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
+          transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize)}px)`,
         },
-        `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`,
+        rankedLabel(rankedCount),
       ),
     ),
   );
+}
+
+/**
+ * The vertical title block: the title on its own line, then the byline and the
+ * count sharing a second one. Stacked rather than strung along a single row
+ * because the canvas is narrower than landscape while the type is larger, so
+ * all three on one line would leave the title a dozen characters.
+ * @returns The title block element.
+ */
+function verticalTitle(
+  input: TierListImageInput,
+  canvas: TierCanvas,
+  rankedCount: number,
+): Element {
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      height: canvas.titleH,
+      flexShrink: 0,
+    },
+    element(
+      "div",
+      {
+        display: "flex",
+        fontSize: canvas.titleSize,
+        lineHeight: 1,
+        fontWeight: 700,
+        color: COLORS.text,
+        whiteSpace: "nowrap",
+      },
+      truncateTierListTitle(input.title, canvas.titleMaxChars),
+    ),
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 14,
+      },
+      input.ownerName
+        ? element(
+            "div",
+            {
+              display: "flex",
+              fontSize: canvas.bylineSize,
+              lineHeight: 1,
+              fontWeight: 600,
+              color: COLORS.gold,
+            },
+            `by ${input.ownerName}`,
+          )
+        : false,
+      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+      element(
+        "div",
+        {
+          display: "flex",
+          fontSize: canvas.metaSize,
+          lineHeight: 1,
+          color: COLORS.muted,
+          // Both runs pin lineHeight 1 and the row is centre-aligned rather than
+          // bottom-aligned, so the two sit on their own centres and the baseline
+          // correction that the landscape row needs does not apply here.
+        },
+        rankedLabel(rankedCount),
+      ),
+    ),
+  );
+}
+
+/**
+ * Resolves the art for every tile the board will actually draw.
+ * @returns Per-row arrays of art data URIs, index-aligned with each row's cards.
+ */
+function boardArtUris(
+  io: Io,
+  rows: readonly TierListImageRow[],
+  capacityForRow: (index: number) => number,
+  tileW: number,
+  tileH: number,
+  scale: number,
+): Promise<(string | null)[][]> {
+  return Promise.all(
+    rows.map((row, index) =>
+      Promise.all(
+        row.cards
+          .slice(0, capacityForRow(index))
+          .map((card) => tileArtDataUri(io, card.imageId, tileW, tileH, scale)),
+      ),
+    ),
+  );
+}
+
+/**
+ * Renders a tier-list share image to a PNG buffer. `scale` renders the same
+ * base layout at N× resolution for the HQ download; `aspect` picks the canvas
+ * (landscape for the og:image, vertical for the 9:16 export).
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+export async function renderTierListImage(
+  io: Io,
+  input: TierListImageInput,
+  scale = 1,
+  aspect: ShareImageAspect = "landscape",
+): Promise<Buffer> {
+  const canvas = canvasFor(aspect);
+  const rows = input.rows;
+  const rankedCount = countRanked(rows);
+
+  const innerW = canvas.width - canvas.pad * 2;
+  const hasFooter = Boolean(input.siteHost) || Boolean(input.shareUrl);
+  const boardH =
+    canvas.height - canvas.pad * 2 - canvas.titleH - GAP - (hasFooter ? FOOTER_H + GAP : 0);
+
+  const vertical = aspect === "vertical";
+  const fullestRow = rows.reduce((most, row) => Math.max(most, row.cards.length), 0);
+  const flat = measureBoard(rows.length, fullestRow, innerW, boardH, canvas.labelW);
+  const wrapped = vertical
+    ? measureWrappedBoard(
+        rows.map((row) => row.cards.length),
+        innerW,
+        boardH,
+        canvas.labelW,
+        canvas.maxLines,
+      )
+    : null;
+
+  const [rowUris, qrUri] = await Promise.all([
+    boardArtUris(
+      io,
+      rows,
+      (index) =>
+        wrapped ? (wrapped.linesPerRow[index] ?? 1) * wrapped.tilesPerLine : flat.maxTilesPerRow,
+      wrapped?.tileW ?? flat.tileW,
+      wrapped?.tileH ?? flat.tileH,
+      scale,
+    ),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+  ]);
+
+  const titleRow = vertical
+    ? verticalTitle(input, canvas, rankedCount)
+    : landscapeTitle(input, canvas, rankedCount);
 
   const board = element(
     "div",
-    { display: "flex", flexDirection: "column", height: boardH, gap: ROW_GAP },
+    {
+      display: "flex",
+      flexDirection: "column",
+      height: boardH,
+      gap: ROW_GAP,
+      // Wrapped rows are content-sized, so they rarely add up to the area
+      // exactly; the few leftover pixels split above and below rather than
+      // pooling under the last row.
+      ...(wrapped ? { justifyContent: "center" } : {}),
+    },
     ...rows.map((row, index) =>
-      boardRow(row, tierRowColor(index, row.unranked), rowUris[index] ?? [], metrics),
+      wrapped
+        ? wrappedBoardRow(
+            row,
+            tierRowColor(index, row.unranked),
+            rowUris[index] ?? [],
+            wrapped,
+            index,
+            canvas.labelW,
+          )
+        : boardRow(row, tierRowColor(index, row.unranked), rowUris[index] ?? [], flat),
     ),
   );
 
@@ -415,7 +852,12 @@ export async function renderTierListImage(
       input.siteHost
         ? element(
             "div",
-            { display: "flex", fontSize: 20, fontWeight: 600, color: COLORS.muted },
+            {
+              display: "flex",
+              fontSize: vertical ? 24 : 20,
+              fontWeight: 600,
+              color: COLORS.muted,
+            },
             input.siteHost,
           )
         : false,
@@ -428,9 +870,9 @@ export async function renderTierListImage(
     {
       display: "flex",
       flexDirection: "column",
-      width: WIDTH,
-      height: HEIGHT,
-      padding: PAD,
+      width: canvas.width,
+      height: canvas.height,
+      padding: canvas.pad,
       backgroundColor: COLORS.background,
       backgroundImage:
         "radial-gradient(80% 120% at 0% 0%, rgba(205,172,110,0.14) 0%, transparent 60%)",
@@ -444,5 +886,5 @@ export async function renderTierListImage(
     footer,
   );
 
-  return renderTreeToPng(io, root, WIDTH, HEIGHT, scale);
+  return renderTreeToPng(io, root, canvas.width, canvas.height, scale);
 }

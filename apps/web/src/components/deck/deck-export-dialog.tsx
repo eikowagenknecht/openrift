@@ -6,6 +6,8 @@ import {
   ImageDownIcon,
   Loader2Icon,
   PrinterIcon,
+  RectangleHorizontalIcon,
+  RectangleVerticalIcon,
   Share2Icon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -33,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
@@ -42,6 +45,7 @@ import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { downloadImageAsPdf } from "@/lib/image-pdf";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
+import type { ShareImageAspect } from "@/lib/share-image";
 import {
   deckImageFromCardsUrl,
   deckOwnerImageUrl,
@@ -159,6 +163,7 @@ export function DeckExportDialog({
   const { copied, copy, reset: resetCopied } = useCopyToClipboard();
   const [downloadingImage, setDownloadingImage] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [imageAspect, setImageAspect] = useState<ShareImageAspect>("landscape");
   const [tab, setTab] = useState<ExportTab>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -277,14 +282,24 @@ export function DeckExportDialog({
 
   const handleDownloadImage = async () => {
     setDownloadingImage(true);
-    const safeName = imageFileName();
+    // The wide image is rendered at 2× so it holds up printed and on a desktop
+    // screen. The tall one is not: 1× is already 1080×1920, the size every
+    // vertical surface uploads at, so 2× would just be a slower, heavier file
+    // the creator has to scale back down.
+    const vertical = imageAspect === "vertical";
+    const size = vertical ? undefined : "hq";
+    const aspect = vertical ? "vertical" : undefined;
+    const safeName = `${imageFileName()}${vertical ? "-vertical" : ""}`;
     const download = isLocal
       ? downloadImageFromPost(
-          deckImageFromCardsUrl(getSiteUrl(), "hq"),
+          deckImageFromCardsUrl(getSiteUrl(), size, aspect),
           localImageBody(),
           `${safeName}.png`,
         )
-      : downloadImageFromUrl(deckOwnerImageUrl(getSiteUrl(), deckId, "hq"), `${safeName}.png`);
+      : downloadImageFromUrl(
+          deckOwnerImageUrl(getSiteUrl(), deckId, size, aspect),
+          `${safeName}.png`,
+        );
     // React Compiler can't yet lower try/finally, so reset in both paths.
     try {
       await download;
@@ -353,9 +368,30 @@ export function DeckExportDialog({
             <TabsContent value="image">
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground text-sm">
-                  This is the same preview that appears when you paste a shared deck link into
-                  WhatsApp, Discord, or Signal. The PDF puts it on one A4 page for printing.
+                  Wide is the same preview that appears when you paste a shared deck link into
+                  WhatsApp, Discord, or Signal. Tall is sized for a story or a short video, with
+                  bigger cards. The PDF puts the wide one on one A4 page for printing.
                 </p>
+                <ToggleGroup
+                  aria-label="Image shape"
+                  variant="outline"
+                  spacing={0}
+                  value={[imageAspect]}
+                  onValueChange={([next]) => {
+                    if (next === "landscape" || next === "vertical") {
+                      setImageAspect(next);
+                    }
+                  }}
+                >
+                  <ToggleGroupItem value="landscape">
+                    <RectangleHorizontalIcon className="size-4" />
+                    Wide
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="vertical">
+                    <RectangleVerticalIcon className="size-4" />
+                    Tall
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 <div className="flex gap-2">
                   <Button onClick={handleDownloadImage} disabled={downloadingImage}>
                     {downloadingImage ? (

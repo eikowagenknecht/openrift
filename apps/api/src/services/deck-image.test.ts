@@ -122,6 +122,63 @@ describe("renderDeckImage", () => {
   });
 });
 
+describe("renderDeckImage (vertical)", () => {
+  it("renders the 9:16 export at 1080x1920", async () => {
+    const png = await renderDeckImage(
+      defaultIo,
+      { ...baseInput, cards: constructedDeck },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(1080);
+    expect(meta.height).toBe(1920);
+  });
+
+  it("renders a freeform deck with no Legend (the identity band collapses)", async () => {
+    const cards = [
+      card("Lightning Strike", "main", 3, 2),
+      card("Fireball", "main", 2, 4),
+      card("Targon's Peak", "battlefield"),
+    ];
+    const png = await renderDeckImage(
+      defaultIo,
+      { ...baseInput, formatLabel: "Freeform", cards },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders an empty deck as a placeholder without throwing", async () => {
+    const png = await renderDeckImage(defaultIo, { ...baseInput, cards: [] }, 1, "vertical");
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders without a QR or an owner when neither is given", async () => {
+    const png = await renderDeckImage(
+      defaultIo,
+      { ...baseInput, shareUrl: undefined, ownerName: undefined, cards: constructedDeck },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders the 2× variant at 2160x3840", async () => {
+    const png = await renderDeckImage(
+      defaultIo,
+      { ...baseInput, cards: constructedDeck },
+      2,
+      "vertical",
+    );
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(2160);
+    expect(meta.height).toBe(3840);
+  }, 30_000); // 2160×3840 is the heaviest canvas here; generous for cold CI.
+});
+
 describe("formatLabelFromSlug", () => {
   it("capitalizes and de-hyphenates a format slug", () => {
     expect(formatLabelFromSlug("constructed")).toBe("Constructed");

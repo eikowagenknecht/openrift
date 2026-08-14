@@ -115,6 +115,7 @@ describe("tierListImageRoute rendering", () => {
         shareUrl: "https://openrift.app/tier-lists/share/AbCdEfGhIjKl",
       }),
       1,
+      "landscape",
     );
   });
 
@@ -129,6 +130,7 @@ describe("tierListImageRoute rendering", () => {
       expect.anything(),
       expect.objectContaining({ shareUrl: undefined }),
       1,
+      "landscape",
     );
   });
 
@@ -137,6 +139,27 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?size=hq");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(expect.anything(), expect.anything(), 2);
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      2,
+      "landscape",
+    );
+  });
+
+  it("renders the vertical canvas when aspect=vertical", async () => {
+    mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
+
+    const res = await buildApp({ user: { id: "user-1" } }).request(
+      "/api/v1/tier-lists/abc/image.png?aspect=vertical",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      1,
+      "vertical",
+    );
   });
 });

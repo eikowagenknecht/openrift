@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import type * as DeckImageModule from "../../services/deck-image.js";
+import { renderDeckImage } from "../../services/deck-image.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckImageRoute } from "./deck-image.js";
@@ -93,5 +94,42 @@ describe("deckImageRoute auth scoping", () => {
     const res = await buildApp({ user: { id: "user-1" } }).request("/api/v1/decks/abc/image.png");
 
     expect(res.status).toBe(404);
+  });
+
+  it("renders the landscape canvas at 1× by default", async () => {
+    mockDecksRepo.getByIdForUser.mockResolvedValue({
+      id: "abc",
+      name: "Deck",
+      format: "constructed",
+    });
+
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/decks/abc/image.png");
+
+    expect(renderDeckImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      1,
+      "landscape",
+    );
+  });
+
+  it("renders the vertical canvas when aspect=vertical", async () => {
+    mockDecksRepo.getByIdForUser.mockResolvedValue({
+      id: "abc",
+      name: "Deck",
+      format: "constructed",
+    });
+
+    const res = await buildApp({ user: { id: "user-1" } }).request(
+      "/api/v1/decks/abc/image.png?aspect=vertical",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderDeckImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      1,
+      "vertical",
+    );
   });
 });

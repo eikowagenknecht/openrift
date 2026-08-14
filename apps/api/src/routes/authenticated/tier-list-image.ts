@@ -4,6 +4,7 @@ import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
+import { aspectFromQuery } from "../../services/share-image-core.js";
 import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
 import type { Variables } from "../../types.js";
 
@@ -11,7 +12,8 @@ import type { Variables } from "../../types.js";
  * Owner-authenticated download of a tier list's image. The builder's export
  * button uses this so the download works before the list is shared at all: the
  * public og:image route resolves by share token, this one resolves the caller's
- * own list by id. `?size=hq` renders the 2× variant.
+ * own list by id. `?size=hq` renders the 2× variant and `?aspect=vertical` the
+ * 9:16 one.
  *
  * Owner-only, served `no-store` — the board is mutable and this is an on-demand,
  * low-traffic download, unlike the immutably-cached public image.
@@ -29,6 +31,7 @@ export const tierListImageRoute = new Hono<{ Variables: Variables }>()
     const io = c.get("io");
     const userId = getUserId(c);
     const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const aspect = aspectFromQuery(c.req.query("aspect"));
 
     const tierList = await repos.tierLists.getByIdForUser(c.req.param("id"), userId);
     assertFound(tierList, "Not found");
@@ -52,6 +55,7 @@ export const tierListImageRoute = new Hono<{ Variables: Variables }>()
         shareUrl,
       },
       scale,
+      aspect,
     );
 
     return new Response(png, {

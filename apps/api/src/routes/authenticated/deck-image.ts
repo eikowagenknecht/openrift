@@ -10,15 +10,16 @@ import {
   resolveCoverImageId,
 } from "../../services/deck-image.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
+import { aspectFromQuery } from "../../services/share-image-core.js";
 import type { Variables } from "../../types.js";
 
 /**
  * Owner-authenticated download of a deck's share image (ADR-031). The export
  * dialog's "Image" tab uses this so the download works whether or not the deck
  * is publicly shared: the public og:image route resolves by share token, this
- * one resolves the caller's own deck by id. `?size=hq` renders the 2× variant.
- * Owner-only, served `no-store` (the deck is mutable and this is an on-demand,
- * low-traffic download).
+ * one resolves the caller's own deck by id. `?size=hq` renders the 2× variant
+ * and `?aspect=vertical` the 9:16 one. Owner-only, served `no-store` (the deck
+ * is mutable and this is an on-demand, low-traffic download).
  */
 export const deckImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/decks")
@@ -35,6 +36,7 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
     const userId = getUserId(c);
     const id = c.req.param("id");
     const scale = c.req.query("size") === "hq" ? 2 : 1;
+    const aspect = aspectFromQuery(c.req.query("aspect"));
 
     const deck = await repos.decks.getByIdForUser(id, userId);
     assertFound(deck, "Not found");
@@ -60,6 +62,7 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
         coverImageId: await resolveCoverImageId(repos, deck),
       },
       scale,
+      aspect,
     );
 
     return new Response(png, {

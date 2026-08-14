@@ -4,7 +4,9 @@ import { defaultIo } from "../io.js";
 import type { TierListImageRow } from "./tier-list-image.js";
 import {
   fitRowLabel,
+  fitRowLabelToChip,
   measureBoard,
+  measureWrappedBoard,
   renderTierListImage,
   truncateTierListTitle,
 } from "./tier-list-image.js";
@@ -90,6 +92,55 @@ describe("renderTierListImage", () => {
     expect(meta.width).toBe(2400);
     expect(meta.height).toBe(1260);
   });
+
+  it("renders the vertical export at 1080x1920", async () => {
+    const png = await renderTierListImage(
+      defaultIo,
+      { ...baseInput, rows: defaultBoard },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(1080);
+    expect(meta.height).toBe(1920);
+  });
+
+  it("renders the vertical export at 2x", async () => {
+    const png = await renderTierListImage(
+      defaultIo,
+      { ...baseInput, rows: defaultBoard },
+      2,
+      "vertical",
+    );
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(2160);
+    expect(meta.height).toBe(3840);
+  }, 30_000); // 2160×3840 is the heaviest canvas here; generous for a loaded suite.
+
+  it("renders a vertical board with empty rows, no rows, and no footer", async () => {
+    for (const rows of [[row("S", 0), row("A", 0)], []]) {
+      const png = await renderTierListImage(defaultIo, { title: "Untitled", rows }, 1, "vertical");
+      expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+    }
+  });
+
+  it("renders a vertical row far wider than the wrap allowance (overflow chip)", async () => {
+    const png = await renderTierListImage(
+      defaultIo,
+      { ...baseInput, rows: [row("S", 200)] },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("keeps the maximum row count inside the vertical canvas", async () => {
+    const rows = Array.from({ length: 12 }, (_, index) => row(`T${index}`, 9));
+    const png = await renderTierListImage(defaultIo, { ...baseInput, rows }, 1, "vertical");
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.height).toBe(1920);
+  });
 });
 
 describe("measureBoard", () => {
@@ -127,6 +178,110 @@ describe("measureBoard", () => {
   it("handles a board with no rows", () => {
     const metrics = measureBoard(0, 0, 1152, 454);
     expect(Number.isFinite(metrics.rowH)).toBe(true);
+  });
+});
+
+describe("measureWrappedBoard", () => {
+  // The vertical canvas's board area: 1080 wide less padding, and what is left
+  // of 1920 after the title block and the footer.
+  const AREA_W = 1024;
+  const AREA_H = 1668;
+  const LABEL_W = 88;
+  const ROW_GAP = 8;
+
+  /** @returns The board's total height at the measured geometry. */
+  function totalHeight(rowHeights: readonly number[]): number {
+    return (
+      rowHeights.reduce((sum, height) => sum + height, 0) +
+      Math.max(0, rowHeights.length - 1) * ROW_GAP
+    );
+  }
+
+  it("fits the board inside the available height", () => {
+    const metrics = measureWrappedBoard([4, 7, 11, 6, 2], AREA_W, AREA_H, LABEL_W, 3);
+    expect(totalHeight(metrics.rowHeights)).toBeLessThanOrEqual(AREA_H);
+  });
+
+  it("wraps a crowded row onto more lines than a sparse one", () => {
+    const metrics = measureWrappedBoard([2, 20], AREA_W, AREA_H, LABEL_W, 3);
+    expect(metrics.linesPerRow[1]).toBeGreaterThan(metrics.linesPerRow[0] ?? 0);
+  });
+
+  it("never exceeds the line allowance", () => {
+    const metrics = measureWrappedBoard([200, 200, 200], AREA_W, AREA_H, LABEL_W, 3);
+    for (const lines of metrics.linesPerRow) {
+      expect(lines).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("gives every row one line even when it holds no cards", () => {
+    const metrics = measureWrappedBoard([0, 0, 0], AREA_W, AREA_H, LABEL_W, 3);
+    expect(metrics.linesPerRow).toEqual([1, 1, 1]);
+  });
+
+  it("makes tiles bigger than dividing the height evenly would", () => {
+    const counts = [4, 7, 11, 6, 2];
+    const wrapped = measureWrappedBoard(counts, AREA_W, AREA_H, LABEL_W, 3);
+    // This is the whole reason the vertical board has its own measurement: the
+    // flat one caps each tile at the fullest row's width share, so the extra
+    // height goes to empty space inside the rows instead of to the cards.
+    const flat = measureBoard(counts.length, 11, AREA_W, AREA_H, LABEL_W);
+    expect(wrapped.tileH).toBeGreaterThan(flat.tileH);
+  });
+
+  it("handles a board with no rows", () => {
+    const metrics = measureWrappedBoard([], AREA_W, AREA_H, LABEL_W, 3);
+    expect(metrics.linesPerRow).toEqual([]);
+    expect(metrics.rowHeights).toEqual([]);
+    expect(Number.isFinite(metrics.tileH)).toBe(true);
+  });
+
+  it("spends the wrap allowance down when the rows cannot all fit", () => {
+    // Twelve crowded rows cannot each take three lines in this area, so the
+    // measurement drops to fewer lines rather than overflowing.
+    const metrics = measureWrappedBoard(
+      Array.from({ length: 12 }, () => 30),
+      1024,
+      600,
+      88,
+      3,
+    );
+    expect(totalHeight(metrics.rowHeights)).toBeLessThanOrEqual(600);
+    expect(Math.max(...metrics.linesPerRow)).toBe(1);
+  });
+
+  it("still returns drawable geometry when nothing fits", () => {
+    const metrics = measureWrappedBoard(
+      Array.from({ length: 40 }, () => 5),
+      1024,
+      200,
+      88,
+      3,
+    );
+    expect(metrics.tileH).toBeGreaterThan(0);
+    expect(metrics.tileW).toBeGreaterThan(0);
+    expect(metrics.tilesPerLine).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("fitRowLabelToChip", () => {
+  it("leaves a default single-character label alone", () => {
+    expect(fitRowLabelToChip("S", 88, 44)).toBe("S");
+  });
+
+  it("truncates a renamed label to the chip's width", () => {
+    // 88px of chip at 44px type holds three average glyphs.
+    expect(fitRowLabelToChip("Absolutely unplayable", 88, 44)).toBe("Abs");
+  });
+
+  it("fits more characters when the type is smaller", () => {
+    expect(fitRowLabelToChip("Broken", 88, 20).length).toBeGreaterThan(
+      fitRowLabelToChip("Broken", 88, 44).length,
+    );
+  });
+
+  it("always keeps at least one character", () => {
+    expect(fitRowLabelToChip("Trap", 10, 80)).toBe("T");
   });
 });
 

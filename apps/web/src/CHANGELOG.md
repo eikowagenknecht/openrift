@@ -16,6 +16,7 @@
 
 ### Other
 
+- feat(Decks): **Tall deck image for stories** — the export dialog now offers a tall version of the deck image, sized for a story or a short video, with much bigger cards than the wide one.
 - fix(Cards): **Card data stops re-downloading every day** — the cached card list expired at midnight and came down again in full on your next visit, even when nothing about the cards had changed. It now stays until they actually change.
 - feat(Decks): **Compare against your own decks** — the compare dialog now lists your decks to pick from, so seeing how two of your builds differ no longer means exporting one of them first.
 - feat(App): **One look for every export image** — deck, list, and tier list images now share a heading, a scan code at one readable size, and matching card tiles, and list downloads come at the same high resolution as decks.
