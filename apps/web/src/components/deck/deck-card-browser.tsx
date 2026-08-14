@@ -447,8 +447,8 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
   const filteredCards = sortedCards;
 
-  const deferredSortedCards = useDeferredValue(filteredCards);
-  const isGridStale = deferredSortedCards !== filteredCards;
+  const deferredCards = useDeferredValue(filteredCards);
+  const isGridStale = deferredCards !== filteredCards;
 
   // Build a map of cardId → total quantity across all zones
   const deckQuantityByCard = new Map<string, number>();
@@ -467,7 +467,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       ? (deckQuantityByCell.get(printing.id) ?? 0)
       : (deckQuantityByCard.get(printing.cardId) ?? 0);
 
-  const items: CardViewerItem[] = deferredSortedCards.map((printing) => ({
+  const items: CardViewerItem[] = deferredCards.map((printing) => ({
     id: printing.id,
     printing,
   }));
@@ -710,7 +710,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         totalItems={allPrintings.length}
         renderCard={renderCard}
         setOrder={sets}
-        deferredSortedCards={deferredSortedCards}
+        renderedCards={deferredCards}
         printingsByCardId={printingsByCardId}
         view={view}
         groupBy={groupBy}

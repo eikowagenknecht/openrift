@@ -11,6 +11,7 @@ import type {
 } from "@openrift/shared";
 import {
   computeFilterCounts,
+  EMPTY_CARD_FILTERS,
   EMPTY_PRICE_LOOKUP,
   filterCards,
   getAvailableFilters,
@@ -161,6 +162,8 @@ function buildOwnedCounts(
 
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
+/** Stable stand-in so a disabled {@link useCatalogFilterMeta} defers a constant. */
+const EMPTY_OWNED_FILTER: readonly OwnedBucket[] = [];
 
 const EMPTY_FILTER_COUNTS: FilterCounts = {
   sets: new Map<string, number>(),
@@ -228,10 +231,16 @@ export function useCatalogFilterMeta({
   // priority with the new values and the badges catch up. All four inputs
   // come from the same URL state, so they must defer together or the counts
   // would transiently mix old and new filter state.
-  const deferredFilters = useDeferredValue(filters);
-  const deferredOwnedFilter = useDeferredValue(ownedFilter);
-  const deferredOwnedCountMin = useDeferredValue(ownedCountMin);
-  const deferredOwnedCountMax = useDeferredValue(ownedCountMax);
+  //
+  // A disabled hook defers module constants instead of the real inputs. A
+  // caller that already deferred (the catalog, which hands `useCardData` a
+  // deferred filter set) would otherwise defer a deferred value here, and each
+  // extra `useDeferredValue` in the chain costs one more render pass before
+  // the tree settles — for outputs this branch throws away.
+  const deferredFilters = useDeferredValue(enabled ? filters : EMPTY_CARD_FILTERS);
+  const deferredOwnedFilter = useDeferredValue(enabled ? ownedFilter : EMPTY_OWNED_FILTER);
+  const deferredOwnedCountMin = useDeferredValue(enabled ? ownedCountMin : null);
+  const deferredOwnedCountMax = useDeferredValue(enabled ? ownedCountMax : null);
 
   if (!enabled) {
     return {

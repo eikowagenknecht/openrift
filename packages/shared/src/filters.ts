@@ -21,7 +21,6 @@ import {
   PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
 } from "./types/index.js";
-import { boundsOf, unique } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
 interface ParsedSearchTerm {
@@ -607,37 +606,108 @@ export function getAvailableFilters(
   const orders = options.orders;
   const getPrice = options.getPrice;
   const setMeta = options.sets;
-  const sets = unique(printings.map((p) => p.setSlug));
+
+  // One pass. The previous shape read `printings` about twenty times over —
+  // eight `flatMap`s each materialising a catalog-sized intermediate array,
+  // seven full `some()` scans, and four `Math.min(...array)` spreads. Collecting
+  // everything in a single loop is what makes this cheap enough to run on the
+  // first render of /cards.
+  const setSlugs = new Set<string>();
+  const domainSet = new Set<string>();
+  const typeSet = new Set<string>();
+  const superTypeSet = new Set<string>();
+  const raritySet = new Set<string>();
+  const artVariantSet = new Set<string>();
+  const finishSet = new Set<string>();
+  const cardSizeSet = new Set<string>();
+  const keywordSet = new Set<string>();
+  const tagSet = new Set<string>();
+  // Later occurrences overwrite earlier ones, matching the Map-from-pairs build
+  // these replaced.
+  const markerBySlug = new Map<string, Marker>();
+  const channelBySlug = new Map<string, DistributionChannel>();
+  const energy = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
+  const might = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
+  const power = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
+  const price = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
+  let hasSigned = false;
+  let hasNonStandard = false;
+  let hasBanned = false;
+  let hasErrata = false;
+  let hasNullEnergy = false;
+  let hasNullMight = false;
+  let hasNullPower = false;
+
+  for (const printing of printings) {
+    const { card } = printing;
+    setSlugs.add(printing.setSlug);
+    raritySet.add(printing.rarity);
+    artVariantSet.add(printing.artVariant || WellKnown.artVariant.NORMAL);
+    finishSet.add(printing.finish);
+    cardSizeSet.add(printing.size);
+    for (const domain of card.domains) {
+      domainSet.add(domain);
+    }
+    for (const type of card.types) {
+      typeSet.add(type);
+    }
+    for (const superType of card.superTypes) {
+      superTypeSet.add(superType);
+    }
+    for (const keyword of card.keywords) {
+      keywordSet.add(keyword);
+    }
+    for (const tag of card.tags) {
+      tagSet.add(tag);
+    }
+    for (const marker of printing.markers) {
+      markerBySlug.set(marker.slug, marker);
+    }
+    for (const link of printing.distributionChannels) {
+      channelBySlug.set(link.channel.slug, link.channel);
+    }
+    if (printing.isSigned) {
+      hasSigned = true;
+    }
+    if (!hasNonStandard && !isStandardPrinting(printing)) {
+      hasNonStandard = true;
+    }
+    if (card.bans.length > 0) {
+      hasBanned = true;
+    }
+    if (card.errata !== null) {
+      hasErrata = true;
+    }
+    if (card.energy === null) {
+      hasNullEnergy = true;
+    } else {
+      bumpBounds(energy, card.energy);
+    }
+    if (card.might === null) {
+      hasNullMight = true;
+    } else {
+      bumpBounds(might, card.might);
+    }
+    if (card.power === null) {
+      hasNullPower = true;
+    } else {
+      bumpBounds(power, card.power);
+    }
+    if (getPrice) {
+      const value = getPrice(printing);
+      if (value !== undefined) {
+        bumpBounds(price, value);
+      }
+    }
+  }
+
+  const sets = [...setSlugs];
   if (setMeta) {
     const setSlugOrder = new Map(orderSetsMainFirst(setMeta).map((s, i) => [s.slug, i]));
     sets.sort((a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity));
   }
-  const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
-    (a, b) => orderIndex(orders.domains, a) - orderIndex(orders.domains, b),
-  );
-  const types = unique(printings.flatMap((p) => p.card.types)).sort(
-    (a, b) => orderIndex(orders.cardTypes, a) - orderIndex(orders.cardTypes, b),
-  );
-  const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
-    .filter((st) => st !== WellKnown.superType.BASIC)
-    .sort((a, b) => orderIndex(orders.superTypes, a) - orderIndex(orders.superTypes, b));
-  const rarities = unique(printings.map((p) => p.rarity)).sort(
-    (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),
-  );
-  const artVariants = unique(
-    printings.map((p) => p.artVariant || WellKnown.artVariant.NORMAL),
-  ).sort((a, b) => orderIndex(orders.artVariants, a) - orderIndex(orders.artVariants, b));
-  const finishes = unique(printings.map((p) => p.finish)).sort(
-    (a, b) => orderIndex(orders.finishes, a) - orderIndex(orders.finishes, b),
-  );
-  const cardSizes = unique(printings.map((p) => p.size)).sort(
-    (a, b) => orderIndex(orders.cardSizes, a) - orderIndex(orders.cardSizes, b),
-  );
-
-  const energies = printings.flatMap((p) => p.card.energy ?? []);
-  const mights = printings.flatMap((p) => p.card.might ?? []);
-  const powers = printings.flatMap((p) => p.card.power ?? []);
-  const prices = getPrice ? printings.flatMap((p) => getPrice(p) ?? []) : [];
+  const byOrder = (order: readonly string[]) => (a: string, b: string) =>
+    orderIndex(order, a) - orderIndex(order, b);
 
   return {
     sets,
@@ -646,38 +716,32 @@ export function getAvailableFilters(
           setMeta.filter((s) => s.setType === WellKnown.setType.SUPPLEMENTAL).map((s) => s.slug),
         )
       : new Set<string>(),
-    domains,
-    types,
-    superTypes,
-    rarities,
-    artVariants,
-    finishes,
-    cardSizes,
-    hasSigned: printings.some((p) => p.isSigned),
-    hasNonStandard: printings.some((p) => !isStandardPrinting(p)),
-    hasBanned: printings.some((p) => p.card.bans.length > 0),
-    hasErrata: printings.some((p) => p.card.errata !== null),
-    hasNullEnergy: printings.some((p) => p.card.energy === null),
-    hasNullMight: printings.some((p) => p.card.might === null),
-    hasNullPower: printings.some((p) => p.card.power === null),
-    markers: [
-      ...new Map(printings.flatMap((p) => p.markers.map((m) => [m.slug, m] as const))).values(),
-    ].sort((a, b) => a.slug.localeCompare(b.slug)),
-    distributionChannels: (
-      options.channels ?? [
-        ...new Map(
-          printings.flatMap((p) =>
-            p.distributionChannels.map((dc) => [dc.channel.slug, dc.channel] as const),
-          ),
-        ).values(),
-      ]
-    ).toSorted((a, b) => a.slug.localeCompare(b.slug)),
-    keywords: unique(printings.flatMap((p) => p.card.keywords)).sort((a, b) => a.localeCompare(b)),
-    tags: unique(printings.flatMap((p) => p.card.tags)).sort((a, b) => a.localeCompare(b)),
-    energy: boundsOf(energies),
-    might: boundsOf(mights),
-    power: boundsOf(powers),
-    price: boundsOf(prices),
+    domains: [...domainSet].sort(byOrder(orders.domains)),
+    types: [...typeSet].sort(byOrder(orders.cardTypes)),
+    superTypes: [...superTypeSet]
+      .filter((st) => st !== WellKnown.superType.BASIC)
+      .sort(byOrder(orders.superTypes)),
+    rarities: [...raritySet].sort(byOrder(orders.rarities)),
+    artVariants: [...artVariantSet].sort(byOrder(orders.artVariants)),
+    finishes: [...finishSet].sort(byOrder(orders.finishes)),
+    cardSizes: [...cardSizeSet].sort(byOrder(orders.cardSizes)),
+    hasSigned,
+    hasNonStandard,
+    hasBanned,
+    hasErrata,
+    hasNullEnergy,
+    hasNullMight,
+    hasNullPower,
+    markers: [...markerBySlug.values()].sort((a, b) => a.slug.localeCompare(b.slug)),
+    distributionChannels: (options.channels ?? [...channelBySlug.values()]).toSorted((a, b) =>
+      a.slug.localeCompare(b.slug),
+    ),
+    keywords: [...keywordSet].sort((a, b) => a.localeCompare(b)),
+    tags: [...tagSet].sort((a, b) => a.localeCompare(b)),
+    energy: readBounds(energy),
+    might: readBounds(might),
+    power: readBounds(power),
+    price: readBounds(price),
   };
 }
 
@@ -745,16 +809,25 @@ interface CountableDimension {
    * Omitted for dimensions that have no exclude variant (e.g. card size).
    */
   excludeField?: keyof CardFilters;
-  values: (printing: Printing) => readonly string[];
+  /**
+   * Reads the one value a single-valued dimension contributes. Exactly one of
+   * `scalar` / `values` is set. The split exists so the counting loop doesn't
+   * wrap six scalars per printing in throwaway one-element arrays — at catalog
+   * scale that was ~40k allocations per pass, and this runs on every filter
+   * change.
+   */
+  scalar?: (printing: Printing) => string;
+  /** Reads every value a multi-valued dimension contributes. */
+  values?: (printing: Printing) => readonly string[];
 }
 
 const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
-  { key: "sets", filterField: "sets", excludeField: "setsExclude", values: (p) => [p.setSlug] },
+  { key: "sets", filterField: "sets", excludeField: "setsExclude", scalar: (p) => p.setSlug },
   {
     key: "languages",
     filterField: "languages",
     excludeField: "languagesExclude",
-    values: (p) => [p.language],
+    scalar: (p) => p.language,
   },
   {
     key: "domains",
@@ -778,22 +851,22 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     key: "rarities",
     filterField: "rarities",
     excludeField: "raritiesExclude",
-    values: (p) => [p.rarity],
+    scalar: (p) => p.rarity,
   },
   {
     key: "artVariants",
     filterField: "artVariants",
     excludeField: "artVariantsExclude",
-    values: (p) => [p.artVariant || WellKnown.artVariant.NORMAL],
+    scalar: (p) => p.artVariant || WellKnown.artVariant.NORMAL,
   },
   {
     key: "finishes",
     filterField: "finishes",
     excludeField: "finishesExclude",
-    values: (p) => [p.finish],
+    scalar: (p) => p.finish,
   },
   // Card size (main) has no negation companion; faceting just clears its include.
-  { key: "cardSizes", filterField: "cardSizes", values: (p) => [p.size] },
+  { key: "cardSizes", filterField: "cardSizes", scalar: (p) => p.size },
   {
     key: "markers",
     filterField: "markerSlugs",
@@ -819,6 +892,27 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
     values: (p) => p.card.tags,
   },
 ];
+
+/**
+ * A countable dimension with its tally state and clear mask resolved, built
+ * once per {@link computeFilterCounts} call so the per-printing loop reads
+ * plain fields instead of looking dimensions up by string key.
+ */
+interface PreparedDimension {
+  clear: number;
+  scalar: ((printing: Printing) => string) | null;
+  values: (printing: Printing) => readonly string[];
+  /**
+   * Where the dimension's values come from. Markers and channels reuse the slug
+   * arrays the loop already projected for the atom checks; everything else calls
+   * `scalar` / `values`.
+   */
+  projection: "own" | "markers" | "channels";
+  counts: Map<string, number>;
+  cardIds: Map<string, Set<number>> | null;
+}
+
+const NO_VALUES = (): readonly string[] => EMPTY_STRINGS;
 
 interface FlagDimension {
   key: keyof FilterCounts["flags"];
@@ -911,28 +1005,40 @@ const FLAG_CLEARS: Record<FlagDimension["key"], number> = {
 const EMPTY_STRINGS: readonly string[] = [];
 
 /**
- * A printing/card tally that counts each printing once, or each distinct
- * cardId once in card mode.
+ * A printing/card tally that counts each printing once, or each distinct card
+ * once in card mode. Cards are identified by a small integer (their first-seen
+ * index) rather than their id string: the sets below are hit up to twenty times
+ * per printing, and hashing an integer is markedly cheaper than hashing a UUID.
  */
 interface MatchCounter {
   n: number;
-  cardIds: Set<string> | null;
+  cards: Set<number> | null;
 }
 
 function makeCounter(byCard: boolean): MatchCounter {
-  return { n: 0, cardIds: byCard ? new Set<string>() : null };
+  return { n: 0, cards: byCard ? new Set<number>() : null };
 }
 
-function bumpCounter(counter: MatchCounter, cardId: string): void {
-  if (counter.cardIds) {
-    counter.cardIds.add(cardId);
+function bumpCounter(counter: MatchCounter, card: number): void {
+  if (counter.cards) {
+    counter.cards.add(card);
   } else {
     counter.n += 1;
   }
 }
 
 function readCounter(counter: MatchCounter): number {
-  return counter.cardIds ? counter.cardIds.size : counter.n;
+  return counter.cards ? counter.cards.size : counter.n;
+}
+
+/** Records that `card` contributed to `value`, creating the set on first use. */
+function bumpCardSet(byValue: Map<string, Set<number>>, value: string, card: number): void {
+  const cards = byValue.get(value);
+  if (cards === undefined) {
+    byValue.set(value, new Set([card]));
+  } else {
+    cards.add(card);
+  }
 }
 
 /** Running min/max in `boundsOf` semantics (floor/ceil, empty → 0/0). */
@@ -994,9 +1100,22 @@ export function computeFilterCounts(
   // per value; sets dedup without allocating a string key per printing×value);
   // flags and presence get printing/card counters; ranges get running bounds.
   const dimCounts: Map<string, number>[] = COUNTABLE_DIMENSIONS.map(() => new Map());
-  const dimCardIds: (Map<string, Set<string>> | null)[] = COUNTABLE_DIMENSIONS.map(() =>
+  const dimCardIds: (Map<string, Set<number>> | null)[] = COUNTABLE_DIMENSIONS.map(() =>
     byCard ? new Map() : null,
   );
+  // cardId → small integer, assigned on first sight. Card-mode dedup then works
+  // on integers instead of UUID strings (see MatchCounter).
+  const cardIndexes = byCard ? new Map<string, number>() : null;
+  // One record per dimension holding everything the per-printing loop needs, so
+  // that loop does no record lookups by string key and no index bounds dance.
+  const dims: PreparedDimension[] = COUNTABLE_DIMENSIONS.map((d, i) => ({
+    clear: DIMENSION_CLEARS[d.key],
+    scalar: d.scalar ?? null,
+    values: d.values ?? NO_VALUES,
+    projection: d.key === "markers" ? "markers" : d.key === "channels" ? "channels" : "own",
+    counts: dimCounts[i] as Map<string, number>,
+    cardIds: dimCardIds[i] ?? null,
+  }));
   const flagCounters = {
     signed: makeCounter(byCard),
     banned: makeCounter(byCard),
@@ -1023,6 +1142,36 @@ export function computeFilterCounts(
   const statNulls = { energy: false, might: false, power: false };
   const priceBounds: BoundsAcc = { min: Infinity, max: -Infinity, any: false };
 
+  // Is each axis filtered at all? An unfiltered axis can never set its bit, so
+  // hoisting these turns the per-printing atom pass from ~50 predicate calls
+  // into one comparison per *active* axis. The catalog has ~7k printings and
+  // this runs on every filter change, so the constant factor is the cost.
+  const setsActive = filters.sets.length > 0 || filters.setsExclude.length > 0;
+  const languagesActive = filters.languages.length > 0 || filters.languagesExclude.length > 0;
+  const domainsActive = filters.domains.length > 0 || filters.domainsExclude.length > 0;
+  const typesActive = filters.types.length > 0 || filters.typesExclude.length > 0;
+  const superTypesActive = filters.superTypes.length > 0 || filters.superTypesExclude.length > 0;
+  const raritiesActive = filters.rarities.length > 0 || filters.raritiesExclude.length > 0;
+  const artVariantsActive = filters.artVariants.length > 0 || filters.artVariantsExclude.length > 0;
+  const finishesActive = filters.finishes.length > 0 || filters.finishesExclude.length > 0;
+  const cardSizesActive = filters.cardSizes.length > 0;
+  const markersActive = filters.markerSlugs.length > 0 || filters.markerSlugsExclude.length > 0;
+  const channelsActive =
+    filters.distributionChannelSlugs.length > 0 ||
+    filters.distributionChannelSlugsExclude.length > 0;
+  const keywordsActive = filters.keywords.length > 0 || filters.keywordsExclude.length > 0;
+  const tagsActive = filters.tags.length > 0 || filters.tagsExclude.length > 0;
+  const customTagsActive =
+    filters.customTagSlugs.length > 0 || filters.customTagSlugsExclude.length > 0;
+  const energyActive = filters.energy.min !== null || filters.energy.max !== null;
+  const mightActive = filters.might.min !== null || filters.might.max !== null;
+  const powerActive = filters.power.min !== null || filters.power.max !== null;
+  const priceActive = filters.price.min !== null || filters.price.max !== null;
+  // The customTags presence facet reports its any/none counts whether or not
+  // that presence filter is set, so the slugs are needed for every printing —
+  // but only when the caller supplied assignments at all (the catalog doesn't).
+  const customTagAssignments = options.customTagAssignments;
+
   for (const printing of printings) {
     const { card } = printing;
     // No facet clears the search, so a miss can't count anywhere.
@@ -1039,7 +1188,10 @@ export function computeFilterCounts(
       printing.distributionChannels.length > 0
         ? printing.distributionChannels.map((dc) => dc.channel.slug)
         : EMPTY_STRINGS;
-    const customTagSlugs = options.customTagAssignments?.[printing.cardId] ?? EMPTY_STRINGS;
+    const customTagSlugs =
+      customTagAssignments === undefined
+        ? EMPTY_STRINGS
+        : (customTagAssignments[printing.cardId] ?? EMPTY_STRINGS);
     const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
     // The `basic` placeholder supertype is not filterable (see presenceValues).
     const hasSuperTypes = card.superTypes.some((st) => st !== WellKnown.superType.BASIC);
@@ -1047,81 +1199,100 @@ export function computeFilterCounts(
     const isBanned = card.bans.length > 0;
     const hasErrata = card.errata !== null;
 
-    // Evaluate every atom against the printing. Inactive filters pass at the
-    // cost of a length/null check, so this stays cheap with few filters set.
+    // Evaluate every *active* atom against the printing. The `active` flags are
+    // hoisted out of the loop (see above): an unfiltered axis can never set its
+    // bit, so with the usual one or two axes in play this drops from ~50
+    // predicate calls per printing to two.
     let fail = 0;
     if (
-      !includes(filters.sets, printing.setSlug) ||
-      !notExcluded(filters.setsExclude, printing.setSlug)
+      setsActive &&
+      (!includes(filters.sets, printing.setSlug) ||
+        !notExcluded(filters.setsExclude, printing.setSlug))
     ) {
       fail |= ATOM.sets;
     }
     if (
-      !includes(filters.languages, printing.language) ||
-      !notExcluded(filters.languagesExclude, printing.language)
+      languagesActive &&
+      (!includes(filters.languages, printing.language) ||
+        !notExcluded(filters.languagesExclude, printing.language))
     ) {
       fail |= ATOM.languages;
     }
     if (
-      !matchesDomains(filters.domains, card.domains) ||
-      !noneExcluded(filters.domainsExclude, card.domains)
+      domainsActive &&
+      (!matchesDomains(filters.domains, card.domains) ||
+        !noneExcluded(filters.domainsExclude, card.domains))
     ) {
       fail |= ATOM.domains;
     }
-    if (!overlaps(filters.types, card.types) || !noneExcluded(filters.typesExclude, card.types)) {
+    if (
+      typesActive &&
+      (!overlaps(filters.types, card.types) || !noneExcluded(filters.typesExclude, card.types))
+    ) {
       fail |= ATOM.types;
     }
     if (
-      !overlaps(filters.superTypes, card.superTypes) ||
-      !noneExcluded(filters.superTypesExclude, card.superTypes)
+      superTypesActive &&
+      (!overlaps(filters.superTypes, card.superTypes) ||
+        !noneExcluded(filters.superTypesExclude, card.superTypes))
     ) {
       fail |= ATOM.superTypes;
     }
     if (
-      !includes(filters.rarities, printing.rarity) ||
-      !notExcluded(filters.raritiesExclude, printing.rarity)
+      raritiesActive &&
+      (!includes(filters.rarities, printing.rarity) ||
+        !notExcluded(filters.raritiesExclude, printing.rarity))
     ) {
       fail |= ATOM.rarities;
     }
     if (
-      !includes(filters.artVariants, artVariant) ||
-      !notExcluded(filters.artVariantsExclude, artVariant)
+      artVariantsActive &&
+      (!includes(filters.artVariants, artVariant) ||
+        !notExcluded(filters.artVariantsExclude, artVariant))
     ) {
       fail |= ATOM.artVariants;
     }
     if (
-      !includes(filters.finishes, printing.finish) ||
-      !notExcluded(filters.finishesExclude, printing.finish)
+      finishesActive &&
+      (!includes(filters.finishes, printing.finish) ||
+        !notExcluded(filters.finishesExclude, printing.finish))
     ) {
       fail |= ATOM.finishes;
     }
-    if (!includes(filters.cardSizes, printing.size)) {
+    if (cardSizesActive && !includes(filters.cardSizes, printing.size)) {
       fail |= ATOM.cardSizes;
     }
     if (
-      !matchesMarkers(filters.markerSlugs, markerSlugs) ||
-      !noneExcluded(filters.markerSlugsExclude, markerSlugs)
+      markersActive &&
+      (!matchesMarkers(filters.markerSlugs, markerSlugs) ||
+        !noneExcluded(filters.markerSlugsExclude, markerSlugs))
     ) {
       fail |= ATOM.markers;
     }
     if (
-      !matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) ||
-      !noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs)
+      channelsActive &&
+      (!matchesDistributionChannels(filters.distributionChannelSlugs, channelSlugs) ||
+        !noneExcluded(filters.distributionChannelSlugsExclude, channelSlugs))
     ) {
       fail |= ATOM.channels;
     }
     if (
-      !overlaps(filters.keywords, card.keywords) ||
-      !noneExcluded(filters.keywordsExclude, card.keywords)
+      keywordsActive &&
+      (!overlaps(filters.keywords, card.keywords) ||
+        !noneExcluded(filters.keywordsExclude, card.keywords))
     ) {
       fail |= ATOM.keywords;
     }
-    if (!overlaps(filters.tags, card.tags) || !noneExcluded(filters.tagsExclude, card.tags)) {
+    if (
+      tagsActive &&
+      (!overlaps(filters.tags, card.tags) || !noneExcluded(filters.tagsExclude, card.tags))
+    ) {
       fail |= ATOM.tags;
     }
     if (
-      !matchesCustomTags(filters.customTagSlugs, customTagSlugs) ||
-      !noneExcluded(filters.customTagSlugsExclude, customTagSlugs)
+      customTagsActive &&
+      (!matchesCustomTags(filters.customTagSlugs, customTagSlugs) ||
+        !noneExcluded(filters.customTagSlugsExclude, customTagSlugs))
     ) {
       fail |= ATOM.customTags;
     }
@@ -1146,117 +1317,148 @@ export function computeFilterCounts(
     if (presence.tags && (presence.tags === "any") !== card.tags.length > 0) {
       fail |= ATOM.presenceTags;
     }
-    if (!matchesFlag(filters.isStandard, isStandard)) {
+    if (filters.isStandard !== null && filters.isStandard !== isStandard) {
       fail |= ATOM.isStandard;
     }
-    if (!matchesFlag(filters.isSigned, printing.isSigned)) {
+    if (filters.isSigned !== null && filters.isSigned !== printing.isSigned) {
       fail |= ATOM.isSigned;
     }
-    if (!matchesFlag(filters.isBanned, isBanned)) {
+    if (filters.isBanned !== null && filters.isBanned !== isBanned) {
       fail |= ATOM.isBanned;
     }
-    if (!matchesFlag(filters.hasErrata, hasErrata)) {
+    if (filters.hasErrata !== null && filters.hasErrata !== hasErrata) {
       fail |= ATOM.hasErrata;
     }
-    if (!matchesRange(card.energy, filters.energy)) {
+    if (energyActive && !matchesRange(card.energy, filters.energy)) {
       fail |= ATOM.energy;
     }
-    if (!matchesRange(card.might, filters.might)) {
+    if (mightActive && !matchesRange(card.might, filters.might)) {
       fail |= ATOM.might;
     }
-    if (!matchesRange(card.power, filters.power)) {
+    if (powerActive && !matchesRange(card.power, filters.power)) {
       fail |= ATOM.power;
     }
+    // getPrice still runs for every printing when supplied: the price slider's
+    // faceted bounds need it whether or not the price filter itself is set.
     const price = getPrice?.(printing);
-    if (!matchesRange(price ?? null, filters.price)) {
+    if (priceActive && !matchesRange(price ?? null, filters.price)) {
       fail |= ATOM.price;
     }
 
+    // Every facet below one of the presence facets clears at most one atom, so
+    // a printing failing two or more can't count anywhere except a presence
+    // facet. Checking that once skips ~20 mask tests per printing, and with any
+    // two filters active most of the catalog takes this path.
+    const oneFailAtMost = (fail & (fail - 1)) === 0;
+    // Card-mode tallies dedup by this integer; printing mode never reads it.
+    let cardIndex = 0;
+    if (cardIndexes) {
+      const known = cardIndexes.get(printing.cardId);
+      if (known === undefined) {
+        cardIndex = cardIndexes.size;
+        cardIndexes.set(printing.cardId, cardIndex);
+      } else {
+        cardIndex = known;
+      }
+    }
+
     // A printing counts toward a facet iff everything it fails is cleared by
-    // that facet. Precomputed per-printing value arrays double as the tally
-    // sources, so markers/channels aren't re-projected per dimension.
-    for (const [i, dim] of COUNTABLE_DIMENSIONS.entries()) {
-      if ((fail & ~DIMENSION_CLEARS[dim.key]) !== 0) {
-        continue;
-      }
-      let values: readonly string[];
-      if (dim.key === "markers") {
-        values = markerSlugs;
-      } else if (dim.key === "channels") {
-        values = channelSlugs;
-      } else {
-        values = dim.values(printing);
-      }
-      const cardIds = dimCardIds[i];
-      if (cardIds) {
-        for (const value of values) {
-          let ids = cardIds.get(value);
-          if (!ids) {
-            ids = new Set();
-            cardIds.set(value, ids);
+    // that facet. Precomputed marker/channel slugs double as the tally sources,
+    // so those aren't re-projected per dimension.
+    if (oneFailAtMost) {
+      for (const dim of dims) {
+        if ((fail & ~dim.clear) !== 0) {
+          continue;
+        }
+        const { cardIds, counts, scalar } = dim;
+        if (scalar) {
+          const value = scalar(printing);
+          if (cardIds) {
+            bumpCardSet(cardIds, value, cardIndex);
+          } else {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
           }
-          ids.add(printing.cardId);
+          continue;
         }
-      } else {
-        const counts = dimCounts[i] as Map<string, number>;
-        for (const value of values) {
-          counts.set(value, (counts.get(value) ?? 0) + 1);
+        const values =
+          dim.projection === "markers"
+            ? markerSlugs
+            : dim.projection === "channels"
+              ? channelSlugs
+              : dim.values(printing);
+        if (cardIds) {
+          for (const value of values) {
+            bumpCardSet(cardIds, value, cardIndex);
+          }
+        } else {
+          for (const value of values) {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
+          }
         }
+      }
+      for (const { key } of FLAG_DIMENSIONS) {
+        if ((fail & ~FLAG_CLEARS[key]) !== 0) {
+          continue;
+        }
+        const actual =
+          key === "standard"
+            ? isStandard
+            : key === "signed"
+              ? printing.isSigned
+              : key === "banned"
+                ? isBanned
+                : hasErrata;
+        if (actual === flagTargets[key]) {
+          bumpCounter(flagCounters[key], cardIndex);
+        }
+      }
+      // Faceted slider bounds: this dim's range cleared, everything else active.
+      if ((fail & ~ATOM.energy) === 0) {
+        if (card.energy === null) {
+          statNulls.energy = true;
+        } else {
+          bumpBounds(statBounds.energy, card.energy);
+        }
+      }
+      if ((fail & ~ATOM.might) === 0) {
+        if (card.might === null) {
+          statNulls.might = true;
+        } else {
+          bumpBounds(statBounds.might, card.might);
+        }
+      }
+      if ((fail & ~ATOM.power) === 0) {
+        if (card.power === null) {
+          statNulls.power = true;
+        } else {
+          bumpBounds(statBounds.power, card.power);
+        }
+      }
+      if (getPrice && (fail & ~ATOM.price) === 0 && price !== undefined) {
+        bumpBounds(priceBounds, price);
       }
     }
-    const flagActuals = {
-      standard: isStandard,
-      signed: printing.isSigned,
-      banned: isBanned,
-      errata: hasErrata,
-    };
-    for (const { key } of FLAG_DIMENSIONS) {
-      if ((fail & ~FLAG_CLEARS[key]) !== 0) {
-        continue;
-      }
-      if (flagActuals[key] === flagTargets[key]) {
-        bumpCounter(flagCounters[key], printing.cardId);
-      }
-    }
-    const presenceHas: Record<PresenceDimension, boolean> = {
-      markers: markerSlugs.length > 0,
-      superTypes: hasSuperTypes,
-      customTags: customTagSlugs.length > 0,
-      distributionChannels: channelSlugs.length > 0,
-      keywords: card.keywords.length > 0,
-      tags: card.tags.length > 0,
-    };
+    // Presence facets clear two atoms each (their own plus the dimension's
+    // value filter), so they're the one family a two-atom failure can still
+    // reach — hence their own pass outside the fast path above.
     for (const dimension of PRESENCE_DIMENSIONS) {
       if ((fail & ~PRESENCE_CLEARS[dimension]) !== 0) {
         continue;
       }
+      const has =
+        dimension === "markers"
+          ? markerSlugs.length > 0
+          : dimension === "superTypes"
+            ? hasSuperTypes
+            : dimension === "customTags"
+              ? customTagSlugs.length > 0
+              : dimension === "distributionChannels"
+                ? channelSlugs.length > 0
+                : dimension === "keywords"
+                  ? card.keywords.length > 0
+                  : card.tags.length > 0;
       const target = presenceCounters[dimension];
-      bumpCounter(presenceHas[dimension] ? target.any : target.none, printing.cardId);
-    }
-    // Faceted slider bounds: this dim's range cleared, everything else active.
-    if ((fail & ~ATOM.energy) === 0) {
-      if (card.energy === null) {
-        statNulls.energy = true;
-      } else {
-        bumpBounds(statBounds.energy, card.energy);
-      }
-    }
-    if ((fail & ~ATOM.might) === 0) {
-      if (card.might === null) {
-        statNulls.might = true;
-      } else {
-        bumpBounds(statBounds.might, card.might);
-      }
-    }
-    if ((fail & ~ATOM.power) === 0) {
-      if (card.power === null) {
-        statNulls.power = true;
-      } else {
-        bumpBounds(statBounds.power, card.power);
-      }
-    }
-    if (getPrice && (fail & ~ATOM.price) === 0 && price !== undefined) {
-      bumpBounds(priceBounds, price);
+      bumpCounter(has ? target.any : target.none, cardIndex);
     }
   }
 

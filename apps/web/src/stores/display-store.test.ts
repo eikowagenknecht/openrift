@@ -284,5 +284,19 @@ describe("useDisplayStore", () => {
       useDisplayStore.getState().setPaneDocked(false);
       expect(useDisplayStore.getState().paneDocked).toBe(false);
     });
+
+    it("frostedBars starts off — the blur costs about a frame in three while scrolling", () => {
+      expect(useDisplayStore.getState().frostedBars).toBe(false);
+    });
+
+    it("setFrostedBars drives the document attribute the CSS keys off", () => {
+      useDisplayStore.getState().setFrostedBars(true);
+      expect(useDisplayStore.getState().frostedBars).toBe(true);
+      expect(document.documentElement.dataset.frosted).toBe("");
+
+      useDisplayStore.getState().setFrostedBars(false);
+      expect(useDisplayStore.getState().frostedBars).toBe(false);
+      expect(document.documentElement.dataset.frosted).toBeUndefined();
+    });
   });
 });

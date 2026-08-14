@@ -81,6 +81,7 @@ import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
 import { SOCIAL_LINKS } from "@/lib/social-links";
+import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -922,7 +923,10 @@ export function Header() {
   return (
     <header
       data-app-header
-      className="bg-background/80 border-border-accent sticky top-0 z-50 border-b pt-[env(safe-area-inset-top)] backdrop-blur-lg"
+      className={cn(
+        STICKY_SURFACE,
+        "border-border-accent sticky top-0 z-50 border-b pt-[env(safe-area-inset-top)]",
+      )}
     >
       <div
         className={cn(

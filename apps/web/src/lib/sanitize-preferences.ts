@@ -219,6 +219,18 @@ export function sanitizePaneDocked(data: unknown, fallback: boolean): boolean {
 }
 
 /**
+ * Reads the persisted frosted-bars preference. Absent in every blob written
+ * before the setting existed, which correctly falls back to off.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to use when the key is missing or not a boolean.
+ * @returns The stored preference, or the fallback.
+ */
+export function sanitizeFrostedBars(data: unknown, fallback: boolean): boolean {
+  const raw = asRecord(data).frostedBars;
+  return typeof raw === "boolean" ? raw : fallback;
+}
+
+/**
  * Reads the persisted theme preference, migrating the legacy `theme` key that
  * held it before the store split stored preference from resolved theme.
  * @param data Raw persisted blob, any shape.

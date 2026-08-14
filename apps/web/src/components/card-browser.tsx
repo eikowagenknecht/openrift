@@ -2,7 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
-import { useEffect, useState, useDeferredValue } from "react";
+import { useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -137,6 +137,20 @@ export function CardBrowser() {
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
 
+  // The grid renders straight from the live filter state — no `useDeferredValue`
+  // in between. Deferring it split each toggle into two commits: one that only
+  // flipped the clicked chip, then a second ~140ms later carrying the cards. On
+  // a throttled mid-range phone the new cards landed at ~210ms instead of the
+  // ~110ms a single commit takes, and the grid dimmed to 60% in between, so the
+  // deferral cost about as much as it was meant to hide.
+  //
+  // Nothing needs it either: the chip's pressed state is Base UI's own optimistic
+  // update, which paints within ~55ms whatever React does, and the search box
+  // keeps local state behind a 200ms debounce (see useSearchUrlSync), so typing
+  // is never blocked by the filter pipeline. The faceted counts still lag by a
+  // frame — that deferral lives in useCatalogFilterMeta, where the badges are
+  // the only thing waiting.
+
   // When no owned filter is active, useCardData's output doesn't depend on the
   // live owned-count map. Passing undefined keeps the hook's return ref stable
   // across +/- clicks so sortedCards → items → groups → virtualRows don't
@@ -175,6 +189,8 @@ export function CardBrowser() {
   // the ones that survived the grid's content filters (set, search, rarity…).
   // Scope it only by the active language filter so browsing in one language
   // doesn't surface foreign-language variants that never appear in the grid.
+  // Deferred with the grid so the pane's printing list can't disagree with the
+  // cells it was opened from.
   const detailPanePrintingsByCardId = filterPrintingsByLanguages(
     catalogAllPrintingsByCardId,
     filters.languages,
@@ -216,10 +232,7 @@ export function CardBrowser() {
     channels,
   });
 
-  const deferredSortedCards = useDeferredValue(sortedCards);
-  const isGridStale = deferredSortedCards !== sortedCards;
-
-  const items: CardViewerItem[] = deferredSortedCards.map((printing) => ({
+  const items: CardViewerItem[] = sortedCards.map((printing) => ({
     id: printing.id,
     printing,
   }));
@@ -231,6 +244,7 @@ export function CardBrowser() {
   // still treat the cell as a card; siblings are filtered to same-set so the
   // chevron only offers in-set variants and the override-by-cardId fallback
   // works correctly across the duplicated cells.
+  // Read off the deferred axes: these describe the cells currently on screen.
   const inCardsView = view === "cards";
   const findBy: "card" | "printing" =
     inCardsView && !splitsCardIntoTiles(groupBy) ? "card" : "printing";
@@ -345,10 +359,9 @@ export function CardBrowser() {
           setOrder={sets}
           groupBy={groupBy}
           groupDir={groupDir}
-          deferredSortedCards={deferredSortedCards}
+          renderedCards={sortedCards}
           printingsByCardId={printingsByCardId}
           view={view}
-          stale={isGridStale}
           toolbar={toolbar}
           rightPane={rightPane}
           addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}

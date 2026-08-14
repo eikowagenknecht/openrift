@@ -138,7 +138,7 @@ export const Route = createFileRoute("/_app/cards")({
       };
     })();
   },
-  head: () => {
+  head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
     const head = seoHead({
       siteUrl,
@@ -146,11 +146,27 @@ export const Route = createFileRoute("/_app/cards")({
       description: CARDS_DESCRIPTION,
       path: "/cards",
     });
+    // Start the catalog download from the HTML rather than from hydration. It
+    // is the grid's blocking input (~500KB brotli), and without this the
+    // browser only learns about it once the bundle has parsed, hydrated, and
+    // React Query has fired the request — several hundred ms of a cold load
+    // spent with the network idle. The preload scanner sees this link in the
+    // first bytes and fetches it alongside the JS.
+    //
+    // The href has to match `fetchCatalogFromEdge`'s URL exactly or the browser
+    // downloads the catalog twice, so it is built from the same `?v=` token the
+    // loader seeds into `seedCatalogVersion` (see lib/catalog-version.ts).
+    const catalogVersion = loaderData?.catalogVersion ?? null;
+    const catalogHref =
+      catalogVersion === null
+        ? "/api/v1/catalog"
+        : `/api/v1/catalog?v=${encodeURIComponent(catalogVersion)}`;
     // CollectionPage only — the visible items depend on URL filters and the
     // full catalog is too large to inline as an ItemList. The Product JSON-LD
     // on each card detail page is the indexable signal for individual cards.
     return {
       ...head,
+      links: [...(head.links ?? []), { rel: "preload", as: "fetch", href: catalogHref }],
       scripts: [
         collectionPageJsonLd({
           siteUrl,

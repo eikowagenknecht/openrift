@@ -3,6 +3,7 @@ import { createContext, use, useLayoutEffect, useRef, useState } from "react";
 
 import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
 import { useHeaderHeight } from "@/hooks/use-header-height";
+import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
 
 interface CardBrowserLayoutOffsets {
@@ -102,10 +103,10 @@ export function CardBrowserLayout({
   }, []);
 
   // -1: tuck the tier chain 1px up under the header. The header and this
-  // toolbar are separate composited layers (both backdrop-blur); at fractional
-  // browser zoom their shared edge lands between device pixels and each layer
-  // snaps to the grid independently, which can open a 1px seam of raw
-  // scrolling content. The overlapped strip hides behind the z-50 header.
+  // toolbar are separate sticky layers; at fractional browser zoom their shared
+  // edge lands between device pixels and each layer snaps to the grid
+  // independently, which can open a 1px seam of raw scrolling content. The
+  // overlapped strip hides behind the z-50 header.
   // PAGE_TOP_BAR_STICKY carries the same -1px for the same reason, so with a
   // page top bar present the toolbar stays flush with the bar's bottom edge.
   const headerOffset = useHeaderHeight() + pageTopBarHeight - 1;
@@ -121,11 +122,12 @@ export function CardBrowserLayout({
             // z-30 (co-planar with the page top bar, not below it): the toolbar
             // sits flush under the bar with no top padding, so a focused
             // control's 3px outset ring pokes up into the bar's pb gap. At
-            // z-20 the bar's blurred bg painted over that strip and clipped the
+            // z-20 the bar's own bg painted over that strip and clipped the
             // ring; co-planar lets the ring win the overlap. The bar has no
             // bottom border, so its edge is covered invisibly in any real
             // overlap. See the sticky z-ladder note in CLAUDE.md.
-            "bg-background/80 mx-safe-neg px-safe sticky z-30 backdrop-blur-lg",
+            STICKY_SURFACE,
+            "mx-safe-neg px-safe sticky z-30",
             // Only pad the top when this toolbar is the first tier under the
             // global header. When a page top bar sits above it, that bar's
             // pb-3 already provides the gap (avoids a doubled 24px band).
@@ -148,7 +150,7 @@ export function CardBrowserLayout({
           <div className="flex min-w-0 flex-1 flex-col">
             <div
               ref={aboveGridRef}
-              className="bg-background/80 mx-safe-neg px-safe sticky z-15 backdrop-blur-lg sm:rounded-b-lg"
+              className={cn(STICKY_SURFACE, "mx-safe-neg px-safe sticky z-15 sm:rounded-b-lg")}
               style={{ top: toolbarOffset }}
             >
               {aboveGrid}

@@ -4,6 +4,7 @@ import type { AnchorHTMLAttributes, ComponentProps } from "react";
 import { createContext, forwardRef, useLayoutEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
 
 interface PageTopBarProps {
@@ -68,8 +69,7 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 // pr-safe on the right), so the bar must NOT re-apply px-safe — on notched
 // phones in landscape that double-insets the bar's content by the safe-area
 // width. Those layouts compose the base with column-relative padding instead.
-export const PAGE_TOP_BAR_STICKY_BASE =
-  "bg-background/80 sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 backdrop-blur-lg sm:pb-3";
+export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 sm:pb-3`;
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 

@@ -10,6 +10,7 @@ import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { buildGroups } from "@/lib/card-groups";
 import type { CardGroup } from "@/lib/card-groups";
+import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
@@ -491,7 +492,10 @@ export function CardGrid({
               name={activeHeaderRow.group.name}
               groupId={activeHeaderRow.group.id}
               onSelect={scrollToGroup}
-              className="bg-background/60 ring-border/70 pointer-events-auto rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
+              className={cn(
+                STICKY_SURFACE,
+                "ring-border/70 pointer-events-auto rounded-full px-3 py-1 shadow-sm ring-1",
+              )}
             />
           </div>
         )}

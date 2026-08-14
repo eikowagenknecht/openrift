@@ -6,10 +6,12 @@
 
 - feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
+- fix(Cards): **Snappier card browser** — filters now apply in about half the time, and scrolling the grid holds a steady frame rate on phones.
 - fix(Collection): **Faster stats filtering** — the statistics page no longer stutters when you add or remove filters, and sets you own stop dropping out of the set picker as you narrow things down.
 
 ### Other
 
+- feat(App): **Frosted bars are optional** — blurring the page behind the header and toolbars costs frame rate while scrolling, so it is off by default with a switch in Display settings.
 - feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
 - fix(Cards): **Hiding the detail panel stays hidden** — closing the side panel from the toolbar button popped the selected card back up as a dialog instead of putting it away.
 

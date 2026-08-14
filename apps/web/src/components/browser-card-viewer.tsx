@@ -19,7 +19,7 @@ interface BrowserCardViewerProps {
   collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
-  deferredSortedCards: Printing[];
+  renderedCards: Printing[];
   printingsByCardId: Map<string, Printing[]>;
   view: "cards" | "printings";
   stale?: boolean;
@@ -42,7 +42,7 @@ interface BrowserCardViewerProps {
  */
 export function BrowserCardViewer({
   items,
-  deferredSortedCards,
+  renderedCards,
   printingsByCardId,
   view,
   ...rest
@@ -70,10 +70,9 @@ export function BrowserCardViewer({
   const gridSelectedId =
     indexAnchor?.id ??
     (selectedCard
-      ? (deferredSortedCards.find((c) => c.id === selectedCard.id)?.id ??
+      ? (renderedCards.find((c) => c.id === selectedCard.id)?.id ??
         (view === "cards"
-          ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ??
-            selectedCard.id)
+          ? (renderedCards.find((c) => c.cardId === selectedCard.cardId)?.id ?? selectedCard.id)
           : selectedCard.id))
       : undefined);
 

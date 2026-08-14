@@ -192,6 +192,24 @@ function PlainImageShell({ children }: { children: ReactNode }) {
  *
  * @returns The aspect-card spacer and the rotation-aware <img>.
  */
+/**
+ * Fade-in driven by a `data-loaded` attribute the load handler writes directly,
+ * rather than by React state.
+ *
+ * The state version re-rendered its cell every time an image finished decoding.
+ * A filter change swaps ~25 images at once, so that was ~25 extra renders per
+ * toggle on top of the one the new cards actually need — with cached images the
+ * setState even landed inside the same commit, via the ref callback below. React
+ * never manages this attribute (it isn't a prop), so writing it imperatively is
+ * safe; `key={thumbnailUrl}` on the <img> is what resets it, since a changed URL
+ * mounts a fresh element with the attribute absent and the fade starts over.
+ */
+const FADE_IN_CLASS = "opacity-0 transition-opacity duration-300 data-[loaded]:opacity-100";
+
+function markLoaded(node: HTMLImageElement): void {
+  node.dataset.loaded = "";
+}
+
 function CardArtImage({
   thumbnailUrl,
   srcSet,
@@ -200,9 +218,8 @@ function CardArtImage({
   rotated,
   loading,
   fetchPriority,
-  onLoad,
+  fade,
   onError,
-  loaded,
   spacerClassName,
 }: {
   thumbnailUrl: string;
@@ -212,42 +229,37 @@ function CardArtImage({
   rotated: boolean;
   loading: "eager" | "lazy";
   fetchPriority?: "high";
-  /** When provided, fades the image in on load and covers cached/instant loads. */
-  onLoad?: () => void;
+  /**
+   * Fade the art in once it decodes. Off for priority images: those are LCP
+   * candidates the SSR shell already painted, so starting them transparent
+   * shows a flash-and-fade on hydration.
+   */
+  fade?: boolean;
   /** Invoked when the image fails to load (missing on the server, network error). */
   onError?: () => void;
-  /** Current loaded state driving the fade-in; only meaningful alongside onLoad. */
-  loaded?: boolean;
   /** Tint for the spacer behind the art (e.g. `bg-muted/40` front, `bg-muted` behind). */
   spacerClassName?: string;
 }) {
   // Cover cached/instant results where the browser fires load or error before
   // React attaches the listeners. A broken image has `complete` set with
   // naturalWidth 0.
-  const coverCachedResult =
-    onLoad || onError
-      ? (node: HTMLImageElement | null) => {
-          if (node?.complete) {
-            if (node.naturalWidth > 0) {
-              onLoad?.();
-            } else {
-              onError?.();
-            }
-          }
-        }
-      : undefined;
-  const fadeClass = onLoad
-    ? cn("transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")
-    : undefined;
+  const coverCachedResult = (node: HTMLImageElement | null) => {
+    if (node?.complete) {
+      if (node.naturalWidth > 0) {
+        markLoaded(node);
+      } else {
+        onError?.();
+      }
+    }
+  };
+  const imgClass = fade ? FADE_IN_CLASS : undefined;
   return (
     <>
       <div className={cn("aspect-card", spacerClassName)} />
       {rotated ? (
-        <div
-          className={cn("absolute top-1/2 left-1/2 overflow-hidden", fadeClass)}
-          style={LANDSCAPE_ROTATION_STYLE}
-        >
+        <div className="absolute top-1/2 left-1/2 overflow-hidden" style={LANDSCAPE_ROTATION_STYLE}>
           <img
+            key={thumbnailUrl}
             ref={coverCachedResult}
             src={thumbnailUrl}
             srcSet={srcSet}
@@ -257,13 +269,14 @@ function CardArtImage({
             height={CARD_WIDTH}
             loading={loading}
             fetchPriority={fetchPriority}
-            className="size-full object-cover"
-            onLoad={onLoad}
+            className={cn("size-full object-cover", imgClass)}
+            onLoad={(event) => markLoaded(event.currentTarget)}
             onError={onError}
           />
         </div>
       ) : (
         <img
+          key={thumbnailUrl}
           ref={coverCachedResult}
           src={thumbnailUrl}
           srcSet={srcSet}
@@ -273,8 +286,8 @@ function CardArtImage({
           height={CARD_HEIGHT}
           loading={loading}
           fetchPriority={fetchPriority}
-          className={cn("absolute inset-0 w-full object-cover", fadeClass)}
-          onLoad={onLoad}
+          className={cn("absolute inset-0 w-full object-cover", imgClass)}
+          onLoad={(event) => markLoaded(event.currentTarget)}
           onError={onError}
         />
       )}
@@ -288,8 +301,6 @@ function CardImageContent({
   sizes,
   alt,
   priority,
-  imgLoaded,
-  onImgLoad,
   rotated,
   rarity,
   publicCode,
@@ -304,8 +315,6 @@ function CardImageContent({
   sizes: string | undefined;
   alt: string;
   priority: boolean;
-  imgLoaded: boolean;
-  onImgLoad: () => void;
   rotated: boolean;
   rarity: Rarity;
   publicCode: string;
@@ -357,9 +366,8 @@ function CardImageContent({
           rotated={rotated}
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : undefined}
-          onLoad={onImgLoad}
+          fade={!priority}
           onError={() => markFailed(artUrl)}
-          loaded={imgLoaded}
           spacerClassName="bg-muted/40"
         />
       ) : shownFallback ? (
@@ -372,9 +380,8 @@ function CardImageContent({
             rotated={rotated}
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : undefined}
-            onLoad={onImgLoad}
+            fade={!priority}
             onError={() => markFailed(shownFallback.url)}
-            loaded={imgLoaded}
             spacerClassName="bg-muted/40"
           />
           {shownFallback.overlay}
@@ -592,12 +599,6 @@ export const CardThumbnail = memo(function CardThumbnail({
           ),
         };
   const rotated = needsCssRotation(orientation);
-  // Priority images are LCP candidates the SSR shell already painted via
-  // <FirstRowPreview>'s real <img> tags, so the browser has them cached.
-  // Skip the opacity-0 → opacity-100 fade for these; otherwise the first
-  // paint after hydration shows them at opacity-0 (over bg-muted/40) for a
-  // frame before onLoad fires, producing a flash-and-fade on hydration.
-  const [imgLoaded, setImgLoaded] = useState(priority ?? false);
 
   const {
     fancyFan,
@@ -817,8 +818,6 @@ export const CardThumbnail = memo(function CardThumbnail({
             sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride}
             alt={displayName}
             priority={Boolean(priority)}
-            imgLoaded={imgLoaded}
-            onImgLoad={() => setImgLoaded(true)}
             rotated={rotated}
             rarity={printing.rarity}
             publicCode={printing.publicCode}

@@ -199,7 +199,7 @@ export function CollectionGrid({
     copiesReady,
     catalogPrintingsByCardId,
     catalogPriceRangeByCardId,
-    deferredSortedCards,
+    deferredSortedCards: renderedCards,
     isGridStale,
     ownedCountByPrinting,
   } = useCollectionGridData({
@@ -525,7 +525,7 @@ export function CollectionGrid({
     // Library view: every catalog row gets a cell. Owned printings still
     // resolve to their stack so +/-/select/drag keep working on them; unowned
     // printings have no stack and the renderer drops the strip + overlays.
-    items = deferredSortedCards.map((printing) => {
+    items = renderedCards.map((printing) => {
       const stack = stackByPrintingId.get(printing.id);
       if (stack) {
         stackByItemId.set(printing.id, stack);
@@ -534,7 +534,7 @@ export function CollectionGrid({
     });
   } else {
     // Browse/select: use stacked collection data
-    const filteredStacks = deferredSortedCards.map((printing) => ({
+    const filteredStacks = renderedCards.map((printing) => ({
       printing,
       stack: stackByPrintingId.get(printing.id),
     }));
@@ -979,7 +979,7 @@ export function CollectionGrid({
             collectionOrder={collectionGroupingAvailable ? collectionOrder : undefined}
             groupBy={groupBy}
             groupDir={groupDir}
-            deferredSortedCards={deferredSortedCards}
+            renderedCards={renderedCards}
             printingsByCardId={printingsByCardId}
             view={dataView}
             stale={isGridStale}

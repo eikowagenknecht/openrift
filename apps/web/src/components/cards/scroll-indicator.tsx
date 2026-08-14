@@ -1,6 +1,7 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
+import { STICKY_SURFACE_POPOVER } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
 
 import type { VRow } from "./card-grid-types";
@@ -102,7 +103,8 @@ export function ScrollIndicator({
           <div
             ref={badgeRef}
             className={cn(
-              "bg-popover/90 text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 backdrop-blur-sm select-none",
+              STICKY_SURFACE_POPOVER,
+              "text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 select-none",
               coarsePointer ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
               indicator.dragging
                 ? "ring-primary/60 cursor-grabbing"
@@ -142,7 +144,8 @@ export function ScrollIndicator({
             <div className="flex items-center gap-1.5">
               <div
                 className={cn(
-                  "bg-popover/80 text-popover-foreground/70 ring-border/50 rounded-md font-mono font-medium whitespace-nowrap ring-1 backdrop-blur-sm select-none",
+                  STICKY_SURFACE_POPOVER,
+                  "text-popover-foreground/70 ring-border/50 rounded-md font-mono font-medium whitespace-nowrap ring-1 select-none",
                   coarsePointer ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
                 )}
               >

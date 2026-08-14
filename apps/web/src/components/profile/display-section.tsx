@@ -21,6 +21,8 @@ export function DisplaySection() {
   const setFoilEffect = useDisplayStore((s) => s.setFoilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
   const setCardTilt = useDisplayStore((s) => s.setCardTilt);
+  const frostedBars = useDisplayStore((s) => s.frostedBars);
+  const setFrostedBars = useDisplayStore((s) => s.setFrostedBars);
   const defaultCardView = useDisplayStore((s) => s.defaultCardView);
   const setDefaultCardView = useDisplayStore((s) => s.setDefaultCardView);
   const overrides = useDisplayStore((s) => s.overrides);
@@ -134,6 +136,21 @@ export function DisplaySection() {
               <ResetButton onClick={() => resetPreference("cardTilt")} label="Reset card tilt" />
             )}
           </div>
+        </div>
+
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Label htmlFor="pref-frosted">Frosted bars</Label>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Blurs the page behind the header and toolbars. Costs roughly one frame in three while
+              scrolling, so it stays off unless you want it. This device only.
+            </p>
+          </div>
+          <Switch
+            id="pref-frosted"
+            checked={frostedBars}
+            onCheckedChange={(checked: boolean) => setFrostedBars(checked)}
+          />
         </div>
       </CardContent>
     </Card>

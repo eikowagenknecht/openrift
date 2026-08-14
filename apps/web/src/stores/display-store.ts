@@ -12,6 +12,7 @@ import {
   sanitizeCardsShowCounts,
   sanitizeDisplayMode,
   sanitizeFiltersExpanded,
+  sanitizeFrostedBars,
   sanitizeOverrides,
   sanitizePaneDocked,
 } from "@/lib/sanitize-preferences";
@@ -140,6 +141,14 @@ interface DisplayState {
    */
   paneDocked: boolean;
   setPaneDocked: (value: boolean) => void;
+  /**
+   * Frosted (blurred) backgrounds on the bars that pin above scrolling content.
+   * Off by default and device-local rather than account-synced: whether the
+   * effect is affordable depends on the device in hand, not on who is signed
+   * in — see `lib/sticky-surface.ts` for the measured cost.
+   */
+  frostedBars: boolean;
+  setFrostedBars: (value: boolean) => void;
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -266,6 +275,8 @@ export const useDisplayStore = create<DisplayState>()(
       setDisplayMode: (value) => set({ displayMode: value }),
       paneDocked: false,
       setPaneDocked: (value) => set({ paneDocked: value }),
+      frostedBars: false,
+      setFrostedBars: (value) => set({ frostedBars: value }),
     }),
     {
       name: "user-preferences",
@@ -276,6 +287,7 @@ export const useDisplayStore = create<DisplayState>()(
         cardsShowCounts: state.cardsShowCounts,
         displayMode: state.displayMode,
         paneDocked: state.paneDocked,
+        frostedBars: state.frostedBars,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -288,8 +300,26 @@ export const useDisplayStore = create<DisplayState>()(
           cardsShowCounts: sanitizeCardsShowCounts(persisted, current.cardsShowCounts),
           displayMode: sanitizeDisplayMode(persisted, current.displayMode),
           paneDocked: sanitizePaneDocked(persisted, current.paneDocked),
+          frostedBars: sanitizeFrostedBars(persisted, current.frostedBars),
         };
       },
     },
   ),
 );
+
+// Applied as a document attribute rather than a React prop: the app hydrates the
+// whole document, so rendering a preference-derived attribute on <html> would
+// mismatch the server (which cannot know a localStorage value) and trip React
+// #418. The CSS variants in lib/sticky-surface.ts key off it.
+function applyFrostedBars(on: boolean) {
+  if (on) {
+    document.documentElement.dataset.frosted = "";
+  } else {
+    delete document.documentElement.dataset.frosted;
+  }
+}
+
+if (typeof document !== "undefined") {
+  applyFrostedBars(useDisplayStore.getState().frostedBars);
+  useDisplayStore.subscribe((state) => applyFrostedBars(state.frostedBars));
+}
