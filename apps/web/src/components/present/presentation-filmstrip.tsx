@@ -30,7 +30,11 @@ export function PresentationFilmstrip({
   }, [index]);
 
   return (
-    <div className="flex shrink-0 justify-center overflow-x-auto px-4 pb-4">
+    // `overflow-x-auto` computes `overflow-y` to `auto` as well, so the row
+    // clips at its content box. The current thumbnail is the tallest child and
+    // carries an outset ring, so without the top padding its outline is shaved
+    // off. `pt-2` covers the ring plus the lift.
+    <div className="flex shrink-0 justify-center overflow-x-auto px-4 pt-2 pb-2">
       <div className="flex items-end gap-2">
         {items.map((item, itemIndex) => {
           const isCurrent = itemIndex === index;

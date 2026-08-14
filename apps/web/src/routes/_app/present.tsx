@@ -6,7 +6,8 @@ import { z } from "zod";
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
+import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
+import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -30,11 +31,19 @@ const DECK_ZONES = [
   "overflow",
 ] as const satisfies readonly DeckZone[];
 
-const presentSearchSchema = z.object({
+// The builder is a card-browser surface, so it carries the shared filter
+// params on top of its own. Ownership filters are hidden in this browser (see
+// QUEUE_HIDDEN_FILTER_SECTIONS) but the params stay in the schema: dropping
+// them would make a link copied from /cards fail validation here.
+const presentSearchSchema = filterSearchSchema.extend({
   /** Deck to walk, zone by zone. Takes precedence over `cards`. */
   deck: z.string().optional().catch(undefined),
-  /** Ad-hoc queue of printing ids, in presentation order. */
-  cards: z.array(z.string()).max(MAX_QUEUE_LENGTH).optional().catch(undefined),
+  /**
+   * Ad-hoc queue of printing ids, in presentation order. Truncated to the
+   * queue limit rather than rejected — see {@link queueCardsSearchSchema}. A
+   * `deck` walk has no such bound: it carries one id, not every card.
+   */
+  cards: queueCardsSearchSchema,
   /** Restricts a deck walk to a single zone. */
   zone: z.enum(DECK_ZONES).optional().catch(undefined),
   /** Position in the queue. Clamped against the resolved cards at render time. */
@@ -47,7 +56,7 @@ const presentSearchSchema = z.object({
   edit: z.boolean().optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/present")({
+export const Route = createFileRoute("/_app/present")({
   // Deliberately not indexed: a presentation URL is a working link for one
   // creator's recording session, not a page anyone should land on from search.
   head: () =>

@@ -7,7 +7,7 @@ import { overlayChannelQueryOptions } from "@/hooks/use-overlay";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
+import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -18,8 +18,11 @@ import { getSiteUrl } from "@/lib/site-config";
  * crashing the route.
  */
 const overlaySearchSchema = z.object({
-  /** Queue of printing ids waiting to be pushed, in order. */
-  cards: z.array(z.string()).max(MAX_QUEUE_LENGTH).optional().catch(undefined),
+  /**
+   * Queue of printing ids waiting to be pushed, in order. Truncated to the
+   * queue limit rather than rejected — see {@link queueCardsSearchSchema}.
+   */
+  cards: queueCardsSearchSchema,
 });
 
 export const Route = createFileRoute("/_app/_authenticated/overlay")({

@@ -1,5 +1,22 @@
 import { create } from "zustand";
 
+/** Smallest and largest share of the stage height the card may take. */
+export const MIN_CARD_SCALE = 0.4;
+export const MAX_CARD_SCALE = 1;
+
+/**
+ * Clamps a card scale into the supported range, so a bad value from a control
+ * (or a future persisted blob) can't shrink the card to nothing.
+ *
+ * @returns The scale, clamped.
+ */
+export function clampCardScale(scale: number): number {
+  if (!Number.isFinite(scale)) {
+    return MAX_CARD_SCALE;
+  }
+  return Math.min(MAX_CARD_SCALE, Math.max(MIN_CARD_SCALE, scale));
+}
+
 interface PresentationState {
   /** Rules-text panel beside the card. Off by default: the card is the point. */
   showText: boolean;
@@ -7,10 +24,13 @@ interface PresentationState {
   showStrip: boolean;
   /** Key-help overlay, opened with `?`. */
   showHelp: boolean;
+  /** Card height as a share of the stage, so a capture can be framed to taste. */
+  cardScale: number;
   toggleText: () => void;
   toggleStrip: () => void;
   toggleHelp: () => void;
   closeHelp: () => void;
+  setCardScale: (scale: number) => void;
 }
 
 /**
@@ -26,8 +46,10 @@ export const usePresentationStore = create<PresentationState>()((set) => ({
   showText: false,
   showStrip: false,
   showHelp: false,
+  cardScale: MAX_CARD_SCALE,
   toggleText: () => set((state) => ({ showText: !state.showText })),
   toggleStrip: () => set((state) => ({ showStrip: !state.showStrip })),
   toggleHelp: () => set((state) => ({ showHelp: !state.showHelp })),
   closeHelp: () => set({ showHelp: false }),
+  setCardScale: (scale) => set({ cardScale: clampCardScale(scale) }),
 }));

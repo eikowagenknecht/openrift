@@ -15,9 +15,16 @@ import { CardImage } from "./card-image";
 export function CardDetailArt({
   printing,
   showImages,
+  disableTilt,
 }: {
   printing: Printing;
   showImages?: boolean;
+  /**
+   * Ignores the viewer's tilt preference and holds the card flat. Presentation
+   * mode sets this: a card that leans away whenever the creator's pointer
+   * crosses the stage is a wobble in the recording, not an effect.
+   */
+  disableTilt?: boolean;
 }) {
   const { card } = printing;
   const orientation = getOrientation(card.types);
@@ -36,12 +43,13 @@ export function CardDetailArt({
   // property access on the hook result — see the note in card-thumbnail.tsx.
   const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
     mode: tiltMode,
-    enabled: cardTilt && (!coarsePointer || isFoil),
+    enabled: !disableTilt && cardTilt && (!coarsePointer || isFoil),
   });
 
   const showFoil = isFoil && foilEffect;
-  // The detail view always uses animated foil — shimmers when tilt unavailable.
-  const showShimmer = showFoil && (!cardTilt || coarsePointer);
+  // The detail view always uses animated foil — shimmers when tilt unavailable,
+  // which now includes a caller that has switched tilt off outright.
+  const showShimmer = showFoil && (disableTilt === true || !cardTilt || coarsePointer);
 
   return (
     <div ref={tiltContainerRef}>

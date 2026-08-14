@@ -4,8 +4,17 @@ import type { Printing } from "@openrift/shared";
  * Upper bound on how many printings a `?cards=` queue may carry. Keeps a
  * hand-edited or pathological URL from building a strip of thousands of
  * thumbnails, and keeps the URL itself inside what proxies will forward.
+ *
+ * Only the ad-hoc queue is bounded, because only it spells every printing id
+ * out in the URL. A `?deck=` walk carries one id and resolves the cards from
+ * the catalog, so a deck of any size presents in full.
+ *
+ * 120 ids is roughly 5.4KB once JSON-encoded and percent-escaped, which stays
+ * inside nginx's stock 8KB `large_client_header_buffers` with room for the
+ * rest of the request line. Raise it further only alongside a proxy that is
+ * known to accept the longer URL.
  */
-export const MAX_QUEUE_LENGTH = 60;
+export const MAX_QUEUE_LENGTH = 120;
 
 /**
  * Resolves the queue's printing ids against the catalog, preserving the order

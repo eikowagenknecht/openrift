@@ -4,6 +4,7 @@ import { WellKnown } from "@openrift/shared";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 import { StatChip } from "./stat-chip";
 
@@ -13,13 +14,29 @@ import { StatChip } from "./stat-chip";
  * pane puts it beside this row on phones, the modal puts it under the art.
  * @returns The stats chip row.
  */
-export function CardDetailStats({ printing }: { printing: Printing }) {
+export function CardDetailStats({
+  printing,
+  align = "center",
+}: {
+  printing: Printing;
+  /**
+   * `center` fills the row it shares with the pane's prev/next buttons.
+   * `start` lines the chips up with the text above and below them, which is
+   * what a left-aligned column (the presentation stage) needs.
+   */
+  align?: "center" | "start";
+}) {
   const { card } = printing;
   const { labels } = useEnumOrders();
   const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 
   return (
-    <div className="flex min-h-8 flex-1 flex-wrap items-center justify-center gap-1.5">
+    <div
+      className={cn(
+        "flex min-h-8 flex-wrap items-center gap-1.5",
+        align === "center" ? "flex-1 justify-center" : "justify-start",
+      )}
+    >
       {card.energy !== null && card.energy > 0 && <StatChip label="Energy" value={card.energy} />}
       {card.power !== null && card.power > 0 && (
         <StatChip label="Power" value={card.power} icon="/images/power.svg" />
