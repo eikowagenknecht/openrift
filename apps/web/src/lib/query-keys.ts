@@ -119,6 +119,12 @@ export const queryKeys = {
     publicByToken: (token: string) => ["lists", "share", token] as const,
     groupShares: (userId: string, id: string) => ["lists", userId, id, "group-shares"] as const,
   },
+  overlay: {
+    /** @returns Key for the signed-in creator's own channel, as the dashboard sees it. */
+    channel: (userId: string) => ["overlay", userId] as const,
+    /** @returns Key for the token-addressed state the OBS browser source polls. */
+    stateByToken: (token: string) => ["overlay", "state", token] as const,
+  },
   userShare: {
     state: (userId: string) => ["user-share", userId] as const,
     publicByToken: (token: string) => ["user-share", "public", token] as const,

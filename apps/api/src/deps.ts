@@ -54,6 +54,7 @@ import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
 import { organizationsRepo } from "./repositories/organizations.js";
+import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
 import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
@@ -145,6 +146,7 @@ export interface Repos {
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
   userContactMethods: ReturnType<typeof userContactMethodsRepo>;
   organizations: ReturnType<typeof organizationsRepo>;
+  overlayChannels: ReturnType<typeof overlayChannelsRepo>;
   podTournaments: ReturnType<typeof podTournamentsRepo>;
   tournaments: ReturnType<typeof tournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
@@ -303,6 +305,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     deckZones: deckZonesRepo(db),
     decks: decksRepo(db),
     domains: domainsRepo(db),
+    overlayChannels: overlayChannelsRepo(db),
     enums: cachedEnums,
     featureFlags: featureFlagsRepo(db),
     finishes: finishesRepo(db),

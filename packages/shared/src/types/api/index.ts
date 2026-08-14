@@ -18,6 +18,7 @@ export * from "./init.js";
 export * from "./keyword.js";
 export * from "./list.js";
 export * from "./loan.js";
+export * from "./overlay.js";
 export * from "./pod-tournament.js";
 export * from "./preferences.js";
 export * from "./pricing.js";

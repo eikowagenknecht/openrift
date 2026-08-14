@@ -45,6 +45,7 @@ export type {
   FriendGroupsTable,
   // Organizations + tournaments umbrella (migration 166/167, ADR-033)
   OrganizationsTable,
+  OverlayChannelsTable,
   OrganizationMembersTable,
   TournamentsTable,
   TournamentParticipantsTable,

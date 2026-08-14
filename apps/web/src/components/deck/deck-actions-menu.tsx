@@ -7,6 +7,7 @@ import {
   CopyIcon,
   EllipsisVerticalIcon,
   FolderIcon,
+  MonitorPlayIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
@@ -52,6 +53,7 @@ import {
   useUpdateDeck,
 } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
@@ -76,6 +78,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const setPinned = useSetDeckPinned();
   const setArchived = useSetDeckArchived();
   const { formats } = useDeckFormatList();
+  // Presentation mode is a creator tool that ships dark: the route works by
+  // URL, but nothing in the app points at it until the flag is on.
+  const overlayEnabled = useFeatureEnabled("overlay");
   const otherFormats = formats.filter((entry) => entry.slug !== deck.format);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -187,6 +192,17 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             >
               <PrinterIcon className="size-4" />
               Proxies
+            </DropdownMenuItem>
+          )}
+          {overlayEnabled && item.totalCards > 0 && (
+            <DropdownMenuItem
+              onClick={(event: React.MouseEvent) => {
+                stop(event);
+                void navigate({ to: "/present", search: { deck: deck.id, i: 0 } });
+              }}
+            >
+              <MonitorPlayIcon className="size-4" />
+              Present
             </DropdownMenuItem>
           )}
           <DropdownMenuItem

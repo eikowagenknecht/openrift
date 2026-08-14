@@ -90,6 +90,11 @@ const KNOWN_FLAGS: KnownFlag[] = [
       "Trade status emails: accepted / declined / cancelled (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,
   },
+  {
+    key: "overlay",
+    description:
+      "Creator tools: the /overlay stream control dashboard and OBS source, plus the Present entry points. The routes themselves stay reachable by URL",
+  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {

@@ -66,6 +66,7 @@ import { friendGroupsRouter } from "../routes/authenticated/friend-groups.js";
 import { listsRouter } from "../routes/authenticated/lists.js";
 import { loansRouter } from "../routes/authenticated/loans.js";
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
+import { overlayRouter } from "../routes/authenticated/overlay.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
 import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
 import { tournamentsRouter } from "../routes/authenticated/tournaments.js";
@@ -81,6 +82,7 @@ import { featureFlagsRouter } from "../routes/public/feature-flags.js";
 import { initRouter } from "../routes/public/init.js";
 import { landingSummaryRouter } from "../routes/public/landing-summary.js";
 import { publicListsRouter } from "../routes/public/lists.js";
+import { publicOverlayRouter } from "../routes/public/overlay.js";
 import { publicPodTournamentsRouter } from "../routes/public/pod-tournaments.js";
 import { pricesRouter } from "../routes/public/prices.js";
 import { productsRouter } from "../routes/public/products.js";
@@ -162,6 +164,7 @@ const apiRouter = {
   listsRouter,
   loansRouter,
   organizationsRouter,
+  overlayRouter,
   preferencesRouter,
   tournamentDeckCheckRouter,
   tournamentsRouter,
@@ -177,6 +180,7 @@ const apiRouter = {
   initRouter,
   landingSummaryRouter,
   publicListsRouter,
+  publicOverlayRouter,
   publicPodTournamentsRouter,
   pricesRouter,
   productsRouter,

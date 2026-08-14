@@ -34,6 +34,7 @@ import type {
   LoanStatus,
   MarketplaceGroupKind,
   OrganizationRole,
+  OverlayPayload,
   PodResultStatus,
   PodRoundStatus,
   PodScoringScheme,
@@ -706,6 +707,27 @@ export interface DeckFoldersTable {
   /** CHECK: <> ''. Unique per user, case-insensitively. */
   name: string;
   sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * One stream overlay per user (migration 238): the token an OBS browser source
+ * polls, and whatever card is currently pushed to it.
+ *
+ * `version` bumps on every write and becomes the poll's ETag, so an unchanged
+ * second costs a 304 with no body. `payload` follows the same write/read
+ * contract as `decks.formatConfig`: writes pre-stringified for postgres.js
+ * under Bun, reads through `parseJsonbRequired`.
+ */
+export interface OverlayChannelsTable {
+  id: Generated<string>;
+  /** FK → users(id), CASCADE. Unique: one channel per user. */
+  userId: string;
+  /** CHECK: <> ''. Unique. The secret in the OBS browser-source URL. */
+  token: string;
+  payload: ColumnType<OverlayPayload, string, string>;
+  version: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2044,6 +2066,9 @@ export interface Database {
   // Deck folders (migration 231)
   deckFolders: DeckFoldersTable;
   deckFolderEntries: DeckFolderEntriesTable;
+
+  // Stream overlay channels (migration 238)
+  overlayChannels: OverlayChannelsTable;
   lists: ListsTable;
   listEntries: ListEntriesTable;
 

@@ -44,6 +44,7 @@ export type {
   FriendGroupsTable,
   OrganizationsTable,
   OrganizationMembersTable,
+  OverlayChannelsTable,
   TournamentsTable,
   TournamentParticipantsTable,
   PodRoundsTable,

@@ -18,7 +18,7 @@
 import * as contracts from "@openrift/shared/contracts";
 
 /** The cache lifetime tiers a contract can declare via `meta.cache`. */
-type CacheLevel = "long" | "medium" | "short" | "sitemap";
+type CacheLevel = "long" | "medium" | "short" | "sitemap" | "revalidate";
 
 /** Cache-relevant fields a public read declares on its contract `.meta()`. */
 export interface CacheMeta {
@@ -37,6 +37,14 @@ const CACHE_HEADERS: Record<CacheLevel, string> = {
   medium: "public, max-age=300, stale-while-revalidate=600",
   /** Short-lived public shares + site settings. */
   short: "public, max-age=60, stale-while-revalidate=300",
+  /**
+   * Never served from a cache, but the client keeps the body so its `etag`
+   * conditional GET can come back 304. For a read that is polled continuously
+   * and must never lag its source — the stream overlay's current card. `private`
+   * keeps the edge out of it: a shared cache holding this even briefly would
+   * put a stale card on someone's stream.
+   */
+  revalidate: "private, no-cache",
 };
 
 interface ContractDef {

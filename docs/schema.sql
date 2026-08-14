@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict gkbEjfEqJZdxkrdLcrlngh9j7KXmkbFISDNpPt00elQcwibQ6LvM90cc0XEirPX
+\restrict CrhvUkqN2VVujfeikT8ybydfmV4cqhpYI4XhFH7lBP11GihLPa06Xteucc7Me5R
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2099,6 +2099,22 @@ CREATE TABLE public.organizations (
 
 
 --
+-- Name: overlay_channels; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.overlay_channels (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    token text NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    version bigint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_overlay_channels_token_not_empty CHECK ((token <> ''::text))
+);
+
+
+--
 -- Name: pod_byes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3386,6 +3402,30 @@ ALTER TABLE ONLY public.organizations
 
 ALTER TABLE ONLY public.organizations
     ADD CONSTRAINT organizations_slug_key UNIQUE (slug);
+
+
+--
+-- Name: overlay_channels overlay_channels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.overlay_channels
+    ADD CONSTRAINT overlay_channels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: overlay_channels overlay_channels_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.overlay_channels
+    ADD CONSTRAINT overlay_channels_token_key UNIQUE (token);
+
+
+--
+-- Name: overlay_channels overlay_channels_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.overlay_channels
+    ADD CONSTRAINT overlay_channels_user_id_key UNIQUE (user_id);
 
 
 --
@@ -5180,6 +5220,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.organizations FOR EACH
 
 
 --
+-- Name: overlay_channels trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.overlay_channels FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: printing_images trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6282,6 +6329,14 @@ ALTER TABLE ONLY public.organizations
 
 
 --
+-- Name: overlay_channels overlay_channels_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.overlay_channels
+    ADD CONSTRAINT overlay_channels_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: pod_byes pod_byes_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6581,5 +6636,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict gkbEjfEqJZdxkrdLcrlngh9j7KXmkbFISDNpPt00elQcwibQ6LvM90cc0XEirPX
+\unrestrict CrhvUkqN2VVujfeikT8ybydfmV4cqhpYI4XhFH7lBP11GihLPa06Xteucc7Me5R
 
