@@ -11,6 +11,7 @@
 
 ### Other
 
+- feat(Decks): **Compare against your own decks** — the compare dialog now lists your decks to pick from, so seeing how two of your builds differ no longer means exporting one of them first.
 - feat(App): **Frosted bars are optional** — blurring the page behind the header and toolbars costs frame rate while scrolling, so it is off by default with a switch in Display settings.
 - feat(Cards): **Report card errors from the popup** — the card detail popup and side pane now link to the correction form, so you no longer have to open the full card page first.
 - feat(Decks): **Drag the deck cover to frame it** — the cover preview can be dragged up and down to pick the part of the art you want, and the focus slider follows along.
