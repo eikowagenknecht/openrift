@@ -8,9 +8,10 @@ interface CollectionValueHistoryPoint {
   date: string;
   valueCents: number;
   /**
-   * The same day's holdings priced as if the market had frozen on the first
-   * day of the series. `valueCents - baselineValueCents` is therefore price
-   * movement over the window, with buying and selling divided out.
+   * The same day's holdings priced at what each copy was worth on the day it
+   * was acquired, or on the series' first day for copies older than that.
+   * `valueCents - baselineValueCents` is therefore the return on those
+   * holdings, with buying and selling divided out.
    */
   baselineValueCents: number;
   copyCount: number;
@@ -386,11 +387,15 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * since" — identical to "what I held then" for an account with complete
      * history, and closer to the truth than a forward replay for one without.
      *
-     * Each point also carries `baselineValueCents`, the same composition
-     * priced as if the market had frozen on day one. The gap to `valueCents`
-     * is the window's price return with buying and selling divided out, and it
-     * survives the incomplete event log better than either line alone: a
-     * phantom copy inflates both, so it distorts the gap only by its own price
+     * Each point also carries `baselineValueCents`: the same composition with
+     * every copy held at the price it carried the day it was acquired, floored
+     * at the window's first day for copies older than the window. The gap to
+     * `valueCents` is the return on those holdings, with buying and selling
+     * divided out — a card bought mid-window adds the same amount to both
+     * lines on the day it arrives and moves the gap only as its price moves.
+     *
+     * The gap also survives the incomplete event log better than either line
+     * alone: a phantom copy inflates both, so it distorts the gap by its price
      * movement rather than by its full value.
      *
      * @returns Daily value points for charting, oldest first.
@@ -566,16 +571,35 @@ export function marketplaceRepo(db: Kysely<Database>) {
         ? sql`cp.collection_id IN (${sql.join(collectionIds.map((id) => sql`${id}::uuid`))})`
         : sql`col.user_id = ${userId} AND col.group_id IS NULL`;
 
-      const anchorRows = await sql<{ printingId: string; copies: number }>`
-        SELECT cp.printing_id AS "printingId", count(*)::int AS copies
-        FROM copies cp
-        INNER JOIN collections col ON col.id = cp.collection_id
-        INNER JOIN printings p ON p.id = cp.printing_id
-        INNER JOIN cards c ON c.id = p.card_id
-        INNER JOIN sets s ON s.id = p.set_id
-        WHERE ${anchorCollectionClause}
-          ${scopeFragment}
-        GROUP BY cp.printing_id
+      // Grouped by acquisition day as well as printing, because the baseline
+      // line prices each copy at what it cost the day it was added. Two copies
+      // of one printing bought months apart carry different bases, so the
+      // printing alone is not a fine enough key. The correlated subquery rides
+      // idx_collection_events_copy, and grouping keeps the result at one row
+      // per (printing, day) rather than one per copy.
+      const anchorRows = await sql<{
+        printingId: string;
+        acquiredOn: string | null;
+        copies: number;
+      }>`
+        SELECT printing_id AS "printingId", acquired_on AS "acquiredOn", count(*)::int AS copies
+        FROM (
+          SELECT
+            cp.printing_id,
+            (
+              SELECT min(ce.created_at)::date
+              FROM collection_events ce
+              WHERE ce.copy_id = cp.id AND ce.action = 'added'
+            )::text AS acquired_on
+          FROM copies cp
+          INNER JOIN collections col ON col.id = cp.collection_id
+          INNER JOIN printings p ON p.id = cp.printing_id
+          INNER JOIN cards c ON c.id = p.card_id
+          INNER JOIN sets s ON s.id = p.set_id
+          WHERE ${anchorCollectionClause}
+            ${scopeFragment}
+        ) held
+        GROUP BY printing_id, acquired_on
       `.execute(db);
 
       // ── Query B: events to undo, newest last ───────────────────────────
@@ -595,6 +619,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
         ? sql`AND ce.created_at >= ${windowStartDay}::date`
         : sql``;
 
+      // `acquiredOn` is the copy's own `added` date, looked up through
+      // `copy_id`. A `removed` event needs it too: undoing one puts a copy back
+      // into an earlier day, and that copy has to re-enter the baseline at what
+      // it cost when it was bought, not at what it was worth when it left.
+      // Migration 140 keeps events after the copy row is deleted, so this
+      // resolves even for copies that no longer exist.
       const events = await sql<{
         action: string;
         printingId: string;
@@ -602,6 +632,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         toCollectionId: string | null;
         fromIsGroup: boolean;
         toIsGroup: boolean;
+        acquiredOn: string | null;
         createdAt: Date;
       }>`
         SELECT
@@ -611,6 +642,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
           ce.to_collection_id AS "toCollectionId",
           (cf.group_id IS NOT NULL) AS "fromIsGroup",
           (ctc.group_id IS NOT NULL) AS "toIsGroup",
+          (
+            SELECT min(prior.created_at)::date
+            FROM collection_events prior
+            WHERE prior.copy_id = ce.copy_id AND prior.action = 'added'
+          )::text AS "acquiredOn",
           ce.created_at AS "createdAt"
         FROM collection_events ce
         INNER JOIN printings p ON p.id = ce.printing_id
@@ -627,6 +663,19 @@ export function marketplaceRepo(db: Kysely<Database>) {
       if (events.rows.length === 0 && anchorRows.rows.length === 0) {
         return [];
       }
+
+      const endDay = toDateString(new Date());
+      // A requested range spans its whole window even with no events in it —
+      // a collection nobody touched for a month is a flat month, not a single
+      // point. Without a cutoff the series starts at the first event, or at
+      // today for a collection whose copies predate any logged event.
+      //
+      // Computed here rather than beside the walk because the baseline basis
+      // is floored at it: a copy bought before the window enters the baseline
+      // at the window's opening price, not at what it originally cost.
+      const startDay =
+        windowStartDay ??
+        (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
 
       // Prices are needed for anything held today and anything touched inside
       // the window — a printing sold off mid-window is absent from the anchor
@@ -701,6 +750,39 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return priceMap.get(printingId)?.get(days[idx]);
       }
 
+      // ── Cost basis: what a copy was worth the day it arrived ───────────
+      /**
+       * The baseline price for one copy of `printingId` acquired on
+       * `acquiredOn`, floored at `startDay`.
+       *
+       * The floor is what keeps the range toggle meaningful. On the All range
+       * it never bites and every copy sits at its own purchase price, so the
+       * gap to the real line is the total return since buying. On 30d, a copy
+       * held for a year enters at the price it carried thirty days ago, so the
+       * gap is the month's return rather than the year's.
+       *
+       * Deliberately not `priceOnDay`: that helper's cursor only ever moves
+       * left and the walk needs it to start at the right edge, so feeding it
+       * an older day first would misprice every day after.
+       *
+       * A printing with no snapshot on the basis day falls back to its first
+       * one ever. That fallback is safe here only because the day is anchored
+       * to the purchase: an earlier cut floored everything at `startDay`, which
+       * on the All range sent most of the collection to its release-day high
+       * and reported a 13892 EUR baseline against 4329 EUR held.
+       *
+       * @returns The basis in cents, or 0 for a printing with no price at all.
+       */
+      function basisFor(printingId: string, acquiredOn: string | null): number {
+        const days = sortedPriceDays.get(printingId);
+        if (!days || days.length === 0) {
+          return 0;
+        }
+        const basisDay = acquiredOn && acquiredOn > startDay ? acquiredOn : startDay;
+        const idx = days.findLastIndex((day) => day <= basisDay);
+        return priceMap.get(printingId)?.get(idx === -1 ? days[0] : days[idx]) ?? 0;
+      }
+
       // ── Backward replay ───────────────────────────────────────────────
       const targetCollectionSet = collectionIds ? new Set(collectionIds) : null;
 
@@ -753,7 +835,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return 0;
       }
 
-      /** Steps the composition back over one event. @returns void */
+      /** Steps the composition and its basis back over one event. @returns void */
       function undo(event: (typeof events.rows)[0]): void {
         const delta = eventDelta(event);
         if (delta === 0) {
@@ -762,60 +844,32 @@ export function marketplaceRepo(db: Kysely<Database>) {
         const next = (composition.get(event.printingId) ?? 0) - delta;
         if (next <= 0) {
           composition.delete(event.printingId);
-        } else {
-          composition.set(event.printingId, next);
+          basisByPrinting.delete(event.printingId);
+          return;
         }
+        composition.set(event.printingId, next);
+        const nextBasis =
+          (basisByPrinting.get(event.printingId) ?? 0) -
+          delta * basisFor(event.printingId, event.acquiredOn);
+        // Floored because the event log is not airtight: an orphan `removed`
+        // with no matching `added` credits a basis on the way back that was
+        // never debited, and enough of those could drive a printing's basis
+        // below zero, which is not a price a chart can draw.
+        basisByPrinting.set(event.printingId, Math.max(0, nextBasis));
       }
 
-      const endDay = toDateString(new Date());
-      // A requested range spans its whole window even with no events in it —
-      // a collection nobody touched for a month is a flat month, not a single
-      // point. Without a cutoff the series starts at the first event, or at
-      // today for a collection whose copies predate any logged event.
-      const startDay =
-        windowStartDay ??
-        (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
-
-      // ── Baseline prices: the market frozen on day one ──────────────────
-      // Valuing every day's composition at the prices in effect on `startDay`
-      // produces a line that moves only when copies are bought or sold. Its
-      // distance from the real line is price movement and nothing else, which
-      // is what makes the range toggle mean something: pick 30d and the gap is
-      // the 30-day return, not an all-time one.
-      //
-      // Deliberately not `priceOnDay`. That helper's cursor only ever moves
-      // left and the walk below needs it to start at the right edge, so asking
-      // it for `startDay` first would leave every later day priced at the
-      // window start.
-      //
-      // A printing first priced after `startDay` (a set released mid-window,
-      // or one the scraper picked up late) is left out of the map entirely.
-      // The accumulator below then charges it the day's own price on both
-      // lines, so it adds nothing to the gap — the honest answer, since no
-      // price at the window start means no return over the window to measure.
-      //
-      // Its earliest snapshot is emphatically NOT a stand-in. Cards enter the
-      // price data at release, when they are at their most expensive, so
-      // freezing there books a loss the holder never took. The first cut of
-      // this did exactly that: on the All range of one real collection it
-      // reported a 13892 EUR baseline against 4329 EUR today, with 82% of that
-      // baseline coming from the fallback on 44% of the copies.
-      const baselinePrice = new Map<string, number>();
-      for (const [printingId, days] of sortedPriceDays) {
-        const idx = days.findLastIndex((day) => day <= startDay);
-        if (idx === -1) {
-          continue;
-        }
-        const price = priceMap.get(printingId)?.get(days[idx]);
-        if (price !== undefined) {
-          baselinePrice.set(printingId, price);
-        }
+      // Seed from today's copies, then undo events newest-first. Basis is
+      // summed per printing rather than kept as one scalar so that the day
+      // loop can drop a printing from both lines together on days it has no
+      // price — a basis standing over a real line of zero would render a hole
+      // in the price history as a total loss.
+      const composition = new Map<string, number>();
+      const basisByPrinting = new Map<string, number>();
+      for (const row of anchorRows.rows) {
+        composition.set(row.printingId, (composition.get(row.printingId) ?? 0) + row.copies);
+        const basis = row.copies * basisFor(row.printingId, row.acquiredOn);
+        basisByPrinting.set(row.printingId, (basisByPrinting.get(row.printingId) ?? 0) + basis);
       }
-
-      // Seed from today's copies, then undo events newest-first.
-      const composition = new Map<string, number>(
-        anchorRows.rows.map((row) => [row.printingId, row.copies]),
-      );
       let eventIndex = events.rows.length - 1;
 
       // Events dated after today (clock skew, or a same-day event recorded in
@@ -839,17 +893,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
           copyCount += count;
           const price = priceOnDay(printingId, dayStr);
           if (price === undefined) {
-            // No snapshot this old. Leaving the printing out of both lines
-            // keeps the gap between them price movement, instead of letting a
-            // hole in the price history read as a gain.
+            // No snapshot this old. Dropping the printing from both lines
+            // keeps the gap between them a return, rather than letting a hole
+            // in the price history read as a total loss.
             continue;
           }
           valueCents += price * count;
-          // No baseline means the printing had no price on the window's first
-          // day, so charge it the day's own price and let it contribute
-          // nothing to the gap. See the map above for why its first-ever price
-          // is the wrong thing to reach for.
-          baselineValueCents += (baselinePrice.get(printingId) ?? price) * count;
+          baselineValueCents += basisByPrinting.get(printingId) ?? 0;
         }
         reversed.push({ date: dayStr, valueCents, baselineValueCents, copyCount });
 

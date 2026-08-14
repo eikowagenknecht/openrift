@@ -4,7 +4,7 @@
 
 ### Highlights
 
-- feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding prices at the start of the range, so the gap between them is what the market did rather than what you bought.
+- feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.
 - fix(Collection): **Faster stats filtering** — the statistics page no longer stutters when you add or remove filters, and sets you own stop dropping out of the set picker as you narrow things down.
 

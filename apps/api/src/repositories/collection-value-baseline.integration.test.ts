@@ -10,18 +10,21 @@ const userId = crypto.randomUUID();
 const risingPrintingId = crypto.randomUUID();
 const flatPrintingId = crypto.randomUUID();
 const latePrintingId = crypto.randomUUID();
+const midPrintingId = crypto.randomUUID();
 
 const ctx = createDbContext(userId);
 
 /**
- * `baselineValueCents` prices each day's holdings as if the market had frozen
- * on the first day of the requested range, so the gap to `valueCents` is price
- * movement with buying and selling divided out.
+ * `baselineValueCents` prices each day's holdings at what every copy was worth
+ * the day it was added, floored at the first day of the requested range. The
+ * gap to `valueCents` is therefore the return on those holdings, with buying
+ * and selling divided out.
  *
- * Three scenarios get their own collection, because the series is scoped by
+ * Four scenarios get their own collection, because the series is scoped by
  * collection but `startDay` is not — it comes from the user's first event
- * either way. Every `added` event is therefore dated six days ago, which pins
- * `startDay` to the same day for all of them.
+ * either way. Every `added` event is dated six days ago except where a
+ * scenario needs a mid-window purchase, which pins `startDay` to the same day
+ * for all of them.
  */
 describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   const { db } = ctx!;
@@ -33,6 +36,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   let risingCollectionId = "";
   let flatCollectionId = "";
   let lateCollectionId = "";
+  let midCollectionId = "";
 
   /** @returns The UTC date `daysAgo` days before today, at midnight. */
   function dayOffset(daysAgo: number): Date {
@@ -53,9 +57,10 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       .insertInto("printings")
       .values(
         [
-          { id: risingPrintingId, shortCode: "VB-001", publicCode: "VB-001/003" },
-          { id: flatPrintingId, shortCode: "VB-002", publicCode: "VB-002/003" },
-          { id: latePrintingId, shortCode: "VB-003", publicCode: "VB-003/003" },
+          { id: risingPrintingId, shortCode: "VB-001", publicCode: "VB-001/004" },
+          { id: flatPrintingId, shortCode: "VB-002", publicCode: "VB-002/004" },
+          { id: latePrintingId, shortCode: "VB-003", publicCode: "VB-003/004" },
+          { id: midPrintingId, shortCode: "VB-004", publicCode: "VB-004/004" },
         ].map((p) => ({
           ...p,
           cardId: seedPrinting.cardId,
@@ -76,7 +81,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     const collections = await db
       .insertInto("collections")
       .values(
-        ["Rising", "Flat", "Late"].map((name, index) => ({
+        ["Rising", "Flat", "Late", "Mid"].map((name, index) => ({
           userId,
           name: `Baseline ${name}`,
           isInbox: false,
@@ -88,6 +93,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     risingCollectionId = collections.find((c) => c.name === "Baseline Rising")!.id;
     flatCollectionId = collections.find((c) => c.name === "Baseline Flat")!.id;
     lateCollectionId = collections.find((c) => c.name === "Baseline Late")!.id;
+    midCollectionId = collections.find((c) => c.name === "Baseline Mid")!.id;
 
     await db
       .insertInto("marketplaceGroups")
@@ -102,6 +108,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
           { externalId: 92_001, productName: "VB Rising" },
           { externalId: 92_002, productName: "VB Flat" },
           { externalId: 92_003, productName: "VB Late" },
+          { externalId: 92_004, productName: "VB Mid" },
         ].map((p) => ({ ...p, marketplace, groupId, finish: "normal", language: null })),
       )
       .returning(["id", "externalId"])
@@ -110,6 +117,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     const risingSku = skuRows.find((r) => r.externalId === 92_001)!;
     const flatSku = skuRows.find((r) => r.externalId === 92_002)!;
     const lateSku = skuRows.find((r) => r.externalId === 92_003)!;
+    const midSku = skuRows.find((r) => r.externalId === 92_004)!;
 
     await db
       .insertInto("marketplaceProductVariants")
@@ -117,6 +125,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
         { marketplaceProductId: risingSku.id, printingId: risingPrintingId },
         { marketplaceProductId: flatSku.id, printingId: flatPrintingId },
         { marketplaceProductId: lateSku.id, printingId: latePrintingId },
+        { marketplaceProductId: midSku.id, printingId: midPrintingId },
       ])
       .execute();
 
@@ -139,6 +148,12 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
         // gain over a window it had no starting price for.
         { marketplaceProductId: lateSku.id, recordedAt: dayOffset(2), marketCents: 500 },
         { marketplaceProductId: lateSku.id, recordedAt: dayOffset(0), marketCents: 900 },
+        // Mid: quadruples before the copy is bought on day 2, then edges up.
+        // Freezing at the day-6 price of 100 would credit the holder with a
+        // 400 run-up that happened before they owned anything.
+        { marketplaceProductId: midSku.id, recordedAt: dayOffset(6), marketCents: 100 },
+        { marketplaceProductId: midSku.id, recordedAt: dayOffset(3), marketCents: 400 },
+        { marketplaceProductId: midSku.id, recordedAt: dayOffset(0), marketCents: 500 },
       ])
       .execute();
 
@@ -149,13 +164,17 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
         { printingId: flatPrintingId, collectionId: flatCollectionId },
         { printingId: flatPrintingId, collectionId: flatCollectionId },
         { printingId: latePrintingId, collectionId: lateCollectionId },
+        { printingId: midPrintingId, collectionId: midCollectionId },
       ])
       .returning(["id", "printingId", "collectionId"])
       .execute();
 
-    // One of the two flat copies arrives mid-window; everything else is held
-    // from day six so `startDay` is the same for every scenario.
-    const flatCopies = copyRows.filter((c) => c.printingId === flatPrintingId);
+    // The second flat copy and the mid copy arrive on day two; everything else
+    // is held from day six, which pins `startDay` for every scenario.
+    const midWindowCopyIds = new Set([
+      copyRows.filter((c) => c.printingId === flatPrintingId)[1].id,
+      copyRows.find((c) => c.printingId === midPrintingId)!.id,
+    ]);
     await db
       .insertInto("collectionEvents")
       .values(
@@ -166,7 +185,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
           copyId: copy.id,
           toCollectionId: copy.collectionId,
           toCollectionName: "Baseline",
-          createdAt: copy.id === flatCopies[1].id ? dayOffset(2) : dayOffset(6),
+          createdAt: midWindowCopyIds.has(copy.id) ? dayOffset(2) : dayOffset(6),
         })),
       )
       .execute();
@@ -175,7 +194,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   });
 
   afterAll(async () => {
-    const collectionIds = [risingCollectionId, flatCollectionId, lateCollectionId];
+    const collectionIds = [risingCollectionId, flatCollectionId, lateCollectionId, midCollectionId];
     await db.deleteFrom("collectionEvents").where("userId", "=", userId).execute();
     await db.deleteFrom("copies").where("collectionId", "in", collectionIds).execute();
     await db.deleteFrom("collections").where("id", "in", collectionIds).execute();
@@ -184,17 +203,17 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       DELETE FROM marketplace_product_prices pp
       USING marketplace_products mp
       WHERE mp.id = pp.marketplace_product_id
-        AND mp.external_id IN (92001, 92002, 92003)
+        AND mp.external_id IN (92001, 92002, 92003, 92004)
     `.execute(db);
     await sql`
       DELETE FROM marketplace_product_variants mpv
       USING marketplace_products mp
       WHERE mp.id = mpv.marketplace_product_id
-        AND mp.external_id IN (92001, 92002, 92003)
+        AND mp.external_id IN (92001, 92002, 92003, 92004)
     `.execute(db);
     await db
       .deleteFrom("marketplaceProducts")
-      .where("externalId", "in", [92_001, 92_002, 92_003])
+      .where("externalId", "in", [92_001, 92_002, 92_003, 92_004])
       .execute();
     await sql`
       DELETE FROM marketplace_groups
@@ -202,7 +221,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     `.execute(db);
     await db
       .deleteFrom("printings")
-      .where("id", "in", [risingPrintingId, flatPrintingId, latePrintingId])
+      .where("id", "in", [risingPrintingId, flatPrintingId, latePrintingId, midPrintingId])
       .execute();
     await repo.refreshLatestPrices();
   });
@@ -251,24 +270,34 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     expect(threeDays.at(-1)!.valueCents).toBe(300);
   });
 
-  it("reports no return for a printing that had no price at the range start", async () => {
+  it("prices a mid-window purchase at what it cost that day, not at the range start", async () => {
+    const series = await seriesFor(midCollectionId);
+
+    // The printing ran 100 -> 400 before the copy was bought on day two, then
+    // 400 -> 500. Only the second leg belongs to the holder. Flooring the
+    // basis at the range start instead would report a 400 gain from a run-up
+    // that finished before they owned anything.
+    expect(series.at(-1)!.valueCents).toBe(500);
+    expect(series.at(-1)!.baselineValueCents).toBe(400);
+    // Leading days with no copies are trimmed, so the series opens on the
+    // purchase — bought and held at 400, no return yet.
+    expect(series[0].valueCents).toBe(400);
+    expect(series[0].baselineValueCents).toBe(400);
+  });
+
+  it("drops a printing from both lines on days it has no price", async () => {
     const series = await seriesFor(lateCollectionId);
 
-    // Held from day six, unpriced until day two, then 500 -> 900. There is no
-    // day-six price to freeze at, so the honest return over this window is
-    // zero: the two lines track each other exactly, including on the days the
-    // printing is unpriced and both read zero.
-    for (const point of series) {
-      expect(point.copyCount).toBe(1);
-      expect(point.baselineValueCents).toBe(point.valueCents);
-    }
+    // Held from day six but unpriced until day two, then 500 -> 900. On the
+    // unpriced days it must leave both lines rather than stand a basis over a
+    // real line of zero, which would draw as a total loss.
+    expect(series[0].copyCount).toBe(1);
     expect(series[0].valueCents).toBe(0);
-    // Charged its own current price rather than its first-ever 500, which
-    // would have shown a 400 gain the holder never made. Pricing every
-    // late-listed card at its release-day high is what made the All range read
-    // 3x the real collection value.
+    expect(series[0].baselineValueCents).toBe(0);
+    // Its first observable price is the best available basis once it is
+    // priced, so the run to 900 counts as the holder's gain.
     expect(series.at(-1)!.valueCents).toBe(900);
-    expect(series.at(-1)!.baselineValueCents).toBe(900);
+    expect(series.at(-1)!.baselineValueCents).toBe(500);
   });
 
   it("leaves the real line equal to the Stats card figure", async () => {
