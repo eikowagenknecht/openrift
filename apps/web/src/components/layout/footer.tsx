@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export function Footer({ className }: { className?: string }) {
   const developersEnabled = useFeatureEnabled("developers");
+  const creatorsEnabled = useFeatureEnabled("creators");
   return (
     <footer className={cn("text-2xs text-muted-foreground/60 mx-auto text-center", className)}>
       <p>
@@ -23,6 +24,14 @@ export function Footer({ className }: { className?: string }) {
           Support Us
         </Link>
         <span aria-hidden="true"> · </span>
+        {creatorsEnabled && (
+          <>
+            <Link to="/creators" className="hover:text-muted-foreground">
+              Creators
+            </Link>
+            <span aria-hidden="true"> · </span>
+          </>
+        )}
         {developersEnabled && (
           <>
             <Link to="/developers" className="hover:text-muted-foreground">

@@ -99,6 +99,11 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description:
       "Creator tools: the /overlay stream control dashboard and OBS source, plus the Present entry points. The routes themselves stay reachable by URL",
   },
+  {
+    key: "creators",
+    description:
+      "Show the creators landing page (/creators), its footer link, and sitemap entry. Its tier-list and overlay sections still follow those features' own flags",
+  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {
