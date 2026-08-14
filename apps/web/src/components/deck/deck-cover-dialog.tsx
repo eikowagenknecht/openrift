@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Pressable } from "@/components/ui/pressable";
 import { Slider } from "@/components/ui/slider";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
+import { coverOverflowPx, coverPositionFromDrag } from "@/lib/cover-focus";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +78,60 @@ export function DeckCoverDialog({
 
   const draftThumb = draftCardId === null ? undefined : getThumbnail(draftCardId, draftPrintingId);
 
+  // Dragging the preview pans the crop, mirroring the focus slider. The
+  // measurements are frozen at pointer-down so the art tracks the cursor 1:1.
+  const previewRef = useRef<HTMLImageElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    startPosition: number;
+    overflow: number;
+  } | null>(null);
+
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const image = previewRef.current;
+    if (!image) {
+      return;
+    }
+    const overflow = coverOverflowPx({
+      boxWidth: image.clientWidth,
+      boxHeight: image.clientHeight,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+    });
+    if (overflow <= 0) {
+      return;
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startPosition: draftPosition,
+      overflow,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePreviewPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    setDraftPosition(
+      coverPositionFromDrag(drag.startPosition, event.clientY - drag.startY, drag.overflow),
+    );
+  };
+
+  const handlePreviewPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
   const handleSave = () => {
     if (draftCardId === null) {
       update(
@@ -115,12 +170,19 @@ export function DeckCoverDialog({
         <div className="flex flex-col gap-4">
           {/* Live banner preview of the crop the hero and tile will show. */}
           {draftThumb && (
-            <div className="bg-muted h-24 overflow-hidden rounded-lg border">
+            <div
+              className="bg-muted h-24 touch-none overflow-hidden rounded-lg border"
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPointerEnd}
+              onPointerCancel={handlePreviewPointerEnd}
+            >
               <img
+                ref={previewRef}
                 src={draftThumb}
                 alt="Cover preview"
                 draggable={false}
-                className="h-full w-full object-cover"
+                className="h-full w-full cursor-grab object-cover active:cursor-grabbing"
                 style={{ objectPosition: `50% ${draftPosition}%` }}
               />
             </div>
@@ -133,7 +195,10 @@ export function DeckCoverDialog({
 
           {draftCardId !== null && (
             <div className="flex flex-col gap-2">
-              <Label>Vertical focus</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Vertical focus</Label>
+                <span className="text-muted-foreground text-sm">Or drag the preview</span>
+              </div>
               <Slider
                 aria-label="Vertical focus"
                 value={[draftPosition]}
