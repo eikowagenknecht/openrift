@@ -81,6 +81,9 @@ export {
 
 export { foldForSearch, squashForSearch } from "./search-fold.js";
 
+export type { CardSearchIndex, SearchableCard, SearchablePrintingCodes } from "./card-search.js";
+export { buildCardIndex, findCard, searchCards } from "./card-search.js";
+
 export { formatPrintingVariantLabel, formatPrintingVariantLabelParts } from "./printing-label.js";
 export type {
   PrintingVariantLabelParts,

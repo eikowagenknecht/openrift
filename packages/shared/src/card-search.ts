@@ -1,17 +1,32 @@
-import { foldForSearch, squashForSearch } from "@openrift/shared";
+import { foldForSearch, squashForSearch } from "./search-fold.js";
 
-import type { CatalogCard, CatalogPrinting } from "./catalog-cache.js";
+/**
+ * The minimal card shape the index needs. Callers pass their own richer row
+ * type and get it back out of the ranking, so the Discord bot's catalog cards
+ * and the API's lean lookup rows share one implementation.
+ */
+export interface SearchableCard {
+  id: string;
+  slug: string;
+  name: string;
+}
 
-interface IndexedCard {
-  card: CatalogCard;
+/** The minimal printing shape the index reads lookup codes from. */
+export interface SearchablePrintingCodes {
+  shortCode: string;
+  publicCode: string;
+}
+
+interface IndexedCard<TCard extends SearchableCard> {
+  card: TCard;
   folded: string;
   /** Squashed printing codes (short + public), for `ogn202`-style lookups. */
   codes: string[];
 }
 
-export interface CardIndex {
-  entries: IndexedCard[];
-  bySlug: Map<string, CatalogCard>;
+export interface CardSearchIndex<TCard extends SearchableCard> {
+  entries: IndexedCard<TCard>[];
+  bySlug: Map<string, TCard>;
 }
 
 /**
@@ -22,10 +37,10 @@ export interface CardIndex {
  *
  * @returns The search index for the given cards.
  */
-export function buildCardIndex(
-  cards: CatalogCard[],
-  printingsByCardId: Map<string, CatalogPrinting[]>,
-): CardIndex {
+export function buildCardIndex<TCard extends SearchableCard>(
+  cards: readonly TCard[],
+  printingsByCardId: ReadonlyMap<string, readonly SearchablePrintingCodes[]>,
+): CardSearchIndex<TCard> {
   const entries = cards
     .map((card) => ({
       card,
@@ -48,13 +63,17 @@ export function buildCardIndex(
  *
  * @returns Up to `limit` matching cards, best first.
  */
-export function searchCards(index: CardIndex, query: string, limit: number): CatalogCard[] {
+export function searchCards<TCard extends SearchableCard>(
+  index: CardSearchIndex<TCard>,
+  query: string,
+  limit: number,
+): TCard[] {
   const folded = foldForSearch(query);
   if (!folded) {
     return [];
   }
   const squashed = squashForSearch(query);
-  const tiers: CatalogCard[][] = [[], [], [], [], []];
+  const tiers: TCard[][] = [[], [], [], [], []];
   for (const entry of index.entries) {
     if (entry.folded === folded) {
       tiers[0]?.push(entry.card);
@@ -72,11 +91,14 @@ export function searchCards(index: CardIndex, query: string, limit: number): Cat
 }
 
 /**
- * Resolves a query to a single card: an exact slug hit (the slash command's
- * autocomplete round-trips slugs) or the best free-text match.
+ * Resolves a query to a single card: an exact slug hit (the Discord slash
+ * command's autocomplete round-trips slugs) or the best free-text match.
  *
  * @returns The matched card, or undefined when nothing matches.
  */
-export function findCard(index: CardIndex, query: string): CatalogCard | undefined {
+export function findCard<TCard extends SearchableCard>(
+  index: CardSearchIndex<TCard>,
+  query: string,
+): TCard | undefined {
   return index.bySlug.get(query.trim()) ?? searchCards(index, query, 1)[0];
 }

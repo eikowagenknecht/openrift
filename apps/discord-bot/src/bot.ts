@@ -1,5 +1,5 @@
-import type { MarketplaceInfoResponse } from "@openrift/shared";
-import { parsePiltoverDeckCode } from "@openrift/shared";
+import type { CardSearchIndex, MarketplaceInfoResponse } from "@openrift/shared";
+import { buildCardIndex, findCard, parsePiltoverDeckCode, searchCards } from "@openrift/shared";
 import { isDefinedError, safe } from "@orpc/client";
 import type {
   AutocompleteInteraction,
@@ -28,8 +28,6 @@ import {
   parseDetailsCustomId,
 } from "./card-details.js";
 import { buildCardEmbed } from "./card-embed.js";
-import type { CardIndex } from "./card-search.js";
-import { buildCardIndex, findCard, searchCards } from "./card-search.js";
 import type { CatalogCache, CatalogCard } from "./catalog-cache.js";
 import { buildDeckEmbed, deckImportUrl, fetchDeckImage, resolveDeckEntries } from "./deck-embed.js";
 import type { BotEnv } from "./env.js";
@@ -144,9 +142,9 @@ interface BotContext {
 let glyphEmojis: GlyphEmojis = NO_GLYPH_EMOJIS;
 
 /** Search index rebuilt lazily per snapshot, so refreshes stay cheap until a lookup happens. */
-let cachedIndex: { snapshot: unknown; index: CardIndex } | null = null;
+let cachedIndex: { snapshot: unknown; index: CardSearchIndex<CatalogCard> } | null = null;
 
-function indexFor(cache: CatalogCache): CardIndex | null {
+function indexFor(cache: CatalogCache): CardSearchIndex<CatalogCard> | null {
   const snapshot = cache.snapshot;
   if (!snapshot) {
     return null;

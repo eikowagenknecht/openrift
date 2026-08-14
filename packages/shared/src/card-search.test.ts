@@ -1,29 +1,22 @@
 import { describe, expect, it } from "vitest";
 
+import type { SearchableCard, SearchablePrintingCodes } from "./card-search.js";
 import { buildCardIndex, findCard, searchCards } from "./card-search.js";
-import type { CatalogCard, CatalogPrinting } from "./catalog-cache.js";
-import { makeCard, makePrinting } from "./test/factories.js";
 
-const cards = [
-  makeCard({ id: "c1", slug: "jinx-rebel", name: "Jinx, Rebel" }),
-  makeCard({ id: "c2", slug: "jinx-loose-cannon", name: "Jinx, Loose Cannon" }),
-  makeCard({ id: "c3", slug: "dorans-shield", name: "Doran’s Shield" }),
-  makeCard({ id: "c4", slug: "mecha-jinx", name: "Mecha Jinx" }),
-  makeCard({ id: "c5", slug: "viktor", name: "Viktor" }),
+const cards: SearchableCard[] = [
+  { id: "c1", slug: "jinx-rebel", name: "Jinx, Rebel" },
+  { id: "c2", slug: "jinx-loose-cannon", name: "Jinx, Loose Cannon" },
+  { id: "c3", slug: "dorans-shield", name: "Doran’s Shield" },
+  { id: "c4", slug: "mecha-jinx", name: "Mecha Jinx" },
+  { id: "c5", slug: "viktor", name: "Viktor" },
 ];
 
-const printingsByCardId = new Map<string, CatalogPrinting[]>([
-  [
-    "c1",
-    [makePrinting({ id: "p1", cardId: "c1", shortCode: "OGN-202", publicCode: "OGN-202/298" })],
-  ],
-  [
-    "c5",
-    [makePrinting({ id: "p5", cardId: "c5", shortCode: "OGN-045", publicCode: "OGN-045/298" })],
-  ],
+const printingsByCardId = new Map<string, SearchablePrintingCodes[]>([
+  ["c1", [{ shortCode: "OGN-202", publicCode: "OGN-202/298" }]],
+  ["c5", [{ shortCode: "OGN-045", publicCode: "OGN-045/298" }]],
 ]);
 
-function indexFor(list: CatalogCard[] = cards) {
+function indexFor(list: SearchableCard[] = cards) {
   return buildCardIndex(list, printingsByCardId);
 }
 
@@ -32,7 +25,7 @@ const index = indexFor();
 describe("searchCards", () => {
   it("puts an exact match before prefix and substring matches", () => {
     const results = searchCards(
-      indexFor([...cards, makeCard({ id: "c6", slug: "jinx", name: "Jinx" })]),
+      indexFor([...cards, { id: "c6", slug: "jinx", name: "Jinx" }]),
       "jinx",
       10,
     );
@@ -77,6 +70,14 @@ describe("searchCards", () => {
 
   it("respects the limit", () => {
     expect(searchCards(index, "jinx", 2)).toHaveLength(2);
+  });
+
+  it("keeps the caller's richer card type on the way out", () => {
+    const richIndex = buildCardIndex(
+      [{ id: "c5", slug: "viktor", name: "Viktor", energy: 3 }],
+      printingsByCardId,
+    );
+    expect(searchCards(richIndex, "viktor", 1)[0]?.energy).toBe(3);
   });
 });
 

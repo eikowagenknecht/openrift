@@ -46,6 +46,9 @@ type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "setTy
   releases: SetReleases;
 };
 
+/** A printing's lookup codes, for code-based card search. */
+type PrintingCodeRow = Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "publicCode">;
+
 /** Active printing image with resolved image_files.id (null IDs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   imageId: string;
@@ -282,6 +285,22 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printingsOrdered")
         .select(PRINTING_VIEW_COLUMNS)
         .orderBy("printingsOrdered.canonicalRank")
+        .execute();
+    },
+
+    /**
+     * Just the two lookup codes per printing, for building a code index. The
+     * full `printings()` read carries every printed rules and flavor text on
+     * every row, which is orders of magnitude more bytes than a code lookup
+     * needs.
+     *
+     * @returns Each printing's card id and its short and public codes.
+     */
+    printingCodes(): Promise<PrintingCodeRow[]> {
+      return db
+        .selectFrom("printings")
+        .select(["cardId", "shortCode", "publicCode"])
+        .orderBy("shortCode")
         .execute();
     },
 

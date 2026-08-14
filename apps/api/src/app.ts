@@ -35,6 +35,7 @@ import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
+import { createPublicChatRoute } from "./routes/public/chat.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
 import { publicOembedRoute } from "./routes/public/oembed.js";
@@ -441,6 +442,7 @@ export function createApp(deps: AppDeps) {
     .route("/api", swaggerAssetsRoute)
     .route("/api/v1", publicShareImagesRoute)
     .route("/api/v1", publicOembedRoute)
+    .route("/api/v1", createPublicChatRoute())
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute)
