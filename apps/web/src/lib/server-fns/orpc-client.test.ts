@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Capture what `apiOrpcClient` / `browserApiOrpcClient` hand to the oRPC link so
 // we can assert the request URL and exercise the lazily-built `headers()` fn.
 interface LinkOptions {
-  url: string;
+  url: string | (() => string);
   headers?: () => Record<string, string>;
 }
 const linkOptions: LinkOptions[] = [];
@@ -80,7 +80,26 @@ describe("browserApiOrpcClient", () => {
   it("targets the current origin and forwards no header logic", () => {
     browserApiOrpcClient(dummyContract);
     expect(linkOptions).toHaveLength(1);
-    expect(linkOptions[0].url).toBe(globalThis.location.origin);
+    const { url } = linkOptions[0];
+    expect(typeof url).toBe("function");
+    expect((url as () => string)()).toBe(globalThis.location.origin);
     expect(linkOptions[0].headers).toBeUndefined();
+  });
+
+  // Regression: the url used to be resolved while building the link, so a
+  // module that built a client at module scope threw during SSR (`location` is
+  // undefined there) and took the whole route tree down with it.
+  it("does not read location while building the link", () => {
+    const location = globalThis.location;
+    Reflect.deleteProperty(globalThis, "location");
+    try {
+      expect(() => browserApiOrpcClient(dummyContract)).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, "location", {
+        configurable: true,
+        value: location,
+        writable: true,
+      });
+    }
   });
 });

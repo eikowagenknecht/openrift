@@ -55,13 +55,16 @@ export function apiOrpcClient<TContract extends AnyContractRouter>(
  * cookie is sent automatically and no header forwarding / trace injection is
  * needed. The base is `window.location.origin` (absolute, same-origin).
  *
- * Importing this module on the server is safe (`globalThis.location` is read
- * lazily); only CALL this from a browser-only path.
+ * The link's `url` is a function, so `globalThis.location` is read per request
+ * rather than when the link is built. That is what makes it safe to build a
+ * client at module scope in a module the server also imports: constructing one
+ * during SSR is inert, and only an actual call — which never happens on the
+ * server — touches `location`.
  * @returns A contract-typed client bound to the current page origin.
  */
 export function browserApiOrpcClient<TContract extends AnyContractRouter>(
   contract: TContract,
 ): ContractRouterClient<TContract> {
-  const link = new OpenAPILink(contract, { url: globalThis.location.origin });
+  const link = new OpenAPILink(contract, { url: () => globalThis.location.origin });
   return createORPCClient(link);
 }
