@@ -7,11 +7,8 @@ import { useState } from "react";
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckCardRow } from "@/components/deck/deck-card-row";
-import type {
-  BrowserCardDragData,
-  DeckCardDragData,
-  DeckDropData,
-} from "@/components/deck/deck-dnd-context";
+import type { AnyDragData, DeckDropData } from "@/components/deck/deck-dnd-context";
+import { DECK_DRAG_TYPES, resolveDraggedCard } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,6 +27,7 @@ import {
 } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
+import { asDragData } from "@/lib/dnd-data";
 import { getTypeIconPath, getTypeIconPaths } from "@/lib/icons";
 import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
@@ -93,18 +91,8 @@ export function DeckZoneSection({
 
   // Check if the currently dragged card is allowed in this zone
   const { active } = useDndContext();
-  const dragData = active?.data.current as DeckCardDragData | BrowserCardDragData | undefined;
-  const draggedCard =
-    dragData?.type === "browser-card"
-      ? dragData.card
-      : dragData?.type === "deck-card"
-        ? allCards.find(
-            (card) =>
-              card.cardId === dragData.cardId &&
-              card.zone === dragData.fromZone &&
-              card.preferredPrintingId === dragData.preferredPrintingId,
-          )
-        : undefined;
+  const dragData = asDragData<AnyDragData>(active?.data.current, DECK_DRAG_TYPES);
+  const draggedCard = resolveDraggedCard(dragData, allCards);
   const isDragging = active !== null;
 
   // Cross-zone copy totals — champion counts toward the 3-copy limit too;

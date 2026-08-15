@@ -3,6 +3,8 @@ import type { ListIntent, ListKind } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import type { AnyDragData } from "@/components/collection/dnd-types";
+import { COLLECTION_DRAG_TYPES } from "@/components/collection/dnd-types";
+import { asDragData } from "@/lib/dnd-data";
 import { cn } from "@/lib/utils";
 
 interface DroppableSidebarListProps {
@@ -58,7 +60,7 @@ export function DroppableSidebarList({
     disabled,
   });
 
-  const dragData = active?.data.current as AnyDragData | undefined;
+  const dragData = asDragData<AnyDragData>(active?.data.current, COLLECTION_DRAG_TYPES);
   const compatible = isCompatibleDrop(dragData, { listId, listKind, listIntent });
   const showHighlight = !disabled && isOver && compatible;
 

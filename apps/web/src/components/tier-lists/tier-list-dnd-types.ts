@@ -5,6 +5,8 @@
  * move, reorder, unrank, and restacking the ladder.
  */
 
+import { asDragData } from "@/lib/dnd-data";
+
 /** A card dragged out of the card pool. */
 export interface PoolCardDragData {
   type: "tier-pool-card";
@@ -22,6 +24,14 @@ export interface PoolCardDragData {
 export interface BoardCardDragData {
   type: "tier-board-card";
   cardId: string;
+  /**
+   * The printing the tile is rendering — the entry's pinned one, or the default
+   * it fell back to — so the drag ghost carries the art the row shows. Read by
+   * the overlay only: the drop deliberately does not pass it on, because
+   * "keep whatever this card is pinned to" is already what an omitted printing
+   * means to `assign`, and forwarding a defaulted id would pin it for real.
+   */
+  printingId?: string;
 }
 
 /** A whole row, dragged by its handle to restack the ladder. */
@@ -58,22 +68,15 @@ interface TierPoolDropData {
 
 export type TierListDropData = TierRowDropData | TierCardDropData | TierPoolDropData;
 
+const DRAG_TYPES = ["tier-pool-card", "tier-board-card", "tier-row-handle"] as const;
+const DROP_TYPES = ["tier-row", "tier-card", "tier-pool"] as const;
+
 /** @returns The drag payload carried by an active drag, when it is one of ours. */
 export function asTierListDragData(data: unknown): TierListDragData | undefined {
-  const candidate = data as TierListDragData | undefined;
-  return candidate?.type === "tier-pool-card" ||
-    candidate?.type === "tier-board-card" ||
-    candidate?.type === "tier-row-handle"
-    ? candidate
-    : undefined;
+  return asDragData<TierListDragData>(data, DRAG_TYPES);
 }
 
 /** @returns The drop payload of the hovered target, when it is one of ours. */
 export function asTierListDropData(data: unknown): TierListDropData | undefined {
-  const candidate = data as TierListDropData | undefined;
-  return candidate?.type === "tier-row" ||
-    candidate?.type === "tier-card" ||
-    candidate?.type === "tier-pool"
-    ? candidate
-    : undefined;
+  return asDragData<TierListDropData>(data, DROP_TYPES);
 }

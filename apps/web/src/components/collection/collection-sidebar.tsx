@@ -45,6 +45,7 @@ import {
 import { useCollections, useReorderCollections } from "@/hooks/use-collections";
 import { useLists, useReorderLists } from "@/hooks/use-lists";
 import { deckBoxLabel } from "@/lib/deck-box-label";
+import { asDragData } from "@/lib/dnd-data";
 import { splitSidebarRows } from "@/lib/sidebar-visibility";
 import type { SidebarGroupKey } from "@/stores/sidebar-fold-store";
 import { moreKey, useSidebarFoldStore } from "@/stores/sidebar-fold-store";
@@ -57,6 +58,7 @@ import type {
   SidebarReorderCollectionDragData,
   SidebarReorderListDragData,
 } from "./dnd-types";
+import { COLLECTION_DRAG_TYPES, SIDEBAR_REORDER_DRAG_TYPES } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
 import { SidebarShowMoreRow } from "./sidebar-show-more-row";
 import { SIDEBAR_ROW_ICON_CLASS, SortableSidebarRow } from "./sortable-sidebar-row";
@@ -587,7 +589,7 @@ function SidebarReorderMonitor({
 
   useDndMonitor({
     onDragEnd: (event: DragEndEvent) => {
-      const dragData = event.active.data.current as AnyDragData | undefined;
+      const dragData = asDragData<AnyDragData>(event.active.data.current, COLLECTION_DRAG_TYPES);
       if (!dragData) {
         return;
       }
@@ -673,11 +675,13 @@ export function CollectionSidebar() {
   const [createInGroup, setCreateInGroup] = useState<{ slug: string; name: string } | null>(null);
 
   const { active } = useDndContext();
-  const activeType = active?.data.current?.type;
   const isReorderActive =
-    activeType === "sidebar-reorder-collection" || activeType === "sidebar-reorder-list";
-  const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
-    ?.sourceCollectionId;
+    asDragData<AnyDragData>(active?.data.current, SIDEBAR_REORDER_DRAG_TYPES) !== undefined;
+  // Narrowed rather than cast: only a card drag has a source collection, and
+  // reading the field off whatever else is in flight would answer by accident.
+  const dragSourceCollectionId = asDragData<CardDragData>(active?.data.current, [
+    "collection-card",
+  ])?.sourceCollectionId;
 
   const { personal, groups } = partitionCollections(collections ?? []);
   const totalCopies = personal.reduce((sum, col) => sum + col.copyCount, 0);

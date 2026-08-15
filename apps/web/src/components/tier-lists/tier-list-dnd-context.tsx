@@ -13,8 +13,9 @@ import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { CardDragGhost } from "@/components/cards/card-drag-ghost";
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
-import { TierCardTile, useTierTileWidth } from "@/components/tier-lists/tier-card-tile";
+import { useTierTileWidth } from "@/components/tier-lists/tier-card-tile";
 import type { TierListDragData } from "@/components/tier-lists/tier-list-dnd-types";
 import {
   asTierListDragData,
@@ -178,20 +179,20 @@ function DragPreview({
     return null;
   }
   const printings = printingsByCardId.get(dragged.cardId);
-  const pinned =
-    dragged.type === "tier-pool-card" && dragged.printingId
-      ? printings?.find((printing) => printing.id === dragged.printingId)
-      : undefined;
+  // Both card drags now name their printing: the pool cell carries the one the
+  // creator pointed at, a board tile the one it is rendering. Only a cards-view
+  // pool cell, which stands for the card rather than a printing, leaves it to
+  // the default.
+  const shown = dragged.printingId
+    ? printings?.find((printing) => printing.id === dragged.printingId)
+    : printings?.[0];
   return (
-    <TierCardTile
-      view={{
-        cardId: dragged.cardId,
-        card,
-        printing: pinned ?? printings?.[0],
-        pinnedPrintingId: pinned?.id ?? null,
-      }}
+    <CardDragGhost
+      printings={shown ? [shown] : []}
+      card={card}
+      label={card.name}
       width={tileWidth}
-      className="rotate-3 opacity-90 shadow-lg"
+      className="opacity-90"
     />
   );
 }

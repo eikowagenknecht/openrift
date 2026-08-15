@@ -327,6 +327,9 @@ function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }
   const dragData: BoardCardDragData = {
     type: "tier-board-card",
     cardId: view.cardId,
+    // The printing this tile is actually rendering, pinned or defaulted, so the
+    // ghost under the cursor carries the same art the row does.
+    printingId: view.printing?.id,
   };
   const dropData: TierCardDropData = { type: "tier-card", cardId: view.cardId, rowIndex, position };
 

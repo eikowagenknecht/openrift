@@ -18,7 +18,11 @@ import type {
   DeckCardDragData,
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
-import { DRAG_SOURCE_ZONES, resolveDraggedCard } from "@/components/deck/deck-dnd-context";
+import {
+  DECK_DRAG_TYPES,
+  DRAG_SOURCE_ZONES,
+  resolveDraggedCard,
+} from "@/components/deck/deck-dnd-context";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,6 +49,7 @@ import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
+import { asDragData } from "@/lib/dnd-data";
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { borrowedReasonText } from "@/lib/loan-derivation";
@@ -532,7 +537,7 @@ function DroppableZoneSection({
   // Mirrors the grid zone tiles: the same two helpers decide whether this zone
   // can take the card in flight, so both surfaces reject the same drags.
   const { active } = useDndContext();
-  const dragData = active?.data.current as AnyDragData | undefined;
+  const dragData = asDragData<AnyDragData>(active?.data.current, DECK_DRAG_TYPES);
   const draggedCard = resolveDraggedCard(dragData, allCards);
   const isZoneFull =
     draggedCard !== undefined &&

@@ -8,11 +8,12 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CardDragGhost } from "@/components/cards/card-drag-ghost";
 import { resolveDropCopyIds, resolveSelectionDrag } from "@/components/collection/collection-drag";
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type {
@@ -20,6 +21,7 @@ import type {
   CardDragData,
   ListEntryDragData,
 } from "@/components/collection/dnd-types";
+import { COLLECTION_DRAG_TYPES } from "@/components/collection/dnd-types";
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -28,11 +30,11 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import type { SidebarListDropData } from "@/components/list/droppable-sidebar-list";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
+import { asDragData } from "@/lib/dnd-data";
 import { describeListAdd } from "@/lib/list-toast";
 import { parseMoveDigit } from "@/lib/parse-digit-key";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -48,6 +50,14 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections")({
 
 const DRAG_ACTIVATION = { distance: 8 };
 const MODIFIERS = [snapCenterToCursor];
+
+/** Where a collections drag can land: another collection, or a sidebar list. */
+type CollectionDropData = { type: "collection"; collectionId: string } | SidebarListDropData;
+
+const COLLECTION_DROP_TYPES = [
+  "collection",
+  "list",
+] as const satisfies readonly CollectionDropData["type"][];
 
 function CollectionLayout() {
   const search = Route.useSearch();
@@ -123,7 +133,7 @@ function CollectionLayout() {
 
   const handleDragStart = (event: DragStartEvent) => {
     dragActiveRef.current = true;
-    const data = event.active.data.current as AnyDragData | undefined;
+    const data = asDragData<AnyDragData>(event.active.data.current, COLLECTION_DRAG_TYPES);
     if (data?.type === "collection-card") {
       // Resolve the live multi-selection at grab time so the overlay fans and
       // counts the whole selection, not just the grabbed tile's copies.
@@ -140,11 +150,11 @@ function CollectionLayout() {
     dragActiveRef.current = false;
     setActiveDrag(null);
 
-    const dragData = event.active.data.current as AnyDragData | undefined;
-    const dropData = event.over?.data.current as
-      | { type: "collection"; collectionId: string }
-      | SidebarListDropData
-      | undefined;
+    const dragData = asDragData<AnyDragData>(event.active.data.current, COLLECTION_DRAG_TYPES);
+    const dropData = asDragData<CollectionDropData>(
+      event.over?.data.current,
+      COLLECTION_DROP_TYPES,
+    );
 
     if (!dropData || !dragData) {
       return;
@@ -315,42 +325,20 @@ function CollectionContent({
   );
 }
 
-const FAN_OFFSETS = [
-  { x: 0, y: 0, rotate: 0 },
-  { x: 12, y: -4, rotate: 6 },
-  { x: 24, y: -2, rotate: 12 },
-];
-
 function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
-  const firstImageId = drag.printing.images[0]?.imageId;
-  const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
   return (
-    <div className="relative h-48 w-28">
-      {thumbnail && (
-        <ImgWithFallback
-          src={thumbnail}
-          alt=""
-          className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
-          draggable={false}
-          fallback={null}
-        />
-      )}
-      <div className="bg-background/80 absolute right-0 bottom-0 left-0 rounded-b-lg px-1.5 py-1 backdrop-blur-sm">
-        <p className="truncate text-center text-xs font-medium">
-          {legendDisplayName(drag.printing.card)}
-        </p>
-      </div>
-      {drag.totalQuantity > 1 && (
-        <div className="bg-primary text-primary-foreground absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow">
-          {drag.totalQuantity}
-        </div>
-      )}
-    </div>
+    <CardDragGhost
+      printings={[drag.printing]}
+      label={legendDisplayName(drag.printing.card)}
+      count={drag.totalQuantity}
+    />
   );
 }
 
 function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" | number | null }) {
-  const printings = drag.previewPrintings;
+  // A select-mode drag publishes its fan; a lone drag has none, and shows the
+  // printing it was grabbed from.
+  const printings = drag.previewPrintings.length > 0 ? drag.previewPrintings : [drag.printing];
   // The selected-tile count + noun are published by the grid as the selection
   // changes (frozen for the duration of a drag, since selection can't change
   // mid-drag).
@@ -373,48 +361,7 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
     count = resolveDropCopyIds(drag, modifier).length;
     label = count === 1 ? drag.printing.card.name : `${count} copies`;
   }
-  // Show up to 3 fanned cards, front card on top
-  const cards = printings.slice(0, 3);
-
-  return (
-    <div className="relative h-48 w-28">
-      {cards.toReversed().map((printing, reversedIndex) => {
-        const index = cards.length - 1 - reversedIndex;
-        const offset = FAN_OFFSETS[index];
-        const firstImageId = printing.images[0]?.imageId;
-        const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
-        if (!thumbnail) {
-          return null;
-        }
-        return (
-          <ImgWithFallback
-            key={printing.id}
-            src={thumbnail}
-            alt=""
-            className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
-            style={{
-              transform: `translate(${offset.x}px, ${offset.y}px) rotate(${offset.rotate}deg)`,
-              zIndex: index,
-            }}
-            draggable={false}
-            fallback={null}
-          />
-        );
-      })}
-      <div
-        className="bg-background/80 absolute bottom-0 left-0 w-28 rounded-b-lg px-1.5 py-1 backdrop-blur-sm"
-        style={{ zIndex: cards.length }}
-      >
-        <p className="truncate text-center text-xs font-medium">{label}</p>
-      </div>
-      {count > 1 && (
-        <div
-          className="bg-primary text-primary-foreground absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow"
-          style={{ zIndex: cards.length + 1 }}
-        >
-          {count}
-        </div>
-      )}
-    </div>
-  );
+  // The ghost fans the first few itself; the drag can carry more, which is what
+  // the count says.
+  return <CardDragGhost printings={printings} label={label} count={count} />;
 }

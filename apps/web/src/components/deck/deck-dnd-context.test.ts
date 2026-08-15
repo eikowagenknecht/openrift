@@ -17,14 +17,17 @@ function browserCard(): BrowserCardDragData {
   return { type: "browser-card", card: { cardId: "card-1" } as DeckBuilderCard };
 }
 
-function deckCard(fromZone: DeckCardDragData["fromZone"]): DeckCardDragData {
+function deckCard(
+  fromZone: DeckCardDragData["fromZone"],
+  preferredPrintingId: string | null = null,
+): DeckCardDragData {
   return {
     type: "deck-card",
     cardId: "card-1",
     cardName: "Annie, Fiery",
     fromZone,
     quantity: 2,
-    preferredPrintingId: null,
+    preferredPrintingId,
   };
 }
 
@@ -100,6 +103,38 @@ describe("resolveDraggedCard", () => {
 
   it("returns nothing when the dragged card has left its source zone", () => {
     expect(resolveDraggedCard(deckCard(WellKnown.deckZone.OVERFLOW), [inMain])).toBeUndefined();
+  });
+
+  it("picks the row whose printing the drag names", () => {
+    // One card, one zone, two rows — a deck may hold the same card under two
+    // printings, and they carry separate quantities. Matching on card + zone
+    // alone returns whichever row sorts first, which is the wrong quantity for
+    // the copy limit checks half the time.
+    const alt = stubDeckBuilderCard({
+      cardId: "card-1",
+      zone: WellKnown.deckZone.MAIN,
+      quantity: 1,
+      preferredPrintingId: "printing-alt",
+    });
+    expect(
+      resolveDraggedCard(deckCard(WellKnown.deckZone.MAIN, "printing-alt"), [inMain, alt]),
+    ).toBe(alt);
+  });
+
+  it("picks the default-art row for a drag that names no printing", () => {
+    const alt = stubDeckBuilderCard({
+      cardId: "card-1",
+      zone: WellKnown.deckZone.MAIN,
+      quantity: 1,
+      preferredPrintingId: "printing-alt",
+    });
+    expect(resolveDraggedCard(deckCard(WellKnown.deckZone.MAIN), [alt, inMain])).toBe(inMain);
+  });
+
+  it("returns nothing when no row carries the printing the drag names", () => {
+    expect(
+      resolveDraggedCard(deckCard(WellKnown.deckZone.MAIN, "printing-gone"), [inMain]),
+    ).toBeUndefined();
   });
 });
 

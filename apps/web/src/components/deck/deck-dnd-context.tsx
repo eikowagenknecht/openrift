@@ -8,17 +8,17 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { copyLimitFor, imageUrl, legendDisplayName, WellKnown } from "@openrift/shared";
+import { copyLimitFor, legendDisplayName, WellKnown } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { CardDragGhost } from "@/components/cards/card-drag-ghost";
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { asDragData } from "@/lib/dnd-data";
 
 export interface DeckCardDragData {
   type: "deck-card";
@@ -48,6 +48,18 @@ export interface DeckDropData {
 
 export type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
+/**
+ * Every drag this context owns, for narrowing a dnd-kit payload with
+ * {@link asDragData}. The deck editor hosts the card browser and its own
+ * sortables, so its handlers do see payloads that aren't in this list.
+ */
+export const DECK_DRAG_TYPES = [
+  "deck-card",
+  "browser-card",
+] as const satisfies readonly AnyDragData["type"][];
+
+const DECK_DROP_TYPES = ["deck-zone"] as const satisfies readonly DeckDropData["type"][];
+
 const DRAG_ACTIVATION = { distance: 8 };
 /**
  * Zones whose cards can be picked up and re-homed by dragging. Every deck
@@ -62,11 +74,22 @@ export const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set([
 
 /**
  * The deck card a drag is carrying, resolved against the current deck. A
- * browser drag carries its card outright; a deck drag carries ids, so the copy
- * living in the source zone is looked up — its quantity and types are what the
+ * browser drag carries its card outright; a deck drag carries ids, so the row
+ * it was lifted from is looked up — its quantity and types are what the
  * zone-fullness and type checks read.
+ *
+ * Identity is the deck row's full key (card, zone, printing), not just card and
+ * zone: a deck may hold one card in one zone twice under different printings,
+ * and those are separate rows with separate quantities. Every `deck-card`
+ * payload is built from a row that has all three, so the lookup finds it.
+ *
+ * The single answer to "what is in flight" for every deck drop target — the
+ * grid zones, the list zones and the sidebar all call this rather than
+ * inlining their own lookup, so they can't disagree about what is being
+ * dragged.
+ *
  * @returns The dragged card, or undefined when nothing is being dragged (or the
- *   dragged deck card is no longer in its source zone).
+ *   dragged row is no longer in the deck).
  */
 export function resolveDraggedCard(
   dragData: AnyDragData | undefined,
@@ -77,7 +100,10 @@ export function resolveDraggedCard(
   }
   if (dragData?.type === "deck-card") {
     return allCards.find(
-      (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
+      (card) =>
+        card.cardId === dragData.cardId &&
+        card.zone === dragData.fromZone &&
+        card.preferredPrintingId === dragData.preferredPrintingId,
     );
   }
   return undefined;
@@ -174,6 +200,12 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     fromBrowser: boolean;
     /** Copy-limit override of the dragged card; only read for browser drags. */
     maxCopiesOverride: number | null;
+    /**
+     * Art the dragged copy is pinned to, so the ghost matches the row it was
+     * lifted from. Null follows the language-preferred printing, same as
+     * everywhere else the deck resolves art.
+     */
+    preferredPrintingId: string | null;
   } | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
   const activeNodeRef = useRef<HTMLElement | null>(null);
@@ -279,7 +311,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
   const handleDragStart = (event: DragStartEvent) => {
     activeNodeRef.current = (event.activatorEvent.target as HTMLElement) ?? null;
 
-    const data = event.active.data.current as AnyDragData | undefined;
+    const data = asDragData<AnyDragData>(event.active.data.current, DECK_DRAG_TYPES);
     if (data?.type === "deck-card") {
       setDragInfo({
         cardId: data.cardId,
@@ -287,6 +319,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         quantity: data.quantity,
         fromBrowser: false,
         maxCopiesOverride: null,
+        preferredPrintingId: data.preferredPrintingId,
       });
       setShiftHeld(false);
     } else if (data?.type === "browser-card") {
@@ -300,6 +333,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         quantity: 1,
         fromBrowser: true,
         maxCopiesOverride: data.card.maxCopiesOverride,
+        preferredPrintingId: data.card.preferredPrintingId,
       });
     }
   };
@@ -310,8 +344,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     setShiftHeld(false);
     activeNodeRef.current = null;
 
-    const activeData = event.active.data.current as AnyDragData | undefined;
-    const overData = event.over?.data.current as DeckDropData | undefined;
+    const activeData = asDragData<AnyDragData>(event.active.data.current, DECK_DRAG_TYPES);
+    const overData = asDragData<DeckDropData>(event.over?.data.current, DECK_DROP_TYPES);
 
     if (!activeData) {
       return;
@@ -406,9 +440,10 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     dragInfo !== null &&
     (dragInfo.fromBrowser ? browserRemaining > 1 : dragInfo.quantity > 1);
 
-  const { getPreferredFrontImage } = usePreferredPrinting();
-  const dragImageId = dragInfo ? (getPreferredFrontImage(dragInfo.cardId)?.imageId ?? null) : null;
-  const dragImageUrl = dragImageId ? imageUrl(dragImageId, "400w") : null;
+  const { getPreferredPrinting } = usePreferredPrinting();
+  const dragPrinting = dragInfo
+    ? getPreferredPrinting(dragInfo.cardId, dragInfo.preferredPrintingId)
+    : undefined;
 
   const dragCount = moveAll
     ? dragInfo?.fromBrowser
@@ -456,53 +491,12 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
       {children}
       <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
         {dragInfo && (
-          <div className="relative h-48 w-28">
-            {dragImageUrl ? (
-              <ImgWithFallback
-                src={dragImageUrl}
-                alt=""
-                style={{ borderRadius: CARD_BORDER_RADIUS }}
-                className="absolute top-0 left-0 w-28 shadow-lg"
-                draggable={false}
-                fallback={
-                  <div
-                    style={{ borderRadius: CARD_BORDER_RADIUS }}
-                    className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center shadow-lg"
-                  >
-                    <span className="text-muted-foreground px-1 text-center text-xs">
-                      {dragInfo.cardName}
-                    </span>
-                  </div>
-                }
-              />
-            ) : (
-              <div
-                style={{ borderRadius: CARD_BORDER_RADIUS }}
-                className="bg-muted absolute top-0 left-0 flex h-40 w-28 items-center justify-center shadow-lg"
-              >
-                <span className="text-muted-foreground px-1 text-center text-xs">
-                  {dragInfo.cardName}
-                </span>
-              </div>
-            )}
-            <div
-              // The label bar hugs the card's bottom corners: 5% of the fixed
-              // w-28 (7rem) ghost width, matching CARD_BORDER_RADIUS.
-              className="bg-background/80 absolute bottom-0 left-0 w-28 px-1.5 py-1 backdrop-blur-sm"
-              style={{
-                zIndex: 1,
-                borderBottomLeftRadius: "calc(7rem * 0.05)",
-                borderBottomRightRadius: "calc(7rem * 0.05)",
-              }}
-            >
-              <p className="truncate text-center text-xs font-medium">{dragInfo.cardName}</p>
-            </div>
-            {dragCount > 1 && (
-              <div className="bg-primary text-primary-foreground absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow">
-                {dragCount}
-              </div>
-            )}
-          </div>
+          <CardDragGhost
+            printings={dragPrinting ? [dragPrinting] : []}
+            card={dragPrinting?.card}
+            label={dragInfo.cardName}
+            count={dragCount}
+          />
         )}
       </DragOverlay>
     </DndContext>

@@ -23,6 +23,7 @@ import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReplaceTournamentPairing } from "@/hooks/use-tournaments";
+import { asDragData } from "@/lib/dnd-data";
 import {
   movePlayer,
   participantIds,
@@ -35,6 +36,25 @@ import { teamNamesById } from "@/lib/team-display";
 import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningList } from "./pairing-warnings";
+
+/**
+ * This editor's drag vocabulary: a player chip is dragged onto a seat — a pod,
+ * the new-pod zone, or the byes. Both payloads carry a `type` so they narrow
+ * through {@link asDragData} like every other surface's, rather than being read
+ * off `data.current` by field name and cast.
+ */
+interface PodPlayerDragData {
+  type: "pod-player";
+  playerId: string;
+}
+
+interface PodSeatDropData {
+  type: "pod-seat";
+  target: MoveTarget;
+}
+
+const POD_DRAG_TYPES = ["pod-player"] as const satisfies readonly PodPlayerDragData["type"][];
+const POD_DROP_TYPES = ["pod-seat"] as const satisfies readonly PodSeatDropData["type"][];
 
 // Build the non-empty pods as engine pods. Size is the live member count; the
 // engine reads it only for the `=== 3` checks, so a transient 5 is runtime-safe
@@ -147,15 +167,16 @@ export function PodPairingEditor({
   const byeWarnings = warnings.filter((warning) => warning.kind === "repeatBye");
 
   function handleDragStart(event: DragStartEvent) {
-    setDraggingId((event.active.data.current?.playerId as string | undefined) ?? null);
+    const drag = asDragData<PodPlayerDragData>(event.active.data.current, POD_DRAG_TYPES);
+    setDraggingId(drag?.playerId ?? null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setDraggingId(null);
-    const playerId = event.active.data.current?.playerId as string | undefined;
-    const target = event.over?.data.current?.target as MoveTarget | undefined;
-    if (playerId && target) {
-      setState((current) => movePlayer(current, playerId, target));
+    const drag = asDragData<PodPlayerDragData>(event.active.data.current, POD_DRAG_TYPES);
+    const drop = asDragData<PodSeatDropData>(event.over?.data.current, POD_DROP_TYPES);
+    if (drag && drop) {
+      setState((current) => movePlayer(current, drag.playerId, drop.target));
     }
   }
 
@@ -333,7 +354,7 @@ function ChipBody({ name, score, dragging }: { name: string; score: number; drag
 function PlayerChip({ playerId, name, score }: { playerId: string; name: string; score: number }) {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `player:${playerId}`,
-    data: { playerId },
+    data: { type: "pod-player", playerId } satisfies PodPlayerDragData,
   });
   return (
     <div
@@ -368,7 +389,7 @@ function PodDropZone({
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `pod:${index}`,
-    data: { target: { kind: "pod", index } satisfies MoveTarget },
+    data: { type: "pod-seat", target: { kind: "pod", index } } satisfies PodSeatDropData,
   });
   return (
     <Card
@@ -400,7 +421,7 @@ function PodDropZone({
 function NewPodDropZone({ mode }: { mode: EditorMode }) {
   const { setNodeRef, isOver } = useDroppable({
     id: "new-pod",
-    data: { target: { kind: "newPod" } satisfies MoveTarget },
+    data: { type: "pod-seat", target: { kind: "newPod" } } satisfies PodSeatDropData,
   });
   return (
     <Card ref={setNodeRef} className={cn("gap-2 border-dashed", isOver && "ring-primary ring-2")}>
@@ -436,7 +457,7 @@ function ByeDropZone({
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: "bye",
-    data: { target: { kind: "bye" } satisfies MoveTarget },
+    data: { type: "pod-seat", target: { kind: "bye" } } satisfies PodSeatDropData,
   });
   return (
     <Card ref={setNodeRef} className={cn("gap-2 border-dashed", isOver && "ring-primary ring-2")}>

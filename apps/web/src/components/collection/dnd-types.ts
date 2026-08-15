@@ -74,3 +74,31 @@ export type AnyDragData =
   | ListEntryDragData
   | SidebarReorderCollectionDragData
   | SidebarReorderListDragData;
+
+/**
+ * Every drag this surface owns, for narrowing a dnd-kit payload with
+ * {@link asDragData}. The collections layout also hosts the sidebar's own
+ * sortable rows, so its handlers do see payloads that aren't in this list.
+ */
+export const COLLECTION_DRAG_TYPES = [
+  "collection-card",
+  "list-entry",
+  "sidebar-reorder-collection",
+  "sidebar-reorder-list",
+] as const satisfies readonly AnyDragData["type"][];
+
+/**
+ * The drags that carry cards, as opposed to the ones that reorder the sidebar.
+ * Drop targets that take cards test against this rather than listing the two
+ * type strings inline.
+ */
+export const CARD_CARRYING_DRAG_TYPES = [
+  "collection-card",
+  "list-entry",
+] as const satisfies readonly AnyDragData["type"][];
+
+/** The sidebar's own reorder drags, which every card drop target stands down for. */
+export const SIDEBAR_REORDER_DRAG_TYPES = [
+  "sidebar-reorder-collection",
+  "sidebar-reorder-list",
+] as const satisfies readonly AnyDragData["type"][];

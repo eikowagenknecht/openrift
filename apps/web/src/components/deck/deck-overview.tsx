@@ -42,11 +42,15 @@ import { DeckBoxTab } from "@/components/deck/deck-box-tab";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckDescription, DeckLinkChips } from "@/components/deck/deck-description";
 import type {
-  BrowserCardDragData,
+  AnyDragData,
   DeckCardDragData,
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
-import { DRAG_SOURCE_ZONES } from "@/components/deck/deck-dnd-context";
+import {
+  DECK_DRAG_TYPES,
+  DRAG_SOURCE_ZONES,
+  resolveDraggedCard,
+} from "@/components/deck/deck-dnd-context";
 import { DeckHero } from "@/components/deck/deck-hero";
 import { DeckOverviewList, DECK_OVERVIEW_SORT_OPTIONS } from "@/components/deck/deck-overview-list";
 import { DeckTestBench } from "@/components/deck/deck-test-bench";
@@ -140,6 +144,7 @@ import {
   zoneEmptyReadOnlyLabel,
   zoneExpected,
 } from "@/lib/deck-zone-labels";
+import { asDragData } from "@/lib/dnd-data";
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -2032,15 +2037,8 @@ function ZoneTile({
   // sidebar and overview reject the same drags (copy limit, battlefield
   // dedupe, 12-rune cap, type compatibility).
   const { active } = useDndContext();
-  const dragData = active?.data.current as DeckCardDragData | BrowserCardDragData | undefined;
-  const draggedCard =
-    dragData?.type === "browser-card"
-      ? dragData.card
-      : dragData?.type === "deck-card"
-        ? allCards.find(
-            (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
-          )
-        : undefined;
+  const dragData = asDragData<AnyDragData>(active?.data.current, DECK_DRAG_TYPES);
+  const draggedCard = resolveDraggedCard(dragData, allCards);
   const isDragging = active !== null;
 
   const isZoneFull =
