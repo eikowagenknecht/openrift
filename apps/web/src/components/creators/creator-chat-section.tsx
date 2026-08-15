@@ -47,19 +47,19 @@ export function CreatorChatSection() {
   return (
     <CreatorSection id="chat-command" title="Card lookups in chat">
       <p>
-        Add one command and anyone in your chat can pull up a Riftbound card without leaving the
-        stream. A viewer types <code className="font-mono text-sm">!card viktor</code> and the bot
-        answers with the card&apos;s type, domains and stats, plus a link to the full card page. A
-        printing code works too, with or without the dash.
+        Add one command to your chat bot and viewers can look up any Riftbound card without leaving
+        the stream. Someone types <code className="font-mono text-sm">!card viktor</code> and the
+        bot answers with the card&apos;s type, domains and stats, plus a link to the full card page.
+        A printing code works too, with or without the dash.
       </p>
       <p className="text-muted-foreground">
-        When nothing matches, the answer points at a card search for whatever they asked for, so a
-        typo still gets them somewhere useful.
+        If nothing matches, the bot links to a card search for what they typed, so even a typo lands
+        somewhere useful.
       </p>
       <ChatBotSetups />
       <p className="text-muted-foreground text-sm">
-        The lookup is free and needs no account or key. It reads the same catalogue the site does,
-        so a card edit shows up on the next lookup.
+        The lookup is free, with no account or API key needed. It reads the same catalogue as the
+        rest of the site, so fixes to card data show up on the next lookup.
       </p>
     </CreatorSection>
   );

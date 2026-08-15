@@ -28,14 +28,14 @@ export const CREATOR_TOOLS: CreatorTool[] = [
   {
     id: "chat-command",
     title: "Card lookups in chat",
-    blurb: "Viewers type !card, your bot answers with the card and a link.",
+    blurb: "Viewers type !card and your bot answers with the card and a link.",
     icon: MessageSquareIcon,
     tone: "primary",
   },
   {
     id: "tier-lists",
     title: "Tier lists",
-    blurb: "Rank a set on a board, then share the link or use the image.",
+    blurb: "Rank a set on a board, then share it as a link or an image.",
     icon: ListOrderedIcon,
     tone: "gold",
     featureFlag: "tier-lists",
@@ -43,7 +43,7 @@ export const CREATOR_TOOLS: CreatorTool[] = [
   {
     id: "stage",
     title: "Stage",
-    blurb: "Cards on screen two ways: full screen for capture, or into OBS.",
+    blurb: "A full-screen card show for recording, or an overlay for OBS.",
     icon: MonitorPlayIcon,
     tone: "sky",
     featureFlag: "overlay",
