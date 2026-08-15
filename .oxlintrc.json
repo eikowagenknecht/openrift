@@ -48,6 +48,7 @@
     "no-namespace": "off",
     "id-length": "off",
     "init-declarations": "off",
+    "one-var": "off", // One declaration per `const` reads better than a comma-chained group
     "prefer-destructuring": "off",
     "sort-imports": "off",
     "sort-keys": "off",

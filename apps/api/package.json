@@ -15,7 +15,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.6.26",
+    "@better-auth/api-key": "1.6.29",
     "@hono/swagger-ui": "0.6.1",
     "@openrift/shared": "workspace:*",
     "@opentelemetry/api": "1.9.1",
@@ -29,10 +29,10 @@
     "@orpc/zod": "1.15.0",
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
     "@resvg/resvg-js": "2.6.2",
-    "@sentry/bun": "10.69.0",
-    "better-auth": "1.6.26",
+    "@sentry/bun": "10.70.0",
+    "better-auth": "1.6.29",
     "croner": "10.0.1",
-    "hono": "4.13.1",
+    "hono": "4.13.2",
     "hono-rate-limiter": "0.5.3",
     "kysely": "0.29.5",
     "kysely-postgres-js": "3.0.0",
