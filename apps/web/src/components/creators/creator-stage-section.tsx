@@ -86,7 +86,7 @@ export function CreatorStageSection() {
           </div>
         ))}
       </dl>
-      <p className="text-muted-foreground text-sm">
+      <p>
         Modifier presses are left alone, so your browser and window shortcuts keep working while the
         show is up.
       </p>
@@ -109,10 +109,8 @@ export function CreatorStageSection() {
           </li>
         ))}
       </ol>
-      <p className="text-muted-foreground text-sm">
-        Anyone who has the browser source link can see what you put on screen, so keep it out of
-        shot and off screen shares. If it does get out, replacing it takes one click and the old
-        link stops working straight away.
+      <p>
+        The browser source link is unique to you, so keep it off screen and out of screen shares.
       </p>
     </CreatorSection>
   );

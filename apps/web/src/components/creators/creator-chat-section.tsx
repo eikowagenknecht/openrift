@@ -52,12 +52,12 @@ export function CreatorChatSection() {
         bot answers with the card&apos;s type, domains and stats, plus a link to the full card page.
         A printing code works too, with or without the dash.
       </p>
-      <p className="text-muted-foreground">
+      <p>
         If nothing matches, the bot links to a card search for what they typed, so even a typo lands
         somewhere useful.
       </p>
       <ChatBotSetups />
-      <p className="text-muted-foreground text-sm">
+      <p>
         The lookup is free, with no account or API key needed. It reads the same catalogue as the
         rest of the site, so fixes to card data show up on the next lookup.
       </p>
