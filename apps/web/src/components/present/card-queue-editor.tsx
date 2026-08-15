@@ -1,6 +1,4 @@
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Printing } from "@openrift/shared";
@@ -10,11 +8,11 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
+import type { StageQueueRowData } from "@/components/present/stage-dnd-types";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { moveQueueEntry } from "@/lib/card-queue-search";
 import { formatPublicCode } from "@/lib/format";
-import { moveToIndex } from "@/lib/move-to-index";
 import { cn } from "@/lib/utils";
 
 /**
@@ -84,6 +82,7 @@ function QueueRow({
   onRemove: (index: number) => void;
   rowAction?: (printing: Printing, index: number) => ReactNode;
 }) {
+  const rowData: StageQueueRowData = { type: "stage-queue-row", index };
   // Destructure into locals before JSX: the React Compiler reads member access
   // on the hook's return object (sortable.listeners, …) as a ref read during
   // render and bails on the file. Same rule as SortableSidebarRow.
@@ -95,7 +94,14 @@ function QueueRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: rowId(id, index) });
+  } = useSortable({ id: rowId(id, index), data: rowData });
+  // The target a card arriving from the browser lands on. Separate from the
+  // sortable above, and on an inner element so both can be measured — see
+  // StageQueueSlotDropData for why they cannot be the same droppable.
+  const { setNodeRef: setSlotRef, isOver: isSlotOver } = useDroppable({
+    id: `stage-queue-slot-${index}`,
+    data: { type: "stage-queue-slot", index },
+  });
 
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -107,8 +113,14 @@ function QueueRow({
     <li
       ref={setNodeRef}
       style={style}
-      className="bg-card ring-border relative flex items-center gap-3 rounded-md p-2 ring-1"
+      className={cn(
+        "bg-card ring-border relative flex items-center gap-3 rounded-md p-2 ring-1",
+        // Where the card would land: above this stop, so the line goes on top.
+        isSlotOver &&
+          "before:bg-primary before:absolute before:inset-x-0 before:-top-0.5 before:h-0.5 before:rounded-full",
+      )}
     >
+      <div ref={setSlotRef} className="pointer-events-none absolute inset-0" />
       {/* oxlint-disable-next-line react/forbid-elements -- dnd-kit drag activator, needs the raw ref + listeners */}
       <button
         ref={setActivatorNodeRef}
@@ -172,7 +184,14 @@ function QueueRow({
 
 /**
  * The assembled queue, reorderable by dragging a row's grip or by the per-row
- * up/down buttons.
+ * up/down buttons, and fillable by dragging a card in from the browser beside
+ * it.
+ *
+ * The drags themselves are owned by {@link StageDndContext} rather than by a
+ * context of this list's own: a card arriving from the browser starts outside
+ * the queue, and only one context can see both ends of that. This list supplies
+ * the targets and keeps the button path, which is the keyboard and
+ * screen-reader equivalent of the grip.
  *
  * @returns The ordered queue list.
  */
@@ -189,60 +208,34 @@ export function QueueList({
   onChange: (ids: string[]) => void;
   rowAction?: (printing: Printing, index: number) => ReactNode;
 }) {
-  // A small activation distance so a click on the grip doesn't register as a
-  // zero-length drag and swallow the focus ring.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-
   const rowIds = ids.map((id, index) => rowId(id, index));
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const overId = event.over?.id;
-    if (overId === undefined) {
-      return;
-    }
-    const next = moveToIndex(
-      ids,
-      rowIds.indexOf(String(event.active.id)),
-      rowIds.indexOf(String(overId)),
-    );
-    if (next) {
-      onChange(next);
-    }
-  };
 
   const handleMove = (index: number, delta: -1 | 1) => onChange(moveQueueEntry(ids, index, delta));
   const handleRemove = (index: number) => onChange(ids.filter((_unused, at) => at !== index));
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-        <ol className="flex flex-col gap-1">
-          {ids.map((id, index) => {
-            const printing = printingsById[id];
-            if (!printing) {
-              return null;
-            }
-            return (
-              <QueueRow
-                key={rowId(id, index)}
-                id={id}
-                index={index}
-                printing={printing}
-                siblings={printingsByCardId.get(printing.cardId) ?? []}
-                isLast={index === ids.length - 1}
-                onMove={handleMove}
-                onRemove={handleRemove}
-                rowAction={rowAction}
-              />
-            );
-          })}
-        </ol>
-      </SortableContext>
-    </DndContext>
+    <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+      <ol className="flex flex-col gap-1">
+        {ids.map((id, index) => {
+          const printing = printingsById[id];
+          if (!printing) {
+            return null;
+          }
+          return (
+            <QueueRow
+              key={rowId(id, index)}
+              id={id}
+              index={index}
+              printing={printing}
+              siblings={printingsByCardId.get(printing.cardId) ?? []}
+              isLast={index === ids.length - 1}
+              onMove={handleMove}
+              onRemove={handleRemove}
+              rowAction={rowAction}
+            />
+          );
+        })}
+      </ol>
+    </SortableContext>
   );
 }

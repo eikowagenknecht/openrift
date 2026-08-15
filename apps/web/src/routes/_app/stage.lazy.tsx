@@ -15,6 +15,7 @@ import { PresentCardBrowser } from "@/components/present/present-card-browser";
 import { PresentQueuePanel } from "@/components/present/present-queue-panel";
 import { QueuePresentation } from "@/components/present/queue-presentation";
 import type { QueueSource } from "@/components/present/queue-source-picker";
+import { StageDndContext } from "@/components/present/stage-dnd-context";
 import { StageOutputBlock } from "@/components/present/stage-output-block";
 import {
   OwnedTierListPresentation,
@@ -203,34 +204,36 @@ function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
   };
 
   return (
-    <BuilderWorkbench
-      // Wider than the tier builder's aside: it carries the queue and the OBS
-      // output's scene setup, whose placement controls need the room.
-      asideClassName="lg:w-[38%] lg:max-w-md"
-      aside={
+    <StageDndContext>
+      <BuilderWorkbench
+        // Wider than the tier builder's aside: it carries the queue and the OBS
+        // output's scene setup, whose placement controls need the room.
+        asideClassName="lg:w-[38%] lg:max-w-md"
+        aside={
+          <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
+            <div className="flex flex-col gap-6">
+              <PresentQueuePanel onAdd={addSource} />
+              <StageOutputBlock onStart={start} canStart={queued > 0} />
+            </div>
+          </Suspense>
+        }
+        topBar={
+          <PageTopBar>
+            <PageTopBarTitle>Stage</PageTopBarTitle>
+            {queued > 0 && <Badge variant="outline">{queued} queued</Badge>}
+            <PageTopBarActions>
+              <PageTopBarPrimaryButton onClick={start} disabled={queued === 0}>
+                <PlayIcon />
+                Start presenting
+              </PageTopBarPrimaryButton>
+            </PageTopBarActions>
+          </PageTopBar>
+        }
+      >
         <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
-          <div className="flex flex-col gap-6">
-            <PresentQueuePanel onAdd={addSource} />
-            <StageOutputBlock onStart={start} canStart={queued > 0} />
-          </div>
+          <PresentCardBrowser />
         </Suspense>
-      }
-      topBar={
-        <PageTopBar>
-          <PageTopBarTitle>Stage</PageTopBarTitle>
-          {queued > 0 && <Badge variant="outline">{queued} queued</Badge>}
-          <PageTopBarActions>
-            <PageTopBarPrimaryButton onClick={start} disabled={queued === 0}>
-              <PlayIcon />
-              Start presenting
-            </PageTopBarPrimaryButton>
-          </PageTopBarActions>
-        </PageTopBar>
-      }
-    >
-      <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
-        <PresentCardBrowser />
-      </Suspense>
-    </BuilderWorkbench>
+      </BuilderWorkbench>
+    </StageDndContext>
   );
 }

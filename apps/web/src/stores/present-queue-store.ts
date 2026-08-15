@@ -43,6 +43,13 @@ interface PresentQueueState {
   /** Appends one printing. A no-op once the queue is at its limit. */
   add: (printingId: string) => void;
   /**
+   * Puts one printing in at `index`, pushing the stop that was there down —
+   * where a card dragged onto an existing stop lands. An index past the end
+   * appends, so a release below the last row does the obvious thing. A no-op
+   * once the queue is at its limit.
+   */
+  insertAt: (printingId: string, index: number) => void;
+  /**
    * Appends a batch, stopping at the limit.
    *
    * @returns How many landed and how many the queue had no room for.
@@ -76,6 +83,15 @@ export const usePresentQueueStore = create<PresentQueueState>()((set, get) => ({
       return;
     }
     set(withIds([...ids, printingId]));
+  },
+
+  insertAt: (printingId, index) => {
+    const { ids } = get();
+    if (ids.length >= MAX_QUEUE_LENGTH) {
+      return;
+    }
+    const at = Math.min(Math.max(index, 0), ids.length);
+    set(withIds([...ids.slice(0, at), printingId, ...ids.slice(at)]));
   },
 
   addMany: (printingIds) => {

@@ -90,9 +90,18 @@ export function BuilderWorkbench({
                 outset ring off whatever is inside (the tier rows' `ring-1`, a
                 focused control's 2px ring). The padding gives the ring room and
                 the negative margin pulls the column back to where it was, so
-                nothing moves. */}
+                nothing moves.
+
+                `overflow-x-hidden` on top of that: the padding covers a ring,
+                but not a `Switch`, whose hit area is an `::after` reaching 12px
+                past each side. One sitting at the column's right edge (the OBS
+                output's plate switches) pushes the scroll width past the box
+                and the whole aside slides sideways a few pixels. Nothing
+                visible is being clipped — the pseudo-element is transparent —
+                so the fix is to stop the box scrolling on an axis it has no
+                content for. */}
             <div
-              className="-mx-1 px-1 pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--workbench-aside-top))] lg:overflow-y-auto"
+              className="-mx-1 px-1 pt-3 lg:sticky lg:max-h-[calc(100dvh_-_var(--workbench-aside-top))] lg:overflow-x-hidden lg:overflow-y-auto"
               style={{ top: stickyTop, "--workbench-aside-top": `${stickyTop}px` } as CSSProperties}
             >
               {aside}

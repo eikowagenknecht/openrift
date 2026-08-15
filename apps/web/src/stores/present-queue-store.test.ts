@@ -61,6 +61,33 @@ describe("present queue store", () => {
     expect(count("extra")).toBe(0);
   });
 
+  it("inserts at a position and pushes the rest down", () => {
+    usePresentQueueStore.getState().load(["a", "b", "c"]);
+
+    usePresentQueueStore.getState().insertAt("x", 1);
+
+    expect(ids()).toEqual(["a", "x", "b", "c"]);
+    expect(count("x")).toBe(1);
+  });
+
+  it("appends an insert past the end and prepends one before it", () => {
+    usePresentQueueStore.getState().load(["a", "b"]);
+
+    usePresentQueueStore.getState().insertAt("x", 9);
+    usePresentQueueStore.getState().insertAt("y", -3);
+
+    expect(ids()).toEqual(["y", "a", "b", "x"]);
+  });
+
+  it("ignores an insert once the queue is full", () => {
+    usePresentQueueStore.getState().load(filler(MAX_QUEUE_LENGTH));
+
+    usePresentQueueStore.getState().insertAt("extra", 0);
+
+    expect(ids()).toHaveLength(MAX_QUEUE_LENGTH);
+    expect(count("extra")).toBe(0);
+  });
+
   it("reports what a batch add couldn't fit", () => {
     usePresentQueueStore.getState().load(filler(MAX_QUEUE_LENGTH - 2));
 
