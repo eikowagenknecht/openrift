@@ -37,6 +37,28 @@ const UPDATE_MANIFEST_FILE = "firefox-updates.json";
 export const UPDATE_MANIFEST_URL = `https://github.com/${REPO}/releases/download/${UPDATE_MANIFEST_TAG}/${UPDATE_MANIFEST_FILE}`;
 
 /**
+ * File name the newest signed build is re-uploaded under, on the same fixed
+ * tag as the manifest. AMO names the signed file after the version, which would
+ * make every install link version-specific; this copy carries a stable name so
+ * {@link LATEST_XPI_URL} never has to change.
+ *
+ * Kept in step with .github/workflows/release-extension.yml, which cannot
+ * import from here.
+ */
+const LATEST_XPI_FILE = "openrift-deck-importer.xpi";
+
+/**
+ * Permanent download link for the current signed build, for install
+ * instructions and anywhere else the site points a user at the add-on.
+ *
+ * GitHub's own `releases/latest` pointer is claimed by the app's releases, so
+ * this fixed tag is what stands in for it. `apps/web` duplicates the URL in
+ * `src/lib/social-links.ts` rather than importing it, since the extension is
+ * not one of the web app's dependencies.
+ */
+export const LATEST_XPI_URL = `https://github.com/${REPO}/releases/download/${UPDATE_MANIFEST_TAG}/${LATEST_XPI_FILE}`;
+
+/**
  * Builds the release tag holding a given version's signed .xpi. Prefixed to
  * stay clear of semantic-release's `v${version}` tags for the app itself.
  * @returns The git tag name for that extension release.

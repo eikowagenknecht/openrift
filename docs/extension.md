@@ -47,11 +47,17 @@ To load an unpacked build: Chrome → `chrome://extensions` → Developer mode �
 
 ## Distribution
 
-Firefox and Chrome are on different channels, because the platforms allow different things.
+**Firefox is the only published build.** AMO signs it through its _unlisted_ channel and hands the `.xpi` back for us to host. Signing is automated, usually a couple of minutes, with no human review. Firefox itself has no equivalent of Chrome's unlisted store listing: on AMO, "unlisted" means self-hosted, and the choice is binary.
 
-**Firefox — self-distributed.** AMO signs the build through its _unlisted_ channel and hands the `.xpi` back for us to host. Signing is automated, usually a couple of minutes, with no human review. Firefox itself has no equivalent of Chrome's unlisted store listing: on AMO, "unlisted" means self-hosted, and the choice is binary.
+Users install from one permanent URL:
 
-**Chrome — Web Store, unlisted.** Chrome has hard-blocked off-store `.crx` installs on Windows and macOS since 2015, so self-hosting is not an option. Every version is reviewed, which makes Chrome the slower of the two channels by a wide margin. Use Firefox for tight iteration and treat Chrome as the checkpoint build.
+```plaintext
+https://github.com/openriftapp/openrift/releases/download/extension-updates/openrift-deck-importer.xpi
+```
+
+Every release re-uploads the signed build there under that fixed name, next to the update manifest, so nothing on the site needs updating when a version ships. AMO names the signed file after the version, which is why this renamed copy exists at all. The name lives in three places that cannot import from each other: `LATEST_XPI_FILE` in `src/lib/firefox-distribution.ts`, `LATEST_XPI` in the release workflow, and `SOCIAL_LINKS.extensionDownload` in `apps/web/src/lib/social-links.ts`.
+
+**Chrome is not distributed.** The MV3 build exists and can be loaded unpacked (see Development above), but it is published nowhere, so there is no way for a user to install it. Whenever that changes it has to go through the Web Store: Chrome has hard-blocked off-store `.crx` installs on Windows and macOS since 2015, and every version is reviewed, which would make it the slower of the two channels by a wide margin.
 
 ### Releasing the Firefox build
 
@@ -60,8 +66,8 @@ Firefox and Chrome are on different channels, because the platforms allow differ
 
 It tests, builds, signs via AMO, generates the update manifest, and publishes two releases:
 
-- `ext-v<version>` — the signed `.xpi`. Immutable, one per version.
-- `extension-updates` — the update manifest, rewritten in place every release.
+- `ext-v<version>` — the signed `.xpi` under AMO's own file name. Immutable, one per version.
+- `extension-updates` — the update manifest plus a copy of the same `.xpi` as `openrift-deck-importer.xpi`, both rewritten in place every release.
 
 Both are created with `--latest=false` so `semantic-release` keeps the repo's "latest release" pointer for the app.
 
@@ -71,7 +77,7 @@ Installed copies poll the manifest roughly every 24 hours; `about:addons` → Ch
 
 `update_url` is baked into every installed copy and an install can only learn a new location by first updating through the old one. So the URL can never change, and the manifest cannot live at `releases/latest/download/…` — GitHub's "latest release" is a single per-repo pointer that `semantic-release` claims on every app release, which would 404 the manifest as soon as the next app version shipped.
 
-Hence the fixed `extension-updates` tag. **Do not delete that release or rename the asset.** Every installed copy depends on it, including ones that have been dormant for months.
+Hence the fixed `extension-updates` tag. **Do not delete that release or rename either asset.** Every installed copy polls the manifest, including ones dormant for months, and the site's install link points at the `.xpi` beside it.
 
 ### Required secrets
 

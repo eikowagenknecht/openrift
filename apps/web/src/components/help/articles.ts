@@ -7,6 +7,7 @@ import {
   LayersIcon,
   LibraryIcon,
   PrinterIcon,
+  PuzzleIcon,
   ScaleIcon,
   SwordsIcon,
   UsersIcon,
@@ -81,6 +82,17 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
+    },
+  ],
+  [
+    "deck-importer-extension",
+    {
+      slug: "deck-importer-extension",
+      title: "Deck Importer Extension",
+      description:
+        "Send the decklist you're looking at on another site straight to OpenRift with one click, using the Firefox add-on.",
+      icon: PuzzleIcon,
+      component: () => import("./articles/deck-importer-extension"),
     },
   ],
   [

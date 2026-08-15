@@ -16,6 +16,7 @@
 ### Other
 
 - feat(App): **A page for creators** — /creators gathers the chat-bot card lookups, tier lists, and the Stage in one place, with the setup each one needs.
+- feat(Decks): **Import a deck straight from another site** — a Firefox add-on sends the decklist you are looking at to the import page in one click, and a new help article covers installing and using it.
 - feat(Decks): **Card art in the deck plan pickers** — the battlefield, opponent, and swap dropdowns now show each card's art, so lookalike names are easy to tell apart.
 - feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.

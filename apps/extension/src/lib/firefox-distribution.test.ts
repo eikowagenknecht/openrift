@@ -4,6 +4,7 @@ import {
   ADDON_ID,
   buildUpdateManifest,
   extensionReleaseTag,
+  LATEST_XPI_URL,
   UPDATE_MANIFEST_URL,
   xpiDownloadUrl,
 } from "./firefox-distribution";
@@ -20,6 +21,29 @@ describe("UPDATE_MANIFEST_URL", () => {
 
   it("is served over https, which Firefox requires for update manifests", () => {
     expect(UPDATE_MANIFEST_URL.startsWith("https://")).toBe(true);
+  });
+});
+
+describe("LATEST_XPI_URL", () => {
+  // The site links here, and the release workflow writes the asset under this
+  // exact name. Pinned literally so a rename has to be a deliberate edit in
+  // both places (plus SOCIAL_LINKS.extensionDownload in apps/web), not a
+  // silently 404ing install link.
+  it("points at the fixed tag under the stable file name", () => {
+    expect(LATEST_XPI_URL).toBe(
+      "https://github.com/openriftapp/openrift/releases/download/extension-updates/openrift-deck-importer.xpi",
+    );
+  });
+
+  it("shares the manifest's tag, so one release write keeps both current", () => {
+    const tagPath = "/releases/download/extension-updates/";
+
+    expect(LATEST_XPI_URL).toContain(tagPath);
+    expect(UPDATE_MANIFEST_URL).toContain(tagPath);
+  });
+
+  it("carries no version, unlike the per-release asset URL", () => {
+    expect(LATEST_XPI_URL).not.toContain("ext-v");
   });
 });
 

@@ -119,7 +119,7 @@ export default function WhyOpenRiftArticle() {
             variant="dashed"
             icon={<HammerIcon className="size-4" />}
             title="Less time in the wild"
-            description="More than 5,500 automated tests and daily use keep the quality up, but years of real users find edge cases no test suite does. If you hit one, tell me: fixes ship fast."
+            description="More than 12,000 automated tests and daily use keep the quality up, but years of real users find edge cases no test suite does. If you hit one, tell me: fixes ship fast."
           />
         </div>
         <p className="text-muted-foreground mt-4 mb-2">
@@ -128,16 +128,16 @@ export default function WhyOpenRiftArticle() {
         <ul className="text-muted-foreground list-disc space-y-1.5 pl-5">
           <li>
             <span className="text-foreground font-medium">Piltover Archive</span> has bulk adding of
-            cards, deck versioning, a sample hand simulator, a massive library of user and
-            tournament decklists, and by far the biggest community.
+            cards, a massive library of user and tournament decklists, and by far the biggest
+            community.
           </li>
           <li>
             <span className="text-foreground font-medium">Riftbound.gg</span> has tournament meta
             data plus a steady stream of articles and guides, which OpenRift doesn&apos;t have.
           </li>
           <li>
-            <span className="text-foreground font-medium">Riftcore</span> has card scanning,
-            AI-powered tools, and an Android app in the Play Store.
+            <span className="text-foreground font-medium">Riftcore</span> has AI-powered tools and
+            an Android app in the Play Store.
           </li>
         </ul>
         <p className="text-muted-foreground mt-3">
@@ -169,10 +169,13 @@ export default function WhyOpenRiftArticle() {
           not sure. Features that only OpenRift has are listed separately below the table.
         </p>
         <p className="text-muted-foreground mb-3">
-          OpenRift&apos;s own rows were last refreshed on 2026-08-03. The other sites&apos; counts
-          and features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
-          reading this, it&apos;s probably already slightly out of date, as counts and features
-          change regularly. You can follow what changes on OpenRift&apos;s side in the{" "}
+          OpenRift&apos;s own rows were last refreshed on 2026-08-15. The other sites&apos; counts
+          and features were last verified on 2026-05-27 and may have drifted since. The two printing
+          counts are the exception: they stay at the 2026-04-29 measurement for every site, so the
+          numbers compare like for like. OpenRift&apos;s catalog has grown well past its figure
+          since then, and the others&apos; probably have too. When you&apos;re reading this,
+          it&apos;s probably already slightly out of date, as counts and features change regularly.
+          You can follow what changes on OpenRift&apos;s side in the{" "}
           <Link to="/changelog" className="text-primary hover:underline">
             changelog
           </Link>
@@ -253,9 +256,40 @@ export default function WhyOpenRiftArticle() {
             comes back. A lending page tracks who has what, including cards you&apos;re borrowing.
           </li>
           <li>
+            <span className="text-foreground font-medium">Deck boxes:</span> point a deck at the
+            collection its cards physically live in. The deck page then fills the box from your
+            copies, and flags what the box still holds that the deck no longer needs.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">
+              <Link
+                to="/help/$slug"
+                params={{ slug: "deck-importer-extension" }}
+                className="text-primary hover:underline"
+              >
+                Deck importer extension
+              </Link>
+              :
+            </span>{" "}
+            a Firefox add-on that reads the decklist on whatever site you are looking at and hands
+            it to the import page, name and source link included. No copying, no export step, and it
+            works while you are logged out.
+          </li>
+          <li>
             <span className="text-foreground font-medium">Tournament organizer tools:</span> run a
             casual event yourself, with pod scoring and standings, deck submission via a per-event
             link, and judge deck-check tools.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Match tracker:</span> keep score for two
+            to four players during a game on your phone, with points, XP, and an undo for the
+            mis-tapped ones. It works offline and saves nothing to your account.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Discord bot:</span> look up a card, a
+            deck, or a rule in your own server with a slash command or by writing{" "}
+            <span className="font-mono">[[card name]]</span>, and post a group&apos;s tradelists
+            into a channel.
           </li>
           <li>
             <span className="text-foreground font-medium">Quick card entry:</span> add cards by name
@@ -483,7 +517,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general: "Add many cards at once by pasting or typing a list, without browsing card by card.",
       openrift:
-        "Not available yet. CSV import and the quick card entry palette cover parts of this, but there's no paste-a-list flow.",
+        "Not available yet. CSV import, the card scanner, and the quick card entry palette cover parts of this, but there's no paste-a-list flow.",
     },
   },
   {
@@ -678,19 +712,32 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Sample hand simulator",
-    values: ["no", "yes", "no", "no", "yes"],
+    values: ["yes", "yes", "no", "no", "yes"],
     detail: {
       general: "Draw a sample opening hand from a deck to test its consistency.",
-      openrift: "Not available yet.",
+      openrift:
+        "A Test tab on every deck draws an opening hand, lets you mulligan it, and reshuffles as often as you like. A plan's swaps can be applied first, so you test the list you would actually sleeve.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Draw odds (hypergeometric)",
+    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    detail: {
+      general:
+        "Exact hypergeometric odds of drawing what you need: the chance a deck sees a given card or group of cards in the opening hand and the draws after it.",
+      openrift:
+        "Ready-made groups for curve, interaction, economy, and card types, plus your own groups by type and energy range. A second table gives the chance of holding enough runes of each domain by turns one to four, going first or second, and a plan's swaps apply before the numbers do.",
     },
   },
   {
     kind: "row",
     feature: "Deck versioning",
-    values: ["no", "yes", "no", "no", "no"],
+    values: ["yes", "yes", "no", "no", "no"],
     detail: {
       general: "Keep a revision history of a deck and roll back to earlier versions.",
-      openrift: "Not available yet.",
+      openrift:
+        "Save a named checkpoint before a rebuild, branch a variant off any earlier version, and compare any two side by side. Versions are checkpoints you take, not an automatic edit log.",
     },
   },
   {
@@ -841,11 +888,12 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Public user profiles",
-    values: ["no", "yes", "yes", "no", "yes"],
+    values: ["partial", "yes", "yes", "no", "yes"],
     detail: {
       general:
         "A shareable public profile page for a user, beyond a single collection or deck link.",
-      openrift: "Not available yet.",
+      openrift:
+        "One link shows your name with every wishlist and tradelist you share. There is no browsable profile gathering your decks and collection.",
     },
   },
   {
@@ -875,7 +923,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Discord members",
-    values: [7, 10_946, 1911, 213, 319],
+    values: [13, 10_946, 1911, 213, 319],
     detail: {
       general:
         "Approximate member count of each site's official Discord server, as a rough proxy for community size.",

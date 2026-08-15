@@ -21,6 +21,9 @@ env:
   # Fixed tag carrying the update manifest Firefox polls. Updated in place on
   # every release; never point this at `latest`, which semantic-release owns.
   MANIFEST_TAG: extension-updates
+  # Fixed asset name of the current signed build on that same tag. The site's
+  # install link points here, so it must never change.
+  LATEST_XPI: openrift-deck-importer.xpi
 
 jobs:
   release:
@@ -118,14 +121,22 @@ jobs:
 
       # Publishing the manifest last means a failure above leaves testers on the
       # previous version rather than pointing them at an asset that never shipped.
-      - name: Publish update manifest
+      #
+      # The signed build is re-uploaded here under a fixed name as well, so the
+      # site can link to a download URL that never changes. AMO names the signed
+      # file after the version, which would otherwise make every install link
+      # version-specific. Keep `$LATEST_XPI` in step with `LATEST_XPI_FILE` in
+      # apps/extension/src/lib/firefox-distribution.ts.
+      - name: Publish update manifest and the fixed-name build
         run: |
           if ! gh release view "$MANIFEST_TAG" >/dev/null 2>&1; then
             gh release create "$MANIFEST_TAG" \
               --title "Firefox update manifest" \
-              --notes "Permanent home of the Firefox update manifest. Updated in place on every extension release — do not delete, every installed copy polls this tag." \
+              --notes "Permanent home of the Firefox update manifest and the current signed build. Updated in place on every extension release — do not delete, every installed copy polls this tag and the site links to its .xpi." \
               --latest=false
           fi
+          cp "${{ steps.xpi.outputs.path }}" "$LATEST_XPI"
+          gh release upload "$MANIFEST_TAG" "$LATEST_XPI" --clobber
           gh release upload "$MANIFEST_TAG" firefox-updates.json --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
