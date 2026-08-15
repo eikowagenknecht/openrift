@@ -1,13 +1,11 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
 import type { DeckZone } from "@openrift/shared";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
@@ -101,19 +99,6 @@ export const Route = createFileRoute("/_app/stage")({
       noIndex: true,
     }),
   validateSearch: stageSearchSchema,
-  beforeLoad: async ({ context }) => {
-    // The same gate the dashboard carried before the two surfaces merged. It
-    // sits here rather than under `_authenticated` because building a queue and
-    // running a show need no account — only the OBS half does, and that block
-    // asks for a sign-in on its own. The source route (/stage/source/$token)
-    // stays ungated: it is viewer-facing and blanks itself for unknown tokens.
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "overlay")) {
-      throw redirect({ to: "/cards" });
-    }
-  },
   loader: async ({ context }) => {
     // Both the deck walk and the ad-hoc queue resolve their cards against the
     // catalog, and the stage reads zone labels off /init.

@@ -49,7 +49,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
 import { frontImageId } from "@/lib/card-meta";
@@ -73,9 +72,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const { cardsById, printingsByCardId } = useCards();
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
-  // The Stage is a creator tool that ships dark: the same flag hides this entry
-  // point and the route it leads to, so neither can be found until it is on.
-  const presentEnabled = useFeatureEnabled("overlay");
   // Counted off the saved board rather than the draft: that is what the show
   // would actually put on screen.
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
@@ -166,7 +162,7 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
               {dirty && <Badge variant="outline">Unsaved changes</Badge>}
               <PageTopBarActions>
                 <TierTileSizeControls />
-                {presentEnabled && rankedCount > 0 && (
+                {rankedCount > 0 && (
                   <PageTopBarButton
                     // The stage reads the *saved* board, so an unsaved draft
                     // would go up as whatever the server still holds. The
@@ -199,24 +195,22 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                     <EllipsisVerticalIcon className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {presentEnabled && (
-                      <DropdownMenuItem
-                        // Same reason the Present button is gated: the stage
-                        // opens from the *saved* board. No `rankedCount` gate
-                        // though — a board with everything still unranked is
-                        // exactly what this is for.
-                        disabled={dirty}
-                        onClick={() => {
-                          void navigate({
-                            to: "/stage",
-                            search: { tier: tierList.id, mode: "edit" },
-                          });
-                        }}
-                      >
-                        <ListOrderedIcon />
-                        Rank live on stage
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem
+                      // Same reason the Present button is disabled: the stage
+                      // opens from the *saved* board. No `rankedCount` gate
+                      // though — a board with everything still unranked is
+                      // exactly what this is for.
+                      disabled={dirty}
+                      onClick={() => {
+                        void navigate({
+                          to: "/stage",
+                          search: { tier: tierList.id, mode: "edit" },
+                        });
+                      }}
+                    >
+                      <ListOrderedIcon />
+                      Rank live on stage
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
                       <PencilIcon />
                       Rename and describe

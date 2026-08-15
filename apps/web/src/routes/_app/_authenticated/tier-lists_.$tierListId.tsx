@@ -5,8 +5,6 @@ import { EmptyState } from "@/components/empty-state";
 import { RouteErrorFallback } from "@/components/error-message";
 import { buttonVariants } from "@/components/ui/button";
 import { tierListQueryOptions } from "@/hooks/use-tier-lists";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -18,13 +16,7 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierList
   // filter search params like /cards and the deck editor do.
   validateSearch: filterSearchSchema,
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tier list", noIndex: true }),
-  beforeLoad: async ({ context, search, location, params }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "tier-lists")) {
-      throw redirect({ to: "/cards" });
-    }
+  beforeLoad: ({ search, location, params }) => {
     // Strip unknown / malformed search params — same canonicalization as /cards.
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
     if (cleaned) {

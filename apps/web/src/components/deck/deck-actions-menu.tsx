@@ -56,7 +56,6 @@ import {
   useUpdateDeck,
 } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
@@ -83,9 +82,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const setArchived = useSetDeckArchived();
   const promotePrimary = usePromoteDeckPrimary();
   const { formats } = useDeckFormatList();
-  // The Stage is a creator tool that ships dark: the same flag hides this entry
-  // point and the route it leads to, so neither can be found until it is on.
-  const overlayEnabled = useFeatureEnabled("overlay");
   const otherFormats = formats.filter((entry) => entry.slug !== deck.format);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -199,7 +195,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <PrinterIcon className="size-4" />
             Print…
           </DropdownMenuItem>
-          {overlayEnabled && item.totalCards > 0 && (
+          {item.totalCards > 0 && (
             <DropdownMenuItem
               onClick={(event: React.MouseEvent) => {
                 stop(event);

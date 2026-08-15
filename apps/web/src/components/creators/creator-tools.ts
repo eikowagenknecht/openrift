@@ -16,12 +16,6 @@ export interface CreatorTool {
   blurb: string;
   icon: LucideIcon;
   tone: IconChipTone;
-  /**
-   * Feature flag the tool's entry points hang off. Both the tile and the
-   * section drop out while it is off, so the page never advertises a route
-   * that redirects.
-   */
-  featureFlag?: string;
 }
 
 export const CREATOR_TOOLS: CreatorTool[] = [
@@ -38,7 +32,6 @@ export const CREATOR_TOOLS: CreatorTool[] = [
     blurb: "Rank a set on a board, then share it as a link or an image.",
     icon: ListOrderedIcon,
     tone: "gold",
-    featureFlag: "tier-lists",
   },
   {
     id: "stage",
@@ -46,22 +39,5 @@ export const CREATOR_TOOLS: CreatorTool[] = [
     blurb: "A full-screen card show for recording, or an overlay for OBS.",
     icon: MonitorPlayIcon,
     tone: "sky",
-    featureFlag: "overlay",
   },
 ];
-
-/**
- * The tools whose sections are actually on the page.
- *
- * An unflagged tool is always shown. A flagged one needs its flag explicitly
- * on: an unknown key reads as off, so a flag that is renamed or removed hides
- * the tile rather than leaving it pointing at a route that redirects.
- *
- * @param flagEnabled Feature-flag state, keyed by flag.
- * @returns The visible tools, in declaration order.
- */
-export function visibleCreatorTools(flagEnabled: Record<string, boolean>): CreatorTool[] {
-  return CREATOR_TOOLS.filter(
-    (tool) => tool.featureFlag === undefined || flagEnabled[tool.featureFlag] === true,
-  );
-}

@@ -1,8 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -15,13 +13,5 @@ export const Route = createFileRoute("/_app/creators")({
         "Tools for Riftbound streamers and video makers: card lookups in chat, tier lists, and the Stage for putting cards on screen or into OBS.",
       path: "/creators",
     }),
-  beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "creators")) {
-      throw redirect({ to: "/cards" });
-    }
-  },
   errorComponent: RouteErrorFallback,
 });

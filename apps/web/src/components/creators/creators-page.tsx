@@ -4,7 +4,7 @@ import { CreatorChatSection } from "@/components/creators/creator-chat-section";
 import { CreatorSection } from "@/components/creators/creator-section";
 import { CreatorStageSection } from "@/components/creators/creator-stage-section";
 import type { CreatorTool } from "@/components/creators/creator-tools";
-import { visibleCreatorTools } from "@/components/creators/creator-tools";
+import { CREATOR_TOOLS } from "@/components/creators/creator-tools";
 import {
   PageDescription,
   PageTopBar,
@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
 import { IconChip } from "@/components/ui/icon-chip";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 /**
@@ -46,20 +45,9 @@ function CreatorToolTile({ tool }: { tool: CreatorTool }) {
  * first visit by someone following a link in a video description. Each tool's
  * setup then gets its own section below.
  *
- * Every flag-gated tool drops out of both the grid and the body while its flag
- * is off, so the page never sends anyone at a route that redirects.
- *
  * @returns The creators page.
  */
 export function CreatorsPage() {
-  const tierListsEnabled = useFeatureEnabled("tier-lists");
-  const overlayEnabled = useFeatureEnabled("overlay");
-
-  const tools = visibleCreatorTools({
-    "tier-lists": tierListsEnabled,
-    overlay: overlayEnabled,
-  });
-
   return (
     <>
       <PageTopBarSticky maxWidth="3xl">
@@ -82,7 +70,7 @@ export function CreatorsPage() {
           </PageDescription>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {tools.map((tool) => (
+            {CREATOR_TOOLS.map((tool) => (
               <CreatorToolTile key={tool.id} tool={tool} />
             ))}
           </div>
@@ -90,26 +78,24 @@ export function CreatorsPage() {
 
         <CreatorChatSection />
 
-        {tierListsEnabled && (
-          <CreatorSection id="tier-lists" title="Tier lists">
-            <p>
-              Drag cards from a set onto a board and rank them from S down to D. When the board
-              looks right, share it as a link, or download it as an image for a thumbnail or video.
-            </p>
-            <p>
-              The link works for anyone, signed in or not, and unfurls in chats with the board as
-              its preview image. On a phone you pick a tier from a menu instead of dragging, so you
-              can build a list there too.
-            </p>
-            <div>
-              <Button variant="outline" render={<Link to="/tier-lists" />}>
-                Open the tier list maker
-              </Button>
-            </div>
-          </CreatorSection>
-        )}
+        <CreatorSection id="tier-lists" title="Tier lists">
+          <p>
+            Drag cards from a set onto a board and rank them from S down to D. When the board looks
+            right, share it as a link, or download it as an image for a thumbnail or video.
+          </p>
+          <p>
+            The link works for anyone, signed in or not, and unfurls in chats with the board as its
+            preview image. On a phone you pick a tier from a menu instead of dragging, so you can
+            build a list there too.
+          </p>
+          <div>
+            <Button variant="outline" render={<Link to="/tier-lists" />}>
+              Open the tier list maker
+            </Button>
+          </div>
+        </CreatorSection>
 
-        {overlayEnabled && <CreatorStageSection />}
+        <CreatorStageSection />
 
         <CreatorSection id="catalogue" title="About the card data">
           <p>

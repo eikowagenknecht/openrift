@@ -17,7 +17,6 @@ import { resolveTierRows, TierBoard } from "@/components/tier-lists/tier-board";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { tierRowsToQueue } from "@/lib/tier-list-presentation";
 import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
@@ -45,9 +44,6 @@ interface TierListSharePageProps extends TierListShareViewProps {
 export function TierListShareView({ data, token }: TierListSharePageProps) {
   const { tierList, owner } = data;
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
-  // The Stage is a creator tool that ships dark: the same flag hides this entry
-  // point and the route it leads to, so neither can be found until it is on.
-  const presentEnabled = useFeatureEnabled("overlay");
 
   return (
     <>
@@ -59,7 +55,7 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
               by {owner.displayName} · {rankedCount} {rankedCount === 1 ? "card" : "cards"} ranked
             </span>
           </div>
-          {presentEnabled && rankedCount > 0 && (
+          {rankedCount > 0 && (
             <PageTopBarActions>
               {/* A shared ranking is presentable by whoever holds the link, not
                   just its owner — running someone else's list is half of what a

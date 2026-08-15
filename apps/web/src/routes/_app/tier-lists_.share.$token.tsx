@@ -1,5 +1,5 @@
 import type { PublicTierListDetailResponse } from "@openrift/shared";
-import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Link2OffIcon } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -7,8 +7,6 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicTierListQueryOptions } from "@/hooks/use-tier-lists";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
 import { shareImageVersion, tierListShareImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
@@ -43,19 +41,7 @@ export const Route = createFileRoute("/_app/tier-lists_/share/$token")({
       unlisted: true,
     });
   },
-  // The flag check lives in the loader, not `beforeLoad`: this route's `head`
-  // reads `loaderData`, and TanStack can't type that combination alongside a
-  // promise-returning beforeLoad (the two collapse the context type to `never`).
-  //
-  // Gated with the rest of the feature — while the flag is off there is nothing
-  // to link to, so a token pasted from a preview build shouldn't resolve either.
   loader: async ({ context, params }): Promise<PublicTierListDetailResponse> => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "tier-lists")) {
-      throw redirect({ to: "/cards" });
-    }
     try {
       return await context.queryClient.ensureQueryData(publicTierListQueryOptions(params.token));
     } catch (error) {

@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Cards): **Tier lists** — rank a set from S down to D on a board you build by dragging cards, then share the link or take the image into a thumbnail.
+- feat(App): **The Stage** — put cards in front of an audience: a full-screen show you drive from the keyboard, and a transparent browser source you push cards to in OBS.
 - feat(App): **One share dialog everywhere** — decks, collections, lists, and tier lists now share it: the link and its QR on one tab, the image with shape, size, and scan-code choices on the other.
 - feat(Collection): **Download your collection as an image** — the share dialog now saves a collection as a wide or tall picture, which before existed only as the link preview.
 - feat(Decks): **One page for every deck comparison** — comparing two versions or another deck now opens a full page with card art down both sides, searchable deck pickers, and a pasted deck code or list you can then save as a deck.
@@ -13,6 +15,7 @@
 
 ### Other
 
+- feat(App): **A page for creators** — /creators gathers the chat-bot card lookups, tier lists, and the Stage in one place, with the setup each one needs.
 - feat(Decks): **Card art in the deck plan pickers** — the battlefield, opponent, and swap dropdowns now show each card's art, so lookalike names are easy to tell apart.
 - feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.

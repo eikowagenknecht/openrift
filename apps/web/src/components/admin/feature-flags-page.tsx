@@ -79,10 +79,6 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the meta archive (/meta), its header link, and its sitemap entries",
   },
   {
-    key: "tier-lists",
-    description: "Show the tier list maker (/tier-lists) and its public share pages",
-  },
-  {
     key: "trade-request-email",
     description: "Instant trade-request emails (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,
@@ -97,16 +93,6 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description:
       "Trade status emails: accepted / declined / cancelled (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,
-  },
-  {
-    key: "overlay",
-    description:
-      "Show the Stage (/stage) and the deck and tier-list Present entry points. The OBS source (/stage/source/<token>) stays reachable by URL",
-  },
-  {
-    key: "creators",
-    description:
-      "Show the creators landing page (/creators), its footer link, and sitemap entry. Its tier-list and overlay sections still follow those features' own flags",
   },
 ];
 
