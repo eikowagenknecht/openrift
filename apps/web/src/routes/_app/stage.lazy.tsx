@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useStagePresets } from "@/hooks/use-stage-presets";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
+import { FilterSearchProvider } from "@/lib/search-schemas";
 import { applyStagePresetConfig } from "@/lib/stage-preset-apply";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
@@ -41,7 +42,8 @@ function StageFallback() {
 }
 
 function StagePage() {
-  const { deck, tier, tierShare, cards, zone, i, edit, mode, preset } = Route.useSearch();
+  const search = Route.useSearch();
+  const { deck, tier, tierShare, cards, zone, i, edit, mode, preset } = search;
   const navigate = useNavigate();
   const { data: presets } = useStagePresets();
   const presetApplied = useRef(false);
@@ -146,7 +148,14 @@ function StagePage() {
     );
   }
 
-  return <StageBuilder initialIds={cards ?? []} />;
+  // The builder's card browser reads its filters from the URL through the
+  // provider, so it has to sit inside one. Only this branch needs it — a
+  // presentation shows a fixed list and never filters.
+  return (
+    <FilterSearchProvider value={search}>
+      <StageBuilder initialIds={cards ?? []} />
+    </FilterSearchProvider>
+  );
 }
 
 /**
