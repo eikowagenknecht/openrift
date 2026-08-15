@@ -12,6 +12,8 @@
 
 ### Other
 
+- feat(Decks): **Card art in the deck plan pickers** — the battlefield, opponent, and swap dropdowns now show each card's art, so lookalike names are easy to tell apart.
+- feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
 - feat(Decks): **Version comparison reads like your deck list** — each side now shows card art, costs and set codes, opens on just what changed, and gives both versions their own Open button.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.
 - feat(Decks): **See what changed without leaving the deck** — clicking a dot or a change count on the timeline opens the card-by-card list for that step.

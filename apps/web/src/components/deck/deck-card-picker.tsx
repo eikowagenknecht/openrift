@@ -47,6 +47,32 @@ function CardStats({ cardId }: { cardId: string }) {
 }
 
 /**
+ * The card's art for one card id, resolved from the catalog. One box for both
+ * orientations (see the note in {@link CardChip}), so a list mixing
+ * battlefields with ordinary cards keeps a single row height. Always renders a
+ * frame — CardArtThumb fills an art-less card with its domain tint, which keeps
+ * the names in a dropdown lined up whatever resolves.
+ * @returns The thumbnail.
+ */
+function CardThumb({ cardId, className }: { cardId: string; className: string }) {
+  const { getPreferredPrinting } = usePreferredPrinting();
+  const printing = getPreferredPrinting(cardId);
+  const frontImage = printing?.images.find((image) => image.face === "front");
+  return (
+    <CardArtThumb
+      shape="strip"
+      imageId={frontImage?.imageId}
+      variant="400w"
+      landscape={getOrientation(printing?.card.types ?? []) === "landscape"}
+      rarity={printing?.rarity}
+      domains={printing?.card.domains}
+      className={className}
+      loading="lazy"
+    />
+  );
+}
+
+/**
  * Narrows a candidate list to a search query, capped so a long deck zone can't
  * flood the dropdown.
  * @returns The matching candidates as dropdown results.
@@ -64,6 +90,9 @@ function toResults(
       id: card.cardId,
       label: card.cardName,
       detail: card.cardType,
+      // Taller than the chip's: the row is where the card gets recognized, and
+      // a name alone is thin evidence across near-identical battlefields.
+      leading: <CardThumb cardId={card.cardId} className="h-8" />,
       ...(showStats && { adornment: <CardStats cardId={card.cardId} /> }),
     }));
 }
@@ -91,8 +120,6 @@ export function CardChip({
 }) {
   const { getPreferredPrinting } = usePreferredPrinting();
   const printing = getPreferredPrinting(cardId);
-  const frontImage = printing?.images.find((image) => image.face === "front");
-  const landscape = getOrientation(printing?.card.types ?? []) === "landscape";
   const field = variant === "field";
   return (
     <span
@@ -105,19 +132,10 @@ export function CardChip({
       onMouseEnter={() => onHoverCard?.(cardId)}
       onMouseLeave={() => onHoverCard?.(null)}
     >
-      {frontImage ? (
-        // One box for both orientations: it used to flip between h-5 w-8 and
-        // h-7 w-5, so a list mixing battlefields with ordinary cards jumped
-        // height row to row.
-        <CardArtThumb
-          shape="strip"
-          imageId={frontImage.imageId}
-          variant="400w"
-          landscape={landscape}
-          className="h-5"
-          loading="lazy"
-        />
-      ) : null}
+      {/* One box for both orientations: it used to flip between h-5 w-8 and
+          h-7 w-5, so a list mixing battlefields with ordinary cards jumped
+          height row to row. */}
+      <CardThumb cardId={cardId} className="h-5" />
       <span className="min-w-0 truncate">
         {printing ? legendDisplayName(printing.card) : "Unknown card"}
       </span>

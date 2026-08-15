@@ -16,6 +16,8 @@ export interface CardSearchResult {
   detail?: string;
   /** Opt-in extra rendered right after the label (e.g. energy/power stats). */
   adornment?: ReactNode;
+  /** Opt-in extra rendered before the label (e.g. the card's art thumbnail). */
+  leading?: ReactNode;
 }
 
 /**
@@ -75,6 +77,7 @@ export function CardSearchDropdown({
         <ComboboxList>
           {(item: CardSearchResult) => (
             <ComboboxItem key={item.id} value={item}>
+              {item.leading}
               <span className="min-w-0 truncate font-medium">{item.label}</span>
               {item.adornment}
               {item.sublabel ? (

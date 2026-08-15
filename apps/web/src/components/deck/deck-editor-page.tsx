@@ -596,17 +596,29 @@ function DeckEditorContent({
                 {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
               </div>
               <PageTopBarActions>
+                {/* The deck's main action, so it carries its label wherever
+                    there is room. Phones get the square icon instead, and no
+                    tooltip with it: there is no hover to open one and no
+                    Ctrl+K to advertise. */}
+                <PageTopBarIconButton
+                  className="md:hidden"
+                  aria-label="Add a card"
+                  onClick={() => setQuickAddOpen(true)}
+                >
+                  <PlusIcon className="size-4" />
+                </PageTopBarIconButton>
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <PageTopBarIconButton
-                        aria-label="Add a card"
+                      <PageTopBarButton
+                        className="hidden md:inline-flex"
                         aria-keyshortcuts="Control+K"
                         onClick={() => setQuickAddOpen(true)}
                       />
                     }
                   >
                     <PlusIcon className="size-4" />
+                    Add card
                   </TooltipTrigger>
                   <TooltipContent>Add a card (Ctrl+K)</TooltipContent>
                 </Tooltip>
