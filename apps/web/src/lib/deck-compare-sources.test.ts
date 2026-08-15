@@ -1,11 +1,15 @@
-import type { Card, DeckListItemResponse } from "@openrift/shared";
+import type { Card, DeckImportEntry, DeckListItemResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { LocalDeck } from "@/stores/local-decks-store";
-import { stubCard } from "@/test/factories";
+import { stubCard, stubPrinting } from "@/test/factories";
 
-import { collectCompareDeckOptions, ownDeckDiffCards } from "./deck-compare-sources";
+import {
+  collectCompareDeckOptions,
+  diffCardsFromEntries,
+  ownDeckDiffCards,
+} from "./deck-compare-sources";
 
 const cardsById: Record<string, Card> = {
   "unit-1": stubCard({ name: "Footsoldier", type: "unit", domains: ["fury"] }),
@@ -181,5 +185,45 @@ describe("ownDeckDiffCards", () => {
 
   it("returns nothing for an empty deck", () => {
     expect(ownDeckDiffCards([], cardsById)).toEqual({ theirs: [], unmatched: [] });
+  });
+});
+
+describe("diffCardsFromEntries", () => {
+  const printings = [
+    stubPrinting({ cardId: "unit-1", shortCode: "OGN-001", card: { name: "Footsoldier" } }),
+    stubPrinting({ cardId: "spell-1", shortCode: "OGN-002", card: { name: "Zap" } }),
+  ];
+
+  function entry(overrides: Partial<DeckImportEntry> & { quantity: number }): DeckImportEntry {
+    return { sourceSlot: "mainDeck", rawFields: {}, ...overrides };
+  }
+
+  it("resolves entries against the catalog", () => {
+    const { cards, unmatched } = diffCardsFromEntries(
+      [entry({ shortCode: "OGN-001", quantity: 3 })],
+      printings,
+    );
+
+    expect(cards).toEqual([
+      { cardId: "unit-1", cardName: "Footsoldier", zone: "main", quantity: 3 },
+    ]);
+    expect(unmatched).toEqual([]);
+  });
+
+  it("reports lines that match no card by their own label", () => {
+    const { cards, unmatched } = diffCardsFromEntries(
+      [
+        entry({ cardName: "Nothing At All", quantity: 1 }),
+        entry({ shortCode: "OGN-002", quantity: 2 }),
+      ],
+      printings,
+    );
+
+    expect(cards.map((card) => card.cardId)).toEqual(["spell-1"]);
+    expect(unmatched).toEqual(["Nothing At All"]);
+  });
+
+  it("returns nothing for an empty list", () => {
+    expect(diffCardsFromEntries([], printings)).toEqual({ cards: [], unmatched: [] });
   });
 });

@@ -1,7 +1,7 @@
 import type { DeckZone } from "@openrift/shared";
 import { formatHasSideboard, getOrientation, imageUrl, WellKnown } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BoxIcon,
   CopyIcon,
@@ -25,7 +25,6 @@ import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
-import { DeckCompareDialog } from "@/components/deck/deck-compare-dialog";
 import { DeckCoverDialog } from "@/components/deck/deck-cover-dialog";
 import { DeckDetailsDialog } from "@/components/deck/deck-details-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
@@ -181,7 +180,6 @@ function DeckEditorContent({
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [compareOpen, setCompareOpen] = useState(false);
   const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -682,7 +680,12 @@ function DeckEditorContent({
                         Stored in…
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => setCompareOpen(true)}>
+                    {/* Opens the comparison page with this deck on the left and
+                        the other side still to pick — the same page the variant
+                        rail's "show what changed" lands on. */}
+                    <DropdownMenuItem
+                      render={<Link to="/decks/compare" search={{ from: deckId, to: undefined }} />}
+                    >
                       <GitCompareArrowsIcon className="size-4" />
                       Compare with another deck…
                     </DropdownMenuItem>
@@ -749,13 +752,6 @@ function DeckEditorContent({
           onOpenChange={setRenameOpen}
         />
       )}
-      <DeckCompareDialog
-        deckId={deckId}
-        deckName={data.deck.name}
-        homeCollectionId={data.deck.collectionId}
-        open={compareOpen}
-        onOpenChange={setCompareOpen}
-      />
       {!isLocal && (
         <DeckDetailsDialog
           deckId={deckId}

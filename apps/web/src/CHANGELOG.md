@@ -6,6 +6,7 @@
 
 - feat(App): **One share dialog everywhere** — decks, collections, lists, and tier lists now share it: the link and its QR on one tab, the image with shape, size, and scan-code choices on the other.
 - feat(Collection): **Download your collection as an image** — the share dialog now saves a collection as a wide or tall picture, which before existed only as the link preview.
+- feat(Decks): **One page for every deck comparison** — comparing two versions or another deck now opens a full page with card art down both sides, deck pickers that show what each deck is, and a place to paste a deck code or list.
 - feat(Decks): **All deck PDFs under Print** — proxies, the registration sheet, and the printable deck sheet moved into one Print dialog, opened from Print in the deck menu.
 - feat(App): **A proper match board** — each player's side now shows the art of a legend you pick, scores through Conquer, Hold and Ability buttons instead of a hidden tap, and marks how close the game is with a pip per point.
 - fix(Tournaments): **Deck deadlines in your timezone** — submission deadlines showed the server's clock without saying so, and now show yours.
@@ -14,7 +15,6 @@
 
 - feat(Decks): **Card art in the deck plan pickers** — the battlefield, opponent, and swap dropdowns now show each card's art, so lookalike names are easy to tell apart.
 - feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
-- feat(Decks): **Version comparison reads like your deck list** — each side now shows card art, costs and set codes, opens on just what changed, and gives both versions their own Open button.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.
 - feat(Decks): **See what changed without leaving the deck** — clicking a dot or a change count on the timeline opens the card-by-card list for that step.
 - feat(Decks): **Branch from any version** — the Variants dialog creates a variant inline now, with a pick of which version it comes from, so cancelling leaves you where you were.

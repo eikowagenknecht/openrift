@@ -1,9 +1,11 @@
-import type { Card, DeckListItemResponse, DeckZone } from "@openrift/shared";
+import type { Card, DeckListItemResponse, DeckZone, Printing } from "@openrift/shared";
 
 import type { DeckDiffCard } from "@/lib/deck-diff";
+import { matchDeckEntries } from "@/lib/deck-import-matcher";
+import type { DeckImportEntry } from "@/lib/deck-import-parsers";
 import type { LocalDeck } from "@/stores/local-decks-store";
 
-/** A deck of the user's own, offered as a source in the compare dialog. */
+/** A deck of the user's own, offered as a source in the compare picker. */
 export interface CompareDeckOption {
   id: string;
   name: string;
@@ -89,4 +91,41 @@ export function ownDeckDiffCards(
     });
   }
   return { theirs, unmatched };
+}
+
+/** @returns The text to show for a parsed line that matched no catalog card. */
+function unmatchedLabel(entry: DeckImportEntry): string {
+  return entry.cardName ?? entry.shortCode ?? "";
+}
+
+/**
+ * Resolves parsed import entries into diff cards, matching each line against
+ * the catalog the same way the import page does. A line that resolves to
+ * nothing comes back as its raw label rather than being dropped silently, so
+ * the comparison can say how much of the pasted list it could not read.
+ *
+ * @returns The diff cards plus the lines that resolved to nothing.
+ */
+export function diffCardsFromEntries(
+  entries: DeckImportEntry[],
+  allPrintings: Printing[],
+): { cards: DeckDiffCard[]; unmatched: string[] } {
+  const cards: DeckDiffCard[] = [];
+  const unmatched: string[] = [];
+  for (const match of matchDeckEntries(entries, allPrintings)) {
+    if (!match.resolvedCard) {
+      const label = unmatchedLabel(match.entry);
+      if (label.length > 0) {
+        unmatched.push(label);
+      }
+      continue;
+    }
+    cards.push({
+      cardId: match.resolvedCard.cardId,
+      cardName: match.resolvedCard.cardName,
+      zone: match.zone,
+      quantity: match.entry.quantity,
+    });
+  }
+  return { cards, unmatched };
 }

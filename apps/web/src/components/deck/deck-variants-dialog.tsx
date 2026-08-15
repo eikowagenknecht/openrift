@@ -211,13 +211,7 @@ function LineageRow({
         <DropdownMenuContent align="end">
           {!isCurrent && (
             <DropdownMenuItem
-              render={
-                <Link
-                  to="/decks/$deckId/changes"
-                  params={{ deckId: openDeckId }}
-                  search={{ from: deck.id }}
-                />
-              }
+              render={<Link to="/decks/compare" search={{ from: deck.id, to: openDeckId }} />}
             >
               Show changes
             </DropdownMenuItem>

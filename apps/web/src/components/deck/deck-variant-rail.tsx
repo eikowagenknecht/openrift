@@ -282,13 +282,7 @@ function EdgeCounts({
           <Button
             variant="ghost"
             size="sm"
-            render={
-              <Link
-                to="/decks/$deckId/changes"
-                params={{ deckId: toId }}
-                search={{ from: fromId }}
-              />
-            }
+            render={<Link to="/decks/compare" search={{ from: fromId, to: toId }} />}
           >
             Show full changes
           </Button>
@@ -357,13 +351,7 @@ function RailCurrentPopover({
           <Button
             variant="ghost"
             size="sm"
-            render={
-              <Link
-                to="/decks/$deckId/changes"
-                params={{ deckId: node.id }}
-                search={{ from: compareFrom }}
-              />
-            }
+            render={<Link to="/decks/compare" search={{ from: compareFrom, to: node.id }} />}
           >
             <GitCompareArrowsIcon className="size-4" />
             Compare with other versions
@@ -423,13 +411,7 @@ function RailNodePopover({
         <Button
           variant="ghost"
           size="sm"
-          render={
-            <Link
-              to="/decks/$deckId/changes"
-              params={{ deckId: openDeckId }}
-              search={{ from: node.id }}
-            />
-          }
+          render={<Link to="/decks/compare" search={{ from: node.id, to: openDeckId }} />}
         >
           Show full changes
         </Button>
