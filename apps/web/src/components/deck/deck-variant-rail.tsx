@@ -3,14 +3,13 @@ import { ZONE_LABELS, formatDay } from "@openrift/shared";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, GitBranchIcon, PlusIcon } from "lucide-react";
+import { ArrowRightIcon, GitBranchIcon, GitCompareArrowsIcon, PlusIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
-import type { DeckVariantMode } from "@/hooks/use-decks";
 import { deckDetailQueryOptions, useDecks } from "@/hooks/use-decks";
 import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckDiff, DeckDiffEntry } from "@/lib/deck-diff";
@@ -32,10 +31,10 @@ import { DeckVariantsDialog } from "./deck-variants-dialog";
 const MAX_RAIL_NODES = 6;
 /** Horizontal distance between two generations. */
 const SLOT_WIDTH = 168;
-/** Left inset so the first node's halo and focus ring aren't clipped. */
-const PAD_X = 20;
-/** Room to the right of the last node for its label. */
-const TRAILING_X = 150;
+/** Left inset: half a label, since labels are centred under their dot. */
+const PAD_X = 72;
+/** Room to the right of the last node for the other half of its label. */
+const TRAILING_X = 72;
 /** Baseline of lane 0. */
 const LANE_TOP_Y = 22;
 /** Vertical distance between two lanes: a dot plus its label below it. */
@@ -49,6 +48,11 @@ const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
 const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
 const CUT_CHIP = "bg-destructive/10 text-destructive";
 const CHANGE_CHIP = "bg-amber-500/10 text-amber-700 dark:text-amber-500";
+/** Deepened tints for the step-diff chips, driven by their trigger's `group`. */
+const ADD_CHIP_HOVER =
+  "transition-colors group-hover:bg-green-500/20 group-focus-visible:bg-green-500/20";
+const CUT_CHIP_HOVER =
+  "transition-colors group-hover:bg-destructive/20 group-focus-visible:bg-destructive/20";
 
 const CHIP_STYLES: Record<DeckDiffEntry["kind"], string> = {
   add: ADD_CHIP,
@@ -162,45 +166,6 @@ async function loadRailCards(
   );
 }
 
-/**
- * One edge's step diff, as the link into the full comparison. The numbers are
- * the most direct handle on "what changed between these two", so they carry the
- * navigation rather than sitting there as decoration.
- *
- * @returns The linked +N / −N chips.
- */
-function EdgeCounts({
-  fromId,
-  toId,
-  addCount,
-  cutCount,
-}: {
-  fromId: string;
-  toId: string;
-  addCount: number;
-  cutCount: number;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Link
-            to="/decks/$deckId/changes"
-            params={{ deckId: toId }}
-            search={{ from: fromId }}
-            aria-label="Show what changed"
-            className="focus-visible:ring-ring bg-background hover:ring-border flex items-center gap-1 rounded px-1 ring-1 ring-transparent transition-[box-shadow] outline-none focus-visible:ring-2"
-          />
-        }
-      >
-        <span className={cn(CHIP_BASE, ADD_CHIP)}>+{addCount}</span>
-        <span className={cn(CHIP_BASE, CUT_CHIP)}>−{cutCount}</span>
-      </TooltipTrigger>
-      <TooltipContent>Show what changed</TooltipContent>
-    </Tooltip>
-  );
-}
-
 function RailDiffRows({ diff }: { diff: DeckDiff }) {
   if (diff.zones.length === 0) {
     return <p className="text-muted-foreground">The two lists match, card for card.</p>;
@@ -250,6 +215,156 @@ function RailNodeDiff({
         deckDiffCardsFrom(theirCards, cardsById),
       )}
     />
+  );
+}
+
+/**
+ * One edge's step diff: the numbers on the line, opening the same card-by-card
+ * list a node popup shows, narrowed to what changed along this one step.
+ *
+ * @returns The step-diff chips and their popover.
+ */
+function EdgeCounts({
+  fromId,
+  toId,
+  fromLabel,
+  toLabel,
+  addCount,
+  cutCount,
+  cardsByDeck,
+  cardsById,
+}: {
+  fromId: string;
+  toId: string;
+  fromLabel: string;
+  toLabel: string;
+  addCount: number;
+  cutCount: number;
+  cardsByDeck: Record<string, DeckCardResponse[]>;
+  cardsById: Record<string, Card>;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label={`What changed between ${fromLabel} and ${toLabel}`}
+        // The plate is opaque so the edge behind it doesn't run through the
+        // numbers; hovering deepens both tints and lifts the pair a little,
+        // which reads as one clickable thing without drawing a box around it.
+        className="group bg-background focus-visible:ring-ring flex items-center gap-1 rounded-full px-1 transition-transform outline-none hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 data-popup-open:scale-110"
+      >
+        <span className={cn(CHIP_BASE, ADD_CHIP, ADD_CHIP_HOVER)}>+{addCount}</span>
+        <span className={cn(CHIP_BASE, CUT_CHIP, CUT_CHIP_HOVER)}>−{cutCount}</span>
+      </PopoverTrigger>
+      <PopoverContent className="w-80" align="center" side="bottom">
+        <div className="text-muted-foreground flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{fromLabel}</span>
+          <ArrowRightIcon className="size-3.5 shrink-0" />
+          <span className="truncate">{toLabel}</span>
+        </div>
+        <RailNodeDiff
+          ourCards={cardsByDeck[fromId]}
+          theirCards={cardsByDeck[toId]}
+          cardsById={cardsById}
+        />
+        <div className="border-t pt-2">
+          {/* Not a PopoverClose: the navigation unmounts the whole rail, and
+              closing first would only race the route change. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            render={
+              <Link
+                to="/decks/$deckId/changes"
+                params={{ deckId: toId }}
+                search={{ from: fromId }}
+              />
+            }
+          >
+            Show full changes
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * The version the open deck is compared against when the comparison is opened
+ * from its own node: the one it came from, or failing that the family's most
+ * recently updated other member. The changes page can re-pick either side, so
+ * this only has to be a sensible place to land.
+ *
+ * @returns A deck id, or null when the family has no other member.
+ */
+function defaultCompareFrom(
+  layout: RailLayout,
+  members: readonly { id: string; updatedAt: string }[],
+  deckId: string,
+): string | null {
+  const parentEdge = layout.edges.find((edge) => edge.toId === deckId);
+  if (parentEdge) {
+    return parentEdge.fromId;
+  }
+  const newestOther = members
+    .filter((member) => member.id !== deckId)
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+  return newestOther?.id ?? null;
+}
+
+/**
+ * The open deck's own node. It has no diff to show against itself, so the popup
+ * is just the two things you can still do from here.
+ *
+ * @returns The popover body for the current node.
+ */
+function RailCurrentPopover({
+  node,
+  updatedAt,
+  compareFrom,
+  onBranchFrom,
+}: {
+  node: RailNode;
+  updatedAt: string | undefined;
+  compareFrom: string | null;
+  onBranchFrom: () => void;
+}) {
+  const updatedLabel = updatedAt ? formatDay(updatedAt) : null;
+
+  return (
+    <PopoverContent className="w-72" align="start" side="bottom">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="font-medium">{node.fullName}</span>
+        {updatedLabel && (
+          <span className="text-muted-foreground text-2xs">
+            {node.isDraft ? "Draft · " : ""}Updated {updatedLabel}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1 border-t pt-2">
+        {compareFrom !== null && (
+          // Not a PopoverClose: the navigation unmounts the whole rail, and
+          // closing first would only race the route change.
+          <Button
+            variant="ghost"
+            size="sm"
+            render={
+              <Link
+                to="/decks/$deckId/changes"
+                params={{ deckId: node.id }}
+                search={{ from: compareFrom }}
+              />
+            }
+          >
+            <GitCompareArrowsIcon className="size-4" />
+            Compare with other versions
+          </Button>
+        )}
+        <PopoverClose render={<Button variant="ghost" size="sm" onClick={onBranchFrom} />}>
+          <GitBranchIcon className="size-4" />
+          Branch from here
+        </PopoverClose>
+      </div>
+    </PopoverContent>
   );
 }
 
@@ -323,7 +438,7 @@ function RailNodeLabel({ node }: { node: RailNode }) {
       className={cn(
         // Every label hangs below its dot: with more than two lanes, labels
         // above would collide with the lane over them.
-        "text-2xs absolute top-full left-2.5 mt-2 flex items-center gap-1.5",
+        "text-2xs absolute top-full left-1/2 mt-2 flex -translate-x-1/2 items-center justify-center gap-1.5",
         node.isCurrent ? "text-foreground font-medium" : "text-muted-foreground",
       )}
       style={{ width: LABEL_WIDTH }}
@@ -357,7 +472,6 @@ function VariantRailBody({ deckId }: { deckId: string }) {
 
   const [cardsByDeck, setCardsByDeck] = useState<Record<string, DeckCardResponse[]>>({});
   const [createOpen, setCreateOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
   const [createTarget, setCreateTarget] = useState<{ id: string; name: string } | null>(null);
   const [variantsOpen, setVariantsOpen] = useState(false);
 
@@ -403,8 +517,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
 
   const openDeckName = current?.deck.name ?? "this deck";
 
-  const handleCreate = (mode: DeckVariantMode, target: { id: string; name: string }) => {
-    setCreateMode(mode);
+  const handleCreate = (target: { id: string; name: string }) => {
     setCreateTarget(target);
     setCreateOpen(true);
   };
@@ -419,13 +532,17 @@ function VariantRailBody({ deckId }: { deckId: string }) {
   const height = laneY(maxLane) + LANE_BOTTOM_PAD;
   const maxX = layout.nodes.reduce((widest, node) => Math.max(widest, node.x), 0);
   const width = PAD_X + maxX * SLOT_WIDTH + TRAILING_X;
+  const compareFrom = defaultCompareFrom(layout, members, deckId);
   const createTargetId = createTarget?.id ?? deckId;
   const createTargetName = createTarget?.name ?? openDeckName;
 
   return (
-    <div className="overflow-x-auto overscroll-x-contain px-1">
-      <nav aria-label="Deck variants" className="flex w-max items-start">
-        <div className="relative shrink-0" style={{ width, height }}>
+    <div className="flex items-start gap-2 px-1">
+      <nav
+        aria-label="Deck variants"
+        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain"
+      >
+        <div className="relative" style={{ width, height }}>
           <svg
             aria-hidden
             className="pointer-events-none absolute inset-0"
@@ -466,8 +583,12 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                 <EdgeCounts
                   fromId={edge.fromId}
                   toId={edge.toId}
+                  fromLabel={nodesById.get(edge.fromId)?.fullName ?? "the previous version"}
+                  toLabel={nodesById.get(edge.toId)?.fullName ?? "this version"}
                   addCount={counts.addCount}
                   cutCount={counts.cutCount}
+                  cardsByDeck={cardsByDeck}
+                  cardsById={cardsById}
                 />
               </span>
             );
@@ -477,15 +598,22 @@ function VariantRailBody({ deckId }: { deckId: string }) {
             const position = { left: nodeX(node), top: laneY(node.lane) };
             if (node.isCurrent) {
               return (
-                <span
-                  key={node.id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={position}
-                >
-                  <RailDot isCurrent />
-                  <RailNodeLabel node={node} />
-                  <span className="sr-only">{node.fullName} (open deck)</span>
-                </span>
+                <Popover key={node.id}>
+                  <PopoverTrigger
+                    aria-label={`${node.fullName} (open deck)`}
+                    className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
+                    style={position}
+                  >
+                    <RailDot isCurrent />
+                    <RailNodeLabel node={node} />
+                  </PopoverTrigger>
+                  <RailCurrentPopover
+                    node={node}
+                    updatedAt={updatedById.get(node.id)}
+                    compareFrom={compareFrom}
+                    onBranchFrom={() => handleCreate({ id: deckId, name: openDeckName })}
+                  />
+                </Popover>
               );
             }
             return (
@@ -493,9 +621,6 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                 {/* The dot opens the comparison rather than the deck: the deck
                     is one click further in, behind "Open deck". */}
                 <PopoverTrigger
-                  openOnHover
-                  delay={200}
-                  closeDelay={120}
                   aria-label={node.fullName}
                   className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                   style={position}
@@ -510,45 +635,46 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                   ourCards={cardsByDeck[deckId]}
                   theirCards={cardsByDeck[node.id]}
                   cardsById={cardsById}
-                  onBranchFrom={() => handleCreate("variant", { id: node.id, name: node.fullName })}
+                  onBranchFrom={() => handleCreate({ id: node.id, name: node.fullName })}
                 />
               </Popover>
             );
           })}
         </div>
-
-        <div className="flex shrink-0 items-center gap-1" style={{ height: LANE_TOP_Y * 2 }}>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="New variant"
-                  className="border-border rounded-full border border-dashed"
-                  onClick={() => handleCreate("variant", { id: deckId, name: openDeckName })}
-                />
-              }
-            >
-              <PlusIcon className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>New variant</TooltipContent>
-          </Tooltip>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={() => setVariantsOpen(true)}
-          >
-            {layout.overflowCount > 0 ? `+${layout.overflowCount} more` : "Manage"}
-          </Button>
-        </div>
       </nav>
+
+      {/* Outside the scroller, so the actions stay pinned to the right edge
+          instead of trailing a wide graph off-screen. */}
+      <div className="flex shrink-0 items-center gap-1" style={{ height: LANE_TOP_Y * 2 }}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="New variant"
+                className="border-border rounded-full border border-dashed"
+                onClick={() => handleCreate({ id: deckId, name: openDeckName })}
+              />
+            }
+          >
+            <PlusIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>New variant</TooltipContent>
+        </Tooltip>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={() => setVariantsOpen(true)}
+        >
+          {layout.overflowCount > 0 ? `Variants (+${layout.overflowCount})` : "Variants"}
+        </Button>
+      </div>
 
       <DeckVariantCreateDialog
         deckId={createTargetId}
         deckName={createTargetName}
-        mode={createMode}
         open={createOpen}
         onOpenChange={setCreateOpen}
       />

@@ -106,15 +106,52 @@ describe("buildRailLayout", () => {
     const layout = buildRailLayout(members, "solo");
     expect(layout.edges).toEqual([{ fromId: "parent", toId: "child" }]);
     expect(layout.nodes.find((node) => node.id === "child")?.x).toBe(1);
+    // The lone deck follows that pair on the same row rather than dropping to
+    // one of its own.
+    expect(layout.nodes.find((node) => node.id === "solo")).toMatchObject({ lane: 0, x: 2 });
   });
 
   it("renders a linked member without lineage as its own root", () => {
     const members = [member({ id: "live" }), member({ id: "adopted" })];
     const layout = buildRailLayout(members, "live");
     const adopted = layout.nodes.find((node) => node.id === "adopted");
-    expect(adopted?.lane).toBe(1);
-    expect(adopted?.x).toBe(0);
+    expect(adopted).toMatchObject({ lane: 0, x: 0 });
+    expect(layout.nodes.find((node) => node.id === "live")).toMatchObject({ lane: 0, x: 1 });
     expect(layout.edges).toEqual([]);
+  });
+
+  it("orders independent trees oldest-left, newest-right", () => {
+    const members = [
+      member({ id: "live", updatedAt: "2026-08-02T00:00:00.000Z" }),
+      member({ id: "newest", updatedAt: "2026-08-20T00:00:00.000Z" }),
+      member({ id: "oldest", updatedAt: "2026-07-01T00:00:00.000Z" }),
+    ];
+    const layout = buildRailLayout(members, "live");
+    expect(layout.nodes.map((node) => [node.id, node.lane, node.x])).toEqual([
+      ["oldest", 0, 0],
+      ["live", 0, 1],
+      ["newest", 0, 2],
+    ]);
+  });
+
+  it("starts the next tree past the widest column of the one before it", () => {
+    const members = [
+      member({ id: "root", updatedAt: "2026-07-01T00:00:00.000Z" }),
+      member({
+        id: "fork",
+        predecessorDeckId: "root",
+        updatedAt: "2026-07-02T00:00:00.000Z",
+      }),
+      member({
+        id: "tip",
+        predecessorDeckId: "fork",
+        updatedAt: "2026-07-03T00:00:00.000Z",
+      }),
+      member({ id: "live", updatedAt: "2026-08-01T00:00:00.000Z" }),
+    ];
+    const layout = buildRailLayout(members, "live");
+    expect(layout.nodes.find((node) => node.id === "tip")).toMatchObject({ lane: 0, x: 2 });
+    expect(layout.nodes.find((node) => node.id === "live")).toMatchObject({ lane: 0, x: 3 });
   });
 
   it("gives two siblings on the same parent distinct lanes, newest first", () => {

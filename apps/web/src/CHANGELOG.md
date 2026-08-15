@@ -13,6 +13,10 @@
 ### Other
 
 - feat(Decks): **Version comparison reads like your deck list** — each side now shows card art, costs and set codes, opens on just what changed, and gives both versions their own Open button.
+- feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.
+- feat(Decks): **See what changed without leaving the deck** — clicking a dot or a change count on the timeline opens the card-by-card list for that step.
+- feat(Decks): **Branch from any version** — the Variants dialog creates a variant inline now, with a pick of which version it comes from, so cancelling leaves you where you were.
+- feat(Decks): **Edit the description from its corner** — the pencil moved to the top right of the description instead of sitting underneath it.
 - feat(App): **Share, Export, and Print untangled** — every page now uses the same three entries with the same icons: Share for links and images, Export for data, Print for PDFs.
 - feat(App): **Tall list and bundle images** — list, collection, and profile bundle images can now render in 9:16 for stories, with the size and QR options decks already had.
 - feat(App): **One date format everywhere** — dates now read as 2026-08-15 across the app, so there is no guessing whether 8/9 means August or September.
@@ -28,8 +32,8 @@
 
 ### Highlights
 
-- feat(Decks): **Deck variants and checkpoints** — save a snapshot of a deck before rebuilding it, keep a budget build next to the full one, link two decks you already have, and compare any two versions; variants group under one deck-list entry.
-- feat(Decks): **Variant history on the deck page** — a branch graph under the deck title shows checkpoints and sibling builds, what changed at each step, and jumps straight into a full comparison.
+- feat(Decks): **Deck variants** — keep a budget build next to the full one, branch a copy before rebuilding, link two decks you already have, and compare any two versions; variants group under one deck-list entry.
+- feat(Decks): **Variant history on the deck page** — a branch graph under the deck title shows earlier versions and sibling builds, what changed at each step, and jumps straight into a full comparison.
 - feat(Collection): **Share images name the list** — a shared list, collection, or bundle now unfurls with its name, its owner, and a scannable code back to it, instead of an unlabelled wall of card art.
 - feat(Collection): **Separate price gains from new cards** — the value chart now draws a second line holding each card at its value the day you added it, so the gap between them is what the market did rather than what you bought.
 - feat(Groups): **Wishlist cards in the group box** — the group overview counts the cards you want that are sitting in a shared bulk collection, and the box can filter down to just those, with amounts netted against trades already coming your way.

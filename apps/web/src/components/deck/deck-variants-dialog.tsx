@@ -1,7 +1,7 @@
 import type { DeckSummaryResponse } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CopyIcon, EllipsisVerticalIcon, HistoryIcon } from "lucide-react";
+import { CopyIcon, EllipsisVerticalIcon, Link2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
   useDecks,
   useLinkDeckVariant,
@@ -39,7 +38,7 @@ import {
 import { buildRailLayout } from "@/lib/deck-variant-rail";
 import { cn } from "@/lib/utils";
 
-import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
+import { DeckVariantCreateForm } from "./deck-variant-create-dialog";
 
 interface DeckVariantsDialogProps {
   deckId: string;
@@ -173,6 +172,9 @@ function LineageRow({
           {isCurrent && <Badge variant="subtle">Current</Badge>}
           {deck.isPrimary && <Badge variant="secondary">Primary</Badge>}
           {deck.isDraft && <Badge variant="warning">Draft</Badge>}
+          <span className="text-muted-foreground text-2xs ml-auto shrink-0">
+            Updated {formatDay(deck.updatedAt)}
+          </span>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-muted-foreground text-2xs shrink-0">Came from</span>
@@ -237,12 +239,12 @@ function LineageRow({
 
 function VariantsDialogBody({
   deckId,
+  deckName,
   onClose,
-  onCreate,
 }: {
   deckId: string;
+  deckName: string;
   onClose: () => void;
-  onCreate: (mode: DeckVariantMode) => void;
 }) {
   const { data: items } = useDecks();
   const promotePrimary = usePromoteDeckPrimary();
@@ -250,6 +252,9 @@ function VariantsDialogBody({
   const unlinkVariant = useUnlinkDeckVariant();
   const setPredecessor = useSetDeckPredecessor();
 
+  // At most one panel is expanded at a time: two forms open under a short list
+  // of versions would push each other off the bottom of the dialog.
+  const [panel, setPanel] = useState<"create" | "link" | null>(null);
   const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
 
   const current = items.find((item) => item.deck.id === deckId);
@@ -296,6 +301,7 @@ function VariantsDialogBody({
       {
         onSuccess: () => {
           setLinkTargetId(null);
+          setPanel(null);
           toast.success("Decks linked");
         },
         // Errors are reported by the global mutation error toast.
@@ -329,56 +335,75 @@ function VariantsDialogBody({
         })}
       </ul>
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-        <Button variant="secondary" size="sm" onClick={() => onCreate("variant")}>
-          <CopyIcon className="size-4" />
-          New variant…
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => onCreate("checkpoint")}>
-          <HistoryIcon className="size-4" />
-          Save checkpoint…
-        </Button>
-      </div>
-
       <div className="flex min-w-0 flex-col gap-3 border-t pt-4">
-        <span className="font-medium">Link another deck</span>
-        {linkOptions.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            There is no other deck to link. Every deck you own is either already in this family or
-            archived.
-          </p>
-        ) : (
-          <>
-            <div className="flex min-w-0 flex-col gap-2">
-              <Label htmlFor="deck-variants-link">Deck</Label>
-              <Select
-                items={linkOptions}
-                value={linkTargetId}
-                onValueChange={(value) => setLinkTargetId(value)}
-              >
-                <SelectTrigger id="deck-variants-link" className="w-full">
-                  <SelectValue placeholder="Pick a deck" />
-                </SelectTrigger>
-                <SelectContent>
-                  {linkOptions.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setPanel("create")}>
+            <CopyIcon className="size-4" />
+            New variant…
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setPanel("link")}>
+            <Link2Icon className="size-4" />
+            Link another deck…
+          </Button>
+        </div>
+
+        {panel === "create" && (
+          <DeckVariantCreateForm
+            deckId={deckId}
+            deckName={deckName}
+            layout="inline"
+            sources={members.map((member) => ({ value: member.id, label: member.name }))}
+            onCancel={() => setPanel(null)}
+            onCreated={() => setPanel(null)}
+          />
+        )}
+
+        {panel === "link" && (
+          <div className="bg-muted/40 flex min-w-0 flex-col gap-3 rounded-md p-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-medium">Link another deck</span>
+              <span className="text-muted-foreground text-sm">
+                Pulls a deck you already own into this family, keeping its own list.
+              </span>
             </div>
-            <div>
+            {linkOptions.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                There is no other deck to link. Every deck you own is either already in this family
+                or archived.
+              </p>
+            ) : (
+              <div className="flex min-w-0 flex-col gap-2">
+                <Label htmlFor="deck-variants-link">Deck</Label>
+                <Select
+                  items={linkOptions}
+                  value={linkTargetId}
+                  onValueChange={(value) => setLinkTargetId(value)}
+                >
+                  <SelectTrigger id="deck-variants-link" className="w-full">
+                    <SelectValue placeholder="Pick a deck" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {linkOptions.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPanel(null)}>
+                Cancel
+              </Button>
               <Button
-                variant="secondary"
-                size="sm"
                 disabled={linkTargetId === null || linkVariant.isPending}
                 onClick={handleLink}
               >
                 Link deck
               </Button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -398,50 +423,28 @@ export function DeckVariantsDialog({
   open,
   onOpenChange,
 }: DeckVariantsDialogProps) {
-  const [createOpen, setCreateOpen] = useState(false);
-  // The mode outlives the close so the dialog doesn't switch copy while it fades.
-  const [createMode, setCreateMode] = useState<DeckVariantMode>("variant");
-
-  const handleCreate = (mode: DeckVariantMode) => {
-    setCreateMode(mode);
-    // The create dialog is a sibling, not a child: this dialog closes as it
-    // opens, so the two never stack.
-    onOpenChange(false);
-    setCreateOpen(true);
-  };
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Variants</DialogTitle>
-            <DialogDescription>
-              Every version of this deck, and which one it came from.
-            </DialogDescription>
-          </DialogHeader>
-          {/* The body reads the deck list, a suspending query; mounting it only
-              while open keeps a closed dialog from suspending the page that
-              hosts it. */}
-          {open && (
-            <Suspense fallback={<p className="text-muted-foreground text-sm">Loading variants…</p>}>
-              <VariantsDialogBody
-                deckId={deckId}
-                onClose={() => onOpenChange(false)}
-                onCreate={handleCreate}
-              />
-            </Suspense>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <DeckVariantCreateDialog
-        deckId={deckId}
-        deckName={deckName}
-        mode={createMode}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-      />
-    </>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Variants</DialogTitle>
+          <DialogDescription>
+            Manage versions of this deck, compare and link them.
+          </DialogDescription>
+        </DialogHeader>
+        {/* The body reads the deck list, a suspending query; mounting it only
+            while open keeps a closed dialog from suspending the page that
+            hosts it. */}
+        {open && (
+          <Suspense fallback={<p className="text-muted-foreground text-sm">Loading variants…</p>}>
+            <VariantsDialogBody
+              deckId={deckId}
+              deckName={deckName}
+              onClose={() => onOpenChange(false)}
+            />
+          </Suspense>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

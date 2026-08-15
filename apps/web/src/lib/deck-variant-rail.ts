@@ -169,6 +169,11 @@ function resolveGenerations(drawn: readonly RailMemberInput[]): {
  * Lane 0 is the open deck's own line: its ancestry runs along it, and each
  * further branch takes the first row that is still free at its column.
  *
+ * Members that share no lineage form separate trees, and those run side by side
+ * along the same rows rather than stacking — a family of unrelated versions is
+ * one line, not a column of one-dot rows. The newest tree sits right-most, which
+ * continues the older-to-newer reading that holds inside a tree.
+ *
  * @returns The computed layout.
  */
 export function buildRailLayout(
@@ -208,7 +213,48 @@ export function buildRailLayout(
     }
     return right.updatedAt.localeCompare(left.updatedAt);
   };
-  roots.sort(byDescent);
+
+  /** @returns How many columns the tree under `member` spans. */
+  const treeSpan = (member: RailMemberInput): number => {
+    let span = (depths.get(member.id) ?? 0) + 1;
+    for (const child of children.get(member.id) ?? []) {
+      span = Math.max(span, treeSpan(child));
+    }
+    return span;
+  };
+
+  /** @returns The most recent `updatedAt` anywhere in the tree under `member`. */
+  const treeNewest = (member: RailMemberInput): string => {
+    let newest = member.updatedAt;
+    for (const child of children.get(member.id) ?? []) {
+      const childNewest = treeNewest(child);
+      if (childNewest > newest) {
+        newest = childNewest;
+      }
+    }
+    return newest;
+  };
+
+  /** @returns The id of the tree root `id` descends from. */
+  const rootIdOf = (id: string): string => {
+    const parentId = parents.get(id) ?? null;
+    return parentId === null ? id : rootIdOf(parentId);
+  };
+  const currentRootId = rootIdOf(currentId);
+  roots.sort((left, right) => {
+    // Newest tree right-most. On a tie the open deck's tree goes last, so the
+    // eye lands on it; the id keeps the rest of the order stable.
+    const byNewest = treeNewest(left).localeCompare(treeNewest(right));
+    if (byNewest !== 0) {
+      return byNewest;
+    }
+    const leftOpen = left.id === currentRootId ? 1 : 0;
+    const rightOpen = right.id === currentRootId ? 1 : 0;
+    if (leftOpen !== rightOpen) {
+      return leftOpen - rightOpen;
+    }
+    return left.id.localeCompare(right.id);
+  });
 
   const nodes: RailNode[] = [];
   const laneEnd: number[] = [];
@@ -224,8 +270,12 @@ export function buildRailLayout(
     return lane;
   };
 
-  const place = (member: RailMemberInput, preferredLane: number | null): void => {
-    const x = depths.get(member.id) ?? 0;
+  const place = (
+    member: RailMemberInput,
+    preferredLane: number | null,
+    columnOffset: number,
+  ): void => {
+    const x = columnOffset + (depths.get(member.id) ?? 0);
     const lane = claimLane(preferredLane, x);
     laneEnd[lane] = x;
     nodes.push({
@@ -240,12 +290,16 @@ export function buildRailLayout(
     const descendants = (children.get(member.id) ?? []).toSorted(byDescent);
     descendants.forEach((child, index) => {
       // The first child continues its parent's row; a fork starts a new one.
-      place(child, index === 0 ? lane : null);
+      place(child, index === 0 ? lane : null, columnOffset);
     });
   };
 
+  // Each tree starts where the previous one ended, so lane 0 is free again at
+  // that column and every root lands on it.
+  let nextColumn = 0;
   for (const root of roots) {
-    place(root, chainIds.has(root.id) ? 0 : null);
+    place(root, 0, nextColumn);
+    nextColumn += treeSpan(root);
   }
 
   const drawnIds = new Set(nodes.map((node) => node.id));

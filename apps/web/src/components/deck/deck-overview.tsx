@@ -1428,20 +1428,32 @@ export function DeckOverview({
       {showOverviewContent && (description || hasLinks) && (
         <div className="flex flex-col gap-3">
           {description && (
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 items-start gap-2">
               <DeckDescription
                 text={description}
-                className="text-muted-foreground text-sm"
+                className="text-muted-foreground min-w-0 flex-1 text-sm"
                 onHoverCard={onHoverCard}
                 onCardClick={onCardClick}
               />
               {/* Only offered once there is something to edit — an empty deck
                   reaches the same dialog from the top bar's menu. */}
               {!readOnly && onEditDescription && (
-                <Button variant="ghost" size="sm" className="w-fit" onClick={onEditDescription}>
-                  <PencilIcon className="size-4" />
-                  Edit description
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="shrink-0"
+                        aria-label="Edit description"
+                        onClick={onEditDescription}
+                      />
+                    }
+                  >
+                    <PencilIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit description</TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}

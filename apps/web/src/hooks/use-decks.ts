@@ -461,8 +461,12 @@ export function useSetDeckArchived() {
   });
 }
 
-/** How a variant copy relates to its source (ADR-042). */
-export type DeckVariantMode = "variant" | "checkpoint";
+/**
+ * How a variant copy relates to its source (ADR-042). The API still supports
+ * `checkpoint` (the copy takes the source's place in the chain), but the web app
+ * only ever creates plain variants.
+ */
+type DeckVariantMode = "variant" | "checkpoint";
 
 const createDeckVariantFn = createServerFn({ method: "POST" })
   .validator((input: { deckId: string; mode: DeckVariantMode; name?: string }) => input)

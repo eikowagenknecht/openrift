@@ -11,7 +11,6 @@ import {
   FlaskConicalIcon,
   GitBranchIcon,
   GitCompareArrowsIcon,
-  HistoryIcon,
   ImageIcon,
   PencilIcon,
   PlayIcon,
@@ -89,7 +88,6 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
-import type { DeckVariantMode } from "@/hooks/use-decks";
 import {
   useDeckDetail,
   useEncodeDeckCards,
@@ -193,7 +191,6 @@ function DeckEditorContent({
   // One create dialog for both variant modes; the mode outlives the close so
   // the dialog doesn't switch copy while it fades out.
   const [variantCreateOpen, setVariantCreateOpen] = useState(false);
-  const [variantMode, setVariantMode] = useState<DeckVariantMode>("variant");
   const { update: updateDeckMeta } = useUpdateDeckMeta(deckId);
   const updateDeck = useUpdateDeck();
   const exportDeck = useExportDeck();
@@ -203,11 +200,6 @@ function DeckEditorContent({
   const handleFormatChange = (slug: string) => {
     updateDeckMeta({ format: slug });
   };
-  const openVariantCreate = (mode: DeckVariantMode) => {
-    setVariantMode(mode);
-    setVariantCreateOpen(true);
-  };
-
   const handlePlayOnRiftAtlas = () => {
     // Open the placeholder tab synchronously so it survives the popup blocker
     // while we fetch the piltover deck code; navigate it once the code arrives.
@@ -685,13 +677,7 @@ function DeckEditorContent({
                     {/* Variants are server decks in a family (ADR-042), which a
                         browser-local deck can't join until it's claimed. */}
                     {!isLocal && (
-                      <DropdownMenuItem onClick={() => openVariantCreate("checkpoint")}>
-                        <HistoryIcon className="size-4" />
-                        Save checkpoint…
-                      </DropdownMenuItem>
-                    )}
-                    {!isLocal && (
-                      <DropdownMenuItem onClick={() => openVariantCreate("variant")}>
+                      <DropdownMenuItem onClick={() => setVariantCreateOpen(true)}>
                         <CopyIcon className="size-4" />
                         New variant…
                       </DropdownMenuItem>
@@ -780,7 +766,6 @@ function DeckEditorContent({
         <DeckVariantCreateDialog
           deckId={deckId}
           deckName={data.deck.name}
-          mode={variantMode}
           open={variantCreateOpen}
           onOpenChange={setVariantCreateOpen}
         />
