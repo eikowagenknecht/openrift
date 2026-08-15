@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /** Lifecycle wiring for the public share link. */
-export interface ShareDialogLink {
+interface ShareDialogLink {
   /** The live share URL, or null while the thing isn't shared. */
   url: string | null;
   /** Accessible name for the link field, e.g. "Deck share link". */

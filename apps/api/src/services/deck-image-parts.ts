@@ -31,7 +31,7 @@ export const BATTLEFIELD_ASPECT = 1.4;
 /** Section header (label + underline) reserved height, for area math. */
 export const SECTION_HEADER_H = 23;
 /** Battlefields shown (decks rarely exceed three). */
-export const MAX_BATTLEFIELDS = 3;
+const MAX_BATTLEFIELDS = 3;
 
 /** One deck card the renderer needs; `imageId` is the resolved art, null when none. */
 export interface DeckImageCard {
@@ -93,7 +93,7 @@ export function formatLabelFromSlug(slug: string): string {
  * Compares two deck cards by energy (nulls last), then name, for cost-curve order.
  * @returns A standard comparator result (negative, zero, or positive).
  */
-export function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
+function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
   return (left.energy ?? 99) - (right.energy ?? 99) || left.cardName.localeCompare(right.cardName);
 }
 

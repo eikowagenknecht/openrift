@@ -3,8 +3,8 @@
  *
  * Split out of `binder-sheet-pdf` so a component can label its controls without
  * importing the generator, which pulls in jsPDF, the QR encoder and the brand
- * logo raster. `binder-sheet-pdf` re-exports everything here, so existing
- * imports of these names keep working.
+ * logo raster. `binder-sheet-pdf` re-exports the names its own callers still
+ * import from it, so those imports keep working.
  */
 
 export type BinderSheetSize = "card" | "2x2" | "3x3";

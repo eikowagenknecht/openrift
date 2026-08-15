@@ -19,21 +19,27 @@ export function buildDistinctWhere(table: string, columns: readonly string[]) {
 }
 
 /**
- * Binds a JSON-serialized value as real jsonb. postgres.js sends a plain string
- * parameter to a jsonb column as a jsonb *string scalar* (the JSON text
- * double-encoded), so the column holds `"{\"a\":1}"` rather than `{"a": 1}`.
+ * Binds a JSON-serialized value as real jsonb. postgres.js serializes a bound
+ * parameter according to the type Postgres describes for it, and for a jsonb
+ * parameter that means another `JSON.stringify` — so JSON text lands in the
+ * column as a jsonb *string scalar*, `"{\"a\":1}"` rather than `{"a": 1}`.
  * Reads survive that because {@link parseJsonb} unwraps either shape, but the
  * database sees a string: `jsonb_array_elements` fails with "cannot extract
  * elements from a scalar", and a `jsonb_typeof(col) = 'object'` check constraint
- * rejects the write outright. The explicit cast makes the database parse the
- * text into the actual structure instead. Use it for every jsonb write — older
- * tables predating it hold string scalars, which is why reads stay defensive.
+ * rejects the write outright.
+ *
+ * The double cast is what fixes it, and `::jsonb` alone does not: with a lone
+ * cast Postgres still describes the parameter as jsonb and postgres.js still
+ * re-encodes. Going through `::text` describes it as text, so the string is
+ * sent verbatim and the database parses it into the actual structure. Use this
+ * for every jsonb write — older tables predating it hold string scalars, which
+ * is why reads stay defensive.
  *
  * @param value The JSON text, or null for a NULL column.
  * @returns A raw expression usable wherever the column's write type is string.
  */
 export function asJsonb(value: string): RawBuilder<string> {
-  return sql<string>`${value}::jsonb`;
+  return sql<string>`${value}::text::jsonb`;
 }
 
 /**

@@ -15,7 +15,7 @@ import { renderShareImage } from "./share-image.js";
  * draws a couple of dozen tiles, so this just bounds the art lookup; the
  * accurate "+N more" count comes from a separate distinct count, not this slice.
  */
-export const COLLECTION_SHARE_CARD_CAP = 60;
+const COLLECTION_SHARE_CARD_CAP = 60;
 
 /** Everything needed to render one collection's share image. */
 export interface CollectionImageData {

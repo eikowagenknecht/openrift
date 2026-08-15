@@ -1,6 +1,20 @@
+import type { RawBuilder } from "kysely";
+import {
+  DummyDriver,
+  Kysely,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
+} from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { buildDistinctWhere, parseJsonb, parseJsonbRequired } from "./helpers.js";
+import {
+  asJsonb,
+  asJsonbNullable,
+  buildDistinctWhere,
+  parseJsonb,
+  parseJsonbRequired,
+} from "./helpers.js";
 
 describe("buildDistinctWhere", () => {
   it("builds a single-column DISTINCT check", () => {
@@ -11,6 +25,50 @@ describe("buildDistinctWhere", () => {
   it("builds a multi-column DISTINCT check with OR separators", () => {
     const result = buildDistinctWhere("t", ["col_a", "col_b", "col_c"]);
     expect(result).toBeDefined();
+  });
+});
+
+/** Compiles a raw fragment without a database, the same way production compiles it. */
+const compileDb = new Kysely<Record<string, never>>({
+  dialect: {
+    createAdapter: () => new PostgresAdapter(),
+    createDriver: () => new DummyDriver(),
+    createIntrospector: (db) => new PostgresIntrospector(db),
+    createQueryCompiler: () => new PostgresQueryCompiler(),
+  },
+});
+
+/** @returns The fragment's compiled SQL and bound parameters. */
+function compile(fragment: RawBuilder<unknown>) {
+  const compiled = fragment.compile(compileDb);
+  return { sql: compiled.sql, parameters: compiled.parameters };
+}
+
+describe("asJsonb", () => {
+  // A lone `::jsonb` leaves Postgres describing the parameter as jsonb, which
+  // makes postgres.js JSON-encode the text a second time and store a string
+  // scalar. The `::text` hop is what keeps the value a plain string on the
+  // wire, so the shape of this cast is the behavior, not a formatting detail.
+  it("casts through text so the parameter is not described as jsonb", () => {
+    expect(compile(asJsonb('{"a":1}')).sql).toBe("$1::text::jsonb");
+  });
+
+  it("binds the JSON text as a single parameter", () => {
+    expect(compile(asJsonb('{"a":1}')).parameters).toEqual(['{"a":1}']);
+  });
+});
+
+describe("asJsonbNullable", () => {
+  it("casts a value the same way asJsonb does", () => {
+    expect(compile(asJsonbNullable('{"a":1}')!).sql).toBe("$1::text::jsonb");
+  });
+
+  it("returns null for null", () => {
+    expect(asJsonbNullable(null)).toBeNull();
+  });
+
+  it("returns null for undefined", () => {
+    expect(asJsonbNullable(undefined)).toBeNull();
   });
 });
 

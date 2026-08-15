@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * before they shared one. Surfaces with their own card sizing (the tier board,
  * whose tiles are user-resizable) pass their own.
  */
-export const CARD_DRAG_GHOST_WIDTH = 112;
+const CARD_DRAG_GHOST_WIDTH = 112;
 
 /**
  * Where the second and third cards of a fan sit, as fractions of the ghost's

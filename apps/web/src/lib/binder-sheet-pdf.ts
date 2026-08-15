@@ -23,14 +23,11 @@ import { loadLogoDataUrl } from "@/lib/pdf-logo";
  */
 
 // The sizes and papers live in `binder-sheet-specs` so the dialog can label its
-// controls without loading jsPDF, the QR encoder and the logo raster. They are
-// re-exported here because this module is where callers expect them.
-export type {
-  BinderSheetPaper,
-  BinderSheetSize,
-  BinderSheetSpec,
-  BinderSheetStyle,
-} from "@/lib/binder-sheet-specs";
+// controls without loading jsPDF, the QR encoder and the logo raster. The names
+// callers still reach for through this module are re-exported here; the rest
+// (`BinderSheetSpec`, `BinderSheetStyle`) are imported from `binder-sheet-specs`
+// directly, so re-exporting them would only be an unused alias.
+export type { BinderSheetPaper, BinderSheetSize } from "@/lib/binder-sheet-specs";
 export { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS } from "@/lib/binder-sheet-specs";
 
 export interface BinderSheetOptions {
