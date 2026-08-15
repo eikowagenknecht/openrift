@@ -17,7 +17,7 @@
 - feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.
 - feat(Decks): **See what changed without leaving the deck** — clicking a dot or a change count on the timeline opens the card-by-card list for that step.
-- feat(Decks): **Dated timeline, fuller names** — each version on the variant timeline now carries the day it last changed above its dot, and long deck names run much further before they cut off.
+- feat(Decks): **Dated timeline, fuller names** — each version on the variant timeline now shows the day it last changed beside its name, and long deck names run much further before they cut off.
 - feat(Decks): **Branch from any version** — the Variants dialog creates a variant inline now, with a pick of which version it comes from, so cancelling leaves you where you were.
 - feat(Decks): **Edit the description from its corner** — the pencil moved to the top right of the description instead of sitting underneath it.
 - feat(App): **Share, Export, and Print untangled** — every page now uses the same three entries with the same icons: Share for links and images, Export for data, Print for PDFs.

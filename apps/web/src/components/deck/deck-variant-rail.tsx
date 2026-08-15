@@ -32,12 +32,17 @@ const MAX_RAIL_NODES = 6;
 const SLOT_WIDTH = 168;
 /** Diameter of a node's dot (`size-2`). */
 const DOT_SIZE = 8;
-/** The name label's `mt-2` under the dot. */
+/** The name label's `mb-2` over the dot. */
 const LABEL_GAP = 8;
-/** The date's `mb-1` over the dot. */
+/** The date's `mt-1` under the dot. */
 const DATE_GAP = 4;
 /** One `text-2xs` line box (`--text-2xs--line-height`). */
 const LABEL_LINE_HEIGHT = 16;
+/**
+ * Distance from a lane's line down to the centre of its step-diff numbers. Half
+ * a chip clears the line; the rest is the air that keeps the two apart.
+ */
+const COUNTS_GAP_Y = LABEL_LINE_HEIGHT / 2 + 5;
 /** Clear air between two neighbouring name labels. */
 const LABEL_MARGIN_X = 12;
 /**
@@ -46,24 +51,27 @@ const LABEL_MARGIN_X = 12;
  * anything narrower truncates names the rail has the room to show.
  */
 const LABEL_WIDTH = SLOT_WIDTH - LABEL_MARGIN_X;
-/** Left inset: half a label, since labels are centred under their dot. */
+/** Left inset: half a label, since labels are centred on their dot. */
 const PAD_X = LABEL_WIDTH / 2;
 /** Room to the right of the last node for the other half of its label. */
 const TRAILING_X = LABEL_WIDTH / 2;
-/** Baseline of lane 0, leaving room for the date over the dot. */
-const LANE_TOP_Y = DOT_SIZE / 2 + DATE_GAP + LABEL_LINE_HEIGHT;
+/** Baseline of lane 0, leaving room for the name over the dot. */
+const LANE_TOP_Y = DOT_SIZE / 2 + LABEL_GAP + LABEL_LINE_HEIGHT;
 /**
- * Vertical distance between two lanes: a dot, its name below it, and the date
+ * Vertical distance between two lanes: a dot, its date below it, and the name
  * over the dot of the lane beneath — two lanes can share a column, so those
  * two lines sit directly above one another.
  */
-const LANE_GAP = DOT_SIZE + LABEL_GAP + LABEL_LINE_HEIGHT + DATE_GAP + LABEL_LINE_HEIGHT;
+const LANE_GAP = DOT_SIZE + DATE_GAP + LABEL_LINE_HEIGHT + LABEL_GAP + LABEL_LINE_HEIGHT;
 /**
- * Room under the last lane for its label. Derived rather than eyeballed: the
- * label starts half a dot plus its margin below the baseline, and a pixel short
- * here gives the scroller a stray vertical scrollbar.
+ * Room under the last lane for its date and the step-diff numbers, whichever
+ * hangs lower. Derived rather than eyeballed: a pixel short here gives the
+ * scroller a stray vertical scrollbar.
  */
-const LANE_BOTTOM_PAD = DOT_SIZE / 2 + LABEL_GAP + LABEL_LINE_HEIGHT;
+const LANE_BOTTOM_PAD = Math.max(
+  DOT_SIZE / 2 + DATE_GAP + LABEL_LINE_HEIGHT,
+  COUNTS_GAP_Y + LABEL_LINE_HEIGHT / 2,
+);
 
 const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
 const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
@@ -128,8 +136,9 @@ function edgePath(edge: RailEdge, byId: ReadonlyMap<string, RailNode>): string |
 
 /**
  * Places an edge's step-diff numbers clear of both the labels and the dots:
- * midway along the edge, just above the line it lands on. Labels hang below
- * their dots, so the space above a line is always free.
+ * midway along the edge, just under the line it lands on. Names hang above
+ * their dots and dates sit right under them, so the air under a line between
+ * two dots is the one strip nothing else wants.
  *
  * @returns The pixel centre for the numbers, or null when either end is missing.
  */
@@ -142,7 +151,7 @@ function edgeCountsPosition(
   if (!from || !to) {
     return null;
   }
-  return { left: (nodeX(from) + nodeX(to)) / 2, top: laneY(to.lane) - 13 };
+  return { left: (nodeX(from) + nodeX(to)) / 2, top: laneY(to.lane) + COUNTS_GAP_Y };
 }
 
 /**
@@ -395,8 +404,10 @@ function RailNodePopover({
       <div className="flex flex-wrap items-center gap-1 border-t pt-2">
         {/* Neither link is a PopoverClose: the navigation unmounts the whole
             rail, and closing first would only race the route change. */}
+        {/* The filled variant: opening the version is what the popup is for,
+            and the other two actions read as follow-ups next to it. */}
         <Button
-          variant="ghost"
+          variant="default"
           size="sm"
           render={<Link to="/decks/$deckId" params={{ deckId: node.id }} />}
         >
@@ -423,9 +434,9 @@ function RailNodeLabel({ node }: { node: RailNode }) {
   return (
     <span
       className={cn(
-        // Every label hangs below its dot: with more than two lanes, labels
-        // above would collide with the lane over them.
-        "text-2xs absolute top-full left-1/2 mt-2 flex -translate-x-1/2 items-center justify-center gap-1.5",
+        // Every name hangs above its dot, with the date under it: the name is
+        // what the row is scanned for, so it leads.
+        "text-2xs absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 items-center justify-center gap-1.5",
         node.isCurrent ? "text-foreground font-medium" : "text-muted-foreground",
       )}
       style={{ width: LABEL_WIDTH }}
@@ -437,7 +448,7 @@ function RailNodeLabel({ node }: { node: RailNode }) {
 }
 
 /**
- * The node's day, over its dot. Sitting opposite the name keeps the pair
+ * The node's day, under its dot. Sitting opposite the name keeps the pair
  * readable at a glance: what the version is called, and when it last moved.
  *
  * @returns The date line, or null for a member with no timestamp loaded.
@@ -447,7 +458,7 @@ function RailNodeDate({ updatedAt }: { updatedAt: string | undefined }) {
     return null;
   }
   return (
-    <span className="text-muted-foreground text-2xs absolute bottom-full left-1/2 mb-1 -translate-x-1/2 tabular-nums">
+    <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
       {formatDay(updatedAt)}
     </span>
   );
@@ -604,9 +615,9 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                     className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                     style={position}
                   >
-                    <RailNodeDate updatedAt={updatedById.get(node.id)} />
-                    <RailDot isCurrent />
                     <RailNodeLabel node={node} />
+                    <RailDot isCurrent />
+                    <RailNodeDate updatedAt={updatedById.get(node.id)} />
                   </PopoverTrigger>
                   <RailCurrentPopover
                     node={node}
@@ -626,9 +637,9 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                   className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                   style={position}
                 >
-                  <RailNodeDate updatedAt={updatedById.get(node.id)} />
-                  <RailDot isCurrent={false} />
                   <RailNodeLabel node={node} />
+                  <RailDot isCurrent={false} />
+                  <RailNodeDate updatedAt={updatedById.get(node.id)} />
                 </PopoverTrigger>
                 <RailNodePopover
                   node={node}

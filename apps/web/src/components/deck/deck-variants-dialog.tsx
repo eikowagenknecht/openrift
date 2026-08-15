@@ -163,7 +163,10 @@ function LineageGutter({
           style={{
             left: Math.min(x, laneX(lane)),
             top: DOT_Y,
-            width: Math.abs(laneX(lane) - x),
+            // One past the lane distance: a `w-px` line covers [laneX, laneX+1),
+            // so a box that stops at laneX leaves its border a pixel short of
+            // the column it joins, on either side.
+            width: Math.abs(laneX(lane) - x) + 1,
           }}
         />
       ))}
