@@ -20,12 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { BinderSheetPaper, BinderSheetSize, BinderSheetStyle } from "@/lib/binder-sheet-pdf";
-import {
-  BINDER_SHEET_PAPERS,
-  BINDER_SHEET_SPECS,
-  generateBinderSheetPdf,
-} from "@/lib/binder-sheet-pdf";
+import type { BinderSheetPaper, BinderSheetSize, BinderSheetStyle } from "@/lib/binder-sheet-specs";
+import { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS } from "@/lib/binder-sheet-specs";
 
 interface BinderSheetDialogProps {
   open: boolean;
@@ -56,6 +52,18 @@ const STYLE_ITEMS: { value: BinderSheetStyle; label: string }[] = [
 ];
 
 /**
+ * Loads the sheet generator on first use, so jsPDF, the QR encoder and the
+ * brand logo raster stay off the initial graph of every page that offers a
+ * share dialog. Module scope, not the handler: react-compiler cannot lower an
+ * `import()` expression inside a component and bails on the whole file.
+ * @returns The generator function.
+ */
+async function loadBinderSheetGenerator() {
+  const module = await import("@/lib/binder-sheet-pdf");
+  return module.generateBinderSheetPdf;
+}
+
+/**
  * Options for the printable binder QR sheet, then a PDF download. Callers own
  * the open state and pass the share link plus its prefills, so the same dialog
  * serves the all-lists bundle, a single list, and a collection.
@@ -84,6 +92,7 @@ export function BinderSheetDialog({
 
   const handleCreate = async () => {
     setGenerating(true);
+    const generateBinderSheetPdf = await loadBinderSheetGenerator();
     // React Compiler can't yet lower try/finally; reset in both paths instead.
     try {
       await generateBinderSheetPdf({

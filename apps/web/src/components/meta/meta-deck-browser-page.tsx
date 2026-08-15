@@ -5,6 +5,7 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-copy";
 import { MetaDeckCard } from "@/components/meta/meta-deck-card";
 import {
   MetaDeckActiveFilters,
@@ -19,10 +20,6 @@ import {
   metaDeckFilterOptions,
   sortMetaDecks,
 } from "@/lib/meta-deck-filters";
-
-/** Shared by the meta description, the JSON-LD, and the visible page intro. */
-export const META_DECKS_DESCRIPTION =
-  "Every decklist in the Riftbound meta archive, filterable by format, event, legend, and finish.";
 
 /**
  * `/meta/decks` — the cross-event deck browser. The endpoint hands over the

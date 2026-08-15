@@ -1,6 +1,8 @@
 import { qrPngDataUri } from "@openrift/shared/qr";
 import type { jsPDF } from "jspdf";
 
+import type { BinderSheetPaper, BinderSheetSize, BinderSheetStyle } from "@/lib/binder-sheet-specs";
+import { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS, CARD_WIDTH_MM } from "@/lib/binder-sheet-specs";
 import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
@@ -20,62 +22,16 @@ import { loadLogoDataUrl } from "@/lib/pdf-logo";
  * out. The sheet's own thin frame is always drawn and doubles as the cut line.
  */
 
-export type BinderSheetSize = "card" | "2x2" | "3x3";
-export type BinderSheetPaper = "a4" | "letter";
-export type BinderSheetStyle = "light" | "dark";
-
-export interface BinderSheetSpec {
-  /** Control label, e.g. "3×3 binder page". */
-  label: string;
-  /** Physical size plus copies per page, e.g. "189 × 264 mm, 1 per page". */
-  hint: string;
-  /** Sheet width in mm (cards across × card width). */
-  width: number;
-  /** Sheet height in mm (cards down × card height). */
-  height: number;
-  /** Copies printed per page. */
-  cols: number;
-  rows: number;
-}
-
-/** Standard card dimensions in mm, matching the proxy printer. */
-const CARD_WIDTH_MM = 63;
-const CARD_HEIGHT_MM = 88;
-
-export const BINDER_SHEET_SPECS: Record<BinderSheetSize, BinderSheetSpec> = {
-  card: {
-    label: "Card size",
-    hint: "63 × 88 mm, 9 per page",
-    width: CARD_WIDTH_MM,
-    height: CARD_HEIGHT_MM,
-    cols: 3,
-    rows: 3,
-  },
-  "2x2": {
-    label: "2×2 binder page",
-    hint: "126 × 176 mm, 1 per page",
-    width: 2 * CARD_WIDTH_MM,
-    height: 2 * CARD_HEIGHT_MM,
-    cols: 1,
-    rows: 1,
-  },
-  "3x3": {
-    label: "3×3 binder page",
-    hint: "189 × 264 mm, 1 per page",
-    width: 3 * CARD_WIDTH_MM,
-    height: 3 * CARD_HEIGHT_MM,
-    cols: 1,
-    rows: 1,
-  },
-};
-
-export const BINDER_SHEET_PAPERS: Record<
+// The sizes and papers live in `binder-sheet-specs` so the dialog can label its
+// controls without loading jsPDF, the QR encoder and the logo raster. They are
+// re-exported here because this module is where callers expect them.
+export type {
   BinderSheetPaper,
-  { label: string; width: number; height: number }
-> = {
-  a4: { label: "A4", width: 210, height: 297 },
-  letter: { label: "US Letter", width: 215.9, height: 279.4 },
-};
+  BinderSheetSize,
+  BinderSheetSpec,
+  BinderSheetStyle,
+} from "@/lib/binder-sheet-specs";
+export { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS } from "@/lib/binder-sheet-specs";
 
 export interface BinderSheetOptions {
   /** The share link the QR code encodes. */

@@ -95,9 +95,21 @@ export function useStickyHeader({
       });
     };
 
-    update();
+    // The first pass runs after paint, not inside the commit. `update` reads
+    // `scrollY` and the virtualizer's measured items, which forces a synchronous
+    // layout — and this effect re-subscribes exactly when the layout above the
+    // grid has just changed (`scrollMargin` moved) or the grid gained a second
+    // group. Both happen on the same commit as a filter change, so running it
+    // inline put a full forced layout on the path to showing the new cards:
+    // measured at 22–40ms on a phone (8× CPU), ~50ms of the toggle's total.
+    // After paint it costs the same but nobody is waiting on it, and the
+    // overlay is only ever one frame late.
+    const frame = requestAnimationFrame(update);
     globalThis.addEventListener("scroll", update, { passive: true });
-    return () => globalThis.removeEventListener("scroll", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      globalThis.removeEventListener("scroll", update);
+    };
   }, [multipleGroups, scrollMargin]);
 
   return activeHeaderRow;

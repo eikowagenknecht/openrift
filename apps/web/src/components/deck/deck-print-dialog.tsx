@@ -1,6 +1,5 @@
 import type { CatalogResponse } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { html2canvas } from "html2canvas-pro";
 import { FileTextIcon, Loader2Icon, PrinterIcon } from "lucide-react";
 import { Suspense, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -38,15 +37,8 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
 import { downloadImageAsPdf } from "@/lib/image-pdf";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
-import {
-  assembleProxyPdf,
-  prerenderImageCards,
-  proxyRenderKey,
-  resolveProxyCards,
-} from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
-import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import {
   deckImageFromCardsUrl,
   deckOwnerImageUrl,
@@ -119,13 +111,33 @@ function resolveClipPaths(element: HTMLElement): void {
 }
 
 /**
+ * Loads the jsPDF-backed registration generator on first export.
+ *
+ * This dialog is reachable from any page that renders a deck tile, so importing
+ * the generator at module scope put jsPDF plus the ~400 KB logo raster on those
+ * pages' initial graph. It lives at module scope rather than inside the handler
+ * because react-compiler cannot lower an `import()` expression inside a
+ * component and bails on the whole file.
+ * @returns The generator function.
+ */
+async function loadRegistrationPdfGenerator() {
+  const module = await import("@/lib/registration-pdf");
+  return module.generateRegistrationPdf;
+}
+
+/**
  * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
  * The element must already be in the page's React tree (with all providers).
+ *
+ * html2canvas-pro is imported here rather than at module scope: it is ~250 KB
+ * and only a proxy export ever needs it, while this dialog module itself gets
+ * pulled into any page that renders a deck tile.
  * @returns PNG data URL.
  */
 async function captureElement(element: HTMLElement): Promise<string> {
   resolveClipPaths(element);
 
+  const { html2canvas } = await import("html2canvas-pro");
   const canvas = await html2canvas(element, {
     width: element.offsetWidth,
     height: element.offsetHeight,
@@ -189,6 +201,9 @@ async function generateProxyPdf({
   setRenderingCard,
   setPreviewUrl,
 }: GenerateProxyPdfParams): Promise<void> {
+  // jsPDF and the proxy layout code load on first export, not with the dialog.
+  const { assembleProxyPdf, prerenderImageCards, proxyRenderKey, resolveProxyCards } =
+    await import("@/lib/proxy-pdf");
   // Pre-fetch init data so CardText doesn't suspend during rendering, then
   // compose the effective language order so `preferredPrinting` picks
   // variants in the same order the rest of the UI does.
@@ -507,6 +522,7 @@ function RegistrationPrintPanel({
       eventName,
       eventLocation,
     };
+    const generateRegistrationPdf = await loadRegistrationPdfGenerator();
     try {
       await generateRegistrationPdf(fields, cards, pageSize, getSiteUrl());
     } catch (error) {

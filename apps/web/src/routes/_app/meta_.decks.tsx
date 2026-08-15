@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-deck-browser-page";
+import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
 import { metaDecksQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";

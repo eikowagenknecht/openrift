@@ -1,4 +1,4 @@
-import { deckLinkSchema } from "@openrift/shared/response-schemas";
+import { isAllowedLinkUrl } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
@@ -40,10 +40,17 @@ export const Route = createFileRoute("/_app/decks/import")({
       }
     }
     const source = search.source;
-    // The param is whatever the address bar says, so it goes through the same
-    // schema a typed-in deck link does (https, allowlisted host, length).
-    // Anything else is dropped rather than offered and then rejected on save.
-    if (typeof source === "string" && deckLinkSchema.safeParse({ url: source }).success) {
+    // The param is whatever the address bar says, so it faces the same two
+    // rules a typed-in deck link does: allowlisted https host, and the deck
+    // contract's 500-char URL limit. Anything else is dropped rather than
+    // offered and then rejected on save.
+    //
+    // Checked with `isAllowedLinkUrl` rather than `deckLinkSchema`: every route
+    // file is evaluated on every page load, so importing the schema put all 700
+    // lines of `response-schemas` in the startup graph for one URL check on one
+    // route. (The oRPC contracts still pull that module in elsewhere, so this
+    // removes a preload rather than the zod work itself.)
+    if (typeof source === "string" && source.length <= 500 && isAllowedLinkUrl(source)) {
       result.source = source;
     }
     return result;

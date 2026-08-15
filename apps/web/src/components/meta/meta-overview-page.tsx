@@ -11,6 +11,7 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { META_DESCRIPTION } from "@/components/meta/meta-copy";
 import { MetaStatsPanels } from "@/components/meta/meta-stats-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,10 +31,6 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents, useMetaStats } from "@/hooks/use-meta";
 
 const routeApi = getRouteApi("/_app/meta");
-
-/** Shared by the meta description, the JSON-LD, and the visible page intro. */
-export const META_DESCRIPTION =
-  "Decklists from Riftbound tournaments, with the cards and legends they were built on. Every list links into the catalog and shows what you already own.";
 
 /** The format select's "no filter" value — an empty string clears the param. */
 const ALL_FORMATS = "";
