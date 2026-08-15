@@ -35,7 +35,8 @@ import {
   useSetDeckPredecessor,
   useUnlinkDeckVariant,
 } from "@/hooks/use-decks";
-import { buildRailLayout } from "@/lib/deck-variant-rail";
+import type { VariantGraphRow } from "@/lib/deck-variant-graph";
+import { buildVariantGraph } from "@/lib/deck-variant-graph";
 import { cn } from "@/lib/utils";
 
 import { DeckVariantCreateForm } from "./deck-variant-create-dialog";
@@ -48,11 +49,24 @@ interface DeckVariantsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** The parent picker's "this version starts the history" option. */
+/** The parent picker's "this version came from nothing" option. */
 const NO_PARENT = "none";
 
-/** Indent per generation in the lineage list. */
-const GENERATION_INDENT = 18;
+/** Horizontal distance between two lanes of the graph gutter. */
+const LANE_WIDTH = 14;
+/** Height of a row's first line, which the dot is centred on. */
+const HEADER_HEIGHT = 28;
+/** Padding above and below a row's content; rows themselves sit flush. */
+const ROW_PAD_Y = 8;
+/** Distance from the top of a row to the centre of its dot. */
+const DOT_Y = ROW_PAD_Y + HEADER_HEIGHT / 2;
+/** Diameter of a dot (`size-2`). */
+const DOT_SIZE = 8;
+
+/** @returns The pixel centre of a lane inside the gutter. */
+function laneX(lane: number): number {
+  return lane * LANE_WIDTH + LANE_WIDTH / 2;
+}
 
 /**
  * The decks that can still join this family: everything else the user owns,
@@ -105,9 +119,115 @@ export function parentOptions(
     .toSorted((left, right) => left.label.localeCompare(right.label));
 }
 
+/**
+ * One row's slice of the graph: the lines running past it, the line into its
+ * dot, and any fork leaving it. Drawn with plain boxes rather than an SVG so a
+ * row can be as tall as its content and the lines still meet across rows.
+ *
+ * @returns The gutter element for one row.
+ */
+function LineageGutter({
+  row,
+  isCurrent,
+  laneCount,
+}: {
+  row: VariantGraphRow;
+  isCurrent: boolean;
+  laneCount: number;
+}) {
+  const x = laneX(row.lane);
+  return (
+    <div aria-hidden className="relative shrink-0" style={{ width: laneCount * LANE_WIDTH }}>
+      {row.throughLanes.map((lane) => (
+        <span
+          key={lane}
+          className="bg-border absolute inset-y-0 w-px"
+          style={{ left: laneX(lane) }}
+        />
+      ))}
+      {row.hasParentAbove && (
+        <span className="bg-border absolute top-0 w-px" style={{ left: x, height: DOT_Y }} />
+      )}
+      {row.continuesBelow && (
+        <span className="bg-border absolute bottom-0 w-px" style={{ left: x, top: DOT_Y }} />
+      )}
+      {row.branchLanes.map((lane) => (
+        // A fork leaves the dot sideways and turns down a lane of its own, so
+        // it reads as branching off this version rather than following it.
+        <span
+          key={lane}
+          className={cn(
+            "border-border absolute bottom-0 border-t",
+            lane > row.lane ? "rounded-tr-sm border-r" : "rounded-tl-sm border-l",
+          )}
+          style={{
+            left: Math.min(x, laneX(lane)),
+            top: DOT_Y,
+            width: Math.abs(laneX(lane) - x),
+          }}
+        />
+      ))}
+      <span
+        className={cn(
+          "absolute size-2 rounded-full",
+          isCurrent ? "bg-primary ring-primary/25 ring-4" : "bg-muted-foreground",
+        )}
+        style={{ left: x - DOT_SIZE / 2, top: DOT_Y - DOT_SIZE / 2 }}
+      />
+    </div>
+  );
+}
+
+/**
+ * The per-version overflow menu. Split out so the row itself stays readable.
+ *
+ * @returns The actions menu for one version.
+ */
+function RowActions({
+  deck,
+  isCurrent,
+  openDeckId,
+  canUnlink,
+  onPromote,
+  onUnlink,
+}: {
+  deck: DeckSummaryResponse;
+  isCurrent: boolean;
+  openDeckId: string;
+  canUnlink: boolean;
+  onPromote: () => void;
+  onUnlink: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${deck.name}`} />}
+      >
+        <EllipsisVerticalIcon className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {!isCurrent && (
+          <DropdownMenuItem
+            render={<Link to="/decks/compare" search={{ from: deck.id, to: openDeckId }} />}
+          >
+            Show changes
+          </DropdownMenuItem>
+        )}
+        {!deck.isPrimary && <DropdownMenuItem onClick={onPromote}>Make primary</DropdownMenuItem>}
+        {canUnlink && (
+          <DropdownMenuItem onClick={onUnlink} className="text-destructive focus:text-destructive">
+            Remove from variants
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function LineageRow({
   deck,
-  generation,
+  row,
+  laneCount,
   isCurrent,
   openDeckId,
   parentChoices,
@@ -118,8 +238,9 @@ function LineageRow({
   onUnlink,
 }: {
   deck: DeckSummaryResponse;
-  /** Depth from the family's oldest version; drives the indent and the elbow. */
-  generation: number;
+  /** Where this version's dot sits, and which lines pass its row. */
+  row: VariantGraphRow;
+  laneCount: number;
   isCurrent: boolean;
   openDeckId: string;
   parentChoices: { value: string; label: string }[];
@@ -129,38 +250,14 @@ function LineageRow({
   onPromote: () => void;
   onUnlink: () => void;
 }) {
-  const parentItems = [{ value: NO_PARENT, label: "Starts the history" }, ...parentChoices];
+  const parentItems = [{ value: NO_PARENT, label: "Nothing" }, ...parentChoices];
   return (
-    <li
-      className="flex min-w-0 items-start gap-2"
-      style={{ paddingLeft: generation * GENERATION_INDENT }}
-    >
-      <span className="relative flex w-3 shrink-0 justify-center pt-2">
-        {generation > 0 && (
-          // The elbow into this row's dot, from the column of the generation
-          // above it — the same fork the rail draws, turned on its side.
-          <span
-            aria-hidden
-            className="border-border absolute rounded-bl-sm border-b border-l"
-            style={{
-              left: -GENERATION_INDENT + 6,
-              top: -6,
-              width: GENERATION_INDENT - 6,
-              height: 14,
-            }}
-          />
-        )}
-        <span
-          aria-hidden
-          className={cn(
-            "size-2 rounded-full",
-            isCurrent ? "bg-primary ring-primary/25 ring-4" : "bg-muted-foreground",
-          )}
-        />
-      </span>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex min-w-0 items-center gap-1.5">
+    // Rows sit flush against each other and pad their own content, so the
+    // gutter's lines run unbroken from one row into the next.
+    <li className="flex min-w-0 items-stretch gap-2">
+      <LineageGutter row={row} isCurrent={isCurrent} laneCount={laneCount} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1 py-2">
+        <div className="flex min-w-0 items-center gap-1.5" style={{ height: HEADER_HEIGHT }}>
           <Link
             to="/decks/$deckId"
             params={{ deckId: deck.id }}
@@ -175,58 +272,43 @@ function LineageRow({
           <span className="text-muted-foreground text-2xs ml-auto shrink-0">
             Updated {formatDay(deck.updatedAt)}
           </span>
+          <RowActions
+            deck={deck}
+            isCurrent={isCurrent}
+            openDeckId={openDeckId}
+            canUnlink={canUnlink}
+            onPromote={onPromote}
+            onUnlink={onUnlink}
+          />
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-2xs shrink-0">Came from</span>
-          <Select
-            items={parentItems}
-            value={deck.predecessorDeckId ?? NO_PARENT}
-            onValueChange={(value) => onSetParent(value === NO_PARENT ? null : (value ?? null))}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={`Previous version of ${deck.name}`}
-              className="min-w-0 flex-1"
+        {/* A family of one has nothing to have come from, so the picker only
+            shows up once there is another version to point at. */}
+        {parentChoices.length > 0 && (
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-muted-foreground text-2xs shrink-0">Came from</span>
+            <Select
+              items={parentItems}
+              value={deck.predecessorDeckId ?? NO_PARENT}
+              onValueChange={(value) => onSetParent(value === NO_PARENT ? null : (value ?? null))}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {parentItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <span className="text-muted-foreground text-2xs">Updated {formatDay(deck.updatedAt)}</span>
+              <SelectTrigger
+                size="sm"
+                aria-label={`Previous version of ${deck.name}`}
+                className="min-w-0 flex-1"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {parentItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${deck.name}`} />}
-        >
-          <EllipsisVerticalIcon className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {!isCurrent && (
-            <DropdownMenuItem
-              render={<Link to="/decks/compare" search={{ from: deck.id, to: openDeckId }} />}
-            >
-              Show changes
-            </DropdownMenuItem>
-          )}
-          {!deck.isPrimary && <DropdownMenuItem onClick={onPromote}>Make primary</DropdownMenuItem>}
-          {canUnlink && (
-            <DropdownMenuItem
-              onClick={onUnlink}
-              className="text-destructive focus:text-destructive"
-            >
-              Remove from variants
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
     </li>
   );
 }
@@ -257,10 +339,10 @@ function VariantsDialogBody({
     .filter((item) => (familyId ? item.deck.familyId === familyId : item.deck.id === deckId))
     .map((item) => item.deck);
 
-  // The rail's graph, read as a list: the layout already walks the family
-  // parent-first, so rows arrive in an order where every parent is above its
-  // children and `x` is the generation to indent by.
-  const lineage = buildRailLayout(members, deckId, members.length);
+  // The family as a commit graph: rows arrive oldest-first with every version
+  // above the ones that came from it, and each row carries the lines to draw
+  // beside it. Repointing a version re-runs this, so the graph redraws itself.
+  const graph = buildVariantGraph(members, deckId);
   const membersById = new Map(members.map((member) => [member.id, member]));
 
   const linkOptions = linkableDeckOptions(
@@ -305,9 +387,9 @@ function VariantsDialogBody({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <ul className="flex min-w-0 flex-col gap-3">
-        {lineage.nodes.map((node) => {
-          const deck = membersById.get(node.id);
+      <ul className="flex min-w-0 flex-col">
+        {graph.rows.map((row) => {
+          const deck = membersById.get(row.id);
           if (!deck) {
             return null;
           }
@@ -315,8 +397,9 @@ function VariantsDialogBody({
             <LineageRow
               key={deck.id}
               deck={deck}
-              generation={node.x}
-              isCurrent={node.isCurrent}
+              row={row}
+              laneCount={graph.laneCount}
+              isCurrent={deck.id === deckId}
               openDeckId={deckId}
               parentChoices={parentOptions(members, deck.id)}
               canUnlink={members.length > 1}

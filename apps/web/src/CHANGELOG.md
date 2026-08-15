@@ -26,6 +26,7 @@
 - feat(App): **Undo a mis-tapped point** — the match menu in the middle of the board names the last change and reverses it, and tapping a score opens buttons to correct a total that drifted.
 - feat(App): **XP only when you need it** — the match tracker keeps XP as a small tab until someone taps it, so decks that never use it get the space back.
 - feat(Decks): **Bigger, optional scan code on deck images** — the code moved from the footer up to the top corner, where it has the room to actually be scannable, and a switch on the share dialog's Image tab leaves it off.
+- fix(Decks): **Variants list stops nesting** — versions were indented under each other whether or not they were related, and now each sits on its own line with a connecting line only where one really came from another.
 - fix(Tournaments): **Staff invite links shown in full** — the invite row now shows the whole link with copy and QR instead of a truncated pill.
 - fix(App): **Tier list embeds resolve** — sites that read embed info from a shared tier list link no longer hit a missing endpoint.
 - fix(App): **Dragged cards show the right art** — the card following your cursor could show a different printing than the one you picked up, in both the deck builder and collections.

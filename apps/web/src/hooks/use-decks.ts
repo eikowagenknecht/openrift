@@ -24,6 +24,7 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
+import { reportMutationError } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -545,16 +546,48 @@ const setDeckPredecessorFn = createServerFn({ method: "POST" })
     }),
   );
 
+/**
+ * Repoints a variant at the version it came from. Optimistic, because the
+ * lineage graph is laid out from these pointers: waiting for the round trip
+ * would leave the picker showing one thing and the lines another.
+ *
+ * @returns A mutation taking `{ deckId, predecessorDeckId }`.
+ */
 export function useSetDeckPredecessor() {
   const userId = useRequiredUserId();
-  // The rail and the lineage list read every member's pointer, so the whole
-  // decks prefix is refreshed rather than the one row that changed.
-  return useMutationWithInvalidation<
+  const queryClient = useQueryClient();
+  return useMutation<
     DeckResponse,
-    { deckId: string; predecessorDeckId: string | null }
+    Error,
+    { deckId: string; predecessorDeckId: string | null },
+    { previous: DeckListResponse | undefined }
   >({
     mutationFn: (input) => setDeckPredecessorFn({ data: input }),
-    invalidates: [queryKeys.decks.all(userId)],
+    onMutate: ({ deckId, predecessorDeckId }) => {
+      const key = queryKeys.decks.all(userId);
+      const previous = queryClient.getQueryData<DeckListResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<DeckListResponse>(key, {
+          items: previous.items.map((item) =>
+            item.deck.id === deckId ? { ...item, deck: { ...item.deck, predecessorDeckId } } : item,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.decks.all(userId), context.previous);
+      }
+      // Declaring onError here replaces the QueryClient's default one, so the
+      // graph would otherwise snap back with nothing saying why.
+      reportMutationError(error, queryClient);
+    },
+    // The rail and the lineage list read every member's pointer, so the whole
+    // decks prefix is refreshed rather than the one row that changed.
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId) });
+    },
   });
 }
 
