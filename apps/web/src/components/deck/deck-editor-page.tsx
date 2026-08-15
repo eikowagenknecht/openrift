@@ -18,6 +18,7 @@ import {
   PrinterIcon,
   RefreshCwIcon,
   Share2Icon,
+  Trash2Icon,
   UploadIcon,
   XIcon,
 } from "lucide-react";
@@ -63,7 +64,18 @@ import {
 } from "@/components/section-header";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,6 +101,7 @@ import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import {
   useDeckDetail,
+  useDeleteDeck,
   useEncodeDeckCards,
   useExportDeck,
   useUpdateDeck,
@@ -108,7 +121,7 @@ import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
-import { isLocalDeckId } from "@/stores/local-decks-store";
+import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckEditorPageProps {
@@ -189,14 +202,39 @@ function DeckEditorContent({
   // One create dialog for both variant modes; the mode outlives the close so
   // the dialog doesn't switch copy while it fades out.
   const [variantCreateOpen, setVariantCreateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { update: updateDeckMeta } = useUpdateDeckMeta(deckId);
   const updateDeck = useUpdateDeck();
+  const deleteDeck = useDeleteDeck();
+  const deleteLocalDeck = useLocalDecksStore((state) => state.deleteDeck);
   const exportDeck = useExportDeck();
   const encodeDeck = useEncodeDeckCards();
   const { formats } = useDeckFormatList();
   const otherFormats = formats.filter((entry) => entry.slug !== data.deck.format);
   const handleFormatChange = (slug: string) => {
     updateDeckMeta({ format: slug });
+  };
+  const handleDelete = () => {
+    setDeleteOpen(false);
+    // A local deck lives only in the store (ADR-035), so it never reaches the
+    // server mutation. Both paths land back on the list, since the page they
+    // are on is about to stop existing.
+    if (isLocal) {
+      deleteLocalDeck(deckId);
+      void navigate({ to: "/decks" });
+      return;
+    }
+    // Guard against double-submission: a second confirm while the first delete
+    // is still in flight would 404 on the server.
+    if (deleteDeck.isPending) {
+      return;
+    }
+    deleteDeck.mutate(deckId, {
+      onSuccess: () => {
+        void navigate({ to: "/decks" });
+      },
+      // Errors are reported by the global mutation error toast.
+    });
   };
   const handlePlayOnRiftAtlas = () => {
     // Open the placeholder tab synchronously so it survives the popup blocker
@@ -735,6 +773,16 @@ function DeckEditorContent({
                       <PlayIcon className="size-4" />
                       Play on RiftAtlas
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {/* A variant is a deck of its own (ADR-042), so this is
+                        also how a single version of a family is deleted. */}
+                    <DropdownMenuItem
+                      onClick={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2Icon className="size-4" />
+                      Delete deck
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </PageTopBarActions>
@@ -786,6 +834,31 @@ function DeckEditorContent({
           onOpenChange={setVariantsOpen}
         />
       )}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <DialogForm onSubmit={handleDelete}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete deck</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &ldquo;{data.deck.name}&rdquo;?{" "}
+                {isLocal
+                  ? "It only exists on this device, so this cannot be undone."
+                  : "This cannot be undone."}
+                {/* Deleting one member never takes the rest with it, which is
+                    the first thing a variant's owner will wonder about. */}
+                {data.deck.familyId !== null && " The other versions of it stay."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit" disabled={deleteDeck.isPending}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </DialogForm>
+        </AlertDialogContent>
+      </AlertDialog>
       <DeckShareDialog
         deckId={deckId}
         deckName={data.deck.name}

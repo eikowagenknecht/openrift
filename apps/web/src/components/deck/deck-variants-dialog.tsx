@@ -1,10 +1,20 @@
 import type { DeckSummaryResponse } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CopyIcon, EllipsisVerticalIcon, Link2Icon } from "lucide-react";
+import { CopyIcon, EllipsisVerticalIcon, Link2Icon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import {
   useDecks,
+  useDeleteDeck,
   useLinkDeckVariant,
   usePromoteDeckPrimary,
   useSetDeckPredecessor,
@@ -193,6 +205,7 @@ function RowActions({
   canUnlink,
   onPromote,
   onUnlink,
+  onDelete,
 }: {
   deck: DeckSummaryResponse;
   isCurrent: boolean;
@@ -200,6 +213,7 @@ function RowActions({
   canUnlink: boolean;
   onPromote: () => void;
   onUnlink: () => void;
+  onDelete: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -222,6 +236,14 @@ function RowActions({
             Remove from variants
           </DropdownMenuItem>
         )}
+        {/* The open deck deletes itself from its own top bar instead: doing it
+            here would delete the page the dialog is sitting on. */}
+        {!isCurrent && (
+          <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+            <Trash2Icon className="size-4" />
+            Delete version
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -239,6 +261,7 @@ function LineageRow({
   onSetParent,
   onPromote,
   onUnlink,
+  onDelete,
 }: {
   deck: DeckSummaryResponse;
   /** Where this version's dot sits, and which lines pass its row. */
@@ -252,6 +275,7 @@ function LineageRow({
   onSetParent: (parentId: string | null) => void;
   onPromote: () => void;
   onUnlink: () => void;
+  onDelete: () => void;
 }) {
   const parentItems = [{ value: NO_PARENT, label: "Nothing" }, ...parentChoices];
   return (
@@ -282,6 +306,7 @@ function LineageRow({
             canUnlink={canUnlink}
             onPromote={onPromote}
             onUnlink={onUnlink}
+            onDelete={onDelete}
           />
         </div>
         {/* A family of one has nothing to have come from, so the picker only
@@ -330,6 +355,11 @@ function VariantsDialogBody({
   const linkVariant = useLinkDeckVariant();
   const unlinkVariant = useUnlinkDeckVariant();
   const setPredecessor = useSetDeckPredecessor();
+  const deleteDeck = useDeleteDeck();
+
+  // The version awaiting a delete confirm. Held as the deck rather than a
+  // boolean so the prompt can name it, and so one dialog serves every row.
+  const [deleteTarget, setDeleteTarget] = useState<DeckSummaryResponse | null>(null);
 
   // At most one panel is expanded at a time: two forms open under a short list
   // of versions would push each other off the bottom of the dialog.
@@ -363,6 +393,21 @@ function VariantsDialogBody({
   const handleUnlink = (memberId: string) => {
     unlinkVariant.mutate(memberId, {
       onSuccess: () => toast.success("Removed from variants"),
+      // Errors are reported by the global mutation error toast.
+    });
+  };
+
+  const handleDelete = () => {
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    if (target === null || deleteDeck.isPending) {
+      return;
+    }
+    // The family repairs itself server-side: a sole survivor goes standalone,
+    // and a deleted primary hands the flag on. The graph redraws from the
+    // refreshed list, so there is nothing to fix up here.
+    deleteDeck.mutate(target.id, {
+      onSuccess: () => toast.success("Version deleted"),
       // Errors are reported by the global mutation error toast.
     });
   };
@@ -410,6 +455,7 @@ function VariantsDialogBody({
               onSetParent={(parentId) => handleSetParent(deck.id, parentId)}
               onPromote={() => handlePromote(deck.id)}
               onUnlink={() => handleUnlink(deck.id)}
+              onDelete={() => setDeleteTarget(deck)}
             />
           );
         })}
@@ -486,6 +532,33 @@ function VariantsDialogBody({
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <DialogForm onSubmit={handleDelete}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete version</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? The deck and its
+                cards are deleted. This cannot be undone, but the other versions stay.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit" disabled={deleteDeck.isPending}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </DialogForm>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

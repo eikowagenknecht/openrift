@@ -15,6 +15,7 @@
 
 ### Other
 
+- feat(Decks): **Delete a deck from its own page** — the deck menu now ends with Delete, and the Variants dialog can delete a single version while the rest of the family stays.
 - feat(App): **A page for creators** — /creators gathers the chat-bot card lookups, tier lists, and the Stage in one place, with the setup each one needs.
 - feat(Decks): **Import a deck straight from another site** — a Firefox add-on sends the decklist you are looking at to the import page in one click, and a new help article covers installing and using it.
 - feat(Decks): **Card art in the deck plan pickers** — the battlefield, opponent, and swap dropdowns now show each card's art, so lookalike names are easy to tell apart.

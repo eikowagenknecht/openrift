@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook } from "@testing-library/react";
+import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-start", () => ({
@@ -23,12 +26,23 @@ vi.mock("@tanstack/react-start/server", () => ({
   getRequest: () => new Request("http://localhost"),
 }));
 
+// Swapped per test: the deck page hosts browser-local decks logged out, so the
+// hooks it mounts have to survive a null user.
+let currentUserId: string | null = "user-1";
+
 vi.mock("@/lib/auth-session", () => ({
-  useRequiredUserId: () => "user-1",
-  useUserId: () => "user-1",
+  // Throws on a null user, like the real one, so a hook that reaches for the
+  // required id where it shouldn't fails the test instead of passing quietly.
+  useRequiredUserId: () => {
+    if (currentUserId === null) {
+      throw new Error("useRequiredUserId() called without an authenticated session.");
+    }
+    return currentUserId;
+  },
+  useUserId: () => currentUserId,
 }));
 
-const { deckDetailQueryOptions, deleteDeckFn } = await import("./use-decks");
+const { deckDetailQueryOptions, deleteDeckFn, useDeleteDeck } = await import("./use-decks");
 
 describe("deckDetailQueryOptions", () => {
   afterEach(() => {
@@ -106,5 +120,34 @@ describe("deleteDeckFn", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(deleteDeckFn({ data: "d1" })).rejects.toThrow();
+  });
+});
+
+describe("useDeleteDeck", () => {
+  afterEach(() => {
+    currentUserId = "user-1";
+  });
+
+  /** @returns A provider wrapper carrying a fresh QueryClient. */
+  function wrapper({ children }: { children: React.ReactNode }) {
+    const client = new QueryClient();
+    return createElement(QueryClientProvider, { client }, children);
+  }
+
+  it("mounts without a session", () => {
+    // The deck page mounts this for local decks too (ADR-035), which a logged
+    // out visitor can open. Reading a required userId here threw on mount and
+    // took the whole page down with it.
+    currentUserId = null;
+
+    const { result } = renderHook(() => useDeleteDeck(), { wrapper });
+
+    expect(result.current.isPending).toBe(false);
+  });
+
+  it("mounts for a signed-in user", () => {
+    const { result } = renderHook(() => useDeleteDeck(), { wrapper });
+
+    expect(result.current.isPending).toBe(false);
   });
 });

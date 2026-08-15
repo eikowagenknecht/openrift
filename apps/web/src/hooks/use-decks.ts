@@ -204,10 +204,13 @@ export const deleteDeckFn = createServerFn({ method: "POST" })
   });
 
 export function useDeleteDeck() {
-  const userId = useRequiredUserId();
+  // Logged-out-safe: the deck page's delete action is shared with local decks,
+  // which branch to the local store before `.mutate`; gate the invalidation on
+  // a present userId instead of throwing on mount.
+  const userId = useUserId();
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (deckId) => deleteDeckFn({ data: deckId }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
   });
 }
 
