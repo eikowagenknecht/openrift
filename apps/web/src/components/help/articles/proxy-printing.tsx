@@ -36,17 +36,17 @@ export default function ProxyPrintingArticle() {
       {/* Getting started */}
       <section>
         <Heading className="mb-2">Getting started</Heading>
-        <p className="text-muted-foreground">There are two ways to open the proxy export dialog:</p>
+        <p className="text-muted-foreground">There are two ways to open the proxy printing:</p>
         <div className="mt-3 space-y-2">
           <StepRow
             step={1}
             title="From the deck editor"
-            description="Open a deck in the editor and click the Proxies button in the toolbar at the top."
+            description="Open a deck in the editor, open the three-dot menu in the top bar, and choose Print. Proxies are the first tab of the print dialog."
           />
           <StepRow
             step={2}
             title="From the deck list"
-            description="On the Decks page, open the three-dot menu on any deck tile and choose Export as proxies."
+            description="On the Decks page, open the three-dot menu on any deck tile and choose Print."
           />
         </div>
       </section>

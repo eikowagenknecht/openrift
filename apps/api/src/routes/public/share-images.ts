@@ -5,6 +5,7 @@ import { bodyLimit } from "hono/body-limit";
 
 import { AppError } from "../../errors.js";
 import { assertFound } from "../../lib/assertions.js";
+import { renderCollectionImage } from "../../services/collection-image.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
@@ -20,7 +21,7 @@ import {
   topByQuantity,
 } from "../../services/list-image.js";
 import { aspectFromQuery, qrFromQuery } from "../../services/share-image-core.js";
-import type { ShareImageCard } from "../../services/share-image.js";
+import type { ShareImageCard, ShareImageOptions } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
 import type { Variables } from "../../types.js";
@@ -39,13 +40,6 @@ import type { Variables } from "../../types.js";
 
 /** Long immutable cache: the `?v=` version makes each URL content-addressed. */
 const IMAGE_CACHE_CONTROL = "public, immutable, max-age=31536000";
-
-/**
- * Per-printing rows resolved for a collection's share image. The grid only
- * draws a dozen tiles, so this just bounds the art lookup; the accurate "+N
- * more" count comes from a separate distinct count, not this slice.
- */
-const COLLECTION_SHARE_CARD_CAP = 60;
 
 /** Upper bound on card rows the from-cards render endpoint will accept. */
 const MAX_RENDER_CARD_ROWS = 300;
@@ -81,6 +75,17 @@ const renderBodyLimit = bodyLimit({
     throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "Render payload exceeds 256 KB");
   },
 });
+
+/**
+ * The canvas and mark params every share image accepts: `?aspect=vertical` for
+ * the 9:16 export, `?qr=0` for a plate with no scannable code. An og:image URL
+ * never carries either, so the crawler's cached entry is untouched and each
+ * variant is its own immutable cache entry.
+ * @returns The render options a request asked for.
+ */
+function imageOptions(aspect: string | undefined, qr: string | undefined): ShareImageOptions {
+  return { aspect: aspectFromQuery(aspect), qr: qrFromQuery(qr) };
+}
 
 /** @returns A PNG response with the immutable share-image cache headers. */
 function pngResponse(png: Buffer): Response {
@@ -132,6 +137,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         canonicalPrintings,
       },
       c.req.query("size") === "hq" ? 2 : 1,
+      imageOptions(c.req.query("aspect"), c.req.query("qr")),
     );
 
     return pngResponse(png);
@@ -170,6 +176,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         shareUrl: shareUrlFromOrigin(config.corsOrigin, `/users/share/${token}`),
       },
       c.req.query("size") === "hq" ? 2 : 1,
+      imageOptions(c.req.query("aspect"), c.req.query("qr")),
     );
 
     return pngResponse(png);
@@ -187,25 +194,18 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const found = await collections.findByShareToken(token);
     assertFound(found, "Not found");
 
-    const { cards, totalDistinct } = await copies.collectionShareImageCards(
-      found.collection.id,
-      COLLECTION_SHARE_CARD_CAP,
-    );
-
-    const png = await renderShareImage(
+    const png = await renderCollectionImage(
       io,
       {
+        collectionId: found.collection.id,
         ownerName: found.ownerName ?? "Anonymous",
-        title: found.collection.name,
-        intentLabel: "Collection",
-        // Collections are printing-level (one tile per distinct printing).
-        unit: { one: "printing", many: "printings" },
-        cards,
-        totalCount: totalDistinct,
+        collectionName: found.collection.name,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl: shareUrlFromOrigin(config.corsOrigin, `/collections/share/${token}`),
+        copies,
       },
       c.req.query("size") === "hq" ? 2 : 1,
+      imageOptions(c.req.query("aspect"), c.req.query("qr")),
     );
 
     return pngResponse(png);

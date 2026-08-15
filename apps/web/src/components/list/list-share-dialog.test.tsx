@@ -98,15 +98,30 @@ describe("ListShareDialog", () => {
     expect(screen.getByRole("button", { name: /^copied$/iu })).toBeInTheDocument();
   });
 
-  it("shows the 'Post to a chat' controls whether or not the list is shared", () => {
+  it("shows the 'Post to a chat' copy action whether or not the list is shared", () => {
     const { rerender } = render(<Harness shareToken={null} />);
     expect(screen.getByText(/post to a chat/iu)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy text/iu })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /download image/iu })).toBeInTheDocument();
 
     rerender(<Harness shareToken="AbCdEfGhIjKl" />);
     expect(screen.getByText(/post to a chat/iu)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy text/iu })).toBeInTheDocument();
+  });
+
+  it("offers the image render on its own tab, off the owner-authenticated route", async () => {
+    const user = userEvent.setup();
+    render(<Harness shareToken={null} />);
+
+    await user.click(screen.getByRole("tab", { name: /image/iu }));
+
+    expect(await screen.findByRole("button", { name: /download image/iu })).toBeInTheDocument();
+    // The preview is the real render, so an unshared list still gets one — it
+    // just can't carry a QR until there is a link to encode.
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/api/v1/lists/abc/image.png"),
+    );
+    expect(screen.getByText(/create a share link first/iu)).toBeInTheDocument();
   });
 
   it("calls onManageGroups from the Group visibility cross-link", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { defaultIo } from "../io.js";
 import type { ShareImageCard } from "./share-image.js";
-import { markPlacement, renderShareImage } from "./share-image.js";
+import { bestGridForArea, markPlacement, renderShareImage } from "./share-image.js";
 
 // Exercises the real pipeline (font load + satori + resvg). No DB or media
 // needed: a null imageId falls back to a name-only tile, which still renders.
@@ -112,6 +112,27 @@ describe("renderShareImage", () => {
     expect(meta.width).toBe(1200);
   });
 
+  it("keeps the host but drops the code when the mark is turned off", async () => {
+    const png = await renderShareImage(
+      defaultIo,
+      {
+        ownerName: "Alice",
+        unit: { one: "card", many: "cards" },
+        title: "Clean plate",
+        intentLabel: "Trade list",
+        cards: nameOnlyCards(9),
+        totalCount: 9,
+        siteHost: "openrift.app",
+        shareUrl: "https://openrift.app/lists/share/sampletoken",
+      },
+      1,
+      { qr: false },
+    );
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(1200);
+    expect(meta.height).toBe(630);
+  });
+
   it("renders the 2x variant at 2400x1260", async () => {
     const png = await renderShareImage(
       defaultIo,
@@ -130,6 +151,85 @@ describe("renderShareImage", () => {
     const meta = await defaultIo.sharp(png).metadata();
     expect(meta.width).toBe(2400);
     expect(meta.height).toBe(1260);
+  });
+});
+
+describe("renderShareImage (vertical)", () => {
+  it("renders the 9:16 canvas at 1080x1920", async () => {
+    const png = await renderShareImage(
+      defaultIo,
+      {
+        ownerName: "Alice",
+        unit: { one: "card", many: "cards" },
+        title: "Holiday Targets",
+        intentLabel: "Trade list",
+        cards: nameOnlyCards(9),
+        totalCount: 9,
+        siteHost: "openrift.app",
+        shareUrl: "https://openrift.app/lists/share/sampletoken",
+      },
+      1,
+      { aspect: "vertical" },
+    );
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(1080);
+    expect(meta.height).toBe(1920);
+  });
+
+  it("renders beyond the vertical tile cap (the '+N more' tile) without throwing", async () => {
+    const png = await renderShareImage(
+      defaultIo,
+      {
+        ownerName: "Alice",
+        unit: { one: "printing", many: "printings" },
+        title: "Bilgewater trade binder",
+        intentLabel: "Trade list",
+        cards: nameOnlyCards(40),
+        totalCount: 40,
+        siteHost: "openrift.app",
+        shareUrl: "https://openrift.app/lists/share/sampletoken",
+      },
+      1,
+      { aspect: "vertical" },
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders an empty list on the tall canvas without throwing", async () => {
+    const png = await renderShareImage(
+      defaultIo,
+      {
+        ownerName: "",
+        unit: { one: "card", many: "cards" },
+        title: "Empty",
+        intentLabel: "Wishlist",
+        cards: [],
+        totalCount: 0,
+      },
+      1,
+      { aspect: "vertical" },
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders the 2x vertical variant at 2160x3840", async () => {
+    const png = await renderShareImage(
+      defaultIo,
+      {
+        ownerName: "Alice",
+        unit: { one: "card", many: "cards" },
+        title: "Holiday Targets",
+        intentLabel: "Trade list",
+        cards: nameOnlyCards(5),
+        totalCount: 5,
+        siteHost: "openrift.app",
+      },
+      2,
+      { aspect: "vertical", qr: false },
+    );
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(2160);
+    expect(meta.height).toBe(3840);
   });
 });
 
@@ -161,6 +261,17 @@ describe("markPlacement", () => {
     expect(markPlacement(9, false, true, AREA_W, AREA_H)).toBe("cell");
   });
 
+  it("takes the footer rather than a cell when the mark carries no code", () => {
+    // A card-sized cell holding one small host label reads as a card that
+    // failed to load, and the label-height footer costs the grid far less.
+    expect(markPlacement(9, false, true, AREA_W, AREA_H, false)).toBe("footer");
+    expect(markPlacement(5, false, true, AREA_W, AREA_H, false)).toBe("footer");
+  });
+
+  it("still rides the overflow tile with the code off", () => {
+    expect(markPlacement(11, true, true, AREA_W, AREA_H, false)).toBe("tile");
+  });
+
   it("never shrinks the cards below what the other placement would give", () => {
     for (let cards = 1; cards <= 12; cards++) {
       const placement = markPlacement(cards, false, true, AREA_W, AREA_H);
@@ -169,6 +280,42 @@ describe("markPlacement", () => {
       const chosen = placement === "footer" ? asFooter : asCell;
       expect(chosen).toBeGreaterThanOrEqual(Math.max(asFooter, asCell));
     }
+  });
+});
+
+// The live vertical geometry: 1080x1920 canvas, 28px padding, a 132px title
+// block (the QR sets its height), a 10px gap, and a 32px footer with its gap.
+const V_AREA_W = 1024;
+const V_AREA_H = 1680;
+const V_GAP = 14;
+
+describe("bestGridForArea", () => {
+  it("packs the vertical cap into four columns, wider than a landscape tile", () => {
+    const grid = bestGridForArea(20, V_AREA_W, V_AREA_H, V_GAP);
+
+    expect(grid.cols).toBe(4);
+    // A landscape image draws twelve tiles at ~181px; twenty fit here wider.
+    expect(grid.cellW).toBeGreaterThan(181);
+  });
+
+  it("picks the columns that make the tiles largest, not a fixed row count", () => {
+    for (const count of [1, 2, 3, 5, 8, 12, 17, 20]) {
+      const best = bestGridForArea(count, V_AREA_W, V_AREA_H, V_GAP);
+      for (let cols = 1; cols <= count; cols++) {
+        const rows = Math.ceil(count / cols);
+        const byWidth = (V_AREA_W - (cols - 1) * V_GAP) / cols;
+        const byHeight = (V_AREA_H - (rows - 1) * V_GAP) / rows;
+        const cellW = Math.floor(Math.floor(Math.min(byHeight, byWidth / 0.715)) * 0.715);
+        expect(best.cellW).toBeGreaterThanOrEqual(cellW);
+      }
+    }
+  });
+
+  it("still returns a drawable cell for an empty grid", () => {
+    const grid = bestGridForArea(0, V_AREA_W, V_AREA_H, V_GAP);
+
+    expect(grid.cols).toBe(1);
+    expect(grid.cellW).toBeGreaterThan(0);
   });
 });
 

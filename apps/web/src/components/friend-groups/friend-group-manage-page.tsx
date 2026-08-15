@@ -16,7 +16,6 @@ import {
   HandshakeIcon,
   HeartIcon,
   KeyIcon,
-  QrCodeIcon,
   Trash2Icon,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
@@ -25,6 +24,7 @@ import { useState } from "react";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { listKindIcon } from "@/components/list/create-list-dialog";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +41,6 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { QrCode } from "@/components/ui/qr-code";
 import {
   Select,
   SelectContent,
@@ -200,22 +199,13 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
 function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
   const navigate = useNavigate();
   const update = useUpdateFriendGroup();
-  const rotateCode = useRotateFriendGroupCode();
-  const disableCode = useDisableFriendGroupCode();
   const enableCode = useEnableFriendGroupCode();
 
   const [name, setName] = useServerSeededState(data.group.name);
   const [description, setDescription] = useServerSeededState(data.group.description ?? "");
   const [newSlug, setNewSlug] = useServerSeededState(data.group.slug);
-  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
-  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
-  const { copied, copy } = useCopyToClipboard();
 
   const slugChanged = newSlug !== data.group.slug;
-  const joinUrl = data.group.code
-    ? `${getSiteUrl()}/groups/join?code=${encodeURIComponent(data.group.code)}`
-    : null;
 
   async function handleSave() {
     const trimmedName = name.trim();
@@ -288,93 +278,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             Join code
           </Label>
           {data.group.code ? (
-            <>
-              {/* flex-wrap matters: on phones the five items don't fit one line,
-                  and without it Rotate/Disable get clipped off-screen. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="bg-muted min-w-36 flex-1 rounded px-2 py-1 font-mono text-sm">
-                  {data.group.code}
-                </code>
-                <Button size="sm" variant="ghost" onClick={() => void copy(joinUrl ?? "")}>
-                  {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
-                  {copied ? "Copied" : "Copy link"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-expanded={qrOpen}
-                  onClick={() => setQrOpen(!qrOpen)}
-                >
-                  <QrCodeIcon className="size-4" />
-                  {qrOpen ? "Hide QR code" : "QR code"}
-                </Button>
-                <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
-                  <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                    Rotate
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogForm
-                      onSubmit={async () => {
-                        await rotateCode.mutateAsync(slug);
-                        setRotateConfirmOpen(false);
-                      }}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>Rotate the join code?</DialogTitle>
-                        <DialogDescription>
-                          The current code stops working immediately. Anyone holding an old invite
-                          link will need a new one.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" variant="destructive" disabled={rotateCode.isPending}>
-                          Rotate
-                        </Button>
-                      </DialogFooter>
-                    </DialogForm>
-                  </DialogContent>
-                </Dialog>
-                <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
-                  <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                    Disable
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogForm
-                      onSubmit={async () => {
-                        await disableCode.mutateAsync(slug);
-                        setDisableConfirmOpen(false);
-                      }}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>Disable code-based joining?</DialogTitle>
-                        <DialogDescription>
-                          The code stops working immediately. New members will only be able to join
-                          via direct email invites until you re-enable code-based joining.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          variant="destructive"
-                          disabled={disableCode.isPending}
-                        >
-                          Disable
-                        </Button>
-                      </DialogFooter>
-                    </DialogForm>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              {qrOpen && joinUrl ? (
-                <QrCode value={joinUrl} size={224} label="QR code for the group join link" />
-              ) : null}
-            </>
+            <JoinCodePanel slug={slug} code={data.group.code} />
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-sm">
@@ -397,6 +301,94 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
         <InviteByEmailForm slug={slug} />
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The join code and its share link, for a group that still has code-based
+ * joining switched on. Both forms are here on purpose: people paste the bare
+ * code into a Discord message, and the link is what they hand to someone who
+ * would otherwise have to find the group first.
+ * @returns The join-code panel.
+ */
+function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
+  const rotateCode = useRotateFriendGroupCode();
+  const disableCode = useDisableFriendGroupCode();
+  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
+  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
+
+  const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* The code is the headline of this block, not a field label: people read
+          it aloud and type it into Discord, so it gets the section tier. */}
+      <code className="bg-muted rounded px-2 py-1 text-center font-mono text-lg font-semibold tracking-widest">
+        {code}
+      </code>
+      <ShareLinkRow
+        url={joinUrl}
+        label="Group join link"
+        actions={
+          <>
+            <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
+              <DialogTrigger render={<Button variant="destructive" />}>Rotate</DialogTrigger>
+              <DialogContent>
+                <DialogForm
+                  onSubmit={async () => {
+                    await rotateCode.mutateAsync(slug);
+                    setRotateConfirmOpen(false);
+                  }}
+                >
+                  <DialogHeader>
+                    <DialogTitle>Rotate the join code?</DialogTitle>
+                    <DialogDescription>
+                      The current code stops working immediately. Anyone holding an old invite link
+                      will need a new one.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" variant="destructive" disabled={rotateCode.isPending}>
+                      Rotate
+                    </Button>
+                  </DialogFooter>
+                </DialogForm>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
+              <DialogTrigger render={<Button variant="destructive" />}>Disable</DialogTrigger>
+              <DialogContent>
+                <DialogForm
+                  onSubmit={async () => {
+                    await disableCode.mutateAsync(slug);
+                    setDisableConfirmOpen(false);
+                  }}
+                >
+                  <DialogHeader>
+                    <DialogTitle>Disable code-based joining?</DialogTitle>
+                    <DialogDescription>
+                      The code stops working immediately. New members will only be able to join via
+                      direct email invites until you re-enable code-based joining.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" variant="destructive" disabled={disableCode.isPending}>
+                      Disable
+                    </Button>
+                  </DialogFooter>
+                </DialogForm>
+              </DialogContent>
+            </Dialog>
+          </>
+        }
+      />
+    </div>
   );
 }
 

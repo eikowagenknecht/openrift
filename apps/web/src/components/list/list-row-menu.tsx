@@ -12,6 +12,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDeleteList, useSetListSidebarHidden } from "@/hooks/use-lists";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -37,6 +38,7 @@ export function ListRowMenu({ list, isActive, children }: ListRowMenuProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const { copy } = useCopyToClipboard();
   const setSidebarHidden = useSetListSidebarHidden();
   const deleteList = useDeleteList();
   const navigate = useNavigate();
@@ -44,17 +46,18 @@ export function ListRowMenu({ list, isActive, children }: ListRowMenuProps) {
   const shareUrl =
     list.isPublic && list.shareToken ? `${getSiteUrl()}/lists/share/${list.shareToken}` : null;
 
+  // The menu closes on click, so the hook's inline "Copied" never gets a chance
+  // to show — the toast is the feedback here. Clipboard writes never reach the
+  // global mutation error handler, so the failure path says so itself.
   const handleCopyLink = async () => {
     if (!shareUrl) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    if (await copy(shareUrl)) {
       toast.success("Share link copied");
-    } catch {
-      // Clipboard writes never reach the global mutation error handler.
-      toast.error("Couldn't copy the link");
+      return;
     }
+    toast.error("Couldn't copy the link");
   };
 
   const handleDelete = () => {

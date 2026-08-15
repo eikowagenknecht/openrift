@@ -18,8 +18,7 @@ import {
   splitDeckZones,
   truncateTitle,
 } from "./deck-image-parts.js";
-import { renderDeckImageVertical } from "./deck-image-vertical.js";
-import type { ShareImageAspect } from "./share-image-core.js";
+import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
 import {
   CANVAS,
   CARD_ASPECT,
@@ -37,56 +36,113 @@ import {
  * Server-rendered deck share image (ADR-031): a beautified, Archive-style
  * decklist rendered to PNG for the public deck share route's og:image and an
  * HQ download. Built from the same satori + resvg primitives as the list image
- * (`share-image-core`), but with a deck-shaped layout: a left legend hero, the
- * legend's domain glyphs by the title's card count, a cost-sorted main grid, and
- * a bottom band (sideboard row, then battlefields + runes) whose tiles grow to
- * fill whatever space the grid leaves, with the QR mark at the title row's right
- * end and the host label pinned bottom-right.
+ * (`share-image-core`), with the deck-shaped pieces both layouts are assembled
+ * from in `deck-image-parts`.
  *
  * Two resolutions share one layout via the `scale` arg: the og:image renders at
  * 1× (1200×630); the download renders at 2× by embedding raster sources (card
  * art, glyphs, QR) at the matching resolution while satori lays out once at base
  * size. The tile itself, the QR mark, and the card aspect come from
  * `share-image-core` so this image and the list and tier-list images stay one
- * family, and the deck-shaped pieces both this and the 9:16 export are built
- * from come from `deck-image-parts`.
+ * family.
  *
- * This file owns the landscape layout. `renderDeckImage` is still the one entry
- * point: it hands a `vertical` request to `deck-image-vertical.ts`, which draws
- * the same deck stacked for a 9:16 canvas.
+ * Both canvases live here, as they do for the tier list. They are two
+ * compositions rather than one resized layout, because the landscape layout is
+ * horizontal at its core: a legend panel *beside* a grid, with a band whose
+ * tiles absorb whatever vertical slack the grid leaves. Turned upright that
+ * arrangement is inside out, so the vertical export stacks instead — title →
+ * identity band (legend beside its battlefields and runes) → main grid →
+ * sideboard → footer, each band a fixed height and the grid taking the rest.
+ * The payoff is legibility: 1080×1920 is 2.7× the pixels of 1200×630 and nearly
+ * all of it reaches the main grid, so a full decklist renders at roughly 1.7×
+ * the tile size the landscape image can manage. Vertical is download-only — no
+ * crawler consumes a 9:16 og:image.
  */
-
-const { width: WIDTH, height: HEIGHT } = CANVAS.landscape;
-const PAD = 22;
-
-const TITLE_H = 46;
-const LEFT_W = 250;
 
 /**
- * The QR lives at the right end of the title row rather than in the footer.
- * Down there it was boxed in by whatever height the battlefield/rune band
- * happened to take, which left it at QR_SIZE — about 7% of the canvas width,
- * and unscannable once a chat client renders the unfurl at a few hundred
- * pixels. The title row has the whole width to itself, so it can carry a
- * bigger mark; the row grows to the mark's height, and the footer shrinks to
- * the host label alone to pay some of that back.
+ * Per-canvas geometry. Everything that differs between the two compositions
+ * lives here rather than being branched on at each use, so a vertical tweak
+ * cannot silently move the landscape og:image.
  */
-const HEADER_QR_SIZE = 104;
-/** Height the footer reserves once it is only the host label. */
-const FOOTER_LABEL_H = 26;
+interface DeckCanvas {
+  width: number;
+  height: number;
+  pad: number;
+  /** Reserved height for the title area (one row landscape, two lines vertical). */
+  titleH: number;
+  titleSize: number;
+  bylineSize: number;
+  metaSize: number;
+  /**
+   * Size of the QR at the right end of the title area. It sits there rather
+   * than in the footer because down there it was boxed in by whatever height
+   * the bottom band happened to take, which left it at QR_SIZE — about 7% of
+   * the landscape canvas width, and unscannable once a chat client renders the
+   * unfurl at a few hundred pixels. The title area has the whole width, so the
+   * mark can be bigger; the area grows to the mark's height and the footer
+   * shrinks to the host label alone to pay some of that back. Vertical's is
+   * bigger again: that canvas is read at arm's length on a phone, and its two
+   * title lines already give the block most of the mark's height.
+   */
+  headerQr: number;
+  /** Height the footer reserves once it is only the host label. */
+  footerLabelH: number;
+  /** Legend domain glyphs, shown beside the card count (no amounts). */
+  domainIcon: number;
+}
 
-/** The title row's three type sizes. Named because the baseline corrections are
- * derived from the gaps between them, so a size change must reach both places. */
-const TITLE_SIZE = 34;
-const BYLINE_SIZE = 22;
-const META_SIZE = 20;
+const LANDSCAPE: DeckCanvas = {
+  ...CANVAS.landscape,
+  pad: 22,
+  titleH: 46,
+  titleSize: 34,
+  bylineSize: 22,
+  metaSize: 20,
+  headerQr: 104,
+  footerLabelH: 26,
+  domainIcon: 30,
+};
 
-/** Legend domain glyphs, shown top-right beside the card count (no amounts). */
-const DOMAIN_ICON = 30;
+const VERTICAL: DeckCanvas = {
+  ...CANVAS.vertical,
+  pad: 28,
+  // Title line, then the byline and metadata on a second line beneath it.
+  titleH: 96,
+  // Type steps up with the canvas: a story is read at arm's length on a phone,
+  // where the landscape sizes would be a fraction of the frame's width.
+  titleSize: 46,
+  bylineSize: 28,
+  metaSize: 26,
+  headerQr: 132,
+  footerLabelH: 32,
+  domainIcon: 34,
+};
+
+/** Width of the landscape layout's left legend panel. */
+const LANDSCAPE_LEFT_W = 250;
 /** Base portrait sideboard tile height (grows to fill leftover space). */
 const SIDEBOARD_TILE_H = 96;
 /** Base landscape battlefield tile height; runes share this row and match it. */
 const BATTLEFIELD_BAND_TILE_H = 84;
+/** Ceiling on how far the landscape band tiles grow into the grid's leftovers. */
+const MAX_TILE_SCALE = 1.7;
+
+/** Vertical legend hero width; its height sets the whole identity band's. */
+const VERTICAL_LEGEND_W = 300;
+/**
+ * Ceiling on a vertical main-grid tile. Without it a three-card deck is drawn
+ * as three 340px slabs and a one-card deck as a single 700px one, because the
+ * packer maximizes the tile against an area that is now very tall.
+ */
+const VERTICAL_MAX_GRID_TILE_W = 300;
+/** Ceilings for the vertical full-width bands, so a two-card sideboard is not a hero row. */
+const VERTICAL_MAX_BAND_TILE_H = 200;
+const VERTICAL_MAX_SIDEBOARD_TILE_H = 220;
+/**
+ * The vertical title has its own full-width line, but the type is larger and
+ * the canvas narrower than landscape, so the cap lands in a similar place.
+ */
+const VERTICAL_TITLE_MAX_CHARS = 32;
 
 // Re-exported so the routes, the oEmbed handler, and the tests keep importing
 // the deck image's public surface from one module.
@@ -174,16 +230,32 @@ export async function buildDeckImageCards(
  * (landscape for the og:image, vertical for the 9:16 export).
  * @returns PNG bytes ready to return as `image/png`.
  */
-export async function renderDeckImage(
+export function renderDeckImage(
   io: Io,
   input: DeckImageInput,
   scale = 1,
   aspect: ShareImageAspect = "landscape",
 ): Promise<Buffer> {
-  if (aspect === "vertical") {
-    return renderDeckImageVertical(io, input, scale);
-  }
+  return aspect === "vertical"
+    ? renderVerticalDeckImage(io, input, scale)
+    : renderLandscapeDeckImage(io, input, scale);
+}
 
+/**
+ * The 1200×630 composition: a left legend hero, the legend's domain glyphs by
+ * the title's card count, a cost-sorted main grid, and a bottom band (sideboard
+ * row, then battlefields + runes) whose tiles grow to fill whatever space the
+ * grid leaves, with the QR mark at the title row's right end and the host label
+ * pinned bottom-right.
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+async function renderLandscapeDeckImage(
+  io: Io,
+  input: DeckImageInput,
+  scale: number,
+): Promise<Buffer> {
+  const canvas = LANDSCAPE;
+  const { width: canvasW, height: canvasH } = canvas;
   const zones = splitDeckZones(input.cards);
   const { legend, runes, runeCards, battlefields, sideboard, gridCards } = zones;
   const { mainCardCount, sideboardCount } = zones;
@@ -191,16 +263,16 @@ export async function renderDeckImage(
   // The left panel is the legend hero alone, vertically centred; the host label
   // sits at the bottom-right of the grid area and the QR rides the title row.
   const hasLeftPanel = legend !== null;
-  const leftW = hasLeftPanel ? LEFT_W : 0;
-  const innerW = WIDTH - PAD * 2;
+  const leftW = hasLeftPanel ? LANDSCAPE_LEFT_W : 0;
+  const innerW = canvasW - canvas.pad * 2;
   // The title row is as tall as its tallest content: the type alone normally,
   // the QR when there is one. A deck with no share link keeps the short row.
-  const titleH = input.shareUrl ? Math.max(TITLE_H, HEADER_QR_SIZE) : TITLE_H;
-  const bodyH = HEIGHT - PAD * 2 - titleH - GAP;
+  const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
+  const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
   const rightW = innerW - leftW - (hasLeftPanel ? BODY_GAP : 0);
 
   // Legend fills the panel width (small inset), centred over the full height.
-  const legendW = LEFT_W - 14;
+  const legendW = LANDSCAPE_LEFT_W - 14;
   const legendH = Math.round(legendW / CARD_ASPECT);
 
   // Bottom band: sideboard on its own full-width row, then battlefields + runes
@@ -218,7 +290,7 @@ export async function renderDeckImage(
   // With the QR moved up, a bottom row carrying only the host label needs a
   // line's height rather than a mark's.
   const bandGaps = hasSideboard && hasBottomRow ? GAP : 0;
-  const bottomRowFixedH = hasBottomRow && !bottomRowScalable ? FOOTER_LABEL_H : 0;
+  const bottomRowFixedH = hasBottomRow && !bottomRowScalable ? canvas.footerLabelH : 0;
   const bandFixedH =
     (hasSideboard ? SECTION_HEADER_H : 0) +
     (bottomRowScalable ? SECTION_HEADER_H : 0) +
@@ -238,7 +310,6 @@ export async function renderDeckImage(
 
   const availTiles = bodyH - bandTopGap - gridH - bandFixedH;
   const vScale = naturalTiles > 0 ? Math.max(1, availTiles / naturalTiles) : 1;
-  const MAX_TILE_SCALE = 1.7;
 
   // Sideboard: full-width row; cap height so every tile fits one row.
   const sideboardTileH = hasSideboard
@@ -292,7 +363,7 @@ export async function renderDeckImage(
     qrUri,
   ] = await Promise.all([
     legend ? tileArtDataUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
-    deckBackdropUri(io, input.coverImageId ?? legend?.imageId, WIDTH, HEIGHT, scale),
+    deckBackdropUri(io, input.coverImageId ?? legend?.imageId, canvasW, canvasH, scale),
     grid
       ? Promise.all(
           gridCards.map((card) => tileArtDataUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
@@ -311,8 +382,8 @@ export async function renderDeckImage(
     Promise.all(
       runeCards.map((card) => tileArtDataUri(io, card.imageId, runeTileW, runeTileH, scale)),
     ),
-    Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale, HEADER_QR_SIZE) : Promise.resolve(null),
+    Promise.all(domains.map((domain) => glyphUri(io, domain, canvas.domainIcon, scale))),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale, canvas.headerQr) : Promise.resolve(null),
   ]);
 
   const hasFooterMark = Boolean(input.siteHost);
@@ -321,7 +392,7 @@ export async function renderDeckImage(
   // Name + byline keep their shared text baseline in a left group; the count and
   // the deck's domain glyphs sit as a vertically-centred cluster on the right,
   // with the QR beyond them at the row's end.
-  const domainIcons = domainIconElements(domainUris, DOMAIN_ICON);
+  const domainIcons = domainIconElements(domainUris, canvas.domainIcon);
   const titleRow = element(
     "div",
     {
@@ -342,7 +413,7 @@ export async function renderDeckImage(
         {
           display: "flex",
           flexShrink: 1,
-          fontSize: TITLE_SIZE,
+          fontSize: canvas.titleSize,
           lineHeight: 1,
           fontWeight: 700,
           color: COLORS.text,
@@ -358,11 +429,11 @@ export async function renderDeckImage(
               display: "flex",
               flexShrink: 0,
               marginLeft: 12,
-              fontSize: BYLINE_SIZE,
+              fontSize: canvas.bylineSize,
               lineHeight: 1,
               fontWeight: 600,
               color: COLORS.gold,
-              transform: `translateY(${baselineNudge(TITLE_SIZE, BYLINE_SIZE)}px)`,
+              transform: `translateY(${baselineNudge(canvas.titleSize, canvas.bylineSize)}px)`,
             },
             // "by Name" rather than "· Name": the middle dot is a mid-height glyph
             // that floats oddly beside the much larger deck title, whereas plain
@@ -376,10 +447,10 @@ export async function renderDeckImage(
         {
           display: "flex",
           flexShrink: 0,
-          fontSize: META_SIZE,
+          fontSize: canvas.metaSize,
           lineHeight: 1,
           color: COLORS.muted,
-          transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
+          transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize)}px)`,
         },
         deckMetaLabel(input.formatLabel, mainCardCount, sideboardCount),
       ),
@@ -396,7 +467,7 @@ export async function renderDeckImage(
               // rather than sitting on its baseline. In a bottom-aligned row that
               // means offsetting by the run's own nudge plus half the height
               // difference between a glyph and the text box.
-              transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE) + (DOMAIN_ICON - META_SIZE) / 2}px)`,
+              transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize) + (canvas.domainIcon - canvas.metaSize) / 2}px)`,
             },
             ...domainIcons,
           )
@@ -406,7 +477,7 @@ export async function renderDeckImage(
       ? element(
           "div",
           { display: "flex", flexShrink: 0, marginLeft: BODY_GAP },
-          qrMark(qrUri, HEADER_QR_SIZE),
+          qrMark(qrUri, canvas.headerQr),
         )
       : false,
   );
@@ -542,7 +613,7 @@ export async function renderDeckImage(
   );
 
   const glowBackground = legend ? legendGlowBackground(legend.domains) : undefined;
-  const heroBackdrop = deckHeroBackdrop(backdropUri, WIDTH, HEIGHT);
+  const heroBackdrop = deckHeroBackdrop(backdropUri, canvasW, canvasH);
 
   const root = element(
     "div",
@@ -550,9 +621,9 @@ export async function renderDeckImage(
       display: "flex",
       position: "relative",
       flexDirection: "column",
-      width: WIDTH,
-      height: HEIGHT,
-      padding: PAD,
+      width: canvasW,
+      height: canvasH,
+      padding: canvas.pad,
       backgroundColor: COLORS.background,
       ...(glowBackground ? { backgroundImage: glowBackground } : {}),
       color: COLORS.text,
@@ -564,5 +635,412 @@ export async function renderDeckImage(
     body,
   );
 
-  return renderTreeToPng(io, root, WIDTH, HEIGHT, scale);
+  return renderTreeToPng(io, root, canvasW, canvasH, scale);
+}
+
+/**
+ * Height of a single full-width row of `count` tiles, bounded by the width it
+ * has to share and by a ceiling so a sparse row stays a row.
+ * @returns The tile height, or 0 when there is nothing to draw.
+ */
+function fitRowTileH(count: number, areaW: number, aspect: number, maxH: number): number {
+  if (count === 0) {
+    return 0;
+  }
+  return Math.max(1, Math.floor(Math.min(maxH, (areaW - (count - 1) * GAP) / count / aspect)));
+}
+
+/**
+ * The vertical title block: the deck name on its own line, then the byline, the
+ * format/count, and the domain glyphs sharing a second one, with the QR at the
+ * right of both. Stacked rather than strung along a single row because the
+ * canvas is narrower than landscape while the type is larger.
+ * @returns The title block element.
+ */
+function verticalTitleBlock(
+  input: DeckImageInput,
+  canvas: DeckCanvas,
+  metaLabel: string,
+  domainIcons: readonly Element[],
+  qrUri: string | null,
+  blockH: number,
+): Element {
+  const type = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      flexGrow: 1,
+      // The two lines never fill the block once the QR sets its height, so they
+      // keep their own height and centre against the mark.
+      height: canvas.titleH,
+    },
+    element(
+      "div",
+      {
+        display: "flex",
+        fontSize: canvas.titleSize,
+        lineHeight: 1,
+        fontWeight: 700,
+        color: COLORS.text,
+        whiteSpace: "nowrap",
+      },
+      truncateTitle(input.deckName, VERTICAL_TITLE_MAX_CHARS),
+    ),
+    element(
+      "div",
+      { display: "flex", flexDirection: "row", alignItems: "center", marginTop: 14 },
+      input.ownerName
+        ? element(
+            "div",
+            {
+              display: "flex",
+              fontSize: canvas.bylineSize,
+              lineHeight: 1,
+              fontWeight: 600,
+              color: COLORS.gold,
+            },
+            // "by Name" rather than "· Name", as on the landscape image.
+            `by ${input.ownerName}`,
+          )
+        : false,
+      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+      element(
+        "div",
+        {
+          display: "flex",
+          fontSize: canvas.metaSize,
+          lineHeight: 1,
+          color: COLORS.muted,
+          // Both runs pin lineHeight 1 and the row centres its children, so
+          // neither sits on the other's baseline and no correction applies —
+          // unlike the landscape title, whose runs share one bottom edge.
+        },
+        metaLabel,
+      ),
+      domainIcons.length > 0
+        ? element(
+            "div",
+            {
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              marginLeft: 14,
+              gap: 6,
+            },
+            ...domainIcons,
+          )
+        : false,
+    ),
+  );
+
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      height: blockH,
+      flexShrink: 0,
+    },
+    type,
+    qrUri
+      ? element(
+          "div",
+          { display: "flex", flexShrink: 0, marginLeft: BODY_GAP },
+          qrMark(qrUri, canvas.headerQr),
+        )
+      : false,
+  );
+}
+
+/**
+ * The 9:16 composition: title → identity band → main grid → lower bands →
+ * footer. `scale` renders the same base layout at N× resolution; 1× is already
+ * 1080×1920, the native upload size for every vertical surface, so `scale` here
+ * is editing headroom rather than the deliverable.
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+async function renderVerticalDeckImage(
+  io: Io,
+  input: DeckImageInput,
+  scale: number,
+): Promise<Buffer> {
+  const canvas = VERTICAL;
+  const { width: canvasW, height: canvasH } = canvas;
+  const zones = splitDeckZones(input.cards);
+  const { legend, runeCards, battlefields, sideboard, gridCards } = zones;
+
+  const innerW = canvasW - canvas.pad * 2;
+  // The title block is as tall as its tallest content: the two type lines
+  // normally, the QR when there is one.
+  const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
+  const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
+  const hasFooterMark = Boolean(input.siteHost);
+  const footerH = hasFooterMark ? canvas.footerLabelH : 0;
+
+  const bfCount = battlefields.length;
+  const runeCount = runeCards.length;
+
+  // ── Identity band: the legend hero, with its battlefields and runes beside it.
+  // Only a deck with a legend gets one; a freeform deck sends both bands to the
+  // full-width stack below the grid instead, where they read as sections rather
+  // than as an identity that isn't there.
+  const hasIdentityBand = legend !== null;
+  const legendW = VERTICAL_LEGEND_W;
+  const legendH = Math.round(legendW / CARD_ASPECT);
+  const identityRightW = innerW - legendW - BODY_GAP;
+
+  const bandBf = hasIdentityBand && bfCount > 0;
+  const bandRunes = hasIdentityBand && runeCount > 0;
+  const bandHeaders =
+    (bandBf ? SECTION_HEADER_H : 0) +
+    (bandRunes ? SECTION_HEADER_H : 0) +
+    (bandBf && bandRunes ? GAP : 0);
+  const bandAvailH = Math.max(0, legendH - bandHeaders);
+  const bandBfWidthCap = bandBf
+    ? fitRowTileH(bfCount, identityRightW, BATTLEFIELD_ASPECT, Number.POSITIVE_INFINITY)
+    : 0;
+  const bandRuneWidthCap = bandRunes
+    ? fitRowTileH(runeCount, identityRightW, CARD_ASPECT, Number.POSITIVE_INFINITY)
+    : 0;
+  // Split the band's height between the two sections, then hand whatever the
+  // second one didn't need back to the first, so a two-rune deck does not leave
+  // the battlefields short.
+  const bandBfFirstPass = bandBf ? Math.min(bandBfWidthCap, bandAvailH * 0.45) : 0;
+  const bandRuneH = bandRunes
+    ? Math.floor(Math.min(bandRuneWidthCap, bandAvailH - bandBfFirstPass))
+    : 0;
+  const bandBfH = bandBf ? Math.floor(Math.min(bandBfWidthCap, bandAvailH - bandRuneH)) : 0;
+
+  // ── Full-width bands below the grid ────────────────────────────────────────
+  const lowerBf = !hasIdentityBand && bfCount > 0;
+  const lowerRunes = !hasIdentityBand && runeCount > 0;
+  const hasSideboard = sideboard.length > 0;
+  const lowerBfH = lowerBf
+    ? fitRowTileH(bfCount, innerW, BATTLEFIELD_ASPECT, VERTICAL_MAX_BAND_TILE_H)
+    : 0;
+  const lowerRuneH = lowerRunes
+    ? fitRowTileH(runeCount, innerW, CARD_ASPECT, VERTICAL_MAX_BAND_TILE_H)
+    : 0;
+  const sideboardTileH = hasSideboard
+    ? fitRowTileH(sideboard.length, innerW, CARD_ASPECT, VERTICAL_MAX_SIDEBOARD_TILE_H)
+    : 0;
+
+  const lowerSections = [lowerBfH, lowerRuneH, sideboardTileH].filter((height) => height > 0);
+  const lowerH =
+    lowerSections.reduce((sum, height) => sum + height + SECTION_HEADER_H, 0) +
+    Math.max(0, lowerSections.length - 1) * GAP;
+
+  // Everything else is fixed, so the grid takes what remains.
+  const gridAreaH = Math.max(
+    120,
+    bodyH -
+      (hasIdentityBand ? legendH + GAP : 0) -
+      (lowerH > 0 ? lowerH + GAP : 0) -
+      (footerH > 0 ? footerH + GAP : 0),
+  );
+  const grid =
+    gridCards.length > 0
+      ? packGrid(gridCards.length, innerW, gridAreaH, CARD_ASPECT, {
+          maxTileW: VERTICAL_MAX_GRID_TILE_W,
+          preferWider: true,
+        })
+      : null;
+
+  const bfTileH = bandBf ? bandBfH : lowerBfH;
+  const bfTileW = Math.floor(bfTileH * BATTLEFIELD_ASPECT);
+  const runeTileH = bandRunes ? bandRuneH : lowerRuneH;
+  const runeTileW = Math.floor(runeTileH * CARD_ASPECT);
+  const sideboardTileW = Math.floor(sideboardTileH * CARD_ASPECT);
+  const domains = runeCountsByDomain(zones.runes).map((entry) => entry.domain);
+
+  // Resolve every raster source up front (art is the dominant cost).
+  const [
+    legendUri,
+    backdropUri,
+    gridUris,
+    battlefieldUris,
+    sideboardUris,
+    runeUris,
+    domainUris,
+    qrUri,
+  ] = await Promise.all([
+    legend ? tileArtDataUri(io, legend.imageId, legendW, legendH, scale) : Promise.resolve(null),
+    deckBackdropUri(io, input.coverImageId ?? legend?.imageId, canvasW, canvasH, scale),
+    grid
+      ? Promise.all(
+          gridCards.map((card) => tileArtDataUri(io, card.imageId, grid.tileW, grid.tileH, scale)),
+        )
+      : Promise.resolve([]),
+    Promise.all(
+      battlefields.map((card) => tileArtDataUri(io, card.imageId, bfTileW, bfTileH, scale)),
+    ),
+    Promise.all(
+      sideboard.map((card) =>
+        tileArtDataUri(io, card.imageId, sideboardTileW, sideboardTileH, scale),
+      ),
+    ),
+    Promise.all(
+      runeCards.map((card) => tileArtDataUri(io, card.imageId, runeTileW, runeTileH, scale)),
+    ),
+    Promise.all(domains.map((domain) => glyphUri(io, domain, canvas.domainIcon, scale))),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale, canvas.headerQr) : Promise.resolve(null),
+  ]);
+
+  const battlefieldTiles = battlefields.map((card, index) =>
+    cardTile(card, battlefieldUris[index] ?? null, bfTileW, bfTileH),
+  );
+  const runeTiles = runeCards.map((card, index) =>
+    cardTile(card, runeUris[index] ?? null, runeTileW, runeTileH),
+  );
+
+  const identityBand: Child =
+    hasIdentityBand &&
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        height: legendH,
+        gap: BODY_GAP,
+        marginTop: GAP,
+        flexShrink: 0,
+      },
+      legend && cardTile(legend, legendUri, legendW, legendH),
+      element(
+        "div",
+        {
+          display: "flex",
+          flexDirection: "column",
+          // Both sections are capped by the width they have to share, so they
+          // rarely add up to the legend's height. Pushing them apart pins the
+          // first to the hero's top edge and the last to its bottom, which
+          // squares off the band instead of leaving it visibly short.
+          justifyContent: "space-between",
+          width: identityRightW,
+          height: legendH,
+        },
+        bandBf && deckSection("BATTLEFIELDS", battlefieldTiles),
+        bandRunes && deckSection("RUNES", runeTiles),
+      ),
+    );
+
+  const mainGrid =
+    grid &&
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignContent: "flex-start",
+        justifyContent: "center",
+        width: grid.cols * grid.tileW + (grid.cols - 1) * GAP,
+        gap: GAP,
+      },
+      ...gridCards.map((card, index) =>
+        cardTile(card, gridUris[index] ?? null, grid.tileW, grid.tileH),
+      ),
+    );
+
+  // The grid block absorbs the layout's slack. Centring it keeps a deck too
+  // small to fill the area sitting between its bands rather than pinned under
+  // the identity one with a hole beneath.
+  const gridBlock = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      flexGrow: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: GAP,
+    },
+    mainGrid ||
+      element(
+        "div",
+        {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 34,
+          color: COLORS.muted,
+        },
+        "No cards yet",
+      ),
+  );
+
+  const lowerStack: Child =
+    lowerH > 0 &&
+    element(
+      "div",
+      { display: "flex", flexDirection: "column", marginTop: GAP, flexShrink: 0 },
+      lowerBf && deckSection("BATTLEFIELDS", battlefieldTiles),
+      lowerRunes && deckSection("RUNES", runeTiles, lowerBf ? GAP : 0),
+      hasSideboard &&
+        deckSection(
+          "SIDEBOARD",
+          sideboard.map((card, index) =>
+            cardTile(card, sideboardUris[index] ?? null, sideboardTileW, sideboardTileH),
+          ),
+          lowerBf || lowerRunes ? GAP : 0,
+        ),
+    );
+
+  const footer: Child =
+    hasFooterMark &&
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        height: footerH,
+        marginTop: GAP,
+        flexShrink: 0,
+      },
+      input.siteHost
+        ? element(
+            "div",
+            { display: "flex", fontSize: 24, fontWeight: 600, color: COLORS.muted },
+            input.siteHost,
+          )
+        : false,
+    );
+
+  const glowBackground = legend ? legendGlowBackground(legend.domains) : undefined;
+
+  const root = element(
+    "div",
+    {
+      display: "flex",
+      position: "relative",
+      flexDirection: "column",
+      width: canvasW,
+      height: canvasH,
+      padding: canvas.pad,
+      backgroundColor: COLORS.background,
+      ...(glowBackground ? { backgroundImage: glowBackground } : {}),
+      color: COLORS.text,
+      fontFamily: "Hanken Grotesk",
+      overflow: "hidden",
+    },
+    deckHeroBackdrop(backdropUri, canvasW, canvasH),
+    verticalTitleBlock(
+      input,
+      canvas,
+      deckMetaLabel(input.formatLabel, zones.mainCardCount, zones.sideboardCount),
+      domainIconElements(domainUris, canvas.domainIcon),
+      qrUri,
+      titleH,
+    ),
+    identityBand,
+    gridBlock,
+    lowerStack,
+    footer,
+  );
+
+  return renderTreeToPng(io, root, canvasW, canvasH, scale);
 }

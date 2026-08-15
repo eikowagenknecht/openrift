@@ -1,6 +1,7 @@
 import type { DeckListItemResponse } from "@openrift/shared";
 import {
   CopyIcon,
+  DownloadIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   PrinterIcon,
@@ -34,14 +35,16 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 import { DeckExportDialog } from "./deck-export-dialog";
+import { DeckPrintDialog } from "./deck-print-dialog";
 import { DeckRenameDialog } from "./deck-rename-dialog";
-import { ProxyExportDialog } from "./proxy-export-dialog";
+import { DeckShareDialog } from "./deck-share-dialog";
 
 /**
- * Actions menu for a browser-local deck (ADR-035): rename, duplicate, share
- * (deck code), export, proxies, and delete — all client-side via the local
- * store, with no account mutations. The server {@link DeckActionsMenu} (pin /
- * archive / clone / server share) doesn't apply to a local deck.
+ * Actions menu for a browser-local deck (ADR-035): share (an image, since there
+ * is no server row to link to), export, print, rename, duplicate, and delete —
+ * all client-side via the local store, with no account mutations. The server
+ * {@link DeckActionsMenu} (pin / archive / clone / share link) doesn't apply to
+ * a local deck.
  *
  * @returns The local-deck actions menu element.
  */
@@ -53,8 +56,9 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const { cardsById } = useCards();
 
   const [renameOpen, setRenameOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [proxyOpen, setProxyOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const cards: DeckBuilderCard[] = localDeck
@@ -94,20 +98,29 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
-              setExportOpen(true);
+              setShareOpen(true);
             }}
           >
             <Share2Icon className="size-4" />
-            Export
+            Share…
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
-              setProxyOpen(true);
+              setExportOpen(true);
+            }}
+          >
+            <DownloadIcon className="size-4" />
+            Export…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => {
+              stop(event);
+              setPrintOpen(true);
             }}
           >
             <PrinterIcon className="size-4" />
-            Proxies
+            Print…
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
@@ -142,19 +155,27 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         onOpenChange={setRenameOpen}
       />
 
-      <DeckExportDialog
+      <DeckShareDialog
         deckId={deck.id}
         deckName={deck.name}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        cards={cards}
+      />
+
+      <DeckExportDialog
+        deckId={deck.id}
         isDirty={false}
         open={exportOpen}
         onOpenChange={setExportOpen}
         cards={cards}
       />
 
-      <ProxyExportDialog
-        open={proxyOpen}
-        onOpenChange={setProxyOpen}
+      <DeckPrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
         cards={cards}
+        deckId={deck.id}
         deckName={deck.name}
       />
 

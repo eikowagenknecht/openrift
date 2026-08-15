@@ -3,7 +3,6 @@ import { getOrientation, imageUrl } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   EllipsisVerticalIcon,
-  ImageDownIcon,
   ListOrderedIcon,
   MonitorPlayIcon,
   PencilIcon,
@@ -28,7 +27,6 @@ import { TierBoardEditor } from "@/components/tier-lists/tier-board-editor";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierListDetailsDialog } from "@/components/tier-lists/tier-list-details-dialog";
 import { TierListDndContext } from "@/components/tier-lists/tier-list-dnd-context";
-import { TierListExportDialog } from "@/components/tier-lists/tier-list-export-dialog";
 import { TierListPool } from "@/components/tier-lists/tier-list-pool";
 import { TierListShareDialog } from "@/components/tier-lists/tier-list-share-dialog";
 import { TierTileSizeControls } from "@/components/tier-lists/tier-tile-size-controls";
@@ -84,7 +82,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Floating preview for the tile under the pointer, the same affordance the
@@ -224,10 +221,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                       <PencilIcon />
                       Rename and describe
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                      <ImageDownIcon />
-                      Export image
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                       <Trash2Icon />
@@ -246,20 +239,14 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
       <TierListDetailsDialog tierList={tierList} open={detailsOpen} onOpenChange={setDetailsOpen} />
       <TierListShareDialog
         tierListId={tierList.id}
+        title={tierList.title}
         isPublic={tierList.isPublic}
         shareToken={tierList.shareToken}
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-      />
-      <TierListExportDialog
-        tierListId={tierList.id}
-        title={tierList.title}
-        isShared={tierList.isPublic && tierList.shareToken !== null}
         // The image is rendered server-side from the saved board, so a draft
         // that hasn't been saved yet exports as whatever the server still holds.
         dirty={dirty}
-        open={exportOpen}
-        onOpenChange={setExportOpen}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
       />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

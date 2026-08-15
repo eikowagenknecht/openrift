@@ -49,6 +49,7 @@ import {
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
 import { flatReorder } from "@/lib/admin-reorder";
+import { downloadJSONText } from "@/lib/json-export";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { cn } from "@/lib/utils";
@@ -577,6 +578,24 @@ function RelinkCandidatesCard() {
   );
 }
 
+/**
+ * The export server fn surfaces an ORPCError (or any Error) whose prototype is
+ * dropped crossing the server-fn boundary, so the message is read structurally
+ * rather than via `instanceof`. Module-level because the compiler bails on a
+ * branch inside a `catch`.
+ * @returns The error's message, or the fallback.
+ */
+function exportErrorText(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return "Export failed";
+}
+
 function ExportCardsCard() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -586,25 +605,10 @@ function ExportCardsCard() {
     setError(null);
     try {
       const json = await exportCardsFn();
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `cards-export-${formatDay(new Date())}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadJSONText(json, `cards-export-${formatDay(new Date())}.json`);
       setExporting(false);
     } catch (error_) {
-      // The export server fn surfaces an ORPCError (or any Error) whose
-      // prototype is dropped crossing the server-fn boundary, so read `.message`
-      // structurally rather than via `instanceof`.
-      const message =
-        typeof error_ === "object" &&
-        error_ !== null &&
-        typeof (error_ as { message?: unknown }).message === "string"
-          ? (error_ as { message: string }).message
-          : "Export failed";
-      setError(message);
+      setError(exportErrorText(error_));
       setExporting(false);
     }
   }

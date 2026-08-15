@@ -550,6 +550,10 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
           }
         />
       )}
+      {/* The second Export/Add pair below is not a duplicate: `title` is
+          optional, and a table rendered without one has no top bar to host
+          them, so they move into the toolbar row. The two branches are
+          mutually exclusive, so only ever one pair renders. */}
       {title === undefined
         ? (toolbar || add || exportConfig) && (
             <div className="flex items-center justify-between gap-4">

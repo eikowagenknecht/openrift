@@ -68,6 +68,13 @@ const ruleDrivenListDetail = {
 // Nothing on the list at all — ListPage renders the empty-state branch.
 const emptyListDetail = { ...cardKindListDetail, entries: [] };
 
+// The same list with a public link. The binder sheet prints a QR of that link,
+// so its menu entry only exists here.
+const sharedListDetail = {
+  ...cardKindListDetail,
+  list: { ...cardKindListDetail.list, shareToken: "AbCdEfGhIjKl" },
+};
+
 // A copy-kind organize list whose single entry came from a dynamic rule
 // (id: null, source: "rule"). Rule entries can't be selected, so "Move all to
 // collection" is the only way to file them somewhere else — it must be offered
@@ -95,7 +102,8 @@ const copyKindListDetail = {
 let listDetail:
   | typeof cardKindListDetail
   | typeof printingKindListDetail
-  | typeof copyKindListDetail = cardKindListDetail;
+  | typeof copyKindListDetail
+  | typeof sharedListDetail = cardKindListDetail;
 
 function mutationStub() {
   return { mutate: vi.fn(), isPending: false, variables: undefined };
@@ -296,6 +304,8 @@ vi.mock("@/components/list/list-share-dialog", () => ({ ListShareDialog: () => n
 vi.mock("@/components/list/list-export-dialog", () => ({ ListExportDialog: () => null }));
 vi.mock("@/components/list/list-import-dialog", () => ({ ListImportDialog: () => null }));
 vi.mock("@/components/list/rule-editor-dialog", () => ({ RuleEditorDialog: () => null }));
+// Pulls in the PDF writer, which this file has no use for.
+vi.mock("@/components/share/binder-sheet-dialog", () => ({ BinderSheetDialog: () => null }));
 
 vi.mock("@/routes/_app/_authenticated/collections/route", async () => {
   const { createContext } = await import("react");
@@ -363,6 +373,41 @@ describe("ListPage", () => {
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
+  it("offers Share from the top bar, not the actions menu", async () => {
+    const user = userEvent.setup();
+    renderListPage();
+
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Share" })).not.toBeInTheDocument();
+    await closeOpenMenu(user);
+  });
+
+  it("offers the binder sheet once the list has a share link", async () => {
+    listDetail = sharedListDetail;
+    const user = userEvent.setup();
+    renderListPage();
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Print binder sheet…" }),
+    ).toBeInTheDocument();
+    await closeOpenMenu(user);
+  });
+
+  it("hides the binder sheet on a list with no share link to print", async () => {
+    const user = userEvent.setup();
+    renderListPage();
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    // Wait for the menu itself before asserting the absence, or the negative
+    // would pass against a menu that simply hadn't opened yet.
+    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Print binder sheet…" })).not.toBeInTheDocument();
+    await closeOpenMenu(user);
+  });
+
   it("keeps the rule editor out of the top bar and offers it in the menu", async () => {
     const user = userEvent.setup();
     renderListPage();
@@ -408,7 +453,7 @@ describe("ListPage", () => {
     await user.click(screen.getByRole("button", { name: "List actions" }));
     // Wait for the menu itself before asserting the absence, or the negative
     // would pass against a menu that simply hadn't opened yet.
-    expect(await screen.findByRole("menuitem", { name: "Export" })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Move all to collection" }),
     ).not.toBeInTheDocument();

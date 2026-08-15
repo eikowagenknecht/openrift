@@ -299,11 +299,14 @@ export default function DeckBuildingArticle() {
             experimenting with variants
           </li>
           <li>
-            <strong className="text-foreground">Export</strong> a deck list as text
+            <strong className="text-foreground">Share</strong> a deck as a public link or an image
           </li>
           <li>
-            <strong className="text-foreground">Print proxies</strong> to generate a printable PDF
-            for playtesting
+            <strong className="text-foreground">Export</strong> a deck list as text or a deck code
+          </li>
+          <li>
+            <strong className="text-foreground">Print</strong> proxies, a registration sheet, or a
+            deck sheet as a PDF
           </li>
           <li>
             <strong className="text-foreground">Delete</strong> a deck you no longer need

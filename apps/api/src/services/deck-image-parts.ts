@@ -13,12 +13,13 @@ import {
 /**
  * The pieces both deck-image layouts are built from: the render types, the deck's
  * zone split, the grid packer, the domain glyphs, the section header, and the
- * full-art backdrop. `deck-image.ts` composes them into the 1200×630 og:image and
- * `deck-image-vertical.ts` into the 9:16 export.
+ * full-art backdrop. `deck-image.ts` composes them into the 1200×630 og:image
+ * and into the 9:16 export.
  *
- * A layout lives in its own file; anything both would otherwise restate lives
- * here. The split follows `share-image-core`'s rule one level down: that module
- * holds what every share image shares, this one what every *deck* image shares.
+ * The layouts live next to each other in that one module; anything they would
+ * otherwise restate lives here. The split follows `share-image-core`'s rule one
+ * level down: that module holds what every share image shares, this one what
+ * every *deck* image shares.
  */
 
 /** Gap between tiles and between stacked bands. */

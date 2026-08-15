@@ -10,9 +10,9 @@ import type { Variables } from "../../types.js";
  * pointing at the same 1200×630 share image already used as the page's
  * og:image (ADR-024 / ADR-031).
  *
- * Only the four token-based share surfaces are supported — deck, collection,
- * list, and user-bundle shares — because those are the only public pages with a
- * purpose-built, anonymous, immutably-cached share image. A WordPress admin
+ * Only the token-based share surfaces are supported — deck, collection, list,
+ * tier-list, and user-bundle shares — because those are the only public pages
+ * with a purpose-built, anonymous, immutably-cached share image. A WordPress admin
  * registers the provider once with
  * `wp_oembed_add_provider('https://openrift.app/*', 'https://openrift.app/api/v1/oembed')`;
  * the matching `<link rel="alternate" type="application/json+oembed">` discovery
@@ -30,8 +30,14 @@ const IMAGE_HEIGHT = 630;
  */
 const CACHE_AGE_SECONDS = 86_400;
 
-/** Path prefixes (`/{kind}/share/{token}`) we can resolve to a share image. */
-const SHARE_KINDS = new Set(["decks", "collections", "lists", "users"]);
+/**
+ * Path prefixes (`/{kind}/share/{token}`) we can resolve to a share image. Each
+ * entry must have both a `<link rel="alternate" ... json+oembed>` tag on its web
+ * share route and a `/{kind}/share/{token}/image.png` route in `share-images.ts`
+ * — a kind advertised by the page but missing here answers 404 to every consumer
+ * that follows the discovery tag, which is exactly what tier lists did.
+ */
+const SHARE_KINDS = new Set(["decks", "collections", "lists", "tier-lists", "users"]);
 
 interface ResolvedShare {
   /** Human-readable title for the embed (provider/author line in consumers). */
@@ -147,6 +153,19 @@ async function resolveShare(
         title: `${found.list.name} (${found.list.intent} list)`,
         authorName: found.ownerName ?? undefined,
         version: String(versionFromDate(found.list.updatedAt)),
+      };
+    }
+    case "tier-lists": {
+      // `findByShareToken` requires is_public, so a revoked link resolves to
+      // nothing here exactly as it does on the share page and its image route.
+      const found = await repos.tierLists.findByShareToken(token);
+      if (!found) {
+        return undefined;
+      }
+      return {
+        title: `${found.tierList.title} (tier list)`,
+        authorName: found.ownerName ?? undefined,
+        version: String(versionFromDate(found.tierList.updatedAt)),
       };
     }
     case "users": {

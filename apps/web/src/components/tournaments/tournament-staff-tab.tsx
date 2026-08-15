@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { ShareLinkRow } from "@/components/share/share-link-row";
 import { ActionBand } from "@/components/ui/action-band";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
   useAddTournamentStaff,
   useRemoveTournamentStaff,
@@ -267,7 +266,6 @@ function StaffInviteRow({
   token: string | null;
 }) {
   const setInvite = useSetTournamentStaffInvite();
-  const { copy } = useCopyToClipboard();
   const [disableOpen, setDisableOpen] = useState(false);
   const roleLabel = STAFF_ROLE_LABEL[staffRole];
   const roleNoun = staffRole === "judge" ? "a judge" : "an organizer";
@@ -283,77 +281,61 @@ function StaffInviteRow({
   }
 
   return (
-    // `flex-wrap` plus `basis-full sm:basis-0` on the label side is what stops
-    // the old bug: the row used to be a non-wrapping flex, so on a phone the
-    // link was crushed to a few pixels. Now it takes its own line and the
-    // buttons drop below it.
-    <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-2">
-      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-0">
+    // The role chip sits on its own line above the link rather than inside it:
+    // ShareLinkRow already wraps its field and buttons, and squeezing a badge
+    // into that row is what crushed the URL to a few pixels on a phone before.
+    <div className="bg-muted/40 flex flex-col gap-2 rounded-lg px-2.5 py-2">
+      <div className="flex items-center gap-2">
         <Badge variant="outline" className="shrink-0">
           {roleLabel}
         </Badge>
-        {url ? (
-          // Display-only, so a truncating pill rather than a readonly Input —
-          // Copy still puts the full absolute URL on the clipboard.
-          <span className="text-muted-foreground min-w-0 truncate font-mono text-xs" title={url}>
-            {url.replace(/^https?:\/\//u, "")}
-          </span>
-        ) : (
-          <span className="text-muted-foreground text-xs">No link yet</span>
-        )}
-      </div>
-      <div className="ml-auto flex shrink-0 items-center gap-1">
-        {url ? (
+        {url ? null : (
           <>
+            <span className="text-muted-foreground text-xs">No link yet</span>
             <Button
               size="sm"
-              variant="secondary"
-              aria-label={`Copy ${roleLabel.toLowerCase()} invite link`}
-              onClick={async () => {
-                if (await copy(url)) {
-                  toast.success("Link copied");
-                } else {
-                  toast.error("Could not copy the link");
-                }
-              }}
-            >
-              Copy
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive"
-              aria-label={`Disable ${roleLabel.toLowerCase()} invite link`}
+              className="ml-auto"
+              aria-label={`Create link for ${roleLabel.toLowerCase()}`}
               disabled={setInvite.isPending}
-              onClick={() => setDisableOpen(true)}
+              onClick={() => void run(true)}
             >
-              Disable
+              Create link
             </Button>
-            <ConfirmActionDialog
-              open={disableOpen}
-              onOpenChange={setDisableOpen}
-              title={`Disable the ${roleLabel.toLowerCase()} link?`}
-              description={`Anyone you've shared it with can no longer use it to become ${roleNoun}. You can create a new link any time.`}
-              confirmLabel="Disable link"
-              pendingLabel="Disabling..."
-              isPending={setInvite.isPending}
-              onConfirm={async () => {
-                await run(false);
-                setDisableOpen(false);
-              }}
-            />
           </>
-        ) : (
-          <Button
-            size="sm"
-            aria-label={`Create link for ${roleLabel.toLowerCase()}`}
-            disabled={setInvite.isPending}
-            onClick={() => void run(true)}
-          >
-            Create link
-          </Button>
         )}
       </div>
+      {url ? (
+        <>
+          <ShareLinkRow
+            url={url}
+            label={`${roleLabel} invite link`}
+            actions={
+              <Button
+                variant="ghost"
+                className="text-destructive"
+                aria-label={`Disable ${roleLabel.toLowerCase()} invite link`}
+                disabled={setInvite.isPending}
+                onClick={() => setDisableOpen(true)}
+              >
+                Disable
+              </Button>
+            }
+          />
+          <ConfirmActionDialog
+            open={disableOpen}
+            onOpenChange={setDisableOpen}
+            title={`Disable the ${roleLabel.toLowerCase()} link?`}
+            description={`Anyone you've shared it with can no longer use it to become ${roleNoun}. You can create a new link any time.`}
+            confirmLabel="Disable link"
+            pendingLabel="Disabling..."
+            isPending={setInvite.isPending}
+            onConfirm={async () => {
+              await run(false);
+              setDisableOpen(false);
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -167,21 +167,19 @@ describe("TournamentStaffTab invite band", () => {
     });
   });
 
-  it("renders copy and disable for a live link, and counts the active ones", () => {
+  it("renders a share row and disable for a live link, and counts the active ones", () => {
     render(<TournamentStaffTab detail={makeDetail({ judgeInviteToken: "tok-judge" })} />);
 
     // One of the two links is live.
     expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy judge invite link" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Judge invite link")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable judge invite link" })).toBeInTheDocument();
     // The organizer row keeps the same shape, still offering a create action.
     expect(screen.getByRole("button", { name: "Create link for organizer" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copy organizer invite link" })).toBeNull();
+    expect(screen.queryByLabelText("Organizer invite link")).toBeNull();
   });
 
-  // The pill displays a shortened URL, but what lands on the clipboard has to
-  // be the full absolute link or the invite is unusable.
-  it("copies the full absolute URL even though the pill is truncated", async () => {
+  it("shows the full absolute URL and copies it", async () => {
     const user = userEvent.setup();
     // After setup(): userEvent installs its own clipboard stub, which would
     // otherwise replace this spy.
@@ -193,12 +191,9 @@ describe("TournamentStaffTab invite band", () => {
     render(<TournamentStaffTab detail={makeDetail({ judgeInviteToken: "tok-judge" })} />);
 
     const fullUrl = "https://preview.example.test/tournaments/staff-invite/tok-judge";
-    // Displayed without the scheme, but the full URL stays reachable.
-    expect(screen.getByTitle(fullUrl)).toHaveTextContent(
-      "preview.example.test/tournaments/staff-invite/tok-judge",
-    );
+    expect(screen.getByLabelText("Judge invite link")).toHaveValue(fullUrl);
 
-    await user.click(screen.getByRole("button", { name: "Copy judge invite link" }));
+    await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(writeText).toHaveBeenCalledWith(fullUrl);
   });
 

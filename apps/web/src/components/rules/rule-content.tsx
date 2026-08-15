@@ -6,6 +6,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
+import { copyTextToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { HastNode, MdNode } from "@/lib/rules-markdown";
 import {
   diffRuleMarkdown,
@@ -24,7 +25,7 @@ export { buildTermAnchors, formatRuleNumber } from "@openrift/shared";
 export async function copyRuleLink(ruleNumber: string): Promise<void> {
   const url = `${globalThis.location.origin}${globalThis.location.pathname}#rule-${ruleNumber}`;
   try {
-    await navigator.clipboard.writeText(url);
+    await copyTextToClipboard(url);
     toast.success(`Link to rule ${formatRuleNumber(ruleNumber)} copied`);
   } catch {
     toast.error("Could not copy link");

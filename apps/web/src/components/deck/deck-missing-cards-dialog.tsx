@@ -1,14 +1,7 @@
 import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  ArrowDownLeftIcon,
-  CheckIcon,
-  CopyIcon,
-  HeartIcon,
-  LockIcon,
-  ShoppingCartIcon,
-} from "lucide-react";
+import { ArrowDownLeftIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -16,6 +9,7 @@ import { CardDetailOverlay } from "@/components/cards/card-detail-overlay";
 import { AddToWishlistDialog } from "@/components/list/add-to-wishlist-dialog";
 import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
+import { CopyTextButton } from "@/components/share/copy-text-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Pressable } from "@/components/ui/pressable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
@@ -103,34 +96,6 @@ function CardIdentity({
     >
       {content}
     </Pressable>
-  );
-}
-
-/**
- * Footer copy button with its own copied-feedback state, so the readable list
- * and the Cardmarket export can sit side by side without sharing feedback.
- * @returns The copy button.
- */
-function CopyTextButton({ label, getText }: { label: string; getText: () => string }) {
-  const { copied, copy } = useCopyToClipboard();
-
-  // Use \r\n so line breaks survive iOS Safari's clipboard
-  const handleCopy = () => void copy(getText().replaceAll("\n", "\r\n"));
-
-  return (
-    <Button variant="outline" size="sm" onClick={handleCopy}>
-      {copied ? (
-        <>
-          <CheckIcon className="size-3.5" />
-          Copied
-        </>
-      ) : (
-        <>
-          <CopyIcon className="size-3.5" />
-          {label}
-        </>
-      )}
-    </Button>
   );
 }
 
@@ -394,8 +359,8 @@ export function DeckMissingCardsDialog({
               Add to wishlist
             </Button>
           )}
-          <CopyTextButton label="Copy for Cardmarket" getText={cardmarketText} />
-          <CopyTextButton label="Copy list" getText={listText} />
+          <CopyTextButton label="Copy for Cardmarket" getText={cardmarketText} size="sm" />
+          <CopyTextButton label="Copy list" getText={listText} size="sm" />
         </DialogFooter>
       </DialogContent>
       <CardDetailOverlay

@@ -1,27 +1,41 @@
-import { QRCodeSVG } from "qrcode.react";
+import { QR_DARK, QR_MARGIN, qrMatrix } from "@openrift/shared/qr";
 
 import { cn } from "@/lib/utils";
 
 // Hand-authored primitive (not shadcn-scaffolded).
 //
-// Every QR the product shows on screen goes through here. The two settings
-// below are the reason this component exists rather than call sites reaching
-// for QRCodeSVG directly — both have defaults that are wrong for this app, and
-// both are invisible when they go wrong (the code simply fails to scan on some
-// phones, which nobody notices in review).
+// Every QR the product shows on screen goes through here, and the encoding
+// itself goes through `@openrift/shared/qr` — the same module the share images
+// and the printable binder sheet use, so a code scanned off the screen and one
+// scanned off a printout are the same code. The settings that module fixes
+// (error correction `M`, a 2-module quiet zone) are the reason both exist
+// rather than call sites reaching for an encoder directly: both have defaults
+// that are wrong for this app, and both are invisible when they go wrong (the
+// code simply fails to scan on some phones, which nobody notices in review).
 
 /**
- * Error-correction level for every on-screen QR. `M` recovers from ~15% damage
- * against `L`'s ~7%, which is the margin a phone screen read at an angle across
- * a table actually needs. qrcode.react defaults to `L`, so this must be set.
+ * An SVG path covering every dark module, in module units, offset by the quiet
+ * zone. Horizontal runs are merged into one rectangle so the path stays short
+ * enough to sit inline in the markup.
+ * @returns The path's `d` attribute.
  */
-const QR_LEVEL = "M";
-
-/**
- * Quiet-zone modules baked into the SVG. qrcode.react defaults to 0, which
- * leaves scanners with no margin when the plate is tight against other content.
- */
-const QR_MARGIN = 2;
+function modulesPath(matrix: boolean[][]): string {
+  const parts: string[] = [];
+  for (const [row, cells] of matrix.entries()) {
+    let start: number | null = null;
+    for (let col = 0; col <= cells.length; col += 1) {
+      const dark = cells[col] === true;
+      if (dark && start === null) {
+        start = col;
+      }
+      if (!dark && start !== null) {
+        parts.push(`M${start + QR_MARGIN} ${row + QR_MARGIN}h${col - start}v1h-${col - start}z`);
+        start = null;
+      }
+    }
+  }
+  return parts.join("");
+}
 
 interface QrCodeProps {
   /** The URL (or text) the code encodes. */
@@ -44,16 +58,20 @@ interface QrCodeProps {
  * @returns The plated QR node.
  */
 export function QrCode({ value, size = 160, label, className }: QrCodeProps) {
+  const matrix = qrMatrix(value);
+  const extent = matrix.length + QR_MARGIN * 2;
   return (
     <div className={cn("w-fit rounded-md bg-white p-3", className)}>
-      <QRCodeSVG
-        value={value}
-        size={size}
-        level={QR_LEVEL}
-        marginSize={QR_MARGIN}
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${extent} ${extent}`}
+        shapeRendering="crispEdges"
         role="img"
         aria-label={label ?? "QR code"}
-      />
+      >
+        <path d={modulesPath(matrix)} fill={QR_DARK} />
+      </svg>
     </div>
   );
 }

@@ -1,20 +1,8 @@
 import { CatchBoundary } from "@tanstack/react-router";
-import { LinkIcon, PrinterIcon, Trash2Icon } from "lucide-react";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 
-import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
-import { ShareLinkRow } from "@/components/share/share-link-row";
-import { Button } from "@/components/ui/button";
+import { ShareDialog } from "@/components/share/share-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { DialogForm } from "@/components/ui/dialog-form";
 import { useCollectionGroupShares } from "@/hooks/use-collection-group-shares";
 import { useShareCollection, useUnshareCollection } from "@/hooks/use-collections";
 import {
@@ -22,11 +10,12 @@ import {
   useShareCollectionWithFriendGroup,
   useUnshareCollectionFromFriendGroup,
 } from "@/hooks/use-friend-groups";
+import { collectionOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
 interface CollectionShareDialogProps {
   collectionId: string;
-  /** Prefills the binder sheet's title. */
+  /** Names the collection in the image preview and the downloaded filename. */
   collectionName: string;
   isPublic: boolean;
   shareToken: string | null;
@@ -50,108 +39,61 @@ export function CollectionShareDialog({
 }: CollectionShareDialogProps) {
   const shareCollection = useShareCollection();
   const unshareCollection = useUnshareCollection();
-  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/collections/share/${shareToken}` : null;
   const sharing = isPublic && shareToken !== null;
 
-  // Enter creates the link when none exists yet. Once a link is present the
-  // footer shows Stop sharing (destructive) and Copy, with no single default,
-  // so implicit submission must not re-trigger a share.
-  const handleSubmit = () => {
-    if (sharing || shareCollection.isPending) {
-      return;
-    }
-    shareCollection.mutate(collectionId);
-  };
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <DialogForm onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>Share collection</DialogTitle>
-              <DialogDescription>
-                {sharing
-                  ? "Anyone with this link can view this collection, including the card list and its total value."
-                  : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."}
-              </DialogDescription>
-            </DialogHeader>
-
-            {sharing && shareUrl ? (
-              <ShareLinkRow url={shareUrl} label="Collection share link" />
-            ) : null}
-
-            {sharing && shareUrl ? (
-              <div className="flex flex-col gap-2 border-t pt-4">
-                <div>
-                  <h3 className="font-medium">Print for your binder</h3>
-                  <p className="text-muted-foreground text-sm">
-                    A QR sheet at true card or binder-page size, so anyone can scan this collection
-                    straight out of your binder.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="self-start"
-                  onClick={() => setBinderSheetOpen(true)}
-                >
-                  <PrinterIcon />
-                  Create PDF
-                </Button>
-              </div>
-            ) : null}
-
-            {/*
-              The group panel shares a *personal* binder with a group, so it is
-              meaningless for a pooled collection the group already owns. Its
-              `groupShares` query 404s on those by design, which used to throw
-              out of the suspense query and take the whole route down.
-              The boundary keeps any future failure here
-              contained to the panel: it is optional chrome, and losing it must
-              never cost the viewer their share link.
-            */}
-            {isGroupCollection ? null : (
-              <CatchBoundary getResetKey={() => collectionId} errorComponent={() => null}>
-                <Suspense fallback={null}>
-                  <CollectionGroupShareSection collectionId={collectionId} />
-                </Suspense>
-              </CatchBoundary>
-            )}
-
-            <DialogFooter>
-              {sharing ? (
-                <Button
-                  variant="destructive"
-                  onClick={() => unshareCollection.mutate(collectionId)}
-                  disabled={unshareCollection.isPending}
-                >
-                  <Trash2Icon />
-                  Stop sharing
-                </Button>
-              ) : (
-                <Button type="submit" disabled={shareCollection.isPending}>
-                  <LinkIcon />
-                  Create link
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogForm>
-        </DialogContent>
-      </Dialog>
-
-      {shareUrl ? (
-        <BinderSheetDialog
-          open={binderSheetOpen}
-          onOpenChange={setBinderSheetOpen}
-          shareUrl={shareUrl}
-          defaultTitle={collectionName}
-          defaultSubtitle="Scan to see my collection"
-          filenameHint={collectionName}
-        />
-      ) : null}
-    </>
+    <ShareDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Share collection"
+      description={
+        sharing
+          ? "Anyone with this link can view this collection, including the card list and its total value."
+          : "Create a link to share this collection. Anyone with the link will be able to view it without signing in."
+      }
+      link={{
+        url: sharing ? shareUrl : null,
+        label: "Collection share link",
+        onCreate: () => shareCollection.mutate(collectionId),
+        creating: shareCollection.isPending,
+        onStop: () => unshareCollection.mutate(collectionId),
+        stopping: unshareCollection.isPending,
+      }}
+      image={{
+        title: collectionName,
+        filenameBase: collectionName || "collection",
+        // The owner route renders whether or not the collection is shared, so
+        // the image is downloadable before a link exists — only the QR needs one.
+        buildUrl: (choice) =>
+          collectionOwnerImageUrl(getSiteUrl(), collectionId, {
+            size: choice.scale >= 2 ? "hq" : undefined,
+            aspect: choice.aspect,
+            qr: choice.qr,
+          }),
+        scales: [1, 2],
+        qr: sharing ? "available" : "requires-share",
+        qrLabel: "Include a QR code to the collection",
+      }}
+    >
+      {/*
+        The group panel shares a *personal* binder with a group, so it is
+        meaningless for a pooled collection the group already owns. Its
+        `groupShares` query 404s on those by design, which used to throw
+        out of the suspense query and take the whole route down.
+        The boundary keeps any future failure here
+        contained to the panel: it is optional chrome, and losing it must
+        never cost the viewer their share link.
+      */}
+      {isGroupCollection ? null : (
+        <CatchBoundary getResetKey={() => collectionId} errorComponent={() => null}>
+          <Suspense fallback={null}>
+            <CollectionGroupShareSection collectionId={collectionId} />
+          </Suspense>
+        </CatchBoundary>
+      )}
+    </ShareDialog>
   );
 }
 

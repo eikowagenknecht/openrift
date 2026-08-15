@@ -1,9 +1,10 @@
 import type { ListEntryDetailResponse, ListKind } from "@openrift/shared";
-import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import { DownloadIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CopyTextButton } from "@/components/share/copy-text-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useFilteredListEntries } from "@/hooks/use-filtered-list-entries";
 import type { CsvExportFormat } from "@/lib/csv-export";
 import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
@@ -129,15 +129,10 @@ function TextExport({
   /** Extra export options, rendered between the text area and the button. */
   options?: ReactNode;
 }) {
-  const { copied, copy } = useCopyToClipboard();
-
   const code = formatCardListAsDeckText(entries);
 
-  // Use \r\n so line breaks survive iOS Safari's clipboard.
-  const handleCopy = () => void copy(code.replaceAll("\n", "\r\n"));
-
   return (
-    <DialogForm onSubmit={handleCopy}>
+    <>
       <DialogHeader>
         <DialogTitle>Export list</DialogTitle>
         <DialogDescription>
@@ -154,14 +149,15 @@ function TextExport({
           onClick={(event) => (event.target as HTMLTextAreaElement).select()}
         />
         {options}
-        <div className="flex justify-end">
-          <Button type="submit" disabled={code.length === 0}>
-            {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
-            {copied ? "Copied" : "Copy"}
-          </Button>
-        </div>
+        {/* Nothing to copy once the scope filters leave the list empty, so the
+            button steps aside rather than sitting there dead. */}
+        {code.length > 0 && (
+          <div className="flex justify-end">
+            <CopyTextButton label="Copy" getText={() => code} />
+          </div>
+        )}
       </div>
-    </DialogForm>
+    </>
   );
 }
 
@@ -234,8 +230,6 @@ function CsvExport({
  * @returns The wants block, or null when the list has no entries.
  */
 function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
-  const { copied, copy } = useCopyToClipboard();
-
   const text = formatCardmarketWants(
     entries.map((entry) => ({ name: entry.cardName, quantity: entry.quantity })),
   );
@@ -244,19 +238,13 @@ function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailRespons
     return null;
   }
 
-  // Use \r\n so line breaks survive iOS Safari's clipboard.
-  const handleCopy = () => void copy(text.replaceAll("\n", "\r\n"));
-
   const lineCount = text.split("\n").length;
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5 border-t pt-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-medium">Cardmarket wants</h3>
-        <Button size="sm" variant="outline" onClick={handleCopy}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <CopyTextButton label="Copy" getText={() => text} size="sm" />
       </div>
       <p className="text-muted-foreground text-sm">
         Paste into Cardmarket&apos;s shopping wizard to price the list with your own filters.

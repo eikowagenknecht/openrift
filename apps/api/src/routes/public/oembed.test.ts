@@ -14,6 +14,9 @@ const mockCollectionsRepo = {
 const mockListsRepo = {
   findByShareToken: vi.fn(),
 };
+const mockTierListsRepo = {
+  findByShareToken: vi.fn(),
+};
 const mockUserSharesRepo = {
   findOwnerByShareToken: vi.fn(),
   listsForOwner: vi.fn(),
@@ -25,6 +28,7 @@ const app = new Hono<{ Variables: Variables }>()
       decks: mockDecksRepo,
       collections: mockCollectionsRepo,
       lists: mockListsRepo,
+      tierLists: mockTierListsRepo,
       userShares: mockUserSharesRepo,
     } as never);
     c.set("config", { corsOrigin: "https://openrift.app,https://preview.openrift.app" } as never);
@@ -44,6 +48,7 @@ beforeEach(() => {
   mockDecksRepo.findByShareToken.mockReset();
   mockCollectionsRepo.findByShareToken.mockReset();
   mockListsRepo.findByShareToken.mockReset();
+  mockTierListsRepo.findByShareToken.mockReset();
   mockUserSharesRepo.findOwnerByShareToken.mockReset();
   mockUserSharesRepo.listsForOwner.mockReset();
 });
@@ -104,6 +109,40 @@ describe("GET /api/v1/oembed", () => {
     const body = await readJson(res);
     expect(body.title).toBe("Holiday Targets (trade list)");
     expect(body.url).toBe(`https://openrift.app/api/v1/lists/share/tok-list/image.png?v=${NOW_MS}`);
+  });
+
+  it("resolves a tier-list share URL (regression: the advertised endpoint 404'd)", async () => {
+    // The tier-list share page emits the oEmbed discovery tag, so every consumer
+    // that followed it hit this endpoint — which did not know the kind and 404'd.
+    mockTierListsRepo.findByShareToken.mockResolvedValue({
+      tierList: { title: "Origins power ranking", updatedAt: NOW },
+      ownerName: "drawphasetcg",
+      ownerEmail: "owner@example.test",
+    });
+
+    const res = await request({ url: "https://openrift.app/tier-lists/share/tok-tier" });
+
+    expect(res.status).toBe(200);
+    const body = await readJson(res);
+    expect(body).toMatchObject({
+      type: "photo",
+      title: "Origins power ranking (tier list)",
+      author_name: "drawphasetcg",
+      url: `https://openrift.app/api/v1/tier-lists/share/tok-tier/image.png?v=${NOW_MS}`,
+      width: 1200,
+      height: 630,
+    });
+    expect(mockTierListsRepo.findByShareToken).toHaveBeenCalledWith("tok-tier");
+  });
+
+  it("returns 404 for a tier list whose share link was revoked", async () => {
+    // `findByShareToken` requires is_public, so a revoked list resolves to
+    // nothing and the embed must not fall back to anything.
+    mockTierListsRepo.findByShareToken.mockResolvedValue(undefined);
+
+    const res = await request({ url: "https://openrift.app/tier-lists/share/tok-tier" });
+
+    expect(res.status).toBe(404);
   });
 
   it("resolves a user bundle URL, folding the list count into the version", async () => {

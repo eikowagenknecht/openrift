@@ -56,20 +56,62 @@ export function listShareImageUrl(siteUrl: string, shareToken: string, version: 
 }
 
 /**
+ * What every image-download surface lets a creator vary about a render. The
+ * deck and grid (list/collection/bundle) routes all speak the same three
+ * parameters; tier lists add a scale multiplier on top (see
+ * {@link TierListImageOptions}).
+ */
+export interface ShareImageOptions {
+  /** `"hq"` requests the 2× render, for print and desktop viewing. */
+  size?: "hq";
+  /** Canvas shape. `vertical` is the 9:16 export. */
+  aspect?: ShareImageAspect;
+  /** Draws the scannable mark. Only has an effect on a thing that is shared. */
+  qr?: boolean;
+}
+
+/** @returns The query parameters for a set of image options, defaults omitted. */
+function shareImageParams(options: ShareImageOptions = {}): Record<string, string | undefined> {
+  return {
+    size: options.size,
+    aspect: aspectParam(options.aspect),
+    qr: options.qr === false ? "0" : undefined,
+  };
+}
+
+/**
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * lists. The share dialog's download uses this so it works whether or not the
  * list is publicly shared (the public/og route needs a share token).
- * `size: "hq"` requests the 2× download, as the deck and tier-list images do.
  * @returns The image URL.
  */
 export function listOwnerImageUrl(
   siteUrl: string,
   listId: string,
   version: number,
-  size?: "hq",
+  options: ShareImageOptions = {},
 ): string {
-  const base = `${siteUrl}${API_BASE}/lists/${listId}/image.png?v=${version}`;
-  return size === "hq" ? `${base}&size=hq` : base;
+  return withParams(
+    `${siteUrl}${API_BASE}/lists/${listId}/image.png?v=${version}`,
+    shareImageParams(options),
+  );
+}
+
+/**
+ * Absolute URL of the owner-authenticated image for one of the caller's own
+ * collections. The share dialog's download uses this so it works whether or
+ * not the collection is publicly shared (the public/og route needs a token).
+ * @returns The image URL.
+ */
+export function collectionOwnerImageUrl(
+  siteUrl: string,
+  collectionId: string,
+  options: ShareImageOptions = {},
+): string {
+  return withParams(
+    `${siteUrl}${API_BASE}/collections/${collectionId}/image.png`,
+    shareImageParams(options),
+  );
 }
 
 /**
@@ -87,26 +129,8 @@ export function deckShareImageUrl(
   return size === "hq" ? `${base}&size=hq` : base;
 }
 
-/** What the deck export dialog lets a creator vary about the render. Mirrors
- * {@link TierListImageOptions}, minus the scale multiplier: the deck dialog
- * picks its resolution from the shape rather than offering it as a control. */
-export interface DeckImageOptions {
-  /** `"hq"` requests the 2× render, for print and desktop viewing. */
-  size?: "hq";
-  /** Canvas shape. `vertical` is the 9:16 export. */
-  aspect?: ShareImageAspect;
-  /** Draws the scannable mark. Only has an effect on a deck that is shared. */
-  qr?: boolean;
-}
-
-/** @returns The query parameters for a set of deck image options, defaults omitted. */
-function deckImageParams(options: DeckImageOptions = {}): Record<string, string | undefined> {
-  return {
-    size: options.size,
-    aspect: aspectParam(options.aspect),
-    qr: options.qr === false ? "0" : undefined,
-  };
-}
+/** The deck image routes speak the same three parameters as the grid routes. */
+export type DeckImageOptions = ShareImageOptions;
 
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
@@ -124,7 +148,7 @@ export function deckOwnerImageUrl(
   deckId: string,
   options: DeckImageOptions = {},
 ): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, deckImageParams(options));
+  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, shareImageParams(options));
 }
 
 /**
@@ -133,7 +157,7 @@ export function deckOwnerImageUrl(
  * @returns The render endpoint URL.
  */
 export function deckImageFromCardsUrl(siteUrl: string, options: DeckImageOptions = {}): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/image`, deckImageParams(options));
+  return withParams(`${siteUrl}${API_BASE}/decks/image`, shareImageParams(options));
 }
 
 /**
@@ -195,8 +219,12 @@ export function bundleShareImageUrl(
   siteUrl: string,
   shareToken: string,
   version: number | string,
+  options: ShareImageOptions = {},
 ): string {
-  return `${siteUrl}${API_BASE}/users/share/${shareToken}/image.png?v=${version}`;
+  return withParams(
+    `${siteUrl}${API_BASE}/users/share/${shareToken}/image.png?v=${version}`,
+    shareImageParams(options),
+  );
 }
 
 /**

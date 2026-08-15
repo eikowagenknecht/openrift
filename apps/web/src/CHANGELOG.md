@@ -4,15 +4,22 @@
 
 ### Highlights
 
+- feat(App): **One share dialog everywhere** — decks, collections, lists, and tier lists now share it: the link and its QR on one tab, the image with shape, size, and scan-code choices on the other.
+- feat(Collection): **Download your collection as an image** — the share dialog now saves a collection as a wide or tall picture, which before existed only as the link preview.
+- feat(Decks): **All deck PDFs under Print** — proxies, the registration sheet, and the printable deck sheet moved into one Print dialog, opened from Print in the deck menu.
 - feat(App): **A proper match board** — each player's side now shows the art of a legend you pick, scores through Conquer, Hold and Ability buttons instead of a hidden tap, and marks how close the game is with a pip per point.
 - fix(Tournaments): **Deck deadlines in your timezone** — submission deadlines showed the server's clock without saying so, and now show yours.
 
 ### Other
 
+- feat(App): **Share, Export, and Print untangled** — every page now uses the same three entries with the same icons: Share for links and images, Export for data, Print for PDFs.
+- feat(App): **Tall list and bundle images** — list, collection, and profile bundle images can now render in 9:16 for stories, with the size and QR options decks already had.
 - feat(App): **One date format everywhere** — dates now read as 2026-08-15 across the app, so there is no guessing whether 8/9 means August or September.
 - feat(App): **Undo a mis-tapped point** — the match menu in the middle of the board names the last change and reverses it, and tapping a score opens buttons to correct a total that drifted.
 - feat(App): **XP only when you need it** — the match tracker keeps XP as a small tab until someone taps it, so decks that never use it get the space back.
-- feat(Decks): **Bigger, optional scan code on deck images** — the code moved from the footer up to the top corner, where it has the room to actually be scannable, and a checkbox in the export dialog leaves it off.
+- feat(Decks): **Bigger, optional scan code on deck images** — the code moved from the footer up to the top corner, where it has the room to actually be scannable, and a switch on the share dialog's Image tab leaves it off.
+- fix(Tournaments): **Staff invite links shown in full** — the invite row now shows the whole link with copy and QR instead of a truncated pill.
+- fix(App): **Tier list embeds resolve** — sites that read embed info from a shared tier list link no longer hit a missing endpoint.
 - fix(App): **Dragged cards show the right art** — the card following your cursor could show a different printing than the one you picked up, in both the deck builder and collections.
 - fix(Decks): **Variant families pick the right main deck** — deleting or unlinking the main deck of a variant family could hand the role to any sibling; it now goes to the one you edited most recently.
 

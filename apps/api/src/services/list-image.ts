@@ -1,7 +1,7 @@
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
 import type { ListEntryRow } from "../repositories/lists.js";
-import type { ShareImageCard } from "./share-image.js";
+import type { ShareImageCard, ShareImageOptions } from "./share-image.js";
 import { renderShareImage } from "./share-image.js";
 
 /**
@@ -147,10 +147,16 @@ export interface ListImageData {
 
 /**
  * Renders one list's share image from its enriched entries. `scale` renders the
- * same layout at N× for the HQ download.
+ * same layout at N× for the HQ download; `options` picks the canvas and whether
+ * the mark carries a scannable code.
  * @returns PNG bytes ready to return as `image/png`.
  */
-export async function renderListImage(io: Io, data: ListImageData, scale = 1): Promise<Buffer> {
+export async function renderListImage(
+  io: Io,
+  data: ListImageData,
+  scale = 1,
+  options: ShareImageOptions = {},
+): Promise<Buffer> {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
   // same printing so the grid shows one tile per printing with the total count.
   const display = data.kind === "copy" ? mergeCopyRows(data.entries) : data.entries;
@@ -168,5 +174,6 @@ export async function renderListImage(io: Io, data: ListImageData, scale = 1): P
       shareUrl: data.shareUrl,
     },
     scale,
+    options,
   );
 }

@@ -1,72 +1,32 @@
 import type { DeckExportResponse } from "@openrift/shared";
-import {
-  CheckIcon,
-  CopyIcon,
-  FileTextIcon,
-  ImageDownIcon,
-  Loader2Icon,
-  PrinterIcon,
-  RectangleHorizontalIcon,
-  RectangleVerticalIcon,
-  Share2Icon,
-} from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
-import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
-import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
-import { downloadImageAsPdf } from "@/lib/image-pdf";
-import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
-import { generateRegistrationPdf } from "@/lib/registration-pdf";
-import type { ShareImageAspect } from "@/lib/share-image";
-import {
-  deckImageFromCardsUrl,
-  deckOwnerImageUrl,
-  downloadImageFromPost,
-  downloadImageFromUrl,
-  fetchImageBlob,
-  fetchImageBlobFromPost,
-} from "@/lib/share-image";
-import { getSiteUrl } from "@/lib/site-config";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
-type ExportTab = ExportFormat | "registration" | "image";
 interface FormatState {
   data?: DeckExportResponse;
   loading?: boolean;
   error?: boolean;
 }
 
-const FORMAT_DESCRIPTIONS: Record<ExportTab, React.ReactNode> = {
+const FORMAT_DESCRIPTIONS: Record<ExportFormat, React.ReactNode> = {
   piltover: (
     <>
       A compact code that can be imported into{" "}
@@ -118,68 +78,40 @@ const FORMAT_DESCRIPTIONS: Record<ExportTab, React.ReactNode> = {
       .
     </>
   ),
-  registration: "Generate a printable tournament deck registration sheet.",
-  image: "A shareable deck image for WhatsApp, Discord, or printing.",
-};
-
-const PAGE_SIZE_LABELS: Record<RegistrationPageSize, string> = {
-  a4: "A4",
-  letter: "US Letter",
 };
 
 interface DeckExportDialogProps {
   deckId: string;
-  deckName?: string;
   isDirty: boolean;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  /** Cards for registration sheet. Falls back to the deck builder store when omitted. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Cards for a browser-local deck. Falls back to the live editor draft. */
   cards?: DeckBuilderCard[];
 }
 
+/**
+ * Export dialog for the machine-readable deck data: the plain text list, the
+ * Piltover deck code, and the Tabletop Simulator codes. The share image lives
+ * in the share dialog and every PDF in the print dialog.
+ *
+ * @returns The export dialog element.
+ */
 export function DeckExportDialog({
   deckId,
-  deckName,
   isDirty,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
+  open,
+  onOpenChange,
   cards: cardsProp,
 }: DeckExportDialogProps) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const setOpen = controlledOnOpenChange ?? setInternalOpen;
-  const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
   // A browser-local deck (ADR-035) has no server row to export by id; encode its
   // cards through the public endpoint instead. Same codecs, same output.
   const encodeDeck = useEncodeDeckCards();
   const isLocal = isLocalDeckId(deckId);
-  const { data: session } = useSession();
   const liveCards = useDeckCards(deckId);
-  // A browser-local deck holds its format client-side (no server row to read it
-  // from); the from-cards image render needs it for the title's format label.
-  const localDeckFormat = useLocalDecksStore((state) =>
-    isLocal ? state.decks[deckId]?.format : undefined,
-  );
   const { copied, copy, reset: resetCopied } = useCopyToClipboard();
-  const [downloadingImage, setDownloadingImage] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [imageAspect, setImageAspect] = useState<ShareImageAspect>("landscape");
-  const [qr, setQr] = useState(true);
-  const [tab, setTab] = useState<ExportTab>("text");
+  const [tab, setTab] = useState<ExportFormat>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
-  const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
-  const [generating, setGenerating] = useState(false);
-
-  // Registration form fields
-  const [regDeckName, setRegDeckName] = useState(deckName ?? "");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [riotId, setRiotId] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [eventName, setEventName] = useState("");
-  const [eventLocation, setEventLocation] = useState("");
-  const [deckDesigner, setDeckDesigner] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -188,20 +120,11 @@ export function DeckExportDialog({
       setTab("text");
       setFormats({});
       resetCopied();
-      setDownloadingImage(false);
-      return;
-    }
-    setRegDeckName(deckName ?? "");
-    // Prefill first/last name from user profile if not already filled
-    if (!firstName && !lastName && session?.user?.name) {
-      const parts = session.user.name.trim().split(/\s+/u);
-      setFirstName(parts[0] ?? "");
-      setLastName(parts.slice(1).join(" "));
     }
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
 
   useEffect(() => {
-    if (!open || tab === "registration" || tab === "image") {
+    if (!open) {
       return;
     }
     const current = formats[tab];
@@ -227,12 +150,12 @@ export function DeckExportDialog({
     }
   }, [open, tab]); // oxlint-disable-line react-hooks/exhaustive-deps -- formats read via closure, not reactively
 
-  const handleTabChange = (newTab: ExportTab) => {
+  const handleTabChange = (newTab: ExportFormat) => {
     setTab(newTab);
     resetCopied();
   };
 
-  const currentFormat = tab === "registration" || tab === "image" ? {} : (formats[tab] ?? {});
+  const currentFormat = formats[tab] ?? {};
   const currentData = currentFormat.data;
   const currentLoading = currentFormat.loading ?? false;
   const currentError = currentFormat.error ?? false;
@@ -245,106 +168,13 @@ export function DeckExportDialog({
     void copy(currentData.code.replaceAll("\n", "\r\n"));
   };
 
-  const handleGenerateRegistration = async () => {
-    const cards = cardsProp ?? liveCards;
-    if (cards.length === 0) {
-      return;
-    }
-    setGenerating(true);
-    const fields: RegistrationFields = {
-      deckName: regDeckName,
-      deckDesigner,
-      firstName,
-      lastName,
-      riotId,
-      eventDate,
-      eventName,
-      eventLocation,
-    };
-    try {
-      await generateRegistrationPdf(fields, cards, registrationPageSize, getSiteUrl());
-    } catch (error) {
-      setGenerating(false);
-      throw error;
-    }
-    setGenerating(false);
-  };
-
-  // Local decks have no server row, so the image renders from the current cards
-  // (the server enriches names/art/energy from the posted ids); saved decks
-  // resolve by id through the owner-authenticated route.
-  const localImageBody = () => ({
-    deckName: deckName ?? "",
-    format: localDeckFormat,
-    ownerName: session?.user?.name ?? "",
-    cards: toEncodeDeckCards(cardsProp ?? liveCards),
-  });
-
-  const imageFileName = () => (deckName ?? "deck").replaceAll(/[^\w -]+/gu, "_").trim() || "deck";
-
-  const handleDownloadImage = async () => {
-    setDownloadingImage(true);
-    // The wide image is rendered at 2× so it holds up printed and on a desktop
-    // screen. The tall one is not: 1× is already 1080×1920, the size every
-    // vertical surface uploads at, so 2× would just be a slower, heavier file
-    // the creator has to scale back down.
-    const vertical = imageAspect === "vertical";
-    const options = {
-      size: vertical ? undefined : ("hq" as const),
-      aspect: imageAspect,
-      qr,
-    };
-    const safeName = `${imageFileName()}${vertical ? "-vertical" : ""}`;
-    const download = isLocal
-      ? downloadImageFromPost(
-          deckImageFromCardsUrl(getSiteUrl(), options),
-          localImageBody(),
-          `${safeName}.png`,
-        )
-      : downloadImageFromUrl(deckOwnerImageUrl(getSiteUrl(), deckId, options), `${safeName}.png`);
-    // React Compiler can't yet lower try/finally, so reset in both paths.
-    try {
-      await download;
-      setDownloadingImage(false);
-    } catch {
-      toast.error("Couldn't prepare the image. Please try again.");
-      setDownloadingImage(false);
-    }
-  };
-
-  const handleDownloadImagePdf = async () => {
-    setDownloadingPdf(true);
-    const safeName = imageFileName();
-    // The PDF is the printable sheet, so it always takes the wide image at 2×.
-    // It honours the QR choice, though: a printed decklist is exactly where
-    // someone might not want a code on the page.
-    const pdfOptions = { size: "hq" as const, qr };
-    const blob = isLocal
-      ? fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), pdfOptions), localImageBody())
-      : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, pdfOptions));
-    // React Compiler can't yet lower try/finally, so reset in both paths.
-    try {
-      await downloadImageAsPdf(await blob, `${safeName}.pdf`);
-      setDownloadingPdf(false);
-    } catch {
-      toast.error("Couldn't prepare the PDF. Please try again.");
-      setDownloadingPdf(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {!isControlled && (
-        <DialogTrigger render={<PageTopBarButton />}>
-          <Share2Icon className="size-4" />
-          Export
-        </DialogTrigger>
-      )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <Tabs
           defaultValue="text"
           value={tab}
-          onValueChange={(value) => handleTabChange(value as ExportTab)}
+          onValueChange={(value) => handleTabChange(value as ExportFormat)}
         >
           <DialogHeader>
             <DialogTitle>Export deck</DialogTitle>
@@ -352,246 +182,58 @@ export function DeckExportDialog({
               <TabsTrigger value="text">Text</TabsTrigger>
               <TabsTrigger value="piltover">Deck Code</TabsTrigger>
               <TabsTrigger value="tts">TTS</TabsTrigger>
-              <TabsTrigger value="image">Image</TabsTrigger>
-              <TabsTrigger value="registration">Registration</TabsTrigger>
             </TabsList>
             <DialogDescription>{FORMAT_DESCRIPTIONS[tab]}</DialogDescription>
           </DialogHeader>
 
-          {isDirty && tab !== "registration" && tab !== "image" && (
+          {isDirty && (
             <p className="text-muted-foreground text-sm">
               You have unsaved changes. The exported code reflects the last saved state.
             </p>
           )}
 
-          {isDirty && tab === "image" && !isLocal && (
-            <p className="text-muted-foreground text-sm">
-              You have unsaved changes. The image reflects the last saved state.
-            </p>
-          )}
+          <TabsContent value={tab}>
+            <div className="flex min-w-0 flex-col gap-3">
+              <Textarea
+                readOnly
+                value={currentData?.code ?? ""}
+                placeholder={currentError ? "Failed to generate export." : ""}
+                className="field-sizing-fixed font-mono text-xs break-all"
+                rows={8}
+                onClick={(event) => (event.target as HTMLTextAreaElement).select()}
+              />
 
-          {tab === "image" ? (
-            <TabsContent value="image">
-              <div className="flex flex-col gap-3">
-                <p className="text-muted-foreground text-sm">
-                  Wide is the same preview that appears when you paste a shared deck link into
-                  WhatsApp, Discord, or Signal. Tall is sized for a story or a short video, with
-                  bigger cards. The PDF puts the wide one on one A4 page for printing.
-                </p>
-                <ToggleGroup
-                  aria-label="Image shape"
-                  variant="outline"
-                  spacing={0}
-                  value={[imageAspect]}
-                  onValueChange={([next]) => {
-                    if (next === "landscape" || next === "vertical") {
-                      setImageAspect(next);
-                    }
-                  }}
-                >
-                  <ToggleGroupItem value="landscape">
-                    <RectangleHorizontalIcon className="size-4" />
-                    Wide
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="vertical">
-                    <RectangleVerticalIcon className="size-4" />
-                    Tall
-                  </ToggleGroupItem>
-                </ToggleGroup>
-                {!isLocal && (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="deck-export-include-qr"
-                      checked={qr}
-                      onCheckedChange={(checked) => setQr(checked === true)}
-                    />
-                    <label htmlFor="deck-export-include-qr" className="cursor-pointer text-sm">
-                      Include a scan code linking to the deck
-                    </label>
-                  </div>
+              <div className="flex items-center gap-2 self-end">
+                {currentLoading && (
+                  <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
                 )}
-                <div className="flex gap-2">
-                  <Button onClick={handleDownloadImage} disabled={downloadingImage}>
-                    {downloadingImage ? (
-                      <>
-                        <Loader2Icon className="size-4 animate-spin" />
-                        Preparing…
-                      </>
-                    ) : (
-                      <>
-                        <ImageDownIcon className="size-4" />
-                        Download image
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleDownloadImagePdf}
-                    disabled={downloadingPdf}
-                  >
-                    {downloadingPdf ? (
-                      <>
-                        <Loader2Icon className="size-4 animate-spin" />
-                        Preparing…
-                      </>
-                    ) : (
-                      <>
-                        <PrinterIcon className="size-4" />
-                        Download PDF
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
-          ) : tab === "registration" ? (
-            <TabsContent value="registration">
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2 flex flex-col gap-1.5">
-                    <Label htmlFor="reg-deck-name">Deck Name</Label>
-                    <Input
-                      id="reg-deck-name"
-                      value={regDeckName}
-                      onChange={(event) => setRegDeckName(event.target.value)}
-                      placeholder="Untitled Deck"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="reg-first-name">First Name</Label>
-                    <Input
-                      id="reg-first-name"
-                      value={firstName}
-                      onChange={(event) => setFirstName(event.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="reg-last-name">Last Name</Label>
-                    <Input
-                      id="reg-last-name"
-                      value={lastName}
-                      onChange={(event) => setLastName(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1.5">
-                    <Label htmlFor="reg-riot-id">Riot ID</Label>
-                    <Input
-                      id="reg-riot-id"
-                      value={riotId}
-                      onChange={(event) => setRiotId(event.target.value)}
-                      placeholder="Name#TAG"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Event Date</Label>
-                    <DatePicker value={eventDate || null} onChange={setEventDate} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="reg-event-name">Event Name</Label>
-                    <Input
-                      id="reg-event-name"
-                      value={eventName}
-                      onChange={(event) => setEventName(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1.5">
-                    <Label htmlFor="reg-event-location">Event Location</Label>
-                    <Input
-                      id="reg-event-location"
-                      value={eventLocation}
-                      onChange={(event) => setEventLocation(event.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="reg-deck-designer">Deck Designer</Label>
-                    <Input
-                      id="reg-deck-designer"
-                      value={deckDesigner}
-                      onChange={(event) => setDeckDesigner(event.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="registration-page-size">Page Size</Label>
-                    <Select
-                      value={registrationPageSize}
-                      onValueChange={(value) =>
-                        setRegistrationPageSize(value as RegistrationPageSize)
-                      }
-                    >
-                      <SelectTrigger id="registration-page-size">
-                        <SelectValue>
-                          {(value: string) =>
-                            PAGE_SIZE_LABELS[value as RegistrationPageSize] ?? value
-                          }
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="a4">A4</SelectItem>
-                        <SelectItem value="letter">US Letter</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Button onClick={handleGenerateRegistration} disabled={generating}>
-                  {generating ? (
+                <Button onClick={handleCopy} disabled={!currentData}>
+                  {copied ? (
                     <>
-                      <Loader2Icon className="size-4 animate-spin" />
-                      Generating…
+                      <CheckIcon className="size-4" />
+                      Copied
                     </>
                   ) : (
                     <>
-                      <FileTextIcon className="size-4" />
-                      Download PDF
+                      <CopyIcon className="size-4" />
+                      Copy
                     </>
                   )}
                 </Button>
               </div>
-            </TabsContent>
-          ) : (
-            <TabsContent value={tab}>
-              <div className="flex min-w-0 flex-col gap-3">
-                <Textarea
-                  readOnly
-                  value={currentData?.code ?? ""}
-                  placeholder={currentError ? "Failed to generate export." : ""}
-                  className="field-sizing-fixed font-mono text-xs break-all"
-                  rows={8}
-                  onClick={(event) => (event.target as HTMLTextAreaElement).select()}
-                />
 
-                <div className="flex items-center gap-2 self-end">
-                  {currentLoading && (
-                    <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
-                  )}
-                  <Button onClick={handleCopy} disabled={!currentData}>
-                    {copied ? (
-                      <>
-                        <CheckIcon className="size-4" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <CopyIcon className="size-4" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+              {currentData && currentData.warnings.length > 0 && (
+                <div className="text-muted-foreground text-xs">
+                  <p className="font-medium">Warnings:</p>
+                  <ul className="mt-1 list-inside list-disc">
+                    {currentData.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
                 </div>
-
-                {currentData && currentData.warnings.length > 0 && (
-                  <div className="text-muted-foreground text-xs">
-                    <p className="font-medium">Warnings:</p>
-                    <ul className="mt-1 list-inside list-disc">
-                      {currentData.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          )}
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

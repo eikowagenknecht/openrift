@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useCopyToClipboard } from "./use-copy-to-clipboard";
+import { copyTextToClipboard, useCopyToClipboard } from "./use-copy-to-clipboard";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
@@ -16,6 +16,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("copyTextToClipboard", () => {
+  it("writes the text to the clipboard", async () => {
+    await copyTextToClipboard("https://openrift.app/groups/join?code=ABC123");
+
+    expect(writeText).toHaveBeenCalledWith("https://openrift.app/groups/join?code=ABC123");
+  });
+
+  it("writes an empty string rather than skipping the call", async () => {
+    await copyTextToClipboard("");
+
+    expect(writeText).toHaveBeenCalledWith("");
+  });
+
+  it("rejects when the write is denied, so callers can show their own error", async () => {
+    writeText.mockRejectedValue(new Error("NotAllowedError"));
+
+    await expect(copyTextToClipboard("link")).rejects.toThrow("NotAllowedError");
+  });
 });
 
 describe("useCopyToClipboard", () => {

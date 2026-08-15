@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
+  DownloadIcon,
   EllipsisVerticalIcon,
   FlaskConicalIcon,
   FolderIcon,
@@ -61,13 +62,14 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { DeckExportDialog } from "./deck-export-dialog";
+import { DeckPrintDialog } from "./deck-print-dialog";
 import { DeckRenameDialog } from "./deck-rename-dialog";
+import { DeckShareDialog } from "./deck-share-dialog";
 import { DeckVariantsDialog } from "./deck-variants-dialog";
 import { ManageDeckFoldersDialog } from "./manage-deck-folders-dialog";
-import { ProxyExportDialog } from "./proxy-export-dialog";
 
 /**
- * Dropdown menu with deck actions (export, proxies, rename, format toggle, variants, delete).
+ * Dropdown menu with deck actions (share, export, print, rename, format toggle, variants, delete).
  * Owns its dialogs and mutations so both tile and list-row layouts can drop it in.
  * @returns The actions menu element.
  */
@@ -87,8 +89,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const otherFormats = formats.filter((entry) => entry.slug !== deck.format);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [proxyOpen, setProxyOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [variantsOpen, setVariantsOpen] = useState(false);
@@ -97,8 +100,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const setDeckFolders = useSetDeckFolders();
   const folderList = folders ?? [];
 
-  // Lazy-fetch full card detail only when export/proxy dialogs are open
-  const needsDetail = exportOpen || proxyOpen;
+  // Lazy-fetch full deck detail only while a dialog needs it. Share reads the
+  // link state from the same payload, so the list row itself stays lean.
+  const needsDetail = shareOpen || exportOpen || printOpen;
   const { data: detail } = useQuery({
     ...deckDetailQueryOptions(userId, deck.id),
     enabled: needsDetail,
@@ -171,23 +175,30 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           <DropdownMenuItem
             onClick={(event: React.MouseEvent) => {
               stop(event);
-              setExportOpen(true);
+              setShareOpen(true);
             }}
           >
             <Share2Icon className="size-4" />
-            Export
+            Share…
           </DropdownMenuItem>
-          {item.totalCards > 0 && (
-            <DropdownMenuItem
-              onClick={(event: React.MouseEvent) => {
-                stop(event);
-                setProxyOpen(true);
-              }}
-            >
-              <PrinterIcon className="size-4" />
-              Proxies
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => {
+              stop(event);
+              setExportOpen(true);
+            }}
+          >
+            <DownloadIcon className="size-4" />
+            Export…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(event: React.MouseEvent) => {
+              stop(event);
+              setPrintOpen(true);
+            }}
+          >
+            <PrinterIcon className="size-4" />
+            Print…
+          </DropdownMenuItem>
           {overlayEnabled && item.totalCards > 0 && (
             <DropdownMenuItem
               onClick={(event: React.MouseEvent) => {
@@ -321,19 +332,29 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <DeckExportDialog
+      <DeckShareDialog
         deckId={deck.id}
         deckName={deck.name}
+        isPublic={detail?.deck.isPublic ?? false}
+        shareToken={detail?.deck.shareToken ?? null}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        cards={detailCards}
+      />
+
+      <DeckExportDialog
+        deckId={deck.id}
         isDirty={false}
         open={exportOpen}
         onOpenChange={setExportOpen}
         cards={detailCards}
       />
 
-      <ProxyExportDialog
-        open={proxyOpen}
-        onOpenChange={setProxyOpen}
+      <DeckPrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
         cards={detailCards}
+        deckId={deck.id}
         deckName={deck.name}
       />
 

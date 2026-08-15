@@ -1,6 +1,7 @@
 import type { Io } from "../io.js";
-import type { Child, Element } from "./share-image-core.js";
+import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
 import {
+  CANVAS,
   CARD_ASPECT,
   COLORS,
   QR_SIZE,
@@ -16,35 +17,47 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Server-rendered share images for lists and bundles (ADR-024). satori lays an
- * element tree out to SVG, then resvg rasterizes it to PNG (both via
- * `share-image-core`). The output is wired as the og:image for the public share
- * routes and offered as a downloadable attachment, so a pasted link unfurls with
- * card art in WhatsApp and Discord.
+ * Server-rendered share images for lists, collections and user bundles
+ * (ADR-024). satori lays an element tree out to SVG, then resvg rasterizes it to
+ * PNG (both via `share-image-core`). The landscape output is wired as the
+ * og:image for the public share routes and offered as a downloadable attachment,
+ * so a pasted link unfurls with card art in WhatsApp and Discord.
  *
  * Layout opens with the same title row the deck and tier-list images use (name,
  * owner, and what the list is), then gives the rest of the canvas to the card
  * grid, whose columns/rows are computed so the cards are as large as the space
  * allows and the rows stay balanced (no stubby last row).
  *
- * The host + QR mark moves to wherever it is free (`markPlacement`): into the
- * overflow tile, into a trailing cell, or into a footer band. Unlike the deck
- * and tier-list images — which have fixed furniture to hang a footer off — this
- * one is nothing but grid, so a reserved band came straight out of the card art.
+ * On landscape the host + QR mark moves to wherever it is free
+ * (`markPlacement`): into the overflow tile, into a trailing cell, or into a
+ * footer band. Unlike the deck and tier-list images — which have fixed furniture
+ * to hang a footer off — that canvas is nothing but grid, so a reserved band
+ * came straight out of the card art.
+ *
+ * The 9:16 canvas is a second composition, as it is for the deck and tier-list
+ * images: a download-only export for the places a list is read on a phone held
+ * upright. There the mark does have furniture to sit in — a two-line title block
+ * with room for a large QR at its right, and a footer that is only the host —
+ * so the grid keeps the whole middle of the canvas. At the same twelve cards
+ * that is a tile roughly 1.6× the landscape one; the cap is raised instead, to
+ * twenty cards still drawn wider than landscape draws twelve. Landscape's
+ * geometry is deliberately left alone: it is what every published og:image
+ * already looks like.
  *
  * This used to carry a bordered caption bar that never drew the list's name,
  * which made a shared wishlist unfurl as an anonymous wall of art. The title row
  * replaced it: the name is the one thing a recipient needs, and the shared
- * heading means the three share images now read as one product.
+ * heading means the share images now read as one product.
  */
 
-const WIDTH = 1200;
-const HEIGHT = 630;
+const { width: WIDTH, height: HEIGHT } = CANVAS.landscape;
 const PAD = 24;
 const GAP = 10;
 const TITLE_H = 52;
 /** The footer is exactly the mark's height: the QR is the tallest thing in it. */
 const FOOTER_H = QR_SIZE;
+/** Height the footer reserves when the mark carries no code — one line of type. */
+const FOOTER_LABEL_H = 26;
 const GRID_GAP = 12;
 /** Card tiles shown before collapsing the remainder into a "+N more" tile (2 rows of 6). */
 const MAX_TILES = 12;
@@ -56,6 +69,37 @@ const TITLE_MAX_CHARS = 46;
 const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
+
+const { width: V_WIDTH, height: V_HEIGHT } = CANVAS.vertical;
+const V_PAD = 28;
+/** Title line, then the byline and the count on a second line beneath it. */
+const V_TITLE_H = 92;
+/** Type steps up with the canvas: a story is read at arm's length on a phone,
+ * where the landscape sizes would be a fraction of the frame's width. */
+const V_TITLE_SIZE = 46;
+const V_BYLINE_SIZE = 28;
+const V_META_SIZE = 26;
+/** Narrower canvas and larger type than landscape, and the byline no longer
+ * shares the line, so the whole width is the title's. */
+const V_TITLE_MAX_CHARS = 30;
+/**
+ * The vertical mark rides the title block, at the size the deck and tier-list
+ * vertical exports use. It has room there that the landscape grid never has —
+ * which is why that canvas still threads the mark through `markPlacement`.
+ */
+const V_HEADER_QR = 132;
+/** The vertical footer is only the host label, so it reserves one line. */
+const V_FOOTER_H = 32;
+const V_FOOTER_FONT = 24;
+/** Gap between vertical tiles, a shade wider than landscape's because the tiles
+ * themselves are roughly 1.6× as large. */
+const V_GRID_GAP = 14;
+/**
+ * Tiles shown on the vertical canvas before the "+N more" tile takes over. The
+ * grid packs 20 into a 4×5 board at ~230px a tile, still wider than the ~180px
+ * a landscape image gives twelve — past that the cards read as thumbnails.
+ */
+const V_MAX_TILES = 20;
 
 /** One card in the grid. `imageId` is the resolved image_files.id, or null when no art exists. */
 export interface ShareImageCard {
@@ -85,6 +129,18 @@ export interface ShareImageInput {
   shareUrl?: string;
 }
 
+/** Canvas and mark choices a caller can make; both default to today's output. */
+export interface ShareImageOptions {
+  /** Canvas to compose on. Landscape is the og:image; vertical is a download. */
+  aspect?: ShareImageAspect;
+  /**
+   * Whether to encode `shareUrl` as a scannable code. False keeps the host
+   * branding and drops only the code, for a creator compositing the image
+   * somewhere the link would be noise.
+   */
+  qr?: boolean;
+}
+
 interface GridSpec {
   cols: number;
   cellW: number;
@@ -100,11 +156,52 @@ interface GridSpec {
 function computeGrid(count: number, areaW: number, areaH: number): GridSpec {
   const rows = count <= 6 ? 1 : 2;
   const cols = Math.ceil(count / rows);
-  const cellWByWidth = (areaW - (cols - 1) * GRID_GAP) / cols;
-  const cellHByHeight = (areaH - (rows - 1) * GRID_GAP) / rows;
+  return gridAtColumns(count, cols, areaW, areaH, GRID_GAP);
+}
+
+/**
+ * Sizes a grid of `count` tiles laid out `cols` across, bounded by both
+ * dimensions of the area.
+ * @returns The column count and cell dimensions.
+ */
+function gridAtColumns(
+  count: number,
+  cols: number,
+  areaW: number,
+  areaH: number,
+  gap: number,
+): GridSpec {
+  const rows = Math.ceil(count / cols);
+  const cellWByWidth = (areaW - (cols - 1) * gap) / cols;
+  const cellHByHeight = (areaH - (rows - 1) * gap) / rows;
   const cellH = Math.floor(Math.min(cellHByHeight, cellWByWidth / CARD_ASPECT));
   const cellW = Math.floor(cellH * CARD_ASPECT);
   return { cols, cellW, cellH };
+}
+
+/**
+ * Picks the column count that makes `count` tiles as large as the area allows.
+ * The landscape grid does not need this — two rows is always the answer on a
+ * canvas barely taller than one card — but the 9:16 area is deep enough that the
+ * right shape genuinely varies: five cards want two columns of three, twenty
+ * want four of five, and a fixed row rule would leave either case half empty.
+ * @returns The best column count and its cell dimensions.
+ */
+export function bestGridForArea(
+  count: number,
+  areaW: number,
+  areaH: number,
+  gap: number,
+): GridSpec {
+  const tiles = Math.max(count, 1);
+  let best = gridAtColumns(tiles, 1, areaW, areaH, gap);
+  for (let cols = 2; cols <= tiles; cols++) {
+    const candidate = gridAtColumns(tiles, cols, areaW, areaH, gap);
+    if (candidate.cellW > best.cellW) {
+      best = candidate;
+    }
+  }
+  return best;
 }
 
 /** Where the host + scan code end up for a given list. */
@@ -129,6 +226,11 @@ export type MarkPlacement =
  * where every pixel the footer takes comes off the art and a trailing cell is far
  * cheaper. Rather than encode that as a row-count rule, size both and keep the
  * one that leaves the cards larger.
+ *
+ * `withQr` false changes the answer, not just the drawing: the mark is then a
+ * single host label, and a card-sized cell holding one small line of type reads
+ * as a card that failed to load. So it always takes the footer, which at label
+ * height costs the grid a fraction of what the full band does.
  * @returns The chosen placement.
  */
 export function markPlacement(
@@ -137,6 +239,7 @@ export function markPlacement(
   hasMark: boolean,
   areaW: number,
   fullAreaH: number,
+  withQr = true,
 ): MarkPlacement {
   // An overflowing list needs the tile whether or not there is a mark to put in
   // it, so the mark rides along for free either way.
@@ -145,6 +248,9 @@ export function markPlacement(
   }
   if (!hasMark) {
     return "none";
+  }
+  if (!withQr) {
+    return "footer";
   }
   const asFooter = computeGrid(Math.max(cardCount, 1), areaW, fullAreaH - FOOTER_H - GAP);
   const asCell = computeGrid(cardCount + 1, areaW, fullAreaH);
@@ -223,16 +329,19 @@ function markCell(
   );
 }
 
+/** @returns The "12 printings" line beside the list's intent. */
+function countLabel(input: ShareImageInput): string {
+  return `${input.totalCount} ${input.totalCount === 1 ? input.unit.one : input.unit.many}`;
+}
+
 /**
- * The title row: the list's name with the owner's byline on one baseline, and
- * what the list is plus its size as a muted cluster on the right. Identical in
- * construction and type roles to the deck and tier-list heading rows — gold
- * marks who made it, muted carries the incidental metadata.
+ * The landscape title row: the list's name with the owner's byline on one
+ * baseline, and what the list is plus its size as a muted cluster on the right.
+ * Identical in construction and type roles to the deck and tier-list heading
+ * rows — gold marks who made it, muted carries the incidental metadata.
  * @returns The title row element.
  */
 function titleRow(input: ShareImageInput): Element {
-  const countLabel = `${input.totalCount} ${input.totalCount === 1 ? input.unit.one : input.unit.many}`;
-
   // One bottom-aligned row holds all three runs, rather than a baseline-aligned
   // left group centred beside a separately-centred right one: two centred boxes
   // of different heights each sit on their own centre line, so their baselines
@@ -281,7 +390,7 @@ function titleRow(input: ShareImageInput): Element {
         color: COLORS.muted,
         transform: `translateY(${baselineNudge(TITLE_SIZE, META_SIZE)}px)`,
       },
-      `${input.intentLabel} · ${countLabel}`,
+      `${input.intentLabel} · ${countLabel(input)}`,
     ),
   );
 
@@ -299,36 +408,161 @@ function titleRow(input: ShareImageInput): Element {
 }
 
 /**
- * Renders a list or bundle share image to a PNG buffer (ADR-024). `scale`
- * renders the same base layout at N× resolution for the HQ download, as the
- * deck and tier-list renderers do.
- * @returns PNG bytes ready to return as `image/png`.
+ * The vertical title block: the name on its own line, then the byline and the
+ * intent/count sharing a second one, with the QR at the right of both. Stacked
+ * rather than strung along a single row because the canvas is narrower than
+ * landscape while the type is larger, so all three on one line would leave the
+ * title a dozen characters. Same construction as the tier-list and deck
+ * vertical exports.
+ * @returns The title block element.
  */
-export async function renderShareImage(io: Io, input: ShareImageInput, scale = 1): Promise<Buffer> {
-  // Surface multiples first, then alphabetical, so the grid leads with the most
-  // tradeable cards. Collapse the overflow into a single "+N more" tile.
+function verticalTitleBlock(input: ShareImageInput, qrUri: string | null, blockH: number): Element {
+  const type = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      flexGrow: 1,
+      // The two lines never fill the block once the QR sets its height, so they
+      // keep their own height and centre against the mark.
+      height: V_TITLE_H,
+    },
+    element(
+      "div",
+      {
+        display: "flex",
+        fontSize: V_TITLE_SIZE,
+        lineHeight: 1,
+        fontWeight: 700,
+        color: COLORS.text,
+        whiteSpace: "nowrap",
+      },
+      elideTitle(input.title, V_TITLE_MAX_CHARS),
+    ),
+    element(
+      "div",
+      { display: "flex", flexDirection: "row", alignItems: "center", marginTop: 14 },
+      input.ownerName
+        ? element(
+            "div",
+            {
+              display: "flex",
+              fontSize: V_BYLINE_SIZE,
+              lineHeight: 1,
+              fontWeight: 600,
+              color: COLORS.gold,
+            },
+            `by ${input.ownerName}`,
+          )
+        : false,
+      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+      element(
+        "div",
+        {
+          display: "flex",
+          fontSize: V_META_SIZE,
+          lineHeight: 1,
+          color: COLORS.muted,
+          // Both runs pin lineHeight 1 and the row centres its children, so
+          // neither sits on the other's baseline and the correction the
+          // landscape row needs does not apply here.
+        },
+        `${input.intentLabel} · ${countLabel(input)}`,
+      ),
+    ),
+  );
+
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      height: blockH,
+      flexShrink: 0,
+    },
+    type,
+    qrUri
+      ? element(
+          "div",
+          { display: "flex", flexShrink: 0, marginLeft: 16 },
+          qrMark(qrUri, V_HEADER_QR),
+        )
+      : false,
+  );
+}
+
+/** The cards a canvas will actually draw, and the count the overflow tile reports. */
+interface ShownCards {
+  shown: ShareImageCard[];
+  overflow: boolean;
+  moreCount: number;
+}
+
+/**
+ * Orders the cards and splits off the overflow: multiples first, then
+ * alphabetical, so the grid leads with the most tradeable cards.
+ *
+ * Overflow is measured against the true total (not the possibly pre-capped
+ * cards array), so "+N more" stays accurate when the route caps how many
+ * entries it resolves art for (per-render work bound; see the image route).
+ * @returns The tiles to draw plus the "+N more" count.
+ */
+function selectCards(input: ShareImageInput, maxTiles: number): ShownCards {
   const ordered = [...input.cards].sort(
     (a, b) => b.quantity - a.quantity || a.cardName.localeCompare(b.cardName),
   );
-  // Overflow is measured against the true total (not the possibly pre-capped
-  // cards array), so "+N more" stays accurate when the route caps how many
-  // entries it resolves art for (per-render work bound; see the image route).
-  const overflow = input.totalCount > MAX_TILES;
-  const shown = overflow ? ordered.slice(0, MAX_TILES - 1) : ordered.slice(0, MAX_TILES);
-  const moreCount = overflow ? input.totalCount - shown.length : 0;
+  const overflow = input.totalCount > maxTiles;
+  const shown = overflow ? ordered.slice(0, maxTiles - 1) : ordered.slice(0, maxTiles);
+  return { shown, overflow, moreCount: overflow ? input.totalCount - shown.length : 0 };
+}
 
-  const hasMark = Boolean(input.siteHost) || Boolean(input.shareUrl);
+/**
+ * Renders a list, collection or bundle share image to a PNG buffer (ADR-024).
+ * `scale` renders the same base layout at N× resolution for the HQ download, as
+ * the deck and tier-list renderers do; `options.aspect` picks the canvas and
+ * `options.qr` whether the mark carries a scannable code.
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+export function renderShareImage(
+  io: Io,
+  input: ShareImageInput,
+  scale = 1,
+  options: ShareImageOptions = {},
+): Promise<Buffer> {
+  const withQr = options.qr !== false;
+  return options.aspect === "vertical"
+    ? renderVerticalShareImage(io, input, scale, withQr)
+    : renderLandscapeShareImage(io, input, scale, withQr);
+}
+
+/**
+ * The 1200×630 composition: title row, then a grid that takes the rest of the
+ * canvas, with the mark tucked wherever it costs the cards least.
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+async function renderLandscapeShareImage(
+  io: Io,
+  input: ShareImageInput,
+  scale: number,
+  withQr: boolean,
+): Promise<Buffer> {
+  const { shown, overflow, moreCount } = selectCards(input, MAX_TILES);
+
+  const hasMark = Boolean(input.siteHost) || Boolean(withQr && input.shareUrl);
   const areaW = WIDTH - PAD * 2;
   const fullAreaH = HEIGHT - PAD * 2 - TITLE_H - GAP;
-  const placement = markPlacement(shown.length, overflow, hasMark, areaW, fullAreaH);
+  const placement = markPlacement(shown.length, overflow, hasMark, areaW, fullAreaH, withQr);
+  const footerH = withQr ? FOOTER_H : FOOTER_LABEL_H;
 
   const cellCount = shown.length + (placement === "tile" || placement === "cell" ? 1 : 0);
-  const areaH = placement === "footer" ? fullAreaH - FOOTER_H - GAP : fullAreaH;
+  const areaH = placement === "footer" ? fullAreaH - footerH - GAP : fullAreaH;
   const { cols, cellW, cellH } = computeGrid(Math.max(cellCount, 1), areaW, areaH);
 
   const [dataUris, qrUri] = await Promise.all([
     Promise.all(shown.map((card) => tileArtDataUri(io, card.imageId, cellW, cellH, scale))),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+    withQr && input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
   ]);
 
   const cells: Child[] = shown.map((card, index) =>
@@ -375,7 +609,7 @@ export async function renderShareImage(io: Io, input: ShareImageInput, scale = 1
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
-        height: FOOTER_H,
+        height: footerH,
         marginTop: GAP,
         flexShrink: 0,
       },
@@ -412,4 +646,107 @@ export async function renderShareImage(io: Io, input: ShareImageInput, scale = 1
   );
 
   return renderTreeToPng(io, root, WIDTH, HEIGHT, scale);
+}
+
+/**
+ * The 9:16 composition: a two-line title block carrying the QR, the grid across
+ * the whole middle, and the host label as a footer. The mark has its own
+ * furniture here, so `markPlacement` does not apply — the overflow tile, when
+ * there is one, is just "+N more".
+ * @returns PNG bytes ready to return as `image/png`.
+ */
+async function renderVerticalShareImage(
+  io: Io,
+  input: ShareImageInput,
+  scale: number,
+  withQr: boolean,
+): Promise<Buffer> {
+  const { shown, overflow, moreCount } = selectCards(input, V_MAX_TILES);
+
+  const hasQr = withQr && Boolean(input.shareUrl);
+  const hasFooter = Boolean(input.siteHost);
+  const titleH = hasQr ? Math.max(V_TITLE_H, V_HEADER_QR) : V_TITLE_H;
+  const areaW = V_WIDTH - V_PAD * 2;
+  const areaH = V_HEIGHT - V_PAD * 2 - titleH - GAP - (hasFooter ? V_FOOTER_H + GAP : 0);
+
+  const cellCount = shown.length + (overflow ? 1 : 0);
+  const { cols, cellW, cellH } = bestGridForArea(Math.max(cellCount, 1), areaW, areaH, V_GRID_GAP);
+
+  const [dataUris, qrUri] = await Promise.all([
+    Promise.all(shown.map((card) => tileArtDataUri(io, card.imageId, cellW, cellH, scale))),
+    hasQr && input.shareUrl ? qrDataUri(input.shareUrl, scale, V_HEADER_QR) : Promise.resolve(null),
+  ]);
+
+  const cells: Child[] = shown.map((card, index) =>
+    cardTile(card, dataUris[index] ?? null, cellW, cellH),
+  );
+  if (overflow) {
+    // The host rides the footer and the code the title block, so the overflow
+    // tile carries only the count it exists for.
+    cells.push(markCell(moreCount, null, undefined, cellW, cellH));
+  }
+
+  const grid = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      width: cols * cellW + (cols - 1) * V_GRID_GAP,
+      gap: V_GRID_GAP,
+      alignContent: "center",
+      justifyContent: "center",
+    },
+    ...cells,
+  );
+
+  const gridArea = element(
+    "div",
+    { display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" },
+    grid,
+  );
+
+  const footer: Child =
+    hasFooter &&
+    element(
+      "div",
+      {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        height: V_FOOTER_H,
+        marginTop: GAP,
+        flexShrink: 0,
+      },
+      input.siteHost
+        ? element(
+            "div",
+            { display: "flex", fontSize: V_FOOTER_FONT, fontWeight: 600, color: COLORS.muted },
+            input.siteHost,
+          )
+        : false,
+    );
+
+  const root = element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "column",
+      width: V_WIDTH,
+      height: V_HEIGHT,
+      padding: V_PAD,
+      backgroundColor: COLORS.background,
+      backgroundImage:
+        "radial-gradient(80% 120% at 0% 0%, rgba(205,172,110,0.14) 0%, transparent 60%)",
+      color: COLORS.text,
+      fontFamily: "Hanken Grotesk",
+      overflow: "hidden",
+    },
+    verticalTitleBlock(input, qrUri, titleH),
+    element("div", { display: "flex", height: GAP, flexShrink: 0 }),
+    gridArea,
+    footer,
+  );
+
+  return renderTreeToPng(io, root, V_WIDTH, V_HEIGHT, scale);
 }

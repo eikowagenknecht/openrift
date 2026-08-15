@@ -1,7 +1,7 @@
 import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronRightIcon, CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
+import { ChevronRightIcon, CircleHelpIcon, PlusIcon, SwordsIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -405,7 +405,7 @@ export function DeckListPage() {
               <CircleHelpIcon className="size-4" />
             </PageTopBarIconButton>
             <PageTopBarButton render={<Link to="/decks/import" />}>
-              <DownloadIcon className="size-4" />
+              <UploadIcon className="size-4" />
               Import
             </PageTopBarButton>
             <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
@@ -439,7 +439,7 @@ export function DeckListPage() {
               Create your first deck
             </Button>
             <Link to="/decks/import" className={buttonVariants({ variant: "ghost" })}>
-              <DownloadIcon />
+              <UploadIcon />
               Import a deck
             </Link>
           </div>

@@ -147,6 +147,39 @@ describe("CollectionShareDialog", () => {
     expect(groupSharesMock).not.toHaveBeenCalled();
   });
 
+  it("previews the collection's own image render, QR included, once shared", async () => {
+    const user = userEvent.setup();
+    render(<Harness isPublic shareToken="AbCdEfGhIjKl" />);
+    await user.click(screen.getByRole("tab", { name: "Image" }));
+
+    const preview = await screen.findByRole("img", { name: "Preview of Main binder" });
+    expect(preview).toHaveAttribute(
+      "src",
+      "https://openrift.test/api/v1/collections/abc/image.png",
+    );
+    expect(screen.getByRole("switch", { name: /qr code/iu })).toBeEnabled();
+  });
+
+  // The owner route renders an unshared collection too, so the image stays
+  // downloadable — only the QR needs a link to point at.
+  it("offers the image without a QR before the collection is shared", async () => {
+    const user = userEvent.setup();
+    render(<Harness isPublic={false} shareToken={null} />);
+    await user.click(screen.getByRole("tab", { name: "Image" }));
+
+    const preview = await screen.findByRole("img", { name: "Preview of Main binder" });
+    expect(preview).toHaveAttribute(
+      "src",
+      "https://openrift.test/api/v1/collections/abc/image.png?qr=0",
+    );
+    // BaseUI's switch is a span, so it marks the disabled state with the ARIA
+    // attribute rather than the native `disabled` property.
+    expect(screen.getByRole("switch", { name: /qr code/iu })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it("keeps the share link usable when the friend-group panel throws", () => {
     // The render error is expected; keep it out of the test output.
     vi.spyOn(console, "error").mockImplementation(() => {});

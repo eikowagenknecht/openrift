@@ -179,6 +179,7 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
 
       <TierListShareDialog
         tierListId={tierList.id}
+        title={tierList.title}
         isPublic={tierList.isPublic}
         shareToken={tierList.shareToken}
         open={shareOpen}

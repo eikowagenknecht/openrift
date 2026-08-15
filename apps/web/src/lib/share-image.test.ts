@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   bundleShareImageUrl,
+  collectionOwnerImageUrl,
   collectionShareImageUrl,
   deckImageFromCardsUrl,
   deckOwnerImageUrl,
@@ -51,9 +52,33 @@ describe("listOwnerImageUrl", () => {
   });
 
   it("appends size=hq for the high-resolution download variant", () => {
-    expect(listOwnerImageUrl("https://openrift.app", "list-1", 42, "hq")).toBe(
+    expect(listOwnerImageUrl("https://openrift.app", "list-1", 42, { size: "hq" })).toBe(
       "https://openrift.app/api/v1/lists/list-1/image.png?v=42&size=hq",
     );
+  });
+
+  it("appends aspect and qr like the deck routes", () => {
+    expect(
+      listOwnerImageUrl("https://openrift.app", "list-1", 42, { aspect: "vertical", qr: false }),
+    ).toBe("https://openrift.app/api/v1/lists/list-1/image.png?v=42&aspect=vertical&qr=0");
+  });
+});
+
+describe("collectionOwnerImageUrl", () => {
+  it("builds the owner-authenticated collection image URL by id", () => {
+    expect(collectionOwnerImageUrl("https://openrift.app", "col-1")).toBe(
+      "https://openrift.app/api/v1/collections/col-1/image.png",
+    );
+  });
+
+  it("combines every option into one query string", () => {
+    expect(
+      collectionOwnerImageUrl("https://openrift.app", "col-1", {
+        size: "hq",
+        aspect: "vertical",
+        qr: false,
+      }),
+    ).toBe("https://openrift.app/api/v1/collections/col-1/image.png?size=hq&aspect=vertical&qr=0");
   });
 });
 
@@ -206,6 +231,12 @@ describe("bundleShareImageUrl", () => {
     expect(bundleShareImageUrl("https://openrift.app", "tok123", "1700-3")).toBe(
       "https://openrift.app/api/v1/users/share/tok123/image.png?v=1700-3",
     );
+  });
+
+  it("appends aspect and qr like the other grid routes", () => {
+    expect(
+      bundleShareImageUrl("https://openrift.app", "tok123", 42, { aspect: "vertical", qr: false }),
+    ).toBe("https://openrift.app/api/v1/users/share/tok123/image.png?v=42&aspect=vertical&qr=0");
   });
 });
 

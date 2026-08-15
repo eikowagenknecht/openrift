@@ -1,7 +1,6 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { CheckIcon, CopyIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { CopyTextButton } from "@/components/share/copy-text-button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatCardmarketWants } from "@/lib/list-export";
 
 interface TradeCardmarketExportDialogProps {
@@ -28,14 +26,9 @@ interface TradeCardmarketExportDialogProps {
  * @returns The labeled textarea block, or null when the direction is empty.
  */
 function DirectionBlock({ heading, text }: { heading: string; text: string }) {
-  const { copied, copy } = useCopyToClipboard();
-
   if (text.length === 0) {
     return null;
   }
-
-  // Use \r\n so line breaks survive iOS Safari's clipboard.
-  const handleCopy = () => void copy(text.replaceAll("\n", "\r\n"));
 
   const lineCount = text.split("\n").length;
 
@@ -43,10 +36,7 @@ function DirectionBlock({ heading, text }: { heading: string; text: string }) {
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-medium">{heading}</h3>
-        <Button size="sm" variant="outline" onClick={handleCopy}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <CopyTextButton label="Copy" getText={() => text} size="sm" />
       </div>
       <Textarea
         readOnly

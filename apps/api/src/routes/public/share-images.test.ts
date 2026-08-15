@@ -227,6 +227,35 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(renderMock.mock.calls[0]![1].totalCount).toBe(0);
   });
+
+  it("renders the landscape canvas with the mark on when no params are given", async () => {
+    mockListsRepo.findByShareToken.mockResolvedValue({
+      list: tradeList,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.test",
+    });
+    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
+
+    await app.request("/api/v1/lists/share/tok-abc/image.png");
+
+    // The og:image URL carries neither param, so its cached entry must keep
+    // rendering exactly what it did before the two were added.
+    expect(renderMock.mock.calls[0]![3]).toEqual({ aspect: "landscape", qr: true });
+  });
+
+  it("passes the vertical aspect and the code toggle through", async () => {
+    mockListsRepo.findByShareToken.mockResolvedValue({
+      list: tradeList,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.test",
+    });
+    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
+
+    const res = await app.request("/api/v1/lists/share/tok-abc/image.png?aspect=vertical&qr=0");
+
+    expect(res.status).toBe(200);
+    expect(renderMock.mock.calls[0]![3]).toEqual({ aspect: "vertical", qr: false });
+  });
 });
 
 describe("GET /api/v1/users/share/:token/image.png", () => {
@@ -254,6 +283,27 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
       title: "Wish & trade lists",
       intentLabel: "1 list",
     });
+  });
+
+  it("passes the vertical aspect and the code toggle through", async () => {
+    mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue({
+      userId: "u1",
+      displayName: "Alice",
+      email: "alice@example.test",
+      image: null,
+    });
+    mockUserSharesRepo.listsForOwner.mockResolvedValue([
+      { list: tradeList, entryCount: 1, viaGroups: [] },
+    ]);
+    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([copyEntry("e1", "Teemo, Scout", 1)]);
+
+    const res = await app.request(
+      "/api/v1/users/share/tok-bundle/image.png?aspect=vertical&qr=0&size=hq",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderMock.mock.calls[0]![2]).toBe(2);
+    expect(renderMock.mock.calls[0]![3]).toEqual({ aspect: "vertical", qr: false });
   });
 
   it("returns 404 for an unknown bundle token", async () => {
@@ -301,6 +351,23 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
       siteHost: "openrift.app",
     });
     expect(renderMock.mock.calls[0]![1].cards).toHaveLength(2);
+  });
+
+  it("passes the vertical aspect and the code toggle through", async () => {
+    mockCollectionsRepo.findByShareToken.mockResolvedValue({
+      collection: { id: "col-1", name: "My Binder", updatedAt: NOW, copyCount: 7 },
+      ownerName: "Bob",
+      ownerEmail: "bob@example.test",
+    });
+    mockCopiesRepo.collectionShareImageCards.mockResolvedValue({ cards: [], totalDistinct: 0 });
+
+    const res = await app.request(
+      "/api/v1/collections/share/tok-col/image.png?aspect=vertical&qr=0&size=hq",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderMock.mock.calls[0]![2]).toBe(2);
+    expect(renderMock.mock.calls[0]![3]).toEqual({ aspect: "vertical", qr: false });
   });
 
   it("returns 404 for an unknown or private token and does not render", async () => {

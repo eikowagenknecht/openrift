@@ -1,12 +1,19 @@
 import { ImageDownIcon, LinkIcon, PrinterIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
+import { ShareImagePanel } from "@/components/share/share-image-panel";
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDisableUserShare,
@@ -15,7 +22,7 @@ import {
   useUserShareState,
 } from "@/hooks/use-user-share";
 import { useSession } from "@/lib/auth-session";
-import { bundleShareImageUrl, downloadImageFromUrl } from "@/lib/share-image";
+import { bundleShareImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
@@ -31,29 +38,20 @@ export function PublicSharingSection() {
   const enableShare = useEnableUserShare();
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
-  const [downloadingImage, setDownloadingImage] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  // A bundle has no single updatedAt, so the cache-bust is stamped when the
+  // dialog opens. Stamping it inside the URL builder instead would hand the
+  // preview a new URL on every render and reload the image forever.
+  const [imageVersion, setImageVersion] = useState(0);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [confirmRotateOpen, setConfirmRotateOpen] = useState(false);
 
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
 
-  const handleDownloadImage = async () => {
-    if (!shareToken) {
-      return;
-    }
-    setDownloadingImage(true);
-    // React Compiler can't yet lower try/finally; reset in both paths instead.
-    try {
-      // A bundle has no single updatedAt here, so cache-bust per download to
-      // always fetch the current image.
-      const url = bundleShareImageUrl(getSiteUrl(), shareToken, Date.now());
-      await downloadImageFromUrl(url, "openrift-lists.png");
-      setDownloadingImage(false);
-    } catch {
-      toast.error("Couldn't prepare the image. Please try again.");
-      setDownloadingImage(false);
-    }
+  const openImageDialog = () => {
+    setImageVersion(Date.now());
+    setImageOpen(true);
   };
 
   return (
@@ -80,14 +78,9 @@ export function PublicSharingSection() {
                   Share a card image of all your lists in WhatsApp, Discord, or any group chat.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="self-start"
-                onClick={handleDownloadImage}
-                disabled={downloadingImage}
-              >
+              <Button variant="outline" className="self-start" onClick={openImageDialog}>
                 <ImageDownIcon />
-                {downloadingImage ? "Preparing…" : "Download image"}
+                Download image…
               </Button>
             </div>
 
@@ -105,7 +98,7 @@ export function PublicSharingSection() {
                 onClick={() => setBinderSheetOpen(true)}
               >
                 <PrinterIcon />
-                Create PDF
+                Print binder sheet
               </Button>
             </div>
 
@@ -139,6 +132,33 @@ export function PublicSharingSection() {
           </Button>
         )}
       </CardContent>
+
+      {shareToken ? (
+        <Dialog open={imageOpen} onOpenChange={setImageOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Download image</DialogTitle>
+              <DialogDescription>
+                A card image of your wishlists and tradelists, sized for a chat or a story.
+              </DialogDescription>
+            </DialogHeader>
+            <ShareImagePanel
+              title="your shared lists"
+              filenameBase="openrift-lists"
+              buildUrl={(choice) =>
+                bundleShareImageUrl(getSiteUrl(), shareToken, imageVersion, {
+                  size: choice.scale >= 2 ? "hq" : undefined,
+                  aspect: choice.aspect,
+                  qr: choice.qr,
+                })
+              }
+              scales={[1, 2]}
+              qr="available"
+              qrLabel="Include a QR code to your lists"
+            />
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {shareUrl ? (
         <BinderSheetDialog

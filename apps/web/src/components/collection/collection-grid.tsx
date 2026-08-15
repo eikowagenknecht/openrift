@@ -67,6 +67,7 @@ import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { formatterForMarketplace } from "@/lib/format";
 import { isCopiesOnlyGrouping } from "@/lib/group-by-collection";
+import { getSiteUrl } from "@/lib/site-config";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -724,6 +725,13 @@ export function CollectionGrid({
   // the first copies fetch is still in flight.
   const isEmpty = !showLibrary && copiesReady && stacks.length === 0;
 
+  // Only a live public link can back a printed QR sheet, so the bar's binder
+  // entry appears with the link and goes away again when sharing stops.
+  const collectionShareUrl =
+    currentCollection?.isPublic && currentCollection.shareToken
+      ? `${getSiteUrl()}/collections/share/${currentCollection.shareToken}`
+      : undefined;
+
   const collectionTopBar = (
     <CollectionTopBar
       title={title}
@@ -759,6 +767,8 @@ export function CollectionGrid({
       // collection feeds *their own* deck inventory, not just group admins.
       canToggleDeckbuilding={Boolean(currentCollection)}
       deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
+      shareUrl={collectionShareUrl}
+      collectionName={currentCollection?.name}
       onEdit={() => useCollectionOverlayStore.getState().setEditOpen(true)}
       onDelete={() => useCollectionOverlayStore.getState().setDeleteOpen(true)}
       onClearInbox={() => useCollectionOverlayStore.getState().setClearInboxOpen(true)}

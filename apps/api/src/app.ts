@@ -33,6 +33,7 @@ import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
+import { collectionImageRoute } from "./routes/authenticated/collection-image.js";
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { tierListImageRoute } from "./routes/authenticated/tier-list-image.js";
@@ -447,6 +448,7 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute)
+    .route("/api/v1", collectionImageRoute)
     .route("/api/v1", deckImageRoute)
     .route("/api/v1", tierListImageRoute);
 

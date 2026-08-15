@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import type * as ListImageModule from "../../services/list-image.js";
+import { renderListImage } from "../../services/list-image.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { listImageRoute } from "./list-image.js";
@@ -90,5 +91,45 @@ describe("listImageRoute auth scoping", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(mockListsRepo.getByIdForUser).toHaveBeenCalledWith("abc", "user-1");
+  });
+});
+
+describe("listImageRoute render params", () => {
+  beforeEach(() => {
+    mockListsRepo.getByIdForUser.mockResolvedValue({
+      id: "abc",
+      name: "My wishlist",
+      intent: "buy",
+      kind: "card",
+    });
+  });
+
+  it("defaults to the landscape canvas with the mark on at 1x", async () => {
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/lists/abc/image.png");
+
+    const call = vi.mocked(renderListImage).mock.calls[0];
+    const scale = call?.[2];
+    const options = call?.[3];
+    expect(scale).toBe(1);
+    expect(options).toEqual({ aspect: "landscape", qr: true });
+  });
+
+  it("passes the vertical aspect, the code toggle and the size through", async () => {
+    await buildApp({ user: { id: "user-1" } }).request(
+      "/api/v1/lists/abc/image.png?size=hq&aspect=vertical&qr=0",
+    );
+
+    const call = vi.mocked(renderListImage).mock.calls[0];
+    const scale = call?.[2];
+    const options = call?.[3];
+    expect(scale).toBe(2);
+    expect(options).toEqual({ aspect: "vertical", qr: false });
+  });
+
+  it("honors an explicit 3x scale on the owner-only download", async () => {
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/lists/abc/image.png?scale=3");
+
+    const scale = vi.mocked(renderListImage).mock.calls[0]?.[2];
+    expect(scale).toBe(3);
   });
 });

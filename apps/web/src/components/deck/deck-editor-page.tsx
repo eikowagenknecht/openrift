@@ -6,13 +6,13 @@ import {
   BoxIcon,
   CopyIcon,
   CornerLeftUpIcon,
+  DownloadIcon,
   EllipsisVerticalIcon,
   FlaskConicalIcon,
   GitBranchIcon,
   GitCompareArrowsIcon,
   HistoryIcon,
   ImageIcon,
-  LinkIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
@@ -34,6 +34,7 @@ import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckHomeCollectionDialog } from "@/components/deck/deck-home-collection-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckMobileDock } from "@/components/deck/deck-mobile-dock";
+import { DeckPrintDialog } from "@/components/deck/deck-print-dialog";
 import { DeckQuickAdd } from "@/components/deck/deck-quick-add";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
@@ -45,13 +46,13 @@ import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { LocalDeckBadge } from "@/components/deck/local-save-hint";
-import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Footer } from "@/components/layout/footer";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
   PageTopBarActions,
   PageTopBarBack,
+  PageTopBarButton,
   PageTopBarHeightContext,
   PageTopBarIconButton,
   PageTopBarTitle,
@@ -185,7 +186,7 @@ function DeckEditorContent({
   const [compareOpen, setCompareOpen] = useState(false);
   const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [proxyOpen, setProxyOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [variantsOpen, setVariantsOpen] = useState(false);
@@ -619,18 +620,44 @@ function DeckEditorContent({
                 </Tooltip>
                 <DeckUndoControls deckId={deckId} />
                 <div className="hidden md:flex md:items-center md:gap-1">
-                  <DeckExportDialog
-                    deckId={deckId}
-                    deckName={data.deck.name}
-                    isDirty={saveStatus.isDirty}
-                  />
-                  <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
+                  <PageTopBarButton onClick={() => setShareOpen(true)}>
+                    <Share2Icon className="size-4" />
+                    Share
+                  </PageTopBarButton>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                     <EllipsisVerticalIcon className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {/* Share has its own button in the bar from md up, so the
+                        entry here is the phone's only way to it. */}
+                    <div className="md:hidden">
+                      <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                        <Share2Icon className="size-4" />
+                        Share…
+                      </DropdownMenuItem>
+                    </div>
+                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                      <DownloadIcon className="size-4" />
+                      Export…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPrintOpen(true)}>
+                      <PrinterIcon className="size-4" />
+                      Print…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        void navigate({
+                          to: "/decks/import",
+                          search: { replaceDeckId: deckId },
+                        })
+                      }
+                    >
+                      <UploadIcon className="size-4" />
+                      Import &amp; replace cards…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     {/* Descriptions are a signed-in feature (ADR-035), so a
                         local deck gets the name on its own. */}
                     <DropdownMenuItem
@@ -651,17 +678,6 @@ function DeckEditorContent({
                         Stored in…
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem
-                      onClick={() =>
-                        void navigate({
-                          to: "/decks/import",
-                          search: { replaceDeckId: deckId },
-                        })
-                      }
-                    >
-                      <UploadIcon className="size-4" />
-                      Import &amp; replace cards…
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setCompareOpen(true)}>
                       <GitCompareArrowsIcon className="size-4" />
                       Compare with another deck…
@@ -714,29 +730,10 @@ function DeckEditorContent({
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
                     )}
-                    {/* Local decks have no server share link/image; the deck code
-                      lives in Export, so only server decks get "Share deck". */}
-                    {!isLocal && (
-                      <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                        <LinkIcon className="size-4" />
-                        Share deck
-                      </DropdownMenuItem>
-                    )}
                     <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
                       <PlayIcon className="size-4" />
                       Play on RiftAtlas
                     </DropdownMenuItem>
-                    <div className="md:hidden">
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                        <Share2Icon className="size-4" />
-                        Export
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setProxyOpen(true)}>
-                        <PrinterIcon className="size-4" />
-                        Proxies
-                      </DropdownMenuItem>
-                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </PageTopBarActions>
@@ -796,25 +793,24 @@ function DeckEditorContent({
           onOpenChange={setVariantsOpen}
         />
       )}
-      {!isLocal && (
-        <DeckShareDialog
-          deckId={deckId}
-          isPublic={data.deck.isPublic}
-          shareToken={data.deck.shareToken}
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-        />
-      )}
-      <DeckExportDialog
+      <DeckShareDialog
         deckId={deckId}
         deckName={data.deck.name}
+        isPublic={data.deck.isPublic}
+        shareToken={data.deck.shareToken}
+        isDirty={saveStatus.isDirty}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
+      <DeckExportDialog
+        deckId={deckId}
         isDirty={saveStatus.isDirty}
         open={exportOpen}
         onOpenChange={setExportOpen}
       />
-      <ProxyExportDialog
-        open={proxyOpen}
-        onOpenChange={setProxyOpen}
+      <DeckPrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
         deckId={deckId}
         deckName={data.deck.name}
       />

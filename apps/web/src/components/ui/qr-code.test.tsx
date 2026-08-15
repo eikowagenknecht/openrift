@@ -1,5 +1,5 @@
+import { QR_MARGIN, qrMatrix } from "@openrift/shared/qr";
 import { render } from "@testing-library/react";
-import { QRCodeSVG } from "qrcode.react";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -16,37 +16,29 @@ function svgOf(node: ReactElement): Element {
   return svg;
 }
 
-/**
- * The module pattern, which changes with the error-correction level.
- * @returns The joined path data of every module path in the code.
- */
-function modulesOf(svg: Element): string {
-  return [...svg.querySelectorAll("path")].map((path) => path.getAttribute("d")).join("|");
-}
-
 describe("QrCode", () => {
-  it("encodes at error-correction level M rather than the library default", () => {
-    const rendered = modulesOf(svgOf(<QrCode value={SHARE_URL} />));
-    const levelM = modulesOf(
-      svgOf(<QRCodeSVG value={SHARE_URL} size={160} level="M" marginSize={2} />),
-    );
-    const levelL = modulesOf(
-      svgOf(<QRCodeSVG value={SHARE_URL} size={160} level="L" marginSize={2} />),
+  it("draws every dark module of the shared encoder's matrix", () => {
+    const matrix = qrMatrix(SHARE_URL);
+    const dark = matrix.flat().filter(Boolean).length;
+    const drawn =
+      svgOf(<QrCode value={SHARE_URL} />)
+        .querySelector("path")
+        ?.getAttribute("d") ?? "";
+    // Runs are merged, so count the modules each `h<n>` run covers.
+    const covered = [...drawn.matchAll(/h(?<run>\d+)v1/gu)].reduce(
+      (total, match) => total + Number(match.groups?.run),
+      0,
     );
 
-    expect(rendered).toBe(levelM);
-    // Guards the assertion above: if the two levels ever produced the same
-    // pattern, matching level M would prove nothing.
-    expect(levelM).not.toBe(levelL);
+    expect(covered).toBe(dark);
   });
 
   it("bakes in a quiet zone so a tight layout cannot crowd the code", () => {
-    const withMargin = svgOf(<QrCode value={SHARE_URL} />).getAttribute("viewBox");
-    const withoutMargin = svgOf(
-      <QRCodeSVG value={SHARE_URL} size={160} level="M" marginSize={0} />,
-    ).getAttribute("viewBox");
+    const extent = qrMatrix(SHARE_URL).length + QR_MARGIN * 2;
 
-    expect(withMargin).not.toBe(withoutMargin);
+    expect(svgOf(<QrCode value={SHARE_URL} />).getAttribute("viewBox")).toBe(
+      `0 0 ${extent} ${extent}`,
+    );
   });
 
   it("keeps the code on a light plate so it scans in either theme", () => {

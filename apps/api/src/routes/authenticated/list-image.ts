@@ -8,14 +8,20 @@ import {
   shareUrlFromOrigin,
   siteHostFromOrigin,
 } from "../../services/list-image.js";
+import { aspectFromQuery, qrFromQuery, scaleFromQuery } from "../../services/share-image-core.js";
 import type { Variables } from "../../types.js";
 
 /**
  * Owner-authenticated download of a list's share image (ADR-024). The share
  * dialog's "Download image" uses this so it works whether or not the list is
  * publicly shared: the public og:image route resolves by share token, this one
- * resolves the caller's own list by id. Owner-only, served `no-store` (the
- * list is mutable and this is an on-demand, low-traffic download).
+ * resolves the caller's own list by id. `?aspect=vertical` renders the 9:16
+ * canvas, `?scale=N` the N× variant (`?size=hq` is the older spelling of 2×),
+ * and `?qr=0` leaves the scannable mark off — the same contract the deck and
+ * tier-list download routes carry.
+ *
+ * Owner-only, served `no-store` (the list is mutable and this is an on-demand,
+ * low-traffic download).
  */
 export const listImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/lists")
@@ -53,7 +59,8 @@ export const listImageRoute = new Hono<{ Variables: Variables }>()
             : undefined,
         canonicalPrintings,
       },
-      c.req.query("size") === "hq" ? 2 : 1,
+      scaleFromQuery(c.req.query("scale"), c.req.query("size")),
+      { aspect: aspectFromQuery(c.req.query("aspect")), qr: qrFromQuery(c.req.query("qr")) },
     );
 
     return new Response(png, {

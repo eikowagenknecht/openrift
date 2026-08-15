@@ -1,5 +1,5 @@
+import { qrPngDataUri } from "@openrift/shared/qr";
 import { Resvg } from "@resvg/resvg-js";
-import QRCode from "qrcode";
 import satori from "satori";
 
 import type { Io } from "../io.js";
@@ -498,12 +498,7 @@ export function baselineNudge(largerFontSize: number, smallerFontSize: number): 
  * @returns The QR data URI, or null when encoding fails.
  */
 export function qrDataUri(url: string, scale: number, size = QR_SIZE): Promise<string | null> {
-  return QRCode.toDataURL(url, {
-    errorCorrectionLevel: "M",
-    width: size * scale,
-    margin: 2,
-    color: { dark: "#000000", light: "#ffffff" },
-  }).catch(() => null);
+  return qrPngDataUri(url, { width: size * scale }).catch(() => null);
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { Currency, TradePreference } from "@openrift/shared";
+import type { Currency, ListIntent, TradePreference } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -6,6 +6,7 @@ import {
   EllipsisVerticalIcon,
   LibraryBigIcon,
   PencilIcon,
+  PrinterIcon,
   Share2Icon,
   SparklesIcon,
   Trash2Icon,
@@ -17,7 +18,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
-import { PageTopBarIconButton } from "@/components/layout/page-top-bar";
+import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
@@ -31,6 +32,7 @@ import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { ListVisibilityMenuItem } from "@/components/list/list-visibility-menu-item";
 import { MoveCopiesToCollectionDialog } from "@/components/list/move-copies-to-collection-dialog";
 import { RuleEditorDialog } from "@/components/list/rule-editor-dialog";
+import { BinderSheetDialog } from "@/components/share/binder-sheet-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,12 +48,20 @@ import {
   useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
+import { getSiteUrl } from "@/lib/site-config";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 
 interface ListPageProps {
   listId: string;
 }
+
+/** Prefilled instruction line on the printed binder sheet, per list intent. */
+const BINDER_SUBTITLES: Record<ListIntent, string> = {
+  wish: "Scan to see my wishlist",
+  trade: "Scan to see my trades",
+  organize: "Scan to see this list",
+};
 
 export function ListPage({ listId }: ListPageProps) {
   const navigate = useNavigate();
@@ -67,6 +77,7 @@ export function ListPage({ listId }: ListPageProps) {
   const [importOpen, setImportOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
   const [moveAllOpen, setMoveAllOpen] = useState(false);
+  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
@@ -134,10 +145,16 @@ export function ListPage({ listId }: ListPageProps) {
   // made of. Per-entry and per-selection moves live in the grid context menu.
   const allCopyIds = listCopyIds(data.entries);
 
+  // The binder sheet prints a QR of the public link, so it only applies once
+  // the list has one.
+  const shareUrl = data.list.shareToken
+    ? `${getSiteUrl()}/lists/share/${data.list.shareToken}`
+    : null;
+
   // The bar is assembled here (it belongs to the page) but rendered by the
-  // browser, which owns select mode — hence the callback. Everything else the
-  // list can do lives in the ⋮ menu, so the bar has room for Select all / Done
-  // on a phone without anything stepping aside.
+  // browser, which owns select mode — hence the callback. Share is the one
+  // action promoted out of the ⋮ menu; everything else stays in it, so the bar
+  // still has room for Select all / Done on a phone.
   const renderTopBar = (selectActions: ReactNode = null) => {
     const topBar = (
       <ListHeader
@@ -148,6 +165,10 @@ export function ListPage({ listId }: ListPageProps) {
         actions={
           <>
             {selectActions}
+            <PageTopBarButton onClick={() => setShareOpen(true)}>
+              <Share2Icon className="size-4" />
+              Share
+            </PageTopBarButton>
             <DropdownMenu>
               <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                 <EllipsisVerticalIcon className="size-4" />
@@ -165,10 +186,6 @@ export function ListPage({ listId }: ListPageProps) {
                     <span className="text-primary ml-auto pl-3 text-xs">{activeRuleCount}</span>
                   ) : null}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                  <Share2Icon className="size-4" />
-                  Share
-                </DropdownMenuItem>
                 <ListVisibilityMenuItem
                   listId={data.list.id}
                   intent={data.list.intent}
@@ -177,13 +194,19 @@ export function ListPage({ listId }: ListPageProps) {
                 {(data.list.kind === "card" || data.list.kind === "printing") && (
                   <DropdownMenuItem onClick={() => setImportOpen(true)}>
                     <UploadIcon className="size-4" />
-                    Import
+                    Import…
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => setExportOpen(true)}>
                   <DownloadIcon className="size-4" />
-                  Export
+                  Export…
                 </DropdownMenuItem>
+                {shareUrl !== null && (
+                  <DropdownMenuItem onClick={() => setBinderSheetOpen(true)}>
+                    <PrinterIcon className="size-4" />
+                    Print binder sheet…
+                  </DropdownMenuItem>
+                )}
                 {allCopyIds.length > 0 && (
                   <DropdownMenuItem onClick={() => setMoveAllOpen(true)}>
                     <BookOpenIcon className="size-4" />
@@ -248,6 +271,17 @@ export function ListPage({ listId }: ListPageProps) {
         setShareOpen(false);
         setVisibilityOpen(true);
       }}
+    />
+  );
+
+  const binderSheetDialog = shareUrl !== null && (
+    <BinderSheetDialog
+      open={binderSheetOpen}
+      onOpenChange={setBinderSheetOpen}
+      shareUrl={shareUrl}
+      defaultTitle={data.list.name}
+      defaultSubtitle={BINDER_SUBTITLES[data.list.intent]}
+      filenameHint={data.list.name}
     />
   );
 
@@ -353,6 +387,7 @@ export function ListPage({ listId }: ListPageProps) {
         {editDialog}
         {deleteDialog}
         {shareDialog}
+        {binderSheetDialog}
         {visibilityDialog}
         {exportDialog}
         {importDialog}
@@ -388,6 +423,7 @@ export function ListPage({ listId }: ListPageProps) {
       {editDialog}
       {deleteDialog}
       {shareDialog}
+      {binderSheetDialog}
       {visibilityDialog}
       {exportDialog}
       {importDialog}

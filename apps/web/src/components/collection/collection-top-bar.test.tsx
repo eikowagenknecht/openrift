@@ -36,6 +36,11 @@ function renderTopBar(overrides: {
   hasCards?: boolean;
   showAddActions?: boolean;
   homeDecks?: { id: string; name: string }[];
+  canShare?: boolean;
+  mode?: "browse" | "select";
+  shareUrl?: string;
+  collectionName?: string;
+  onShare?: () => void;
 }) {
   render(
     <CollectionTopBar
@@ -111,5 +116,51 @@ describe("CollectionTopBar", () => {
 
     expect(screen.queryByRole("button", { name: /scan/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
+  });
+
+  it("puts Share in the bar on a named collection, and keeps the menu entry", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ addActionsInBar: false });
+
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+  });
+
+  // "All cards" and the inbox already carry Scan and Quick add, so Share stays
+  // in the menu there rather than making a fourth labelled button.
+  it("leaves Share menu-only where the bar carries the add actions", () => {
+    renderTopBar({ addActionsInBar: true });
+
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+  });
+
+  it("withholds the binder sheet until the collection has a share link", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ addActionsInBar: false });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /print binder sheet/iu }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the binder sheet dialog from the actions menu", async () => {
+    const user = userEvent.setup();
+    renderTopBar({
+      addActionsInBar: false,
+      shareUrl: "https://openrift.test/collections/share/AbCdEfGhIjKl",
+      collectionName: "Main binder",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: /print binder sheet/iu }));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Print for your binder" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toHaveValue("Main binder");
   });
 });

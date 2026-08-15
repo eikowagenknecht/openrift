@@ -16,6 +16,19 @@ interface UseCopyToClipboard {
 }
 
 /**
+ * Writes `text` to the clipboard, for the surfaces that show their own feedback
+ * (a toast, a dropdown that closes) rather than the hook's inline "Copied".
+ *
+ * Rejects the way the platform API does, so the caller decides what a denied
+ * write means. Prefer {@link useCopyToClipboard} inside a component.
+ *
+ * @returns A promise that settles when the write does.
+ */
+export async function copyTextToClipboard(text: string): Promise<void> {
+  await navigator.clipboard.writeText(text);
+}
+
+/**
  * Clipboard write plus the transient "Copied" flag every share surface shows.
  *
  * Clipboard writes reject on their own (permission denied, insecure context,
@@ -41,7 +54,7 @@ export function useCopyToClipboard(): UseCopyToClipboard {
 
   const copy = async (text: string): Promise<boolean> => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyTextToClipboard(text);
     } catch {
       // Denied or unavailable. The text stays selectable on screen.
       return false;

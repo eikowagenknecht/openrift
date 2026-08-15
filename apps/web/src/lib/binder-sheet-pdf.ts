@@ -1,5 +1,5 @@
+import { qrPngDataUri } from "@openrift/shared/qr";
 import type { jsPDF } from "jspdf";
-import QRCode from "qrcode";
 
 import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
@@ -554,14 +554,7 @@ function drawRuler(doc: jsPDF, placement: RulerPlacement): void {
  * @returns A PNG data URL of the QR code.
  */
 async function buildQrDataUrl(shareUrl: string, sizeMm: number): Promise<string> {
-  return await QRCode.toDataURL(shareUrl, {
-    errorCorrectionLevel: "M",
-    // One module of quiet zone in the bitmap; the sheet's own padding supplies
-    // the rest of the margin a scanner needs.
-    margin: 1,
-    width: qrPixelWidth(sizeMm),
-    color: { dark: "#000000", light: "#ffffff" },
-  });
+  return await qrPngDataUri(shareUrl, { width: qrPixelWidth(sizeMm) });
 }
 
 /**
