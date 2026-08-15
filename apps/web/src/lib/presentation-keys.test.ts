@@ -5,6 +5,7 @@ import {
   isTypingTarget,
   ownsSpaceKey,
   resolvePresentationKey,
+  WALK_ACTIONS,
 } from "./presentation-keys";
 
 describe("resolvePresentationKey", () => {
@@ -32,6 +33,8 @@ describe("resolvePresentationKey", () => {
     ["R", "toggleReveal"],
     ["d", "toggleDirection"],
     ["D", "toggleDirection"],
+    ["e", "toggleEdit"],
+    ["E", "toggleEdit"],
     ["p", "push"],
     ["P", "push"],
     ["?", "toggleHelp"],
@@ -73,6 +76,41 @@ describe("BOARD_ACTIONS", () => {
 
   it("leaves the OBS push out, since a board run can push too", () => {
     expect(BOARD_ACTIONS.has("push")).toBe(false);
+  });
+});
+
+describe("WALK_ACTIONS", () => {
+  it("holds exactly the actions that need a running order", () => {
+    expect([...WALK_ACTIONS].toSorted()).toEqual([
+      "first",
+      "last",
+      "next",
+      "prev",
+      "push",
+      "toggleBoard",
+      "toggleDirection",
+      "toggleHero",
+      "toggleRank",
+      "toggleReveal",
+      "toggleStrip",
+      "toggleText",
+    ]);
+  });
+
+  // The three the editor keeps. Adding one of these to WALK_ACTIONS would leave
+  // a creator ranking on camera with no way to see the keys, get back to the
+  // show, or leave the stage.
+  it.each(["toggleHelp", "toggleEdit", "exit"] as const)(
+    "keeps %s alive while editing",
+    (action) => {
+      expect(WALK_ACTIONS.has(action)).toBe(false);
+    },
+  );
+
+  it("subsumes every board action, since a board layer only dresses the walk", () => {
+    for (const action of BOARD_ACTIONS) {
+      expect(WALK_ACTIONS.has(action)).toBe(true);
+    }
   });
 });
 

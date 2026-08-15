@@ -34,3 +34,23 @@ describe("/stage filter search", () => {
     expect(source).toMatch(/<FilterSearchProvider value=\{search\}>/u);
   });
 });
+
+describe("/stage mode", () => {
+  it("accepts the edit mode", () => {
+    expect(validateSearch.parse({ tier: "list-1", mode: "edit" })).toMatchObject({
+      tier: "list-1",
+      mode: "edit",
+    });
+  });
+
+  it("presents when no mode is given", () => {
+    expect(validateSearch.parse({ tier: "list-1" }).mode).toBeUndefined();
+  });
+
+  // The editor used to be `mode=rank`, before it became a switch on the stage
+  // rather than a separate destination. A link from before the rename opens the
+  // show instead of failing the route, which is the right way to lose a param.
+  it.each(["rank", "nonsense", ""])("falls back to presenting for %o", (mode) => {
+    expect(validateSearch.parse({ tier: "list-1", mode }).mode).toBeUndefined();
+  });
+});

@@ -15,7 +15,6 @@ import { PresentCardBrowser } from "@/components/present/present-card-browser";
 import { PresentQueuePanel } from "@/components/present/present-queue-panel";
 import { QueuePresentation } from "@/components/present/queue-presentation";
 import type { QueueSource } from "@/components/present/queue-source-picker";
-import { RankLivePresentation } from "@/components/present/rank-live-presentation";
 import { StageOutputBlock } from "@/components/present/stage-output-block";
 import {
   OwnedTierListPresentation,
@@ -87,25 +86,22 @@ function StagePage() {
     );
   }
 
-  if (tier && mode === "rank") {
-    return (
-      <Suspense fallback={<StageFallback />}>
-        <RankLivePresentation
-          tierListId={tier}
-          onExit={() => {
-            void navigate({ to: "/tier-lists/$tierListId", params: { tierListId: tier } });
-          }}
-        />
-      </Suspense>
-    );
-  }
-
   if (tier) {
     return (
       <Suspense fallback={<StageFallback />}>
         <OwnedTierListPresentation
           tierListId={tier}
           index={i ?? 0}
+          editing={mode === "edit"}
+          onEditingChange={(next) => {
+            // `replace` so flipping between ranking and showing during a segment
+            // doesn't build a history stack the back button has to climb.
+            void navigate({
+              to: "/stage",
+              search: (prev) => ({ ...prev, mode: next ? "edit" : undefined }),
+              replace: true,
+            });
+          }}
           onIndexChange={setIndex}
           onExit={() => {
             void navigate({ to: "/tier-lists/$tierListId", params: { tierListId: tier } });

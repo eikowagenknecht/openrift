@@ -61,11 +61,16 @@ const stageSearchSchema = filterSearchSchema.extend({
   /** Position in the queue. Clamped against the resolved cards at render time. */
   i: z.number().int().nonnegative().optional().catch(undefined),
   /**
-   * What a `tier` list is on stage for. Absent, it is presented: the saved
-   * board, walked card by card. `rank` puts the editable board up instead, for
-   * ranking on camera.
+   * Whether the stage is showing its source or changing it. Absent, the source
+   * is presented; `edit` puts the editable version up instead, for building on
+   * camera. Today only a `tier` list the viewer owns has an editor, but the
+   * param is named for the mode rather than for ranking so a deck walk can join
+   * without a second spelling.
+   *
+   * The stage's own toggle writes this, so it is also what a link opens into and
+   * what survives a reload.
    */
-  mode: z.enum(["rank"]).optional().catch(undefined),
+  mode: z.enum(["edit"]).optional().catch(undefined),
   /**
    * A saved stage preset, applied once when the stage opens. Lets a creator
    * keep a recording link that arrives already dressed — green ground, text

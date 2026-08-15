@@ -28,6 +28,7 @@ import {
   isTypingTarget,
   ownsSpaceKey,
   resolvePresentationKey,
+  WALK_ACTIONS,
 } from "@/lib/presentation-keys";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { stepIndex } from "@/lib/presentation-queue";
@@ -35,18 +36,22 @@ import { applyStagePresetConfig, captureStagePreset } from "@/lib/stage-preset-a
 import { useDisplayStore } from "@/stores/display-store";
 import { MAX_CARD_SCALE, MIN_CARD_SCALE, usePresentationStore } from "@/stores/presentation-store";
 
-const KEY_HELP: { keys: string[]; what: string }[] = [
+interface KeyHelpRow {
+  keys: string[];
+  what: string;
+}
+
+/** The running order's own keys. Nothing here applies while the board is being edited. */
+const WALK_KEY_HELP: KeyHelpRow[] = [
   { keys: ["←", "→"], what: "Step through the queue" },
   { keys: ["Space"], what: "Next card" },
   { keys: ["Home", "End"], what: "First / last card" },
   { keys: ["T"], what: "Text panel" },
   { keys: ["F"], what: "Thumbnail strip" },
-  { keys: ["?"], what: "This help" },
-  { keys: ["Esc"], what: "Leave the show" },
 ];
 
 /** Extra rows shown only when the run has a board behind it. */
-const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
+const BOARD_KEY_HELP: KeyHelpRow[] = [
   { keys: ["B"], what: "Whole board / one card" },
   { keys: ["C"], what: "Current card beside the board" },
   { keys: ["K"], what: "The current card's tier, large" },
@@ -55,25 +60,43 @@ const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
 ];
 
 /** Shown only while signed in, since the push needs a channel to push to. */
-const PUSH_KEY_HELP: { keys: string[]; what: string }[] = [
-  { keys: ["P"], what: "Push this card to the OBS overlay" },
+const PUSH_KEY_HELP: KeyHelpRow[] = [{ keys: ["P"], what: "Push this card to the OBS overlay" }];
+
+/** The two rows every stage carries, whichever mode it is in. Always last. */
+const COMMON_KEY_HELP: KeyHelpRow[] = [
+  { keys: ["?"], what: "This help" },
+  { keys: ["Esc"], what: "Leave the stage" },
 ];
 
 /**
  * The keyboard cheat sheet, toggled with `?`.
+ *
+ * Editing collapses it to almost nothing on purpose: the walk's keys are not
+ * merely hidden but genuinely inactive there (see `WALK_ACTIONS`), and a help
+ * sheet that lists keys which do nothing is worse than no help sheet.
+ *
  * @returns The help sheet overlay.
  */
 function PresentationHelpSheet({
   boardControls,
   pushControls,
+  editControls,
+  editing,
 }: {
   boardControls: boolean;
   pushControls: boolean;
+  /** Whether this source can be edited at all, i.e. whether `E` does anything. */
+  editControls: boolean;
+  editing: boolean;
 }) {
-  const rows = [
-    ...KEY_HELP,
-    ...(boardControls ? BOARD_KEY_HELP : []),
-    ...(pushControls ? PUSH_KEY_HELP : []),
+  const rows: KeyHelpRow[] = [
+    ...(editing ? [] : WALK_KEY_HELP),
+    ...(boardControls && !editing ? BOARD_KEY_HELP : []),
+    ...(pushControls && !editing ? PUSH_KEY_HELP : []),
+    ...(editControls
+      ? [{ keys: ["E"], what: editing ? "Back to the show" : "Edit the board" }]
+      : []),
+    ...COMMON_KEY_HELP,
   ];
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-8">
@@ -387,6 +410,29 @@ function BoardSettings() {
 }
 
 /**
+ * Turning the board from something being shown into something being changed.
+ *
+ * Offered by sources that own their board and can save it back — today the
+ * signed-in creator's own tier list, which is why a shared list gets no switch.
+ * The state itself lives in the URL rather than in the presentation store, so a
+ * link can open straight into the editor and a reload stays there. That also
+ * keeps it out of {@link captureStagePreset}: a saved preset dresses a stage, it
+ * does not decide whether the stage is writable.
+ */
+export interface StageEditControls {
+  /** True while the board is being edited rather than presented. */
+  editing: boolean;
+  /** Flips between the two. */
+  onToggle: () => void;
+  /**
+   * Save state, shown in the corner marker where the queue position sits during
+   * a show. The editor has no Save button, so this is the only thing on stage
+   * telling a creator their ranking made it to the server.
+   */
+  status?: ReactNode;
+}
+
+/**
  * The stage's settings: the card itself first — whether it is up, and how large
  * — then the layers that otherwise only answer to a key. A creator who never
  * reads the help sheet can still find the rules panel and the thumbnail strip.
@@ -395,9 +441,21 @@ function BoardSettings() {
  * slider above the switch that decides whether there is anything to size read
  * as a control that did nothing.
  *
+ * Editing strips it back to the handful that still apply. There is no card of
+ * the moment to frame and no running order to dress, so every row about one is
+ * left out rather than rendered as a switch that moves nothing. What survives is
+ * what the editor is still sat on: the board's tile size, the ground, and the
+ * presets that set both.
+ *
  * @returns The rows for the shell's settings popover.
  */
-function StageSettings({ boardControls }: { boardControls: boolean }) {
+function StageSettings({
+  boardControls,
+  edit,
+}: {
+  boardControls: boolean;
+  edit?: StageEditControls;
+}) {
   const showText = usePresentationStore((state) => state.showText);
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
@@ -418,6 +476,39 @@ function StageSettings({ boardControls }: { boardControls: boolean }) {
     }
   };
 
+  const handleEditToggle = edit?.onToggle;
+  const editing = edit?.editing === true;
+
+  // Leads the popover: while editing it is the way back to the show, which is
+  // the row a creator opening this panel mid-recording is most likely after.
+  const editRow = handleEditToggle && (
+    <StageToggleRow
+      id="stage-edit"
+      label="Edit the board"
+      hotkey="E"
+      checked={editing}
+      onToggle={handleEditToggle}
+    />
+  );
+
+  if (editing) {
+    return (
+      <>
+        {editRow}
+        <StageTileSizeSlider />
+        <StageToggleRow
+          id="stage-show-help"
+          label="Key list"
+          hotkey="?"
+          checked={showHelp}
+          onToggle={toggleHelp}
+        />
+        <GroundSettings />
+        <StagePresetSettings />
+      </>
+    );
+  }
+
   // The hero switch only bites in the board layout — the card layout *is* the
   // card, and hiding it there would leave an empty stage. So the row is offered
   // where it does something, and the size slider follows whether a card is
@@ -427,6 +518,7 @@ function StageSettings({ boardControls }: { boardControls: boolean }) {
 
   return (
     <>
+      {editRow}
       {heroSwitchApplies && (
         <StageToggleRow
           id="stage-show-hero"
@@ -526,6 +618,14 @@ function StageOverlayPushKey({ printingId }: { printingId: string }) {
  * as `children` — one big card for a deck walk or an ad-hoc queue, a tier board
  * for a ranking.
  *
+ * A source that can be edited (`edit`) puts its editor in `children` too, and
+ * the stage stands its running order down around it: the walk's keys go back to
+ * the browser, the filmstrip and the position marker come off, and the settings
+ * shrink to what an editor still sits on. The two modes live in one component
+ * rather than two stages because that is where their mutual exclusions can be
+ * seen at once — a walk key that stays live over an editor is the bug this shape
+ * is built to prevent.
+ *
  * @returns The presentation stage.
  */
 export function PresentationStage({
@@ -535,6 +635,7 @@ export function PresentationStage({
   onExit,
   title,
   boardControls = false,
+  edit,
   children,
 }: {
   items: PresentationItem[];
@@ -545,12 +646,15 @@ export function PresentationStage({
   title?: string;
   /** Offers the board layout's keys and settings. Only a ranking has a board. */
   boardControls?: boolean;
+  /** Offers the editor. Only a source that owns its board and can save it back. */
+  edit?: StageEditControls;
   children: ReactNode;
 }) {
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
   const userId = useUserId();
 
+  const editing = edit?.editing === true;
   const current = items[index];
 
   // Escape closes the help sheet first, so it never takes the creator out of
@@ -564,6 +668,11 @@ export function PresentationStage({
     }
     onExit();
   };
+
+  // Read out of the object before the effect so the switch below calls a plain
+  // local rather than an optional member, and so the dependency is the function
+  // itself instead of the controls object.
+  const toggleEdit = edit?.onToggle;
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -583,10 +692,26 @@ export function PresentationStage({
       if (!boardControls && BOARD_ACTIONS.has(action)) {
         return;
       }
+      // Editing has no running order and no card of the moment. Handing these
+      // back rather than swallowing them is what lets the arrows scroll a board
+      // taller than the stage while it is being ranked.
+      if (editing && WALK_ACTIONS.has(action)) {
+        return;
+      }
       // The OBS push belongs to StageOverlayPushKey, which is only mounted
       // while signed in. Swallowing it here would make the key dead for
       // everyone, signed in included.
       if (action === "push") {
+        return;
+      }
+      if (action === "toggleEdit") {
+        // Left alone on a source with nothing to edit — a shared list, a deck
+        // walk — so `E` keeps whatever the browser does with it.
+        if (toggleEdit === undefined) {
+          return;
+        }
+        event.preventDefault();
+        toggleEdit();
         return;
       }
       event.preventDefault();
@@ -644,41 +769,75 @@ export function PresentationStage({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [boardControls, index, items.length, onIndexChange]);
+  }, [boardControls, editing, index, items.length, onIndexChange, toggleEdit]);
 
-  if (!current) {
-    return null;
+  // A walk needs a card; the editor does not, because a board with nothing on it
+  // yet is exactly what a creator opens the editor to fix.
+  const empty = !current && !editing;
+
+  // The position marker only means something on a walk, so editing puts the save
+  // state there instead — the editor writes as it goes, and this is the only
+  // thing on stage that says the ranking made it to the server.
+  let marker: ReactNode;
+  if (editing) {
+    marker = edit?.status;
+  } else if (!empty) {
+    marker = (
+      <>
+        {current?.contextLabel ? `${current.contextLabel} · ` : ""}
+        {index + 1} / {items.length}
+      </>
+    );
   }
 
   return (
     <>
-      {userId !== null && <StageOverlayPushKey printingId={current.printing.id} />}
+      {/* Pushing the card of the moment needs one. The editor has no such card,
+          and its board is not what the overlay draws. */}
+      {userId !== null && current && !editing && (
+        <StageOverlayPushKey printingId={current.printing.id} />
+      )}
       <StageShell
         onExit={onExit}
         onEscape={handleEscape}
-        settings={<StageSettings boardControls={boardControls} />}
+        settings={<StageSettings boardControls={boardControls} edit={edit} />}
         title={
           <>
             {title && <div className="text-sm text-white/50">{title}</div>}
-            <div className="font-mono text-sm tracking-widest text-white/70 uppercase tabular-nums">
-              {current.contextLabel ? `${current.contextLabel} · ` : ""}
-              {index + 1} / {items.length}
-            </div>
+            {marker !== undefined && (
+              <div className="font-mono text-sm tracking-widest text-white/70 uppercase tabular-nums">
+                {marker}
+              </div>
+            )}
           </>
         }
         footer={
-          showStrip ? (
+          showStrip && !editing && !empty ? (
             <PresentationFilmstrip items={items} index={index} onSelect={onIndexChange} />
           ) : null
         }
         hint="Press ? for keys"
         overlay={
           showHelp ? (
-            <PresentationHelpSheet boardControls={boardControls} pushControls={userId !== null} />
+            <PresentationHelpSheet
+              boardControls={boardControls}
+              pushControls={userId !== null}
+              editControls={edit !== undefined}
+              editing={editing}
+            />
           ) : null
         }
       >
-        {children}
+        {empty ? (
+          <div className="flex flex-1 items-center justify-center p-8 text-center text-white/50">
+            {/* Landing here is deliberate on an editable source — it is what
+                opening a fresh list on stage looks like — so it says what to do
+                next rather than leaving a black rectangle on the capture. */}
+            {edit ? "Nothing on the board yet. Press E to start ranking." : "Nothing to show here."}
+          </div>
+        ) : (
+          children
+        )}
       </StageShell>
     </>
   );

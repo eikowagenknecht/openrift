@@ -205,14 +205,14 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                     {presentEnabled && (
                       <DropdownMenuItem
                         // Same reason the Present button is gated: the stage
-                        // reads the *saved* board. No `rankedCount` gate though
-                        // — a board with everything still unranked is exactly
-                        // what this is for.
+                        // opens from the *saved* board. No `rankedCount` gate
+                        // though — a board with everything still unranked is
+                        // exactly what this is for.
                         disabled={dirty}
                         onClick={() => {
                           void navigate({
                             to: "/stage",
-                            search: { tier: tierList.id, mode: "rank" },
+                            search: { tier: tierList.id, mode: "edit" },
                           });
                         }}
                       >

@@ -16,6 +16,7 @@ export type PresentationAction =
   | "toggleRank"
   | "toggleReveal"
   | "toggleDirection"
+  | "toggleEdit"
   | "push"
   | "exit";
 
@@ -30,6 +31,28 @@ export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<Presentati
   "toggleRank",
   "toggleReveal",
   "toggleDirection",
+]);
+
+/**
+ * The actions that only mean something while the stage is walking a queue.
+ *
+ * Editing the board has no running order and no card of the moment, so all of
+ * these are left to the browser rather than swallowed to do nothing — which is
+ * what makes the arrows scroll a board taller than the stage, and Space
+ * activate the control the creator has tabbed to.
+ *
+ * A superset of {@link BOARD_ACTIONS}: every board layer is a way of dressing
+ * the walk, so none of them survive into the editor either.
+ */
+export const WALK_ACTIONS: ReadonlySet<PresentationAction> = new Set<PresentationAction>([
+  "prev",
+  "next",
+  "first",
+  "last",
+  "toggleText",
+  "toggleStrip",
+  "push",
+  ...BOARD_ACTIONS,
 ]);
 
 interface KeyEventLike {
@@ -97,6 +120,10 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "d":
     case "D": {
       return "toggleDirection";
+    }
+    case "e":
+    case "E": {
+      return "toggleEdit";
     }
     case "p":
     case "P": {
