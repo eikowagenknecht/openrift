@@ -43,7 +43,7 @@ function statusRepos(): Repos {
   }));
 
   return {
-    featureFlags: { isEnabled: async () => true },
+    siteSettings: { getBool: async () => true },
     cardTrades: {
       listPendingStatusEmails: async () => rows,
       claimStatusEmails: async (_marker: string, ids: string[]) => ids,

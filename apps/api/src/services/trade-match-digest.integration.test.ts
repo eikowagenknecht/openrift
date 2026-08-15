@@ -6,7 +6,7 @@ import { friendGroupsRepo } from "../repositories/friend-groups.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import type { TradeMatchDigestDeps } from "./trade-match-digest.js";
-import { sendTradeMatchDigest, TRADE_MATCH_DIGEST_FLAG } from "./trade-match-digest.js";
+import { sendTradeMatchDigest, TRADE_MATCH_DIGEST_SETTING } from "./trade-match-digest.js";
 
 const GIVER_ID = crypto.randomUUID();
 const DIGEST_ID = crypto.randomUUID();
@@ -220,11 +220,11 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
     expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeUndefined();
   });
 
-  it("sends nothing when the feature flag is turned off", async () => {
-    await repos.featureFlags.create({
-      key: TRADE_MATCH_DIGEST_FLAG,
-      enabled: false,
-      description: null,
+  it("sends nothing when the site setting is turned off", async () => {
+    await repos.siteSettings.create({
+      key: TRADE_MATCH_DIGEST_SETTING,
+      value: "false",
+      scope: "api",
     });
     try {
       await setupMatch(DIGEST_ID);
@@ -239,15 +239,15 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
       });
       expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeUndefined();
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_FLAG);
+      await repos.siteSettings.deleteByKey(TRADE_MATCH_DIGEST_SETTING);
     }
   });
 
-  it("still sends when the flag is on (default-on kill switch)", async () => {
-    await repos.featureFlags.create({
-      key: TRADE_MATCH_DIGEST_FLAG,
-      enabled: true,
-      description: null,
+  it("still sends when the setting is on", async () => {
+    await repos.siteSettings.create({
+      key: TRADE_MATCH_DIGEST_SETTING,
+      value: "true",
+      scope: "api",
     });
     try {
       await setupMatch(DIGEST_ID);
@@ -255,7 +255,14 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
       await sendTradeMatchDigest(makeDeps(EPOCH, sent));
       expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeDefined();
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_FLAG);
+      await repos.siteSettings.deleteByKey(TRADE_MATCH_DIGEST_SETTING);
     }
+  });
+
+  it("still sends when the setting was never created (default-on kill switch)", async () => {
+    await setupMatch(DIGEST_ID);
+    const sent: { to: string; subject: string; html: string }[] = [];
+    await sendTradeMatchDigest(makeDeps(EPOCH, sent));
+    expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeDefined();
   });
 });

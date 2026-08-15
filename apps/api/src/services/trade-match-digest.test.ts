@@ -70,7 +70,7 @@ describe("isTradeMatchDigestNoop", () => {
  *  @returns Stubbed repos covering only what the digest reads. */
 function digestRepos(): Repos {
   return {
-    featureFlags: { isEnabled: async () => true },
+    siteSettings: { getBool: async () => true },
     userPreferences: {
       listMatchDigestRecipients: async () => [
         { userId: "user-1", email: "one@example.test", name: "One" },

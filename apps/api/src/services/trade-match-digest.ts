@@ -13,12 +13,11 @@ type SendEmail = ReturnType<typeof createEmailSender>;
 const DIGEST_MATCH_LIMIT = 500;
 
 /**
- * Kill switch (ADR-030). Default on: absent (never seeded) or `enabled=true` →
- * send; toggle the flag off to stop sending if a bug shows up. Seeded
- * `enabled=true` in KNOWN_FLAGS so creating it doesn't change behaviour. Keep
- * in sync with the admin feature-flags page.
+ * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
+ * created) or `"true"` → send; set it to `"false"` to stop sending if a bug
+ * shows up. Keep in sync with the admin site-settings page.
  */
-export const TRADE_MATCH_DIGEST_FLAG = "trade-match-digest";
+export const TRADE_MATCH_DIGEST_SETTING = "trade-match-digest";
 
 export interface TradeMatchDigestDeps {
   repos: Repos;
@@ -99,11 +98,12 @@ export async function sendTradeMatchDigest(
 ): Promise<TradeMatchDigestResult> {
   const { repos, log, sendEmail, appBaseUrl, unsubscribeSecret, sinceTimestamp } = deps;
 
-  // Kill switch (default on): skip the whole run if the flag is explicitly off.
-  // The watermark still advances (the cron writes it), so the skipped window's
-  // matches are dropped rather than queued — consistent with the digest's
-  // watermark-only, best-effort design (a missed day is acceptable; ADR-030).
-  if ((await repos.featureFlags.isEnabled(TRADE_MATCH_DIGEST_FLAG)) === false) {
+  // Kill switch (default on): skip the whole run if the setting is explicitly
+  // off. The watermark still advances (the cron writes it), so the skipped
+  // window's matches are dropped rather than queued — consistent with the
+  // digest's watermark-only, best-effort design (a missed day is acceptable;
+  // ADR-030).
+  if ((await repos.siteSettings.getBool(TRADE_MATCH_DIGEST_SETTING)) === false) {
     return { recipients: 0, emailsSent: 0, matches: 0, failed: 0, matchesDropped: 0 };
   }
 

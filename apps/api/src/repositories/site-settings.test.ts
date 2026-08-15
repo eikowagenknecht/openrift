@@ -25,6 +25,31 @@ describe("siteSettingsRepo", () => {
     expect(await repo.listAll()).toEqual([ROW]);
   });
 
+  it("getBool reads an explicit false", async () => {
+    const db = createMockDb([{ value: "false" }]);
+    const repo = siteSettingsRepo(db);
+    expect(await repo.getBool("trade-match-digest")).toBe(false);
+  });
+
+  it("getBool reads an explicit true", async () => {
+    const db = createMockDb([{ value: "true" }]);
+    const repo = siteSettingsRepo(db);
+    expect(await repo.getBool("trade-match-digest")).toBe(true);
+  });
+
+  it("getBool treats an unrecognised value as on", async () => {
+    // Only "false" disables, so a hand-typed value can't silently stop a send.
+    const db = createMockDb([{ value: "off" }]);
+    const repo = siteSettingsRepo(db);
+    expect(await repo.getBool("trade-match-digest")).toBe(true);
+  });
+
+  it("getBool returns undefined for a key that does not exist", async () => {
+    const db = createMockDb([]);
+    const repo = siteSettingsRepo(db);
+    expect(await repo.getBool("nope")).toBeUndefined();
+  });
+
   it("create returns the newly created row", async () => {
     const db = createMockDb([ROW]);
     const repo = siteSettingsRepo(db);

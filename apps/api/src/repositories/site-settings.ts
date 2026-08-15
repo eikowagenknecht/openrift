@@ -25,6 +25,30 @@ export function siteSettingsRepo(db: Kysely<Database>) {
       return db.selectFrom("siteSettings").selectAll().orderBy("key").execute();
     },
 
+    /**
+     * Reads a boolean setting. Values are stored as the strings `"true"` /
+     * `"false"` (written by the Switch on the admin page); anything else counts
+     * as `true`, so a hand-typed value can never silently disable a feature.
+     *
+     * The `undefined` case is load-bearing for default-on switches: callers
+     * write `=== false` so a setting that was never created keeps the feature
+     * running.
+     *
+     * @returns `false` only for an explicit `"false"`, `true` for any other
+     *   stored value, `undefined` when the key does not exist.
+     */
+    async getBool(key: string): Promise<boolean | undefined> {
+      const row = await db
+        .selectFrom("siteSettings")
+        .select("value")
+        .where("key", "=", key)
+        .executeTakeFirst();
+      if (row === undefined) {
+        return undefined;
+      }
+      return row.value !== "false";
+    },
+
     /** @returns The newly created setting row, or `undefined` if the key already exists. */
     create(values: {
       key: string;

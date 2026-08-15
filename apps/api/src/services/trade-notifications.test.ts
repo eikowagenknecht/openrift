@@ -95,7 +95,7 @@ function flushRepos(): Repos {
   }));
 
   return {
-    featureFlags: { isEnabled: async () => true },
+    siteSettings: { getBool: async () => true },
     cardTrades: {
       listPendingRequestEmails: async () => rows,
       claimRequestEmails: async (ids: string[]) => ids,

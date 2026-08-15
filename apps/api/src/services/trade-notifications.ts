@@ -21,13 +21,12 @@ import type { EmailNotificationContext } from "../repositories/user-preferences.
 type SendEmail = ReturnType<typeof createEmailSender>;
 
 /**
- * Kill switch (ADR-030). Default on: absent (never seeded) or `enabled=true` →
- * send; toggle the flag off to stop sending if a bug shows up. Seeded
- * `enabled=true` in KNOWN_FLAGS so creating it doesn't change behaviour. Keep
- * in sync with the admin feature-flags page. Gates both the instant email and
- * the coalesced flush.
+ * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
+ * created) or `"true"` → send; set it to `"false"` to stop sending if a bug
+ * shows up. Keep in sync with the admin site-settings page. Gates both the
+ * instant email and the coalesced flush.
  */
-export const TRADE_REQUEST_EMAIL_FLAG = "trade-request-email";
+export const TRADE_REQUEST_EMAIL_SETTING = "trade-request-email";
 
 /**
  * Decides whether a recipient's queued burst of requests from one sender is due
@@ -87,9 +86,9 @@ export async function sendTradeRequestEmail(
   deps: TradeEmailDeps,
 ): Promise<void> {
   try {
-    // Kill switch (default on): stop all trade-request emails only if the flag
-    // has been explicitly turned off.
-    if ((await repos.featureFlags.isEnabled(TRADE_REQUEST_EMAIL_FLAG)) === false) {
+    // Kill switch (default on): stop all trade-request emails only if the
+    // setting has been explicitly turned off.
+    if ((await repos.siteSettings.getBool(TRADE_REQUEST_EMAIL_SETTING)) === false) {
       return;
     }
 
@@ -210,8 +209,8 @@ export async function flushCoalescedTradeRequests(
   const { repos, log, sendEmail, appBaseUrl, unsubscribeSecret } = deps;
 
   // Kill switch (shared with the instant email): leave queued rows untouched
-  // while off, so they resume when the flag is turned back on.
-  if ((await repos.featureFlags.isEnabled(TRADE_REQUEST_EMAIL_FLAG)) === false) {
+  // while off, so they resume when the setting is turned back on.
+  if ((await repos.siteSettings.getBool(TRADE_REQUEST_EMAIL_SETTING)) === false) {
     return { pairs: 0, emailsSent: 0, requests: 0, failed: 0, requestsDropped: 0 };
   }
 

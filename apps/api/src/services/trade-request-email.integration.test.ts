@@ -7,7 +7,7 @@ import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { createTrade } from "./card-trades.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
-import { TRADE_REQUEST_EMAIL_FLAG } from "./trade-notifications.js";
+import { TRADE_REQUEST_EMAIL_SETTING } from "./trade-notifications.js";
 
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
@@ -259,11 +259,11 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     expect(trade.status).toBe("pending");
   });
 
-  it("does not email when the feature flag is turned off", async () => {
-    await repos.featureFlags.create({
-      key: TRADE_REQUEST_EMAIL_FLAG,
-      enabled: false,
-      description: null,
+  it("does not email when the site setting is turned off", async () => {
+    await repos.siteSettings.create({
+      key: TRADE_REQUEST_EMAIL_SETTING,
+      value: "false",
+      scope: "api",
     });
     try {
       const group = await setupMatch();
@@ -272,18 +272,18 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
       expect(trade.status).toBe("pending");
       expect(sent).toHaveLength(0);
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_FLAG);
+      await repos.siteSettings.deleteByKey(TRADE_REQUEST_EMAIL_SETTING);
     }
   });
 
-  it("still emails when the flag is on (default-on kill switch)", async () => {
+  it("still emails when the setting is on", async () => {
     await repos.userPreferences.upsert(GIVER_ID, {
       emailNotifications: { tradeRequestCadence: "instant" },
     });
-    await repos.featureFlags.create({
-      key: TRADE_REQUEST_EMAIL_FLAG,
-      enabled: true,
-      description: null,
+    await repos.siteSettings.create({
+      key: TRADE_REQUEST_EMAIL_SETTING,
+      value: "true",
+      scope: "api",
     });
     try {
       const group = await setupMatch();
@@ -291,7 +291,7 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
       await requestAsReceiver(group, deps);
       expect(sent).toHaveLength(1);
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_FLAG);
+      await repos.siteSettings.deleteByKey(TRADE_REQUEST_EMAIL_SETTING);
     }
   });
 });

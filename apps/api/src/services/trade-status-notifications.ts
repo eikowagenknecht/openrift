@@ -13,11 +13,11 @@ import { isRequestGroupDue } from "./trade-notifications.js";
 type SendEmail = ReturnType<typeof createEmailSender>;
 
 /**
- * Kill switch (ADR-030). Default on: absent (never seeded) or `enabled=true` →
- * send; toggle the flag off to stop the trade-status emails if a bug shows up.
- * Seeded `enabled=true` in KNOWN_FLAGS so creating it doesn't change behaviour.
+ * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
+ * created) or `"true"` → send; set it to `"false"` to stop the trade-status
+ * emails if a bug shows up. Keep in sync with the admin site-settings page.
  */
-const TRADE_STATUS_EMAIL_FLAG = "trade-status-email";
+const TRADE_STATUS_EMAIL_SETTING = "trade-status-email";
 
 /** Dependencies for the coalesced trade-status flush cron (ADR-030). */
 export interface TradeStatusFlushDeps {
@@ -116,8 +116,8 @@ export async function flushTradeStatusEmails(
   const { repos, log, sendEmail, appBaseUrl, unsubscribeSecret } = deps;
 
   // Kill switch: leave queued rows untouched while off, so they resume when the
-  // flag is turned back on.
-  if ((await repos.featureFlags.isEnabled(TRADE_STATUS_EMAIL_FLAG)) === false) {
+  // setting is turned back on.
+  if ((await repos.siteSettings.getBool(TRADE_STATUS_EMAIL_SETTING)) === false) {
     return { pairs: 0, emailsSent: 0, events: 0, failed: 0, eventsDropped: 0 };
   }
 

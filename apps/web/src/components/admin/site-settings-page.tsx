@@ -44,7 +44,14 @@ interface KnownSetting {
   key: string;
   scope: "web" | "api";
   description: string;
-  placeholder: string;
+  /** Free-text settings only — a boolean is edited with a Switch. */
+  placeholder?: string;
+  /**
+   * Booleans are stored as the strings `"true"` / `"false"` and rendered as a
+   * Switch instead of a text field. The server reads anything that isn't
+   * `"false"` as on, so a key that was never created stays on.
+   */
+  type?: "boolean";
 }
 
 const KNOWN_SETTINGS: KnownSetting[] = [
@@ -60,13 +67,42 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     description: "Umami website ID (both umami keys must be set for analytics to load)",
     placeholder: "a1b2c3d4-...",
   },
+  {
+    key: "trade-request-email",
+    scope: "api",
+    type: "boolean",
+    description: "Instant trade-request emails (ADR-030). Turn off to stop sending",
+  },
+  {
+    key: "trade-match-digest",
+    scope: "api",
+    type: "boolean",
+    description: "Daily trade match digest (ADR-030). Turn off to stop sending",
+  },
+  {
+    key: "trade-status-email",
+    scope: "api",
+    type: "boolean",
+    description:
+      "Trade status emails: accepted / declined / cancelled (ADR-030). Turn off to stop sending",
+  },
 ];
+
+/** @returns The known-setting entry for `key`, or `undefined` for a custom key. */
+function knownSetting(key: string): KnownSetting | undefined {
+  return KNOWN_SETTINGS.find((ks) => ks.key === key);
+}
+
+/** @returns Whether the stored string counts as on (anything but `"false"`). */
+function isSettingOn(value: string): boolean {
+  return value !== "false";
+}
 
 function KeyCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
   if (!row) {
     return null;
   }
-  const known = KNOWN_SETTINGS.find((ks) => ks.key === row.key);
+  const known = knownSetting(row.key);
   return (
     <div>
       <span className="font-mono text-sm">{row.key}</span>
@@ -76,8 +112,26 @@ function KeyCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
 }
 
 function ValueCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
+  const updateMutation = useUpdateSiteSetting();
   if (!row) {
     return null;
+  }
+  // Booleans toggle in place — going through the row's edit mode to type the
+  // word "false" would be a poor switch for something that stops live sends.
+  if (knownSetting(row.key)?.type === "boolean") {
+    const on = isSettingOn(row.value);
+    return (
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={on}
+          onCheckedChange={(checked: boolean) =>
+            updateMutation.mutate({ key: row.key, value: checked ? "true" : "false" })
+          }
+          disabled={updateMutation.isPending}
+        />
+        <Badge variant={on ? "default" : "secondary"}>{on ? "On" : "Off"}</Badge>
+      </div>
+    );
   }
   return <span className="max-w-xs truncate font-mono text-sm">{row.value}</span>;
 }
@@ -106,6 +160,18 @@ function KeyAddInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
 function ValueInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
   if (!draft || !setDraft) {
     return null;
+  }
+  // A boolean row edits as a Switch here too, so the scope-editing path can't
+  // save a typo like "off" into a value the server only compares to "false".
+  if (knownSetting(draft.key)?.type === "boolean") {
+    return (
+      <Switch
+        checked={isSettingOn(draft.value)}
+        onCheckedChange={(checked: boolean) =>
+          setDraft((prev) => ({ ...prev, value: checked ? "true" : "false" }))
+        }
+      />
+    );
   }
   return (
     <Input
@@ -331,6 +397,8 @@ function KnownSettingRow({
   const [pending, setPending] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  const isBoolean = known.type === "boolean";
+
   async function handleSave() {
     if (!value.trim()) {
       setSaveError("Value is required");
@@ -349,6 +417,20 @@ function KnownSettingRow({
     }
   }
 
+  // A boolean needs nothing typed: creating it restores the default-on row, and
+  // the table's Switch takes over from there.
+  async function handleCreateOn() {
+    setPending(true);
+    setSaveError("");
+    try {
+      await onCreate("true");
+      setPending(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Save failed");
+      setPending(false);
+    }
+  }
+
   return (
     <div className="flex items-center gap-4 px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -360,7 +442,15 @@ function KnownSettingRow({
         </div>
         <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>
       </div>
-      {editing ? (
+      {isBoolean ? (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleCreateOn} disabled={pending}>
+            <PlusIcon className="mr-1 h-3.5 w-3.5" />
+            Set up
+          </Button>
+          {saveError && <span className="text-destructive text-xs">{saveError}</span>}
+        </div>
+      ) : editing ? (
         <div className="flex items-center gap-2">
           <Input
             value={value}
