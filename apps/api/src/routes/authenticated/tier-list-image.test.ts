@@ -201,4 +201,20 @@ describe("tierListImageRoute rendering", () => {
       "vertical",
     );
   });
+
+  it("drops the share URL when qr=0, so a shared list renders without a code", async () => {
+    mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
+
+    const res = await buildApp({ user: { id: "user-1" } }).request(
+      "/api/v1/tier-lists/abc/image.png?qr=0",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ shareUrl: undefined }),
+      1,
+      "landscape",
+    );
+  });
 });

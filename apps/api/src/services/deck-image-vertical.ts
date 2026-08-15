@@ -22,7 +22,6 @@ import {
   CANVAS,
   CARD_ASPECT,
   COLORS,
-  QR_SIZE,
   cardTile,
   element,
   qrDataUri,
@@ -63,6 +62,16 @@ const META_SIZE = 26;
 const TITLE_MAX_CHARS = 32;
 const DOMAIN_ICON = 34;
 
+/**
+ * The QR sits at the right end of the title block, as it does on the landscape
+ * image, rather than in the footer. Bigger here than there because the canvas
+ * is read at arm's length on a phone, and because the two title lines already
+ * give the block most of the mark's height.
+ */
+const HEADER_QR_SIZE = 132;
+/** Height the footer reserves once it is only the host label. */
+const FOOTER_LABEL_H = 32;
+
 /** Legend hero width; its height sets the whole identity band's. */
 const LEGEND_W = 300;
 /**
@@ -89,24 +98,28 @@ function fitRowTileH(count: number, areaW: number, aspect: number, maxH: number)
 
 /**
  * The title block: the deck name on its own line, then the byline, the
- * format/count, and the domain glyphs sharing a second one. Stacked rather than
- * strung along a single row because the canvas is narrower than landscape while
- * the type is larger.
+ * format/count, and the domain glyphs sharing a second one, with the QR at the
+ * right of both. Stacked rather than strung along a single row because the
+ * canvas is narrower than landscape while the type is larger.
  * @returns The title block element.
  */
 function titleBlock(
   input: DeckImageInput,
   metaLabel: string,
   domainIcons: readonly Element[],
+  qrUri: string | null,
+  blockH: number,
 ): Element {
-  return element(
+  const type = element(
     "div",
     {
       display: "flex",
       flexDirection: "column",
       justifyContent: "center",
+      flexGrow: 1,
+      // The two lines never fill the block once the QR sets its height, so they
+      // keep their own height and centre against the mark.
       height: TITLE_H,
-      flexShrink: 0,
     },
     element(
       "div",
@@ -166,6 +179,25 @@ function titleBlock(
         : false,
     ),
   );
+
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      height: blockH,
+      flexShrink: 0,
+    },
+    type,
+    qrUri
+      ? element(
+          "div",
+          { display: "flex", flexShrink: 0, marginLeft: BODY_GAP },
+          qrMark(qrUri, HEADER_QR_SIZE),
+        )
+      : false,
+  );
 }
 
 /**
@@ -184,9 +216,12 @@ export async function renderDeckImageVertical(
   const { legend, runeCards, battlefields, sideboard, gridCards } = zones;
 
   const innerW = WIDTH - PAD * 2;
-  const bodyH = HEIGHT - PAD * 2 - TITLE_H - GAP;
-  const hasFooterMark = Boolean(input.shareUrl) || Boolean(input.siteHost);
-  const footerH = hasFooterMark ? QR_SIZE : 0;
+  // The title block is as tall as its tallest content: the two type lines
+  // normally, the QR when there is one.
+  const titleH = input.shareUrl ? Math.max(TITLE_H, HEADER_QR_SIZE) : TITLE_H;
+  const bodyH = HEIGHT - PAD * 2 - titleH - GAP;
+  const hasFooterMark = Boolean(input.siteHost);
+  const footerH = hasFooterMark ? FOOTER_LABEL_H : 0;
 
   const bfCount = battlefields.length;
   const runeCount = runeCards.length;
@@ -290,7 +325,7 @@ export async function renderDeckImageVertical(
       runeCards.map((card) => tileArtDataUri(io, card.imageId, runeTileW, runeTileH, scale)),
     ),
     Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale, HEADER_QR_SIZE) : Promise.resolve(null),
   ]);
 
   const battlefieldTiles = battlefields.map((card, index) =>
@@ -412,8 +447,6 @@ export async function renderDeckImageVertical(
             input.siteHost,
           )
         : false,
-      element("div", { display: "flex", flexGrow: 1 }),
-      qrUri ? qrMark(qrUri) : false,
     );
 
   const glowBackground = legend ? legendGlowBackground(legend.domains) : undefined;
@@ -438,6 +471,8 @@ export async function renderDeckImageVertical(
       input,
       deckMetaLabel(input.formatLabel, zones.mainCardCount, zones.sideboardCount),
       domainIconElements(domainUris, DOMAIN_ICON),
+      qrUri,
+      titleH,
     ),
     identityBand,
     gridBlock,

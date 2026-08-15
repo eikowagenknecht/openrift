@@ -86,6 +86,42 @@ describe("renderTierListImage", () => {
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
   });
 
+  it("draws the code at the title row's right end, and nothing there without one", async () => {
+    // Canvas geometry mirrored from tier-list-image.ts. The title row is as tall
+    // as the mark, so the mark's box starts at the padding on both axes.
+    const WIDTH = 1200;
+    const PAD = 24;
+    const HEADER_QR = 104;
+
+    /** @returns How many near-white pixels sit in the mark's box. */
+    const whiteInMarkBox = async (png: Buffer): Promise<number> => {
+      const { data, info } = await defaultIo
+        .sharp(png)
+        .extract({ left: WIDTH - PAD - HEADER_QR, top: PAD, width: HEADER_QR, height: HEADER_QR })
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      let white = 0;
+      for (let offset = 0; offset < data.length; offset += info.channels) {
+        const red = data[offset] ?? 0;
+        const green = data[offset + 1] ?? 0;
+        const blue = data[offset + 2] ?? 0;
+        if (red >= 240 && green >= 240 && blue >= 240) {
+          white++;
+        }
+      }
+      return white;
+    };
+
+    const [withQr, withoutQr] = await Promise.all([
+      renderTierListImage(defaultIo, { ...baseInput, rows: defaultBoard }),
+      renderTierListImage(defaultIo, { ...baseInput, shareUrl: undefined, rows: defaultBoard }),
+    ]);
+
+    // The code is dark-on-white, so its light plate fills much of the box.
+    expect(await whiteInMarkBox(withQr)).toBeGreaterThan(HEADER_QR * HEADER_QR * 0.2);
+    expect(await whiteInMarkBox(withoutQr)).toBeLessThan(HEADER_QR * HEADER_QR * 0.02);
+  });
+
   it("renders the 2x variant at 2400x1260", async () => {
     const png = await renderTierListImage(defaultIo, { ...baseInput, rows: defaultBoard }, 2);
     const meta = await defaultIo.sharp(png).metadata();

@@ -10,7 +10,7 @@ import {
   resolveCoverImageId,
 } from "../../services/deck-image.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
-import { aspectFromQuery } from "../../services/share-image-core.js";
+import { aspectFromQuery, qrFromQuery } from "../../services/share-image-core.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -37,16 +37,18 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
     const id = c.req.param("id");
     const scale = c.req.query("size") === "hq" ? 2 : 1;
     const aspect = aspectFromQuery(c.req.query("aspect"));
+    const includeQr = qrFromQuery(c.req.query("qr"));
 
     const deck = await repos.decks.getByIdForUser(id, userId);
     assertFound(deck, "Not found");
 
     const cards = await buildDeckImageCards(repos, deck.id, userId);
     // Only a publicly shared deck has a viewable link, so the QR is dropped for
-    // private decks. The first CORS origin is the canonical site origin.
+    // private decks — and `qr=0` drops it for a caller who wants the image
+    // without one. The first CORS origin is the canonical site origin.
     const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
     const shareUrl =
-      deck.isPublic && deck.shareToken && firstOrigin
+      includeQr && deck.isPublic && deck.shareToken && firstOrigin
         ? `${firstOrigin}/decks/share/${deck.shareToken}`
         : undefined;
 

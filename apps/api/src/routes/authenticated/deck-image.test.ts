@@ -132,4 +132,47 @@ describe("deckImageRoute auth scoping", () => {
       "vertical",
     );
   });
+
+  it("drops the share URL when qr=0, so a shared deck renders without a code", async () => {
+    mockDecksRepo.getByIdForUser.mockResolvedValue({
+      id: "abc",
+      name: "Deck",
+      format: "constructed",
+      isPublic: true,
+      shareToken: "AbCdEfGhIjKl",
+    });
+
+    const res = await buildApp({ user: { id: "user-1" } }).request(
+      "/api/v1/decks/abc/image.png?qr=0",
+    );
+
+    expect(res.status).toBe(200);
+    expect(renderDeckImage).toHaveBeenCalledWith(
+      expect.objectContaining({}),
+      expect.objectContaining({ shareUrl: undefined }),
+      1,
+      "landscape",
+    );
+  });
+
+  it("keeps the share URL for a shared deck by default", async () => {
+    mockDecksRepo.getByIdForUser.mockResolvedValue({
+      id: "abc",
+      name: "Deck",
+      format: "constructed",
+      isPublic: true,
+      shareToken: "AbCdEfGhIjKl",
+    });
+
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/decks/abc/image.png");
+
+    expect(renderDeckImage).toHaveBeenCalledWith(
+      expect.objectContaining({}),
+      expect.objectContaining({
+        shareUrl: "https://openrift.app/decks/share/AbCdEfGhIjKl",
+      }),
+      1,
+      "landscape",
+    );
+  });
 });

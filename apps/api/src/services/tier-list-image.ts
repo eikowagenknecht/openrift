@@ -7,7 +7,6 @@ import {
   CANVAS,
   CARD_ASPECT,
   COLORS,
-  QR_SIZE,
   TILE_BORDER,
   baselineNudge,
   cardRadiusPx,
@@ -50,9 +49,9 @@ const GAP = 10;
 
 const TILE_GAP = 4;
 
-/** The footer is exactly the mark's height: the QR is the tallest thing in it,
- * and the host label centres against it. */
-const FOOTER_H = QR_SIZE;
+/** The footer is a single line of type: the QR that used to set its height now
+ * rides the title row, where the full canvas width lets it be bigger. */
+const FOOTER_H = 26;
 
 const ROW_GAP = 8;
 /** Breathing room between a row's border and its tiles. */
@@ -88,6 +87,15 @@ interface TierCanvas {
   titleMaxChars: number;
   /** Reserved height for the title area (one row landscape, two lines vertical). */
   titleH: number;
+  /**
+   * Size of the QR at the right end of the title area. It sits there rather
+   * than in the footer because down there it was hemmed in by the footer's own
+   * height, which left it too small to scan once a chat client renders the
+   * image at a few hundred pixels. The title area has the whole width, so the
+   * mark can be bigger; the area grows to the mark's height and the footer
+   * shrinks to the host label alone to pay some of that back.
+   */
+  headerQr: number;
   /** Lines of tiles a single row may wrap onto before the "+N" chip takes over. */
   maxLines: number;
 }
@@ -101,6 +109,7 @@ const LANDSCAPE: TierCanvas = {
   metaSize: META_SIZE,
   titleMaxChars: TITLE_MAX_CHARS,
   titleH: 52,
+  headerQr: 104,
   maxLines: 1,
 };
 
@@ -118,6 +127,7 @@ const VERTICAL: TierCanvas = {
   titleMaxChars: 30,
   // Title line, then the byline and count on a second line beneath it.
   titleH: 92,
+  headerQr: 132,
   maxLines: 3,
 };
 
@@ -612,7 +622,7 @@ function landscapeTitle(
       flexDirection: "row",
       alignItems: "center",
       height: canvas.titleH,
-      flexShrink: 0,
+      flexGrow: 1,
     },
     element(
       "div",
@@ -682,7 +692,7 @@ function verticalTitle(
       flexDirection: "column",
       justifyContent: "center",
       height: canvas.titleH,
-      flexShrink: 0,
+      flexGrow: 1,
     },
     element(
       "div",
@@ -736,6 +746,33 @@ function verticalTitle(
 }
 
 /**
+ * The title area: the type block, and the QR at its right when there is one.
+ * The type keeps its own height and centres against the mark, so growing the
+ * area for the QR does not drag the title down onto the area's bottom edge.
+ * @returns The title area element.
+ */
+function titleArea(typeBlock: Element, qrUri: string | null, canvas: TierCanvas): Element {
+  return element(
+    "div",
+    {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      height: qrUri ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH,
+      flexShrink: 0,
+    },
+    typeBlock,
+    qrUri
+      ? element(
+          "div",
+          { display: "flex", flexShrink: 0, marginLeft: 16 },
+          qrMark(qrUri, canvas.headerQr),
+        )
+      : false,
+  );
+}
+
+/**
  * Resolves the art for every tile the board will actually draw.
  * @returns Per-row arrays of art data URIs, index-aligned with each row's cards.
  */
@@ -775,9 +812,12 @@ export async function renderTierListImage(
   const rankedCount = countRanked(rows);
 
   const innerW = canvas.width - canvas.pad * 2;
-  const hasFooter = Boolean(input.siteHost) || Boolean(input.shareUrl);
+  const hasFooter = Boolean(input.siteHost);
+  // The title area grows to the QR's height when there is one; a board with no
+  // share link keeps the short title row.
+  const titleAreaH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
   const boardH =
-    canvas.height - canvas.pad * 2 - canvas.titleH - GAP - (hasFooter ? FOOTER_H + GAP : 0);
+    canvas.height - canvas.pad * 2 - titleAreaH - GAP - (hasFooter ? FOOTER_H + GAP : 0);
 
   const vertical = aspect === "vertical";
   const fullestRow = rows.reduce((most, row) => Math.max(most, row.cards.length), 0);
@@ -802,12 +842,16 @@ export async function renderTierListImage(
       wrapped?.tileH ?? flat.tileH,
       scale,
     ),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale, canvas.headerQr) : Promise.resolve(null),
   ]);
 
-  const titleRow = vertical
-    ? verticalTitle(input, canvas, rankedCount)
-    : landscapeTitle(input, canvas, rankedCount);
+  const titleRow = titleArea(
+    vertical
+      ? verticalTitle(input, canvas, rankedCount)
+      : landscapeTitle(input, canvas, rankedCount),
+    qrUri,
+    canvas,
+  );
 
   const board = element(
     "div",
@@ -835,8 +879,8 @@ export async function renderTierListImage(
     ),
   );
 
-  // Host label left, mark right — the same bottom-right mark the deck image
-  // carries, at the same size.
+  // Host label only. The QR that used to sit beside it now rides the title row,
+  // the same move the deck image makes.
   const footer: Child =
     hasFooter &&
     element(
@@ -861,8 +905,6 @@ export async function renderTierListImage(
             input.siteHost,
           )
         : false,
-      element("div", { display: "flex", flexGrow: 1 }),
-      qrUri ? qrMark(qrUri) : false,
     );
 
   const root = element(

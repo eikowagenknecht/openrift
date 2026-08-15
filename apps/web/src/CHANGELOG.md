@@ -10,6 +10,7 @@
 
 - feat(App): **Undo a mis-tapped point** — the match menu in the middle of the board names the last change and reverses it, and tapping a score opens buttons to correct a total that drifted.
 - feat(App): **XP only when you need it** — the match tracker keeps XP as a small tab until someone taps it, so decks that never use it get the space back.
+- feat(Decks): **Bigger, optional scan code on deck images** — the code moved from the footer up to the top corner, where it has the room to actually be scannable, and a checkbox in the export dialog leaves it off.
 - fix(Decks): **Variant families pick the right main deck** — deleting or unlinking the main deck of a variant family could hand the role to any sibling; it now goes to the one you edited most recently.
 
 ## 2026-08-14

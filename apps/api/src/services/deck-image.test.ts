@@ -10,10 +10,11 @@ import { formatLabelFromSlug, renderDeckImage, truncateTitle } from "./deck-imag
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 // Canvas geometry mirrored from deck-image.ts, to locate the QR mark in output.
+// The mark sits at the right end of the title row, which is exactly as tall as
+// the mark, so its box starts at the canvas padding on both axes.
 const WIDTH = 1200;
-const HEIGHT = 630;
 const PAD = 22;
-const QR_SIZE = 84;
+const HEADER_QR_SIZE = 104;
 
 function card(
   cardName: string,
@@ -84,14 +85,14 @@ describe("renderDeckImage", () => {
 
   it("renders the QR dark-on-white so the code is not inverted", async () => {
     const png = await renderDeckImage(defaultIo, { ...baseInput, cards: constructedDeck });
-    // The mark sits in the bottom-right corner, inside the canvas padding.
+    // The mark sits at the right end of the title row, inside the canvas padding.
     const { data, info } = await defaultIo
       .sharp(png)
       .extract({
-        left: WIDTH - PAD - QR_SIZE,
-        top: HEIGHT - PAD - QR_SIZE,
-        width: QR_SIZE,
-        height: QR_SIZE,
+        left: WIDTH - PAD - HEADER_QR_SIZE,
+        top: PAD,
+        width: HEADER_QR_SIZE,
+        height: HEADER_QR_SIZE,
       })
       .raw()
       .toBuffer({ resolveWithObject: true });
@@ -109,7 +110,41 @@ describe("renderDeckImage", () => {
     // Gold-on-transparent (the previous treatment) composited over the #14161d
     // background tops out around 205 per channel, so any near-white at all means
     // the light plate is there.
-    expect(white).toBeGreaterThan(QR_SIZE * QR_SIZE * 0.2);
+    expect(white).toBeGreaterThan(HEADER_QR_SIZE * HEADER_QR_SIZE * 0.2);
+  });
+
+  it("leaves the title row's right end clear when there is no share link", async () => {
+    // The same box the mark occupies above. Without a share URL the row shrinks
+    // back to the type's height, so nothing near-white should land here.
+    const png = await renderDeckImage(defaultIo, {
+      ...baseInput,
+      shareUrl: undefined,
+      cards: constructedDeck,
+    });
+    const { data, info } = await defaultIo
+      .sharp(png)
+      .extract({
+        left: WIDTH - PAD - HEADER_QR_SIZE,
+        top: PAD,
+        width: HEADER_QR_SIZE,
+        height: HEADER_QR_SIZE,
+      })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    let white = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      if (red >= 240 && green >= 240 && blue >= 240) {
+        white++;
+      }
+    }
+
+    // Card art reaches into this box once the row is short, so allow a little
+    // near-white; a drawn mark's plate would be orders of magnitude more.
+    expect(white).toBeLessThan(HEADER_QR_SIZE * HEADER_QR_SIZE * 0.02);
   });
 
   it("renders without the owner chip when no owner name is given (logged-out local deck)", async () => {

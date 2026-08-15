@@ -79,27 +79,40 @@ describe("deckOwnerImageUrl", () => {
   });
 
   it("appends size=hq for the high-resolution download variant", () => {
-    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", "hq")).toBe(
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", { size: "hq" })).toBe(
       "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq",
     );
   });
 
   it("appends aspect=vertical for the 9:16 export", () => {
-    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", undefined, "vertical")).toBe(
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", { aspect: "vertical" })).toBe(
       "https://openrift.app/api/v1/decks/deck-1/image.png?aspect=vertical",
     );
   });
 
   it("omits the aspect for the default canvas", () => {
-    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", undefined, "landscape")).toBe(
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", { aspect: "landscape" })).toBe(
       "https://openrift.app/api/v1/decks/deck-1/image.png",
     );
   });
 
-  it("carries both parameters when both are asked for", () => {
-    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", "hq", "vertical")).toBe(
-      "https://openrift.app/api/v1/decks/deck-1/image.png?size=hq&aspect=vertical",
+  it("appends qr=0 only when the mark is turned off", () => {
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", { qr: false })).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png?qr=0",
     );
+    expect(deckOwnerImageUrl("https://openrift.app", "deck-1", { qr: true })).toBe(
+      "https://openrift.app/api/v1/decks/deck-1/image.png",
+    );
+  });
+
+  it("combines every option into one query string", () => {
+    expect(
+      deckOwnerImageUrl("https://openrift.app", "deck-1", {
+        size: "hq",
+        aspect: "vertical",
+        qr: false,
+      }),
+    ).toBe("https://openrift.app/api/v1/decks/deck-1/image.png?size=hq&aspect=vertical&qr=0");
   });
 });
 
@@ -170,13 +183,13 @@ describe("deckImageFromCardsUrl", () => {
   });
 
   it("appends size=hq for the high-resolution download variant", () => {
-    expect(deckImageFromCardsUrl("https://openrift.app", "hq")).toBe(
+    expect(deckImageFromCardsUrl("https://openrift.app", { size: "hq" })).toBe(
       "https://openrift.app/api/v1/decks/image?size=hq",
     );
   });
 
   it("appends aspect=vertical for the 9:16 export", () => {
-    expect(deckImageFromCardsUrl("https://openrift.app", undefined, "vertical")).toBe(
+    expect(deckImageFromCardsUrl("https://openrift.app", { aspect: "vertical" })).toBe(
       "https://openrift.app/api/v1/decks/image?aspect=vertical",
     );
   });

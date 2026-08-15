@@ -24,7 +24,6 @@ import {
   CANVAS,
   CARD_ASPECT,
   COLORS,
-  QR_SIZE,
   baselineNudge,
   cardTile,
   element,
@@ -41,7 +40,8 @@ import {
  * (`share-image-core`), but with a deck-shaped layout: a left legend hero, the
  * legend's domain glyphs by the title's card count, a cost-sorted main grid, and
  * a bottom band (sideboard row, then battlefields + runes) whose tiles grow to
- * fill whatever space the grid leaves, with the QR mark pinned bottom-right.
+ * fill whatever space the grid leaves, with the QR mark at the title row's right
+ * end and the host label pinned bottom-right.
  *
  * Two resolutions share one layout via the `scale` arg: the og:image renders at
  * 1× (1200×630); the download renders at 2× by embedding raster sources (card
@@ -61,6 +61,19 @@ const PAD = 22;
 
 const TITLE_H = 46;
 const LEFT_W = 250;
+
+/**
+ * The QR lives at the right end of the title row rather than in the footer.
+ * Down there it was boxed in by whatever height the battlefield/rune band
+ * happened to take, which left it at QR_SIZE — about 7% of the canvas width,
+ * and unscannable once a chat client renders the unfurl at a few hundred
+ * pixels. The title row has the whole width to itself, so it can carry a
+ * bigger mark; the row grows to the mark's height, and the footer shrinks to
+ * the host label alone to pay some of that back.
+ */
+const HEADER_QR_SIZE = 104;
+/** Height the footer reserves once it is only the host label. */
+const FOOTER_LABEL_H = 26;
 
 /** The title row's three type sizes. Named because the baseline corrections are
  * derived from the gaps between them, so a size change must reach both places. */
@@ -175,12 +188,15 @@ export async function renderDeckImage(
   const { legend, runes, runeCards, battlefields, sideboard, gridCards } = zones;
   const { mainCardCount, sideboardCount } = zones;
 
-  // The left panel is the legend hero alone, vertically centred; the QR + host
-  // mark moved to the bottom-right of the grid area.
+  // The left panel is the legend hero alone, vertically centred; the host label
+  // sits at the bottom-right of the grid area and the QR rides the title row.
   const hasLeftPanel = legend !== null;
   const leftW = hasLeftPanel ? LEFT_W : 0;
   const innerW = WIDTH - PAD * 2;
-  const bodyH = HEIGHT - PAD * 2 - TITLE_H - GAP;
+  // The title row is as tall as its tallest content: the type alone normally,
+  // the QR when there is one. A deck with no share link keeps the short row.
+  const titleH = input.shareUrl ? Math.max(TITLE_H, HEADER_QR_SIZE) : TITLE_H;
+  const bodyH = HEIGHT - PAD * 2 - titleH - GAP;
   const rightW = innerW - leftW - (hasLeftPanel ? BODY_GAP : 0);
 
   // Legend fills the panel width (small inset), centred over the full height.
@@ -188,19 +204,21 @@ export async function renderDeckImage(
   const legendH = Math.round(legendW / CARD_ASPECT);
 
   // Bottom band: sideboard on its own full-width row, then battlefields + runes
-  // sharing the row beneath with the QR mark on the right. The section tiles grow
+  // sharing the row beneath with the host label on the right. The section tiles grow
   // to fill whatever vertical space the main grid leaves — a shallow deck yields a
   // short grid and larger sections — capped by a max scale and by each row's width
   // so nothing ever wraps.
-  const willHaveFooter = Boolean(input.shareUrl) || Boolean(input.siteHost);
+  const willHaveFooter = Boolean(input.siteHost);
   const hasSideboard = sideboard.length > 0;
   const bfCount = battlefields.length;
   const runeCount = runeCards.length;
   const bottomRowScalable = bfCount > 0 || runeCount > 0;
   const hasBottomRow = bottomRowScalable || willHaveFooter;
 
+  // With the QR moved up, a bottom row carrying only the host label needs a
+  // line's height rather than a mark's.
   const bandGaps = hasSideboard && hasBottomRow ? GAP : 0;
-  const bottomRowFixedH = hasBottomRow && !bottomRowScalable ? QR_SIZE : 0;
+  const bottomRowFixedH = hasBottomRow && !bottomRowScalable ? FOOTER_LABEL_H : 0;
   const bandFixedH =
     (hasSideboard ? SECTION_HEADER_H : 0) +
     (bottomRowScalable ? SECTION_HEADER_H : 0) +
@@ -233,15 +251,11 @@ export async function renderDeckImage(
       )
     : 0;
 
-  // Battlefields + runes share their row with the QR mark; cap height so both
-  // sections plus the full mark (host label + QR) fit the row width. The host
-  // width is estimated generously (12px/char at 20px) so the sections shrink
-  // rather than shoving the QR past the clipped right edge.
-  const hostMarkW = input.siteHost ? input.siteHost.length * 12 : 0;
-  const footerMarkW =
-    (input.siteHost ? hostMarkW : 0) +
-    (input.siteHost && input.shareUrl ? 14 : 0) +
-    (input.shareUrl ? QR_SIZE : 0);
+  // Battlefields + runes share their row with the host label; cap height so both
+  // sections plus the label fit the row width. The host width is estimated
+  // generously (12px/char at 20px) so the sections shrink rather than shoving
+  // the label past the clipped right edge.
+  const footerMarkW = input.siteHost ? input.siteHost.length * 12 : 0;
   const bottomRowAvailW = rightW - (footerMarkW > 0 ? footerMarkW + BODY_GAP : 0);
   const bottomUnitW = bfCount * BATTLEFIELD_ASPECT + runeCount * CARD_ASPECT;
   const bottomGapsW =
@@ -298,14 +312,15 @@ export async function renderDeckImage(
       runeCards.map((card) => tileArtDataUri(io, card.imageId, runeTileW, runeTileH, scale)),
     ),
     Promise.all(domains.map((domain) => glyphUri(io, domain, DOMAIN_ICON, scale))),
-    input.shareUrl ? qrDataUri(input.shareUrl, scale) : Promise.resolve(null),
+    input.shareUrl ? qrDataUri(input.shareUrl, scale, HEADER_QR_SIZE) : Promise.resolve(null),
   ]);
 
-  const hasFooterMark = Boolean(qrUri) || Boolean(input.siteHost);
+  const hasFooterMark = Boolean(input.siteHost);
 
   // ── Title row ──────────────────────────────────────────────────────────────
   // Name + byline keep their shared text baseline in a left group; the count and
-  // the deck's domain glyphs sit as a vertically-centred cluster on the right.
+  // the deck's domain glyphs sit as a vertically-centred cluster on the right,
+  // with the QR beyond them at the row's end.
   const domainIcons = domainIconElements(domainUris, DOMAIN_ICON);
   const titleRow = element(
     "div",
@@ -313,11 +328,14 @@ export async function renderDeckImage(
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
-      height: TITLE_H,
+      height: titleH,
       marginBottom: GAP,
     },
     element(
       "div",
+      // The type group keeps its own height and is centred in the row by the
+      // row's `alignItems`, so growing the row for the QR does not drag the
+      // title down to sit on the row's bottom edge.
       { display: "flex", flexDirection: "row", alignItems: "flex-end", flexGrow: 1 },
       element(
         "div",
@@ -384,6 +402,13 @@ export async function renderDeckImage(
           )
         : false,
     ),
+    qrUri
+      ? element(
+          "div",
+          { display: "flex", flexShrink: 0, marginLeft: BODY_GAP },
+          qrMark(qrUri, HEADER_QR_SIZE),
+        )
+      : false,
   );
 
   // ── Left panel: the legend hero, top-aligned with the main grid ────────────
@@ -420,7 +445,7 @@ export async function renderDeckImage(
     );
 
   // ── Bottom band: sideboard on its own row, then battlefields + runes sharing
-  // the row beneath with the QR + host mark pinned bottom-right ──────────────
+  // the row beneath with the host mark pinned bottom-right ───────────────────
   const sideboardSection =
     hasSideboard &&
     deckSection(
@@ -447,12 +472,13 @@ export async function renderDeckImage(
       runeCards.map((card, index) => cardTile(card, runeUris[index] ?? null, runeTileW, runeTileH)),
     );
 
-  // Scannable host label beside the QR, bottom-right.
+  // Host label, bottom-right. The QR that used to sit beside it now rides the
+  // title row, so this is a single line of type.
   const footerMark =
     hasFooterMark &&
     element(
       "div",
-      { display: "flex", flexDirection: "row", flexShrink: 0, alignItems: "center", gap: 14 },
+      { display: "flex", flexDirection: "row", flexShrink: 0, alignItems: "center" },
       input.siteHost
         ? element(
             "div",
@@ -460,7 +486,6 @@ export async function renderDeckImage(
             input.siteHost,
           )
         : false,
-      qrUri ? qrMark(qrUri) : false,
     );
 
   const bottomRow =

@@ -19,7 +19,7 @@ import {
   siteHostFromOrigin,
   topByQuantity,
 } from "../../services/list-image.js";
-import { aspectFromQuery } from "../../services/share-image-core.js";
+import { aspectFromQuery, qrFromQuery } from "../../services/share-image-core.js";
 import type { ShareImageCard } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
@@ -231,7 +231,11 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     // untouched and the two aspects are separate immutable cache entries.
     const scale = c.req.query("size") === "hq" ? 2 : 1;
     const aspect = aspectFromQuery(c.req.query("aspect"));
-    const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/decks/share/${token}`);
+    // `?qr=0` leaves the scannable mark out, for a download that is going
+    // somewhere the link would be noise. The og:image never sends it.
+    const shareUrl = qrFromQuery(c.req.query("qr"))
+      ? shareUrlFromOrigin(config.corsOrigin, `/decks/share/${token}`)
+      : undefined;
 
     const png = await renderDeckImage(
       io,
@@ -266,7 +270,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const rows = await buildTierListImageRows(repos, found.tierList.tiers);
     const scale = c.req.query("size") === "hq" ? 2 : 1;
     const aspect = aspectFromQuery(c.req.query("aspect"));
-    const shareUrl = shareUrlFromOrigin(config.corsOrigin, `/tier-lists/share/${token}`);
+    const shareUrl = qrFromQuery(c.req.query("qr"))
+      ? shareUrlFromOrigin(config.corsOrigin, `/tier-lists/share/${token}`)
+      : undefined;
 
     const png = await renderTierListImage(
       io,

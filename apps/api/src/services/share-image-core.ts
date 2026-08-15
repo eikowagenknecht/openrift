@@ -490,13 +490,17 @@ export function baselineNudge(largerFontSize: number, smallerFontSize: number): 
  * older and cheaper scanners refuse, and these images are the artifacts most
  * likely to be scanned off a stranger's phone. The 2-module quiet zone is white
  * rather than transparent, so it doubles as the light plate the code needs and
- * the mark's footprint stays exactly QR_SIZE for the layout maths.
+ * the mark's footprint stays exactly `size` for the layout maths.
+ *
+ * `size` is the display size the layout will draw the mark at. Pass it whenever
+ * that differs from `QR_SIZE`, so the source is generated at the resolution it
+ * is shown at rather than being scaled up from a smaller one.
  * @returns The QR data URI, or null when encoding fails.
  */
-export function qrDataUri(url: string, scale: number): Promise<string | null> {
+export function qrDataUri(url: string, scale: number, size = QR_SIZE): Promise<string | null> {
   return QRCode.toDataURL(url, {
     errorCorrectionLevel: "M",
-    width: QR_SIZE * scale,
+    width: size * scale,
     margin: 2,
     color: { dark: "#000000", light: "#ffffff" },
   }).catch(() => null);
@@ -504,9 +508,9 @@ export function qrDataUri(url: string, scale: number): Promise<string | null> {
 
 /**
  * The QR image element, at the shared mark size unless a layout genuinely can't
- * fit it (a code inside a narrow grid tile). Only ever pass a smaller `size` —
- * the source is generated at QR_SIZE, so scaling down resamples cleanly while
- * scaling up would blur the modules.
+ * fit it (a code inside a narrow grid tile) or has room for more. Keep `size`
+ * equal to the `size` the source was generated at: scaling down resamples
+ * cleanly, but scaling up blurs the modules.
  * @returns The mark element.
  */
 export function qrMark(dataUri: string, size = QR_SIZE): Element {

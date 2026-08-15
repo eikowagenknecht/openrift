@@ -87,23 +87,44 @@ export function deckShareImageUrl(
   return size === "hq" ? `${base}&size=hq` : base;
 }
 
+/** What the deck export dialog lets a creator vary about the render. Mirrors
+ * {@link TierListImageOptions}, minus the scale multiplier: the deck dialog
+ * picks its resolution from the shape rather than offering it as a control. */
+export interface DeckImageOptions {
+  /** `"hq"` requests the 2× render, for print and desktop viewing. */
+  size?: "hq";
+  /** Canvas shape. `vertical` is the 9:16 export. */
+  aspect?: ShareImageAspect;
+  /** Draws the scannable mark. Only has an effect on a deck that is shared. */
+  qr?: boolean;
+}
+
+/** @returns The query parameters for a set of deck image options, defaults omitted. */
+function deckImageParams(options: DeckImageOptions = {}): Record<string, string | undefined> {
+  return {
+    size: options.size,
+    aspect: aspectParam(options.aspect),
+    qr: options.qr === false ? "0" : undefined,
+  };
+}
+
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * decks (ADR-031). The export dialog's "Image" download uses this so it works
- * whether or not the deck is shared. `size: "hq"` requests the 2× download and
- * `aspect: "vertical"` the 9:16 one.
+ * whether or not the deck is shared.
+ *
+ * Every option is omitted from the URL at its default, so the plain call still
+ * produces the bare `image.png` the route rendered before the dialog grew its
+ * controls.
+ *
  * @returns The deck image URL.
  */
 export function deckOwnerImageUrl(
   siteUrl: string,
   deckId: string,
-  size?: "hq",
-  aspect?: ShareImageAspect,
+  options: DeckImageOptions = {},
 ): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, {
-    size,
-    aspect: aspectParam(aspect),
-  });
+  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, deckImageParams(options));
 }
 
 /**
@@ -111,15 +132,8 @@ export function deckOwnerImageUrl(
  * download an image of a browser-local deck that has no server row.
  * @returns The render endpoint URL.
  */
-export function deckImageFromCardsUrl(
-  siteUrl: string,
-  size?: "hq",
-  aspect?: ShareImageAspect,
-): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/image`, {
-    size,
-    aspect: aspectParam(aspect),
-  });
+export function deckImageFromCardsUrl(siteUrl: string, options: DeckImageOptions = {}): string {
+  return withParams(`${siteUrl}${API_BASE}/decks/image`, deckImageParams(options));
 }
 
 /**

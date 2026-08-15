@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -164,6 +165,7 @@ export function DeckExportDialog({
   const [downloadingImage, setDownloadingImage] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [imageAspect, setImageAspect] = useState<ShareImageAspect>("landscape");
+  const [qr, setQr] = useState(true);
   const [tab, setTab] = useState<ExportTab>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -287,19 +289,19 @@ export function DeckExportDialog({
     // vertical surface uploads at, so 2× would just be a slower, heavier file
     // the creator has to scale back down.
     const vertical = imageAspect === "vertical";
-    const size = vertical ? undefined : "hq";
-    const aspect = vertical ? "vertical" : undefined;
+    const options = {
+      size: vertical ? undefined : ("hq" as const),
+      aspect: imageAspect,
+      qr,
+    };
     const safeName = `${imageFileName()}${vertical ? "-vertical" : ""}`;
     const download = isLocal
       ? downloadImageFromPost(
-          deckImageFromCardsUrl(getSiteUrl(), size, aspect),
+          deckImageFromCardsUrl(getSiteUrl(), options),
           localImageBody(),
           `${safeName}.png`,
         )
-      : downloadImageFromUrl(
-          deckOwnerImageUrl(getSiteUrl(), deckId, size, aspect),
-          `${safeName}.png`,
-        );
+      : downloadImageFromUrl(deckOwnerImageUrl(getSiteUrl(), deckId, options), `${safeName}.png`);
     // React Compiler can't yet lower try/finally, so reset in both paths.
     try {
       await download;
@@ -313,9 +315,13 @@ export function DeckExportDialog({
   const handleDownloadImagePdf = async () => {
     setDownloadingPdf(true);
     const safeName = imageFileName();
+    // The PDF is the printable sheet, so it always takes the wide image at 2×.
+    // It honours the QR choice, though: a printed decklist is exactly where
+    // someone might not want a code on the page.
+    const pdfOptions = { size: "hq" as const, qr };
     const blob = isLocal
-      ? fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), "hq"), localImageBody())
-      : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, "hq"));
+      ? fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), pdfOptions), localImageBody())
+      : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, pdfOptions));
     // React Compiler can't yet lower try/finally, so reset in both paths.
     try {
       await downloadImageAsPdf(await blob, `${safeName}.pdf`);
@@ -392,6 +398,18 @@ export function DeckExportDialog({
                     Tall
                   </ToggleGroupItem>
                 </ToggleGroup>
+                {!isLocal && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="deck-export-include-qr"
+                      checked={qr}
+                      onCheckedChange={(checked) => setQr(checked === true)}
+                    />
+                    <label htmlFor="deck-export-include-qr" className="cursor-pointer text-sm">
+                      Include a scan code linking to the deck
+                    </label>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button onClick={handleDownloadImage} disabled={downloadingImage}>
                     {downloadingImage ? (

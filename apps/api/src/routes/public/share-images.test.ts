@@ -419,6 +419,35 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     expect(renderDeckMock.mock.calls[0]![3]).toBe("landscape");
   });
 
+  it("passes a share URL for the QR by default", async () => {
+    setupDeck();
+
+    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+    expect(renderDeckMock.mock.calls[0]![1]).toMatchObject({
+      shareUrl: expect.stringContaining("/decks/share/tok-deck"),
+    });
+  });
+
+  it("drops the share URL when qr=0, so no code is drawn", async () => {
+    setupDeck();
+
+    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
+
+    expect(res.status).toBe(200);
+    expect(renderDeckMock.mock.calls[0]![1]).toMatchObject({ shareUrl: undefined });
+  });
+
+  it("keeps the QR for any other qr value", async () => {
+    setupDeck();
+
+    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=1");
+
+    expect(renderDeckMock.mock.calls[0]![1]).toMatchObject({
+      shareUrl: expect.stringContaining("/decks/share/tok-deck"),
+    });
+  });
+
   it("returns 404 for an unknown deck token and does not render", async () => {
     mockDecksRepo.findByShareToken.mockResolvedValue(undefined);
 
