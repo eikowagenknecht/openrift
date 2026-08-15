@@ -2,7 +2,6 @@ import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type { CopiesTable, Database } from "../db/index.js";
 import { keysetCursorPredicate, requireFrontImage, selectCopyWithCard } from "./query-helpers.js";
 
@@ -66,7 +65,7 @@ const COPY_METADATA_COLUMNS = [
 
 /** @returns The row with its `links` jsonb normalised to a parsed array. */
 function withParsedLinks<T extends { links: CopyLink[] | string }>(row: T): T {
-  return { ...row, links: parseJsonbRequired<CopyLink[]>(row.links) };
+  return row;
 }
 
 /** Default page size, and hard maximum, for cursor-paginated copy listings. */
@@ -299,7 +298,7 @@ export function copiesRepo(db: Kysely<Database>) {
         notesPublic?: string | null;
         notesPrivate?: string | null;
         isAltered?: boolean;
-        links?: string;
+        links?: CopyLink[];
       },
     ): Promise<void> {
       if (copyIds.length === 0) {

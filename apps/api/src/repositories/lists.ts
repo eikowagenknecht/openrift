@@ -109,20 +109,6 @@ function parseRules(value: ListRules | string | null | undefined): ListRules {
   return hydrateListRules(value);
 }
 
-/**
- * Binds the rules as a real `jsonb` array via a `text::jsonb` cast.
- *
- * postgres.js infers a bound param's type from its immediate cast: with a bare
- * `::jsonb` it json-*encodes* the JS string into a jsonb *scalar string* (which
- * breaks the `jsonb_array_length` CHECK). Casting through `::text` first forces
- * the param to bind as text, so `::jsonb` then *parses* it into an array. (We
- * verified `${str}::jsonb` → "string" but `${str}::text::jsonb` → "array".)
- * @returns A Kysely expression that stores `value` as a jsonb array.
- */
-function rulesJsonb(value: ListRules | null | undefined) {
-  return sql<ListRules>`${JSON.stringify(value ?? [])}::text::jsonb`;
-}
-
 interface ListEntryRowPrintingFields {
   setId: string;
   rarity: Rarity;
@@ -283,7 +269,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .insertInto("lists")
         .values({
           ...rest,
-          rules: rulesJsonb(rules),
+          rules: rules ?? [],
           sortOrder: sql<number>`coalesce((select max(sort_order) + 1 from lists where user_id = ${values.userId} and intent = ${values.intent}), 0)`,
         })
         .returningAll()
@@ -326,10 +312,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       userId: string,
       updates: ListUpdate,
     ): Promise<Selectable<ListsTable> | undefined> {
-      // `rules` must be cast text→jsonb so it stores as an array (see rulesJsonb);
       // every other column passes through unchanged.
       const { rules, ...rest } = updates;
-      const setValues = rules === undefined ? rest : { ...rest, rules: rulesJsonb(rules) };
+      const setValues = rules === undefined ? rest : { ...rest, rules: rules ?? [] };
       return db
         .updateTable("lists")
         .set(setValues)

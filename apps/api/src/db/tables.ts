@@ -446,8 +446,8 @@ export interface CopiesTable {
   /** Visible to anyone with collection access; stripped from public shares. */
   notesPrivate: string | null;
   isAltered: Generated<boolean>;
-  /** JSONB array of { url, label? }; reads back as a string under Bun. */
-  links: ColumnType<CopyLink[], string | undefined, string>;
+  /** JSONB array of { url, label? }. Column default `[]`, so inserts may omit it. */
+  links: ColumnType<CopyLink[], CopyLink[] | undefined, CopyLink[]>;
 }
 
 /**
@@ -568,9 +568,9 @@ interface AdminEventsTable {
   entityLabel: string | null;
   /** Link target for /admin/cards/$cardSlug when resolvable */
   cardSlug: string | null;
-  /** jsonb; null for creates. Reads must go through parseJsonb. */
+  /** jsonb; null for creates. */
   oldValues: Record<string, unknown> | null;
-  /** jsonb; null for deletes. Reads must go through parseJsonb. */
+  /** jsonb; null for deletes. */
   newValues: Record<string, unknown> | null;
   createdAt: CreatedAt;
 }
@@ -595,18 +595,15 @@ export interface DecksTable {
    * - `custom-region`: `{"tagSlugs": ["<custom_tags.slug>", ...]}` (one or
    *   more region slugs, OR-matched at validation time) or NULL
    *
-   * Writes must be pre-stringified for postgres.js (Bun); reads go through
-   * `parseJsonb`. This Select/Insert split mirrors `user_preferences.data`.
    */
-  formatConfig: ColumnType<DeckFormatConfig | null, string | null, string | null>;
+  formatConfig: DeckFormatConfig | null;
   /**
    * Per-deck draw-odds settings (jsonb): the owner's custom card groups and
    * the enabled row selection for the test bench's odds table. NULL until
    * customized (suggested defaults apply). Shape enforced at the API boundary
-   * by `deckOddsConfigSchema`. Same write/read contract as `formatConfig`:
-   * writes pre-stringified for postgres.js (Bun), reads through `parseJsonb`.
+   * by `deckOddsConfigSchema`.
    */
-  oddsConfig: ColumnType<DeckOddsConfig | null, string | null, string | null>;
+  oddsConfig: DeckOddsConfig | null;
   isPublic: boolean;
   shareToken: string | null;
   isPinned: Generated<boolean>;
@@ -619,10 +616,10 @@ export interface DecksTable {
   coverPosition: number | null;
   /**
    * Outbound links ({@link DeckLink}[]): a guide video, the site the list came
-   * from. Hosts are allowlisted at the API boundary. Reads back as a string
-   * under postgres.js, so parse it (`parseJsonbRequired`) in the repository.
+   * from. Hosts are allowlisted at the API boundary. Column default `[]`, so
+   * inserts may omit it.
    */
-  links: ColumnType<DeckLink[] | string, string | undefined, string>;
+  links: ColumnType<DeckLink[], DeckLink[] | undefined, DeckLink[]>;
   /**
    * FK → collections(id), SET NULL. The deck's home collection: the box it
    * physically lives in. Copies there always count as buildable for this deck,
@@ -733,9 +730,9 @@ export interface DeckFoldersTable {
  * polls, and whatever card is currently pushed to it.
  *
  * `version` bumps on every write and becomes the poll's ETag, so an unchanged
- * second costs a 304 with no body. `payload` follows the same write/read
- * contract as `decks.formatConfig`: writes pre-stringified for postgres.js
- * under Bun, reads through `parseJsonbRequired`.
+ * second costs a 304 with no body.
+ *
+ * CHECK: jsonb_typeof(payload) = 'object'.
  */
 export interface OverlayChannelsTable {
   id: Generated<string>;
@@ -743,7 +740,7 @@ export interface OverlayChannelsTable {
   userId: string;
   /** CHECK: <> ''. Unique. The secret in the OBS browser-source URL. */
   token: string;
-  payload: ColumnType<OverlayPayload, string, string>;
+  payload: OverlayPayload;
   version: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -755,9 +752,7 @@ export interface OverlayChannelsTable {
  * over whatever the surface already shows, so every field inside `config` is
  * optional and an absent key means "leave that switch alone".
  *
- * `config` follows the same write/read contract as `overlayChannels.payload`:
- * writes pre-stringified for postgres.js under Bun, reads through
- * `parseJsonbRequired` and then narrowed by the contract's zod schema, because
+ * `config` is narrowed by the contract's zod schema on the way out, because
  * unlike the payload this blob is presented to the browser source of a stream
  * and a corrupt one must degrade rather than throw.
  *
@@ -769,7 +764,7 @@ export interface StagePresetsTable {
   userId: string;
   /** UNIQUE with `userId` (`uq_stage_presets_user_name`) — presets are recalled by name. */
   name: string;
-  config: ColumnType<StagePresetConfig, string, string>;
+  config: ColumnType<StagePresetConfig, StagePresetConfig | undefined, StagePresetConfig>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -947,8 +942,8 @@ export interface CandidateMetaEventsTable {
   metaEventId: string | null;
   /** When an admin last reviewed this row. Reset to NULL whenever an upload changes it. */
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
-  /** Source fields that map to no column of ours. Written pre-serialized (see the repo). */
-  extraData: ColumnType<unknown, string | null, string | null>;
+  /** Source fields that map to no column of ours. */
+  extraData: unknown | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -987,11 +982,8 @@ export interface CandidateMetaDecksTable {
   record: string | null;
   /** CHECK: NULL or length 1..120 — accept derives one when the source gave none. */
   name: string | null;
-  /**
-   * jsonb. Written as a JSON string, and read back as one under Bun too — every
-   * read goes through `parseJsonbRequired`, same contract as `decks.links`.
-   */
-  cards: ColumnType<CandidateMetaDeckCard[], string, string>;
+  /** jsonb array of the source's card lines. */
+  cards: CandidateMetaDeckCard[];
   /**
    * DEFAULT 'full'. Same CHECK and same vocabulary as
    * {@link MetaDecksTable.listStatus}, which accepting copies it into. It is
@@ -1288,8 +1280,8 @@ export interface TournamentsTable {
   listLockMode: Generated<TournamentListLockMode>;
   /** Deck-legality format (a deck_formats slug) — NOT the pairing `format`. */
   deckFormat: string | null;
-  /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
-  allowedSets: ColumnType<string[] | null, string | null, string | null>;
+  /** Set codes for set-legality flagging. */
+  allowedSets: string[] | null;
   selfRegistration: Generated<boolean>;
 
   // Tokens (distinct capabilities).
@@ -1392,8 +1384,8 @@ export interface PodsTable {
   podNumber: number;
   /** CHECK: 2, 3 or 4 (2 = a Swiss 1v1 match) */
   size: number;
-  /** Engine's write-once penalty breakdown; written pre-stringified, read parsed. */
-  penaltyBreakdown: ColumnType<PodPenaltyBreakdown, string, string>;
+  /** Engine's write-once penalty breakdown. */
+  penaltyBreakdown: PodPenaltyBreakdown;
   resultStatus: Generated<PodResultStatus>;
 }
 
@@ -1458,12 +1450,12 @@ export interface DeckCheckEntriesTable {
   approvedAt: Date | null;
   /** Player request to unlock an approved entry; a judge grants or declines. */
   unlockRequestedAt: Date | null;
-  /** The list as the judge last saw it; written pre-stringified, read defensively. */
-  preEditLines: ColumnType<DeckCheckCardLine[], string, string> | null;
+  /** The list as the judge last saw it. */
+  preEditLines: DeckCheckCardLine[] | null;
   /** CHECK: length <= 4000 */
   notes: string | null;
-  /** Diff vs the last judge-reviewed list; written pre-stringified, read defensively. */
-  changeSummary: ColumnType<DeckCheckChangeSummary, string, string> | null;
+  /** Diff vs the last judge-reviewed list. */
+  changeSummary: DeckCheckChangeSummary | null;
   withdrawnAt: Date | null;
   /** CHECK: length <= 2000; judge-authored, shown to the linked player. */
   playerMessage: string | null;
@@ -2107,7 +2099,11 @@ export interface SiteSettingsTable {
 
 export interface UserPreferencesTable {
   userId: string;
-  data: ColumnType<UserPreferencesResponse, string, string>;
+  data: ColumnType<
+    UserPreferencesResponse,
+    UserPreferencesResponse | undefined,
+    UserPreferencesResponse
+  >;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2211,7 +2207,7 @@ interface JobRunsTable {
   finishedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   durationMs: ColumnType<number | null, number | null | undefined, number | null>;
   errorMessage: ColumnType<string | null, string | null | undefined, string | null>;
-  result: ColumnType<unknown, string | null | undefined, string | null>;
+  result: ColumnType<unknown, unknown | undefined, unknown>;
   /** Activity axis: true = succeeded but found no work, false = did work, null
    *  = unclassified (failed runs, jobs without a classifier, pre-migration). */
   noop: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;

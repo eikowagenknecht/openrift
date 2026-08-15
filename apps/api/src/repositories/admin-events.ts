@@ -1,6 +1,5 @@
 import type { Kysely } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type { AdminEventAction, AdminEventEntityType, Database } from "../db/index.js";
 import { keysetCursorPredicate } from "./query-helpers.js";
 
@@ -12,8 +11,8 @@ export interface AdminEventInsert {
   entityId?: string | null;
   entityLabel?: string | null;
   cardSlug?: string | null;
-  oldValues?: unknown;
-  newValues?: unknown;
+  oldValues?: Record<string, unknown> | null;
+  newValues?: Record<string, unknown> | null;
 }
 
 /** Audit event row joined with the actor's user record (null if deleted). */
@@ -48,7 +47,7 @@ export interface AdminEventFilters {
  */
 export function adminEventsRepo(db: Kysely<Database>) {
   return {
-    /** Inserts one audit event. jsonb payloads are stringified explicitly. */
+    /** Inserts one audit event. */
     async insert(event: AdminEventInsert): Promise<void> {
       await db
         .insertInto("adminEvents")
@@ -59,14 +58,8 @@ export function adminEventsRepo(db: Kysely<Database>) {
           entityId: event.entityId ?? null,
           entityLabel: event.entityLabel ?? null,
           cardSlug: event.cardSlug ?? null,
-          oldValues:
-            event.oldValues === undefined || event.oldValues === null
-              ? null
-              : (JSON.stringify(event.oldValues) as never),
-          newValues:
-            event.newValues === undefined || event.newValues === null
-              ? null
-              : (JSON.stringify(event.newValues) as never),
+          oldValues: event.oldValues ?? null,
+          newValues: event.newValues ?? null,
         })
         .execute();
     },
@@ -129,12 +122,7 @@ export function adminEventsRepo(db: Kysely<Database>) {
         );
       }
 
-      const rows = await query.execute();
-      return rows.map((row) => ({
-        ...row,
-        oldValues: parseJsonb(row.oldValues),
-        newValues: parseJsonb(row.newValues),
-      }));
+      return await query.execute();
     },
 
     /**

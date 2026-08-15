@@ -921,7 +921,23 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         .executeTakeFirstOrThrow();
       const pod = await host.db
         .insertInto("pods")
-        .values({ roundId: round.id, podNumber: 1, size: 3, penaltyBreakdown: JSON.stringify({}) })
+        .values({
+          roundId: round.id,
+          podNumber: 1,
+          size: 3,
+          penaltyBreakdown: {
+            rematch: 0,
+            scoreSpread: 0,
+            imbalance: 0,
+            float: 0,
+            threePodRepeat: 0,
+            sameRegion: 0,
+            repeatedRegion: 0,
+            total: 0,
+            rematchPairs: 0,
+            spread: 0,
+          },
+        })
         .returning("id")
         .executeTakeFirstOrThrow();
       await host.db

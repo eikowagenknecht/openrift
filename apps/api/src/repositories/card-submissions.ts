@@ -1,7 +1,6 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type {
   CardSubmissionKind,
   CardSubmissionReason,
@@ -15,28 +14,6 @@ import { joinFrontImage, keysetCursorPredicate } from "./query-helpers.js";
 
 /** A ledger row with its jsonb column parsed. */
 export type CardSubmissionRow = Selectable<CardSubmissionsTable>;
-
-/**
- * postgres.js under Bun hands jsonb back as a string, so the Kysely-typed read
- * shape is wrong at runtime for `proposed_diff`.
- * @param row A raw selected ledger row.
- * @returns The same row with `proposedDiff` guaranteed to be an array.
- */
-function parseRow(row: CardSubmissionRow): CardSubmissionRow {
-  return { ...row, proposedDiff: parseJsonbRequired<string[]>(row.proposedDiff) };
-}
-
-/**
- * Binds the diff as a real jsonb array. A bare `::jsonb` would json-encode the
- * JS string into a jsonb scalar string; casting through `::text` first makes
- * postgres.js bind it as text so `::jsonb` parses it. Same quirk and same fix
- * as `rulesJsonb` in the lists repo.
- * @param value The field paths to store.
- * @returns A Kysely expression storing `value` as a jsonb array.
- */
-function diffJsonb(value: string[]) {
-  return sql<string[]>`${JSON.stringify(value)}::text::jsonb`;
-}
 
 /**
  * The durable outcome record for in-app card submissions (ADR-036, migration
@@ -65,7 +42,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     }): Promise<string> {
       const row = await db
         .insertInto("cardSubmissions")
-        .values({ ...values, proposedDiff: diffJsonb(values.proposedDiff) })
+        .values(values)
         .returning("id")
         .executeTakeFirstOrThrow();
       return row.id;
@@ -97,7 +74,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
         );
       }
       const rows = await query.execute();
-      return rows.map((row) => parseRow(row));
+      return rows;
     },
 
     /**
@@ -115,7 +92,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
         .where("provider", "=", provider)
         .where("externalId", "=", externalId)
         .executeTakeFirst();
-      return row ? parseRow(row) : null;
+      return row ?? null;
     },
 
     /**
@@ -134,7 +111,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
         .where("candidateCardId", "in", candidateCardIds)
         .where("status", "=", "pending")
         .execute();
-      return rows.map((row) => parseRow(row));
+      return rows;
     },
 
     /**
@@ -151,7 +128,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
         .where("provider", "=", provider)
         .where("status", "=", "pending")
         .execute();
-      return rows.map((row) => parseRow(row));
+      return rows;
     },
 
     /**
@@ -165,7 +142,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
         .selectAll()
         .where("candidateCardId", "=", candidateCardId)
         .executeTakeFirst();
-      return row ? parseRow(row) : null;
+      return row ?? null;
     },
 
     /**

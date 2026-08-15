@@ -1,6 +1,5 @@
 import type { Kysely, Selectable } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type { Database, TierListRow, TierListsTable } from "../db/index.js";
 
 /** A tier list row with its `tiers` jsonb parsed. */
@@ -55,17 +54,12 @@ export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): Tier
 }
 
 /**
- * postgres.js under Bun hands jsonb back as a raw JSON string even though the
- * Kysely row type claims the parsed shape, so every read of a `tier_lists` row
- * goes through this. Applied at the single exit point of each query rather than
- * at call sites, so a new query cannot forget it.
- * @returns The row with `tiers` guaranteed parsed and in the current shape.
+ * Applied at the single exit point of each query rather than at call sites, so
+ * a new query cannot forget it.
+ * @returns The row with `tiers` migrated to the current shape.
  */
 function withParsedTiers<Row extends { tiers: TierListRow[] }>(row: Row): Row {
-  return {
-    ...row,
-    tiers: normalizeTiers(parseJsonbRequired<(TierListRow | LegacyTierListRow)[]>(row.tiers)),
-  };
+  return { ...row, tiers: normalizeTiers(row.tiers as (TierListRow | LegacyTierListRow)[]) };
 }
 
 /**

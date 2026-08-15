@@ -6,7 +6,6 @@ import {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type { Database, OverlayChannelsTable } from "../db/index.js";
 import { withUniqueShareToken } from "../lib/share-token.js";
 
@@ -16,20 +15,17 @@ export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "
 }
 
 /**
- * postgres.js under Bun hands jsonb back as a string, so every read goes
- * through `parseJsonbRequired` — the column is NOT NULL, so there is no null
- * branch to fall back from. The parsed blob then goes through
- * `normalizeOverlayPayload`, because the payload grows display switches without
- * a migration and older rows are missing whichever ones came later.
- * `version` is an int8, which postgres.js also returns as a string (it only
- * registers number parsers for the 4-byte-and-smaller numeric OIDs), so it is
- * coerced here despite the row type saying `number`.
- * @returns The row with a parsed payload and a numeric version.
+ * The stored payload goes through `normalizeOverlayPayload`, because it grows
+ * display switches without a migration and older rows are missing whichever
+ * ones came later. `version` is an int8, which postgres.js returns as a string
+ * (it only registers number parsers for the 4-byte-and-smaller numeric OIDs),
+ * so it is coerced here despite the row type saying `number`.
+ * @returns The row with a normalized payload and a numeric version.
  */
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
   return {
     ...row,
-    payload: normalizeOverlayPayload(parseJsonbRequired<OverlayPayload>(row.payload)),
+    payload: normalizeOverlayPayload(row.payload),
     version: Number(row.version),
   };
 }
@@ -55,7 +51,7 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
   ): Promise<OverlayChannel | undefined> {
     const row = await db
       .updateTable("overlayChannels")
-      .set({ payload: JSON.stringify(payload), version: sql<number>`version + 1` })
+      .set({ payload, version: sql<number>`version + 1` })
       .where("userId", "=", userId)
       .returningAll()
       .executeTakeFirst();
@@ -103,7 +99,7 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
           .values({
             userId,
             token,
-            payload: JSON.stringify(DEFAULT_OVERLAY_PAYLOAD),
+            payload: DEFAULT_OVERLAY_PAYLOAD,
           })
           .returningAll()
           .executeTakeFirstOrThrow();

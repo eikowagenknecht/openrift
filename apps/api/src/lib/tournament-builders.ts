@@ -15,7 +15,6 @@ import {
   TOURNAMENT_PARTICIPANT_PREVIEW_COUNT,
 } from "@openrift/shared/contracts/tournaments";
 
-import { parseJsonb } from "../db/helpers.js";
 import type { Repos } from "../deps.js";
 import type { Tournament, TournamentSummaryRow } from "../repositories/tournaments.js";
 import { gravatarHashForEmail } from "./gravatar.js";
@@ -338,7 +337,7 @@ export async function buildDetail(
       : null,
     listLockMode: tournament.listLockMode,
     deckFormat: tournament.deckFormat,
-    allowedSets: parseJsonb<string[]>(tournament.allowedSets as string[] | string | null),
+    allowedSets: tournament.allowedSets,
     selfRegistration: tournament.selfRegistration,
     reportToken,
     followToken,

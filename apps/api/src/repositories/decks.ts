@@ -12,50 +12,13 @@ import type {
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
 import { createsCycle } from "../lib/deck-lineage.js";
 
-function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
-  return value === null ? null : JSON.stringify(value);
-}
-
-function serializeOddsConfig(value: DeckOddsConfig | null): string | null {
-  return value === null ? null : JSON.stringify(value);
-}
-
 /**
- * The stored shapes are enforced at the write boundary (`validateFormatConfig`
- * for the format config, `deckOddsConfigSchema` for the odds config,
- * `deckLinkSchema` for the links), so the casts {@link parseJsonb} performs
- * are safe at read time.
- * @returns The row with its jsonb columns parsed (null when a column was NULL).
- */
-function withParsedJsonb<
-  T extends {
-    formatConfig: DeckFormatConfig | string | null;
-    oddsConfig: DeckOddsConfig | string | null;
-    links: DeckLink[] | string;
-  },
->(
-  row: T,
-): T & {
-  formatConfig: DeckFormatConfig | null;
-  oddsConfig: DeckOddsConfig | null;
-  links: DeckLink[];
-} {
-  return {
-    ...row,
-    formatConfig: parseJsonb<DeckFormatConfig>(row.formatConfig),
-    oddsConfig: parseJsonb<DeckOddsConfig>(row.oddsConfig),
-    links: parseJsonbRequired<DeckLink[]>(row.links),
-  };
-}
-
-/**
- * Input for {@link decksRepo}.`update`: every editable deck column, but with
- * `formatConfig` / `oddsConfig` as their structured shapes (the repo
- * serializes them before writing) rather than the columns' stored string form.
+ * Input for {@link decksRepo}.`update`: every editable deck column, with the
+ * jsonb ones required rather than optional-by-absence, so `"links" in updates`
+ * distinguishes "clear it" from "leave it alone".
  */
 export type DeckUpdateInput = Omit<
   Updateable<DecksTable>,
@@ -111,8 +74,7 @@ export function decksRepo(db: Kysely<Database>) {
       if (!options?.includeArchived) {
         query = query.where("archivedAt", "is", null);
       }
-      const rows = await query.execute();
-      return rows.map((row) => withParsedJsonb(row));
+      return await query.execute();
     },
 
     /**
@@ -136,13 +98,12 @@ export function decksRepo(db: Kysely<Database>) {
 
     /** @returns A single deck by ID scoped to a user, or `undefined`. */
     async getByIdForUser(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
-      const row = await db
+      return await db
         .selectFrom("decks")
         .selectAll()
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /** @returns The deck's `id` and `format`, or `undefined` if not found. */
@@ -179,16 +140,11 @@ export function decksRepo(db: Kysely<Database>) {
       links?: DeckLink[];
     }): Promise<Selectable<DecksTable>> {
       const { links, ...rest } = values;
-      const row = await db
+      return await db
         .insertInto("decks")
-        .values({
-          ...rest,
-          formatConfig: serializeFormatConfig(values.formatConfig),
-          links: JSON.stringify(links ?? []),
-        })
+        .values({ ...rest, links: links ?? [] })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return withParsedJsonb(row);
     },
 
     /** @returns The updated deck row, or `undefined` if not found. */
@@ -200,27 +156,21 @@ export function decksRepo(db: Kysely<Database>) {
       const { formatConfig, oddsConfig, links, ...rest } = updates;
       const dbUpdates: Updateable<DecksTable> = { ...rest };
       if ("formatConfig" in updates) {
-        dbUpdates.formatConfig = serializeFormatConfig(formatConfig ?? null);
+        dbUpdates.formatConfig = formatConfig ?? null;
       }
       if ("oddsConfig" in updates) {
-        dbUpdates.oddsConfig = serializeOddsConfig(oddsConfig ?? null);
+        dbUpdates.oddsConfig = oddsConfig ?? null;
       }
       if ("links" in updates) {
-        dbUpdates.links = JSON.stringify(links ?? []);
+        dbUpdates.links = links ?? [];
       }
-      const row = await db
+      return await db
         .updateTable("decks")
         .set(dbUpdates)
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      if (!row) {
-        return undefined;
-      }
-      // Both jsonb columns, not just formatConfig: an unparsed oddsConfig
-      // string fails deckResponseSchema output validation on the PATCH reply.
-      return withParsedJsonb(row);
     },
 
     /**
@@ -424,13 +374,13 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `${source.name} (Copy)`,
             description: source.description,
-            links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
+            links: source.links,
             format: source.format,
             // Carry format_config so a cloned Custom-Region deck stays locked
             // to the same region without forcing the user to re-pick.
             // Re-encode through serialize to handle the raw-string shape
             // postgres.js returns for jsonb reads.
-            formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
+            formatConfig: source.formatConfig,
             isPublic: false,
           })
           .returningAll()
@@ -449,7 +399,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return withParsedJsonb(newDeck);
+        return newDeck;
       });
     },
 
@@ -497,10 +447,10 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: input.name ?? `${source.name} (${isCheckpoint ? "checkpoint" : "variant"})`,
             description: source.description,
-            links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
+            links: source.links,
             format: source.format,
-            formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
-            oddsConfig: serializeOddsConfig(parseJsonb<DeckOddsConfig>(source.oddsConfig)),
+            formatConfig: source.formatConfig,
+            oddsConfig: source.oddsConfig,
             coverCardId: source.coverCardId,
             coverPrintingId: source.coverPrintingId,
             coverPosition: source.coverPosition,
@@ -590,7 +540,7 @@ export function decksRepo(db: Kysely<Database>) {
           }
         }
 
-        return withParsedJsonb(copy);
+        return copy;
       });
     },
 
@@ -691,7 +641,7 @@ export function decksRepo(db: Kysely<Database>) {
           .selectAll()
           .where("id", "=", id)
           .executeTakeFirstOrThrow();
-        return withParsedJsonb(row);
+        return row;
       });
     },
 
@@ -775,7 +725,7 @@ export function decksRepo(db: Kysely<Database>) {
           .selectAll()
           .where("id", "=", id)
           .executeTakeFirstOrThrow();
-        return withParsedJsonb(row);
+        return row;
       });
     },
 
@@ -839,7 +789,7 @@ export function decksRepo(db: Kysely<Database>) {
           .where("id", "=", id)
           .returningAll()
           .executeTakeFirstOrThrow();
-        return withParsedJsonb(row);
+        return row;
       });
     },
 
@@ -882,7 +832,7 @@ export function decksRepo(db: Kysely<Database>) {
           .where("id", "=", id)
           .returningAll()
           .executeTakeFirstOrThrow();
-        return withParsedJsonb(row);
+        return row;
       });
     },
 
@@ -895,14 +845,13 @@ export function decksRepo(db: Kysely<Database>) {
       userId: string,
       isPinned: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const row = await db
+      return await db
         .updateTable("decks")
         .set({ isPinned })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -915,14 +864,13 @@ export function decksRepo(db: Kysely<Database>) {
       userId: string,
       archived: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const row = await db
+      return await db
         .updateTable("decks")
         .set({ archivedAt: archived ? sql`now()` : null })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -954,14 +902,13 @@ export function decksRepo(db: Kysely<Database>) {
       shareToken: string | null,
       isPublic: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const row = await db
+      return await db
         .updateTable("decks")
         .set({ shareToken, isPublic })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row === undefined ? undefined : withParsedJsonb(row);
     },
 
     /**
@@ -988,7 +935,7 @@ export function decksRepo(db: Kysely<Database>) {
       }
 
       const { ownerName, ownerEmail, ...deck } = row;
-      return { deck: withParsedJsonb(deck), ownerName, ownerEmail };
+      return { deck, ownerName, ownerEmail };
     },
 
     /**
@@ -1018,9 +965,9 @@ export function decksRepo(db: Kysely<Database>) {
             userId,
             name: `Copy of ${source.name}`,
             description: source.description,
-            links: JSON.stringify(parseJsonbRequired<DeckLink[]>(source.links)),
+            links: source.links,
             format: source.format,
-            formatConfig: serializeFormatConfig(parseJsonb<DeckFormatConfig>(source.formatConfig)),
+            formatConfig: source.formatConfig,
             isPublic: false,
           })
           .returningAll()
@@ -1039,7 +986,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return withParsedJsonb(newDeck);
+        return newDeck;
       });
     },
   };

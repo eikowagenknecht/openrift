@@ -32,7 +32,7 @@ describe("toDeck", () => {
       coverCardId: "card-9",
       coverPrintingId: "printing-9",
       coverPosition: 35,
-      links: '[{"url":"https://youtu.be/abc123","title":"Video guide"}]',
+      links: [{ url: "https://youtu.be/abc123", title: "Video guide" }],
       collectionId: "collection-7",
       familyId: "family-1",
       predecessorDeckId: "deck-0",

@@ -1,7 +1,6 @@
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
 type Db = Kysely<Database>;
@@ -27,7 +26,7 @@ export function ingestRepo(db: Db) {
         .execute();
       // Without the parse, the ingest diff compares a JSON string against the
       // incoming object and flags extraData as changed on every re-ingest.
-      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
+      return rows;
     },
 
     /** @returns All cards (id + normName) for name resolution. */
@@ -65,7 +64,7 @@ export function ingestRepo(db: Db) {
         .selectAll()
         .where("candidateCardId", "in", candidateCardIds)
         .execute();
-      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
+      return rows;
     },
 
     /**

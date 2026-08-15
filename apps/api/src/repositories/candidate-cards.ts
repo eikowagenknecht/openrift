@@ -10,7 +10,6 @@ import type {
 } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type {
   CardNameAliasesTable,
   CandidateCardsTable,
@@ -541,7 +540,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         (q, key) => q.orderBy(key),
         query,
       ).execute();
-      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
+      return rows;
     },
 
     /** @returns Marker ID → slug mapping for given IDs. */
@@ -731,7 +730,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .orderBy("candidateCards.provider")
         .orderBy("candidateCards.shortCode")
         .execute();
-      return rows.map((row) => ({ ...row, extraData: parseJsonb(row.extraData) }));
+      return rows;
     },
 
     // ── card-review provider scoping lookups ─────────────────────────────────

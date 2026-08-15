@@ -2,9 +2,7 @@ import type { MetaListStatus } from "@openrift/shared/types";
 import type { Insertable, Kysely, Selectable, SqlBool, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { asJsonb, asJsonbNullable, parseJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type {
-  CandidateMetaDeckCard,
   CandidateMetaDecksTable,
   CandidateMetaEventsTable,
   Database,
@@ -69,25 +67,6 @@ export interface MetaCandidateDeckKey {
 }
 
 /**
- * `postgres.js` under Bun hands jsonb back as a string, so every read of the
- * `cards` column goes through this rather than trusting the Kysely row type.
- * @param row The raw candidate deck row.
- * @returns The row with `cards` parsed.
- */
-function toDeckRow(row: CandidateMetaDeckRow): CandidateMetaDeckRow {
-  return { ...row, cards: parseJsonbRequired<CandidateMetaDeckCard[]>(row.cards) };
-}
-
-/**
- * The same defensive jsonb read for the event's nullable `extra_data`.
- * @param row The raw candidate event row.
- * @returns The row with `extraData` parsed.
- */
-function toEventRow(row: Selectable<CandidateMetaEventsTable>): CandidateMetaEventRow {
-  return { ...row, extraData: parseJsonb(row.extraData) };
-}
-
-/**
  * Queries for the meta archive's candidate staging tables (ADR-014, migration
  * 236). Live `meta_events` / `meta_decks` writes stay in `metaRepo` — this repo
  * owns the candidate rows, the ignore lists, and the source-key lookups that
@@ -143,7 +122,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .where("provider", "=", provider)
         .where("externalId", "in", externalIds)
         .execute();
-      return rows.map((row) => toEventRow(row));
+      return rows;
     },
 
     /** @returns Every candidate deck under the given candidate events. */
@@ -158,7 +137,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .orderBy("finishTier", "asc")
         .orderBy("playerName", "asc")
         .execute();
-      return rows.map((row) => toDeckRow(row));
+      return rows;
     },
 
     /** @returns The provider's ignored event keys. */
@@ -267,10 +246,9 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
 
     /** @returns The new candidate event's id. */
     async insertEvent(values: Insertable<CandidateMetaEventsTable>): Promise<string> {
-      const { extraData, ...rest } = values;
       const row = await db
         .insertInto("candidateMetaEvents")
-        .values({ ...rest, extraData: asJsonbNullable(extraData) })
+        .values(values)
         .returning("id")
         .executeTakeFirstOrThrow();
       return row.id;
@@ -278,45 +256,22 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
 
     /** Applies a partial candidate-event update. */
     async updateEvent(id: string, updates: Updateable<CandidateMetaEventsTable>): Promise<void> {
-      const { extraData, ...rest } = updates;
-      await db
-        .updateTable("candidateMetaEvents")
-        .set(extraData === undefined ? rest : { ...rest, extraData: asJsonbNullable(extraData) })
-        .where("id", "=", id)
-        .execute();
+      await db.updateTable("candidateMetaEvents").set(updates).where("id", "=", id).execute();
     },
 
-    /**
-     * @param values The deck's columns; `cards` is serialized here so callers
-     *   never hand-stringify jsonb.
-     * @returns The new candidate deck's id.
-     */
-    async insertDeck(
-      values: Omit<Insertable<CandidateMetaDecksTable>, "cards"> & {
-        cards: CandidateMetaDeckCard[];
-      },
-    ): Promise<string> {
+    /** @returns The new candidate deck's id. */
+    async insertDeck(values: Insertable<CandidateMetaDecksTable>): Promise<string> {
       const row = await db
         .insertInto("candidateMetaDecks")
-        .values({ ...values, cards: asJsonb(JSON.stringify(values.cards)) })
+        .values(values)
         .returning("id")
         .executeTakeFirstOrThrow();
       return row.id;
     },
 
-    /** Applies a partial candidate-deck update. @see insertDeck for the `cards` handling. */
-    async updateDeck(
-      id: string,
-      updates: Omit<Updateable<CandidateMetaDecksTable>, "cards"> & {
-        cards?: CandidateMetaDeckCard[];
-      },
-    ): Promise<void> {
-      const { cards, ...rest } = updates;
-      await db
-        .updateTable("candidateMetaDecks")
-        .set(cards === undefined ? rest : { ...rest, cards: asJsonb(JSON.stringify(cards)) })
-        .where("id", "=", id)
-        .execute();
+    /** Applies a partial candidate-deck update. */
+    async updateDeck(id: string, updates: Updateable<CandidateMetaDecksTable>): Promise<void> {
+      await db.updateTable("candidateMetaDecks").set(updates).where("id", "=", id).execute();
     },
 
     /** Removes candidate decks the upload no longer carries. */
@@ -337,7 +292,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .orderBy("eventDate", "desc")
         .orderBy("name", "asc")
         .execute();
-      return rows.map((row) => toEventRow(row));
+      return rows;
     },
 
     /** @returns The candidate event with that id, or `undefined`. */
@@ -347,7 +302,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("id", "=", id)
         .executeTakeFirst();
-      return row === undefined ? undefined : toEventRow(row);
+      return row;
     },
 
     /** @returns The candidate deck with that id, or `undefined`. */
@@ -357,7 +312,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("id", "=", id)
         .executeTakeFirst();
-      return row === undefined ? undefined : toDeckRow(row);
+      return row;
     },
 
     /**
@@ -373,7 +328,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .orderBy("finishTier", "asc")
         .orderBy("playerName", "asc")
         .execute();
-      return rows.map((row) => toDeckRow(row));
+      return rows;
     },
 
     // ── Linking and review state ─────────────────────────────────────────────
@@ -432,19 +387,15 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         .selectFrom("candidateMetaDecks")
         .selectAll()
         // raw sql: unnesting a jsonb array and testing a key of each element has
-        // no Kysely expression form. The CASE tolerates legacy rows written as
-        // jsonb string scalars before asJsonbParam existed (see its comment).
+        // no Kysely expression form.
         .where(
           sql<SqlBool>`EXISTS (
-            SELECT 1 FROM jsonb_array_elements(
-              CASE WHEN jsonb_typeof(cards) = 'array' THEN cards
-                   ELSE (cards #>> '{}')::jsonb END
-            ) AS card
+            SELECT 1 FROM jsonb_array_elements(cards) AS card
             WHERE card ->> 'cardId' IS NULL
           )`,
         )
         .execute();
-      return rows.map((row) => toDeckRow(row));
+      return rows;
     },
 
     // ── Ignore lists ─────────────────────────────────────────────────────────

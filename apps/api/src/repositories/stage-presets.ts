@@ -1,7 +1,6 @@
 import type { StagePresetConfig } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
-import { asJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type { Database, StagePresetsTable } from "../db/index.js";
 
 /** A preset row with its `config` jsonb parsed. */
@@ -14,18 +13,6 @@ export type StagePresetRow = Selectable<StagePresetsTable>;
  * all can appear, so the shape is checked before the lookup rather than after.
  */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-
-/**
- * postgres.js under Bun hands jsonb back as a raw JSON string even though the
- * Kysely row type claims the parsed shape, so every read goes through this.
- * Applied at each query's single exit point, so a new query cannot forget it.
- * The blob is not validated here — the presenter narrows it through the
- * contract's schema, which is where a corrupt one degrades to `{}`.
- * @returns The row with `config` guaranteed parsed.
- */
-function withParsedConfig(row: StagePresetRow): StagePresetRow {
-  return { ...row, config: parseJsonbRequired<StagePresetConfig>(row.config) };
-}
 
 /**
  * Queries for a creator's saved stage presets (migration 242).
@@ -48,7 +35,7 @@ export function stagePresetsRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .orderBy("name", "asc")
         .execute();
-      return rows.map((row) => withParsedConfig(row));
+      return rows;
     },
 
     /**
@@ -66,7 +53,7 @@ export function stagePresetsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
-      return row ? withParsedConfig(row) : undefined;
+      return row;
     },
 
     /** @returns How many presets the user has, for the per-user cap. */
@@ -86,14 +73,10 @@ export function stagePresetsRepo(db: Kysely<Database>) {
     ): Promise<StagePresetRow> {
       const row = await db
         .insertInto("stagePresets")
-        .values({
-          userId,
-          name: values.name,
-          config: asJsonb(JSON.stringify(values.config)),
-        })
+        .values({ userId, name: values.name, config: values.config })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return withParsedConfig(row);
+      return row;
     },
 
     /**
@@ -111,13 +94,13 @@ export function stagePresetsRepo(db: Kysely<Database>) {
         .updateTable("stagePresets")
         .set({
           ...(values.name !== undefined && { name: values.name }),
-          ...(values.config !== undefined && { config: asJsonb(JSON.stringify(values.config)) }),
+          ...(values.config !== undefined && { config: values.config }),
         })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
-      return row ? withParsedConfig(row) : undefined;
+      return row;
     },
 
     /** @returns True if a preset was deleted. */

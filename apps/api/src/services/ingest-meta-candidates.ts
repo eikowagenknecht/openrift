@@ -505,7 +505,7 @@ export async function ingestMetaCandidates(
           provider,
           externalId: event.externalId,
           ...fields,
-          extraData: fields.extraData === null ? null : JSON.stringify(fields.extraData),
+          extraData: fields.extraData,
           metaEventId,
           checkedAt: inSync ? now : null,
         });
@@ -526,7 +526,7 @@ export async function ingestMetaCandidates(
         if (changed || checkedAt !== undefined) {
           await repo.updateEvent(candidateEventId, {
             ...fields,
-            extraData: fields.extraData === null ? null : JSON.stringify(fields.extraData),
+            extraData: fields.extraData,
             metaEventId,
             ...(checkedAt === undefined ? {} : { checkedAt }),
           });

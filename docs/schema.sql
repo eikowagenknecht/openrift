@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict azJBM3ni1MQnbVYPmfCljpu184zfVs2qbaMmB2AaDKhR0eNtooOvtfWx33bx8fj
+\restrict t8ivtuEORSPXBbE4JBA3v4gH6uh5WvD5hPlVmRg60EnhXo3bJA6WgEam0V3ehFJ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -562,7 +562,9 @@ CREATE TABLE public.admin_events (
     card_slug text,
     old_values jsonb,
     new_values jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_admin_events_new_values_shape CHECK (((new_values IS NULL) OR (jsonb_typeof(new_values) = 'object'::text))),
+    CONSTRAINT chk_admin_events_old_values_shape CHECK (((old_values IS NULL) OR (jsonb_typeof(old_values) = 'object'::text)))
 );
 
 
@@ -659,6 +661,7 @@ CREATE TABLE public.candidate_cards (
     types text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT candidate_cards_submission_note_check CHECK ((submission_note <> ''::text)),
     CONSTRAINT chk_candidate_cards_energy_non_negative CHECK ((energy >= 0)),
+    CONSTRAINT chk_candidate_cards_extra_data_shape CHECK (((extra_data IS NULL) OR (jsonb_typeof(extra_data) = 'object'::text))),
     CONSTRAINT chk_candidate_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_candidate_cards_might_non_negative CHECK ((might >= 0)),
     CONSTRAINT chk_candidate_cards_name_not_empty CHECK ((name <> ''::text)),
@@ -690,6 +693,7 @@ CREATE TABLE public.candidate_meta_decks (
     checked_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_candidate_meta_decks_cards_shape CHECK (((cards IS NULL) OR (jsonb_typeof(cards) = 'array'::text))),
     CONSTRAINT chk_candidate_meta_decks_external_id CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_candidate_meta_decks_finish_tier CHECK ((finish_tier >= 1)),
     CONSTRAINT chk_candidate_meta_decks_list_status CHECK ((list_status = ANY (ARRAY['full'::text, 'partial'::text, 'archetype'::text]))),
@@ -720,6 +724,7 @@ CREATE TABLE public.candidate_meta_events (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_candidate_meta_events_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_candidate_meta_events_extra_data_shape CHECK (((extra_data IS NULL) OR (jsonb_typeof(extra_data) = 'object'::text))),
     CONSTRAINT chk_candidate_meta_events_format CHECK ((format <> ''::text)),
     CONSTRAINT chk_candidate_meta_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_candidate_meta_events_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
@@ -763,6 +768,7 @@ CREATE TABLE public.candidate_printings (
     distribution_channel_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     printed_year smallint,
     CONSTRAINT candidate_printings_size_check CHECK ((size <> ''::text)),
+    CONSTRAINT chk_candidate_printings_extra_data_shape CHECK (((extra_data IS NULL) OR (jsonb_typeof(extra_data) = 'object'::text))),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_external_id CHECK ((external_id <> ''::text)),
@@ -903,6 +909,7 @@ CREATE TABLE public.card_submissions (
     CONSTRAINT chk_card_submissions_external_id_not_empty CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_card_submissions_kind CHECK ((kind = ANY (ARRAY['new_card'::text, 'correction'::text, 'image'::text]))),
     CONSTRAINT chk_card_submissions_note_not_empty CHECK ((note <> ''::text)),
+    CONSTRAINT chk_card_submissions_proposed_diff_shape CHECK (((proposed_diff IS NULL) OR (jsonb_typeof(proposed_diff) = 'array'::text))),
     CONSTRAINT chk_card_submissions_provider_not_empty CHECK ((provider <> ''::text)),
     CONSTRAINT chk_card_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'not_a_card'::text, 'bad_image'::text])))),
     CONSTRAINT chk_card_submissions_resolution_note_not_empty CHECK ((resolution_note <> ''::text)),
@@ -1115,7 +1122,8 @@ CREATE TABLE public.copies (
     links jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT chk_copies_condition_or_graded CHECK (((condition IS NULL) OR (grader IS NULL))),
     CONSTRAINT chk_copies_grade_half_steps CHECK (((grade IS NULL) OR ((grade >= (1)::double precision) AND (grade <= (10)::double precision) AND ((grade * (2)::double precision) = trunc((grade * (2)::double precision)))))),
-    CONSTRAINT chk_copies_grader_with_grade CHECK (((grader IS NULL) = (grade IS NULL)))
+    CONSTRAINT chk_copies_grader_with_grade CHECK (((grader IS NULL) = (grade IS NULL))),
+    CONSTRAINT chk_copies_links_shape CHECK (((links IS NULL) OR (jsonb_typeof(links) = 'array'::text)))
 );
 
 
@@ -1199,8 +1207,10 @@ CREATE TABLE public.deck_check_entries (
     allow_deck_publishing boolean DEFAULT true NOT NULL,
     tournament_id uuid NOT NULL,
     participant_id uuid,
+    CONSTRAINT chk_deck_check_entries_change_summary_shape CHECK (((change_summary IS NULL) OR (jsonb_typeof(change_summary) = 'object'::text))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
+    CONSTRAINT chk_deck_check_entries_pre_edit_lines_shape CHECK (((pre_edit_lines IS NULL) OR (jsonb_typeof(pre_edit_lines) = 'array'::text))),
     CONSTRAINT chk_deck_check_entries_review_outcome CHECK (((review_outcome IS NULL) OR (review_outcome = ANY (ARRAY['ok'::text, 'issue'::text])))),
     CONSTRAINT chk_deck_check_entries_state CHECK ((state = ANY (ARRAY['editable'::text, 'submitted'::text, 'approved'::text, 'checked'::text, 'withdrawn'::text])))
 );
@@ -1388,7 +1398,10 @@ CREATE TABLE public.decks (
     predecessor_deck_id uuid,
     is_primary boolean DEFAULT false NOT NULL,
     is_draft boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_decks_format_config_shape CHECK (((format_config IS NULL) OR (jsonb_typeof(format_config) = 'object'::text))),
+    CONSTRAINT chk_decks_links_shape CHECK (((links IS NULL) OR (jsonb_typeof(links) = 'array'::text))),
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_decks_odds_config_shape CHECK (((odds_config IS NULL) OR (jsonb_typeof(odds_config) = 'object'::text))),
     CONSTRAINT decks_cover_position_check CHECK (((cover_position >= 0) AND (cover_position <= 100)))
 );
 
@@ -1812,6 +1825,7 @@ CREATE TABLE public.lists (
     CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_lists_prefs_only_on_trade_intents CHECK (((intent = ANY (ARRAY['wish'::text, 'trade'::text])) OR ((default_price_pref IS NULL) AND (default_price_absolute_cents IS NULL) AND (default_trade_type IS NULL) AND (currency IS NULL)))),
+    CONSTRAINT chk_lists_rules_shape CHECK (((rules IS NULL) OR (jsonb_typeof(rules) = 'array'::text))),
     CONSTRAINT lists_rule_combine_check CHECK ((rule_combine = ANY (ARRAY['sum'::text, 'max'::text, 'protect'::text, 'count-sum'::text, 'count-max'::text])))
 );
 
@@ -2254,6 +2268,7 @@ CREATE TABLE public.overlay_channels (
     version bigint DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_overlay_channels_payload_shape CHECK (((payload IS NULL) OR (jsonb_typeof(payload) = 'object'::text))),
     CONSTRAINT chk_overlay_channels_token_not_empty CHECK ((token <> ''::text))
 );
 
@@ -2314,6 +2329,7 @@ CREATE TABLE public.pods (
     penalty_breakdown jsonb NOT NULL,
     result_status text DEFAULT 'pending'::text NOT NULL,
     CONSTRAINT chk_pods_number CHECK ((pod_number > 0)),
+    CONSTRAINT chk_pods_penalty_breakdown_shape CHECK (((penalty_breakdown IS NULL) OR (jsonb_typeof(penalty_breakdown) = 'object'::text))),
     CONSTRAINT chk_pods_result_status CHECK ((result_status = ANY (ARRAY['pending'::text, 'reported'::text]))),
     CONSTRAINT chk_pods_size CHECK ((size = ANY (ARRAY[2, 3, 4])))
 );
@@ -2749,6 +2765,7 @@ CREATE TABLE public.tournaments (
     draw_points integer DEFAULT 1 NOT NULL,
     regions_enabled boolean DEFAULT false NOT NULL,
     play_mode text DEFAULT '1v1'::text NOT NULL,
+    CONSTRAINT chk_tournaments_allowed_sets_shape CHECK (((allowed_sets IS NULL) OR (jsonb_typeof(allowed_sets) = 'array'::text))),
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
@@ -2804,6 +2821,7 @@ CREATE TABLE public.user_preferences (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     data jsonb DEFAULT '{"showImages": true, "richEffects": true, "visibleFields": {"type": true, "price": true, "title": true, "number": true, "rarity": true}, "marketplaceOrder": ["tcgplayer", "cardmarket", "cardtrader"]}'::jsonb NOT NULL,
+    CONSTRAINT chk_user_preferences_data_shape CHECK (((data IS NULL) OR (jsonb_typeof(data) = 'object'::text))),
     CONSTRAINT user_preferences_data_max_size CHECK ((length((data)::text) <= 8192))
 );
 
@@ -7102,5 +7120,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict azJBM3ni1MQnbVYPmfCljpu184zfVs2qbaMmB2AaDKhR0eNtooOvtfWx33bx8fj
+\unrestrict t8ivtuEORSPXBbE4JBA3v4gH6uh5WvD5hPlVmRg60EnhXo3bJA6WgEam0V3ehFJ
 

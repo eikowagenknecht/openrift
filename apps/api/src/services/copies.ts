@@ -84,7 +84,7 @@ export async function addCopies(
       notesPublic: item.notesPublic ?? null,
       notesPrivate: item.notesPrivate ?? null,
       isAltered: item.isAltered ?? false,
-      links: item.links ? JSON.stringify(item.links) : undefined,
+      links: item.links ?? undefined,
     }));
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
@@ -150,7 +150,7 @@ export async function updateCopies(
 
     await trxRepos.copies.updateMetadataBatchById(copyIds, {
       ...normalized,
-      links: normalized.links ? JSON.stringify(normalized.links) : undefined,
+      links: normalized.links ?? undefined,
     });
   });
 }

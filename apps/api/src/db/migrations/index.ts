@@ -189,6 +189,7 @@ import * as m240 from "./240-deck-variants.js";
 import * as m241 from "./241-drop-tier-list-set.js";
 import * as m242 from "./242-stage-presets.js";
 import * as m243 from "./243-trade-email-settings.js";
+import * as m244 from "./244-jsonb-unwrap-double-encoded.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -437,4 +438,5 @@ export const migrations: Record<string, Migration> = {
   "241-drop-tier-list-set": m241,
   "242-stage-presets": m242,
   "243-trade-email-settings": m243,
+  "244-jsonb-unwrap-double-encoded": m244,
 };

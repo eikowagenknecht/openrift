@@ -15,26 +15,11 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type { Database, TournamentParticipantsTable, TournamentsTable } from "../db/index.js";
 import { generateShareToken } from "../lib/share-token.js";
 
 export type Tournament = Selectable<TournamentsTable>;
 export type TournamentParticipant = Selectable<TournamentParticipantsTable>;
-
-/**
- * Normalizes a raw tournament row so `allowedSets` is always a parsed array (or
- * null), regardless of how the driver hands the jsonb back — the `string[] |
- * null` Selectable type is a runtime lie under Bun. Every read of a `tournaments`
- * row must go through this, including the composite loader in the pod repo.
- * @returns The row with `allowedSets` parsed.
- */
-export function mapTournament<T extends Tournament>(row: T): T {
-  return {
-    ...row,
-    allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
-  };
-}
 
 /** The full set of wizard-written columns for a new umbrella tournament. */
 export interface NewTournament {
@@ -165,7 +150,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .selectAll()
         .where("id", "=", id)
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /** @returns The group's tournaments (any module), by tournament date, most recent first. */
@@ -177,7 +162,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .orderBy("startsAt", "desc")
         .orderBy("createdAt", "desc")
         .execute();
-      return rows.map((row) => mapTournament(row));
+      return rows;
     },
 
     /**
@@ -208,7 +193,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .orderBy("t.createdAt", "desc")
         .execute();
       return rows.map((row) => ({
-        ...mapTournament(row),
+        ...row,
         participantCount: Number(row.participantCount ?? 0),
         pendingRequestCount: Number(row.pendingRequestCount ?? 0),
       }));
@@ -724,11 +709,11 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .values({
           ...rest,
           ...(status === undefined ? {} : { status }),
-          allowedSets: allowedSets === undefined ? undefined : JSON.stringify(allowedSets),
+          allowedSets,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return mapTournament(row);
+      return row;
     },
 
     /** @returns The updated tournament, or undefined when it does not exist. */
@@ -739,13 +724,13 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .set({
           ...rest,
           ...(status === undefined ? {} : { status }),
-          ...(allowedSets === undefined ? {} : { allowedSets: JSON.stringify(allowedSets) }),
+          ...(allowedSets === undefined ? {} : { allowedSets }),
           updatedAt: new Date(),
         })
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     async deleteById(id: string): Promise<void> {
@@ -763,7 +748,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /** @returns The tournament whose submission token matches, or undefined. */
@@ -773,7 +758,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .selectAll()
         .where("submissionToken", "=", token)
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /**
@@ -787,7 +772,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /**
@@ -801,7 +786,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /**
@@ -816,7 +801,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .selectAll()
         .where((eb) => eb.or([eb("reportToken", "=", token), eb("followToken", "=", token)]))
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /**
@@ -837,7 +822,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
-      return row && mapTournament(row);
+      return row;
     },
 
     /**
@@ -860,7 +845,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
       }
       const role: TournamentStaffRole =
         tournament.organizerInviteToken === token ? "organizer" : "judge";
-      return { tournament: mapTournament(tournament), role };
+      return { tournament, role };
     },
 
     /** @returns The participant / pending-request counts for one tournament. */
@@ -947,7 +932,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .orderBy("t.createdAt", "desc")
         .execute();
       return rows.map((row) => ({
-        ...mapTournament(row),
+        ...row,
         participantCount: Number(row.participantCount ?? 0),
         pendingRequestCount: Number(row.pendingRequestCount ?? 0),
       }));

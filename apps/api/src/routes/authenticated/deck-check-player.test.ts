@@ -764,7 +764,7 @@ describe("POST/DELETE /deck-check/mine/{entryId}/unlock", () => {
     // re-stringified, not rebuilt from the current cards.
     expect(repos.deckCheck.updateEntry).toHaveBeenCalledWith(
       ENTRY_ID,
-      expect.objectContaining({ preEditLines: JSON.stringify(storedPreEditLines) }),
+      expect.objectContaining({ preEditLines: storedPreEditLines }),
     );
   });
 

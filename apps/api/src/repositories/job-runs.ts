@@ -2,7 +2,6 @@ import type { JobStatus, JobTrigger } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type { Database } from "../db/index.js";
 
 export interface JobRun {
@@ -14,9 +13,6 @@ export interface JobRun {
   finishedAt: Date | null;
   durationMs: number | null;
   errorMessage: string | null;
-  /** Every row in this table was written via JSON.stringify, so it is stored
-   *  with `jsonb_typeof = 'string'` on top of the usual driver behaviour —
-   *  reads go through `parseJsonb` either way. */
   result: unknown;
   /** Activity axis for a succeeded run: true = no work done, false = did work,
    *  null = unclassified (failures, unclassified jobs, pre-migration rows). */
@@ -57,7 +53,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           status: "succeeded",
           finishedAt: new Date(),
           durationMs: params.durationMs,
-          result: params.result === undefined ? null : JSON.stringify(params.result),
+          result: params.result ?? null,
           noop: params.noop ?? null,
         })
         .where("id", "=", id)
@@ -108,7 +104,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .select("result")
         .where("id", "=", id)
         .executeTakeFirst();
-      return parseJsonb(row?.result);
+      return row?.result ?? null;
     },
 
     /**
@@ -120,7 +116,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
     async updateResult(id: string, result: unknown): Promise<void> {
       await db
         .updateTable("jobRuns")
-        .set({ result: result === undefined ? null : JSON.stringify(result) })
+        .set({ result: result ?? null })
         .where("id", "=", id)
         .execute();
     },
@@ -154,7 +150,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (!row) {
         return null;
       }
-      return { ...row, result: parseJsonb(row.result) } as JobRun;
+      return row as JobRun;
     },
 
     /**
@@ -182,7 +178,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         q = q.where("kind", "=", params.kind);
       }
       const rows = await q.execute();
-      return rows.map((row) => ({ ...row, result: parseJsonb(row.result) }) as JobRun);
+      return rows as JobRun[];
     },
 
     /**
@@ -245,7 +241,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         countQuery.executeTakeFirstOrThrow(),
       ]);
       return {
-        rows: rows.map((row) => ({ ...row, result: parseJsonb(row.result) }) as JobRun),
+        rows: rows as JobRun[],
         total: Number(countRow.total),
       };
     },
@@ -282,7 +278,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       `.execute(db);
       const out: Record<string, JobRun> = {};
       for (const row of rows.rows) {
-        out[row.kind] = { ...row, result: parseJsonb(row.result) };
+        out[row.kind] = row;
       }
       return out;
     },

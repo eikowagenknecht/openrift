@@ -17,6 +17,19 @@
 
 Row-to-response mapping is called a **presenter**, and it lives in `lib/<domain>-presenters.ts` — one module per domain (`collection`, `copy`, `deck`, `list`, `printing`, `product`, `deck-check`, `tournament`). Do not name these `mappers` or `*-response`, and do not park one in a service because that's where its first caller happened to be. Presenters are pure and get a sibling `*-presenters.test.ts`; the one exception is a presenter that needs a repo read to compose a detail response (`buildEntryDetail`), which stays in the domain's presenter module rather than moving to `services/`.
 
+## jsonb columns
+
+**Pass the value, never `JSON.stringify` it.** postgres.js picks a bound parameter's serializer from the type Postgres describes for it, and for a jsonb parameter that serializer is already `JSON.stringify`. Hand it the value (`{ a: 1 }`, `[1, 2]`, `null`) and the column gets the right structure; hand it JSON _text_ and the text is encoded a second time, landing as a jsonb **string scalar** (`"{\"a\":1}"` where the column should hold `{"a": 1}`). Reads follow the same rule, so a jsonb column returns a string only when a string is genuinely what it holds. There is no serialization helper to reach for, and no `parseJsonb` on the way back — both existed, both are gone, and reintroducing either would be reintroducing the bug.
+
+That double encoding was the longest-lived data bug in this repo. It corrupted nine columns (every `job_runs.result`, every `user_preferences.data`, every `pods.penalty_breakdown`, and more) and stayed invisible for months because a defensive `JSON.parse` on every read repaired the shape before any caller could notice. Where SQL had to look inside a blob, the workaround was written into the query instead of the bug being found: `(data #>> '{}')::jsonb` in the preferences lookups, a `jsonb_typeof` CASE in the meta-candidate scan. Migration 244 unwrapped the data and removed the workarounds.
+
+Two guards keep it fixed, and a new jsonb column needs both:
+
+1. **Type the column as its parsed shape on the write side too** in `apps/api/src/db/tables.ts` — plain `T`, or `ColumnType<T, T | undefined, T>` when the column has a DB default. Never `ColumnType<T, string, string>`: that shape is what _required_ the broken `JSON.stringify` at every call site, and it is why the one column typed honestly (`admin_events.oldValues`) was corrupted through an `as never` instead.
+2. **Add a `jsonb_typeof` CHECK constraint** in the migration that creates the column (`CHECK (col IS NULL OR jsonb_typeof(col) = 'object')`, or `'array'`). The types are bypassable with a cast or a raw `sql` fragment; the constraint is not. `apps/api/src/db/jsonb-columns.integration.test.ts` fails if a jsonb column ships without one, and also fails if any column anywhere holds a string scalar.
+
+The one exemption is `job_runs.result`, whose shape is each job's own and has no single answer; it is listed in that test's `SHAPE_EXEMPT`.
+
 ## shadcn/ui Components
 
 Components in `apps/web/src/components/ui/` are scaffolded from shadcn's `base-nova` style (built on Base UI, not Radix). Add new ones with:

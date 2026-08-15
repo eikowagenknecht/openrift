@@ -4,7 +4,6 @@ import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely, RawBuilder, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type {
   CardBansTable,
   CardErrataTable,
@@ -134,11 +133,6 @@ function releasesJson() {
   ), '{}'::jsonb)`.as("releases");
 }
 
-/** @returns The row with its `releases` jsonb parsed (postgres.js hands it back as text). */
-function withReleases<T extends { releases: SetReleases }>(row: T): T {
-  return { ...row, releases: parseJsonbRequired(row.releases) };
-}
-
 /**
  * The stored-catalog aggregates both tokens share, WITHOUT any notion of
  * "today". Kept at module scope, and as a fragment rather than a query, so the
@@ -207,7 +201,7 @@ export function catalogRepo(db: Kysely<Database>) {
         .select(["id", "slug", "name", "setType", releasesJson()])
         .orderBy("sortOrder")
         .execute();
-      return rows.map((row) => withReleases(row));
+      return rows;
     },
 
     /**
@@ -689,17 +683,16 @@ export function catalogRepo(db: Kysely<Database>) {
         .where("id", "in", ids)
         .orderBy("sortOrder")
         .execute();
-      return rows.map((row) => withReleases(row));
+      return rows;
     },
 
     /** @returns A single set by slug, or `undefined`. */
     async setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
-      const row = await db
+      return await db
         .selectFrom("sets")
         .select(["id", "slug", "name", "setType", releasesJson()])
         .where("slug", "=", slug)
         .executeTakeFirst();
-      return row && withReleases(row);
     },
 
     /** @returns All printings for a given set ID in canonical order. */

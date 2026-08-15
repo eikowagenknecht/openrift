@@ -277,9 +277,7 @@ export async function ingestDeckCheckPush(
       approvedAt: null,
       unlockRequestedAt: null,
       preEditLines: null,
-      changeSummary: wasReviewed
-        ? JSON.stringify(diffCardLines(storedCardLines(previousCards), lines))
-        : null,
+      changeSummary: wasReviewed ? diffCardLines(storedCardLines(previousCards), lines) : null,
     });
     await repos.deckCheck.replaceEntryCards(existing.id, cardRows);
     await recordEntry(entry.externalId, existing);

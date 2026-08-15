@@ -596,12 +596,12 @@ export function metaRepo(db: Kysely<Database>) {
             name: input.name,
             description: null,
             format: input.format,
-            formatConfig: input.formatConfig === null ? null : JSON.stringify(input.formatConfig),
+            formatConfig: input.formatConfig,
             // The permalink is the point of an archived deck; it is public
             // from the moment it exists, never through a later share toggle.
             isPublic: true,
             shareToken,
-            links: JSON.stringify([]),
+            links: [],
           })
           .returning("id")
           .executeTakeFirstOrThrow();

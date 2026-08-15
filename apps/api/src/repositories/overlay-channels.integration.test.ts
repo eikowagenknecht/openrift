@@ -1,4 +1,5 @@
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
+import type { OverlayPayload } from "@openrift/shared/types";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
@@ -13,7 +14,7 @@ import { overlayChannelsRepo } from "./overlay-channels.js";
 // exercising.
 //
 // The point of these is the pair the OBS poll depends on: the jsonb payload
-// surviving a round trip (postgres.js under Bun hands it back as a string), and
+// surviving a round trip as an object rather than a re-encoded string, and
 // `version` advancing on every write.
 // ---------------------------------------------------------------------------
 
@@ -81,13 +82,13 @@ describe.skipIf(!ctx)("overlayChannelsRepo (integration)", () => {
     await db
       .updateTable("overlayChannels")
       .set({
-        payload: JSON.stringify({
+        payload: {
           printingId: "printing-1",
           showPlate: true,
           deckShareUrl: "https://openrift.app/decks/share/legacy",
           corner: "top-left",
           scale: 45,
-        }),
+        } as unknown as OverlayPayload,
       })
       .where("userId", "=", OWNER)
       .execute();

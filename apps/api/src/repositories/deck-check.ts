@@ -15,7 +15,6 @@ import type {
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb } from "../db/helpers.js";
 import type {
   Database,
   DeckCheckEntriesTable,
@@ -181,7 +180,7 @@ export function legendComboResolutions(
 /**
  * Maps a deck-check tournament row onto the event view used by the rest of the
  * subsystem.
- * @returns The event projection with `allowedSets` parsed.
+ * @returns The event projection.
  */
 function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
   return {
@@ -191,12 +190,12 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
     eventDate: row.startsAt,
     format: row.deckFormat,
     playMode: row.playMode,
-    allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
     status: eventStatusForTournamentStatus(row.status),
     listLockMode: row.listLockMode,
     allowSelfSubmission: row.selfRegistration,
     submissionToken: row.submissionToken,
     submissionsCloseAt: row.submissionsCloseAt,
+    allowedSets: row.allowedSets,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -213,24 +212,6 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
  */
 export function eventStatusForTournamentStatus(status: TournamentStatus): "active" | "archived" {
   return status === "completed" || status === "cancelled" ? "archived" : "active";
-}
-
-/**
- * Normalizes the jsonb columns of an entry row.
- * @returns The row with `changeSummary` and `preEditLines` guaranteed parsed.
- */
-function parseEntryRow<T extends { changeSummary: unknown; preEditLines: unknown }>(
-  row: T,
-): T & { changeSummary: DeckCheckChangeSummary | null; preEditLines: DeckCheckCardLine[] | null } {
-  return {
-    ...row,
-    changeSummary: parseJsonb<DeckCheckChangeSummary>(
-      row.changeSummary as DeckCheckChangeSummary | string | null,
-    ),
-    preEditLines: parseJsonb<DeckCheckCardLine[]>(
-      row.preEditLines as DeckCheckCardLine[] | string | null,
-    ),
-  };
 }
 
 /** Identity fields a participant join contributes to a flattened entry. */
@@ -252,7 +233,7 @@ interface JoinedIdentity {
 function materializeEntry<
   T extends JoinedIdentity & { changeSummary: unknown; preEditLines: unknown },
 >(row: T): DeckCheckEntry {
-  const base = parseEntryRow(row);
+  const base = row;
   return {
     ...base,
     playerName: row.playerName ?? "",
@@ -765,7 +746,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .returningAll()
         .executeTakeFirstOrThrow();
       return {
-        ...parseEntryRow(entry),
+        ...entry,
         playerName: participant.displayName,
         riotId: participant.riotId,
         claimedUserId: participant.userId,
@@ -793,10 +774,9 @@ export function deckCheckRepo(db: Kysely<Database>) {
         approvedBy: string | null;
         approvedAt: Date | null;
         unlockRequestedAt: Date | null;
-        /** Written pre-stringified, like every jsonb column. */
-        preEditLines: string | null;
+        preEditLines: DeckCheckCardLine[] | null;
         notes: string | null;
-        changeSummary: string | null;
+        changeSummary: DeckCheckChangeSummary | null;
         withdrawnAt: Date | null;
         claimedUserId: string | null;
         claimSource: DeckCheckClaimSource | null;

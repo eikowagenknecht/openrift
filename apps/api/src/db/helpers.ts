@@ -2,7 +2,7 @@
  * Generic Kysely helpers for dynamic upsert operations.
  */
 
-import type { RawBuilder, SqlBool } from "kysely";
+import type { SqlBool } from "kysely";
 import { sql } from "kysely";
 
 /**
@@ -19,59 +19,26 @@ export function buildDistinctWhere(table: string, columns: readonly string[]) {
 }
 
 /**
- * Binds a JSON-serialized value as real jsonb. postgres.js serializes a bound
- * parameter according to the type Postgres describes for it, and for a jsonb
- * parameter that means another `JSON.stringify` — so JSON text lands in the
- * column as a jsonb *string scalar*, `"{\"a\":1}"` rather than `{"a": 1}`.
- * Reads survive that because {@link parseJsonb} unwraps either shape, but the
- * database sees a string: `jsonb_array_elements` fails with "cannot extract
- * elements from a scalar", and a `jsonb_typeof(col) = 'object'` check constraint
- * rejects the write outright.
+ * jsonb values need no serialization helper here, and adding one back would be
+ * a mistake worth understanding.
  *
- * The double cast is what fixes it, and `::jsonb` alone does not: with a lone
- * cast Postgres still describes the parameter as jsonb and postgres.js still
- * re-encodes. Going through `::text` describes it as text, so the string is
- * sent verbatim and the database parses it into the actual structure. Use this
- * for every jsonb write — older tables predating it hold string scalars, which
- * is why reads stay defensive.
+ * postgres.js picks a parameter's serializer from the type Postgres describes
+ * for it, and for a jsonb parameter that serializer is `JSON.stringify`. So
+ * hand it the value itself (`{ a: 1 }`, `[1, 2]`, `null`) and the column gets
+ * the right structure. Hand it JSON *text* and the text is encoded a second
+ * time, leaving a jsonb string scalar: `"{\"a\":1}"` rather than `{"a": 1}`.
+ * The same rule applies on the way back, so a read only ever returns a string
+ * when a string is genuinely what the column holds.
  *
- * @param value The JSON text, or null for a NULL column.
- * @returns A raw expression usable wherever the column's write type is string.
+ * That double encoding was the repo's longest-lived data bug. It corrupted nine
+ * columns, and it stayed invisible because a defensive `JSON.parse` on every
+ * read repaired the shape before any caller could notice. What makes it stay
+ * fixed is the pair of guards, not vigilance:
+ *
+ * 1. Every jsonb column in `tables.ts` is typed as its parsed shape on the
+ *    write side too, so `JSON.stringify(...)` at a call site is a type error.
+ * 2. Every jsonb column carries a `jsonb_typeof` CHECK constraint, so a write
+ *    that slips past the types (an `as never`, a raw `sql` fragment) is
+ *    refused by the database instead of being stored. `jsonb-columns.integration.test.ts`
+ *    fails if a new jsonb column ships without one.
  */
-export function asJsonb(value: string): RawBuilder<string> {
-  return sql<string>`${value}::text::jsonb`;
-}
-
-/**
- * Nullable companion of {@link asJsonb} for optional jsonb columns.
- * @param value The JSON text, or null/undefined for a NULL column.
- * @returns The cast expression, or null.
- */
-export function asJsonbNullable(value: string | null | undefined): RawBuilder<string> | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return asJsonb(value);
-}
-
-/**
- * Defensively parse a JSONB column value. postgres.js under Bun returns JSONB
- * columns as raw JSON strings even though the Kysely row type claims the
- * parsed shape, so repository reads of jsonb columns must go through this.
- * @returns The parsed value, or the value unchanged when already parsed.
- */
-export function parseJsonb<T>(value: T | string | null): T | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return (typeof value === "string" ? JSON.parse(value) : value) as T;
-}
-
-/**
- * {@link parseJsonb} for a NOT NULL jsonb column, where the null branch is
- * unreachable and a fallback value would only hide a schema change.
- * @returns The parsed value, or the value unchanged when already parsed.
- */
-export function parseJsonbRequired<T>(value: T | string): T {
-  return (typeof value === "string" ? JSON.parse(value) : value) as T;
-}

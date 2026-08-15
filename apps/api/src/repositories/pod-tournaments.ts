@@ -9,7 +9,6 @@ import {
 import type {
   PairingPlayer,
   PairingResult,
-  PodPenaltyBreakdown,
   PodPlayerStatus,
   PodResponse,
   PodRoundResponse,
@@ -20,7 +19,6 @@ import type {
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type {
   Database,
   PodRoundsTable,
@@ -28,7 +26,6 @@ import type {
   TournamentParticipantsTable,
 } from "../db/index.js";
 import type { Tournament } from "./tournaments.js";
-import { mapTournament } from "./tournaments.js";
 
 export type PodPlayer = Selectable<TournamentParticipantsTable>;
 /**
@@ -434,9 +431,7 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
           scoring,
         )
     : null;
-  const breakdown = parseJsonbRequired<PodPenaltyBreakdown>(
-    pod.penaltyBreakdown as PodPenaltyBreakdown | string,
-  );
+  const breakdown = pod.penaltyBreakdown;
   return {
     id: pod.id,
     podNumber: pod.podNumber,
@@ -590,7 +585,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           roundId,
           podNumber: tableNumbers[index],
           size: pod.size,
-          penaltyBreakdown: JSON.stringify(breakdown),
+          penaltyBreakdown: breakdown,
         })
         .returning("id")
         .executeTakeFirstOrThrow();
@@ -869,7 +864,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return {
         pod,
         round,
-        tournament: mapTournament(tournamentRow),
+        tournament: tournamentRow,
         memberPlayerIds: memberRows.map((row) => row.playerId),
         teamByPlayer: new Map(
           memberRows.flatMap((row) =>

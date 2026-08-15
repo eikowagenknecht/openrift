@@ -52,11 +52,11 @@ export async function submitEntryList(
   entry: DeckCheckEntry,
   submittedAt?: Date,
 ): Promise<DeckCheckEntry> {
-  let changeSummary: string | null = null;
+  let changeSummary: DeckCheckChangeSummary | null = null;
   if (entry.preEditLines) {
     const cards = await repos.deckCheck.listCardsForEntry(entry.id);
     const diff = diffCardLines(entry.preEditLines, storedCardLines(cards));
-    changeSummary = summaryIsEmpty(diff) ? null : JSON.stringify(diff);
+    changeSummary = summaryIsEmpty(diff) ? null : diff;
   }
   const updated = await repos.deckCheck.updateEntry(entry.id, {
     state: "submitted",
@@ -86,7 +86,7 @@ export async function unlockEntryToEditable(
   }
   const updated = await repos.deckCheck.updateEntry(entry.id, {
     state: "editable",
-    preEditLines: JSON.stringify(preEditLines),
+    preEditLines,
     changeSummary: null,
     unlockRequestedAt: null,
     approvedBy: null,

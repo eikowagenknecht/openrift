@@ -19,21 +19,13 @@ describe("userPreferencesRepo", () => {
     expect(result!.data).toEqual(data);
   });
 
-  it("getByUserId parses stringified JSON data", async () => {
-    const data = JSON.stringify({ theme: "dark" });
-    const db = createMockDb([{ userId: "u1", data, createdAt: new Date(), updatedAt: new Date() }]);
-    const repo = userPreferencesRepo(db);
-    const result = await repo.getByUserId("u1");
-    expect(result!.data).toEqual({ theme: "dark" });
-  });
-
   it("upsert creates new preferences when none exist", async () => {
     // First call (getByUserId): executeTakeFirst returns undefined
     // Second call (insert): executeTakeFirstOrThrow returns the new row
     const db = createMockDb([
       {
         userId: "u1",
-        data: JSON.stringify({ theme: "dark" }),
+        data: { theme: "dark" },
         createdAt: new Date(),
         updatedAt: new Date(),
       },

@@ -120,31 +120,27 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(latest?.result).toEqual({ lastPostedDate: "2026-04-17" });
   });
 
-  it("returns parsed objects from result columns stored as JSONB strings", async () => {
-    // Regression: postgres.js under Bun does not auto-parse jsonb (OID 3802),
-    // and the existing rows were written via JSON.stringify so they're stored
-    // with `jsonb_typeof = 'string'`. The repo must defensively parse on read.
+  it("stores a result as a real jsonb object and reads it back on every path", async () => {
+    // Regression: results used to be written with a JSON.stringify the driver
+    // then encoded a second time, so the column held a jsonb *string scalar*
+    // and every read had to repair it. `jsonb_typeof` is asserted directly,
+    // because a round trip alone cannot tell the two shapes apart.
+    const result = { processed: 5, total: 10, errors: ["a", "b"] };
     const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
-    // Write the value as a JSON-encoded string directly, bypassing the repo's
-    // own writer, so the column ends up with `jsonb_typeof = 'string'`.
-    const encoded = JSON.stringify({ processed: 5, total: 10, errors: ["a", "b"] });
-    await sql`UPDATE job_runs SET result = ${encoded}::jsonb WHERE id = ${id}`.execute(db);
+    await repo.updateResult(id, result);
 
-    expect(await repo.getResult(id)).toEqual({
-      processed: 5,
-      total: 10,
-      errors: ["a", "b"],
-    });
+    const stored = await sql<{
+      type: string;
+    }>`SELECT jsonb_typeof(result) AS type FROM job_runs WHERE id = ${id}`.execute(db);
+    expect(stored.rows[0]?.type).toBe("object");
+
+    expect(await repo.getResult(id)).toEqual(result);
     const list = await repo.listRecent({ kind: "test.kind" });
-    expect(list[0]?.result).toEqual({ processed: 5, total: 10, errors: ["a", "b"] });
+    expect(list[0]?.result).toEqual(result);
     const latest = await repo.findLatestForResume("test.kind");
-    expect(latest?.result).toEqual({ processed: 5, total: 10, errors: ["a", "b"] });
+    expect(latest?.result).toEqual(result);
     const perKind = await repo.getLatestPerKind();
-    expect(perKind["test.kind"]?.result).toEqual({
-      processed: 5,
-      total: 10,
-      errors: ["a", "b"],
-    });
+    expect(perKind["test.kind"]?.result).toEqual(result);
   });
 
   it("listPage returns a page of rows plus the total matching count", async () => {

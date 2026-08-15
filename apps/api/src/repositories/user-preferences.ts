@@ -2,7 +2,6 @@ import type { EmailNotificationPreference, UserPreferencesResponse } from "@open
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
 import type { Database, UserPreferencesTable } from "../db/index.js";
 
 /** A verified-email user who has opted into the daily match digest (ADR-030). */
@@ -38,10 +37,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("userId", "=", userId)
         .executeTakeFirst();
-      if (!row) {
-        return undefined;
-      }
-      return { ...row, data: parseJsonbRequired<UserPreferencesResponse>(row.data) };
+      return row;
     },
 
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
@@ -65,20 +61,16 @@ export function userPreferencesRepo(db: Kysely<Database>) {
 
       const row = await db
         .insertInto("userPreferences")
-        .values({ userId, data: JSON.stringify(merged) })
-        .onConflict((oc) => oc.column("userId").doUpdateSet({ data: JSON.stringify(merged) }))
+        .values({ userId, data: merged })
+        .onConflict((oc) => oc.column("userId").doUpdateSet({ data: merged }))
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      return parseJsonbRequired<UserPreferencesResponse>(row.data);
+      return row.data;
     },
 
     /**
      * Verified-email users who have opted into the daily match digest (ADR-030).
-     * The JSONB blob is double-encoded (a jsonb string scalar of the serialized
-     * object, which is why reads go through `parseJsonbRequired`), so the
-     * predicate unwraps it with
-     * `data #>> '{}'` before drilling into `emailNotifications.tradeMatches`.
      * @returns Opted-in recipients with their email + name.
      */
     async listMatchDigestRecipients(): Promise<MatchDigestRecipient[]> {
@@ -87,9 +79,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .innerJoin("users as u", "u.id", "up.userId")
         .select(["u.id as userId", "u.email as email", "u.name as name"])
         .where("u.emailVerified", "=", true)
-        .where(
-          sql<boolean>`((up.data #>> '{}')::jsonb -> 'emailNotifications' ->> 'tradeMatches') = 'true'`,
-        )
+        .where(sql<boolean>`(up.data -> 'emailNotifications' ->> 'tradeMatches') = 'true'`)
         .execute();
       return rows;
     },
@@ -98,8 +88,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
      * Admins who opted into the card-submission alert (ADR-036). The inner join
      * on `admins` is the real gate: the preference is storable by anyone, but
      * only an admin can ever be a recipient, so a demoted admin stops receiving
-     * these without their stored preference having to change. Same double-encoded
-     * JSONB unwrap as {@link listMatchDigestRecipients}.
+     * these without their stored preference having to change.
      * @returns Opted-in admin recipients with their email + name.
      */
     async listCardSubmissionRecipients(): Promise<CardSubmissionRecipient[]> {
@@ -109,9 +98,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .innerJoin("admins as a", "a.userId", "u.id")
         .select(["u.id as userId", "u.email as email", "u.name as name"])
         .where("u.emailVerified", "=", true)
-        .where(
-          sql<boolean>`((up.data #>> '{}')::jsonb -> 'emailNotifications' ->> 'cardSubmissions') = 'true'`,
-        )
+        .where(sql<boolean>`(up.data -> 'emailNotifications' ->> 'cardSubmissions') = 'true'`)
         .execute();
       return rows;
     },
@@ -139,10 +126,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       if (row === undefined) {
         return undefined;
       }
-      const data =
-        row.data === null || row.data === undefined
-          ? {}
-          : parseJsonbRequired<UserPreferencesResponse>(row.data);
+      const data: UserPreferencesResponse = row.data ?? {};
       return {
         email: row.email,
         emailVerified: row.emailVerified,
