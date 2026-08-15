@@ -163,11 +163,9 @@ describe("isReleasedAnywhere", () => {
 
 describe("formatReleasePeriod", () => {
   it("formats each precision", () => {
-    expect(formatReleasePeriod(day("2025-10-31"))).toBe("October 31, 2025");
-    expect(formatReleasePeriod({ releasedAt: "2026-03-01", precision: "month" })).toBe(
-      "March 2026",
-    );
-    expect(formatReleasePeriod({ releasedAt: "2026-04-01", precision: "quarter" })).toBe("Q2 2026");
+    expect(formatReleasePeriod(day("2025-10-31"))).toBe("2025-10-31");
+    expect(formatReleasePeriod({ releasedAt: "2026-03-01", precision: "month" })).toBe("2026-03");
+    expect(formatReleasePeriod({ releasedAt: "2026-04-01", precision: "quarter" })).toBe("2026-Q2");
     expect(formatReleasePeriod({ releasedAt: "2026-01-01", precision: "year" })).toBe("2026");
   });
 
@@ -175,7 +173,18 @@ describe("formatReleasePeriod", () => {
     const quarters = ["2026-01-01", "2026-04-01", "2026-07-01", "2026-10-01"].map((releasedAt) =>
       formatReleasePeriod({ releasedAt, precision: "quarter" }),
     );
-    expect(quarters).toEqual(["Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026"]);
+    expect(quarters).toEqual(["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"]);
+  });
+
+  it("coarsens left to right from the same year, so periods sort", () => {
+    expect(
+      [
+        formatReleasePeriod({ releasedAt: "2026-01-01", precision: "year" }),
+        formatReleasePeriod({ releasedAt: "2026-04-01", precision: "quarter" }),
+        formatReleasePeriod({ releasedAt: "2026-03-01", precision: "month" }),
+        formatReleasePeriod(day("2026-03-15")),
+      ].every((label) => label.startsWith("2026")),
+    ).toBe(true);
   });
 
   it("falls back to TBA when undated or absent", () => {

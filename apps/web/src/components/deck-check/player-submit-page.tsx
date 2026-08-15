@@ -1,3 +1,4 @@
+import { formatDayTimeLocal } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 
 import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
@@ -11,7 +12,6 @@ import {
   useTournamentSubmissionPage,
 } from "@/hooks/use-deck-check-player";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 /**
  * The deck-submission section for a tournament's shared link (ADR-026/033).
@@ -45,15 +45,8 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
     );
   }
 
-  const closesAt = data.submissionsCloseAt
-    ? formatAbsoluteDate(data.submissionsCloseAt, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  // The player's own clock, not the server's. Safe here: route is `data-only`.
+  const closesAt = data.submissionsCloseAt ? formatDayTimeLocal(data.submissionsCloseAt) : null;
   const linkedState = data.linkedEntry?.state;
   const blockedMessage =
     linkedState === "withdrawn"

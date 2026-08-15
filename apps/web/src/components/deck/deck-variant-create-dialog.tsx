@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +50,7 @@ const MODE_COPY: Record<DeckVariantMode, { title: string; description: string; c
  */
 export function defaultVariantName(deckName: string, mode: DeckVariantMode): string {
   if (mode === "checkpoint") {
-    return `${deckName} (${new Date().toISOString().slice(0, 10)})`;
+    return `${deckName} (${formatDay(new Date())})`;
   }
   return `${deckName} (variant)`;
 }

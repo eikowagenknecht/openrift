@@ -1,4 +1,5 @@
 import type { DeckListItemResponse } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 
 export type DeckMetaPartKey = "box" | "missing" | "value" | "updated";
 
@@ -48,8 +49,8 @@ export function deckMetaParts(
   boxName?: string | null,
 ): DeckMetaPart[] {
   const { deck, totalValueCents, missingCount } = item;
-  const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
-  const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
+  const createdDate = formatDay(deck.createdAt);
+  const updatedDate = formatDay(deck.updatedAt);
 
   return [
     deckBoxPart(boxName),

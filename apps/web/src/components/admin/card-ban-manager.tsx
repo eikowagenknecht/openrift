@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import { BanIcon, CheckIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -41,7 +42,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
   const removeBan = useRemoveCardBan();
 
   const [formatId, setFormatId] = useState("");
-  const [bannedAt, setBannedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bannedAt, setBannedAt] = useState(() => formatDay(new Date()));
   const [reason, setReason] = useState("");
 
   const [editingBanId, setEditingBanId] = useState<string | null>(null);

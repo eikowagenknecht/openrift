@@ -2,7 +2,7 @@ import type {
   DeckCheckEntryCardResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { formatDay, formatDayTimeLocal, WellKnown } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
@@ -39,7 +39,6 @@ import {
 import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { deckCardsFromCheckEntry } from "@/lib/deck-check-save";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 /** Rendered width of one card in the read-only grid. */
 const PLAYER_CELL_WIDTH = 150;
@@ -92,18 +91,10 @@ export function PlayerDeckPage({ tournamentId }: { tournamentId: string }) {
 /** @returns The deck's state banners, sharing summary, and card grid. */
 function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) {
   const { entry } = data;
-  const eventDate = entry.eventDate
-    ? formatAbsoluteDate(entry.eventDate, { year: "numeric", month: "short", day: "numeric" })
-    : null;
-  const closesAt = entry.submissionsCloseAt
-    ? formatAbsoluteDate(entry.submissionsCloseAt, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  const eventDate = entry.eventDate ? formatDay(entry.eventDate) : null;
+  // The deadline is the player's to plan around, so it renders on their own
+  // clock rather than the server's. Safe here: this route is `data-only`.
+  const closesAt = entry.submissionsCloseAt ? formatDayTimeLocal(entry.submissionsCloseAt) : null;
 
   return (
     <div className="flex flex-col gap-4">

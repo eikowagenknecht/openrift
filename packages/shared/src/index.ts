@@ -4,6 +4,19 @@
 // importable from `@openrift/shared` without a second manual entry here.
 export * from "./types/index.js";
 
+export type { RelativeTimeOptions } from "./format-date.js";
+export {
+  dateLeafParts,
+  formatDay,
+  formatDayLocal,
+  formatDayTime,
+  formatDayTimeLocal,
+  formatMonth,
+  formatRelativeDay,
+  formatRelativeTime,
+  formatTimeLocal,
+} from "./format-date.js";
+
 export type { AvailableFilters, FilterCounts } from "./filters.js";
 export {
   computeFilterCounts,
@@ -105,7 +118,6 @@ export {
   centsToDollars,
   deckIdentityLabels,
   deduplicateByCard,
-  formatDateUTC,
   getOrientation,
   legendDisplayName,
   preferredPrinting,

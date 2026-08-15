@@ -1,4 +1,5 @@
 import type { TournamentSummaryResponse } from "@openrift/shared";
+import { dateLeafParts, formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon, TrophyIcon } from "lucide-react";
 
@@ -11,12 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { dateLeafParts } from "@/lib/format-date";
 import {
   VIEWER_ROLE_LABEL,
   effectiveTournamentState,
   formatStartsIn,
-  formatTournamentDate,
   primaryViewerRole,
   tournamentContextLabel,
 } from "@/lib/tournament-display";
@@ -102,7 +101,7 @@ export function NextEventHero({ tournament, showContext = false }: NextEventHero
             <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-sm">
               <span className="flex items-center gap-1.5">
                 <CalendarIcon className="size-4 shrink-0" />
-                {formatTournamentDate(tournament.startsAt)}
+                {formatDayTimeLocal(tournament.startsAt)}
               </span>
               {tournament.deckFormat ? (
                 <span className="flex items-center gap-1.5">

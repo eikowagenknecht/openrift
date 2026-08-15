@@ -1,4 +1,5 @@
 import type { StagedProductResponse } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
 import React, { useState } from "react";
@@ -354,7 +355,7 @@ function UnmatchedProductRow({
         <TableCell className="w-20 text-right tabular-nums">
           <div className="flex items-center justify-end gap-1">
             {isStale && (
-              <span title={`Last seen ${product.recordedAt.slice(0, 16).replace("T", " ")}`}>
+              <span title={`Last seen ${formatDayTime(product.recordedAt)}`}>
                 <AlertTriangleIcon className="text-destructive size-3.5" />
               </span>
             )}

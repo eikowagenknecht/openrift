@@ -1,4 +1,4 @@
-import { slugifyName } from "@openrift/shared";
+import { formatDayTime, slugifyName } from "@openrift/shared";
 import type { ProductSummary } from "@openrift/shared/contracts/products";
 import { RESERVED_PRODUCT_SLUGS, productSlugRegex } from "@openrift/shared/contracts/products";
 import { Link } from "@tanstack/react-router";
@@ -108,7 +108,7 @@ function UpdatedCell({ row }: AdminCellSlotProps<ProductSummary>) {
   if (!row) {
     return null;
   }
-  return <span className="text-muted-foreground text-xs">{`${row.updatedAt.slice(0, 16)}Z`}</span>;
+  return <span className="text-muted-foreground text-xs">{formatDayTime(row.updatedAt)}</span>;
 }
 
 // ── Edit draft cells ─────────────────────────────────────────────────────────

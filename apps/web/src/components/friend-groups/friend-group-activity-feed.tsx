@@ -1,5 +1,5 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import { getOrientation, dateLeafParts, formatRelativeTime } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftRightIcon, FolderIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -14,8 +14,6 @@ import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { frontImageId } from "@/lib/card-meta";
-import { dateLeafParts } from "@/lib/format-date";
-import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { AggregatedActivityRow, TradeBatch } from "@/lib/friend-group-activity";
 import {
   aggregateActivityEvents,

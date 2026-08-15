@@ -1,4 +1,5 @@
 import type { TierListSummaryResponse } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { EllipsisVerticalIcon, LayersIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
@@ -38,7 +39,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeleteTierList, useTierLists } from "@/hooks/use-tier-lists";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { PAGE_PADDING, cn } from "@/lib/utils";
 
 /**
@@ -132,7 +132,7 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
           <p className="text-muted-foreground text-sm">
             {tierList.cardCount} {tierList.cardCount === 1 ? "card" : "cards"} across{" "}
             {tierList.tierCount} {tierList.tierCount === 1 ? "tier" : "tiers"} · edited{" "}
-            {formatAbsoluteDate(tierList.updatedAt)}
+            {formatDay(tierList.updatedAt)}
           </p>
         </div>
         {tierList.isPublic && tierList.shareToken && <Badge variant="outline">Shared</Badge>}

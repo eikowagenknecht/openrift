@@ -1,4 +1,5 @@
 import type { MetaEventDetail } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon } from "lucide-react";
 
@@ -15,13 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvent } from "@/hooks/use-meta";
-import { formatAbsoluteDate } from "@/lib/format-date";
-
-const EVENT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-};
 
 /**
  * The event's own line of metadata: date, format, field size, organizer, plus
@@ -31,7 +25,7 @@ const EVENT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 function EventMeta({ event }: { event: MetaEventDetail }) {
   const { labels: formatLabels } = useDeckFormatList();
   const facts = [
-    formatAbsoluteDate(event.eventDate, EVENT_DATE_OPTIONS),
+    formatDay(event.eventDate),
     event.playerCount === null ? null : `${event.playerCount} players`,
     event.organizer,
   ].filter(Boolean);

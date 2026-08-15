@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { RailMemberInput } from "./deck-variant-rail";
 import { buildRailLayout, railLabel } from "./deck-variant-rail";
 
-const YEAR = 2026;
-
 function member(overrides: Partial<RailMemberInput> & { id: string }): RailMemberInput {
   return {
     name: overrides.id,
@@ -17,37 +15,37 @@ function member(overrides: Partial<RailMemberInput> & { id: string }): RailMembe
 
 describe("railLabel", () => {
   it("strips the family prefix from a suffixed name", () => {
-    expect(railLabel("Yasuo Tempo (variant)", "Yasuo Tempo", YEAR)).toBe("variant");
+    expect(railLabel("Yasuo Tempo (variant)", "Yasuo Tempo")).toBe("variant");
   });
 
-  it("renders a default dated checkpoint name as a short date", () => {
-    expect(railLabel("Yasuo Tempo (2026-07-28)", "Yasuo Tempo", YEAR)).toBe("Jul 28");
+  it("leaves a default dated checkpoint name as the plain day", () => {
+    expect(railLabel("Yasuo Tempo (2026-07-28)", "Yasuo Tempo")).toBe("2026-07-28");
   });
 
-  it("keeps the year on a date from another year", () => {
-    expect(railLabel("Yasuo Tempo (2025-12-30)", "Yasuo Tempo", YEAR)).toBe("Dec 30, 2025");
+  it("keeps a date from another year in the same form", () => {
+    expect(railLabel("Yasuo Tempo (2025-12-30)", "Yasuo Tempo")).toBe("2025-12-30");
   });
 
   it("shows a renamed member's full name", () => {
-    expect(railLabel("Worlds list", "Yasuo Tempo", YEAR)).toBe("Worlds list");
+    expect(railLabel("Worlds list", "Yasuo Tempo")).toBe("Worlds list");
   });
 
   it("keeps a name whose prefix belongs to a different family base", () => {
-    expect(railLabel("Yasuo Tempo (2026-07-28)", "Budget build", YEAR)).toBe("Yasuo Tempo (2026…");
+    expect(railLabel("Yasuo Tempo (2026-07-28)", "Budget build")).toBe("Yasuo Tempo (2026…");
   });
 
   it("truncates long labels with an ellipsis", () => {
-    expect(railLabel("A very long deck name indeed", "Other", YEAR)).toBe("A very long deck …");
+    expect(railLabel("A very long deck name indeed", "Other")).toBe("A very long deck …");
   });
 
   it("leaves a name of the bare form `base ()` alone", () => {
-    expect(railLabel("Yasuo Tempo ()", "Yasuo Tempo", YEAR)).toBe("Yasuo Tempo ()");
+    expect(railLabel("Yasuo Tempo ()", "Yasuo Tempo")).toBe("Yasuo Tempo ()");
   });
 });
 
 describe("buildRailLayout", () => {
   it("returns an empty layout when the current deck is not in the family", () => {
-    const layout = buildRailLayout([member({ id: "a" })], "missing", YEAR);
+    const layout = buildRailLayout([member({ id: "a" })], "missing");
     expect(layout.nodes).toEqual([]);
     expect(layout.edges).toEqual([]);
   });
@@ -58,7 +56,7 @@ describe("buildRailLayout", () => {
       member({ id: "mid", predecessorDeckId: "old" }),
       member({ id: "live", predecessorDeckId: "mid" }),
     ];
-    const layout = buildRailLayout(members, "live", YEAR);
+    const layout = buildRailLayout(members, "live");
     const lanes = layout.nodes.map((node) => [node.id, node.lane, node.x]);
     expect(lanes).toEqual([
       ["old", 0, 0],
@@ -78,7 +76,7 @@ describe("buildRailLayout", () => {
       member({ id: "live", predecessorDeckId: "old" }),
       member({ id: "budget", predecessorDeckId: "old", isDraft: true }),
     ];
-    const layout = buildRailLayout(members, "live", YEAR);
+    const layout = buildRailLayout(members, "live");
     const budget = layout.nodes.find((node) => node.id === "budget");
     expect(budget?.lane).toBe(1);
     expect(budget?.x).toBe(1);
@@ -92,7 +90,7 @@ describe("buildRailLayout", () => {
       member({ id: "other", predecessorDeckId: "old", updatedAt: "2026-08-10T00:00:00.000Z" }),
       member({ id: "live", predecessorDeckId: "old", updatedAt: "2026-08-01T00:00:00.000Z" }),
     ];
-    const layout = buildRailLayout(members, "live", YEAR);
+    const layout = buildRailLayout(members, "live");
     expect(layout.nodes.find((node) => node.id === "live")?.lane).toBe(0);
     expect(layout.nodes.find((node) => node.id === "other")?.lane).toBe(1);
   });
@@ -105,14 +103,14 @@ describe("buildRailLayout", () => {
       member({ id: "parent" }),
       member({ id: "child", predecessorDeckId: "parent" }),
     ];
-    const layout = buildRailLayout(members, "solo", YEAR);
+    const layout = buildRailLayout(members, "solo");
     expect(layout.edges).toEqual([{ fromId: "parent", toId: "child" }]);
     expect(layout.nodes.find((node) => node.id === "child")?.x).toBe(1);
   });
 
   it("renders a linked member without lineage as its own root", () => {
     const members = [member({ id: "live" }), member({ id: "adopted" })];
-    const layout = buildRailLayout(members, "live", YEAR);
+    const layout = buildRailLayout(members, "live");
     const adopted = layout.nodes.find((node) => node.id === "adopted");
     expect(adopted?.lane).toBe(1);
     expect(adopted?.x).toBe(0);
@@ -125,7 +123,7 @@ describe("buildRailLayout", () => {
       member({ id: "older", predecessorDeckId: "live", updatedAt: "2026-08-01T00:00:00.000Z" }),
       member({ id: "newer", predecessorDeckId: "live", updatedAt: "2026-08-10T00:00:00.000Z" }),
     ];
-    const layout = buildRailLayout(members, "live", YEAR);
+    const layout = buildRailLayout(members, "live");
     const newer = layout.nodes.find((node) => node.id === "newer");
     const older = layout.nodes.find((node) => node.id === "older");
     expect(newer).toMatchObject({ lane: 0, x: 1 });
@@ -137,7 +135,7 @@ describe("buildRailLayout", () => {
       member({ id: "a", predecessorDeckId: "b" }),
       member({ id: "b", predecessorDeckId: "a" }),
     ];
-    const layout = buildRailLayout(members, "a", YEAR);
+    const layout = buildRailLayout(members, "a");
     expect(layout.nodes).toHaveLength(2);
   });
 
@@ -150,14 +148,14 @@ describe("buildRailLayout", () => {
       member({ id: "s1", predecessorDeckId: "c2", updatedAt: "2026-08-10T00:00:00.000Z" }),
       member({ id: "s2", predecessorDeckId: "c2", updatedAt: "2026-08-09T00:00:00.000Z" }),
     ];
-    const layout = buildRailLayout(members, "live", YEAR, 4);
+    const layout = buildRailLayout(members, "live", 4);
     const ids = layout.nodes.map((node) => node.id);
     // The chain keeps its newest four... which is the whole chain here, so no
     // sibling fits and both overflow.
     expect(ids).toEqual(["c0", "c1", "c2", "live"]);
     expect(layout.overflowCount).toBe(2);
 
-    const tighter = buildRailLayout(members, "live", YEAR, 3);
+    const tighter = buildRailLayout(members, "live", 3);
     // Chain truncated to its newest three; c0's edge to c1 disappears with it.
     expect(tighter.nodes.map((node) => node.id)).toEqual(["c1", "c2", "live"]);
     expect(tighter.overflowCount).toBe(3);

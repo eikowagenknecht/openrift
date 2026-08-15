@@ -2,6 +2,7 @@ import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/sha
 import {
   ALL_MARKETPLACES,
   EUR_MARKETPLACES,
+  formatMonth,
   findStandardArtFallback,
   getOrientation,
   imageUrl,
@@ -501,7 +502,7 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
   }
 
   const sourceLabel = errata.effectiveDate
-    ? `${errata.source}, ${errata.effectiveDate.slice(0, 7)}`
+    ? `${errata.source}, ${formatMonth(errata.effectiveDate)}`
     : errata.source;
 
   return (

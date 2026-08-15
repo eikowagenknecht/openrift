@@ -1,3 +1,4 @@
+import { formatDayTimeLocal } from "@openrift/shared";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 
@@ -8,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-player";
 import { useUserId } from "@/lib/auth-session";
-import { formatTournamentDate } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 /**
@@ -94,7 +94,7 @@ export function PlayerClaimPage({ token }: { token: string }) {
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="flex items-center gap-1.5">
                 <CalendarIcon className="size-4 shrink-0" />
-                {formatTournamentDate(data.startsAt)}
+                {formatDayTimeLocal(data.startsAt)}
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
                 <Building2Icon className="size-4 shrink-0" />

@@ -1,5 +1,5 @@
 import type { Card, DeckCardResponse } from "@openrift/shared";
-import { ZONE_LABELS } from "@openrift/shared";
+import { ZONE_LABELS, formatDay } from "@openrift/shared";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -17,7 +17,6 @@ import type { DeckDiff, DeckDiffEntry } from "@/lib/deck-diff";
 import { deckDiffCardsFrom, diffDecks } from "@/lib/deck-diff";
 import type { RailEdge, RailLayout, RailNode } from "@/lib/deck-variant-rail";
 import { buildRailLayout } from "@/lib/deck-variant-rail";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
@@ -272,9 +271,7 @@ function RailNodePopover({
   cardsById: Record<string, Card>;
   onBranchFrom: () => void;
 }) {
-  const updatedLabel = updatedAt
-    ? formatAbsoluteDate(updatedAt, { year: "numeric", month: "short", day: "numeric" })
-    : null;
+  const updatedLabel = updatedAt ? formatDay(updatedAt) : null;
 
   return (
     <PopoverContent className="w-80" align="start" side="bottom">
@@ -373,7 +370,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
   const layout: RailLayout =
     familyId === null || members.length < 2
       ? { nodes: [], edges: [], overflowCount: 0 }
-      : buildRailLayout(members, deckId, new Date().getFullYear(), MAX_RAIL_NODES);
+      : buildRailLayout(members, deckId, MAX_RAIL_NODES);
 
   // Joined rather than the array itself so the effect doesn't refire on every
   // render just because `.map()` produced a new array.

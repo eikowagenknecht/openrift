@@ -1,5 +1,5 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { needsViewerAction } from "@openrift/shared";
+import { formatDayTimeLocal, needsViewerAction } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronRightIcon,
@@ -26,11 +26,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupMatches, useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
-import {
-  compareTournamentsForList,
-  formatTournamentDate,
-  partitionTournaments,
-} from "@/lib/tournament-display";
+import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
 import {
   countTradeSuggestions,
   groupTradesByCounterparty,
@@ -474,7 +470,7 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium">{tournament.name}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {formatTournamentDate(tournament.startsAt)}
+                    {formatDayTimeLocal(tournament.startsAt)}
                   </span>
                 </span>
               </Link>

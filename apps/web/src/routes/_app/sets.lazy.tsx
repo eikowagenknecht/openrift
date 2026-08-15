@@ -22,15 +22,12 @@ export const Route = createLazyFileRoute("/_app/sets")({
  * each language on its own date, so there is no single release date to show.
  * Alphabetical by language code, which keeps the server and client render
  * identical (the viewer's language preference is client-only state).
- * @returns One label per announced language, e.g. `EN Oct 31, 2025`.
+ * @returns One label per announced language, e.g. `EN 2025-10-31`.
  */
 function releaseLabels(set: SetListEntry): string[] {
   return Object.keys(set.releases)
     .toSorted()
-    .map(
-      (language) =>
-        `${language} ${formatReleasePeriod(set.releases[language], { month: "short" })}`,
-    );
+    .map((language) => `${language} ${formatReleasePeriod(set.releases[language])}`);
 }
 
 function HeroSetCard({ set }: { set: SetListEntry }) {

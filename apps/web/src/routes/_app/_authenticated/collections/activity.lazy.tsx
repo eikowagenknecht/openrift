@@ -1,5 +1,5 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { formatDayLocal, formatTimeLocal, legendDisplayName } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -62,27 +62,6 @@ interface GroupedEvent {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDateHeading(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-}
-
-function dateKey(iso: string): string {
-  return new Date(iso).toLocaleDateString("sv");
-}
 
 function getDateCutoff(preset: DatePreset): Date | null {
   if (preset === "all") {
@@ -324,7 +303,7 @@ function EventCard({
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="text-muted-foreground text-xs">{formatTime(event.createdAt)}</p>
+        <p className="text-muted-foreground text-xs">{formatTimeLocal(event.createdAt)}</p>
         {showCollection && (
           <p className="text-muted-foreground mt-0.5 truncate text-xs">
             {isMove ? (
@@ -523,7 +502,7 @@ function ActivityPage() {
     return true;
   });
 
-  const byDate = Map.groupBy(filtered, (e) => dateKey(e.createdAt));
+  const byDate = Map.groupBy(filtered, (e) => formatDayLocal(e.createdAt));
 
   return (
     <div className="mx-auto w-full max-w-4xl pt-3">
@@ -547,7 +526,7 @@ function ActivityPage() {
               <div key={date} className="mb-6">
                 <div className="mb-2 flex items-baseline justify-between gap-2">
                   <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    {formatDateHeading(events[0].createdAt)}
+                    {formatDayLocal(events[0].createdAt)}
                   </h2>
                   <DaySummary events={events} marketplace={marketplace} formatPrice={formatPrice} />
                 </div>

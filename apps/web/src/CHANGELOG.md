@@ -5,9 +5,11 @@
 ### Highlights
 
 - feat(App): **A proper match board** — each player's side now shows the art of a legend you pick, scores through Conquer, Hold and Ability buttons instead of a hidden tap, and marks how close the game is with a pip per point.
+- fix(Tournaments): **Deck deadlines in your timezone** — submission deadlines showed the server's clock without saying so, and now show yours.
 
 ### Other
 
+- feat(App): **One date format everywhere** — dates now read as 2026-08-15 across the app, so there is no guessing whether 8/9 means August or September.
 - feat(App): **Undo a mis-tapped point** — the match menu in the middle of the board names the last change and reverses it, and tapping a score opens buttons to correct a total that drifted.
 - feat(App): **XP only when you need it** — the match tracker keeps XP as a small tab until someone taps it, so decks that never use it get the space back.
 - feat(Decks): **Bigger, optional scan code on deck images** — the code moved from the footer up to the top corner, where it has the room to actually be scannable, and a checkbox in the export dialog leaves it off.

@@ -1,3 +1,4 @@
+import { formatRelativeDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +15,6 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ChangelogEntry } from "@/lib/changelog";
 import { parseChangelog } from "@/lib/changelog";
-import { formatRelativeDate } from "@/lib/format-relative-date";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const changelogGroups = parseChangelog(changelogMd);
@@ -81,10 +81,11 @@ export function ChangelogPage() {
                 className="border-border bg-background/80 sticky z-10 flex items-baseline justify-between border-b py-2 pb-2 backdrop-blur-lg"
                 style={{ top: dateHeaderTop }}
               >
-                <span className="text-foreground text-sm font-semibold">
-                  {formatRelativeDate(group.date)}
+                {/* One date per heading: the relative label falls back to the
+                    plain day, which is what the second column used to show. */}
+                <span className="text-foreground text-sm font-semibold tabular-nums">
+                  {formatRelativeDay(group.date)}
                 </span>
-                <span className="text-muted-foreground text-sm tabular-nums">{group.date}</span>
               </div>
               {group.highlights.length > 0 && (
                 <ul className="space-y-2 pt-2">

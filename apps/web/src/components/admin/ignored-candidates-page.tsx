@@ -1,3 +1,4 @@
+import { formatDayTime } from "@openrift/shared";
 import { Undo2Icon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -45,9 +46,7 @@ function CreatedAtCell({ row }: AdminCellSlotProps<IgnoredCard | IgnoredPrinting
   if (!row) {
     return null;
   }
-  return (
-    <span className="text-muted-foreground">{row.createdAt.slice(0, 16).replace("T", " ")}</span>
-  );
+  return <span className="text-muted-foreground">{formatDayTime(row.createdAt)}</span>;
 }
 
 function PrintingFinishCell({ row }: AdminCellSlotProps<IgnoredPrinting>) {

@@ -1,4 +1,5 @@
 import type { MetaEventSummary } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { TrophyIcon } from "lucide-react";
 
@@ -27,7 +28,6 @@ import {
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents, useMetaStats } from "@/hooks/use-meta";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 const routeApi = getRouteApi("/_app/meta");
 
@@ -37,12 +37,6 @@ export const META_DESCRIPTION =
 
 /** The format select's "no filter" value — an empty string clears the param. */
 const ALL_FORMATS = "";
-
-const EVENT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-};
 
 function EventRow({ event }: { event: MetaEventSummary }) {
   const { labels: formatLabels } = useDeckFormatList();
@@ -63,7 +57,7 @@ function EventRow({ event }: { event: MetaEventSummary }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-muted-foreground text-sm tabular-nums">
-            {formatAbsoluteDate(event.eventDate, EVENT_DATE_OPTIONS)}
+            {formatDay(event.eventDate)}
           </span>
           <Badge variant="outline">{formatLabels[event.format] ?? event.format}</Badge>
         </div>

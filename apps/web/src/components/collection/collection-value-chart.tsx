@@ -1,5 +1,5 @@
 import type { CompletionScopePreference, Marketplace, TimeRange } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { formatDay, marketplaceLabel } from "@openrift/shared";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
@@ -61,7 +61,7 @@ function CollectionValueTooltipContent({
   const { sign, magnitude, percent } = describePriceChange(point.value, point.baselineValue);
   return (
     <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-      <p className="mb-1 font-medium">{point.date}</p>
+      <p className="mb-1 font-medium">{formatDay(point.date)}</p>
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">
           <span className="size-2 rounded-full" style={{ backgroundColor: "var(--color-value)" }} />
@@ -200,7 +200,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
-              tickFormatter={String}
+              tickFormatter={formatDay}
               tick={{ fontSize: 11 }}
               interval={Math.max(0, Math.ceil(series.length / 4) - 1)}
             />

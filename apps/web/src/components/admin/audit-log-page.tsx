@@ -1,3 +1,4 @@
+import { formatDayTime } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { LoaderIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
@@ -34,11 +35,6 @@ const ALL_ACTIONS = "__all_actions__";
 // rules text doesn't blow up the table row.
 const LONG_VALUE = 80;
 
-/** @returns The stored UTC instant trimmed to minutes (`YYYY-MM-DDTHH:mmZ`), per the app's timezone-unambiguous display rule. */
-function formatWhen(iso: string): string {
-  return `${iso.slice(0, 16)}Z`;
-}
-
 function ChangeValue({ value }: { value: string | null }) {
   if (value === null) {
     return <span className="text-muted-foreground/60">—</span>;
@@ -61,7 +57,7 @@ function AuditEventRow({ event }: { event: AdminAuditEventResponse }) {
   return (
     <TableRow>
       <TableCell className="align-top font-mono text-sm whitespace-nowrap" title={event.createdAt}>
-        {formatWhen(event.createdAt)}
+        {formatDayTime(event.createdAt)}
       </TableCell>
       <TableCell className="align-top">
         {event.actorName ?? event.actorEmail ?? event.actorUserId}

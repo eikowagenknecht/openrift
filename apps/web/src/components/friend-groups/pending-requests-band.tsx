@@ -1,11 +1,11 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared";
 import { CheckIcon, UserPlusIcon, XIcon } from "lucide-react";
 
 import { ActionBand } from "@/components/ui/action-band";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { useAcceptFriendGroupInvite, useDeclineFriendGroupInvite } from "@/hooks/use-friend-groups";
-import { formatRelativeTime } from "@/lib/format-relative-time";
 
 /**
  * The pending join requests as an accented action band (the overview's

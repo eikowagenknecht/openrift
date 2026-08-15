@@ -1,4 +1,4 @@
-import { CONTACT_METHOD_LABELS } from "@openrift/shared";
+import { CONTACT_METHOD_LABELS, formatDay } from "@openrift/shared";
 import type {
   FriendGroupDetailResponse,
   FriendGroupShareableListResponse,
@@ -75,7 +75,6 @@ import {
 } from "@/hooks/use-friend-groups";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -448,7 +447,7 @@ function DiscordPanel({ slug }: { slug: string }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium">{item.guildName ?? `Server ${item.guildId}`}</span>
               <span className="text-muted-foreground text-sm">
-                linked {formatAbsoluteDate(item.linkedAt)}
+                linked {formatDay(item.linkedAt)}
               </span>
             </div>
             <Button

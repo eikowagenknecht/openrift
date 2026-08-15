@@ -1,5 +1,5 @@
 import type { AnySnapshot, Marketplace, TimeRange } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { formatDay, marketplaceLabel } from "@openrift/shared";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -40,7 +40,7 @@ function PriceHistoryTooltipContent({
   const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
   return (
     <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-      <p className="mb-1 font-medium">{snap.date}</p>
+      <p className="mb-1 font-medium">{formatDay(snap.date)}</p>
       <div className="space-y-0.5">
         {snap.value !== null && snap.value !== undefined && (
           <div className="flex items-center gap-2">
@@ -279,7 +279,7 @@ export function PriceHistoryChart({
             )}
             <XAxis
               dataKey="date"
-              tickFormatter={String}
+              tickFormatter={formatDay}
               tick={{ fontSize: 11 }}
               interval={Math.max(0, Math.ceil(snapshots.length / 4) - 1)}
             />

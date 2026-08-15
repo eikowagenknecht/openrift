@@ -1,3 +1,4 @@
+import { formatDayTime } from "@openrift/shared";
 import { CameraIcon, CameraOffIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -348,9 +349,7 @@ function ServingCard({ serving }: { serving: ScanServing }) {
           <p className="text-muted-foreground tabular-nums">
             Server bank <code className="bg-muted rounded px-1">{serving.assets.bankHash}</code> ·{" "}
             {serving.assets.entryCount} entries
-            {serving.assets.builtAt
-              ? ` · built ${new Date(serving.assets.builtAt).toLocaleString()}`
-              : ""}
+            {serving.assets.builtAt ? ` · built ${formatDayTime(serving.assets.builtAt)}` : ""}
           </p>
         )}
         {latestRun.data?.status === "failed" && (

@@ -296,16 +296,6 @@ export function parseScheduleInput(
   };
 }
 
-// Human-readable display of a stored instant in the VIEWER's local timezone,
-// 24-hour. Never the technical UTC `…Z` form, never US M/D/Y.
-export function formatTournamentDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-    hourCycle: "h23",
-  });
-}
-
 // The IANA timezone the runtime is in (for an input hint like "Europe/Berlin").
 export function localTimeZoneLabel(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;

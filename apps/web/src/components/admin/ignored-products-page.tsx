@@ -1,5 +1,5 @@
 import type { IgnoredProductResponse } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { formatDayTime, marketplaceLabel } from "@openrift/shared";
 import { Undo2Icon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -83,9 +83,7 @@ function CreatedAtCell({ row }: AdminCellSlotProps<IgnoredProductResponse>) {
   if (!row) {
     return null;
   }
-  return (
-    <span className="text-muted-foreground">{row.createdAt.slice(0, 16).replace("T", " ")}</span>
-  );
+  return <span className="text-muted-foreground">{formatDayTime(row.createdAt)}</span>;
 }
 
 function UnignoreAction({ row }: AdminCellSlotProps<IgnoredProductResponse>) {

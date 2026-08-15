@@ -1,4 +1,5 @@
 import type { TournamentDetailResponse } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
@@ -10,7 +11,6 @@ import {
   DECK_SUBMISSION_LABEL,
   EFFECTIVE_STATE_LABEL,
   effectiveTournamentState,
-  formatTournamentDate,
 } from "@/lib/tournament-display";
 
 // The band's backdrop, bottom layer up: a soft surface tint fading into the
@@ -93,7 +93,7 @@ export function TournamentHero({ detail }: { detail: TournamentDetailResponse })
               {detail.name}
             </Heading>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <MetaItem icon={CalendarIcon}>{formatTournamentDate(detail.startsAt)}</MetaItem>
+              <MetaItem icon={CalendarIcon}>{formatDayTimeLocal(detail.startsAt)}</MetaItem>
               <MetaItem icon={Building2Icon}>
                 {detail.host.type === "organization" && detail.host.orgSlug ? (
                   <Link

@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { MyDeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
@@ -20,7 +21,6 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -63,9 +63,7 @@ function ProfilePage() {
     return null;
   }
 
-  const createdAt = user.createdAt
-    ? formatAbsoluteDate(user.createdAt, { year: "numeric", month: "long", day: "numeric" })
-    : null;
+  const createdAt = user.createdAt ? formatDay(user.createdAt) : null;
 
   return (
     <div className={cn("flex justify-center", PAGE_PADDING)}>

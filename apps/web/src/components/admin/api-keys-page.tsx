@@ -1,4 +1,5 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import { formatDay } from "@openrift/shared";
 import { CheckIcon, CopyIcon, KeyRoundIcon, LoaderIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +46,6 @@ import {
 import type { ApiKeySummary } from "@/hooks/use-api-keys";
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/hooks/use-api-keys";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 /**
  * Formats a better-auth date (a Date on the type, an ISO string on the wire).
@@ -57,7 +57,7 @@ function keyDate(value: Date | string | null): string {
     return "—";
   }
   const iso = typeof value === "string" ? value : value.toISOString();
-  return formatAbsoluteDate(iso);
+  return formatDay(iso);
 }
 
 function CreatedKeyDialog({ createdKey, onClose }: { createdKey: string; onClose: () => void }) {

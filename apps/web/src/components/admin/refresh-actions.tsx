@@ -15,21 +15,6 @@ export interface CronStatus {
   cardtrader: { nextRun: string | null } | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-export function formatRelativeTime(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff < 0) {
-    return "any moment now";
-  }
-  const hours = Math.floor(diff / 3_600_000);
-  const minutes = Math.floor((diff % 3_600_000) / 60_000);
-  if (hours > 0) {
-    return `in ${hours}h ${minutes}m`;
-  }
-  return `in ${minutes}m`;
-}
-
 // ── Server functions for refresh actions ───────────────────────────────────
 
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })

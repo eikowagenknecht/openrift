@@ -5,6 +5,7 @@ import type {
   FriendGroupRole,
   FriendGroupShareResponse,
 } from "@openrift/shared";
+import { formatMonth } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronRightIcon,
@@ -47,7 +48,6 @@ import {
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
@@ -430,9 +430,7 @@ function MemberRow({
             {isNewMember(member.joinedAt) ? <Badge variant="success">New</Badge> : null}
           </span>
           <span className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
-            <span>
-              Joined {formatAbsoluteDate(member.joinedAt, { month: "short", year: "numeric" })}
-            </span>
+            <span>Joined {formatMonth(member.joinedAt)}</span>
             {cardsTraded > 0 ? (
               <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
                 <ZapIcon className="size-3" />

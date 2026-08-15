@@ -1,4 +1,5 @@
 import type { TournamentSummaryResponse, TournamentWinner } from "@openrift/shared";
+import { dateLeafParts, formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon, TrophyIcon, UsersIcon } from "lucide-react";
 
@@ -9,8 +10,7 @@ import { CardContent } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { dateLeafParts } from "@/lib/format-date";
-import { formatTournamentDate, tournamentContextLabel } from "@/lib/tournament-display";
+import { tournamentContextLabel } from "@/lib/tournament-display";
 
 /**
  * The winner callout of a completed event: trophy, the winner's legend art
@@ -58,7 +58,7 @@ function PastEventCard({
           <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5 text-sm">
             <span className="flex items-center gap-1.5">
               <CalendarIcon className="size-4 shrink-0" />
-              {formatTournamentDate(tournament.startsAt)}
+              {formatDayTimeLocal(tournament.startsAt)}
             </span>
             {tournament.deckFormat ? (
               <span className="flex items-center gap-1.5">

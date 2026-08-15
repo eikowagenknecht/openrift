@@ -1,5 +1,5 @@
 import type { DeckSummaryResponse } from "@openrift/shared";
-import { ZONE_LABELS } from "@openrift/shared";
+import { ZONE_LABELS, formatDay } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRightIcon } from "lucide-react";
@@ -28,7 +28,6 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { deckDiffCardsFrom } from "@/lib/deck-diff";
 import type { SideBySideRow } from "@/lib/deck-side-by-side";
 import { alignDeckLists } from "@/lib/deck-side-by-side";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 // The full comparison between two members of a variant family (ADR-042): both
@@ -233,13 +232,7 @@ export function DeckChangesPage({
             {fromUpdated && toUpdated ? (
               <>
                 {" · "}
-                {formatAbsoluteDate(fromUpdated, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}{" "}
-                →{" "}
-                {formatAbsoluteDate(toUpdated, { year: "numeric", month: "short", day: "numeric" })}
+                {formatDay(fromUpdated)} → {formatDay(toUpdated)}
               </>
             ) : null}
           </p>

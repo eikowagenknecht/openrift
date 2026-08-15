@@ -1,5 +1,5 @@
 import type { CardTradeStatus, Finish, Rarity } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { marketplaceLabel, formatRelativeTime } from "@openrift/shared";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -7,7 +7,6 @@ import { FinishIcon } from "@/components/cards/finish-icon";
 import { Badge } from "@/components/ui/badge";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
@@ -280,7 +279,7 @@ export function TradeExpiry({
   if (status !== "pending" || expiresAt === null) {
     return null;
   }
-  const label = formatTimeRemaining(expiresAt);
+  const label = formatRelativeTime(expiresAt);
   if (label === "") {
     return null;
   }

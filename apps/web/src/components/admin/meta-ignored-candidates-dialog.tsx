@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import { Undo2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -21,7 +22,6 @@ import {
   useUnignoreMetaCandidateDeck,
   useUnignoreMetaCandidateEvent,
 } from "@/hooks/use-admin-meta-candidates";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 interface IgnoredRowProps {
   /** The source's event id, shown on deck rows: deck ids repeat across events. */
@@ -53,9 +53,7 @@ function IgnoredRow({
         <span className="truncate font-mono text-sm">{externalId}</span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <span className="text-muted-foreground text-sm">
-          {formatAbsoluteDate(createdAt, { year: "numeric", month: "short", day: "numeric" })}
-        </span>
+        <span className="text-muted-foreground text-sm">{formatDay(createdAt)}</span>
         <Button variant="ghost" size="sm" disabled={pending} onClick={onUnignore}>
           <Undo2Icon />
           Unignore

@@ -1,5 +1,5 @@
 import type { AdminUserResponse } from "@openrift/shared";
-import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS } from "@openrift/shared";
+import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS, formatDay } from "@openrift/shared";
 import { EllipsisVerticalIcon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -16,11 +16,10 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { useAddAdminGrant, useAdminGrants, useRemoveAdminGrant } from "@/hooks/use-admin-grants";
 import { useAdminUsers } from "@/hooks/use-admin-users";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
 
 function formatDate(iso: string): string {
-  return formatAbsoluteDate(iso, { year: "numeric", month: "short", day: "numeric" });
+  return formatDay(iso);
 }
 
 function UserNameCell({ row }: AdminCellSlotProps<AdminUserResponse>) {

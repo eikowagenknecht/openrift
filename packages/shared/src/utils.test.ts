@@ -9,7 +9,6 @@ import {
   formatPrintingLabel,
   centsToDollars,
   emptyToNull,
-  formatDateUTC,
   getOrientation,
   legendDisplayName,
   mostCommonValue,
@@ -481,27 +480,6 @@ describe("centsToDollars", () => {
 
   it("handles negative cent values", () => {
     expect(centsToDollars(-525)).toBe(-5.25);
-  });
-});
-
-describe("formatDateUTC", () => {
-  it("formats a Date object to YYYY-MM-DD", () => {
-    const date = new Date("2024-06-15T10:30:00Z");
-    expect(formatDateUTC(date)).toBe("2024-06-15");
-  });
-
-  it("formats an ISO string to YYYY-MM-DD", () => {
-    expect(formatDateUTC("2024-01-01T00:00:00.000Z")).toBe("2024-01-01");
-  });
-
-  it("handles date-only string input", () => {
-    expect(formatDateUTC("2023-12-25")).toBe("2023-12-25");
-  });
-
-  it("uses UTC so timezone does not shift the date", () => {
-    // A date near midnight UTC - toISOString always returns UTC
-    const date = new Date("2024-03-01T23:59:59Z");
-    expect(formatDateUTC(date)).toBe("2024-03-01");
   });
 });
 

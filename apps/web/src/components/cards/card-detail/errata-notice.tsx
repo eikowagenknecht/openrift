@@ -1,3 +1,4 @@
+import { formatMonth } from "@openrift/shared";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -15,7 +16,7 @@ interface ErrataNoticeProps {
 
 function formatSource(source: string, effectiveDate?: string | null): string {
   if (effectiveDate) {
-    return `${source}, ${effectiveDate.slice(0, 7)}`;
+    return `${source}, ${formatMonth(effectiveDate)}`;
   }
   return source;
 }

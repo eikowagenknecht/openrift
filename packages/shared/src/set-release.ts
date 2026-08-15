@@ -6,6 +6,8 @@
  * is derived here rather than stored, so a date and a flag can never disagree.
  */
 
+import { formatDay, formatMonth } from "./format-date.js";
+
 /** How wide a period a {@link SetRelease.releasedAt} date stands for. */
 export type ReleasePrecision = "day" | "month" | "quarter" | "year";
 
@@ -130,41 +132,28 @@ export function isReleasedAnywhere(releases: SetReleases, today = todayUtc()): b
   return Object.values(releases).some((release) => isReleased(release, today));
 }
 
-const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"] as const;
-
 /**
- * A release period as display text: `31 October 2025`, `March 2026`,
- * `Q2 2026`, `2026`, or `TBA` when undated.
+ * A release period as display text: `2025-10-31`, `2026-03`, `2026-Q2`,
+ * `2026`, or `TBA` when undated. Every form coarsens left to right from the
+ * same year, so a column of them stays scannable and sorts sensibly, and the
+ * quarter reads as the ISO-shaped `2026-Q2` rather than `Q2 2026`.
  *
- * Locale and timezone are pinned (as in the web app's `formatAbsoluteDate`) so
- * the server and the browser render the same string.
- *
- * @returns The human-readable period.
+ * @returns The period label.
  */
-export function formatReleasePeriod(
-  release: SetRelease | undefined,
-  options?: { month?: "long" | "short" },
-): string {
+export function formatReleasePeriod(release: SetRelease | undefined): string {
   if (!release?.releasedAt || !release.precision) {
     return "TBA";
   }
   const { releasedAt, precision } = release;
-  const month = options?.month ?? "long";
-  const date = new Date(releasedAt);
+  const year = releasedAt.slice(0, 4);
   if (precision === "year") {
-    return releasedAt.slice(0, 4);
+    return year;
   }
   if (precision === "quarter") {
-    const quarter = QUARTER_LABELS[Math.floor((Number(releasedAt.slice(5, 7)) - 1) / 3)];
-    return `${quarter} ${releasedAt.slice(0, 4)}`;
+    return `${year}-Q${Math.floor((Number(releasedAt.slice(5, 7)) - 1) / 3) + 1}`;
   }
   if (precision === "month") {
-    return date.toLocaleDateString("en-US", { timeZone: "UTC", month, year: "numeric" });
+    return formatMonth(releasedAt);
   }
-  return date.toLocaleDateString("en-US", {
-    timeZone: "UTC",
-    day: "numeric",
-    month,
-    year: "numeric",
-  });
+  return formatDay(releasedAt);
 }

@@ -1,4 +1,5 @@
 import type { AdminMetaDeck, AdminMetaEvent } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
@@ -17,7 +18,6 @@ import {
   useDeleteMetaDeck,
 } from "@/hooks/use-admin-meta";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { formatFinishTier } from "@/lib/meta-format";
 
 function NameCell({ row }: AdminCellSlotProps<AdminMetaDeck>) {
@@ -148,11 +148,7 @@ export function MetaEventDecksPage({ eventId }: { eventId: string }) {
             </Button>
             {event && (
               <PageDescription>
-                {formatAbsoluteDate(event.eventDate, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
+                {formatDay(event.eventDate)}
                 {" · "}
                 {formatLabels[event.format] ?? event.format}
                 {event.organizer ? ` · ${event.organizer}` : ""}

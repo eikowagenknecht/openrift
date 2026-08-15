@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CopyIcon, InfoIcon } from "lucide-react";
 
@@ -7,16 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useCloneSharedDeck } from "@/hooks/use-decks";
 import { useMetaDeck } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { formatFinishTier } from "@/lib/meta-format";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
-
-/** Short by design: the date shares the hero's title row with the deck name. */
-const EVENT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-};
 
 /**
  * `/meta/decks/$token` — one archived deck, rendered through the same surface
@@ -103,7 +96,7 @@ export function MetaDeckPage({ token }: { token: string }) {
               the deck name, which phones need the width for. */}
           <span className="hidden sm:inline">
             {" · "}
-            {formatAbsoluteDate(data.meta.event.eventDate, EVENT_DATE_OPTIONS)}
+            {formatDay(data.meta.event.eventDate)}
           </span>
         </>
       }

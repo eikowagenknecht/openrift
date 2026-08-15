@@ -1,3 +1,4 @@
+import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
 import type { JobRunActivity } from "@openrift/shared/contracts/admin/job-runs";
 import {
   JOB_RUN_ACTIVITIES,
@@ -101,28 +102,6 @@ function formatDuration(ms: number): string {
   return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
 }
 
-function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const seconds = Math.round(diff / 1000);
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatAbsolute(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { hourCycle: "h23" });
-}
-
 function hasResult(result: Record<string, unknown> | null): boolean {
   return result !== null && Object.keys(result).length > 0;
 }
@@ -146,7 +125,7 @@ export function JobRunsPage() {
 
   useEffect(() => {
     if (dataUpdatedAt > 0) {
-      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString(undefined, { hourCycle: "h23" }));
+      setLastUpdated(formatDayTimeLocal(new Date(dataUpdatedAt)));
     }
   }, [dataUpdatedAt]);
 
@@ -381,8 +360,8 @@ function JobRunRow({
           </div>
         </TableCell>
         <TableCell>
-          <span className="font-mono" title={formatAbsolute(run.startedAt)}>
-            {formatTimeAgo(run.startedAt)}
+          <span className="font-mono" title={formatDayTimeLocal(run.startedAt)}>
+            {formatRelativeTime(run.startedAt, { seconds: true })}
           </span>
         </TableCell>
         <TableCell className="font-mono">

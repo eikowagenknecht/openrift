@@ -1,3 +1,4 @@
+import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -38,24 +39,6 @@ function StatusBadge({ status }: { status: PrintingEventView["status"] }) {
     );
   }
   return <Badge variant="secondary">pending</Badge>;
-}
-
-function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const seconds = Math.round(diff / 1000);
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
 }
 
 export function PrintingEventsPage() {
@@ -213,11 +196,8 @@ function PrintingEventRow({
       </TableCell>
       <TableCell className="text-muted-foreground text-sm">{event.setName ?? "—"}</TableCell>
       <TableCell className="text-right font-mono">{event.retryCount}</TableCell>
-      <TableCell
-        className="font-mono text-sm"
-        title={new Date(event.createdAt).toLocaleString(undefined, { hourCycle: "h23" })}
-      >
-        {formatTimeAgo(event.createdAt)}
+      <TableCell className="font-mono text-sm" title={formatDayTimeLocal(event.createdAt)}>
+        {formatRelativeTime(event.createdAt, { seconds: true })}
       </TableCell>
       <TableCell>
         {event.status === "failed" && (
@@ -246,7 +226,7 @@ function FlushRunStatus({ run }: { run: JobRunView }) {
     return (
       <p className="text-muted-foreground flex items-center gap-1 text-sm">
         <LoaderIcon className="size-4 animate-spin" />
-        Flush running since {formatTimeAgo(run.startedAt)}
+        Flush started {formatRelativeTime(run.startedAt, { seconds: true })}
       </p>
     );
   }

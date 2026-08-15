@@ -1,5 +1,5 @@
 import type { CopyResponse } from "@openrift/shared";
-import { isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
+import { formatDay, isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { conditionShortCode, piltoverConditionCode } from "@/lib/condition-codes";
@@ -537,7 +537,7 @@ export function csvExportFilename(format: CsvExportFormat, name: string): string
       .toLowerCase()
       .replaceAll(/[^a-z0-9]+/gu, "-")
       .replaceAll(/^-|-$/gu, "") || "export";
-  const date = new Date().toISOString().slice(0, 10);
+  const date = formatDay(new Date());
   return `${CSV_EXPORT_FORMATS[format].filenamePrefix}-${slug}-${date}.csv`;
 }
 

@@ -281,17 +281,6 @@ export function centsToDollars<T extends number | null>(cents: T): T extends nul
 }
 
 /**
- * Formats a `Date` or ISO string as a UTC `YYYY-MM-DD` date string.
- * Useful for API responses where only the calendar date matters.
- *
- * @returns A `YYYY-MM-DD` string in UTC.
- */
-export function formatDateUTC(date: Date | string): string {
-  const d = date instanceof Date ? date : new Date(date);
-  return d.toISOString().split("T")[0];
-}
-
-/**
  * Converts empty strings to `null`, passing through non-empty strings and nullish values as-is.
  *
  * @returns The original string if non-empty, otherwise `null`.

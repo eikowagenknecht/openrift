@@ -1,4 +1,5 @@
 import type { DeckSummaryResponse } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CopyIcon, EllipsisVerticalIcon, HistoryIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -36,7 +37,6 @@ import {
   useUnlinkDeckVariant,
 } from "@/hooks/use-decks";
 import { buildRailLayout } from "@/lib/deck-variant-rail";
-import { formatAbsoluteDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
@@ -197,10 +197,7 @@ function LineageRow({
             </SelectContent>
           </Select>
         </div>
-        <span className="text-muted-foreground text-2xs">
-          Updated{" "}
-          {formatAbsoluteDate(deck.updatedAt, { year: "numeric", month: "short", day: "numeric" })}
-        </span>
+        <span className="text-muted-foreground text-2xs">Updated {formatDay(deck.updatedAt)}</span>
       </div>
 
       <DropdownMenu>
@@ -264,7 +261,7 @@ function VariantsDialogBody({
   // The rail's graph, read as a list: the layout already walks the family
   // parent-first, so rows arrive in an order where every parent is above its
   // children and `x` is the generation to indent by.
-  const lineage = buildRailLayout(members, deckId, new Date().getFullYear(), members.length);
+  const lineage = buildRailLayout(members, deckId, members.length);
   const membersById = new Map(members.map((member) => [member.id, member]));
 
   const linkOptions = linkableDeckOptions(

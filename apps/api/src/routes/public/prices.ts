@@ -2,7 +2,7 @@ import {
   MARKETPLACE_CURRENCY,
   PRICE_STALE_AFTER_DAYS,
   TIME_RANGE_DAYS,
-  formatDateUTC,
+  formatDay,
 } from "@openrift/shared";
 import type {
   Marketplace,
@@ -170,7 +170,7 @@ export const pricesRouter = {
         continue;
       }
       tcgSnapshots.push({
-        date: formatDateUTC(r.recordedAt),
+        date: formatDay(r.recordedAt),
         market: r.marketCents,
         low: r.lowCents,
       });
@@ -183,7 +183,7 @@ export const pricesRouter = {
         continue;
       }
       cmSnapshots.push({
-        date: formatDateUTC(r.recordedAt),
+        date: formatDay(r.recordedAt),
         market,
         low: r.lowCents,
       });
@@ -195,7 +195,7 @@ export const pricesRouter = {
         continue;
       }
       ctSnapshots.push({
-        date: formatDateUTC(r.recordedAt),
+        date: formatDay(r.recordedAt),
         zeroLow: r.zeroLowCents,
         low: r.lowCents,
       });

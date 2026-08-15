@@ -198,6 +198,49 @@
             "object": "Array",
             "property": "fromAsync",
             "message": "Array.fromAsync is Safari/iOS 18.4+ and is not shimmed. Add a shim to apps/web/src/lib/polyfills.ts before using it in browser code."
+          },
+          // Every date and time the app displays goes through
+          // packages/shared/src/format-date.ts, which is ISO-only and builds
+          // every absolute form from plain Date getters. A stray toLocale*String
+          // reintroduces exactly what that module exists to prevent: a string
+          // that differs between the UTC server and the visitor's browser, which
+          // is a React #418 hydration mismatch on any SSR route, plus a second
+          // date format for readers to decode. Numbers are untouched —
+          // `count.toLocaleString()` stays fine, since only Date's own two
+          // methods are named here.
+          {
+            "property": "toLocaleDateString",
+            "message": "Use the date helpers from @openrift/shared (formatDay / formatDayLocal / formatMonth) instead of toLocaleDateString."
+          },
+          {
+            "property": "toLocaleTimeString",
+            "message": "Use formatTimeLocal or formatDayTimeLocal from @openrift/shared instead of toLocaleTimeString."
+          }
+        ]
+      }
+    },
+    {
+      // The shadcn calendar needs locale month names for its dropdown and a
+      // locale day string for its `data-day` hook — those are names and test
+      // handles, not dates the app displays. The browser-floor bans above stay.
+      "files": ["apps/web/src/components/ui/calendar.tsx"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Object",
+            "property": "groupBy",
+            "message": "Object.groupBy is Safari/iOS 17.4+ and is not shimmed. Use Map.groupBy (shimmed in lib/polyfills.ts), or add a shim there."
+          },
+          {
+            "object": "Promise",
+            "property": "withResolvers",
+            "message": "Promise.withResolvers is Safari/iOS 17.4+ and is not shimmed. Add a shim to apps/web/src/lib/polyfills.ts before using it in browser code."
+          },
+          {
+            "object": "Array",
+            "property": "fromAsync",
+            "message": "Array.fromAsync is Safari/iOS 18.4+ and is not shimmed. Add a shim to apps/web/src/lib/polyfills.ts before using it in browser code."
           }
         ]
       }

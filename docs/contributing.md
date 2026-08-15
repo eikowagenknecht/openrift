@@ -46,6 +46,34 @@ All workspaces use `vitest`. Run all tests via `bun run test` (goes through Turb
 
 Regular unit tests (`*.test.ts`) must never depend on external services — mock everything via `vi.mock()`. If a test hits the real DB, it belongs in an integration file.
 
+## Dates and times
+
+Every date the app shows is ISO 8601 and comes from `packages/shared/src/format-date.ts`. Nothing else formats a date: `no-restricted-properties` in `.oxlintrc.json` fails the build on `toLocaleDateString` / `toLocaleTimeString` anywhere under `apps/web/src` or `packages/shared/src`. (Number formatting is untouched, so `count.toLocaleString()` is still fine.)
+
+The module builds every form from plain `Date` getters and never touches `Intl`, so there is no locale to pin and no way for a date to render differently on the server than in the browser. That whole class of React #418 hydration mismatch is gone by construction.
+
+| Function              | Output                                                | Use for                                                                      |
+| --------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `formatDay`           | `2026-08-15`                                          | A calendar day, in UTC. The default for anything dated.                      |
+| `formatMonth`         | `2026-08`                                             | A month, in UTC.                                                             |
+| `formatDayTime`       | `2026-08-15 23:59`                                    | An instant in UTC, for admin and ops surfaces.                               |
+| `formatDayLocal`      | `2026-08-15`                                          | The day an instant fell on for **this viewer**.                              |
+| `formatTimeLocal`     | `14:30`                                               | Time of day for this viewer, under a day heading.                            |
+| `formatDayTimeLocal`  | `2026-08-15 14:30`                                    | An instant on the viewer's own clock.                                        |
+| `formatRelativeTime`  | `3h ago` / `in 3h`                                    | A gap from now, either direction. `{ seconds }` and `{ compound }` widen it. |
+| `formatRelativeDay`   | `Yesterday` … `2026-01-15`                            | A day relative to today, falling back to `formatDay`.                        |
+| `dateLeafParts`       | `AUG` / `15`                                          | The calendar-leaf tile.                                                      |
+| `formatReleasePeriod` | `2026-08-15` / `2026-08` / `2026-Q2` / `2026` / `TBA` | A set release, at whatever precision is known.                               |
+
+Two rules decide which one you want:
+
+- **A calendar day is always the UTC day.** A day has no timezone of its own, so the app picks one and states it. `formatDayLocal` is the exception, for when the day is the viewer's own (grouping an activity feed into days as they lived them) rather than a property of the data.
+- **An instant renders in UTC for ops, and on the viewer's clock for players.** Admin tables use `formatDayTime`, where the reader knows the server is UTC. Anything a player reads as a wall clock (a submission deadline, a tournament start) uses `formatDayTimeLocal`, because being two hours wrong about a deadline is a real bug.
+
+The `…Local` functions depend on where the code runs, so they are only safe on `ssr: "data-only"` routes. On a server-rendered route they mismatch on hydration for every visitor outside UTC.
+
+Date entry is separate and unchanged: always the `DatePicker` from `@/components/ui/date-picker`, never a raw `<input type="date">`, with a validated `HH:mm` text input for the time part (the native time input renders in the OS clock format and cannot be forced to 24h).
+
 ## Persisted Zustand Stores
 
 Never pass `version`/`migrate` to `persist()`. Users run stale cached bundles after a deploy, and an older bundle (implicit version 0, no migrate) that rehydrates a newer-versioned blob discards the whole blob — the exact data loss versioning looks like it prevents (rationale: `apps/web/src/stores/local-decks-store.ts`).

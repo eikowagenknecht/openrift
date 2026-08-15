@@ -1,4 +1,5 @@
 import type { TournamentSummaryResponse } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon, TrophyIcon, UsersIcon } from "lucide-react";
 
@@ -10,7 +11,6 @@ import {
   EFFECTIVE_STATE_LABEL,
   VIEWER_ROLE_LABEL,
   effectiveTournamentState,
-  formatTournamentDate,
   primaryViewerRole,
 } from "@/lib/tournament-display";
 
@@ -35,7 +35,7 @@ export function TournamentCard({ tournament }: { tournament: TournamentSummaryRe
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5">
               <span className="flex items-center gap-1.5">
                 <CalendarIcon className="size-4 shrink-0" />
-                {formatTournamentDate(tournament.startsAt)}
+                {formatDayTimeLocal(tournament.startsAt)}
               </span>
               {tournament.deckFormat ? (
                 <span className="flex items-center gap-1.5">

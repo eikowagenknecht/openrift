@@ -277,8 +277,8 @@ describe("MembersPageContent roster", () => {
       />,
     );
     expect(screen.getByText("You")).toBeInTheDocument();
-    expect(screen.getByText("Joined Feb 2026")).toBeInTheDocument();
-    expect(screen.getByText("Joined Sep 2025")).toBeInTheDocument();
+    expect(screen.getByText("Joined 2026-02")).toBeInTheDocument();
+    expect(screen.getByText("Joined 2025-09")).toBeInTheDocument();
   });
 
   it("drops the section heading and role tally the page title already carried", () => {

@@ -1,9 +1,10 @@
 import type { PriceRefreshResponse } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared";
 import { priceRefreshResponseSchema } from "@openrift/shared/contracts/admin/job-results";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { formatRelativeTime, refreshActions } from "@/components/admin/refresh-actions";
+import { refreshActions } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ function JobRunDisplay({ run }: { run: JobRunView }) {
     return (
       <p className="text-muted-foreground flex items-center gap-1 text-sm">
         <LoaderIcon className="size-4 animate-spin" />
-        Running since {formatRelativeTime(run.startedAt)}
+        Started {formatRelativeTime(run.startedAt)}
       </p>
     );
   }
@@ -100,7 +101,7 @@ function PriceSection({
             <CardTitle>{label} Prices</CardTitle>
             <CardDescription>
               {groups} groups · {mapped} mapped · {staged} staged
-              {nextRun && ` · next refresh ${formatRelativeTime(nextRun)}`}
+              {nextRun && ` · next refresh ${formatRelativeTime(nextRun, { compound: true })}`}
             </CardDescription>
           </div>
           <div className="flex shrink-0 gap-2">

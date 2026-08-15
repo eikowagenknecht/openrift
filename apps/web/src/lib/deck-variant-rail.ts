@@ -1,5 +1,3 @@
-import { formatAbsoluteDate } from "@/lib/format-date";
-
 /**
  * Pure layout and labeling for the variant rail (ADR-042): the branch graph
  * shown below the deck hero. The component only draws what this module
@@ -44,18 +42,17 @@ export interface RailLayout {
 }
 
 const MAX_LABEL_CHARS = 18;
-const ISO_DATE_SUFFIX = /^\d{4}-\d{2}-\d{2}$/u;
 
 /**
- * The rail's one naming rule: show the member's name minus what it shares
- * with the family. A name of the form `<base> (<rest>)` collapses to `<rest>`;
- * when the rest is a bare ISO date (the default checkpoint name) it renders as
- * a short date instead, with the year kept only when it isn't `referenceYear`.
- * Anything else shows as-is. Labels are capped at {@link MAX_LABEL_CHARS}.
+ * The rail's one naming rule: show the member's name minus what it shares with
+ * the family. A name of the form `<base> (<rest>)` collapses to `<rest>`;
+ * anything else shows as-is. The default checkpoint name ends in a bare ISO
+ * day, which is already the app's date form, so it needs no reformatting.
+ * Labels are capped at {@link MAX_LABEL_CHARS}.
  *
  * @returns The label to draw at the node.
  */
-export function railLabel(name: string, familyBaseName: string, referenceYear: number): string {
+export function railLabel(name: string, familyBaseName: string): string {
   let label = name;
   const prefix = `${familyBaseName} (`;
   if (name.startsWith(prefix) && name.endsWith(")")) {
@@ -63,16 +60,6 @@ export function railLabel(name: string, familyBaseName: string, referenceYear: n
     if (rest.length > 0) {
       label = rest;
     }
-  }
-  if (ISO_DATE_SUFFIX.test(label)) {
-    // Date-only strings format in UTC (formatAbsoluteDate's default), so the
-    // calendar day never shifts with the viewer's timezone.
-    const withYear = Number(label.slice(0, 4)) !== referenceYear;
-    label = formatAbsoluteDate(label, {
-      month: "short",
-      day: "numeric",
-      ...(withYear ? { year: "numeric" } : {}),
-    });
   }
   if (label.length > MAX_LABEL_CHARS) {
     return `${label.slice(0, MAX_LABEL_CHARS - 1)}…`;
@@ -187,7 +174,6 @@ function resolveGenerations(drawn: readonly RailMemberInput[]): {
 export function buildRailLayout(
   members: readonly RailMemberInput[],
   currentId: string,
-  referenceYear: number,
   maxNodes = 6,
 ): RailLayout {
   const byId = new Map(members.map((member) => [member.id, member]));
@@ -244,7 +230,7 @@ export function buildRailLayout(
     laneEnd[lane] = x;
     nodes.push({
       id: member.id,
-      label: railLabel(member.name, current.name, referenceYear),
+      label: railLabel(member.name, current.name),
       fullName: member.name,
       isCurrent: member.id === currentId,
       isDraft: member.isDraft,

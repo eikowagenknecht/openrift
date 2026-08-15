@@ -1,4 +1,5 @@
 import type { AdminMetaEvent } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";
@@ -11,7 +12,6 @@ import { PageDescription, PageTopBarPrimaryButton } from "@/components/layout/pa
 import { Button } from "@/components/ui/button";
 import { useAdminMetaEvents, useDeleteMetaEvent } from "@/hooks/use-admin-meta";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 function SlugCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   if (!row) {
@@ -31,11 +31,7 @@ function DateCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   if (!row) {
     return null;
   }
-  return (
-    <span className="tabular-nums">
-      {formatAbsoluteDate(row.eventDate, { year: "numeric", month: "short", day: "numeric" })}
-    </span>
-  );
+  return <span className="tabular-nums">{formatDay(row.eventDate)}</span>;
 }
 
 function FormatCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {

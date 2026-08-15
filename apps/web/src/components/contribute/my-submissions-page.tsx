@@ -1,3 +1,4 @@
+import { formatDay } from "@openrift/shared";
 import type { CardSubmissionStatusResponse } from "@openrift/shared/contracts/card-submissions";
 import { Link } from "@tanstack/react-router";
 import { FileTextIcon } from "lucide-react";
@@ -23,7 +24,6 @@ import {
   submissionStatusHints,
   submissionStatusLabels,
 } from "@/lib/card-submission-copy";
-import { formatAbsoluteDate } from "@/lib/format-date";
 
 /**
  * One submission: what was sent, where it ended up, and anything the reviewer
@@ -63,8 +63,8 @@ function SubmissionRow({ submission }: { submission: CardSubmissionStatusRespons
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Sent {formatAbsoluteDate(submission.createdAt)}
-        {submission.resolvedAt ? ` · Reviewed ${formatAbsoluteDate(submission.resolvedAt)}` : ""}
+        Sent {formatDay(submission.createdAt)}
+        {submission.resolvedAt ? ` · Reviewed ${formatDay(submission.resolvedAt)}` : ""}
       </p>
 
       {explanation ? <p>{explanation}</p> : null}

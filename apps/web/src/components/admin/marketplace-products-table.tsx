@@ -1,5 +1,5 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
-import { marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
+import { formatDayTime, marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
 import { formatPrintingLabel, normalizeNameForMatching } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
@@ -601,7 +601,7 @@ function MarketplaceProductRow({
         <TableCell className="w-20 text-right tabular-nums">
           <div className="flex items-center justify-end gap-1">
             {isStale && (
-              <span title={`Last seen ${product.recordedAt.slice(0, 16).replace("T", " ")}`}>
+              <span title={`Last seen ${formatDayTime(product.recordedAt)}`}>
                 <AlertTriangleIcon className="text-destructive size-3.5" />
               </span>
             )}

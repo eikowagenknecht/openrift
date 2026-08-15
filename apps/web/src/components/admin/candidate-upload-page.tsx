@@ -1,4 +1,5 @@
 import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
+import { formatDay, formatDayTime } from "@openrift/shared";
 import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-queries";
 import { createServerFn } from "@tanstack/react-start";
 import {
@@ -589,7 +590,7 @@ function ExportCardsCard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `cards-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `cards-export-${formatDay(new Date())}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setExporting(false);
@@ -743,9 +744,7 @@ function ProviderLastUpdatedCell({ row }: AdminCellSlotProps<ProviderRow>) {
   }
   return (
     <span className="text-muted-foreground text-sm">
-      {row.stats
-        ? new Date(row.stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)
-        : "—"}
+      {row.stats ? formatDayTime(row.stats.lastUpdated) : "—"}
     </span>
   );
 }

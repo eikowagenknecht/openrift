@@ -1,3 +1,4 @@
+import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
 import {
   ActivityIcon,
   BugIcon,
@@ -47,16 +48,6 @@ function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-function formatRelativeTime(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now();
-  const minutes = Math.round(diff / 60_000);
-  if (minutes < 60) {
-    return `in ${minutes}m`;
-  }
-  const hours = Math.round(minutes / 60);
-  return `in ${hours}h`;
-}
-
 function formatDuration(ms: number): string {
   if (ms < 1000) {
     return `${ms}ms`;
@@ -68,20 +59,6 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(seconds / 60);
   const remSeconds = seconds % 60;
   return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
-}
-
-function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.round(diff / 60_000);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
 }
 
 function StatRow({ label, value }: { label: string; value: string | number }) {
@@ -99,7 +76,7 @@ export function StatusPage() {
 
   useEffect(() => {
     if (dataUpdatedAt > 0) {
-      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString(undefined, { hourCycle: "h23" }));
+      setLastUpdated(formatDayTimeLocal(new Date(dataUpdatedAt)));
     }
   }, [dataUpdatedAt]);
 
@@ -218,7 +195,7 @@ export function StatusPage() {
                 {job.lastRun && (
                   <div className="text-muted-foreground flex items-center justify-between pl-0">
                     <span>
-                      last: {formatTimeAgo(job.lastRun.startedAt)}
+                      last: {formatRelativeTime(job.lastRun.startedAt)}
                       {job.lastRun.durationMs !== null && (
                         <> · {formatDuration(job.lastRun.durationMs)}</>
                       )}
@@ -281,7 +258,9 @@ export function StatusPage() {
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-muted-foreground text-sm">Latest price</span>
                   {source.latestPrice ? (
-                    <span className="font-mono text-sm">{formatTimeAgo(source.latestPrice)}</span>
+                    <span className="font-mono text-sm">
+                      {formatRelativeTime(source.latestPrice)}
+                    </span>
                   ) : (
                     <Badge variant="secondary">none</Badge>
                   )}

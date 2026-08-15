@@ -22,7 +22,6 @@ import {
   compareTournamentsForList,
   effectiveTournamentState,
   formatStartsIn,
-  formatTournamentDate,
   isTournamentHost,
   parseScheduleInput,
   partitionTournaments,
@@ -202,15 +201,6 @@ describe("parseScheduleInput", () => {
     const result = parseScheduleInput("2026-06-14", "20:30", "2026-06-14", "20:30");
     expect(result.endBeforeStart).toBe(false);
     expect(result.scheduleInvalid).toBe(false);
-  });
-});
-
-describe("formatTournamentDate", () => {
-  it("renders a non-empty human-readable string without the technical UTC Z form", () => {
-    const out = formatTournamentDate("2026-06-14T18:30:00Z");
-    expect(out.length).toBeGreaterThan(0);
-    expect(out).not.toContain("Z");
-    expect(out).not.toMatch(/T\d{2}:\d{2}.*Z/u);
   });
 });
 

@@ -1,4 +1,5 @@
 import type { DeckCheckKeyResponse } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { CheckIcon, CopyIcon, PencilIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,14 +32,6 @@ import {
   useRevokeMyDeckCheckKey,
   useRevokeOrgDeckCheckKey,
 } from "@/hooks/use-deck-check-keys";
-
-/**
- * ISO date (YYYY-MM-DD) from an ISO timestamp.
- * @returns The date part of the timestamp.
- */
-function isoDay(timestamp: string): string {
-  return timestamp.slice(0, 10);
-}
 
 /** Bound key actions, supplied by the personal / org wrappers below. */
 interface KeyActions {
@@ -260,9 +253,9 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
           <code className="text-muted-foreground font-normal">{apiKey.tokenPrefix}…</code>
         </span>
         <span className="text-muted-foreground text-sm">
-          Created {isoDay(apiKey.createdAt)}
+          Created {formatDay(apiKey.createdAt)}
           {apiKey.createdByName ? ` by ${apiKey.createdByName}` : ""}
-          {apiKey.lastUsedAt ? ` · last used ${isoDay(apiKey.lastUsedAt)}` : " · never used"}
+          {apiKey.lastUsedAt ? ` · last used ${formatDay(apiKey.lastUsedAt)}` : " · never used"}
         </span>
       </div>
       {revoked ? (
