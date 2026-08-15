@@ -5,6 +5,8 @@ import { createStoreResetter } from "@/test/store-helpers";
 import type { TeamId, TrackedPlayer } from "./match-tracker-store";
 import {
   defaultPointsTarget,
+  describeAction,
+  isMatchPoint,
   teamMemberCounts,
   teammateIds,
   useMatchTrackerStore,
@@ -13,7 +15,7 @@ import {
 let resetStore: () => void;
 
 function player(id: string, team: TeamId, points = 0): TrackedPlayer {
-  return { id, name: id.toUpperCase(), points, xp: 0, team };
+  return { id, name: id.toUpperCase(), points, xp: 0, team, legend: null, xpOpen: false };
 }
 
 // Switch to a four-player 2v2, start playing, and return the fresh roster.
@@ -378,5 +380,272 @@ describe("useMatchTrackerStore", () => {
       );
       expect(result?.status).toBe("setup");
     });
+
+    it("restores a seat's legend and drops one missing its identity", () => {
+      const current = useMatchTrackerStore.getState();
+      const result = merge?.(
+        {
+          players: [
+            {
+              id: "a",
+              name: "A",
+              points: 0,
+              xp: 0,
+              legend: {
+                cardId: "c1",
+                name: "Jinx",
+                domains: ["fury", "body"],
+                thumbnail: "/x.webp",
+              },
+            },
+            { id: "b", name: "B", points: 0, xp: 0, legend: { name: "no card id" } },
+          ],
+        },
+        current,
+      );
+      expect(result?.players[0]?.legend).toEqual({
+        cardId: "c1",
+        name: "Jinx",
+        domains: ["fury", "body"],
+        thumbnail: "/x.webp",
+      });
+      expect(result?.players[1]?.legend).toBeNull();
+    });
+
+    it("defaults xpOpen to false for a blob written before the rail existed", () => {
+      const current = useMatchTrackerStore.getState();
+      const result = merge?.(
+        {
+          players: [
+            { id: "a", name: "A", points: 0, xp: 3 },
+            { id: "b", name: "B", points: 0, xp: 0, xpOpen: true },
+          ],
+        },
+        current,
+      );
+      expect(result?.players[0]?.xpOpen).toBe(false);
+      expect(result?.players[1]?.xpOpen).toBe(true);
+    });
+  });
+
+  describe("setLegend", () => {
+    it("attaches a legend to one seat and survives starting a game", () => {
+      const legend = {
+        cardId: "c1",
+        name: "Jinx",
+        domains: ["fury"],
+        thumbnail: null,
+      };
+      const [first, second] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().setLegend(first!.id, legend);
+      useMatchTrackerStore.getState().startGame();
+
+      const players = useMatchTrackerStore.getState().players;
+      expect(players[0]?.legend).toEqual(legend);
+      expect(players[1]?.legend).toBeNull();
+      expect(second).toBeDefined();
+    });
+
+    it("clears a legend when passed null", () => {
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore
+        .getState()
+        .setLegend(first!.id, { cardId: "c1", name: "Jinx", domains: [], thumbnail: null });
+      useMatchTrackerStore.getState().setLegend(first!.id, null);
+      expect(useMatchTrackerStore.getState().players[0]?.legend).toBeNull();
+    });
+  });
+
+  describe("openXp", () => {
+    it("opens the rail and counts the opening tap as the first point of XP", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().openXp(first!.id);
+
+      expect(useMatchTrackerStore.getState().players[0]?.xpOpen).toBe(true);
+      expect(useMatchTrackerStore.getState().players[0]?.xp).toBe(1);
+    });
+
+    it("leaves the other seats closed", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().openXp(first!.id);
+      expect(useMatchTrackerStore.getState().players[1]?.xpOpen).toBe(false);
+    });
+
+    it("does nothing when the rail is already open", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().openXp(first!.id);
+      useMatchTrackerStore.getState().openXp(first!.id);
+      expect(useMatchTrackerStore.getState().players[0]?.xp).toBe(1);
+    });
+
+    it("closes every rail again on the next game", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().openXp(first!.id);
+      useMatchTrackerStore.getState().startGame();
+      expect(useMatchTrackerStore.getState().players[0]?.xpOpen).toBe(false);
+    });
+  });
+
+  describe("setScore", () => {
+    it("corrects a total outright", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().setScore(first!.id, 5);
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(5);
+    });
+
+    it("floors at zero and ignores a no-op", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().setScore(first!.id, -4);
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(0);
+      expect(useMatchTrackerStore.getState().log).toHaveLength(0);
+    });
+
+    it("carries the whole team in a 2v2", () => {
+      const roster = startTeamsGame();
+      useMatchTrackerStore.getState().setScore(roster[0]!.id, 6);
+      const players = useMatchTrackerStore.getState().players;
+      expect(players[0]?.points).toBe(6);
+      expect(players[1]?.points).toBe(6);
+      expect(players[2]?.points).toBe(0);
+    });
+
+    it("declares a winner when the correction crosses the target", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().setScore(first!.id, 8);
+      expect(useMatchTrackerStore.getState().status).toBe("finished");
+      expect(useMatchTrackerStore.getState().winnerId).toBe(first!.id);
+    });
+  });
+
+  describe("undoLast", () => {
+    it("reverses the last scoring change", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "conquer");
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "hold");
+      useMatchTrackerStore.getState().undoLast();
+
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(1);
+      expect(useMatchTrackerStore.getState().log).toHaveLength(1);
+    });
+
+    it("steps back through several changes", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "conquer");
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "ability");
+      useMatchTrackerStore.getState().undoLast();
+      useMatchTrackerStore.getState().undoLast();
+
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(0);
+      expect(useMatchTrackerStore.getState().log).toHaveLength(0);
+    });
+
+    it("puts a finished game back into play when the winning point is reversed", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().setScore(first!.id, 7);
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "conquer");
+      expect(useMatchTrackerStore.getState().status).toBe("finished");
+
+      useMatchTrackerStore.getState().undoLast();
+
+      expect(useMatchTrackerStore.getState().status).toBe("playing");
+      expect(useMatchTrackerStore.getState().winnerId).toBeNull();
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(7);
+    });
+
+    it("restores a clamped change to the value it actually had", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      // Floors at 0 rather than going to -1, so a naive +1 reversal would be wrong.
+      useMatchTrackerStore.getState().adjustPoints(first!.id, -1, "manual");
+      useMatchTrackerStore.getState().undoLast();
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(0);
+    });
+
+    it("reverses both teammates in a 2v2", () => {
+      const roster = startTeamsGame();
+      useMatchTrackerStore.getState().adjustPoints(roster[0]!.id, 1, "conquer");
+      useMatchTrackerStore.getState().undoLast();
+      const players = useMatchTrackerStore.getState().players;
+      expect(players[0]?.points).toBe(0);
+      expect(players[1]?.points).toBe(0);
+    });
+
+    it("reverses an XP change too", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().adjustXp(first!.id, 3);
+      useMatchTrackerStore.getState().undoLast();
+      expect(useMatchTrackerStore.getState().players[0]?.xp).toBe(0);
+    });
+
+    it("does nothing on an empty log", () => {
+      useMatchTrackerStore.getState().startGame();
+      useMatchTrackerStore.getState().undoLast();
+      expect(useMatchTrackerStore.getState().players[0]?.points).toBe(0);
+    });
+
+    it("starts a fresh log on a new game", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "conquer");
+      useMatchTrackerStore.getState().startGame();
+      expect(useMatchTrackerStore.getState().log).toHaveLength(0);
+    });
+
+    it("keeps the log bounded", () => {
+      useMatchTrackerStore.getState().startGame();
+      const [first] = useMatchTrackerStore.getState().players;
+      for (let index = 0; index < 40; index += 1) {
+        useMatchTrackerStore.getState().adjustXp(first!.id, 1);
+      }
+      expect(useMatchTrackerStore.getState().log.length).toBeLessThanOrEqual(30);
+    });
+  });
+});
+
+describe("describeAction", () => {
+  it("returns null when there is nothing to undo", () => {
+    expect(describeAction(undefined, [])).toBeNull();
+  });
+
+  it("names the player and the scoring route", () => {
+    useMatchTrackerStore.getState().startGame();
+    const [first] = useMatchTrackerStore.getState().players;
+    useMatchTrackerStore.getState().adjustPoints(first!.id, 1, "conquer");
+    const { log, players } = useMatchTrackerStore.getState();
+    expect(describeAction(log.at(-1), players)).toBe(`Undo ${first!.name}'s Conquer`);
+  });
+
+  it("distinguishes a correction and an XP change from a scored point", () => {
+    useMatchTrackerStore.getState().startGame();
+    const [first] = useMatchTrackerStore.getState().players;
+
+    useMatchTrackerStore.getState().setScore(first!.id, 4);
+    let state = useMatchTrackerStore.getState();
+    expect(describeAction(state.log.at(-1), state.players)).toBe(
+      `Undo ${first!.name}'s score correction`,
+    );
+
+    useMatchTrackerStore.getState().adjustXp(first!.id, 1);
+    state = useMatchTrackerStore.getState();
+    expect(describeAction(state.log.at(-1), state.players)).toBe(`Undo ${first!.name}'s XP change`);
+  });
+});
+
+describe("isMatchPoint", () => {
+  it("is true exactly one point short of the target", () => {
+    expect(isMatchPoint(player("a", 0, 7), 8)).toBe(true);
+    expect(isMatchPoint(player("a", 0, 6), 8)).toBe(false);
+    expect(isMatchPoint(player("a", 0, 8), 8)).toBe(false);
   });
 });

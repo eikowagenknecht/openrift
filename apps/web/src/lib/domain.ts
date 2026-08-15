@@ -128,3 +128,28 @@ export function computeDomainDisabled(
   }
   return disabled;
 }
+
+/**
+ * Ambient background glow built from a legend's domain colors — one radial per
+ * domain, anchored to opposite top corners so a dual-domain identity reads as a
+ * blend. An empty domain list gets a neutral wash. Shared by the deck hero, the
+ * editor sidebar's identity header, and the match board's player panels, so all
+ * three glow the same way.
+ * @returns An inline style with the layered gradients.
+ */
+export function deckGlowStyle(
+  domains: readonly string[],
+  colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
+): React.CSSProperties {
+  if (domains.length === 0) {
+    return {
+      backgroundImage:
+        "radial-gradient(80% 140% at 20% 0%, oklch(0.6 0.02 260 / 0.14) 0%, transparent 60%)",
+    };
+  }
+  const first = getDomainColor(domains[0], colors);
+  const second = domains.length > 1 ? getDomainColor(domains[1], colors) : first;
+  return {
+    backgroundImage: `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`,
+  };
+}

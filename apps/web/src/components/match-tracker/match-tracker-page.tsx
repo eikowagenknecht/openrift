@@ -4,14 +4,20 @@ import type { RefObject } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { Heading } from "@/components/heading";
-import { MatchToolbar } from "@/components/match-tracker/match-toolbar";
+import { MatchSeamControls } from "@/components/match-tracker/match-seam-controls";
 import { PlayerPanel } from "@/components/match-tracker/player-panel";
 import { SetupScreen } from "@/components/match-tracker/setup-screen";
 import { Button } from "@/components/ui/button";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsLandscape } from "@/hooks/use-is-landscape";
-import { perRowHeight, planSeats, scoreSizeClass, xpSizeTier } from "@/lib/match-layout";
-import type { Seat, XpSize } from "@/lib/match-layout";
+import {
+  medallionSizeTier,
+  perRowHeight,
+  planSeats,
+  scoreSizeClass,
+  xpSizeTier,
+} from "@/lib/match-layout";
+import type { MedallionSize, Seat, XpSize } from "@/lib/match-layout";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
 /**
@@ -47,6 +53,7 @@ function MatchBoard() {
   const boardHeight = useMeasuredHeight(boardRef);
   const panelHeight = perRowHeight(boardHeight, rows.length);
   const scoreClass = scoreSizeClass(panelHeight);
+  const medSize = medallionSizeTier(panelHeight);
   const xpSize = xpSizeTier(panelHeight);
 
   return (
@@ -54,17 +61,18 @@ function MatchBoard() {
     // (sides) and the home indicator (bottom) don't cover the edge panels. Top
     // is handled by the sticky app header. max() keeps the dense 8px gutter
     // everywhere the insets resolve to 0.
-    <div className="relative flex min-h-0 flex-1 flex-col gap-2 pt-2 pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))]">
-      <MatchToolbar />
-      <div ref={boardRef} className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="relative flex min-h-0 flex-1 flex-col pt-2 pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))]">
+      <div ref={boardRef} className="relative flex min-h-0 flex-1 flex-col gap-2">
         {rows.map((seats) => (
           <BoardRow
             key={seats.map((seat) => seat.id).join("-")}
             seats={seats}
             scoreClass={scoreClass}
+            medSize={medSize}
             xpSize={xpSize}
           />
         ))}
+        <MatchSeamControls />
       </div>
       <WinnerBanner />
     </div>
@@ -102,10 +110,12 @@ function useMeasuredHeight(ref: RefObject<HTMLDivElement | null>): number {
 function BoardRow({
   seats,
   scoreClass,
+  medSize,
   xpSize,
 }: {
   seats: Seat[];
   scoreClass: string;
+  medSize: MedallionSize;
   xpSize: XpSize;
 }) {
   return (
@@ -116,6 +126,7 @@ function BoardRow({
           playerId={seat.id}
           rotated={seat.rotated}
           scoreClass={scoreClass}
+          medSize={medSize}
           xpSize={xpSize}
         />
       ))}
@@ -148,7 +159,9 @@ function WinnerBanner() {
   }
 
   return (
-    <div className="bg-background/80 absolute inset-0 z-10 flex items-center justify-center p-4 backdrop-blur-sm">
+    // Above the seam controls (z-20), which would otherwise punch through the
+    // banner because neither sits in its own stacking context.
+    <div className="bg-background/80 absolute inset-0 z-30 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-card w-full max-w-sm space-y-4 rounded-lg border p-6 text-center shadow-lg">
         <TrophyIcon className="text-primary mx-auto size-10" />
         <Heading level={2}>

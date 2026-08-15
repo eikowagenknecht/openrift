@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { perRowHeight, planSeats, scoreSizeClass, xpSizeTier } from "./match-layout";
+import {
+  medallionSizeTier,
+  perRowHeight,
+  planSeats,
+  scoreSizeClass,
+  xpSizeTier,
+} from "./match-layout";
 
 /**
  * Flatten a layout into "id▲" tokens (▲ marks a rotated seat), row by row.
@@ -115,5 +121,27 @@ describe("xpSizeTier", () => {
     expect(xpSizeTier(209)).toBe("md");
     expect(xpSizeTier(320)).toBe("xl");
     expect(xpSizeTier(319)).toBe("lg");
+  });
+});
+
+describe("medallionSizeTier", () => {
+  it("grows the scoring medallions with the panel height", () => {
+    // Four-player board: the small tier, which also drops the labels.
+    expect(medallionSizeTier(122)).toBe("sm");
+    // Three players or a short window.
+    expect(medallionSizeTier(220)).toBe("md");
+    // Two-player board and up.
+    expect(medallionSizeTier(340)).toBe("lg");
+  });
+
+  it("is monotonic across the tier boundaries", () => {
+    expect(medallionSizeTier(190)).toBe("md");
+    expect(medallionSizeTier(189)).toBe("sm");
+    expect(medallionSizeTier(300)).toBe("lg");
+    expect(medallionSizeTier(299)).toBe("md");
+  });
+
+  it("falls back to the small tier before anything is measured", () => {
+    expect(medallionSizeTier(0)).toBe("sm");
   });
 });

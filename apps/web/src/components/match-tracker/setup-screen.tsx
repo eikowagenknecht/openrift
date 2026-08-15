@@ -1,4 +1,5 @@
-import { PlayIcon } from "lucide-react";
+import { PlayIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import {
   PageDescription,
@@ -6,13 +7,15 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { LegendPickerDialog } from "@/components/match-tracker/legend-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TEAM_LABELS } from "@/lib/match-teams";
 import { cn } from "@/lib/utils";
-import type { TeamId } from "@/stores/match-tracker-store";
+import type { TeamId, TrackedLegend } from "@/stores/match-tracker-store";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -69,6 +72,77 @@ function TeamToggle({
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
+  );
+}
+
+/**
+ * One seat: the legend whose art the panel wears, the player's name, and their
+ * team in a 2v2. The legend slot opens the picker, which is the only thing on
+ * this screen that reads the card catalog.
+ * @returns The seat row.
+ */
+function SeatRow({
+  playerId,
+  index,
+  name,
+  legend,
+  team,
+  teamsActive,
+  onRename,
+  onTeamChange,
+}: {
+  playerId: string;
+  index: number;
+  name: string;
+  legend: TrackedLegend | null;
+  team: TeamId;
+  teamsActive: boolean;
+  onRename: (name: string) => void;
+  onTeamChange: (team: TeamId) => void;
+}) {
+  const setLegend = useMatchTrackerStore((state) => state.setLegend);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  return (
+    <div className="flex items-center gap-2">
+      <Pressable
+        aria-label={
+          legend ? `Change ${name}'s legend, currently ${legend.name}` : `Pick a legend for ${name}`
+        }
+        onClick={() => setPickerOpen(true)}
+        className={cn(
+          "aspect-card relative h-14 shrink-0 overflow-hidden rounded-md border",
+          legend ? "border-border-accent" : "border-border border-dashed",
+        )}
+      >
+        {legend?.thumbnail ? (
+          <img
+            src={legend.thumbnail}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="absolute inset-0 size-full object-cover"
+          />
+        ) : (
+          <span className="text-muted-foreground grid size-full place-items-center">
+            <PlusIcon className="size-4" />
+          </span>
+        )}
+      </Pressable>
+      <Input
+        value={name}
+        aria-label={`Name for player ${index + 1}`}
+        onChange={(event) => onRename(event.target.value)}
+      />
+      {teamsActive && <TeamToggle playerName={name} team={team} onChange={onTeamChange} />}
+      <LegendPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        playerName={name}
+        selectedCardId={legend?.cardId ?? null}
+        onSelect={(next) => setLegend(playerId, next)}
+      />
+    </div>
   );
 }
 
@@ -158,25 +232,26 @@ export function SetupScreen() {
         )}
 
         <div className="space-y-2">
-          <Label>Names</Label>
+          <Label>Seats</Label>
           <div className="space-y-2">
             {players.map((player, index) => (
-              <div key={player.id} className="flex items-center gap-2">
-                <Input
-                  value={player.name}
-                  aria-label={`Name for player ${index + 1}`}
-                  onChange={(event) => renamePlayer(player.id, event.target.value)}
-                />
-                {teamsActive && (
-                  <TeamToggle
-                    playerName={player.name}
-                    team={player.team}
-                    onChange={(team) => setPlayerTeam(player.id, team)}
-                  />
-                )}
-              </div>
+              <SeatRow
+                key={player.id}
+                playerId={player.id}
+                index={index}
+                name={player.name}
+                legend={player.legend}
+                team={player.team}
+                teamsActive={teamsActive}
+                onRename={(name) => renamePlayer(player.id, name)}
+                onTeamChange={(team) => setPlayerTeam(player.id, team)}
+              />
             ))}
           </div>
+          <p className="text-muted-foreground text-xs">
+            A legend is optional. It sets the art and colors on that player&apos;s side of the
+            board.
+          </p>
           {teamsActive && !teamsBalanced && (
             <p className="text-muted-foreground text-xs">Put two players on each team for a 2v2.</p>
           )}

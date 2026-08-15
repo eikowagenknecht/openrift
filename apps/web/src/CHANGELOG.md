@@ -2,8 +2,14 @@
 
 ## 2026-08-15
 
+### Highlights
+
+- feat(App): **A proper match board** — each player's side now shows the art of a legend you pick, scores through Conquer, Hold and Ability buttons instead of a hidden tap, and marks how close the game is with a pip per point.
+
 ### Other
 
+- feat(App): **Undo a mis-tapped point** — the match menu in the middle of the board names the last change and reverses it, and tapping a score opens buttons to correct a total that drifted.
+- feat(App): **XP only when you need it** — the match tracker keeps XP as a small tab until someone taps it, so decks that never use it get the space back.
 - fix(Decks): **Variant families pick the right main deck** — deleting or unlinking the main deck of a variant family could hand the role to any sibling; it now goes to the one you edited most recently.
 
 ## 2026-08-14

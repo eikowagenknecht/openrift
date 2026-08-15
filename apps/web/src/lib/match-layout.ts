@@ -75,6 +75,24 @@ export function scoreSizeClass(panelHeight: number): string {
   return "text-4xl";
 }
 
+export type MedallionSize = "sm" | "md" | "lg";
+
+/**
+ * Pick a size tier for the three scoring medallions. They sit at the panel's
+ * outer edge and compete with the score for height, so a four-player board
+ * drops to the small tier, which also hides their labels.
+ * @returns The medallion size tier for the given per-panel height.
+ */
+export function medallionSizeTier(panelHeight: number): MedallionSize {
+  if (panelHeight >= 300) {
+    return "lg";
+  }
+  if (panelHeight >= 190) {
+    return "md";
+  }
+  return "sm";
+}
+
 export type XpSize = "sm" | "md" | "lg" | "xl";
 
 /**

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
-import { deckGlowStyle } from "@/components/deck/deck-hero";
 import { DeckStatsPanel, DomainBar } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import { useZoneOrder } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { requiredZoneProgress } from "@/lib/deck-zone-labels";
+import { deckGlowStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 

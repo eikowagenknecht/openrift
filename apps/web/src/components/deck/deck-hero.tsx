@@ -19,7 +19,7 @@ import { Pressable } from "@/components/ui/pressable";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getDomainColor } from "@/lib/domain";
+import { deckGlowStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -60,27 +60,6 @@ interface DeckHeroProps {
   byline?: React.ReactNode;
   /** Action row rendered under the status chips — the share page's copy CTA. */
   actions?: React.ReactNode;
-}
-
-/**
- * Ambient background glow built from the legend's domain colors — one radial
- * per domain, anchored to opposite top corners so a dual-domain deck reads as
- * a blend. Decks without a legend get a neutral wash. Shared with the editor
- * sidebar's identity header so both surfaces glow the same way.
- * @returns An inline style with the layered gradients.
- */
-export function deckGlowStyle(domains: readonly string[], colors: Record<string, string>) {
-  if (domains.length === 0) {
-    return {
-      backgroundImage:
-        "radial-gradient(80% 140% at 20% 0%, oklch(0.6 0.02 260 / 0.14) 0%, transparent 60%)",
-    };
-  }
-  const first = getDomainColor(domains[0], colors);
-  const second = domains.length > 1 ? getDomainColor(domains[1], colors) : first;
-  return {
-    backgroundImage: `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`,
-  };
 }
 
 const CHIP_CLASS =
