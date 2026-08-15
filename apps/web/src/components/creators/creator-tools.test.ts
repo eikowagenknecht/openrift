@@ -11,14 +11,11 @@ describe("visibleCreatorTools", () => {
   });
 
   it("keeps only the unflagged tools when both flags are off", () => {
-    expect(visibleCreatorTools(ALL_OFF).map((tool) => tool.id)).toEqual([
-      "chat-command",
-      "segments",
-    ]);
+    expect(visibleCreatorTools(ALL_OFF).map((tool) => tool.id)).toEqual(["chat-command"]);
   });
 
   it("treats a missing flag as off, so a renamed flag hides its tile", () => {
-    expect(visibleCreatorTools({}).map((tool) => tool.id)).toEqual(["chat-command", "segments"]);
+    expect(visibleCreatorTools({}).map((tool) => tool.id)).toEqual(["chat-command"]);
   });
 
   it("gates each flag independently", () => {

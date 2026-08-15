@@ -113,19 +113,6 @@ export function CreatorsPage() {
 
         {overlayEnabled && <CreatorStageSection />}
 
-        <CreatorSection id="segments" title="Segment material">
-          <p>
-            Two more things worth knowing about, less as tools to set up than as something to build
-            a segment around.
-          </p>
-          <p>
-            The <Link to="/pack-opener">pack opener</Link> opens virtual boosters at the real
-            published pull rates, which is a cheap way to run a box break bit without a box. The{" "}
-            <Link to="/card-designer">card designer</Link> makes a custom card in the Riftbound
-            frame, for a joke card, a channel mascot, or a giveaway graphic.
-          </p>
-        </CreatorSection>
-
         <CreatorSection id="catalogue" title="About the card data">
           <p>
             The catalogue behind all of this is kept up to date by one person, so a brand new set

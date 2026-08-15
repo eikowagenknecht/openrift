@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ListOrderedIcon, MessageSquareIcon, MonitorPlayIcon, PackageOpenIcon } from "lucide-react";
+import { ListOrderedIcon, MessageSquareIcon, MonitorPlayIcon } from "lucide-react";
 
 import type { IconChipTone } from "@/components/ui/icon-chip";
 
@@ -47,13 +47,6 @@ export const CREATOR_TOOLS: CreatorTool[] = [
     icon: MonitorPlayIcon,
     tone: "sky",
     featureFlag: "overlay",
-  },
-  {
-    id: "segments",
-    title: "Segment material",
-    blurb: "The pack opener and the card designer, for when you need a bit.",
-    icon: PackageOpenIcon,
-    tone: "green",
   },
 ];
 
