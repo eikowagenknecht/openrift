@@ -2,6 +2,7 @@ import type { TierRow } from "@openrift/shared";
 
 import { CardStageMain } from "@/components/present/card-stage-main";
 import { PresentationStage } from "@/components/present/presentation-stage";
+import { StageRankBadge } from "@/components/present/stage-rank-badge";
 import { TierStageMain } from "@/components/present/tier-stage-main";
 import { resolveTierRows } from "@/components/tier-lists/tier-board";
 import { useCards } from "@/hooks/use-cards";
@@ -70,10 +71,24 @@ function TierBoardPresentation({
 }: TierPresentationProps & { title: string; tiers: readonly TierRow[] }) {
   const { cardsById, printingsByCardId } = useCards();
   const boardMode = usePresentationStore((state) => state.boardMode);
+  const showRank = usePresentationStore((state) => state.showRank);
   const direction = usePresentationStore((state) => state.direction);
 
   const rows = resolveTierRows(tiers, cardsById, printingsByCardId);
   const queue = tierRowsToQueue(rows, direction);
+
+  // The card layout has no board to read the ranking off, so the badge is the
+  // whole answer to "where did this one land". The board layout builds its own,
+  // beside the hero card rather than beside the ladder.
+  const stop = queue[index];
+  const rankBadge =
+    showRank && stop?.contextLabel ? (
+      <StageRankBadge
+        label={stop.contextLabel}
+        rowIndex={stop.rowIndex}
+        unranked={rows[stop.rowIndex]?.unranked}
+      />
+    ) : null;
 
   return (
     <PresentationStage
@@ -87,7 +102,7 @@ function TierBoardPresentation({
       {boardMode ? (
         <TierStageMain rows={rows} queue={queue} index={index} onIndexChange={onIndexChange} />
       ) : (
-        <CardStageMain items={queue} index={index} />
+        <CardStageMain items={queue} index={index} badge={rankBadge} />
       )}
     </PresentationStage>
   );

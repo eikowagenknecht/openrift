@@ -97,8 +97,20 @@ describe("presentation store", () => {
     const state = usePresentationStore.getState();
     expect(state.boardMode).toBe(true);
     expect(state.showHero).toBe(true);
+    expect(state.showRank).toBe(true);
     expect(state.reveal).toBe(false);
     expect(state.direction).toBe("best-first");
+  });
+
+  it("hides the tier badge without taking the card with it", () => {
+    usePresentationStore.getState().toggleRank();
+
+    expect(usePresentationStore.getState().showRank).toBe(false);
+    expect(usePresentationStore.getState().showHero).toBe(true);
+
+    usePresentationStore.getState().toggleRank();
+
+    expect(usePresentationStore.getState().showRank).toBe(true);
   });
 
   it("hides the card beside the board without touching the rules text", () => {

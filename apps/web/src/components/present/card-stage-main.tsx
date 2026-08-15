@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
@@ -56,7 +57,20 @@ export function PresentationTextPanel({
  *
  * @returns The card layout, or null when the queue has nothing at this index.
  */
-export function CardStageMain({ items, index }: { items: PresentationItem[]; index: number }) {
+export function CardStageMain({
+  items,
+  index,
+  badge,
+}: {
+  items: PresentationItem[];
+  index: number;
+  /**
+   * Something to call the card out with, shown beside it. A tier run puts its
+   * rank here, which is the only thing on stage that says where the card landed
+   * once the board itself is switched off.
+   */
+  badge?: ReactNode;
+}) {
   const showText = usePresentationStore((state) => state.showText);
   const cardScale = usePresentationStore((state) => state.cardScale);
   const chroma = isChromaGround(usePresentationStore((state) => state.ground));
@@ -79,6 +93,7 @@ export function CardStageMain({ items, index }: { items: PresentationItem[]; ind
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center gap-[4vw] p-[4vh]">
+      {badge}
       <div
         className="aspect-card relative max-w-full shrink"
         style={{ height: `${cardScale * 100}%` }}

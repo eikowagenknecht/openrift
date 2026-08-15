@@ -310,12 +310,15 @@ export function DesktopOptionsBar({
   className,
   showCopies,
   hideViewToggle,
+  hideDisplayModeToggle,
   groupByOptions,
   groupByValue,
 }: {
   className?: string;
   showCopies?: boolean;
   hideViewToggle?: boolean;
+  /** Drop the grid/table toggle on a surface that renders no table (the pickers). */
+  hideDisplayModeToggle?: boolean;
   /**
    * Override the default group-by options (e.g. /promos uses
    * channel/card/year/marker). `value` is widened to `string` because
@@ -370,8 +373,10 @@ export function DesktopOptionsBar({
       {!hideViewToggle && (
         <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
       )}
-      <DisplayModeToggle />
-      {displayMode === "grid" && <ColumnControls {...columnProps} />}
+      {!hideDisplayModeToggle && <DisplayModeToggle />}
+      {/* A surface with no table is always a grid, whatever the shared display
+          preference says, so its column controls stay up. */}
+      {(hideDisplayModeToggle || displayMode === "grid") && <ColumnControls {...columnProps} />}
     </div>
   );
 }
@@ -454,11 +459,14 @@ export function MobileOptionsDrawer({
 export function MobileOptionsContent({
   showCopies,
   hideViewToggle,
+  hideDisplayModeToggle,
   groupByOptions,
   groupByValue,
 }: {
   showCopies?: boolean;
   hideViewToggle?: boolean;
+  /** See {@link DesktopOptionsBar}. */
+  hideDisplayModeToggle?: boolean;
   /** See {@link DesktopOptionsBar} for why the value type is widened to `string`. */
   groupByOptions?: { value: string; label: string }[];
   /** See {@link DesktopOptionsBar} for the normalized-value override rationale. */
@@ -489,8 +497,8 @@ export function MobileOptionsContent({
           {!hideViewToggle && (
             <ViewModeToggle compact view={view} onViewChange={setView} showCopies={showCopies} />
           )}
-          <DisplayModeToggle compact />
-          {displayMode === "grid" && (
+          {!hideDisplayModeToggle && <DisplayModeToggle compact />}
+          {(hideDisplayModeToggle || displayMode === "grid") && (
             <div className="ml-auto">
               <ColumnControls compact {...columnProps} />
             </div>

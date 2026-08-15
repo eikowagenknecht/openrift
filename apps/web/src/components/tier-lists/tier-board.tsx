@@ -67,6 +67,12 @@ interface TierRowFrameProps {
   active?: boolean;
   /** Overrides the reader's own tile size (see {@link TierBoard}). */
   tileWidth?: number;
+  /**
+   * Keeps the strip to a single line, letting the frame clip whatever doesn't
+   * fit. For previews, where a row that wrapped would make one list's card as
+   * tall as the screen; a real board wraps so nothing is hidden.
+   */
+  clip?: boolean;
   children: ReactNode;
 }
 
@@ -90,6 +96,7 @@ export function TierRowFrame({
   trailing,
   active,
   tileWidth,
+  clip,
   children,
 }: TierRowFrameProps) {
   // Called unconditionally, override or not — a hook behind a `??` would be a
@@ -114,7 +121,10 @@ export function TierRowFrame({
         {label}
       </div>
       <div
-        className="flex min-w-0 flex-1 flex-wrap content-center items-center gap-1 p-1"
+        className={cn(
+          "flex min-w-0 flex-1 content-center items-center gap-1 p-1",
+          clip ? "flex-nowrap" : "flex-wrap",
+        )}
         style={{ minHeight: tierRowMinHeight(width) }}
       >
         {children}

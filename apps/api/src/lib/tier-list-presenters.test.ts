@@ -79,7 +79,16 @@ describe("toTierListSummary", () => {
     expect(summary.cardCount).toBe(3);
   });
 
-  it("previews the first row that actually holds cards", () => {
+  it("previews every row that holds cards, in board order", () => {
+    expect(toTierListSummary(makeRow()).previewRows).toEqual([
+      { rowIndex: 0, label: "S", cards: entries([CARD(1), CARD(2)]) },
+      { rowIndex: 1, label: "A", cards: [{ cardId: CARD(3), printingId: PRINTING(3) }] },
+    ]);
+  });
+
+  it("skips an empty row but keeps the board position of the ones it sends", () => {
+    // The tier colour is derived from the board index, so a preview that
+    // renumbered its rows would paint A in S's colour.
     const summary = toTierListSummary(
       makeRow({
         tiers: [
@@ -88,14 +97,42 @@ describe("toTierListSummary", () => {
         ],
       }),
     );
-    expect(summary.previewCards).toEqual(entries([CARD(4), CARD(5)]));
+    expect(summary.previewRows).toEqual([
+      { rowIndex: 1, label: "A", cards: entries([CARD(4), CARD(5)]) },
+    ]);
   });
 
-  it("caps the preview at six cards", () => {
-    const many = Array.from({ length: 10 }, (_, index) => CARD(index));
+  it("marks the unranked row, and only that row", () => {
+    const summary = toTierListSummary(
+      makeRow({
+        tiers: [
+          { label: "S", cards: entries([CARD(1)]) },
+          { label: "Cut", cards: entries([CARD(2)]), unranked: true },
+        ],
+      }),
+    );
+    expect(summary.previewRows[0]).not.toHaveProperty("unranked");
+    expect(summary.previewRows[1]?.unranked).toBe(true);
+  });
+
+  it("caps the preview at four rows", () => {
+    const summary = toTierListSummary(
+      makeRow({
+        tiers: Array.from({ length: 7 }, (_, index) => ({
+          label: `T${index}`,
+          cards: entries([CARD(index)]),
+        })),
+      }),
+    );
+    expect(summary.previewRows).toHaveLength(4);
+    expect(summary.previewRows.at(-1)?.label).toBe("T3");
+  });
+
+  it("caps each previewed row at fourteen cards", () => {
+    const many = Array.from({ length: 20 }, (_, index) => CARD(index));
     const summary = toTierListSummary(makeRow({ tiers: [{ label: "S", cards: entries(many) }] }));
-    expect(summary.previewCards).toHaveLength(6);
-    expect(summary.previewCards).toEqual(entries(many.slice(0, 6)));
+    expect(summary.previewRows[0]?.cards).toEqual(entries(many.slice(0, 14)));
+    expect(summary.cardCount).toBe(20);
   });
 
   it("previews nothing when no row holds a card", () => {
@@ -107,14 +144,14 @@ describe("toTierListSummary", () => {
         ],
       }),
     );
-    expect(summary.previewCards).toEqual([]);
+    expect(summary.previewRows).toEqual([]);
     expect(summary.cardCount).toBe(0);
     expect(summary.tierCount).toBe(2);
   });
 
   it("reports zero for a list with no rows at all", () => {
     const summary = toTierListSummary(makeRow({ tiers: [] }));
-    expect(summary).toMatchObject({ tierCount: 0, cardCount: 0, previewCards: [] });
+    expect(summary).toMatchObject({ tierCount: 0, cardCount: 0, previewRows: [] });
   });
 
   it("does not ship the full board", () => {

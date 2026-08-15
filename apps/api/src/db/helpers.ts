@@ -2,7 +2,7 @@
  * Generic Kysely helpers for dynamic upsert operations.
  */
 
-import type { SqlBool } from "kysely";
+import type { RawBuilder, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 /**
@@ -16,6 +16,36 @@ export function buildDistinctWhere(table: string, columns: readonly string[]) {
   return sql.raw<SqlBool>(
     columns.map((c) => `excluded.${c} IS DISTINCT FROM ${table}.${c}`).join("\n              OR "),
   );
+}
+
+/**
+ * Binds a JSON-serialized value as real jsonb. postgres.js sends a plain string
+ * parameter to a jsonb column as a jsonb *string scalar* (the JSON text
+ * double-encoded), so the column holds `"{\"a\":1}"` rather than `{"a": 1}`.
+ * Reads survive that because {@link parseJsonb} unwraps either shape, but the
+ * database sees a string: `jsonb_array_elements` fails with "cannot extract
+ * elements from a scalar", and a `jsonb_typeof(col) = 'object'` check constraint
+ * rejects the write outright. The explicit cast makes the database parse the
+ * text into the actual structure instead. Use it for every jsonb write — older
+ * tables predating it hold string scalars, which is why reads stay defensive.
+ *
+ * @param value The JSON text, or null for a NULL column.
+ * @returns A raw expression usable wherever the column's write type is string.
+ */
+export function asJsonb(value: string): RawBuilder<string> {
+  return sql<string>`${value}::jsonb`;
+}
+
+/**
+ * Nullable companion of {@link asJsonb} for optional jsonb columns.
+ * @param value The JSON text, or null/undefined for a NULL column.
+ * @returns The cast expression, or null.
+ */
+export function asJsonbNullable(value: string | null | undefined): RawBuilder<string> | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return asJsonb(value);
 }
 
 /**

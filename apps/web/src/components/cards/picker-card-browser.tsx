@@ -17,6 +17,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
+import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -103,7 +104,15 @@ export function PickerCardBrowser({
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
 
-  const { filters, sortBy, sortDir, view: rawView, groupBy, hasActiveFilters } = useFilterValues();
+  const {
+    filters,
+    sortBy,
+    sortDir,
+    view: rawView,
+    groupBy,
+    groupDir,
+    hasActiveFilters,
+  } = useFilterValues();
   const { setSearch } = useFilterActions();
   const view: PickerView = rawView === "copies" ? "cards" : rawView;
 
@@ -143,8 +152,16 @@ export function PickerCardBrowser({
     filters.languages,
   );
 
+  // Grouping by set or rarity renders one tile per (card, group), so several
+  // cells share a cardId and a click has to find its cell by printing —
+  // otherwise clicking a reprint's tile jumps the selection back to the first
+  // tile carrying that card.
+  const inCardsView = view === "cards";
+  const findBy: "card" | "printing" =
+    inCardsView && !splitsCardIntoTiles(groupBy) ? "card" : "printing";
+
   const handleCardClick = (printing: Printing) => {
-    useSelectionStore.getState().selectCard(printing, items, "card");
+    useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
   const handleSearchAndClose = (query: string) => {
@@ -163,7 +180,13 @@ export function PickerCardBrowser({
       display={display}
       showImages={showImages}
       view={view}
-      siblings={view === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
+      siblings={
+        // Scoped to the tile when the grouping splits a card, so the variant
+        // chevron on a set-grouped tile offers that set's printings only.
+        inCardsView
+          ? tileSiblings(item.printing, printingsByCardId.get(item.printing.cardId), groupBy)
+          : undefined
+      }
       priceRange={priceRangeByCardId?.get(item.printing.cardId)}
       onClick={handleCardClick}
     />
@@ -182,11 +205,22 @@ export function PickerCardBrowser({
           items={items}
           totalItems={sortedCards.length}
           renderCard={renderCard}
+          // The group-by control is in the toolbar, so the grid has to be told
+          // what it picked: without these the cards were sorted into groups and
+          // then rendered as one flat run, which reads as the control doing
+          // nothing at all.
+          setOrder={sets}
+          groupBy={groupBy}
+          groupDir={groupDir}
           toolbar={
             <BrowserToolbar
               totalCards={totalUniqueCards}
               filteredCount={filteredCount}
               hideViewToggle={hideViewToggle}
+              // A picker has no table: its cells carry the pick control, and a
+              // table row has nowhere to put one. Offering the toggle only let
+              // a creator switch to a view that silently fell back to the grid.
+              hideDisplayModeToggle
               mobileDoneLabel={hasActiveFilters ? `Show ${filteredCount} cards` : undefined}
             />
           }

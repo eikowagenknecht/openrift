@@ -26,6 +26,8 @@ describe("resolvePresentationKey", () => {
     ["B", "toggleBoard"],
     ["c", "toggleHero"],
     ["C", "toggleHero"],
+    ["k", "toggleRank"],
+    ["K", "toggleRank"],
     ["r", "toggleReveal"],
     ["R", "toggleReveal"],
     ["d", "toggleDirection"],
@@ -58,6 +60,7 @@ describe("BOARD_ACTIONS", () => {
       "toggleBoard",
       "toggleDirection",
       "toggleHero",
+      "toggleRank",
       "toggleReveal",
     ]);
   });

@@ -174,6 +174,11 @@ interface BrowserToolbarProps {
   /** Hide the cards/printings/copies view toggle (deck builder, promos). */
   hideViewToggle?: boolean;
   /**
+   * Hide the grid/table toggle. For surfaces that render no table (the pickers),
+   * where choosing table view silently falls back to the grid.
+   */
+  hideDisplayModeToggle?: boolean;
+  /**
    * Override the default group-by options list. /promos uses a custom set
    * (channel / card / year / marker) instead of the catalog default.
    * `value` is widened to `string` because surface-specific keys (e.g. "card")
@@ -206,6 +211,7 @@ export function BrowserToolbar({
   extras,
   showCopies,
   hideViewToggle,
+  hideDisplayModeToggle,
   groupByOptions,
   groupByValue,
 }: BrowserToolbarProps) {
@@ -231,6 +237,7 @@ export function BrowserToolbar({
             className="hidden sm:flex"
             showCopies={showCopies}
             hideViewToggle={hideViewToggle}
+            hideDisplayModeToggle={hideDisplayModeToggle}
             groupByOptions={groupByOptions}
             groupByValue={groupByValue}
           />
@@ -243,6 +250,7 @@ export function BrowserToolbar({
           <MobileOptionsContent
             showCopies={showCopies}
             hideViewToggle={hideViewToggle}
+            hideDisplayModeToggle={hideDisplayModeToggle}
             groupByOptions={groupByOptions}
             groupByValue={groupByValue}
           />

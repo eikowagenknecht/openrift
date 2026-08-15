@@ -8,6 +8,7 @@ import type {
   tierListShareResponseSchema,
   tierListSummaryResponseSchema,
   tierCardResponseSchema,
+  tierPreviewRowResponseSchema,
   tierRowResponseSchema,
 } from "@openrift/shared/contracts/tier-lists";
 import type { z } from "zod";
@@ -17,6 +18,9 @@ export type TierCard = z.infer<typeof tierCardResponseSchema>;
 
 /** One row of a tier list: a label plus the cards ranked into it, in order. */
 export type TierRow = z.infer<typeof tierRowResponseSchema>;
+
+/** One row of the index page's board preview, carrying its real board position. */
+export type TierPreviewRow = z.infer<typeof tierPreviewRowResponseSchema>;
 
 export type TierListResponse = z.infer<typeof tierListResponseSchema>;
 export type TierListSummaryResponse = z.infer<typeof tierListSummaryResponseSchema>;

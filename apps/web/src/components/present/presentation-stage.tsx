@@ -49,6 +49,7 @@ const KEY_HELP: { keys: string[]; what: string }[] = [
 const BOARD_KEY_HELP: { keys: string[]; what: string }[] = [
   { keys: ["B"], what: "Whole board / one card" },
   { keys: ["C"], what: "Current card beside the board" },
+  { keys: ["K"], what: "The current card's tier, large" },
   { keys: ["R"], what: "Fill the board as you go" },
   { keys: ["D"], what: "Start from the bottom tier" },
 ];
@@ -342,11 +343,11 @@ function StagePresetSettings() {
  */
 function BoardSettings() {
   const boardMode = usePresentationStore((state) => state.boardMode);
-  const showHero = usePresentationStore((state) => state.showHero);
+  const showRank = usePresentationStore((state) => state.showRank);
   const reveal = usePresentationStore((state) => state.reveal);
   const direction = usePresentationStore((state) => state.direction);
   const toggleBoard = usePresentationStore((state) => state.toggleBoard);
-  const toggleHero = usePresentationStore((state) => state.toggleHero);
+  const toggleRank = usePresentationStore((state) => state.toggleRank);
   const toggleReveal = usePresentationStore((state) => state.toggleReveal);
   const toggleDirection = usePresentationStore((state) => state.toggleDirection);
 
@@ -360,13 +361,11 @@ function BoardSettings() {
         onToggle={toggleBoard}
       />
       <StageToggleRow
-        id="stage-show-hero"
-        label="Current card"
-        hotkey="C"
-        // A reveal is the card waiting to be placed, so it holds the card up
-        // whatever this says — showing it off would be a lie about the stage.
-        checked={showHero || reveal}
-        onToggle={toggleHero}
+        id="stage-show-rank"
+        label="Tier badge"
+        hotkey="K"
+        checked={showRank}
+        onToggle={toggleRank}
       />
       <StageToggleRow
         id="stage-reveal"
@@ -388,9 +387,13 @@ function BoardSettings() {
 }
 
 /**
- * The stage's settings, card size first, then the layers that otherwise only
- * answer to a key. A creator who never reads the help sheet can still find the
- * rules panel and the thumbnail strip.
+ * The stage's settings: the card itself first — whether it is up, and how large
+ * — then the layers that otherwise only answer to a key. A creator who never
+ * reads the help sheet can still find the rules panel and the thumbnail strip.
+ *
+ * The card rows lead because the card is what the size slider sizes, and a
+ * slider above the switch that decides whether there is anything to size read
+ * as a control that did nothing.
  *
  * @returns The rows for the shell's settings popover.
  */
@@ -399,9 +402,13 @@ function StageSettings({ boardControls }: { boardControls: boolean }) {
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
   const cardScale = usePresentationStore((state) => state.cardScale);
+  const boardMode = usePresentationStore((state) => state.boardMode);
+  const showHero = usePresentationStore((state) => state.showHero);
+  const reveal = usePresentationStore((state) => state.reveal);
   const toggleText = usePresentationStore((state) => state.toggleText);
   const toggleStrip = usePresentationStore((state) => state.toggleStrip);
   const toggleHelp = usePresentationStore((state) => state.toggleHelp);
+  const toggleHero = usePresentationStore((state) => state.toggleHero);
   const setCardScale = usePresentationStore((state) => state.setCardScale);
 
   const handleScale = (value: number | readonly number[]) => {
@@ -411,25 +418,45 @@ function StageSettings({ boardControls }: { boardControls: boolean }) {
     }
   };
 
+  // The hero switch only bites in the board layout — the card layout *is* the
+  // card, and hiding it there would leave an empty stage. So the row is offered
+  // where it does something, and the size slider follows whether a card is
+  // actually up to be sized.
+  const heroSwitchApplies = boardControls && boardMode;
+  const cardOnStage = !heroSwitchApplies || showHero || reveal;
+
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="stage-card-size">Card size</Label>
-          <span className="text-muted-foreground font-mono text-sm tabular-nums">
-            {Math.round(cardScale * 100)}%
-          </span>
-        </div>
-        <Slider
-          id="stage-card-size"
-          aria-label="Card size"
-          min={Math.round(MIN_CARD_SCALE * 100)}
-          max={Math.round(MAX_CARD_SCALE * 100)}
-          step={5}
-          value={[Math.round(cardScale * 100)]}
-          onValueChange={handleScale}
+      {heroSwitchApplies && (
+        <StageToggleRow
+          id="stage-show-hero"
+          label="Current card"
+          hotkey="C"
+          // A reveal is the card waiting to be placed, so it holds the card up
+          // whatever this says — showing it off would be a lie about the stage.
+          checked={showHero || reveal}
+          onToggle={toggleHero}
         />
-      </div>
+      )}
+      {cardOnStage && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="stage-card-size">Card size</Label>
+            <span className="text-muted-foreground font-mono text-sm tabular-nums">
+              {Math.round(cardScale * 100)}%
+            </span>
+          </div>
+          <Slider
+            id="stage-card-size"
+            aria-label="Card size"
+            min={Math.round(MIN_CARD_SCALE * 100)}
+            max={Math.round(MAX_CARD_SCALE * 100)}
+            step={5}
+            value={[Math.round(cardScale * 100)]}
+            onValueChange={handleScale}
+          />
+        </div>
+      )}
       <StageToggleRow
         id="stage-show-text"
         label="Text panel"
@@ -599,6 +626,10 @@ export function PresentationStage({
         }
         case "toggleHero": {
           store.toggleHero();
+          break;
+        }
+        case "toggleRank": {
+          store.toggleRank();
           break;
         }
         case "toggleReveal": {

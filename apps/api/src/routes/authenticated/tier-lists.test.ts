@@ -85,7 +85,9 @@ describe("GET /tier-lists", () => {
           id: LIST_ID,
           cardCount: 1,
           tierCount: 1,
-          previewCards: [{ cardId: CARD_ID, printingId: null }],
+          previewRows: [
+            { rowIndex: 0, label: "S", cards: [{ cardId: CARD_ID, printingId: null }] },
+          ],
         },
       ],
     });

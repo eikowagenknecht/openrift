@@ -1,8 +1,8 @@
 import type { MetaListStatus } from "@openrift/shared/types";
-import type { Insertable, Kysely, RawBuilder, Selectable, SqlBool, Updateable } from "kysely";
+import type { Insertable, Kysely, Selectable, SqlBool, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import { parseJsonb, parseJsonbRequired } from "../db/helpers.js";
+import { asJsonb, asJsonbNullable, parseJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type {
   CandidateMetaDeckCard,
   CandidateMetaDecksTable,
@@ -10,32 +10,6 @@ import type {
   Database,
   MetaEventsTable,
 } from "../db/index.js";
-
-/**
- * Binds a JSON-serialized value as real jsonb. postgres.js sends a plain
- * string parameter to a jsonb column as a jsonb *string scalar* (the JSON text
- * double-encoded), which SQL-side functions like `jsonb_array_elements` choke
- * on with "cannot extract elements from a scalar". The explicit text-to-jsonb
- * cast makes the database parse the text into the actual structure instead.
- *
- * @param value The JSON text, or null for a NULL column.
- * @returns A raw expression usable wherever the column's write type is string.
- */
-function asJsonb(value: string): RawBuilder<string> {
-  return sql<string>`${value}::jsonb`;
-}
-
-/**
- * Nullable companion of {@link asJsonb} for optional jsonb columns.
- * @param value The JSON text, or null/undefined for a NULL column.
- * @returns The cast expression, or null.
- */
-function asJsonbNullable(value: string | null | undefined): RawBuilder<string> | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return asJsonb(value);
-}
 
 /** A candidate event exactly as stored. */
 export type CandidateMetaEventRow = Selectable<CandidateMetaEventsTable>;

@@ -67,8 +67,16 @@ interface TierCardTileProps {
 export function TierCardTile({ view, width, className }: TierCardTileProps) {
   // The width lives on a wrapper rather than on the thumb: the tile size is a
   // runtime number now, and CardArtThumb sizes itself from utility classes.
+  //
+  // align-top for the same reason CardArtThumb carries it, and it has to be
+  // here too: wherever the tile is wrapped in something that is not a flex
+  // container — the builder's drag div, the `Pressable` a clickable tile
+  // renders as — it is an inline box on a text baseline, and the descender
+  // space under that baseline made a row holding cards a few pixels taller
+  // than an empty one. The row's min-height cannot absorb it: the gap is
+  // *added* to the tile, so the row with cards in it always wins.
   return (
-    <span className="inline-flex shrink-0" style={{ width }}>
+    <span className="inline-flex shrink-0 align-top" style={{ width }}>
       <CardArtThumb
         imageId={frontImageId(view.printing)}
         variant="400w"

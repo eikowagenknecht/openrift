@@ -13,6 +13,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { CreateTierListDialog } from "@/components/tier-lists/create-tier-list-dialog";
+import { TierRowFrame, resolveTierRows } from "@/components/tier-lists/tier-board";
 import { TierCardTile } from "@/components/tier-lists/tier-card-tile";
 import { TierListShareDialog } from "@/components/tier-lists/tier-list-share-dialog";
 import {
@@ -38,10 +39,10 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useDeleteTierList, useTierLists } from "@/hooks/use-tier-lists";
 import { formatAbsoluteDate } from "@/lib/format-date";
-import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { PAGE_PADDING, cn } from "@/lib/utils";
 
 /**
- * Tile width for the index's preview strip. Fixed rather than following the
+ * Tile width for the index's preview board. Fixed rather than following the
  * board's size preference: this is a thumbnail of a list, not the board itself.
  */
 const PREVIEW_TILE_WIDTH = 40;
@@ -58,7 +59,7 @@ export function TierListIndexPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="container">
+      <PageTopBarSticky maxWidth="5xl">
         <PageTopBar>
           <PageTopBarTitle>Tier lists</PageTopBarTitle>
           <PageTopBarActions>
@@ -70,7 +71,7 @@ export function TierListIndexPage() {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 pt-3 pb-6")}>
+      <div className={cn(PAGE_PADDING, "mx-auto flex w-full max-w-5xl flex-col gap-4 pt-3 pb-6")}>
         <PageDescription>
           Rank a set, then share the link or drop the exported image into a video.
         </PageDescription>
@@ -87,7 +88,9 @@ export function TierListIndexPage() {
             </Button>
           </EmptyState>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          // One per row rather than a two-column grid: the preview is a board
+          // now, and a board reads across the page rather than in a column.
+          <div className="flex flex-col gap-3">
             {tierLists.map((tierList) => (
               <TierListRow key={tierList.id} tierList={tierList} />
             ))}
@@ -106,26 +109,14 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const preview = tierList.previewCards.flatMap((entry) => {
-    const card = cardsById[entry.cardId];
-    if (!card) {
-      return [];
-    }
-    const printings = printingsByCardId.get(entry.cardId);
-    // Same fallback chain as the board: the creator's pinned printing when it
-    // still resolves, otherwise the card's default.
-    const pinned = entry.printingId
-      ? printings?.find((printing) => printing.id === entry.printingId)
-      : undefined;
-    return [
-      {
-        cardId: entry.cardId,
-        card,
-        printing: pinned ?? printings?.[0],
-        pinnedPrintingId: entry.printingId,
-      },
-    ];
-  });
+  // The preview rows come back as ids, so they resolve against the catalogue
+  // exactly as the board's own do — including the pinned-printing fallback, so
+  // a list built out of alt arts previews with the arts the creator chose.
+  const resolved = resolveTierRows(tierList.previewRows, cardsById, printingsByCardId);
+  const preview = tierList.previewRows.map((row, index) => ({
+    ...row,
+    cards: resolved[index]?.cards ?? [],
+  }));
 
   return (
     <Card className="flex flex-col gap-3 p-3">
@@ -168,9 +159,20 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
       </div>
 
       {preview.length > 0 && (
-        <div className="flex gap-1 overflow-hidden">
-          {preview.map((view) => (
-            <TierCardTile key={view.cardId} view={view} width={PREVIEW_TILE_WIDTH} />
+        <div className="flex flex-col gap-1">
+          {preview.map((row) => (
+            <TierRowFrame
+              key={row.rowIndex}
+              rowIndex={row.rowIndex}
+              unranked={row.unranked}
+              label={row.label}
+              tileWidth={PREVIEW_TILE_WIDTH}
+              clip
+            >
+              {row.cards.map((view) => (
+                <TierCardTile key={view.cardId} view={view} width={PREVIEW_TILE_WIDTH} />
+              ))}
+            </TierRowFrame>
           ))}
         </div>
       )}

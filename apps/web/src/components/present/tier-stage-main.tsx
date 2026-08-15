@@ -1,5 +1,6 @@
 import { CardDetailArt } from "@/components/cards/card-detail/card-detail-art";
 import { PresentationTextPanel } from "@/components/present/card-stage-main";
+import { StageRankBadge } from "@/components/present/stage-rank-badge";
 import { isChromaGround, useChromaPlate } from "@/components/present/stage-shell";
 import { TierBoard } from "@/components/tier-lists/tier-board";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
@@ -44,6 +45,7 @@ export function TierStageMain({
   const reveal = usePresentationStore((state) => state.reveal);
   const showHero = usePresentationStore((state) => state.showHero);
   const showText = usePresentationStore((state) => state.showText);
+  const showRank = usePresentationStore((state) => state.showRank);
   const cardScale = usePresentationStore((state) => state.cardScale);
   const chroma = isChromaGround(usePresentationStore((state) => state.ground));
   const plate = useChromaPlate();
@@ -59,8 +61,11 @@ export function TierStageMain({
   const focusCardId = reveal
     ? (queue[index - 1]?.printing.cardId ?? null)
     : current.printing.cardId;
+  // Mid-reveal the tier is the punchline, so the badge stands down until the
+  // card has been dropped into its row.
+  const rankVisible = showRank && !reveal;
   // A reveal is the card waiting to be placed, so it always holds one up.
-  const heroVisible = reveal || showHero || showText;
+  const heroVisible = reveal || showHero || showText || rankVisible;
 
   // Only outside a reveal: with the board complete, a tile is a place to jump
   // to. Mid-reveal it would un-place everything after it, which is not what
@@ -81,12 +86,25 @@ export function TierStageMain({
         // itself to whatever art had loaded reflowed the board on every step,
         // which read as the ladder shaking.
         <div className="flex min-h-0 w-[22rem] max-w-[30vw] shrink-0 flex-col items-center justify-center gap-4">
+          {rankVisible && current.contextLabel && (
+            <StageRankBadge
+              label={current.contextLabel}
+              rowIndex={current.rowIndex}
+              unranked={rows[current.rowIndex]?.unranked}
+            />
+          )}
           {showHero || reveal ? (
             <div
-              className="aspect-card relative min-h-0 w-full shrink"
-              // A shorter card when the text panel is under it, so the pair
-              // still fits the stage rather than pushing the text off the bottom.
-              style={{ maxHeight: `${cardScale * (showText ? 55 : 90)}%` }}
+              className="aspect-card relative min-h-0 shrink"
+              // Sized on the width, because that is the axis the column pins:
+              // the height only ever bound at the very bottom of the range, so
+              // most of the slider's travel changed nothing on screen. The
+              // max-height keeps a tall stage from pushing the pair off the
+              // bottom, and leaves more room for the text panel when it is up.
+              style={{
+                width: `${cardScale * 100}%`,
+                maxHeight: `${showText ? 55 : 90}%`,
+              }}
             >
               {/* Keyed on the stop so each step replays the fade, which is what
                   reads as the card being *taken up* before it is placed. On a

@@ -56,6 +56,12 @@ interface PresentationState {
    */
   showHero: boolean;
   /**
+   * The current card's tier, called out large enough to read from across a
+   * room. On by default, and worth more the less board there is: with the whole
+   * board off, it is the only thing on stage that says where the card landed.
+   */
+  showRank: boolean;
+  /**
    * Fill the board as the run goes rather than showing it complete. The card at
    * the current stop waits on the stage instead of sitting in its tier, so
    * stepping forward is what drops it in — the beat a ranking video is built on.
@@ -72,6 +78,7 @@ interface PresentationState {
   setGround: (ground: StageGround) => void;
   toggleBoard: () => void;
   toggleHero: () => void;
+  toggleRank: () => void;
   toggleReveal: () => void;
   toggleDirection: () => void;
 }
@@ -94,6 +101,7 @@ export const usePresentationStore = create<PresentationState>()((set) => ({
   ground: "black",
   boardMode: true,
   showHero: true,
+  showRank: true,
   reveal: false,
   direction: "best-first",
   toggleText: () => set((state) => ({ showText: !state.showText })),
@@ -106,6 +114,7 @@ export const usePresentationStore = create<PresentationState>()((set) => ({
   setGround: (ground) => set({ ground }),
   toggleBoard: () => set((state) => ({ boardMode: !state.boardMode })),
   toggleHero: () => set((state) => ({ showHero: !state.showHero })),
+  toggleRank: () => set((state) => ({ showRank: !state.showRank })),
   toggleReveal: () => set((state) => ({ reveal: !state.reveal })),
   toggleDirection: () =>
     set((state) => ({

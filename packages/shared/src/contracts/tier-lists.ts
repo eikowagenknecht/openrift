@@ -127,9 +127,26 @@ export const tierListResponseSchema = z
   .openapi("TierListResponse");
 
 /**
- * List-page projection. Carries the ranked-card count and the first row's
- * leading cards so the index can draw a preview strip without shipping every
- * board in full.
+ * One row of the index preview: a tier's label and the leading cards in it.
+ *
+ * `rowIndex` is the row's place on the real board, not its place in the
+ * preview. Empty tiers are left out of the preview, and the tier colour is
+ * derived from the board position, so without it a list whose S row is still
+ * empty would draw its A row in S's colour.
+ */
+export const tierPreviewRowResponseSchema = z
+  .object({
+    rowIndex: z.number().int().nonnegative(),
+    label: z.string(),
+    cards: z.array(tierCardResponseSchema),
+    unranked: z.boolean().optional(),
+  })
+  .openapi("TierPreviewRowResponse");
+
+/**
+ * List-page projection. Carries the ranked-card count and the leading rows of
+ * the board so the index can draw a preview of the ranking without shipping
+ * every board in full.
  */
 export const tierListSummaryResponseSchema = z
   .object({
@@ -138,8 +155,8 @@ export const tierListSummaryResponseSchema = z
     description: z.string().nullable(),
     tierCount: z.number().int().nonnegative(),
     cardCount: z.number().int().nonnegative(),
-    /** Leading entries of the top non-empty row, for the index preview strip. */
-    previewCards: z.array(tierCardResponseSchema),
+    /** The board's leading non-empty rows, for the index preview. */
+    previewRows: z.array(tierPreviewRowResponseSchema),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     createdAt: z.string(),

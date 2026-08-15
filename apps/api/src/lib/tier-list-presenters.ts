@@ -7,8 +7,15 @@ import type {
 import type { TierListCard, TierListRow } from "../db/index.js";
 import type { TierList } from "../repositories/tier-lists.js";
 
-/** Cards shown in the index page's preview strip for a list. */
-const PREVIEW_CARD_COUNT = 6;
+/**
+ * How much board the index page previews: the leading filled rows, and the
+ * leading cards in each. Enough that the preview reads as a ranking rather than
+ * a strip of art, and bounded so a listing of twenty lists stays a small
+ * response — a board can hold hundreds of cards and the index draws none of
+ * them past this.
+ */
+const PREVIEW_ROW_COUNT = 4;
+const PREVIEW_ROW_CARD_COUNT = 14;
 
 /** @returns One ranked entry as its response shape, detached from the row. */
 function toTierCard(card: TierListCard): { cardId: string; printingId: string | null } {
@@ -49,25 +56,39 @@ export function toTierList(row: TierList): TierListResponse {
 }
 
 /**
- * Maps a tier list row to the index-page projection: counts plus a short
- * preview strip, without shipping every board in full.
+ * Maps a tier list row to the index-page projection: counts plus the top of the
+ * board, without shipping every board in full.
  *
- * The preview comes from the first row that actually holds cards, not from row
- * zero — a creator who has started ranking into A while S is still empty should
- * still see their work on the index.
+ * Empty tiers are skipped rather than previewed as blank rows — a creator who
+ * has started ranking into A while S is still empty should see their work, not
+ * the gap above it. Each row keeps its real board index, because that is what
+ * the tier colour is derived from.
  * @returns The list as a `TierListSummaryResponse`.
  */
 export function toTierListSummary(row: TierList): TierListSummaryResponse {
-  const firstFilled = row.tiers.find((tier) => tier.cards.length > 0);
+  const previewRows = row.tiers
+    .map((tier, rowIndex) => ({ tier, rowIndex }))
+    .filter(({ tier }) => tier.cards.length > 0)
+    .slice(0, PREVIEW_ROW_COUNT)
+    .map(({ tier, rowIndex }) => {
+      const preview: TierListSummaryResponse["previewRows"][number] = {
+        rowIndex,
+        label: tier.label,
+        cards: tier.cards.slice(0, PREVIEW_ROW_CARD_COUNT).map((card) => toTierCard(card)),
+      };
+      if (tier.unranked === true) {
+        preview.unranked = true;
+      }
+      return preview;
+    });
+
   return {
     id: row.id,
     title: row.title,
     description: row.description,
     tierCount: row.tiers.length,
     cardCount: row.tiers.reduce((sum, tier) => sum + tier.cards.length, 0),
-    previewCards: firstFilled
-      ? firstFilled.cards.slice(0, PREVIEW_CARD_COUNT).map((card) => toTierCard(card))
-      : [],
+    previewRows,
     isPublic: row.isPublic,
     shareToken: row.shareToken,
     createdAt: row.createdAt.toISOString(),

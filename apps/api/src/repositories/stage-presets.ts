@@ -1,7 +1,7 @@
 import type { StagePresetConfig } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
-import { parseJsonbRequired } from "../db/helpers.js";
+import { asJsonb, parseJsonbRequired } from "../db/helpers.js";
 import type { Database, StagePresetsTable } from "../db/index.js";
 
 /** A preset row with its `config` jsonb parsed. */
@@ -89,7 +89,7 @@ export function stagePresetsRepo(db: Kysely<Database>) {
         .values({
           userId,
           name: values.name,
-          config: JSON.stringify(values.config),
+          config: asJsonb(JSON.stringify(values.config)),
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -111,7 +111,7 @@ export function stagePresetsRepo(db: Kysely<Database>) {
         .updateTable("stagePresets")
         .set({
           ...(values.name !== undefined && { name: values.name }),
-          ...(values.config !== undefined && { config: JSON.stringify(values.config) }),
+          ...(values.config !== undefined && { config: asJsonb(JSON.stringify(values.config)) }),
         })
         .where("id", "=", id)
         .where("userId", "=", userId)
