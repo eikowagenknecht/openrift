@@ -39,8 +39,18 @@ const TRAILING_X = 72;
 const LANE_TOP_Y = 22;
 /** Vertical distance between two lanes: a dot plus its label below it. */
 const LANE_GAP = 46;
-/** Room under the last lane for its label. */
-const LANE_BOTTOM_PAD = 26;
+/** Diameter of a node's dot (`size-2`). */
+const DOT_SIZE = 8;
+/** The label's `mt-2` under the dot. */
+const LABEL_GAP = 8;
+/** One `text-2xs` line box (`--text-2xs--line-height`). */
+const LABEL_LINE_HEIGHT = 16;
+/**
+ * Room under the last lane for its label. Derived rather than eyeballed: the
+ * label starts half a dot plus its margin below the baseline, and a pixel short
+ * here gives the scroller a stray vertical scrollbar.
+ */
+const LANE_BOTTOM_PAD = DOT_SIZE / 2 + LABEL_GAP + LABEL_LINE_HEIGHT;
 /** Width of a node's label box; it truncates rather than pushing the layout. */
 const LABEL_WIDTH = 140;
 
@@ -540,7 +550,12 @@ function VariantRailBody({ deckId }: { deckId: string }) {
     <div className="flex items-start gap-2 px-1">
       <nav
         aria-label="Deck variants"
-        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain"
+        // `overflow-y` has to be stated: left at `visible` next to an
+        // `overflow-x` that isn't, CSS promotes it to `auto`, and then a
+        // hair of vertical overflow (a hover scale, or a horizontal
+        // scrollbar eating into the height) shows a vertical scrollbar for a
+        // graph that only ever scrolls sideways.
+        className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain"
       >
         <div className="relative" style={{ width, height }}>
           <svg
