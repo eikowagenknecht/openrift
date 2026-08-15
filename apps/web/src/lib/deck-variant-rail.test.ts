@@ -31,11 +31,11 @@ describe("railLabel", () => {
   });
 
   it("keeps a name whose prefix belongs to a different family base", () => {
-    expect(railLabel("Yasuo Tempo (2026-07-28)", "Budget build")).toBe("Yasuo Tempo (2026…");
+    expect(railLabel("Yasuo Tempo (2026-07-28)", "Budget build")).toBe("Yasuo Tempo (2026-07-28)");
   });
 
   it("truncates long labels with an ellipsis", () => {
-    expect(railLabel("A very long deck name indeed", "Other")).toBe("A very long deck …");
+    expect(railLabel("A very long deck name indeed", "Other")).toBe("A very long deck name ind…");
   });
 
   it("leaves a name of the bare form `base ()` alone", () => {

@@ -41,7 +41,8 @@ export interface RailLayout {
   overflowCount: number;
 }
 
-const MAX_LABEL_CHARS = 18;
+/** What fits in the rail's label box (`LABEL_WIDTH`) at `text-2xs`. */
+const MAX_LABEL_CHARS = 26;
 
 /**
  * The rail's one naming rule: show the member's name minus what it shares with

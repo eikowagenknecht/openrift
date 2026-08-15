@@ -1,10 +1,9 @@
-import type { Card, DeckCardResponse } from "@openrift/shared";
+import type { Card, DeckCardResponse, DeckDetailResponse } from "@openrift/shared";
 import { ZONE_LABELS, formatDay } from "@openrift/shared";
-import type { QueryClient } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, GitBranchIcon, GitCompareArrowsIcon, PlusIcon } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,28 +30,40 @@ import { DeckVariantsDialog } from "./deck-variants-dialog";
 const MAX_RAIL_NODES = 6;
 /** Horizontal distance between two generations. */
 const SLOT_WIDTH = 168;
-/** Left inset: half a label, since labels are centred under their dot. */
-const PAD_X = 72;
-/** Room to the right of the last node for the other half of its label. */
-const TRAILING_X = 72;
-/** Baseline of lane 0. */
-const LANE_TOP_Y = 22;
-/** Vertical distance between two lanes: a dot plus its label below it. */
-const LANE_GAP = 46;
 /** Diameter of a node's dot (`size-2`). */
 const DOT_SIZE = 8;
-/** The label's `mt-2` under the dot. */
+/** The name label's `mt-2` under the dot. */
 const LABEL_GAP = 8;
+/** The date's `mb-1` over the dot. */
+const DATE_GAP = 4;
 /** One `text-2xs` line box (`--text-2xs--line-height`). */
 const LABEL_LINE_HEIGHT = 16;
+/** Clear air between two neighbouring name labels. */
+const LABEL_MARGIN_X = 12;
+/**
+ * Width of a node's label box: as wide as a slot allows, so a long deck name
+ * spends its ellipsis late. Neighbours nearly touch, which is the point —
+ * anything narrower truncates names the rail has the room to show.
+ */
+const LABEL_WIDTH = SLOT_WIDTH - LABEL_MARGIN_X;
+/** Left inset: half a label, since labels are centred under their dot. */
+const PAD_X = LABEL_WIDTH / 2;
+/** Room to the right of the last node for the other half of its label. */
+const TRAILING_X = LABEL_WIDTH / 2;
+/** Baseline of lane 0, leaving room for the date over the dot. */
+const LANE_TOP_Y = DOT_SIZE / 2 + DATE_GAP + LABEL_LINE_HEIGHT;
+/**
+ * Vertical distance between two lanes: a dot, its name below it, and the date
+ * over the dot of the lane beneath — two lanes can share a column, so those
+ * two lines sit directly above one another.
+ */
+const LANE_GAP = DOT_SIZE + LABEL_GAP + LABEL_LINE_HEIGHT + DATE_GAP + LABEL_LINE_HEIGHT;
 /**
  * Room under the last lane for its label. Derived rather than eyeballed: the
  * label starts half a dot plus its margin below the baseline, and a pixel short
  * here gives the scroller a stray vertical scrollbar.
  */
 const LANE_BOTTOM_PAD = DOT_SIZE / 2 + LABEL_GAP + LABEL_LINE_HEIGHT;
-/** Width of a node's label box; it truncates rather than pushing the layout. */
-const LABEL_WIDTH = 140;
 
 const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
 const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
@@ -155,25 +166,9 @@ function edgeCounts(
   return { addCount: diff.addCount, cutCount: diff.cutCount };
 }
 
-/**
- * Fetches every rail member's card list. React Query dedupes and caches these,
- * so revisiting a family costs nothing; `onLoaded` fires per deck so the rail
- * fills in edge by edge instead of waiting for the slowest member.
- *
- * @returns A promise resolving once every member has been fetched.
- */
-async function loadRailCards(
-  queryClient: QueryClient,
-  userId: string,
-  deckIds: readonly string[],
-  onLoaded: (deckId: string, cards: DeckCardResponse[]) => void,
-): Promise<void> {
-  await Promise.all(
-    deckIds.map(async (deckId) => {
-      const detail = await queryClient.fetchQuery(deckDetailQueryOptions(userId, deckId));
-      onLoaded(deckId, detail.cards);
-    }),
-  );
+/** @returns Just the card list of a deck detail, the only part the rail reads. */
+function selectDeckCards(detail: DeckDetailResponse): DeckCardResponse[] {
+  return detail.cards;
 }
 
 function RailDiffRows({ diff }: { diff: DeckDiff }) {
@@ -441,6 +436,23 @@ function RailNodeLabel({ node }: { node: RailNode }) {
   );
 }
 
+/**
+ * The node's day, over its dot. Sitting opposite the name keeps the pair
+ * readable at a glance: what the version is called, and when it last moved.
+ *
+ * @returns The date line, or null for a member with no timestamp loaded.
+ */
+function RailNodeDate({ updatedAt }: { updatedAt: string | undefined }) {
+  if (!updatedAt) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground text-2xs absolute bottom-full left-1/2 mb-1 -translate-x-1/2 tabular-nums">
+      {formatDay(updatedAt)}
+    </span>
+  );
+}
+
 function RailDot({ isCurrent }: { isCurrent: boolean }) {
   return (
     <span
@@ -458,11 +470,9 @@ function RailDot({ isCurrent }: { isCurrent: boolean }) {
 
 function VariantRailBody({ deckId }: { deckId: string }) {
   const userId = useRequiredUserId();
-  const queryClient = useQueryClient();
   const { cardsById } = useCards();
   const { data: items } = useDecks();
 
-  const [cardsByDeck, setCardsByDeck] = useState<Record<string, DeckCardResponse[]>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [createTarget, setCreateTarget] = useState<{ id: string; name: string } | null>(null);
   const [variantsOpen, setVariantsOpen] = useState(false);
@@ -478,34 +488,27 @@ function VariantRailBody({ deckId }: { deckId: string }) {
       ? { nodes: [], edges: [], overflowCount: 0 }
       : buildRailLayout(members, deckId, MAX_RAIL_NODES);
 
-  // Joined rather than the array itself so the effect doesn't refire on every
-  // render just because `.map()` produced a new array.
-  const railKey = layout.nodes.map((node) => node.id).join(",");
+  // Subscribed rather than fetched once into state: the open deck's detail is
+  // rewritten in the query cache after every autosave, and a snapshot would
+  // leave the step diffs describing the deck as it was when the page loaded.
+  // React Query dedupes these with the builder's own detail query, so the
+  // subscription costs one observer per member and no extra request. A member
+  // that fails to load simply leaves its step-diff blank; the rail never blocks
+  // the deck page on it.
+  const railResults = useQueries({
+    queries: layout.nodes.map((node) => ({
+      ...deckDetailQueryOptions(userId, node.id),
+      select: selectDeckCards,
+    })),
+  });
 
-  useEffect(() => {
-    const deckIds = railKey.split(",").filter((id) => id.length > 0);
-    if (deckIds.length === 0) {
-      return;
+  const cardsByDeck: Record<string, DeckCardResponse[]> = {};
+  for (const [index, node] of layout.nodes.entries()) {
+    const cards = railResults[index]?.data;
+    if (cards) {
+      cardsByDeck[node.id] = cards;
     }
-    let cancelled = false;
-    const run = async () => {
-      try {
-        await loadRailCards(queryClient, userId, deckIds, (loadedId, cards) => {
-          if (cancelled) {
-            return;
-          }
-          setCardsByDeck((previous) => ({ ...previous, [loadedId]: cards }));
-        });
-      } catch {
-        // A member that won't load simply leaves its step-diff blank; the rail
-        // never blocks the deck page on it.
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [queryClient, userId, railKey]);
+  }
 
   const openDeckName = current?.deck.name ?? "this deck";
 
@@ -601,6 +604,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                     className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                     style={position}
                   >
+                    <RailNodeDate updatedAt={updatedById.get(node.id)} />
                     <RailDot isCurrent />
                     <RailNodeLabel node={node} />
                   </PopoverTrigger>
@@ -622,6 +626,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                   className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
                   style={position}
                 >
+                  <RailNodeDate updatedAt={updatedById.get(node.id)} />
                   <RailDot isCurrent={false} />
                   <RailNodeLabel node={node} />
                 </PopoverTrigger>

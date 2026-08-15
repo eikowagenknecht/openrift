@@ -17,6 +17,7 @@
 - feat(Decks): **Add card is spelled out** — the deck editor's plus button now carries its label on wider screens instead of standing alone as an icon.
 - feat(Decks): **Variant timeline in one row** — versions that share no history now sit side by side, newest on the right, instead of stacking into a column of one-dot rows.
 - feat(Decks): **See what changed without leaving the deck** — clicking a dot or a change count on the timeline opens the card-by-card list for that step.
+- feat(Decks): **Dated timeline, fuller names** — each version on the variant timeline now carries the day it last changed above its dot, and long deck names run much further before they cut off.
 - feat(Decks): **Branch from any version** — the Variants dialog creates a variant inline now, with a pick of which version it comes from, so cancelling leaves you where you were.
 - feat(Decks): **Edit the description from its corner** — the pencil moved to the top right of the description instead of sitting underneath it.
 - feat(App): **Share, Export, and Print untangled** — every page now uses the same three entries with the same icons: Share for links and images, Export for data, Print for PDFs.
@@ -28,6 +29,7 @@
 - fix(Tournaments): **Staff invite links shown in full** — the invite row now shows the whole link with copy and QR instead of a truncated pill.
 - fix(App): **Tier list embeds resolve** — sites that read embed info from a shared tier list link no longer hit a missing endpoint.
 - fix(App): **Dragged cards show the right art** — the card following your cursor could show a different printing than the one you picked up, in both the deck builder and collections.
+- fix(Decks): **Timeline change counts keep up** — the counts and card lists on the variant timeline were stuck on the deck as it was when the page opened, and now follow your edits.
 - fix(Decks): **Variant families pick the right main deck** — deleting or unlinking the main deck of a variant family could hand the role to any sibling; it now goes to the one you edited most recently.
 
 ## 2026-08-14
