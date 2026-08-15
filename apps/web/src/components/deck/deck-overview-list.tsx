@@ -23,6 +23,7 @@ import {
   DRAG_SOURCE_ZONES,
   resolveDraggedCard,
 } from "@/components/deck/deck-dnd-context";
+import { DeckZoneHeader } from "@/components/deck/deck-zone-header";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -312,12 +313,7 @@ export function DeckOverviewList({
       <ZoneSection key={zone} zone={zone} format={format} allCards={cards} droppable={dragEnabled}>
         {/* Same header grammar as the grid view's frameless zones: small-caps
             label over the hairline rule. */}
-        {/* Fixed height so the violation icon can't stretch one zone's header
-            past the others — same rule as the grid tiles. */}
-        <div className="flex h-6 items-center gap-2 border-b">
-          <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
-            {ZONE_LABELS[zone]}
-          </span>
+        <DeckZoneHeader label={ZONE_LABELS[zone]}>
           {zoneViolations.length > 0 && (
             <Popover>
               <PopoverTrigger
@@ -357,7 +353,7 @@ export function DeckOverviewList({
             {quantity}
             {showExpected && `/${expected}`}
           </span>
-        </div>
+        </DeckZoneHeader>
 
         {zoneCards.length === 0 ? null : GROUPED_ZONES.has(zone) ? (
           <GroupedRows

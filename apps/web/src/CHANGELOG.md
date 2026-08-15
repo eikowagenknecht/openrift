@@ -12,6 +12,7 @@
 
 ### Other
 
+- feat(Decks): **Version comparison reads like your deck list** — each side now shows card art, costs and set codes, opens on just what changed, and gives both versions their own Open button.
 - feat(App): **Share, Export, and Print untangled** — every page now uses the same three entries with the same icons: Share for links and images, Export for data, Print for PDFs.
 - feat(App): **Tall list and bundle images** — list, collection, and profile bundle images can now render in 9:16 for stories, with the size and QR options decks already had.
 - feat(App): **One date format everywhere** — dates now read as 2026-08-15 across the app, so there is no guessing whether 8/9 means August or September.
