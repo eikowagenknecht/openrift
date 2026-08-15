@@ -3,17 +3,15 @@ import { getOrientation, imageUrl } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   EllipsisVerticalIcon,
+  ImageDownIcon,
   ListOrderedIcon,
   MonitorPlayIcon,
   PencilIcon,
-  RectangleHorizontalIcon,
-  RectangleVerticalIcon,
   SaveIcon,
   Share2Icon,
   Trash2Icon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { BuilderWorkbench } from "@/components/layout/builder-workbench";
@@ -30,6 +28,7 @@ import { TierBoardEditor } from "@/components/tier-lists/tier-board-editor";
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierListDetailsDialog } from "@/components/tier-lists/tier-list-details-dialog";
 import { TierListDndContext } from "@/components/tier-lists/tier-list-dnd-context";
+import { TierListExportDialog } from "@/components/tier-lists/tier-list-export-dialog";
 import { TierListPool } from "@/components/tier-lists/tier-list-pool";
 import { TierListShareDialog } from "@/components/tier-lists/tier-list-share-dialog";
 import { TierTileSizeControls } from "@/components/tier-lists/tier-tile-size-controls";
@@ -56,9 +55,6 @@ import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
 import { frontImageId } from "@/lib/card-meta";
-import type { ShareImageAspect } from "@/lib/share-image";
-import { downloadImageFromUrl, tierListOwnerImageUrl } from "@/lib/share-image";
-import { getSiteUrl } from "@/lib/site-config";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 interface TierListBuilderPageProps {
@@ -88,6 +84,7 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Floating preview for the tile under the pointer, the same affordance the
@@ -134,27 +131,6 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
         // error message for every mutation.
       },
     );
-  };
-
-  const handleExport = async (aspect: ShareImageAspect) => {
-    const base = tierList.title.replaceAll(/[^\w -]+/gu, "_").trim() || "tier-list";
-    // The wide board renders at 2× for screen and print. The tall one does not:
-    // 1× is already 1080×1920, the size every vertical surface uploads at.
-    const vertical = aspect === "vertical";
-    const url = tierListOwnerImageUrl(
-      getSiteUrl(),
-      tierList.id,
-      vertical ? undefined : "hq",
-      aspect,
-    );
-    const fileName = `${base}${vertical ? "-vertical" : ""}.png`;
-    try {
-      await downloadImageFromUrl(url, fileName);
-    } catch {
-      // A download is not a mutation, so it never reaches the global mutation
-      // error handler and has to say so itself.
-      toast.error("Couldn't prepare the image. Please try again.");
-    }
   };
 
   const handleDelete = () => {
@@ -248,13 +224,9 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                       <PencilIcon />
                       Rename and describe
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void handleExport("landscape")}>
-                      <RectangleHorizontalIcon />
-                      Download wide image
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void handleExport("vertical")}>
-                      <RectangleVerticalIcon />
-                      Download tall image
+                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                      <ImageDownIcon />
+                      Export image
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
@@ -278,6 +250,16 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
         shareToken={tierList.shareToken}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+      <TierListExportDialog
+        tierListId={tierList.id}
+        title={tierList.title}
+        isShared={tierList.isPublic && tierList.shareToken !== null}
+        // The image is rendered server-side from the saved board, so a draft
+        // that hasn't been saved yet exports as whatever the server still holds.
+        dirty={dirty}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
       />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

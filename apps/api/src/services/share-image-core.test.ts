@@ -1,6 +1,47 @@
 import { describe, expect, it } from "vitest";
 
-import { CARD_RADIUS_FRACTION, baselineNudge, cardRadiusPx } from "./share-image-core.js";
+import {
+  CARD_RADIUS_FRACTION,
+  MAX_IMAGE_SCALE,
+  baselineNudge,
+  cardRadiusPx,
+  qrFromQuery,
+  scaleFromQuery,
+} from "./share-image-core.js";
+
+describe("scaleFromQuery", () => {
+  it("uses an explicit scale within range", () => {
+    expect(scaleFromQuery("1", undefined)).toBe(1);
+    expect(scaleFromQuery("3", undefined)).toBe(3);
+  });
+
+  it("keeps size=hq meaning 2x so existing URLs render unchanged", () => {
+    expect(scaleFromQuery(undefined, "hq")).toBe(2);
+    expect(scaleFromQuery(undefined, undefined)).toBe(1);
+  });
+
+  it("lets an explicit scale win over size", () => {
+    expect(scaleFromQuery("3", "hq")).toBe(3);
+  });
+
+  it("falls back rather than erroring on a scale it cannot use", () => {
+    expect(scaleFromQuery(String(MAX_IMAGE_SCALE + 1), undefined)).toBe(1);
+    expect(scaleFromQuery("0", undefined)).toBe(1);
+    expect(scaleFromQuery("-2", undefined)).toBe(1);
+    expect(scaleFromQuery("1.5", undefined)).toBe(1);
+    expect(scaleFromQuery("huge", undefined)).toBe(1);
+    // An empty string coerces to 0, not NaN — the range check is what catches it.
+    expect(scaleFromQuery("", "hq")).toBe(2);
+  });
+});
+
+describe("qrFromQuery", () => {
+  it("draws the mark unless the request opted out", () => {
+    expect(qrFromQuery(undefined)).toBe(true);
+    expect(qrFromQuery("1")).toBe(true);
+    expect(qrFromQuery("0")).toBe(false);
+  });
+});
 
 describe("baselineNudge", () => {
   // Each expectation is an offset measured off a rendered PNG, with both runs at

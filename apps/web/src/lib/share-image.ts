@@ -137,22 +137,39 @@ export function tierListShareImageUrl(
   return size === "hq" ? `${base}&size=hq` : base;
 }
 
+/** What the tier list export dialog lets a creator vary about the render. */
+export interface TierListImageOptions {
+  /** Canvas shape. `vertical` is the 9:16 export. */
+  aspect?: ShareImageAspect;
+  /**
+   * Render multiplier. 1 is the native canvas (1200×630, or 1080×1920 vertical);
+   * the server caps it, so an out-of-range value only costs sharpness.
+   */
+  scale?: number;
+  /** Draws the scannable mark. Only has an effect on a list that is shared. */
+  qr?: boolean;
+}
+
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
  * tier lists. The builder's export uses this so the download works before the
  * list is shared at all (the public route needs a share token).
- * `aspect: "vertical"` requests the 9:16 export.
+ *
+ * Every option is omitted from the URL at its default, so the plain call still
+ * produces the bare `image.png` the route rendered before the export dialog
+ * existed.
+ *
  * @returns The tier list image URL.
  */
 export function tierListOwnerImageUrl(
   siteUrl: string,
   id: string,
-  size?: "hq",
-  aspect?: ShareImageAspect,
+  options: TierListImageOptions = {},
 ): string {
   return withParams(`${siteUrl}${API_BASE}/tier-lists/${id}/image.png`, {
-    size,
-    aspect: aspectParam(aspect),
+    aspect: aspectParam(options.aspect),
+    scale: options.scale !== undefined && options.scale > 1 ? String(options.scale) : undefined,
+    qr: options.qr === false ? "0" : undefined,
   });
 }
 

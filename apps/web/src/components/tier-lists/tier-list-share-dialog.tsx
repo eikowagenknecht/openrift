@@ -56,7 +56,7 @@ export function TierListShareDialog({
         {sharing ? (
           <p className="text-muted-foreground text-sm">
             Pasting this link into a video description, Discord, or WhatsApp shows a preview image
-            of the board. To save that image, use Download image.
+            of the board. To save that image yourself, use Export image.
           </p>
         ) : null}
 

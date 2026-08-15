@@ -147,6 +147,45 @@ describe("tierListImageRoute rendering", () => {
     );
   });
 
+  it("drops the QR when the export asked for a clean plate", async () => {
+    mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
+
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?qr=0");
+
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ shareUrl: undefined }),
+      1,
+      "landscape",
+    );
+  });
+
+  it("renders at the multiplier the export dialog asked for", async () => {
+    mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
+
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?scale=3");
+
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      3,
+      "landscape",
+    );
+  });
+
+  it("falls back to 1x for a scale past the cap", async () => {
+    mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
+
+    await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?scale=99");
+
+    expect(renderTierListImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      1,
+      "landscape",
+    );
+  });
+
   it("renders the vertical canvas when aspect=vertical", async () => {
     mockTierListsRepo.getByIdForUser.mockResolvedValue(sharedList());
 

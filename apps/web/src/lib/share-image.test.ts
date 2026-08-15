@@ -124,16 +124,41 @@ describe("tierListOwnerImageUrl", () => {
     );
   });
 
-  it("appends size=hq for the high-resolution download variant", () => {
-    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", "hq")).toBe(
-      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?size=hq",
+  it("appends aspect=vertical for the 9:16 export", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", { aspect: "vertical" })).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?aspect=vertical",
     );
   });
 
-  it("appends aspect=vertical for the 9:16 export", () => {
-    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", undefined, "vertical")).toBe(
-      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?aspect=vertical",
+  it("appends the scale multiplier above 1×", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", { scale: 3 })).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?scale=3",
     );
+  });
+
+  it("omits scale at 1× so the default never reaches the URL", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", { scale: 1 })).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png",
+    );
+  });
+
+  it("appends qr=0 only when the mark is turned off", () => {
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", { qr: false })).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png?qr=0",
+    );
+    expect(tierListOwnerImageUrl("https://openrift.app", "tl-1", { qr: true })).toBe(
+      "https://openrift.app/api/v1/tier-lists/tl-1/image.png",
+    );
+  });
+
+  it("combines every option into one query string", () => {
+    expect(
+      tierListOwnerImageUrl("https://openrift.app", "tl-1", {
+        aspect: "vertical",
+        scale: 2,
+        qr: false,
+      }),
+    ).toBe("https://openrift.app/api/v1/tier-lists/tl-1/image.png?aspect=vertical&scale=2&qr=0");
   });
 });
 

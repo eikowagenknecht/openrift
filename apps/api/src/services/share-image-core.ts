@@ -48,6 +48,43 @@ export function aspectFromQuery(value: string | undefined): ShareImageAspect {
   return value === "vertical" ? "vertical" : "landscape";
 }
 
+/**
+ * Largest multiplier a render may be asked for. ADR-031 caps the *public*,
+ * immutably-cached images at 2× because rasterizing cost grows super-linearly
+ * and every URL is a new cache entry. 3× is offered only on the owner-only
+ * download routes, which are authenticated, `no-store`, and low traffic — there
+ * it buys a creator real editing headroom for a thumbnail crop.
+ */
+export const MAX_IMAGE_SCALE = 3;
+
+/**
+ * Render multiplier a request asked for. `?scale=N` is the explicit form used by
+ * the export dialogs; `?size=hq` is the older two-valued form and still means 2×,
+ * so existing og:image and download URLs keep rendering exactly what they did.
+ * An unparseable or out-of-range `scale` falls through to `size` rather than
+ * erroring — a bad multiplier should cost sharpness, not the whole image.
+ *
+ * @returns An integer multiplier between 1 and {@link MAX_IMAGE_SCALE}.
+ */
+export function scaleFromQuery(scale: string | undefined, size: string | undefined): number {
+  const asked = Number(scale);
+  if (Number.isInteger(asked) && asked >= 1 && asked <= MAX_IMAGE_SCALE) {
+    return asked;
+  }
+  return size === "hq" ? 2 : 1;
+}
+
+/**
+ * Whether the scannable mark should be drawn. On by default, so every caller
+ * that predates the toggle keeps its QR; `?qr=0` is the opt-out for a creator
+ * who wants a clean plate to composite over.
+ *
+ * @returns True unless the request explicitly turned the mark off.
+ */
+export function qrFromQuery(value: string | undefined): boolean {
+  return value !== "0";
+}
+
 // Concrete approximations of the site's dark theme (apps/web/src/index.css).
 export const COLORS = {
   background: "#14161d", // --background  oklch(0.16 0.025 260)

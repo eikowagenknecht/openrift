@@ -9,6 +9,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { resolveTierRows, TierRowFrame } from "@/components/tier-lists/tier-board";
@@ -33,10 +34,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pressable } from "@/components/ui/pressable";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 /** Longest row label the chip can show; matches the contract's cap. */
 const MAX_LABEL_LENGTH = 24;
+
+/**
+ * Width of the row drag handle, shared with the spacer the unranked row puts in
+ * its place so both stay the same size and every label chip lines up.
+ */
+const ROW_HANDLE_WIDTH = "w-5 shrink-0";
 
 interface TierBoardEditorProps {
   cardsById: Record<string, Card>;
@@ -167,11 +175,18 @@ function EditableTierRow({
   // The handle is the only drag source for a row: the label is an editable
   // control and the tiles are their own drag sources, so neither can double as
   // one. Hidden while tap-to-assign is on, where the menu does the reordering.
-  // The unranked row is pinned to the bottom, so it gets no grip either.
-  const handle =
-    tapToAssign || unranked === true ? undefined : (
-      <RowDragHandle rowIndex={rowIndex} label={label} />
-    );
+  // The unranked row is pinned to the bottom, so it gets no grip either — but it
+  // still reserves the grip's width, or its label chip would sit a grip further
+  // left than every chip above it.
+  let handle: ReactNode;
+  if (!tapToAssign) {
+    handle =
+      unranked === true ? (
+        <div aria-hidden className={ROW_HANDLE_WIDTH} />
+      ) : (
+        <RowDragHandle rowIndex={rowIndex} label={label} />
+      );
+  }
 
   // A ranked row can only move down into another ranked slot: the last index
   // belongs to the cut pile when the board has one.
@@ -280,7 +295,10 @@ function RowDragHandle({ rowIndex, label }: { rowIndex: number; label: string })
       aria-label={`Reorder tier ${label}`}
       // touch-none: the PointerSensor needs the browser to keep sending pointer
       // events rather than scrolling the page from the grip.
-      className="text-muted-foreground hover:text-foreground flex w-5 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+      className={cn(
+        "text-muted-foreground hover:text-foreground flex cursor-grab touch-none items-center justify-center active:cursor-grabbing",
+        ROW_HANDLE_WIDTH,
+      )}
       style={isDragging ? { opacity: 0.4 } : undefined}
     >
       <GripVerticalIcon className="size-4" />
