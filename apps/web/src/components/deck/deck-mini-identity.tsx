@@ -1,9 +1,7 @@
 import { formatDay, imageUrl, legendDisplayName } from "@openrift/shared";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
-import { useDomainColors } from "@/hooks/use-domain-colors";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
-import { deckGlowStyle } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -66,10 +64,14 @@ function FanSlot({
 }
 
 /**
- * A deck at a glance: the fanned Legend/champion pair over the deck's domain
- * glow, the deck's name, and a line of the facts that tell two versions of one
- * deck apart — its domains, its size, and when it last changed. The deck
- * sidebar's identity header shrunk to fit a button or a menu row.
+ * A deck at a glance: the fanned Legend/champion pair, the deck's name, and a
+ * line of the facts that tell two versions of one deck apart — its domains,
+ * its size, and when it last changed. The deck sidebar's identity header
+ * shrunk to fit a button or a menu row.
+ *
+ * No domain glow behind it, unlike the sidebar header: at this size the wash
+ * reads as noise, and the domain icons on the meta line already say the same
+ * thing.
  *
  * Built from spans so it can sit inside a button, and it reads its own hooks —
  * keep it to short lists (a variant family, a picker menu) rather than the
@@ -84,7 +86,6 @@ export function DeckMiniIdentity({
   identity: DeckIdentity;
   className?: string;
 }) {
-  const domainColors = useDomainColors();
   const { getPreferredPrinting } = usePreferredPrinting();
   const legend = identity.legendCardId ? getPreferredPrinting(identity.legendCardId) : undefined;
   const champion = identity.championCardId
@@ -100,10 +101,7 @@ export function DeckMiniIdentity({
     : "Legend";
 
   return (
-    <span
-      className={cn("relative flex min-w-0 items-center gap-2.5 overflow-hidden p-2", className)}
-    >
-      <span aria-hidden className="absolute inset-0" style={deckGlowStyle(domains, domainColors)} />
+    <span className={cn("flex min-w-0 items-center gap-2.5 overflow-hidden p-2", className)}>
       <span className="relative block h-9 w-12 shrink-0">
         <FanSlot
           imageId={legend?.images.find((image) => image.face === "front")?.imageId}
@@ -116,7 +114,7 @@ export function DeckMiniIdentity({
           className="right-0 rotate-7"
         />
       </span>
-      <span className="relative block min-w-0 flex-1">
+      <span className="block min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{identity.name}</span>
         <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
           {domains.length > 0 && (

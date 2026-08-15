@@ -29,6 +29,13 @@ export interface PastedCompareSource {
   cards: DeckDiffCard[];
   /** Lines that matched no catalog card, so the page can own up to them. */
   unmatched: string[];
+  /**
+   * Exactly what was pasted, kept so the page can hand it to /decks/import if
+   * the comparison turns out to be worth keeping. Not re-serialised from
+   * `cards`: the import flow reads every format this dialog does, and the raw
+   * text carries whatever the parse here dropped.
+   */
+  text: string;
 }
 
 /** Either the parsed entries, or the message to show instead. */
@@ -82,9 +89,10 @@ async function resolveCompareEntries(
 
 /**
  * Reads a deck code, share link or card list into one side of the comparison.
- * The result is handed back to the page and kept there for the session — a
- * pasted list is something to look at, not a deck to save, so it never lands
- * in the URL or in the deck list.
+ * The result is handed back to the page and kept there for the session, never
+ * in the URL or the deck list: a pasted list is something to look at first.
+ * Keeping it is the page's Save button, which hands the raw text to
+ * /decks/import rather than saving anything from here.
  *
  * @returns The dialog.
  */
@@ -130,7 +138,7 @@ export function DeckComparePasteDialog({
       setError("None of those lines matched a card in the catalog.");
       return;
     }
-    onResolved(resolved);
+    onResolved({ ...resolved, text: trimmed });
     onOpenChange(false);
   };
 
@@ -140,8 +148,8 @@ export function DeckComparePasteDialog({
         <DialogHeader>
           <DialogTitle>Paste a deck</DialogTitle>
           <DialogDescription>
-            A deck code, a share link, or a plain card list. It is compared as it is and never
-            saved.
+            A deck code, a share link, or a plain card list. It is compared as it is; saving it as a
+            deck is a separate step afterwards.
           </DialogDescription>
         </DialogHeader>
         <Textarea

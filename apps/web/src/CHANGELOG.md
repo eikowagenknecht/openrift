@@ -6,7 +6,7 @@
 
 - feat(App): **One share dialog everywhere** — decks, collections, lists, and tier lists now share it: the link and its QR on one tab, the image with shape, size, and scan-code choices on the other.
 - feat(Collection): **Download your collection as an image** — the share dialog now saves a collection as a wide or tall picture, which before existed only as the link preview.
-- feat(Decks): **One page for every deck comparison** — comparing two versions or another deck now opens a full page with card art down both sides, deck pickers that show what each deck is, and a place to paste a deck code or list.
+- feat(Decks): **One page for every deck comparison** — comparing two versions or another deck now opens a full page with card art down both sides, searchable deck pickers, and a pasted deck code or list you can then save as a deck.
 - feat(Decks): **All deck PDFs under Print** — proxies, the registration sheet, and the printable deck sheet moved into one Print dialog, opened from Print in the deck menu.
 - feat(App): **A proper match board** — each player's side now shows the art of a legend you pick, scores through Conquer, Hold and Ability buttons instead of a hidden tap, and marks how close the game is with a pip per point.
 - fix(Tournaments): **Deck deadlines in your timezone** — submission deadlines showed the server's clock without saying so, and now show yours.

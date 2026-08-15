@@ -8,7 +8,13 @@ import {
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRightIcon, ChevronDownIcon, ClipboardPasteIcon, PlusIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ClipboardPasteIcon,
+  XIcon,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { CardMiniRow } from "@/components/cards/card-mini-row";
@@ -27,16 +33,10 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CommandEmpty, CommandGroup } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Switch } from "@/components/ui/switch";
 import { useCards } from "@/hooks/use-cards";
@@ -191,10 +191,13 @@ function ChangesRow({
 
 /**
  * One side's deck picker: the deck as it looks everywhere else (fanned art,
- * name, domains, size and date) with the variant family behind a menu, the
- * rest of the user's decks one step further in, and its own way into the deck
- * beside it — so "open" always names which of the two it means. Picking
+ * name, domains, size and date) with the variant family listed first, the rest
+ * of the user's decks under their own heading below, and its own way into the
+ * deck beside it — so "open" always names which of the two it means. Picking
  * rewrites the URL rather than local state, so a comparison stays linkable.
+ *
+ * The list is a `PickerList`, so a filter field sits above it and a name is
+ * enough to reach any deck without scrolling the whole collection.
  *
  * @returns The labelled picker.
  */
@@ -202,35 +205,57 @@ function DeckPicker({
   label,
   value,
   identity,
+  pastedText,
   familyIds,
   otherIds,
   identityById,
   onPick,
   onPaste,
+  onClear,
 }: {
   label: string;
   /** The picked deck's id, or null for an unset or pasted side. */
   value: string | null;
   /** What the picked side shows; null when nothing is picked yet. */
   identity: DeckIdentity | null;
-  /** The anchor deck's variant family, listed first. */
+  /** What was pasted into this side, when it holds a pasted list. */
+  pastedText: string | null;
+  /** The anchor deck's variant family, listed first under its own heading. */
   familyIds: string[];
-  /** Everything else the user owns, behind the "More decks" step. */
+  /** Everything else the user owns, in the group below the family. */
   otherIds: string[];
   identityById: ReadonlyMap<string, DeckIdentity>;
   onPick: (deckId: string) => void;
   onPaste: () => void;
+  onClear: () => void;
 }) {
-  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState(false);
+  // Opening on the picked deck means the arrow keys start from what is already
+  // there. Set on each open rather than once, since picking changes `value`
+  // while this component stays mounted.
+  const [highlightedId, setHighlightedId] = useState("");
   const name = identity?.name ?? "Choose a deck";
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setHighlightedId(value ?? "");
+    }
+    setOpen(next);
+  };
+
+  const pick = (deckId: string) => {
+    setOpen(false);
+    onPick(deckId);
+  };
+
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       {/* A caption, not a form label: the control below is a menu button, which
           `<label for>` can't point at. */}
       <span className="text-sm leading-none font-medium">{label}</span>
       <div className="flex min-w-0 items-stretch gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Popover open={open} onOpenChange={handleOpenChange}>
+          <PopoverTrigger
             render={
               <Pressable
                 aria-label={`${label}: ${name}`}
@@ -246,32 +271,77 @@ function DeckPicker({
               </span>
             )}
             <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-w-(--available-width)">
-            <DropdownMenuRadioGroup value={value ?? ""} onValueChange={onPick}>
-              {familyIds.map((deckId) => (
-                <PickerRow key={deckId} deckId={deckId} identityById={identityById} />
-              ))}
-              {/* The family is what you came for; the rest of the decks are a
-                  step further in rather than a wall to scroll past. */}
-              {showAll &&
-                otherIds.map((deckId) => (
-                  <PickerRow key={deckId} deckId={deckId} identityById={identityById} />
-                ))}
-            </DropdownMenuRadioGroup>
-            {otherIds.length > 0 && !showAll && (
-              <DropdownMenuItem closeOnClick={false} onClick={() => setShowAll(true)}>
-                <PlusIcon className="size-4" />
-                More decks ({otherIds.length})
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onPaste}>
-              <ClipboardPasteIcon className="size-4" />
-              Paste a deck code or list…
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverTrigger>
+          {/* Wide enough for a deck row rather than the popover default, and
+              capped so a long deck name can't push it past the viewport. */}
+          <PopoverContent
+            align="start"
+            className="w-80 max-w-(--available-width) gap-0 p-0 sm:w-96"
+          >
+            <PickerList
+              searchPlaceholder="Search your decks…"
+              highlightedId={highlightedId}
+              onHighlightChange={setHighlightedId}
+            >
+              <CommandEmpty>No decks match.</CommandEmpty>
+              {familyIds.length > 0 && (
+                <CommandGroup
+                  className="p-0"
+                  // Naming the group is what separates the versions of the deck
+                  // you came from off the rest; with only one version there is
+                  // nothing to name, so the rows stand alone.
+                  heading={familyIds.length > 1 ? "Versions of this deck" : undefined}
+                >
+                  {familyIds.map((deckId) => (
+                    <DeckPickerRow
+                      key={deckId}
+                      deckId={deckId}
+                      identityById={identityById}
+                      selected={deckId === value}
+                      onSelect={pick}
+                    />
+                  ))}
+                </CommandGroup>
+              )}
+              {otherIds.length > 0 && (
+                <CommandGroup
+                  className="p-0 pt-2"
+                  heading={familyIds.length > 0 ? "Your other decks" : "Your decks"}
+                >
+                  {otherIds.map((deckId) => (
+                    <DeckPickerRow
+                      key={deckId}
+                      deckId={deckId}
+                      identityById={identityById}
+                      selected={deckId === value}
+                      onSelect={pick}
+                    />
+                  ))}
+                </CommandGroup>
+              )}
+            </PickerList>
+            {/* Outside the list: pasting is not a deck to find by name, and a
+                filter that hid it would strand the only way to compare against
+                something you don't own. */}
+            <div className="border-t p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start font-normal"
+                onClick={() => {
+                  setOpen(false);
+                  onPaste();
+                }}
+              >
+                <ClipboardPasteIcon className="size-4" />
+                Paste a deck code or list…
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        {/* One trailing action per side, plus a way out of it. A picked deck
+            opens; a pasted list is not a deck yet, so its action is the import
+            flow that would make it one. */}
         {value !== null && (
           <Button
             variant="outline"
@@ -283,27 +353,63 @@ function DeckPicker({
             Open
           </Button>
         )}
+        {pastedText !== null && (
+          <Button
+            variant="outline"
+            className="self-center"
+            render={
+              <Link
+                to="/decks/import"
+                search={{ code: pastedText }}
+                aria-label="Save the pasted list as a deck"
+              />
+            }
+          >
+            Save
+          </Button>
+        )}
+        {(value !== null || pastedText !== null) && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="self-center"
+            aria-label={`Clear the ${label.toLowerCase()} deck`}
+            onClick={onClear}
+          >
+            <XIcon className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
 }
 
-/** @returns One deck's row in a picker menu. */
-function PickerRow({
+/** @returns One deck's row in a picker list, or null if the deck went away. */
+function DeckPickerRow({
   deckId,
   identityById,
+  selected,
+  onSelect,
 }: {
   deckId: string;
   identityById: ReadonlyMap<string, DeckIdentity>;
+  selected: boolean;
+  onSelect: (deckId: string) => void;
 }) {
   const identity = identityById.get(deckId);
   if (!identity) {
     return null;
   }
   return (
-    <DropdownMenuRadioItem value={deckId} className="py-0 pr-8 pl-0">
+    <PickerRow
+      value={deckId}
+      keywords={[identity.name]}
+      onSelect={() => onSelect(deckId)}
+      className="gap-0 p-0 pr-2"
+    >
       <DeckMiniIdentity identity={identity} className="min-w-0 flex-1 rounded-md" />
-    </DropdownMenuRadioItem>
+      <CheckIcon className={cn("size-4 shrink-0", selected ? "opacity-100" : "opacity-0")} />
+    </PickerRow>
   );
 }
 
@@ -456,8 +562,13 @@ export function DeckComparePage({
       ? ownDeckDiffCards(toRows, cardsById).theirs
       : null;
 
+  // A pasted list names its zones like any other, so it can show the same
+  // fanned pair as a deck — the Legend and champion are what make a list
+  // recognisable at a glance, pasted or not.
   const pastedIdentity = (pasted: PastedCompareSource): DeckIdentity => ({
     name: "Pasted list",
+    legendCardId: pasted.cards.find((card) => card.zone === WellKnown.deckZone.LEGEND)?.cardId,
+    championCardId: pasted.cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION)?.cardId,
     cardCount: countCopies(pasted.cards),
   });
   const fromIdentity = pastedFrom
@@ -490,6 +601,22 @@ export function DeckComparePage({
         from: side === "from" ? pickedId : (fromDeckId ?? undefined),
         to: side === "to" ? pickedId : (toDeckId ?? undefined),
       },
+    });
+  };
+
+  const handleClear = (side: SideKey) => {
+    if (side === "from") {
+      setPastedFrom(null);
+    } else {
+      setPastedTo(null);
+    }
+    void navigate({
+      to: "/decks/compare",
+      search: {
+        from: side === "from" ? undefined : (fromDeckId ?? undefined),
+        to: side === "to" ? undefined : (toDeckId ?? undefined),
+      },
+      replace: true,
     });
   };
 
@@ -558,11 +685,13 @@ export function DeckComparePage({
               label="From"
               value={fromDeckId}
               identity={fromIdentity}
+              pastedText={pastedFrom?.text ?? null}
               familyIds={familyIds}
               otherIds={otherIds}
               identityById={identityById}
               onPick={(picked) => handlePick("from", picked)}
               onPaste={() => setPasteFor("from")}
+              onClear={() => handleClear("from")}
             />
             {/* Same size and column as the row arrows below, offset past the
               caption line so it centres on the deck cards rather than on the
@@ -574,11 +703,13 @@ export function DeckComparePage({
               label="To"
               value={toDeckId}
               identity={toIdentity}
+              pastedText={pastedTo?.text ?? null}
               familyIds={familyIds}
               otherIds={otherIds}
               identityById={identityById}
               onPick={(picked) => handlePick("to", picked)}
               onPaste={() => setPasteFor("to")}
+              onClear={() => handleClear("to")}
             />
           </div>
 
