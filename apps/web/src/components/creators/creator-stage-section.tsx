@@ -24,7 +24,7 @@ const STEPS: { title: string; detail: string }[] = [
   {
     title: "Keep the Stage open on your phone during the stream",
     detail:
-      "Step through your queue with the arrows beside the preview, put a ranking up and reveal it card by card, and clear the screen when the segment is over.",
+      "Step through your queue with the arrows beside the preview, and clear the screen when the segment is over. A ranking goes up from the show itself: open a tier list on the Stage and switch on Board on OBS.",
   },
 ];
 
@@ -36,6 +36,7 @@ const KEYS: { keys: string[]; does: string }[] = [
   { keys: ["T"], does: "Show or hide the card text" },
   { keys: ["F"], does: "Show or hide the thumbnail strip" },
   { keys: ["P"], does: "Push this card to the OBS overlay" },
+  { keys: ["O"], does: "Show the tier board on the OBS overlay" },
   { keys: ["?"], does: "Show the key list on screen" },
   { keys: ["Esc"], does: "Leave the show" },
 ];

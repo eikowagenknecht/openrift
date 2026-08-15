@@ -92,6 +92,13 @@ interface StageShellProps {
   /** Leaves the stage: the corner button, and Escape unless `onEscape` says otherwise. */
   onExit: () => void;
   /**
+   * What the corner button says it goes back to, as its label and its tooltip.
+   * Worth naming per source: a creator who opened a ranking from their tier list
+   * has no other way of knowing the X puts them back on that page rather than
+   * somewhere generic.
+   */
+  exitLabel?: string;
+  /**
    * What Escape does, when the stage has something to dismiss before leaving
    * (the key list). Defaults to `onExit`.
    */
@@ -129,6 +136,7 @@ interface StageShellProps {
  */
 export function StageShell({
   onExit,
+  exitLabel = "Leave the show",
   onEscape,
   settings,
   title,
@@ -180,7 +188,8 @@ export function StageShell({
           variant="ghost"
           size="icon"
           onClick={onExit}
-          aria-label="Leave the show"
+          aria-label={exitLabel}
+          title={exitLabel}
           className="text-white/70 hover:bg-white/10 hover:text-white"
         >
           <XIcon className="size-5" />

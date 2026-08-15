@@ -30,7 +30,13 @@ export function QueuePresentation({
   );
 
   return (
-    <PresentationStage items={items} index={index} onIndexChange={onIndexChange} onExit={onExit}>
+    <PresentationStage
+      items={items}
+      index={index}
+      onIndexChange={onIndexChange}
+      onExit={onExit}
+      exitLabel="Back to the queue"
+    >
       <CardStageMain items={items} index={index} />
     </PresentationStage>
   );

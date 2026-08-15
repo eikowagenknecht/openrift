@@ -1,9 +1,10 @@
 import { createLink } from "@tanstack/react-router";
 import { ArrowLeftIcon, ChevronDownIcon, PanelLeftIcon } from "lucide-react";
 import type { AnchorHTMLAttributes, ComponentProps } from "react";
-import { createContext, forwardRef, useLayoutEffect, useState } from "react";
+import { createContext, forwardRef, use, useLayoutEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { CONTAINER_WIDTH, cn } from "@/lib/utils";
 
@@ -18,6 +19,30 @@ interface PageTopBarProps {
  * directly below the page top bar instead of being hidden behind it.
  */
 export const PageTopBarHeightContext = createContext(0);
+
+/**
+ * Render-safe page top bar height for sticky offsets.
+ *
+ * Returns 0 until the client has hydrated, which is what the server rendered:
+ * measurement happens in `useMeasuredHeight`'s layout effect, so no server
+ * render ever sees a bar height. Read the context raw instead and any consumer
+ * that hydrates *later* than the provider — a card browser inside a `<Suspense>`
+ * under a `BuilderWorkbench`, say — computes its `top` / `--sticky-top` from an
+ * already-measured bar while hydrating against markup the server wrote with 0.
+ * React refuses to patch that up ("a tree hydrated but some attributes of the
+ * server rendered HTML didn't match the client properties") and leaves the
+ * server's offsets in the DOM until something else re-renders the subtree.
+ *
+ * The gate only covers the hydration render itself; `useHydrated` flips right
+ * after the boundary commits, so the live offset lands in the same frame.
+ *
+ * @returns The measured bar height in pixels, or 0 before hydration.
+ */
+export function usePageTopBarHeight(): number {
+  const height = use(PageTopBarHeightContext);
+  const hydrated = useHydrated();
+  return hydrated ? height : 0;
+}
 
 /**
  * Observe `el` and return its measured border-box height.

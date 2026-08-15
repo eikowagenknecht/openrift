@@ -15,7 +15,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useTierListAutosave } from "@/hooks/use-tier-list-autosave";
 import { usePublicTierList, useTierList } from "@/hooks/use-tier-lists";
 import { clampIndex } from "@/lib/presentation-queue";
-import { tierRowsToQueue } from "@/lib/tier-list-presentation";
+import { boardRevealCount, tierRowsToQueue } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
 import { usePresentationStore } from "@/stores/presentation-store";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
@@ -162,6 +162,10 @@ export function SharedTierListPresentation({
   return (
     <TierBoardPresentation
       title={`${data.tierList.title} · ${data.owner.displayName}`}
+      // The overlay gets the list's own title: a board pushed to a co-streamer's
+      // channel is a copy of that list, and the corner marker's "· owner" would
+      // both read oddly on stream and risk running past what a board title holds.
+      boardTitle={data.tierList.title}
       tiers={data.tierList.tiers}
       {...rest}
     />
@@ -181,6 +185,7 @@ export function SharedTierListPresentation({
  */
 function TierBoardPresentation({
   title,
+  boardTitle,
   tiers,
   index,
   onIndexChange,
@@ -189,6 +194,8 @@ function TierBoardPresentation({
   editSurface,
 }: TierPresentationProps & {
   title: string;
+  /** What a copy of this board is called on stream. The stage's own title by default. */
+  boardTitle?: string;
   tiers: readonly TierRow[];
   edit?: StageEditControls;
   /** The editable board, supplied only by a variant that owns its draft. */
@@ -197,6 +204,7 @@ function TierBoardPresentation({
   const { cardsById, printingsByCardId } = useCards();
   const boardMode = usePresentationStore((state) => state.boardMode);
   const showRank = usePresentationStore((state) => state.showRank);
+  const reveal = usePresentationStore((state) => state.reveal);
   const direction = usePresentationStore((state) => state.direction);
 
   const rows = resolveTierRows(tiers, cardsById, printingsByCardId);
@@ -237,8 +245,17 @@ function TierBoardPresentation({
       index={stopIndex}
       onIndexChange={onIndexChange}
       onExit={onExit}
+      exitLabel="Back to the tier list"
       title={title}
       boardControls
+      // The saved rows rather than the resolved ones, so the overlay draws the
+      // board from the same starting point the stage did.
+      obsBoard={{
+        title: boardTitle ?? title,
+        tiers,
+        direction,
+        revealCount: boardRevealCount({ reveal, index: stopIndex, total: queue.length }),
+      }}
       edit={edit}
     >
       {main}

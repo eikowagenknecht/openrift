@@ -58,6 +58,7 @@ export function DeckPresentation({
       index={index}
       onIndexChange={onIndexChange}
       onExit={onExit}
+      exitLabel="Back to the deck"
       title={data.deck.name}
     >
       <CardStageMain items={shown} index={index} />

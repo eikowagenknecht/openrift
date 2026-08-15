@@ -1,4 +1,10 @@
-import type { OverlayPlateFields, StageGround, StagePreset } from "@openrift/shared";
+import type {
+  OverlayBoardDirection,
+  OverlayPlateFields,
+  StageGround,
+  StagePreset,
+  TierRow,
+} from "@openrift/shared";
 import { BookmarkPlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -21,6 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { usePushOverlayCard } from "@/hooks/use-overlay";
+import { useOverlayBoardSync } from "@/hooks/use-overlay-board-sync";
 import { useCreateStagePreset, useStagePresets } from "@/hooks/use-stage-presets";
 import { useUserId } from "@/lib/auth-session";
 import {
@@ -62,6 +69,11 @@ const BOARD_KEY_HELP: KeyHelpRow[] = [
 /** Shown only while signed in, since the push needs a channel to push to. */
 const PUSH_KEY_HELP: KeyHelpRow[] = [{ keys: ["P"], what: "Push this card to the OBS overlay" }];
 
+/** Shown only while signed in on a run that has a board to mirror. */
+const OBS_BOARD_KEY_HELP: KeyHelpRow[] = [
+  { keys: ["O"], what: "Show this board on the OBS overlay" },
+];
+
 /** The two rows every stage carries, whichever mode it is in. Always last. */
 const COMMON_KEY_HELP: KeyHelpRow[] = [
   { keys: ["?"], what: "This help" },
@@ -80,11 +92,14 @@ const COMMON_KEY_HELP: KeyHelpRow[] = [
 function PresentationHelpSheet({
   boardControls,
   pushControls,
+  obsControls,
   editControls,
   editing,
 }: {
   boardControls: boolean;
   pushControls: boolean;
+  /** Whether this run can mirror its board onto the overlay, i.e. whether `O` does anything. */
+  obsControls: boolean;
   /** Whether this source can be edited at all, i.e. whether `E` does anything. */
   editControls: boolean;
   editing: boolean;
@@ -93,6 +108,7 @@ function PresentationHelpSheet({
     ...(editing ? [] : WALK_KEY_HELP),
     ...(boardControls && !editing ? BOARD_KEY_HELP : []),
     ...(pushControls && !editing ? PUSH_KEY_HELP : []),
+    ...(obsControls && !editing ? OBS_BOARD_KEY_HELP : []),
     ...(editControls
       ? [{ keys: ["E"], what: editing ? "Back to the show" : "Edit the board" }]
       : []),
@@ -358,13 +374,27 @@ function StagePresetSettings() {
 }
 
 /**
+ * The mirror switch, offered only where there is both a board to mirror and a
+ * channel to mirror it onto — so a signed-out creator, or a deck walk, never
+ * sees a row for something that cannot happen.
+ */
+interface StageObsControls {
+  /** True while the board on stage is also on the overlay. */
+  enabled: boolean;
+  onToggle: () => void;
+}
+
+/**
  * The board layout's own settings: which shape the run takes, and how large the
  * tiles on the ladder read. Split out so the card-only sources never render a
  * row for a control that would do nothing.
  *
  * @returns The board rows for the settings popover.
  */
-function BoardSettings() {
+function BoardSettings({ obs }: { obs?: StageObsControls }) {
+  // Read out of the object so the row below hands a plain local to `onToggle`
+  // rather than a member of a prop.
+  const handleObsToggle = obs?.onToggle;
   const boardMode = usePresentationStore((state) => state.boardMode);
   const showRank = usePresentationStore((state) => state.showRank);
   const reveal = usePresentationStore((state) => state.reveal);
@@ -405,6 +435,18 @@ function BoardSettings() {
         onToggle={toggleDirection}
       />
       {boardMode && <StageTileSizeSlider />}
+      {/* Last, because it is the one row here about a second screen rather than
+          this one: everything above dresses the stage, this sends what the
+          stage is showing to the browser source as well. */}
+      {handleObsToggle && (
+        <StageToggleRow
+          id="stage-obs-board"
+          label="Board on OBS"
+          hotkey="O"
+          checked={obs?.enabled === true}
+          onToggle={handleObsToggle}
+        />
+      )}
     </>
   );
 }
@@ -451,9 +493,11 @@ export interface StageEditControls {
  */
 function StageSettings({
   boardControls,
+  obs,
   edit,
 }: {
   boardControls: boolean;
+  obs?: StageObsControls;
   edit?: StageEditControls;
 }) {
   const showText = usePresentationStore((state) => state.showText);
@@ -571,7 +615,7 @@ function StageSettings({
         checked={showHelp}
         onToggle={toggleHelp}
       />
-      {boardControls && <BoardSettings />}
+      {boardControls && <BoardSettings obs={obs} />}
       <GroundSettings />
       <StagePresetSettings />
     </>
@@ -612,6 +656,44 @@ function StageOverlayPushKey({ printingId }: { printingId: string }) {
 }
 
 /**
+ * The board the stage is showing, as the OBS overlay would draw it.
+ *
+ * The rows are the list's saved ones rather than the resolved ones — the overlay
+ * resolves them against its own catalogue, exactly as the board on stage does —
+ * and `revealCount` is the stage's own position translated into how much of the
+ * ladder is up. Supplied by a source that has a board; everything else omits it
+ * and gets no mirror switch.
+ */
+export interface StageObsBoard {
+  title: string;
+  tiers: readonly TierRow[];
+  direction: OverlayBoardDirection;
+  revealCount: number;
+}
+
+/**
+ * Keeps the overlay's board in step with the stage's, for as long as the switch
+ * is on.
+ *
+ * A component of its own for the same reason {@link StageOverlayPushKey} is:
+ * the channel mutations need a session, and the stage runs signed out.
+ *
+ * @returns Nothing — it only runs the sync.
+ */
+function StageObsBoardSync({
+  board,
+  enabled,
+  paused,
+}: {
+  board: StageObsBoard;
+  enabled: boolean;
+  paused: boolean;
+}) {
+  useOverlayBoardSync({ enabled, paused, ...board });
+  return null;
+}
+
+/**
  * A show that walks a queue: the {@link StageShell}'s frame, plus everything
  * that belongs to having a running order — the keyboard, the position marker,
  * the thumbnail strip and the key list. What actually fills the middle arrives
@@ -633,8 +715,10 @@ export function PresentationStage({
   index,
   onIndexChange,
   onExit,
+  exitLabel,
   title,
   boardControls = false,
+  obsBoard,
   edit,
   children,
 }: {
@@ -642,10 +726,14 @@ export function PresentationStage({
   index: number;
   onIndexChange: (index: number) => void;
   onExit: () => void;
+  /** What the corner's exit button says it goes back to. */
+  exitLabel?: string;
   /** Context line in the corner marker, e.g. the deck's or the list's name. */
   title?: string;
   /** Offers the board layout's keys and settings. Only a ranking has a board. */
   boardControls?: boolean;
+  /** The board as the OBS overlay would draw it. Offers the mirror switch and `O`. */
+  obsBoard?: StageObsBoard;
   /** Offers the editor. Only a source that owns its board and can save it back. */
   edit?: StageEditControls;
   children: ReactNode;
@@ -653,9 +741,14 @@ export function PresentationStage({
   const showStrip = usePresentationStore((state) => state.showStrip);
   const showHelp = usePresentationStore((state) => state.showHelp);
   const userId = useUserId();
+  // Deliberately not in the presentation store, persisted or otherwise: a
+  // "mirroring" flag restored from a previous session would put a board from
+  // last week's recording on stream the moment this one opened.
+  const [obsBoardOn, setObsBoardOn] = useState(false);
 
   const editing = edit?.editing === true;
   const current = items[index];
+  const obsAvailable = obsBoard !== undefined && userId !== null;
 
   // Escape closes the help sheet first, so it never takes the creator out of
   // the show when they only wanted the key list gone. The shell owns the key
@@ -702,6 +795,16 @@ export function PresentationStage({
       // while signed in. Swallowing it here would make the key dead for
       // everyone, signed in included.
       if (action === "push") {
+        return;
+      }
+      if (action === "toggleObs") {
+        // Nothing to mirror, or nowhere to mirror it to: the key keeps whatever
+        // the browser does with it rather than being swallowed for nothing.
+        if (!obsAvailable) {
+          return;
+        }
+        event.preventDefault();
+        setObsBoardOn((on) => !on);
         return;
       }
       if (action === "toggleEdit") {
@@ -769,7 +872,7 @@ export function PresentationStage({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [boardControls, editing, index, items.length, onIndexChange, toggleEdit]);
+  }, [boardControls, editing, index, items.length, obsAvailable, onIndexChange, toggleEdit]);
 
   // A walk needs a card; the editor does not, because a board with nothing on it
   // yet is exactly what a creator opens the editor to fix.
@@ -797,10 +900,28 @@ export function PresentationStage({
       {userId !== null && current && !editing && (
         <StageOverlayPushKey printingId={current.printing.id} />
       )}
+      {/* Mounted whether or not the switch is on, so flipping it is what starts
+          and stops the mirror rather than a component appearing. Editing pauses
+          it rather than taking it down: the board on stream stays as it was
+          pushed while the ranking behind it is being changed. */}
+      {obsBoard !== undefined && userId !== null && (
+        <StageObsBoardSync board={obsBoard} enabled={obsBoardOn} paused={editing} />
+      )}
       <StageShell
         onExit={onExit}
+        exitLabel={exitLabel}
         onEscape={handleEscape}
-        settings={<StageSettings boardControls={boardControls} edit={edit} />}
+        settings={
+          <StageSettings
+            boardControls={boardControls}
+            obs={
+              obsAvailable
+                ? { enabled: obsBoardOn, onToggle: () => setObsBoardOn(!obsBoardOn) }
+                : undefined
+            }
+            edit={edit}
+          />
+        }
         title={
           <>
             {title && <div className="text-sm text-white/50">{title}</div>}
@@ -822,6 +943,7 @@ export function PresentationStage({
             <PresentationHelpSheet
               boardControls={boardControls}
               pushControls={userId !== null}
+              obsControls={obsAvailable}
               editControls={edit !== undefined}
               editing={editing}
             />

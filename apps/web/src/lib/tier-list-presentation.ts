@@ -80,6 +80,35 @@ export function tierRowsToQueue(
 }
 
 /**
+ * How much of the board a second screen should have up, given where the stage's
+ * own run has got to.
+ *
+ * The stage and the OBS overlay draw the same board, so the count has to mean
+ * the same thing on both. In a reveal the card at the current stop is in hand —
+ * up on the stage, not yet in its tier — so the board behind it holds `index`
+ * cards. Without a reveal there is no run to follow: the whole ranking is up and
+ * the show is a spotlight moving over it, so the mirror shows all of it.
+ *
+ * @returns How many of the board's cards should be placed.
+ */
+export function boardRevealCount({
+  reveal,
+  index,
+  total,
+}: {
+  reveal: boolean;
+  /** The stage's current stop in the queue. */
+  index: number;
+  /** Stops the run has, i.e. cards the board can actually draw. */
+  total: number;
+}): number {
+  if (!reveal) {
+    return total;
+  }
+  return Math.min(Math.max(index, 0), Math.max(total, 0));
+}
+
+/**
  * The board as it stands partway through a reveal: every card the run has
  * already placed, each still in its own row and in board order.
  *

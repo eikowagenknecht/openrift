@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createContext, use, useLayoutEffect, useRef, useState } from "react";
 
-import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
+import { usePageTopBarHeight } from "@/components/layout/page-top-bar";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,13 @@ const CardBrowserLayoutContext = createContext<CardBrowserLayoutOffsets>({
 /**
  * Reads sticky offsets computed by the surrounding {@link CardBrowserLayout}.
  * Call from inside the layout's `gridSlot` to size group-header sticky positions.
+ *
+ * These are safe to write into inline styles during a hydration render because
+ * the layout itself resolves them from SSR-stable inputs until it has hydrated.
+ * That holds only while the layout and the consumer hydrate together: putting a
+ * `<Suspense>` between them would let the consumer read live offsets against
+ * server markup written with the pre-measurement ones. Gate the consumer on
+ * `useHydrated()` if you ever need that shape.
  *
  * @returns Toolbar and grid sticky-top offsets in pixels.
  */
@@ -69,7 +76,7 @@ export function CardBrowserLayout({
   gridSlot,
   children,
 }: CardBrowserLayoutProps) {
-  const pageTopBarHeight = use(PageTopBarHeightContext);
+  const pageTopBarHeight = usePageTopBarHeight();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const aboveGridRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
@@ -109,6 +116,12 @@ export function CardBrowserLayout({
   // overlapped strip hides behind the z-50 header.
   // PAGE_TOP_BAR_STICKY carries the same -1px for the same reason, so with a
   // page top bar present the toolbar stays flush with the bar's bottom edge.
+  //
+  // Every term here is SSR-stable on a hydration render, which is what keeps
+  // the inline offsets below from mismatching the server markup: useHeaderHeight
+  // seeds its state to SSR_HEADER_HEIGHT, usePageTopBarHeight gates the measured
+  // context to 0, and the two heights are freshly-initialised 0 state. So a
+  // hydration render always reproduces the server's SSR_HEADER_HEIGHT - 1.
   const headerOffset = useHeaderHeight() + pageTopBarHeight - 1;
   const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;

@@ -8,8 +8,17 @@ import { createStoreResetter } from "@/test/store-helpers";
 
 import { PresentationStage } from "./presentation-stage";
 
+const { mockPushBoard, mockSetReveal, mockClear } = vi.hoisted(() => ({
+  mockPushBoard: vi.fn(() => Promise.resolve()),
+  mockSetReveal: vi.fn(() => Promise.resolve()),
+  mockClear: vi.fn(),
+}));
+
 vi.mock("@/hooks/use-overlay", () => ({
   usePushOverlayCard: () => ({ mutate: vi.fn() }),
+  usePushOverlayBoard: () => ({ mutateAsync: mockPushBoard }),
+  useSetOverlayBoardReveal: () => ({ mutateAsync: mockSetReveal }),
+  useClearOverlay: () => ({ mutate: mockClear }),
 }));
 
 vi.mock("@/hooks/use-stage-presets", () => ({
@@ -37,11 +46,21 @@ const items: PresentationItem[] = [
   { id: "b", printing: stubPrinting(), contextLabel: "A" },
 ];
 
+/** What a tier source hands the stage to mirror onto the overlay. */
+const obsBoard = {
+  title: "Best legends",
+  tiers: [{ label: "S", cards: [{ cardId: "card-a", printingId: null }] }],
+  direction: "best-first" as const,
+  revealCount: 1,
+};
+
 interface StageOptions {
   items?: PresentationItem[];
   editing?: boolean;
   /** Omitted entirely means a source with nothing to edit, e.g. a shared list. */
   withEdit?: boolean;
+  /** Omitted means a source with no board to mirror, e.g. a deck walk. */
+  withObsBoard?: boolean;
   index?: number;
 }
 
@@ -49,6 +68,7 @@ function renderStage({
   items: queue = items,
   editing = false,
   withEdit = true,
+  withObsBoard = true,
   index = 0,
 }: StageOptions = {}) {
   const onIndexChange = vi.fn();
@@ -62,6 +82,7 @@ function renderStage({
       onExit={onExit}
       title="Best legends"
       boardControls
+      obsBoard={withObsBoard ? obsBoard : undefined}
       edit={withEdit ? { editing, onToggle, status: "Saved" } : undefined}
     >
       <div data-testid="main">{editing ? "editor" : "show"}</div>
@@ -190,6 +211,68 @@ describe("PresentationStage while editing", () => {
     renderStage({ editing: true });
     press("?");
     expect(screen.queryByText(/OBS overlay/u)).not.toBeInTheDocument();
+  });
+});
+
+describe("PresentationStage board on OBS", () => {
+  beforeEach(() => {
+    userId.mockReturnValue("user-1");
+  });
+
+  it("puts the board up as the stage has it", () => {
+    renderStage();
+
+    press("o");
+
+    expect(mockPushBoard).toHaveBeenCalledWith({
+      board: { ...obsBoard, revealCount: 1 },
+    });
+  });
+
+  it("takes it back down when the switch goes off again", () => {
+    renderStage();
+
+    press("o");
+    press("o");
+
+    expect(mockClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the key while a board can be mirrored", () => {
+    renderStage();
+    press("?");
+    expect(screen.getByText("Show this board on the OBS overlay")).toBeInTheDocument();
+  });
+
+  it("leaves O alone on a source with no board to mirror", () => {
+    // A deck walk has nothing to put up, so the key keeps whatever the browser
+    // does with it rather than being swallowed for nothing.
+    renderStage({ withObsBoard: false });
+
+    press("o");
+    press("?");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Show this board/u)).not.toBeInTheDocument();
+  });
+
+  it("leaves O alone while signed out, since there is no channel to push to", () => {
+    userId.mockReturnValue(null);
+    renderStage();
+
+    press("o");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
+  });
+
+  it("stands the mirror down while the board is being ranked", () => {
+    // The switch is off the settings panel while editing, so the key that does
+    // the same thing has to be inert too.
+    renderStage({ editing: true });
+
+    press("o");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
   });
 });
 

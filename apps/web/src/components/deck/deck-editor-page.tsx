@@ -22,7 +22,7 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
@@ -56,6 +56,7 @@ import {
   PageTopBarIconButton,
   PageTopBarTitle,
   useMeasuredHeight,
+  usePageTopBarHeight,
 } from "@/components/layout/page-top-bar";
 import {
   SectionHeader,
@@ -365,7 +366,10 @@ function DeckEditorContent({
   const { items: deckItems, printingsByCardId } = useDeckItems(deckCards);
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
-  const topBarHeight = use(PageTopBarHeightContext);
+  // Not `use(PageTopBarHeightContext)`: this height goes straight into an
+  // inline --sticky-top below, so it has to stay at its pre-measurement 0 for
+  // as long as the subtree is hydrating.
+  const topBarHeight = usePageTopBarHeight();
   const headerHeight = useHeaderHeight();
 
   // Switching between overview and zone mode swaps the items array under the

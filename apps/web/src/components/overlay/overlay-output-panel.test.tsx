@@ -1,6 +1,7 @@
 import type { OverlayBoard } from "@openrift/shared";
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { fireEvent, render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePresentQueueStore } from "@/stores/present-queue-store";
@@ -12,25 +13,15 @@ const PRINTING = stubPrinting({
   card: { name: "Garen" },
 });
 
-const {
-  mockUseOverlayChannel,
-  mockUpdateSettings,
-  mockPushCard,
-  mockPushBoard,
-  mockSetReveal,
-  mockClear,
-} = vi.hoisted(() => ({
+const { mockUseOverlayChannel, mockUpdateSettings, mockPushCard, mockClear } = vi.hoisted(() => ({
   mockUseOverlayChannel: vi.fn(),
   mockUpdateSettings: vi.fn(),
   mockPushCard: vi.fn(),
-  mockPushBoard: vi.fn(),
-  mockSetReveal: vi.fn(),
   mockClear: vi.fn(),
 }));
 
-/** The tier list the mocked picker hands over, ranking one catalogued card. */
+/** A ranking pushed from the stage, of which the catalogue can draw one card. */
 const TIER_LIST = {
-  id: "list-1",
   title: "Origins, ranked",
   tiers: [
     { label: "S", cards: [{ cardId: PRINTING.cardId, printingId: null }] },
@@ -43,11 +34,15 @@ const idleMutation = { mutate: vi.fn(), isPending: false };
 vi.mock("@/hooks/use-overlay", () => ({
   useOverlayChannel: mockUseOverlayChannel,
   usePushOverlayCard: () => ({ mutate: mockPushCard, isPending: false }),
-  usePushOverlayBoard: () => ({ mutate: mockPushBoard, isPending: false }),
-  useSetOverlayBoardReveal: () => ({ mutate: mockSetReveal, isPending: false }),
   useClearOverlay: () => ({ mutate: mockClear, isPending: false }),
   useRotateOverlayToken: () => idleMutation,
   useUpdateOverlaySettings: () => ({ mutate: mockUpdateSettings, isPending: false }),
+}));
+
+// The panel's pointer to the tier lists is a router link, and this render has
+// no router.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
 vi.mock("@/hooks/use-cards", () => ({
@@ -56,16 +51,6 @@ vi.mock("@/hooks/use-cards", () => ({
     cardsById: { [PRINTING.cardId]: PRINTING.card },
     printingsByCardId: new Map([[PRINTING.cardId, [PRINTING]]]),
   }),
-}));
-
-// The real picker loads the creator's lists through a query client this render
-// has none of. What the section owns is what it does with a picked list.
-vi.mock("@/components/overlay/overlay-tier-list-picker", () => ({
-  OverlayTierListPicker: ({ onPick }: { onPick: (list: typeof TIER_LIST) => void }) => (
-    <button type="button" onClick={() => onPick(TIER_LIST)}>
-      pick-tier-list
-    </button>
-  ),
 }));
 
 // The presets section reads the creator's saved scenes (and their session)
@@ -286,101 +271,42 @@ describe("OverlayOutputPanel clear", () => {
   });
 });
 
-describe("OverlayOutputPanel tier list section", () => {
+// A ranking is put on stream from the show itself, where the creator can see
+// the board they are pushing. What this panel still owns is showing whatever
+// arrived and saying where it comes from.
+describe("OverlayOutputPanel board on stream", () => {
   beforeEach(() => {
-    mockPushBoard.mockReset();
-    mockSetReveal.mockReset();
     mockClear.mockReset();
-    channelShowing(null);
-  });
-
-  it("pushes nothing until a list is picked", () => {
-    const { getByText } = render(<OverlayOutputPanel />);
-
-    expect(getByText("Show whole board").hasAttribute("disabled")).toBe(true);
-    expect(getByText("Start reveal").hasAttribute("disabled")).toBe(true);
-  });
-
-  it("pushes the whole board, revealed to the end", () => {
-    const { getByText } = render(<OverlayOutputPanel />);
-
-    fireEvent.click(getByText("pick-tier-list"));
-    fireEvent.click(getByText("Show whole board"));
-
-    expect(mockPushBoard).toHaveBeenCalledWith({
-      board: {
-        title: "Origins, ranked",
-        tiers: TIER_LIST.tiers,
-        revealCount: 2,
-        direction: "best-first",
-      },
-    });
-  });
-
-  it("starts a reveal at nothing revealed, in the chosen direction", () => {
-    const { getByText } = render(<OverlayOutputPanel />);
-
-    fireEvent.click(getByText("pick-tier-list"));
-    fireEvent.click(getByText("Start at the bottom"));
-    fireEvent.click(getByText("Start reveal"));
-
-    expect(mockPushBoard).toHaveBeenCalledWith({
-      board: expect.objectContaining({ revealCount: 0, direction: "worst-first" }),
-    });
-  });
-
-  it("steps the reveal forward and back, counting only cards it can draw", () => {
-    // The list ranks two cards but the catalogue only has one, so the run is
-    // one step long — a step that could never be reached would strand the
-    // creator on a Next button that does nothing.
-    channelShowing(null, liveBoard(0));
-    const { getByText, getByLabelText } = render(<OverlayOutputPanel />);
-
-    expect(getByText("0 / 1")).toBeTruthy();
-    expect(
-      getByLabelText("Take the last revealed card back off the board").hasAttribute("disabled"),
-    ).toBe(true);
-
-    fireEvent.click(getByLabelText("Reveal the next card on the board"));
-
-    expect(mockSetReveal).toHaveBeenCalledWith({ revealCount: 1 });
-  });
-
-  it("holds the readout inside the board when the whole thing is up", () => {
-    // Pushed with every stored entry revealed, including the one the catalogue
-    // dropped: the readout still has to read as finished rather than `2 / 1`.
-    channelShowing(null, liveBoard(2));
-    const { getByText, getByLabelText } = render(<OverlayOutputPanel />);
-
-    expect(getByText("1 / 1")).toBeTruthy();
-    expect(getByLabelText("Reveal the next card on the board").hasAttribute("disabled")).toBe(true);
-
-    fireEvent.click(getByLabelText("Take the last revealed card back off the board"));
-
-    expect(mockSetReveal).toHaveBeenCalledWith({ revealCount: 0 });
-  });
-
-  it("offers no reveal controls until a board is on stream", () => {
-    const { queryByLabelText, queryByText } = render(<OverlayOutputPanel />);
-
-    expect(queryByLabelText("Reveal the next card on the board")).toBeNull();
-    expect(queryByText("Hide")).toBeNull();
-  });
-
-  it("takes the board down with Hide", () => {
-    channelShowing(null, liveBoard(1));
-    const { getByText } = render(<OverlayOutputPanel />);
-
-    fireEvent.click(getByText("Hide"));
-
-    expect(mockClear).toHaveBeenCalled();
   });
 
   it("names the board on stream in the preview", () => {
     channelShowing(null, liveBoard(1));
     const { getAllByText } = render(<OverlayOutputPanel />);
 
-    // Once as the preview's caption, once as the board panel's own title.
-    expect(getAllByText("Origins, ranked").length).toBeGreaterThan(1);
+    // Twice: as the preview's caption, and inside the frame the preview paints
+    // with the very component the browser source runs.
+    expect(getAllByText("Origins, ranked")).toHaveLength(2);
+  });
+
+  it("reads as live with a board up and no card", () => {
+    channelShowing(null, liveBoard(1));
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    expect(getByText("● Live")).toBeTruthy();
+  });
+
+  it("offers no controls of its own for the ranking", () => {
+    channelShowing(null, liveBoard(1));
+    const { queryByLabelText, queryByText } = render(<OverlayOutputPanel />);
+
+    expect(queryByLabelText("Reveal the next card on the board")).toBeNull();
+    expect(queryByText("Show whole board")).toBeNull();
+  });
+
+  it("says where a ranking comes from instead", () => {
+    channelShowing(null);
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    expect(getByText("tier lists")).toBeTruthy();
   });
 });

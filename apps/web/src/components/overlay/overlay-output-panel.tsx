@@ -1,10 +1,10 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon, ChevronRightIcon, EyeOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { OverlayBoardSection } from "@/components/overlay/overlay-board-section";
 import { OverlayFrame } from "@/components/overlay/overlay-frame";
 import { OverlaySettingsPanel } from "@/components/overlay/overlay-settings-panel";
 import { Button } from "@/components/ui/button";
@@ -172,8 +172,12 @@ function WalkControls({
 
 /**
  * The OBS half of the stage: what the browser source is showing, the clicker
- * that walks the queue through it, the tier board controls, and the scene
- * setup with its saved presets.
+ * that walks the queue through it, and the scene setup with its saved presets.
+ *
+ * A ranking gets here from the show itself rather than from a control on this
+ * panel — the stage draws the board, so that is where a creator can see what
+ * they are putting on stream — and arrives as a board on the channel, which the
+ * preview and the Clear button treat like any other thing that is up.
  *
  * It steps the very queue the builder beside it is editing, rather than a
  * second list of its own — one queue, two ways of putting it on screen. That
@@ -203,8 +207,8 @@ export function OverlayOutputPanel() {
 
   const livePrintingId = channel.payload.printingId;
   const liveBoard = channel.payload.board;
-  // Resolved once here and handed to both the preview and the reveal controls,
-  // so the `n / total` readout counts the same steps the frame is painting.
+  // A board pushed from the stage previews here like anything else on the
+  // channel, resolved against the catalogue the frame draws from.
   const boardScene =
     liveBoard === null
       ? undefined
@@ -236,9 +240,17 @@ export function OverlayOutputPanel() {
           </div>
         }
       />
-      {/* Directly under the preview: stepping a reveal is something a creator
-          does while watching the board fill. */}
-      <OverlayBoardSection board={liveBoard} revealTotal={boardScene?.total ?? 0} />
+      {/* Rankings are run from the stage, where the board is visible, and the
+          preview above shows whatever the stage sent — so this is a pointer
+          rather than a second set of controls. */}
+      <p className="text-muted-foreground text-sm">
+        To put a ranking on stream, open one of your{" "}
+        <Link to="/tier-lists" className="underline underline-offset-2">
+          tier lists
+        </Link>{" "}
+        and press Present. Turn on &ldquo;Board on OBS&rdquo; in the show&apos;s settings and the
+        board goes out here as you reveal it.
+      </p>
       <OverlaySettingsPanel
         channel={channel}
         draftScale={draftScale}

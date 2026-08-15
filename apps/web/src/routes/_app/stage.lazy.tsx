@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useStagePresets } from "@/hooks/use-stage-presets";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
+import { queueDraftSearch, startPresentingSearch } from "@/lib/presentation-queue-search";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { applyStagePresetConfig } from "@/lib/stage-preset-apply";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
@@ -172,12 +173,30 @@ function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
   const navigate = useNavigate();
   const queued = usePresentQueueStore((state) => state.ids.length);
 
-  // Adopt whatever queue the URL arrived with, once. Leaving the builder drops
-  // the draft, so coming back always starts from the URL rather than from a
-  // queue left over from a previous visit.
+  // Adopt whatever queue the URL arrived with, once, then keep `?cards=`
+  // tracking every edit — the URL in the bar is the draft's one persistent
+  // home, so a refresh mid-build reopens the same queue and a copied link
+  // carries it. Subscribed after the load so arrival doesn't rewrite the URL
+  // it just read, and unsubscribed before the reset so tearing the draft down
+  // on unmount can't blank the `cards` the next branch is presenting.
   useEffect(() => {
     usePresentQueueStore.getState().load(initialIds);
-    return usePresentQueueStore.getState().reset;
+    const unsubscribe = usePresentQueueStore.subscribe((state, previous) => {
+      if (state.ids === previous.ids) {
+        return;
+      }
+      // `replace` so building a queue card by card doesn't bury the page the
+      // creator came from under one history entry per click.
+      void navigate({
+        to: "/stage",
+        search: (prev) => queueDraftSearch(prev, state.ids),
+        replace: true,
+      });
+    });
+    return () => {
+      unsubscribe();
+      usePresentQueueStore.getState().reset();
+    };
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- mount only: `initialIds` is the URL's queue at arrival, and re-running on a later search change would stomp the draft mid-edit
   }, []);
 
@@ -185,7 +204,7 @@ function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
     // The updater form keeps the browser's filters in the URL, so leaving the
     // show lands back on the same filtered view the queue was built from.
     const ids = usePresentQueueStore.getState().ids;
-    void navigate({ to: "/stage", search: (prev) => ({ ...prev, cards: ids, i: 0 }) });
+    void navigate({ to: "/stage", search: (prev) => startPresentingSearch(prev, ids) });
   };
 
   const addSource = (source: QueueSource) => {

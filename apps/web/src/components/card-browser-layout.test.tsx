@@ -1,5 +1,8 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render } from "@testing-library/react";
+import type { Root } from "react-dom/client";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 
 import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
 import { SSR_HEADER_HEIGHT } from "@/lib/header-height";
@@ -36,5 +39,49 @@ describe("CardBrowserLayout", () => {
     // The bar's own -mt-px already shifted this tier's flow position; a second
     // one here would open a 1px travel between flow and pin position.
     expect(toolbar.className).not.toContain("-mt-px");
+  });
+
+  it("hydrates without mismatching when the page top bar is already measured", async () => {
+    // Regression: on /stage the card browser sits inside a <Suspense> under
+    // BuilderWorkbench, so it hydrates *after* the workbench has measured its
+    // top bar. Reading that measurement during the boundary's hydration render
+    // made the layout compute header + bar - 1 against server markup written
+    // with header - 1, and React logged "a tree hydrated but some attributes of
+    // the server rendered HTML didn't match the client properties" for every
+    // sticky tier (plus the scroll indicator downstream, whose initial position
+    // is seeded from stickyOffset). The values here are 56 vs 112.
+    const layout = (
+      <CardBrowserLayout toolbar={<span>toolbar</span>} aboveGrid={<span>above</span>} />
+    );
+    // The server never has a measurement, so its context is always 0.
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(
+      <PageTopBarHeightContext value={0}>{layout}</PageTopBarHeightContext>,
+    );
+    document.body.append(container);
+
+    const logged: string[] = [];
+    const consoleError = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args.map(String).join(" "));
+    });
+
+    let root: Root | undefined;
+    await act(async () => {
+      root = hydrateRoot(
+        container,
+        <PageTopBarHeightContext value={56}>{layout}</PageTopBarHeightContext>,
+      );
+    });
+    consoleError.mockRestore();
+
+    expect(logged.join("\n")).not.toMatch(/hydrat/iu);
+
+    // Once hydrated the live measurement still applies, so nothing about the
+    // settled layout changes — only the render it was computed on.
+    const toolbar = container.querySelector(".z-30") as HTMLElement;
+    expect(toolbar.style.top).toBe(`${SSR_HEADER_HEIGHT + 56 - 1}px`);
+
+    root?.unmount();
+    container.remove();
   });
 });

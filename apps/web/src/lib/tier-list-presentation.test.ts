@@ -4,7 +4,7 @@ import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { stubCard, stubPrinting } from "@/test/factories";
 
 import type { ResolvedTierRow } from "./tier-list-presentation";
-import { revealedRows, tierRowsToQueue } from "./tier-list-presentation";
+import { boardRevealCount, revealedRows, tierRowsToQueue } from "./tier-list-presentation";
 
 function view(cardId: string, withPrinting = true): TierCardView {
   return {
@@ -138,5 +138,34 @@ describe("revealedRows", () => {
     const revealed = revealedRows(rows, queue, 2);
 
     expect(revealed[0]?.cards.map((card) => card.cardId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("boardRevealCount", () => {
+  it("leaves the card in hand off the board during a reveal", () => {
+    // The stage holds the card at the current stop up rather than placing it,
+    // so a mirror that counted it would drop it in a beat early.
+    expect(boardRevealCount({ reveal: true, index: 3, total: 10 })).toBe(3);
+  });
+
+  it("starts a reveal with nothing placed", () => {
+    expect(boardRevealCount({ reveal: true, index: 0, total: 10 })).toBe(0);
+  });
+
+  it("puts the whole board up when the run is a spotlight instead", () => {
+    expect(boardRevealCount({ reveal: false, index: 3, total: 10 })).toBe(10);
+  });
+
+  it("holds an index the editor left past the end inside the board", () => {
+    expect(boardRevealCount({ reveal: true, index: 12, total: 10 })).toBe(10);
+  });
+
+  it("treats a negative index as nothing placed", () => {
+    expect(boardRevealCount({ reveal: true, index: -2, total: 10 })).toBe(0);
+  });
+
+  it("is zero for an empty board, whichever mode the run is in", () => {
+    expect(boardRevealCount({ reveal: true, index: 4, total: 0 })).toBe(0);
+    expect(boardRevealCount({ reveal: false, index: 4, total: 0 })).toBe(0);
   });
 });

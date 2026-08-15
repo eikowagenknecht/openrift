@@ -35,6 +35,24 @@ describe("/stage filter search", () => {
   });
 });
 
+// Regression: "Start presenting" once spread the previous search unchanged, so
+// the `edit: true` left behind by exiting a show survived the navigation and
+// kept the builder up — the button looked dead. The transform that clears it
+// lives in presentation-queue-search.ts with its own tests; this pins the
+// builder to actually using it (and its sibling, which keeps `?cards=` synced
+// to the draft).
+describe("/stage builder search writes", () => {
+  const source = readFileSync(path.resolve(import.meta.dirname, "./stage.lazy.tsx"), "utf-8");
+
+  it("starts presenting through startPresentingSearch", () => {
+    expect(source).toMatch(/startPresentingSearch\(prev, ids\)/u);
+  });
+
+  it("mirrors queue edits into the URL through queueDraftSearch", () => {
+    expect(source).toMatch(/queueDraftSearch\(prev, state\.ids\)/u);
+  });
+});
+
 describe("/stage mode", () => {
   it("accepts the edit mode", () => {
     expect(validateSearch.parse({ tier: "list-1", mode: "edit" })).toMatchObject({

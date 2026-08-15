@@ -16,6 +16,7 @@ export type PresentationAction =
   | "toggleRank"
   | "toggleReveal"
   | "toggleDirection"
+  | "toggleObs"
   | "toggleEdit"
   | "push"
   | "exit";
@@ -31,6 +32,7 @@ export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<Presentati
   "toggleRank",
   "toggleReveal",
   "toggleDirection",
+  "toggleObs",
 ]);
 
 /**
@@ -42,7 +44,9 @@ export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<Presentati
  * activate the control the creator has tabbed to.
  *
  * A superset of {@link BOARD_ACTIONS}: every board layer is a way of dressing
- * the walk, so none of them survive into the editor either.
+ * the walk, so none of them survive into the editor either. The OBS mirror goes
+ * with them — a board being changed is deliberately not one that goes out live,
+ * so its switch is off the settings panel while editing and its key is inert.
  */
 export const WALK_ACTIONS: ReadonlySet<PresentationAction> = new Set<PresentationAction>([
   "prev",
@@ -120,6 +124,10 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "d":
     case "D": {
       return "toggleDirection";
+    }
+    case "o":
+    case "O": {
+      return "toggleObs";
     }
     case "e":
     case "E": {

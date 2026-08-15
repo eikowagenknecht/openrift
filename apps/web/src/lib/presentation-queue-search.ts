@@ -21,3 +21,34 @@ export const queueCardsSearchSchema = z
   .transform((ids) => ids.slice(0, MAX_QUEUE_LENGTH))
   .optional()
   .catch(undefined);
+
+/**
+ * The search rewrite for "Start presenting": the queue as it stands, from the
+ * top. `edit` is cleared explicitly — leaving a show writes `edit: true` into
+ * the URL to reopen the builder, and carrying it forward here kept the builder
+ * up, which made the button do nothing on any queue that had been presented
+ * once already.
+ *
+ * @returns The next search params, with everything else preserved.
+ */
+export function startPresentingSearch<T extends object>(
+  prev: T,
+  ids: readonly string[],
+): Omit<T, "cards" | "i" | "edit"> & { cards: string[]; i: number; edit: undefined } {
+  return { ...prev, cards: [...ids], i: 0, edit: undefined };
+}
+
+/**
+ * The search rewrite that keeps `?cards=` tracking the queue draft as it is
+ * edited, so a refresh mid-build reopens the same queue and the URL in the bar
+ * is always the link it looks like. An empty queue drops the param rather than
+ * writing `cards=[]`, so a cleared builder returns to the bare /stage URL.
+ *
+ * @returns The next search params, with everything else preserved.
+ */
+export function queueDraftSearch<T extends object>(
+  prev: T,
+  ids: readonly string[],
+): Omit<T, "cards"> & { cards: string[] | undefined } {
+  return { ...prev, cards: ids.length > 0 ? [...ids] : undefined };
+}

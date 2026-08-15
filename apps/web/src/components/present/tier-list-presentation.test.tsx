@@ -3,10 +3,12 @@ import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StageEditControls } from "@/components/present/presentation-stage";
+import type { StageEditControls, StageObsBoard } from "@/components/present/presentation-stage";
 import type { PresentationItem } from "@/lib/presentation-queue";
+import { usePresentationStore } from "@/stores/presentation-store";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 import { stubCard, stubPrinting } from "@/test/factories";
+import { createStoreResetter } from "@/test/store-helpers";
 
 import { OwnedTierListPresentation } from "./tier-list-presentation";
 
@@ -72,6 +74,7 @@ interface StageCall {
   index: number;
   onExit: () => void;
   edit?: StageEditControls;
+  obsBoard?: StageObsBoard;
   children: ReactNode;
 }
 const stageCalls: StageCall[] = [];
@@ -112,13 +115,17 @@ function renderOwned({ editing = false, index = 0 } = {}) {
   return { ...view, onEditingChange, onExit };
 }
 
+const resetPresentation = createStoreResetter(usePresentationStore);
+
 beforeEach(() => {
   stageCalls.length = 0;
   autosave.saving = false;
   useTierListBuilderStore.getState().reset();
+  resetPresentation();
 });
 
 afterEach(() => {
+  resetPresentation();
   vi.clearAllMocks();
 });
 
@@ -203,6 +210,29 @@ describe("OwnedTierListPresentation draft as the single source of truth", () => 
     // stage, which on a capture is a black hole where the show was.
     expect(lastStage().index).toBe(0);
     expect(lastStage().items).toHaveLength(1);
+  });
+});
+
+describe("OwnedTierListPresentation board for the OBS overlay", () => {
+  it("offers the board as the list saves it, not as the stage resolved it", () => {
+    // The overlay resolves the rows against its own catalogue, exactly as the
+    // board on stage does. Handing it resolved rows would put card objects on
+    // the wire and fail the board schema.
+    renderOwned();
+    expect(lastStage().obsBoard).toMatchObject({ title: "Best legends", tiers: savedTiers });
+  });
+
+  it("follows the run once the board is filling card by card", () => {
+    usePresentationStore.setState({ reveal: true });
+    renderOwned({ index: 1 });
+    // One card is ranked, so the run is one stop long and the index clamps to
+    // it — the card in hand is not on the board.
+    expect(lastStage().obsBoard?.revealCount).toBe(0);
+  });
+
+  it("puts the whole ranking up while the show is a spotlight", () => {
+    renderOwned();
+    expect(lastStage().obsBoard?.revealCount).toBe(1);
   });
 });
 
