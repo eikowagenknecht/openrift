@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict t8ivtuEORSPXBbE4JBA3v4gH6uh5WvD5hPlVmRg60EnhXo3bJA6WgEam0V3ehFJ
+\restrict 0QGfUuNuf9P0pqFuu3SPFeEL9QMI0PkdFEc0tLn6MbcwbynrnvLgllp7KXbkLcs
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -101,8 +101,7 @@ CREATE FUNCTION public.card_name_aliases_set_norm_name() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      -- norm_name is set directly by the application; this trigger is a safety net
-      -- in case someone inserts with a raw value that needs normalising.
+      NEW.norm_name := regexp_replace(lower(NEW.norm_name), '[^[:alnum:]]', '', 'g');
       RETURN NEW;
     END;
     $$;
@@ -282,29 +281,32 @@ CREATE FUNCTION public.rebalance_friend_group_owner() RETURNS trigger
 CREATE FUNCTION public.rebalance_organization_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-    DECLARE
-      org RECORD;
-      successor RECORD;
-    BEGIN
-      FOR org IN SELECT id FROM organizations WHERE owner_user_id = OLD.id LOOP
-        SELECT user_id INTO successor
-        FROM organization_members
-        WHERE org_id = org.id AND user_id <> OLD.id
-        ORDER BY (role = 'owner') DESC, (role = 'manager') DESC, joined_at ASC
-        LIMIT 1;
+  DECLARE
+    org RECORD;
+    successor RECORD;
+  BEGIN
+    FOR org IN SELECT id FROM organizations WHERE owner_user_id = OLD.id LOOP
+      SELECT user_id, role INTO successor
+      FROM organization_members
+      WHERE org_id = org.id AND user_id <> OLD.id
+      ORDER BY (role = 'owner') DESC, (role = 'manager') DESC, joined_at ASC
+      LIMIT 1;
 
-        IF FOUND THEN
-          UPDATE organizations
-             SET owner_user_id = successor.user_id
-           WHERE id = org.id;
+      IF FOUND THEN
+        -- A surviving co-owner already holds the role; only the pointer moves.
+        IF successor.role <> 'owner' THEN
           UPDATE organization_members
              SET role = 'owner'
            WHERE org_id = org.id AND user_id = successor.user_id;
         END IF;
-      END LOOP;
-      RETURN OLD;
-    END;
-    $$;
+        UPDATE organizations
+           SET owner_user_id = successor.user_id
+         WHERE id = org.id;
+      END IF;
+    END LOOP;
+    RETURN OLD;
+  END;
+  $$;
 
 
 --
@@ -338,6 +340,83 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
         NEW.updated_at := now();
       END IF;
       RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: snapshot_deleted_group_names(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.snapshot_deleted_group_names() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      DELETE FROM card_trade_copies
+       WHERE trade_id IN (
+         SELECT id FROM card_trades
+          WHERE group_id = OLD.id AND status IN ('pending', 'reserved')
+       );
+
+      UPDATE card_trades
+         SET status = 'cancelled',
+             closed_at = now(),
+             expires_at = NULL,
+             last_actor_user_id = NULL
+       WHERE group_id = OLD.id
+         AND status IN ('pending', 'reserved');
+
+      UPDATE card_trades
+         SET group_id = NULL, group_name = OLD.name
+       WHERE group_id = OLD.id;
+
+      RETURN OLD;
+    END;
+    $$;
+
+
+--
+-- Name: snapshot_deleted_user_names(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.snapshot_deleted_user_names() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      display_name text := COALESCE(NULLIF(OLD.name, ''), 'Former member');
+    BEGIN
+      -- A live trade needs two people. Close the ones this account was in
+      -- before snapshotting, so no request or reservation is left waiting on
+      -- somebody who is gone, and release the copies a reservation had pinned.
+      -- This is what leaving a group already does to that member's live trades.
+      DELETE FROM card_trade_copies
+       WHERE trade_id IN (
+         SELECT id FROM card_trades
+          WHERE (giver_user_id = OLD.id OR receiver_user_id = OLD.id)
+            AND status IN ('pending', 'reserved')
+       );
+
+      UPDATE card_trades
+         SET status = 'cancelled',
+             closed_at = now(),
+             expires_at = NULL,
+             last_actor_user_id = NULL
+       WHERE (giver_user_id = OLD.id OR receiver_user_id = OLD.id)
+         AND status IN ('pending', 'reserved');
+
+      UPDATE card_trades
+         SET giver_user_id = NULL, giver_name = display_name
+       WHERE giver_user_id = OLD.id;
+
+      UPDATE card_trades
+         SET receiver_user_id = NULL, receiver_name = display_name
+       WHERE receiver_user_id = OLD.id;
+
+      UPDATE loans
+         SET borrower_user_id = NULL, borrower_name = display_name
+       WHERE borrower_user_id = OLD.id;
+
+      RETURN OLD;
     END;
     $$;
 
@@ -752,8 +831,8 @@ CREATE TABLE public.candidate_printings (
     artist text,
     public_code text,
     printed_rules_text text,
-    printed_effect_text text DEFAULT ''::text,
-    flavor_text text DEFAULT ''::text,
+    printed_effect_text text,
+    flavor_text text,
     image_url text,
     extra_data jsonb,
     checked_at timestamp with time zone,
@@ -956,9 +1035,9 @@ CREATE TABLE public.card_trade_copies (
 
 CREATE TABLE public.card_trades (
     id uuid DEFAULT uuidv7() NOT NULL,
-    group_id uuid NOT NULL,
-    giver_user_id text NOT NULL,
-    receiver_user_id text NOT NULL,
+    group_id uuid,
+    giver_user_id text,
+    receiver_user_id text,
     initiator text NOT NULL,
     printing_id uuid NOT NULL,
     card_id uuid NOT NULL,
@@ -977,9 +1056,21 @@ CREATE TABLE public.card_trades (
     request_email_sent_at timestamp with time zone,
     reserved_email_sent_at timestamp with time zone,
     closed_email_sent_at timestamp with time zone,
+    giver_name text,
+    receiver_name text,
+    group_name text,
+    CONSTRAINT chk_card_trades_closed_shape CHECK (((status = ANY (ARRAY['declined'::text, 'cancelled'::text, 'expired'::text])) = (closed_at IS NOT NULL))),
+    CONSTRAINT chk_card_trades_completed_shape CHECK (((status = 'completed'::text) = (completed_at IS NOT NULL))),
     CONSTRAINT chk_card_trades_distinct_parties CHECK ((giver_user_id <> receiver_user_id)),
+    CONSTRAINT chk_card_trades_giver_name_not_empty CHECK (((giver_name IS NULL) OR (giver_name <> ''::text))),
+    CONSTRAINT chk_card_trades_giver_party_shape CHECK ((num_nonnulls(giver_user_id, giver_name) = 1)),
+    CONSTRAINT chk_card_trades_group_name_not_empty CHECK (((group_name IS NULL) OR (group_name <> ''::text))),
+    CONSTRAINT chk_card_trades_group_shape CHECK ((num_nonnulls(group_id, group_name) = 1)),
     CONSTRAINT chk_card_trades_initiator CHECK ((initiator = ANY (ARRAY['giver'::text, 'receiver'::text]))),
     CONSTRAINT chk_card_trades_quantity CHECK ((quantity > 0)),
+    CONSTRAINT chk_card_trades_receiver_name_not_empty CHECK (((receiver_name IS NULL) OR (receiver_name <> ''::text))),
+    CONSTRAINT chk_card_trades_receiver_party_shape CHECK ((num_nonnulls(receiver_user_id, receiver_name) = 1)),
+    CONSTRAINT chk_card_trades_reserved_accepted CHECK (((status <> 'reserved'::text) OR (accepted_at IS NOT NULL))),
     CONSTRAINT chk_card_trades_status CHECK ((status = ANY (ARRAY['pending'::text, 'reserved'::text, 'completed'::text, 'declined'::text, 'cancelled'::text, 'expired'::text])))
 );
 
@@ -1207,12 +1298,15 @@ CREATE TABLE public.deck_check_entries (
     allow_deck_publishing boolean DEFAULT true NOT NULL,
     tournament_id uuid NOT NULL,
     participant_id uuid,
+    CONSTRAINT chk_deck_check_entries_approved_shape CHECK (((state <> 'approved'::text) OR ((approved_at IS NOT NULL) AND (approved_by IS NOT NULL)))),
     CONSTRAINT chk_deck_check_entries_change_summary_shape CHECK (((change_summary IS NULL) OR (jsonb_typeof(change_summary) = 'object'::text))),
+    CONSTRAINT chk_deck_check_entries_checked_shape CHECK (((state <> 'checked'::text) OR ((checked_at IS NOT NULL) AND (checked_by IS NOT NULL)))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
     CONSTRAINT chk_deck_check_entries_pre_edit_lines_shape CHECK (((pre_edit_lines IS NULL) OR (jsonb_typeof(pre_edit_lines) = 'array'::text))),
     CONSTRAINT chk_deck_check_entries_review_outcome CHECK (((review_outcome IS NULL) OR (review_outcome = ANY (ARRAY['ok'::text, 'issue'::text])))),
-    CONSTRAINT chk_deck_check_entries_state CHECK ((state = ANY (ARRAY['editable'::text, 'submitted'::text, 'approved'::text, 'checked'::text, 'withdrawn'::text])))
+    CONSTRAINT chk_deck_check_entries_state CHECK ((state = ANY (ARRAY['editable'::text, 'submitted'::text, 'approved'::text, 'checked'::text, 'withdrawn'::text]))),
+    CONSTRAINT chk_deck_check_entries_withdrawn_shape CHECK (((state = 'withdrawn'::text) = (withdrawn_at IS NOT NULL)))
 );
 
 
@@ -1681,7 +1775,7 @@ CREATE TABLE public.image_files (
 --
 
 CREATE TABLE public.job_runs (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     kind text NOT NULL,
     trigger text NOT NULL,
     status text NOT NULL,
@@ -1861,7 +1955,7 @@ CREATE TABLE public.loans (
     closed_at timestamp with time zone,
     CONSTRAINT chk_loans_ack_reject CHECK ((NOT ((acknowledged_at IS NOT NULL) AND (rejected_at IS NOT NULL)))),
     CONSTRAINT chk_loans_borrower_name_not_empty CHECK (((borrower_name IS NULL) OR (borrower_name <> ''::text))),
-    CONSTRAINT chk_loans_borrower_shape CHECK ((NOT ((borrower_user_id IS NOT NULL) AND (borrower_name IS NOT NULL)))),
+    CONSTRAINT chk_loans_borrower_shape CHECK ((num_nonnulls(borrower_user_id, borrower_name) = 1)),
     CONSTRAINT chk_loans_closed_shape CHECK (((status = 'active'::text) = (closed_at IS NULL))),
     CONSTRAINT chk_loans_distinct_parties CHECK (((borrower_user_id IS NULL) OR (borrower_user_id <> lender_user_id))),
     CONSTRAINT chk_loans_quantity CHECK ((quantity > 0)),
@@ -1902,7 +1996,8 @@ CREATE TABLE public.marketplace_groups (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
     group_kind public.marketplace_group_kind DEFAULT 'basic'::public.marketplace_group_kind NOT NULL,
-    set_id uuid
+    set_id uuid,
+    CONSTRAINT chk_marketplace_groups_marketplace CHECK ((marketplace = ANY (ARRAY['tcgplayer'::text, 'cardmarket'::text, 'cardtrader'::text])))
 );
 
 
@@ -1915,7 +2010,8 @@ CREATE TABLE public.marketplace_ignored_products (
     external_id integer NOT NULL,
     product_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_marketplace_ignored_products_marketplace CHECK ((marketplace = ANY (ARRAY['tcgplayer'::text, 'cardmarket'::text, 'cardtrader'::text])))
 );
 
 
@@ -2001,7 +2097,7 @@ CREATE TABLE public.marketplace_products (
     language text,
     norm_name text DEFAULT ''::text NOT NULL,
     CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
-    CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
+    CONSTRAINT chk_marketplace_products_marketplace CHECK ((marketplace = ANY (ARRAY['tcgplayer'::text, 'cardmarket'::text, 'cardtrader'::text]))),
     CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
 );
 
@@ -2265,7 +2361,7 @@ CREATE TABLE public.overlay_channels (
     user_id text NOT NULL,
     token text NOT NULL,
     payload jsonb DEFAULT '{}'::jsonb NOT NULL,
-    version bigint DEFAULT 0 NOT NULL,
+    version integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_overlay_channels_payload_shape CHECK (((payload IS NULL) OR (jsonb_typeof(payload) = 'object'::text))),
@@ -2352,7 +2448,7 @@ CREATE TABLE public.printing_distribution_channels (
 --
 
 CREATE TABLE public.printing_events (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     printing_id uuid NOT NULL,
     status text DEFAULT 'pending'::text NOT NULL,
     retry_count integer DEFAULT 0 NOT NULL,
@@ -2510,7 +2606,7 @@ CREATE TABLE public.rule_versions (
 --
 
 CREATE TABLE public.rules (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     version text NOT NULL,
     rule_number text NOT NULL,
     sort_order integer NOT NULL,
@@ -3458,6 +3554,14 @@ ALTER TABLE ONLY public.job_runs
 
 
 --
+-- Name: keyword_translations keyword_translations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.keyword_translations
+    ADD CONSTRAINT keyword_translations_pkey PRIMARY KEY (keyword_name, language);
+
+
+--
 -- Name: keywords keywords_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4042,14 +4146,6 @@ ALTER TABLE ONLY public.friend_group_members
 
 
 --
--- Name: keyword_translations uq_keyword_translations_keyword_language; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.keyword_translations
-    ADD CONSTRAINT uq_keyword_translations_keyword_language UNIQUE (keyword_name, language);
-
-
---
 -- Name: lists uq_lists_id_kind; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4095,6 +4191,14 @@ ALTER TABLE ONLY public.pod_rounds
 
 ALTER TABLE ONLY public.pods
     ADD CONSTRAINT uq_pods_number UNIQUE (round_id, pod_number);
+
+
+--
+-- Name: printings uq_printings_id_card; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT uq_printings_id_card UNIQUE (id, card_id);
 
 
 --
@@ -4253,13 +4357,6 @@ CREATE INDEX idx_candidate_meta_decks_event ON public.candidate_meta_decks USING
 
 
 --
--- Name: idx_candidate_printings_candidate_card; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_candidate_printings_candidate_card ON public.candidate_printings USING btree (candidate_card_id);
-
-
---
 -- Name: idx_candidate_printings_card_external_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4298,7 +4395,7 @@ CREATE INDEX idx_card_submissions_candidate_card_id ON public.card_submissions U
 -- Name: idx_card_submissions_user_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_card_submissions_user_created ON public.card_submissions USING btree (user_id, created_at DESC);
+CREATE INDEX idx_card_submissions_user_created ON public.card_submissions USING btree (user_id, created_at DESC, id DESC);
 
 
 --
@@ -4400,6 +4497,13 @@ CREATE INDEX idx_collection_events_from_collection ON public.collection_events U
 
 
 --
+-- Name: idx_collection_events_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_events_printing ON public.collection_events USING btree (printing_id);
+
+
+--
 -- Name: idx_collection_events_to_collection; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4410,7 +4514,7 @@ CREATE INDEX idx_collection_events_to_collection ON public.collection_events USI
 -- Name: idx_collection_events_user_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_collection_events_user_created ON public.collection_events USING btree (user_id, created_at);
+CREATE INDEX idx_collection_events_user_created ON public.collection_events USING btree (user_id, created_at, id);
 
 
 --
@@ -4435,10 +4539,10 @@ CREATE INDEX idx_collections_user_id ON public.collections USING btree (user_id)
 
 
 --
--- Name: idx_copies_collection; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_copies_collection_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_copies_collection ON public.copies USING btree (collection_id);
+CREATE INDEX idx_copies_collection_created ON public.copies USING btree (collection_id, created_at DESC, id);
 
 
 --
@@ -4456,10 +4560,24 @@ CREATE INDEX idx_custom_tags_category_id ON public.custom_tags USING btree (cate
 
 
 --
+-- Name: idx_deck_cards_card; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_cards_card ON public.deck_cards USING btree (card_id);
+
+
+--
 -- Name: idx_deck_cards_deck; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
+
+
+--
+-- Name: idx_deck_cards_preferred_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_cards_preferred_printing ON public.deck_cards USING btree (preferred_printing_id) WHERE (preferred_printing_id IS NOT NULL);
 
 
 --
@@ -4519,6 +4637,13 @@ CREATE INDEX idx_deck_matchup_swaps_plan ON public.deck_matchup_swaps USING btre
 
 
 --
+-- Name: idx_decks_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_decks_collection ON public.decks USING btree (collection_id) WHERE (collection_id IS NOT NULL);
+
+
+--
 -- Name: idx_decks_family_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4561,13 +4686,6 @@ CREATE INDEX idx_friend_group_collection_shares_collection ON public.friend_grou
 
 
 --
--- Name: idx_friend_group_collection_shares_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_friend_group_collection_shares_group ON public.friend_group_collection_shares USING btree (group_id);
-
-
---
 -- Name: idx_friend_group_invites_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4575,24 +4693,10 @@ CREATE INDEX idx_friend_group_invites_user ON public.friend_group_invites USING 
 
 
 --
--- Name: idx_friend_group_list_shares_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_friend_group_list_shares_group ON public.friend_group_list_shares USING btree (group_id);
-
-
---
 -- Name: idx_friend_group_list_shares_list; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_friend_group_list_shares_list ON public.friend_group_list_shares USING btree (list_id);
-
-
---
--- Name: idx_friend_group_member_contacts_member; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_friend_group_member_contacts_member ON public.friend_group_member_contacts USING btree (group_id, user_id);
 
 
 --
@@ -4645,6 +4749,13 @@ CREATE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (s
 
 
 --
+-- Name: idx_list_entries_card; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_list_entries_card ON public.list_entries USING btree (card_id) WHERE (card_id IS NOT NULL);
+
+
+--
 -- Name: idx_list_entries_copy; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4659,10 +4770,10 @@ CREATE INDEX idx_list_entries_list ON public.list_entries USING btree (list_id);
 
 
 --
--- Name: idx_lists_user_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_list_entries_printing; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_lists_user_id ON public.lists USING btree (user_id);
+CREATE INDEX idx_list_entries_printing ON public.list_entries USING btree (printing_id) WHERE (printing_id IS NOT NULL);
 
 
 --
@@ -4785,20 +4896,6 @@ CREATE INDEX idx_pod_members_player ON public.pod_members USING btree (player_id
 
 
 --
--- Name: idx_pod_rounds_tournament; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_pod_rounds_tournament ON public.pod_rounds USING btree (tournament_id);
-
-
---
--- Name: idx_pods_round; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_pods_round ON public.pods USING btree (round_id);
-
-
---
 -- Name: idx_printing_distribution_channels_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4827,13 +4924,6 @@ CREATE INDEX idx_printing_images_printing_face ON public.printing_images USING b
 
 
 --
--- Name: idx_printing_images_printing_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_printing_images_printing_id ON public.printing_images USING btree (printing_id);
-
-
---
 -- Name: idx_printing_markers_marker_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4859,13 +4949,6 @@ CREATE INDEX idx_printings_card_id ON public.printings USING btree (card_id);
 --
 
 CREATE INDEX idx_printings_marker_slugs ON public.printings USING gin (marker_slugs);
-
-
---
--- Name: idx_printings_rarity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_printings_rarity ON public.printings USING btree (rarity);
 
 
 --
@@ -4999,6 +5082,13 @@ CREATE UNIQUE INDEX marketplace_product_variants_product_printing_key ON public.
 --
 
 CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products USING btree (marketplace, external_id, finish, language) NULLS NOT DISTINCT;
+
+
+--
+-- Name: uq_accounts_provider_account; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_accounts_provider_account ON public.accounts USING btree (provider_id, account_id);
 
 
 --
@@ -5258,6 +5348,13 @@ CREATE TRIGGER trg_art_variants_protect_well_known BEFORE DELETE OR UPDATE ON pu
 --
 
 CREATE TRIGGER trg_candidate_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.candidate_cards_set_norm_name();
+
+
+--
+-- Name: card_name_aliases trg_card_name_aliases_norm_name; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_card_name_aliases_norm_name BEFORE INSERT OR UPDATE OF norm_name ON public.card_name_aliases FOR EACH ROW EXECUTE FUNCTION public.card_name_aliases_set_norm_name();
 
 
 --
@@ -5744,6 +5841,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.verifications FOR EACH
 
 
 --
+-- Name: friend_groups trg_snapshot_deleted_group_names; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_snapshot_deleted_group_names BEFORE DELETE ON public.friend_groups FOR EACH ROW EXECUTE FUNCTION public.snapshot_deleted_group_names();
+
+
+--
+-- Name: users trg_snapshot_deleted_user_names; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_snapshot_deleted_user_names BEFORE DELETE ON public.users FOR EACH ROW EXECUTE FUNCTION public.snapshot_deleted_user_names();
+
+
+--
 -- Name: super_types trg_super_types_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6009,7 +6120,7 @@ ALTER TABLE ONLY public.card_trades
 --
 
 ALTER TABLE ONLY public.card_trades
-    ADD CONSTRAINT card_trades_giver_user_id_fkey FOREIGN KEY (giver_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT card_trades_giver_user_id_fkey FOREIGN KEY (giver_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -6017,7 +6128,7 @@ ALTER TABLE ONLY public.card_trades
 --
 
 ALTER TABLE ONLY public.card_trades
-    ADD CONSTRAINT card_trades_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+    ADD CONSTRAINT card_trades_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE SET NULL;
 
 
 --
@@ -6041,7 +6152,7 @@ ALTER TABLE ONLY public.card_trades
 --
 
 ALTER TABLE ONLY public.card_trades
-    ADD CONSTRAINT card_trades_receiver_user_id_fkey FOREIGN KEY (receiver_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT card_trades_receiver_user_id_fkey FOREIGN KEY (receiver_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -6341,6 +6452,14 @@ ALTER TABLE ONLY public.distribution_channels
 
 
 --
+-- Name: card_trades fk_card_trades_printing_card; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT fk_card_trades_printing_card FOREIGN KEY (printing_id, card_id) REFERENCES public.printings(id, card_id);
+
+
+--
 -- Name: cards fk_cards_type; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6389,11 +6508,27 @@ ALTER TABLE ONLY public.copies
 
 
 --
+-- Name: deck_cards fk_deck_cards_printing_card; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_cards
+    ADD CONSTRAINT fk_deck_cards_printing_card FOREIGN KEY (preferred_printing_id, card_id) REFERENCES public.printings(id, card_id);
+
+
+--
 -- Name: deck_cards fk_deck_cards_zone; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_cards
     ADD CONSTRAINT fk_deck_cards_zone FOREIGN KEY (zone) REFERENCES public.deck_zones(slug);
+
+
+--
+-- Name: deck_check_entry_cards fk_deck_check_entry_cards_printing_card; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT fk_deck_check_entry_cards_printing_card FOREIGN KEY (resolved_printing_id, resolved_card_id) REFERENCES public.printings(id, card_id);
 
 
 --
@@ -6410,6 +6545,14 @@ ALTER TABLE ONLY public.deck_folder_entries
 
 ALTER TABLE ONLY public.deck_folder_entries
     ADD CONSTRAINT fk_deck_folder_entries_folder_user FOREIGN KEY (folder_id, user_id) REFERENCES public.deck_folders(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: decks fk_decks_cover_printing_card; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT fk_decks_cover_printing_card FOREIGN KEY (cover_printing_id, cover_card_id) REFERENCES public.printings(id, card_id);
 
 
 --
@@ -6445,6 +6588,14 @@ ALTER TABLE ONLY public.friend_group_collection_shares
 
 
 --
+-- Name: friend_group_list_shares fk_friend_group_list_shares_list; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_list_shares
+    ADD CONSTRAINT fk_friend_group_list_shares_list FOREIGN KEY (list_id, user_id) REFERENCES public.lists(id, user_id) ON DELETE CASCADE;
+
+
+--
 -- Name: friend_group_list_shares fk_friend_group_list_shares_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6474,6 +6625,22 @@ ALTER TABLE ONLY public.list_entries
 
 ALTER TABLE ONLY public.list_entries
     ADD CONSTRAINT fk_list_entries_list_user FOREIGN KEY (list_id, user_id) REFERENCES public.lists(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: loans fk_loans_printing_card; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT fk_loans_printing_card FOREIGN KEY (printing_id, card_id) REFERENCES public.printings(id, card_id);
+
+
+--
+-- Name: organizations fk_organizations_owner_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT fk_organizations_owner_membership FOREIGN KEY (id, owner_user_id) REFERENCES public.organization_members(org_id, user_id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -6554,14 +6721,6 @@ ALTER TABLE ONLY public.friend_group_invites
 
 ALTER TABLE ONLY public.friend_group_invites
     ADD CONSTRAINT friend_group_invites_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: friend_group_list_shares friend_group_list_shares_list_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.friend_group_list_shares
-    ADD CONSTRAINT friend_group_list_shares_list_id_fkey FOREIGN KEY (list_id) REFERENCES public.lists(id) ON DELETE CASCADE;
 
 
 --
@@ -7120,5 +7279,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict t8ivtuEORSPXBbE4JBA3v4gH6uh5WvD5hPlVmRg60EnhXo3bJA6WgEam0V3ehFJ
+\unrestrict 0QGfUuNuf9P0pqFuu3SPFeEL9QMI0PkdFEc0tLn6MbcwbynrnvLgllp7KXbkLcs
 

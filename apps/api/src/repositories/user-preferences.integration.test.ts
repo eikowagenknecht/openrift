@@ -5,14 +5,8 @@ import { userPreferencesRepo } from "./user-preferences.js";
 
 const ctx = createDbContext("a0000000-0037-4000-a000-000000000001");
 
-/** postgres.js under bun returns jsonb as a string rather than a parsed object.
- *  This helper normalizes it for assertions.
- *  @returns The parsed preferences object. */
-function parsePrefs(data: unknown): Record<string, unknown> {
-  return typeof data === "string" ? JSON.parse(data) : (data as Record<string, unknown>);
-}
-
 describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db, userId } = ctx!;
   const repo = userPreferencesRepo(db);
 
@@ -26,7 +20,7 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
   });
 
   it("upsert creates preferences for new user with only the provided field", async () => {
-    const result = parsePrefs(await repo.upsert(userId, { showImages: false }));
+    const result = await repo.upsert(userId, { showImages: false });
     expect(result.showImages).toBe(false);
     // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
     expect(Object.keys(result)).toEqual(["showImages"]);
@@ -35,20 +29,57 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
   it("getByUserId returns saved preferences after upsert", async () => {
     const row = await repo.getByUserId(userId);
     expect(row).toBeDefined();
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
     expect(row!.userId).toBe(userId);
-    const data = parsePrefs(row!.data);
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+    const data = row!.data;
     expect(data.showImages).toBe(false);
     // theme is not stored (using default), so it should be absent
     expect(data.theme).toBeUndefined();
   });
 
-  it("upsert on existing row exercises the on-conflict path", async () => {
-    // Second upsert exercises the ON CONFLICT DO UPDATE path.
-    // Note: under bun, postgres.js returns jsonb as a string, which means
-    // the repo's `existing?.data` spread produces incorrect merges. This is
-    // a known bun/postgres.js discrepancy.
-    // We just verify the DB operation itself succeeds.
+  it("upsert on an existing row merges instead of replacing", async () => {
     const result = await repo.upsert(userId, { theme: "dark" });
-    expect(result).toBeDefined();
+    expect(result.theme).toBe("dark");
+    expect(result.showImages).toBe(false);
+  });
+
+  it("upsert replaces a whole top-level key rather than deep-merging it", async () => {
+    await repo.upsert(userId, { emailNotifications: { tradeMatches: true, tradeStatus: false } });
+    const replaced = await repo.upsert(userId, { emailNotifications: { tradeMatches: false } });
+    expect(replaced.emailNotifications).toEqual({ tradeMatches: false });
+  });
+
+  it("upsert removes a key sent as null and leaves the rest alone", async () => {
+    const result = await repo.upsert(userId, { emailNotifications: null });
+    expect(result.emailNotifications).toBeUndefined();
+    expect(result.theme).toBe("dark");
+    expect(result.showImages).toBe(false);
+  });
+
+  // Regression: the merge used to happen in JS between a read and a write, so
+  // concurrent PATCHes each wrote the snapshot they had read and the last one
+  // in dropped every key the others had added. Merging in SQL leaves no window.
+  it("keeps every key when concurrent patches overlap", async () => {
+    const concurrentUserId = `${userId}-concurrent`;
+    await repo.upsert(concurrentUserId, { showImages: true });
+
+    await Promise.all([
+      repo.upsert(concurrentUserId, { theme: "dark" }),
+      repo.upsert(concurrentUserId, { palette: "minimal" }),
+      repo.upsert(concurrentUserId, { defaultCardView: "printings" }),
+      repo.upsert(concurrentUserId, { defaultCurrency: "USD" }),
+    ]);
+
+    const row = await repo.getByUserId(concurrentUserId);
+    expect(row?.data).toEqual({
+      showImages: true,
+      theme: "dark",
+      palette: "minimal",
+      defaultCardView: "printings",
+      defaultCurrency: "USD",
+    });
+
+    await db.deleteFrom("userPreferences").where("userId", "=", concurrentUserId).execute();
   });
 });

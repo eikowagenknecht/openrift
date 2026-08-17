@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-17
+
+### Other
+
+- fix(Trades): **Trade history survives deletions** — completed trades now keep the other person's and the group's name when an account or group is deleted, instead of vanishing from your history.
+
 ## 2026-08-15
 
 ### Highlights

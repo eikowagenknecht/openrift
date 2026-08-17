@@ -1,7 +1,6 @@
 import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared";
 import { compareRuleNumbers } from "@openrift/shared";
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -27,7 +26,8 @@ export function rulesRepo(db: Kysely<Database>) {
           "in",
           db
             .selectFrom("rules as r2")
-            .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+            .select("r2.id")
+            .distinctOn("r2.ruleNumber")
             .where("r2.kind", "=", kind)
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
@@ -55,7 +55,8 @@ export function rulesRepo(db: Kysely<Database>) {
           "in",
           db
             .selectFrom("rules as r2")
-            .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+            .select("r2.id")
+            .distinctOn("r2.ruleNumber")
             .where("r2.kind", "=", kind)
             .where("r2.version", "<=", version)
             .orderBy("r2.ruleNumber")
@@ -97,7 +98,8 @@ export function rulesRepo(db: Kysely<Database>) {
             "in",
             db
               .selectFrom("rules as r3")
-              .select(sql<string>`DISTINCT ON (r3.rule_number) r3.id`.as("id"))
+              .select("r3.id")
+              .distinctOn("r3.ruleNumber")
               .where("r3.kind", "=", kind)
               .where("r3.ruleNumber", "in", ruleNumbersNeedingPrev)
               .where("r3.version", "<", version)
@@ -176,7 +178,7 @@ export function rulesRepo(db: Kysely<Database>) {
         return 0;
       }
       const result = await db.insertInto("rules").values(rules).execute();
-      return result.length;
+      return result.reduce((sum, row) => sum + Number(row.numInsertedOrUpdatedRows ?? 0), 0);
     },
 
     /**

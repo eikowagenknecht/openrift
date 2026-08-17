@@ -44,7 +44,7 @@ import {
   podRoundStatusSchema,
   tradeTypeResponseSchema,
 } from "@openrift/shared/response-schemas";
-import { TRADE_PRICE_PREFS } from "@openrift/shared/types";
+import { marketplaceEnum, TRADE_PRICE_PREFS } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -91,6 +91,9 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_lists_kind: listKindResponseSchema.options,
   lists_rule_combine_check: listRuleCombineSchema.options,
   chk_loans_status: LOAN_STATUSES,
+  chk_marketplace_groups_marketplace: marketplaceEnum.options,
+  chk_marketplace_ignored_products_marketplace: marketplaceEnum.options,
+  chk_marketplace_products_marketplace: marketplaceEnum.options,
   chk_meta_decks_list_status: metaListStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
   chk_pod_rounds_status: podRoundStatusSchema.options,

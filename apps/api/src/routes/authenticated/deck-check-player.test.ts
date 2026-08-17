@@ -743,8 +743,8 @@ describe("POST /deck-check/mine/{entryId}/submit", () => {
 
 describe("POST/DELETE /deck-check/mine/{entryId}/unlock", () => {
   it("self-unlocks a submitted entry in at_deadline mode, keeping the existing baseline", async () => {
-    // `preEditLines` is read back already-deserialized (ColumnType<CardLine[],
-    // string, string>) — a stored array, not a JSON string.
+    // `preEditLines` is a jsonb column typed as its parsed shape, so a read
+    // hands back the stored array itself, never JSON text.
     const storedPreEditLines = [{ name: "Old Card", zone: "main", quantity: 1 }];
     const repos = makeRepos();
     const row = playerRow({ state: "submitted", preEditLines: storedPreEditLines });

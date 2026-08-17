@@ -191,6 +191,42 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(await repo.findByGuildId(`guild-${groupA.id}`)).toBeUndefined();
   });
 
+  // Regression: the redeem ran as four statements on the bare db, so two
+  // concurrent /link commands could both pass the pending check and bind two
+  // guilds to a single one-time code. The FOR UPDATE lock inside the
+  // transaction serializes them: the loser re-checks the qualifier once the
+  // lock lifts, no longer matches, and reports unknown-code.
+  it("lets only one of two concurrent redeems consume the code", async () => {
+    const group = await createGroup();
+    await repo.createPendingLink({
+      groupId: group.id,
+      createdByUserId: OWNER_ID,
+      code: `race-${group.id}`,
+      codeExpiresAt: futureExpiry(),
+    });
+
+    const outcomes = await Promise.all([
+      repo.redeemCode({
+        code: `race-${group.id}`,
+        guildId: `guild-race-a-${group.id}`,
+        guildName: "First",
+      }),
+      repo.redeemCode({
+        code: `race-${group.id}`,
+        guildId: `guild-race-b-${group.id}`,
+        guildName: "Second",
+      }),
+    ]);
+
+    const statuses = outcomes.map((outcome) => outcome.status).toSorted();
+    expect(statuses).toEqual(["linked", "unknown-code"]);
+
+    // Exactly one guild bound, and the code is gone.
+    const links = await repo.listLinks(group.id);
+    expect(links).toHaveLength(1);
+    expect(links[0].code).toBeNull();
+  });
+
   /**
    * Links a fresh group to a guild.
    *

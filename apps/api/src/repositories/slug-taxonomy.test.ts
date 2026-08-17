@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createCapturingDb, onlyStatement } from "../test/capturing-db.js";
+import { createRecordingDb, onlyStatement } from "../test/recording-db.js";
 import { slugTaxonomyRepo } from "./slug-taxonomy.js";
 
-const captured = createCapturingDb();
+const captured = createRecordingDb();
 const { db } = captured;
 
 const isInUse = vi.fn(() => Promise.resolve(undefined));

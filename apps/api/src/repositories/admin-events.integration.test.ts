@@ -74,7 +74,8 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
 
     const fieldEdit = rows.find((r) => r.action === "card.accept-field");
     expect(fieldEdit?.actorUserId).toBe(ACTOR_B);
-    // jsonb round-trip through parseJsonb (postgres.js under Bun returns strings)
+    // jsonb round-trip: the object goes in and comes back as an object, because
+    // postgres.js does the serializing on both legs and nothing re-encodes it.
     expect(fieldEdit?.oldValues).toEqual({ energy: 2 });
     expect(fieldEdit?.newValues).toEqual({ energy: 3 });
 

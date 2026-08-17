@@ -228,6 +228,23 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     expect(after.length).toBe(beforeCount);
   });
 
+  // Regression: upsert used to SELECT the slug and then INSERT in a second
+  // statement, so concurrent ingests of the same new set both saw it missing
+  // and every loser threw on sets_slug_key. One INSERT ... ON CONFLICT DO
+  // NOTHING absorbs the race.
+  it("upsert tolerates concurrent inserts of the same new slug", async () => {
+    const slug = "test-upsert-race-42";
+
+    await Promise.all(Array.from({ length: 5 }, () => repo.upsert(slug, "Raced Set")));
+
+    const found = await repo.getBySlug(slug);
+    expect(found).toBeDefined();
+    createdSetIds.push(found!.id);
+
+    const all = await repo.listAll();
+    expect(all.filter((s) => s.slug === slug)).toHaveLength(1);
+  });
+
   it("deleteById removes a set", async () => {
     await repo.create({
       slug: "test-delete-42",

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb, onlyStatement } from "../test/recording-db.js";
 import { marketplaceRepo } from "./marketplace.js";
 
 describe("marketplaceRepo", () => {
@@ -45,5 +46,37 @@ describe("marketplaceRepo", () => {
     const db = createMockDb([]);
     const repo = marketplaceRepo(db);
     expect(await repo.snapshots("ps1", new Date("2025-01-01"))).toEqual([]);
+  });
+});
+
+describe("marketplaceRepo (generated SQL)", () => {
+  const captured = createRecordingDb();
+
+  beforeEach(() => {
+    captured.reset();
+  });
+
+  it("sourcesForPrinting reads only the variants bound to that printing", async () => {
+    // Migration 107 materialised cross-language aggregates as their own
+    // variant rows, so there is no sibling fan-out left to replay here.
+    await marketplaceRepo(captured.db).sourcesForPrinting("pr-1");
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toBe(
+      'select "mpv"."id" as "variant_id", "mp"."external_id" as "external_id",' +
+        ' "mp"."marketplace" as "marketplace", "mp"."language" as "language"' +
+        ' from "marketplace_product_variants" as "mpv"' +
+        ' inner join "marketplace_products" as "mp" on "mp"."id" = "mpv"."marketplace_product_id"' +
+        ' where "mpv"."printing_id" = $1',
+    );
+    expect(parameters).toEqual(["pr-1"]);
+  });
+
+  it("sourcesForPrintings binds every printing id it was given", async () => {
+    await marketplaceRepo(captured.db).sourcesForPrintings(["pr-1", "pr-2"]);
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toContain('where "mpv"."printing_id" in ($1, $2)');
+    expect(parameters).toEqual(["pr-1", "pr-2"]);
   });
 });

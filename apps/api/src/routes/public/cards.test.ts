@@ -161,7 +161,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
       correctedEffectText: null,
       source: "Riot",
       sourceUrl: null,
-      effectiveDate: new Date("2026-01-01T00:00:00Z"),
+      effectiveDate: "2026-01-01",
     });
 
     const res = await app.request("/api/v1/cards/jinx-rebel");

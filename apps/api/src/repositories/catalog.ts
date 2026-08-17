@@ -1,7 +1,7 @@
 import { WellKnown } from "@openrift/shared";
 import type { SetReleases } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
-import type { Kysely, RawBuilder, Selectable } from "kysely";
+import type { Kysely, NotNull, RawBuilder, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type {
@@ -22,6 +22,18 @@ type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "u
   types: CardType[];
   tokenCardIds: string[];
 };
+
+/**
+ * `mv_card_aggregates` types its slug arrays as plain `string[]` — a view can't
+ * carry the vocabulary unions — so every read of it narrows to the catalog's
+ * types. One alias rather than three inline objects, so a column added to the
+ * view can't be narrowed at one call site and forgotten at the next.
+ */
+interface CardAggregateNarrowing {
+  domains: Domain[];
+  superTypes: SuperType[];
+  types: CardType[];
+}
 
 /** Active ban row returned by the catalog. */
 type CatalogCardBanRow = Pick<
@@ -250,7 +262,8 @@ export function catalogRepo(db: Kysely<Database>) {
           "mca.types",
         ])
         .orderBy("cards.name")
-        .execute() as Promise<CatalogCardRow[]>;
+        .$narrowType<CardAggregateNarrowing>()
+        .execute();
     },
 
     /** @returns All active card bans (not yet unbanned), with format display name. */
@@ -358,7 +371,8 @@ export function catalogRepo(db: Kysely<Database>) {
         .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingId")
         .orderBy("face")
-        .execute() as Promise<CatalogPrintingImageRow[]>;
+        .$narrowType<{ imageId: NotNull }>()
+        .execute();
     },
 
     /** @returns The total number of copies across all users. */
@@ -519,7 +533,8 @@ export function catalogRepo(db: Kysely<Database>) {
           .where("printings.language", "=", WellKnown.language.EN)
           .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
           .limit(sampleSize)
-          .execute() as Promise<{ imageId: string }[]>,
+          .$narrowType<{ imageId: NotNull }>()
+          .execute(),
       ]);
       return {
         cardCount: Number(cardCountRow.count),
@@ -563,7 +578,8 @@ export function catalogRepo(db: Kysely<Database>) {
           "mca.types",
         ])
         .where("cards.slug", "=", slug)
-        .executeTakeFirst() as Promise<CatalogCardRow | undefined>;
+        .$narrowType<CardAggregateNarrowing>()
+        .executeTakeFirst();
     },
 
     /**
@@ -621,7 +637,7 @@ export function catalogRepo(db: Kysely<Database>) {
         ])
         .where("p.cardId", "=", cardId)
         .orderBy("canonicalRank")
-        .execute() as Promise<CatalogPrintingRow[]>;
+        .execute();
     },
 
     /** @returns Printing images for a given card's printings. */
@@ -636,7 +652,8 @@ export function catalogRepo(db: Kysely<Database>) {
         .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
-        .execute() as Promise<CatalogPrintingImageRow[]>;
+        .$narrowType<{ imageId: NotNull }>()
+        .execute();
     },
 
     /** @returns Active bans for a single card. */
@@ -746,7 +763,8 @@ export function catalogRepo(db: Kysely<Database>) {
         ])
         .where("cards.id", "in", ids)
         .orderBy("cards.name")
-        .execute() as Promise<CatalogCardRow[]>;
+        .$narrowType<CardAggregateNarrowing>()
+        .execute();
     },
 
     /** @returns Printing images for a given set's printings. */
@@ -761,7 +779,8 @@ export function catalogRepo(db: Kysely<Database>) {
         .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
-        .execute() as Promise<CatalogPrintingImageRow[]>;
+        .$narrowType<{ imageId: NotNull }>()
+        .execute();
     },
 
     /**
@@ -808,7 +827,8 @@ export function catalogRepo(db: Kysely<Database>) {
           .distinctOn(imageId("ci"))
           .orderBy(imageId("ci"))
           .orderBy("printings.id")
-          .execute() as Promise<ScanReferenceRow[]>
+          .$narrowType<{ imageId: NotNull }>()
+          .execute()
       );
     },
 
@@ -826,10 +846,9 @@ export function catalogRepo(db: Kysely<Database>) {
         .orderBy("printings.setId")
         .orderBy(sql`(printings.language = ${WellKnown.language.EN}) DESC`)
         .orderBy("printings.shortCode")
+        .$narrowType<{ imageId: NotNull }>()
         .execute();
-      return new Map(
-        rows.filter((r) => r.imageId !== null).map((r) => [r.setId, r.imageId as string]),
-      );
+      return new Map(rows.map((r) => [r.setId, r.imageId]));
     },
 
     /**
@@ -881,7 +900,8 @@ export function catalogRepo(db: Kysely<Database>) {
         .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
-        .execute() as Promise<CatalogPrintingImageRow[]>;
+        .$narrowType<{ imageId: NotNull }>()
+        .execute();
     },
 
     /**

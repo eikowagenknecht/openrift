@@ -123,15 +123,6 @@ describe("GET /api/v1/preferences", () => {
     expect(json).toEqual({ languages: ["en"] });
   });
 
-  it("returns empty object when the stored blob is not an object", async () => {
-    // The repo JSON.parses the JSONB column; a double-encoded row yields a
-    // string, not the object the Kysely types promise.
-    mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: '{"showImages":true}' });
-    const res = await app.request("/api/v1/preferences");
-    expect(res.status).toBe(200);
-    expect(await readJson(res)).toEqual({});
-  });
-
   it("does not leak undocumented stored keys", async () => {
     mockRepo.getByUserId.mockResolvedValue({
       userId: USER_ID,

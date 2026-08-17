@@ -50,7 +50,7 @@ export const cardsRouter = {
           correctedEffectText: errataRow.correctedEffectText,
           source: errataRow.source,
           sourceUrl: errataRow.sourceUrl,
-          effectiveDate: errataRow.effectiveDate ? String(errataRow.effectiveDate) : null,
+          effectiveDate: errataRow.effectiveDate,
         }
       : null;
 

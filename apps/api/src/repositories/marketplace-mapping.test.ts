@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb } from "../test/recording-db.js";
 import { marketplaceMappingRepo } from "./marketplace-mapping.js";
 
 describe("marketplaceMappingRepo", () => {
@@ -61,9 +62,9 @@ describe("marketplaceMappingRepo", () => {
 
   it("upsertProductVariants batch-upserts product + variant rows", async () => {
     // The mock proxy returns the same rows from every call, so we structure the
-    // return value to satisfy both the product upsert (raw SQL: needs id,
-    // marketplace, externalId, finish, language) and the variant insert (Kysely
-    // RETURNING: needs id, marketplaceProductId, printingId).
+    // return value to satisfy both the product upsert (needs id, marketplace,
+    // externalId, finish, language) and the variant insert (needs id,
+    // marketplaceProductId, printingId).
     const db = createMockDb([
       {
         id: "mp-1",
@@ -145,5 +146,85 @@ describe("marketplaceMappingRepo", () => {
   it("deleteVariantById deletes a variant (parent product left behind)", async () => {
     const db = createMockDb([]);
     await expect(marketplaceMappingRepo(db).deleteVariantById("var-1")).resolves.toBeUndefined();
+  });
+
+  it("allStaging carries a NULL language through, the normal case for CM/TCG", async () => {
+    const rows = [
+      {
+        marketplace: "cardmarket",
+        externalId: 42,
+        groupId: 7,
+        productName: "Card",
+        finish: "normal",
+        language: null,
+        recordedAt: new Date("2026-08-15T00:00:00Z"),
+      },
+    ];
+    const db = createMockDb(rows);
+    const [row] = await marketplaceMappingRepo(db).allStaging("cardmarket");
+    expect(row.language).toBeNull();
+  });
+});
+
+describe("marketplaceMappingRepo (generated SQL)", () => {
+  const captured = createRecordingDb();
+
+  beforeEach(() => {
+    captured.reset();
+  });
+
+  it("allStaging picks the newest price per product through a lateral, not a full join", async () => {
+    // Joining the whole price history and reducing with DISTINCT ON made the
+    // cost grow with retained history. The lateral reads one row per product
+    // straight off the (marketplace_product_id, recorded_at) primary key.
+    await marketplaceMappingRepo(captured.db).allStaging("cardmarket");
+
+    const [{ sql, parameters }] = captured.statements;
+    const flat = sql.replaceAll(/\s+/gu, " ");
+    expect(flat).toContain('inner join lateral (select "p"."recorded_at"');
+    expect(flat).toContain('order by "p"."recorded_at" desc limit $1) as "latest" on true');
+    expect(flat).toContain(
+      'and not exists (select "mpv"."id" from "marketplace_product_variants" as "mpv"' +
+        ' where "mpv"."marketplace_product_id" = "mp"."id")',
+    );
+    expect(parameters).toEqual([1, "cardmarket"]);
+  });
+
+  it("upsertProductVariants updates on conflict so RETURNING covers existing products", async () => {
+    // The SKU unique is NULLS NOT DISTINCT, so a NULL language collapses onto
+    // the existing row rather than inserting a second one. `doNothing` would
+    // leave that row out of RETURNING and the variant would have no id to bind.
+    captured.setRows([
+      {
+        id: "mp-1",
+        marketplace: "cardmarket",
+        externalId: 42,
+        finish: "normal",
+        language: null,
+        marketplaceProductId: "mp-1",
+        printingId: "pr-1",
+      },
+    ]);
+
+    await marketplaceMappingRepo(captured.db).upsertProductVariants([
+      {
+        marketplace: "cardmarket",
+        printingId: "pr-1",
+        externalId: 42,
+        groupId: 7,
+        productName: "Card",
+        finish: "normal",
+        language: null,
+      },
+    ]);
+
+    const [products] = captured.statements;
+    expect(products.sql).toContain(
+      'on conflict ("marketplace", "external_id", "finish", "language") do update set',
+    );
+    expect(products.sql).toContain(
+      'returning "id", "marketplace", "external_id", "finish", "language"',
+    );
+    expect(products.parameters).toEqual(["cardmarket", 42, 7, "Card", "normal", null]);
   });
 });

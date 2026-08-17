@@ -118,57 +118,63 @@ export function marketplaceMappingRepo(db: Db) {
      * the latest `marketplace_product_prices` row per product, excluding
      * products that already have at least one variant binding (those products
      * already belong to a card and aren't candidates for fresh suggestions).
-     * @returns One row per unbound SKU with the latest recorded prices.
+     * @returns One row per unbound SKU with the latest recorded prices. `language`
+     *          is `null` on the marketplaces that don't split SKUs by language,
+     *          which is the normal case for cardmarket and tcgplayer.
      */
-    async allStaging(marketplace: string) {
-      const result = await sql<{
-        marketplace: string;
-        externalId: number;
-        groupId: number;
-        productName: string;
-        finish: string;
-        language: string;
-        recordedAt: Date;
-        marketCents: number | null;
-        lowCents: number | null;
-        midCents: number | null;
-        highCents: number | null;
-        trendCents: number | null;
-        avg1Cents: number | null;
-        avg7Cents: number | null;
-        avg30Cents: number | null;
-      }>`
-        SELECT
-          mp.marketplace,
-          mp.external_id as "externalId",
-          mp.group_id as "groupId",
-          mp.product_name as "productName",
-          mp.finish,
-          mp.language,
-          latest.recorded_at as "recordedAt",
-          latest.market_cents as "marketCents",
-          latest.low_cents as "lowCents",
-          latest.mid_cents as "midCents",
-          latest.high_cents as "highCents",
-          latest.trend_cents as "trendCents",
-          latest.avg1_cents as "avg1Cents",
-          latest.avg7_cents as "avg7Cents",
-          latest.avg30_cents as "avg30Cents"
-        FROM marketplace_products mp
-        INNER JOIN LATERAL (
-          SELECT *
-          FROM marketplace_product_prices pp
-          WHERE pp.marketplace_product_id = mp.id
-          ORDER BY pp.recorded_at DESC
-          LIMIT 1
-        ) latest ON true
-        WHERE mp.marketplace = ${marketplace}
-          AND NOT EXISTS (
-            SELECT 1 FROM marketplace_product_variants mpv
-            WHERE mpv.marketplace_product_id = mp.id
-          )
-      `.execute(db);
-      return result.rows;
+    allStaging(marketplace: string) {
+      return db
+        .selectFrom("marketplaceProducts as mp")
+        .innerJoinLateral(
+          (eb) =>
+            eb
+              .selectFrom("marketplaceProductPrices as p")
+              .select([
+                "p.recordedAt",
+                "p.marketCents",
+                "p.lowCents",
+                "p.midCents",
+                "p.highCents",
+                "p.trendCents",
+                "p.avg1Cents",
+                "p.avg7Cents",
+                "p.avg30Cents",
+              ])
+              .whereRef("p.marketplaceProductId", "=", "mp.id")
+              .orderBy("p.recordedAt", "desc")
+              .limit(1)
+              .as("latest"),
+          (join) => join.onTrue(),
+        )
+        .select([
+          "mp.marketplace as marketplace",
+          "mp.externalId as externalId",
+          "mp.groupId as groupId",
+          "mp.productName as productName",
+          "mp.finish as finish",
+          "mp.language as language",
+          "latest.recordedAt",
+          "latest.marketCents",
+          "latest.lowCents",
+          "latest.midCents",
+          "latest.highCents",
+          "latest.trendCents",
+          "latest.avg1Cents",
+          "latest.avg7Cents",
+          "latest.avg30Cents",
+        ])
+        .where("mp.marketplace", "=", marketplace)
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("marketplaceProductVariants as mpv")
+                .select("mpv.id")
+                .whereRef("mpv.marketplaceProductId", "=", "mp.id"),
+            ),
+          ),
+        )
+        .execute();
     },
 
     /** @returns Group display names, kind, and assigned-set slug for a marketplace. */
@@ -471,33 +477,25 @@ export function marketplaceMappingRepo(db: Db) {
       }
       const productRows = [...productRowsByKey.values()];
 
-      // We can't RETURNING rows that are just updated on conflict with a
-      // NULLS NOT DISTINCT unique (Kysely's onConflict doesn't expose that
-      // option for .columns()). Upsert with raw SQL so both inserted and
-      // conflicting rows come back in the RETURNING set.
-      const products = await sql<{
-        id: string;
-        marketplace: string;
-        externalId: number;
-        finish: string;
-        language: string | null;
-      }>`
-        INSERT INTO marketplace_products (marketplace, external_id, group_id, product_name, finish, language)
-        VALUES ${sql.join(
-          productRows.map(
-            (r) =>
-              sql`(${r.marketplace}, ${r.externalId}, ${r.groupId}, ${r.productName}, ${r.finish}, ${r.language})`,
-          ),
-        )}
-        ON CONFLICT (marketplace, external_id, finish, language)
-        DO UPDATE SET
-          group_id = EXCLUDED.group_id,
-          product_name = EXCLUDED.product_name
-        RETURNING id, marketplace, external_id AS "externalId", finish, language
-      `.execute(db);
+      // `doUpdateSet` rather than `doNothing`: the mapping needs an id for
+      // every input SKU, and RETURNING only covers a conflicting row when the
+      // conflict action actually touches it. The column list infers
+      // `marketplace_products_sku_key`, which is NULLS NOT DISTINCT, so CM/TCG
+      // rows with a NULL language collapse onto the existing row.
+      const products = await db
+        .insertInto("marketplaceProducts")
+        .values(productRows)
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doUpdateSet({
+            groupId: (eb) => eb.ref("excluded.groupId"),
+            productName: (eb) => eb.ref("excluded.productName"),
+          }),
+        )
+        .returning(["id", "marketplace", "externalId", "finish", "language"])
+        .execute();
 
       const productIdByKey = new Map(
-        products.rows.map((p) => [
+        products.map((p) => [
           `${p.marketplace}::${p.externalId}::${p.finish}::${p.language ?? ""}`,
           p.id,
         ]),
@@ -530,7 +528,7 @@ export function marketplaceMappingRepo(db: Db) {
         .returning(["id", "marketplaceProductId", "printingId"])
         .execute();
 
-      const productKeyByProductId = new Map(products.rows.map((p) => [p.id, p]));
+      const productKeyByProductId = new Map(products.map((p) => [p.id, p]));
 
       return variants.map((v) => {
         const p = productKeyByProductId.get(v.marketplaceProductId);
@@ -626,7 +624,7 @@ export function marketplaceMappingRepo(db: Db) {
      *
      * @returns One row per (printing, variant) for every printing of the card.
      */
-    async variantsForCard(cardId: string): Promise<
+    variantsForCard(cardId: string): Promise<
       {
         targetPrintingId: string;
         marketplace: string;
@@ -638,31 +636,22 @@ export function marketplaceMappingRepo(db: Db) {
         ownerLanguage: string;
       }[]
     > {
-      const result = await sql<{
-        targetPrintingId: string;
-        marketplace: string;
-        externalId: number;
-        productName: string;
-        finish: string;
-        variantLanguage: string | null;
-        ownerPrintingId: string;
-        ownerLanguage: string;
-      }>`
-        SELECT
-          p.id as "targetPrintingId",
-          mp.marketplace as "marketplace",
-          mp.external_id as "externalId",
-          mp.product_name as "productName",
-          mp.finish as "finish",
-          mp.language as "variantLanguage",
-          p.id as "ownerPrintingId",
-          p.language as "ownerLanguage"
-        FROM printings p
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = p.id
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE p.card_id = ${cardId}
-      `.execute(db);
-      return result.rows;
+      return db
+        .selectFrom("printings as p")
+        .innerJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "p.id as targetPrintingId",
+          "mp.marketplace as marketplace",
+          "mp.externalId as externalId",
+          "mp.productName as productName",
+          "mp.finish as finish",
+          "mp.language as variantLanguage",
+          "p.id as ownerPrintingId",
+          "p.language as ownerLanguage",
+        ])
+        .where("p.cardId", "=", cardId)
+        .execute();
     },
 
     /**
@@ -716,7 +705,8 @@ export function marketplaceMappingRepo(db: Db) {
         externalId: number;
         productName: string;
         finish: string;
-        language: string;
+        /** `null` on the marketplaces that don't split SKUs by language (CM/TCG). */
+        language: string | null;
         groupId: number;
         groupName: string | null;
         groupKind: "basic" | "special";

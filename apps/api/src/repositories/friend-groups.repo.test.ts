@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb } from "../test/recording-db.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
 const GROUP = {
@@ -137,9 +138,23 @@ describe("friendGroupsRepo", () => {
     await expect(repo.setRevealedContacts("grp-1", "u1", ["m-1"])).resolves.toBeUndefined();
   });
 
-  it("transferOwnership resolves without throwing", async () => {
-    const repo = friendGroupsRepo(createMockDb([]));
-    await expect(repo.transferOwnership("grp-1", "u-owner", "u1")).resolves.toBeUndefined();
+  it("transferOwnership demotes then promotes in one transaction", async () => {
+    const { db, events } = createRecordingDb([{ numAffectedRows: 1n }, [{ user_id: "u1" }]]);
+    await expect(
+      friendGroupsRepo(db).transferOwnership("grp-1", "u-owner", "u1"),
+    ).resolves.toBeUndefined();
+    expect(events).toEqual(["begin", "commit"]);
+  });
+
+  // Regression: the promote was unguarded, so a `toUserId` who is no longer a
+  // member updated nothing while the demote still committed — leaving the group
+  // with no owner at all, and no way to appoint one.
+  it("transferOwnership rolls back when the target is not a member", async () => {
+    const { db, events } = createRecordingDb([{ numAffectedRows: 1n }, []]);
+    await expect(friendGroupsRepo(db).transferOwnership("grp-1", "u-owner", "u1")).rejects.toThrow(
+      /is not a member/u,
+    );
+    expect(events).toEqual(["begin", "rollback"]);
   });
 
   // ── Invites ───────────────────────────────────────────────────────────────

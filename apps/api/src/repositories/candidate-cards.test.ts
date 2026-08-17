@@ -70,13 +70,27 @@ describe("candidateCardsRepo", () => {
     expect(result).toEqual(["tcgplayer"]);
   });
 
-  it("providerStats returns formatted stats", async () => {
+  // Regression: `max(greatest(...updated_at...))` is a timestamptz, which the
+  // driver hands back as a native Date. The repo used to declare it
+  // `sql<string>` and pass it straight through, so the returned `lastUpdated`
+  // was a Date wearing a string type and every caller had to re-coerce it.
+  it("providerStats returns lastUpdated as an ISO string", async () => {
     const db = createMockDb([
-      { provider: "test", cardCount: 10, printingCount: 20, lastUpdated: "2026-01-01" },
+      {
+        provider: "test",
+        cardCount: 10,
+        printingCount: 20,
+        lastUpdated: new Date("2026-01-01T12:34:56.000Z"),
+      },
     ]);
     const result = await candidateCardsRepo(db).providerStats();
     expect(result).toEqual([
-      { provider: "test", cardCount: 10, printingCount: 20, lastUpdated: "2026-01-01" },
+      {
+        provider: "test",
+        cardCount: 10,
+        printingCount: 20,
+        lastUpdated: "2026-01-01T12:34:56.000Z",
+      },
     ]);
   });
 

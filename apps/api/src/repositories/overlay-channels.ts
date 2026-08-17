@@ -17,16 +17,13 @@ export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "
 /**
  * The stored payload goes through `normalizeOverlayPayload`, because it grows
  * display switches without a migration and older rows are missing whichever
- * ones came later. `version` is an int8, which postgres.js returns as a string
- * (it only registers number parsers for the 4-byte-and-smaller numeric OIDs),
- * so it is coerced here despite the row type saying `number`.
- * @returns The row with a normalized payload and a numeric version.
+ * ones came later.
+ * @returns The row with a normalized payload.
  */
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
   return {
     ...row,
     payload: normalizeOverlayPayload(row.payload),
-    version: Number(row.version),
   };
 }
 

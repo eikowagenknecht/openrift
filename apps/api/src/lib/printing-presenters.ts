@@ -119,7 +119,7 @@ export function buildCardsResponse(
         correctedEffectText: r.correctedEffectText,
         source: r.source,
         sourceUrl: r.sourceUrl,
-        effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
+        effectiveDate: r.effectiveDate,
       },
     ]),
   );

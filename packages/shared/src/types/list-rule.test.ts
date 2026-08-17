@@ -65,22 +65,17 @@ describe("hydrateListRules", () => {
     expect(hydrateListRules(undefined)).toEqual([]);
   });
 
-  it("parses a JSON string (postgres.js jsonb under Bun) and normalizes it", () => {
-    const hydrated = hydrateListRules(JSON.stringify([staleTradeRule()]));
+  it("backfills missing filter dimensions on a stale rule", () => {
+    const hydrated = hydrateListRules([staleTradeRule()] as unknown as ListRules);
     expect(hydrated).toHaveLength(1);
     expect(hydrated[0].filter.presence).toEqual({});
     expect(hydrated[0].filter.keywords).toEqual([]);
     expect(hydrated[0].filter.keywordsExclude).toEqual([]);
   });
 
-  it("normalizes an already-parsed value", () => {
-    const hydrated = hydrateListRules([staleTradeRule()] as unknown as ListRules);
-    expect(hydrated[0].filter.keywordsExclude).toEqual([]);
-  });
-
   it("carries priceMarketplace through the round trip", () => {
     const rule = { ...staleTradeRule(), priceMarketplace: "cardmarket" };
-    const hydrated = hydrateListRules(JSON.stringify([rule]));
+    const hydrated = hydrateListRules([rule] as unknown as ListRules);
     expect(hydrated[0].priceMarketplace).toBe("cardmarket");
   });
 });

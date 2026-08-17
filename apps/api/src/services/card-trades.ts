@@ -15,7 +15,7 @@ import {
 } from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
 import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
-import type { CardTrade } from "../repositories/card-trades.js";
+import type { CardTrade, LiveCardTrade } from "../repositories/card-trades.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
@@ -68,6 +68,35 @@ async function reloadDto(
 }
 
 /**
+ * Narrows a trade to one whose group and both parties still exist.
+ *
+ * Deleting an account (migration 248) or a friend group (migration 252) nulls
+ * the id it owned on every trade it touched and cancels the live ones in the
+ * same trigger, so a trade missing any of the three is finished history — there
+ * is no action left to take on it, and whoever else took part sees it read-only
+ * through the DTO surfaces instead.
+ * @returns The same trade, typed as having its group and both parties.
+ */
+function requireLiveTrade(trade: CardTrade): LiveCardTrade {
+  const { groupId, giverUserId, receiverUserId } = trade;
+  if (groupId === null) {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "This trade is closed: its friend group was deleted",
+    );
+  }
+  if (giverUserId === null || receiverUserId === null) {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "This trade is closed: the other party deleted their account",
+    );
+  }
+  return { ...trade, groupId, giverUserId, receiverUserId };
+}
+
+/**
  * Loads a trade and verifies the caller is a party to it. Shared entry point
  * for every mutation below.
  * @returns The trade and the caller's role on it.
@@ -76,7 +105,7 @@ async function loadTradeForParty(
   repos: Repos,
   tradeId: string,
   byUserId: string,
-): Promise<{ trade: CardTrade; role: CardTradeRole }> {
+): Promise<{ trade: LiveCardTrade; role: CardTradeRole }> {
   const trade = await repos.cardTrades.getById(tradeId);
   if (trade === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
@@ -85,7 +114,7 @@ async function loadTradeForParty(
   if (role === null) {
     throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
   }
-  return { trade, role };
+  return { trade: requireLiveTrade(trade), role };
 }
 
 /** Throws a 409 with `message` unless `trade.status` is `expected`. */
@@ -360,7 +389,7 @@ export async function createTrade(
   }
 
   const expiresAt = new Date(Date.now() + PENDING_TTL_HOURS * 60 * 60 * 1000);
-  let created: CardTrade;
+  let created: LiveCardTrade;
   try {
     created = await repos.cardTrades.create({
       groupId: group.id,
@@ -408,7 +437,7 @@ export async function createTrade(
  */
 async function resolvePinnedCopyIds(
   trxRepos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   role: CardTradeRole,
   availableCopyIds: string[],
   chosenCopyIds?: string[],
@@ -468,7 +497,7 @@ async function resolvePinnedCopyIds(
  */
 async function listSettleCandidateCopies(
   repos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   pinnedCopyIds: readonly string[],
 ): Promise<TradeCopyRow[]> {
   // Sequential: the settle path calls this with transaction-bound repos, which
@@ -764,7 +793,7 @@ export function setTradeQuantity(
  * left is a fully-resolved row whose `claim*SyncSide` will match zero and 409.
  * @returns Nothing.
  */
-function assertSettleable(trade: CardTrade): void {
+function assertSettleable(trade: LiveCardTrade): void {
   if (trade.status !== "reserved" && trade.status !== "completed") {
     throw new AppError(409, ERROR_CODES.CONFLICT, "This trade is no longer open to settle");
   }
@@ -776,7 +805,7 @@ function assertSettleable(trade: CardTrade): void {
  * nothing left to pick between.
  * @returns Nothing.
  */
-function assertGiverUnsettled(trade: CardTrade): void {
+function assertGiverUnsettled(trade: LiveCardTrade): void {
   assertSettleable(trade);
   if (trade.giverSyncAppliedAt !== null) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "You have already settled your half");
@@ -786,7 +815,7 @@ function assertGiverUnsettled(trade: CardTrade): void {
 /** Adds `quantity` copies of the trade's printing for the receiver and decrements their wish. */
 async function applyReceiverSync(
   trxRepos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   targetCollectionId?: string,
 ): Promise<void> {
   let collectionId: string;
@@ -858,7 +887,7 @@ async function applyReceiverSync(
  */
 async function resolveSettleCopyIds(
   trxRepos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   quantity: number,
   pinnedCopyIds: string[],
   chosenCopyIds: string[],
@@ -903,12 +932,12 @@ async function resolveSettleCopyIds(
  */
 async function splitTradeForSettle(
   trxRepos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   role: CardTradeRole,
   byUserId: string,
   quantity: number,
   disposingCopyIds?: string[],
-): Promise<CardTrade> {
+): Promise<LiveCardTrade> {
   if ((await trxRepos.cardTrades.reserveQuantityForSplit(trade.id, quantity, role)) === 0) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
   }
@@ -942,12 +971,12 @@ async function splitTradeForSettle(
  */
 async function claimSettleTarget(
   trxRepos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   role: CardTradeRole,
   byUserId: string,
   quantity: number | undefined,
   disposingCopyIds?: string[],
-): Promise<CardTrade> {
+): Promise<LiveCardTrade> {
   const settling = quantity ?? trade.quantity;
   if (settling > trade.quantity) {
     const noun = trade.quantity === 1 ? "copy" : "copies";

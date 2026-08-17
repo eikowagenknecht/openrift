@@ -225,26 +225,27 @@ export function setsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Upsert a set by slug, inserting it with the next sort_order if it doesn't exist.
-     * Used during card source ingestion.
+     * Upsert a set by slug, inserting it with the next sort_order if it doesn't
+     * exist. Used during card source ingestion.
+     *
+     * One atomic statement, like {@link createIfNotExists}: the check-then-insert
+     * this replaced read the slug in its own query, so two ingests naming the
+     * same new set both saw it missing and the loser threw on `sets_slug_key`.
+     * Two ingests naming *different* new sets can still read the same
+     * `max(sort_order)` and tie — `sort_order` has no unique constraint, and a
+     * tie is a display-order wobble the admin reorder fixes, not a failure.
      */
     async upsert(slug: string, name: string): Promise<void> {
-      const existing = await db
-        .selectFrom("sets")
-        .select("id")
-        .where("slug", "=", slug)
-        .executeTakeFirst();
-
-      if (!existing) {
-        const { max } = await db
-          .selectFrom("sets")
-          .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
-          .executeTakeFirstOrThrow();
-        await db
-          .insertInto("sets")
-          .values({ slug, name, printedTotal: 0, sortOrder: max + 1 })
-          .execute();
-      }
+      await db
+        .insertInto("sets")
+        .values({
+          slug,
+          name,
+          printedTotal: 0,
+          sortOrder: sql<number>`coalesce((select max(sort_order) from sets), 0) + 1`,
+        })
+        .onConflict((oc) => oc.column("slug").doNothing())
+        .execute();
     },
   };
 }

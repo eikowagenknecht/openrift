@@ -228,6 +228,37 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Hands the primary-owner pointer from `leavingUserId` to the longest-standing
+     * other owner, so the row they are about to vacate is no longer named by
+     * `organizations.owner_user_id`.
+     *
+     * `fk_organizations_owner_membership` (migration 249) requires the pointer to
+     * name a member of the org, so removing the primary owner's membership while
+     * it still points at them aborts the transaction at commit. A no-op when
+     * they are not the primary owner, or when no other owner exists — callers
+     * guard the latter with `assertNotLastOwner`.
+     */
+    async repointPrimaryOwner(orgId: string, leavingUserId: string): Promise<void> {
+      const successor = await db
+        .selectFrom("organizationMembers")
+        .select("userId")
+        .where("orgId", "=", orgId)
+        .where("role", "=", "owner")
+        .where("userId", "!=", leavingUserId)
+        .orderBy("joinedAt", "asc")
+        .executeTakeFirst();
+      if (!successor) {
+        return;
+      }
+      await db
+        .updateTable("organizations")
+        .set({ ownerUserId: successor.userId, updatedAt: new Date() })
+        .where("id", "=", orgId)
+        .where("ownerUserId", "=", leavingUserId)
+        .execute();
+    },
+
     /** Removes a member from the organization. */
     async removeMember(orgId: string, userId: string): Promise<void> {
       await db

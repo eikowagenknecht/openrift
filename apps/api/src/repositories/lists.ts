@@ -20,8 +20,8 @@ import type {
   Rarity,
   TradePreference,
 } from "@openrift/shared";
-import type { DeleteResult, Insertable, Kysely, Selectable, Updateable } from "kysely";
-import { sql } from "kysely";
+import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
+import { DeleteResult, sql } from "kysely";
 
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
 import type { PrintingDetail } from "./query-helpers.js";
@@ -105,7 +105,7 @@ interface ListEntryRowBase {
  * `filterCards`). ADR-034.
  * @returns The parsed, normalized rules (empty array when the column is empty).
  */
-function parseRules(value: ListRules | string | null | undefined): ListRules {
+function parseRules(value: ListRules | null | undefined): ListRules {
   return hydrateListRules(value);
 }
 
@@ -995,7 +995,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       userId: string,
     ): Promise<DeleteResult> {
       if (entryIds.length === 0) {
-        return Promise.resolve({ numDeletedRows: 0n } as DeleteResult);
+        return Promise.resolve(new DeleteResult(0n));
       }
       return db
         .deleteFrom("listEntries")
@@ -1020,7 +1020,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
      */
     deleteTradeEntriesForCopies(copyIds: readonly string[], userId: string): Promise<DeleteResult> {
       if (copyIds.length === 0) {
-        return Promise.resolve({ numDeletedRows: 0n } as DeleteResult);
+        return Promise.resolve(new DeleteResult(0n));
       }
       return db
         .deleteFrom("listEntries")

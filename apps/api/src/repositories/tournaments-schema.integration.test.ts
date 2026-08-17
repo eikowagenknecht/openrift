@@ -25,12 +25,20 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
         image: null,
       })
       .execute();
-    const org = await db
-      .insertInto("organizations")
-      .values({ slug: `lgs-${HOST_ID.slice(14, 22)}`, name: "Test LGS", ownerUserId: HOST_ID })
-      .returning("id")
-      .executeTakeFirstOrThrow();
-    orgId = org.id;
+    // One transaction: `fk_organizations_owner_membership` is deferred, so the
+    // org and its owner's membership row have to commit together.
+    orgId = await db.transaction().execute(async (trx) => {
+      const org = await trx
+        .insertInto("organizations")
+        .values({ slug: `lgs-${HOST_ID.slice(14, 22)}`, name: "Test LGS", ownerUserId: HOST_ID })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await trx
+        .insertInto("organizationMembers")
+        .values({ orgId: org.id, userId: HOST_ID, role: "owner" })
+        .execute();
+      return org.id;
+    });
   });
 
   afterAll(async () => {

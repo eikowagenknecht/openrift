@@ -49,4 +49,43 @@ describe.skipIf(!ctx)("keywordsRepo (integration)", () => {
       await repo.deleteStyle("KW-PlainFlag");
     }
   });
+
+  it("keyword style mutations leave cards.keywords alone", async () => {
+    // The review asked whether create/delete on the `keywords` table needs a
+    // recompute hook. It does not, and this pins the reason: `cards.keywords`
+    // is derived from the `[...]` spans in card text, never from this table, so
+    // a style row appearing or disappearing cannot make the cache wrong. If a
+    // future change makes the extractor consult `keywords`, this test breaks
+    // and a hook becomes genuinely required.
+    const before = await db.selectFrom("cards").select(["id", "keywords"]).orderBy("id").execute();
+
+    await repo.createStyle({
+      name: "KW-CacheProbe",
+      color: "#abcdef",
+      darkText: true,
+      costKeyword: false,
+    });
+    try {
+      const during = await db
+        .selectFrom("cards")
+        .select(["id", "keywords"])
+        .orderBy("id")
+        .execute();
+      expect(during).toEqual(before);
+    } finally {
+      await repo.deleteStyle("KW-CacheProbe");
+    }
+
+    const after = await db.selectFrom("cards").select(["id", "keywords"]).orderBy("id").execute();
+    expect(after).toEqual(before);
+  });
+
+  it("getTranslationCandidates pairs each EN printing with its non-EN siblings", async () => {
+    const rows = await repo.getTranslationCandidates();
+    for (const row of rows) {
+      expect(row.otherLanguage).not.toBe("EN");
+      expect(row.enRulesText ?? row.enEffectText).not.toBeNull();
+      expect(row.otherRulesText ?? row.otherEffectText).not.toBeNull();
+    }
+  });
 });

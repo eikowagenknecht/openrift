@@ -80,7 +80,7 @@ export interface SetsTable {
   name: string;
   /** CHECK: >= 0 */
   printedTotal: number | null;
-  sortOrder: number;
+  sortOrder: Generated<number>;
   setType: Generated<"main" | "supplemental">;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -134,8 +134,8 @@ export interface CardsTable {
   power: number | null;
   /** CHECK: >= 0 */
   mightBonus: number | null;
-  keywords: string[];
-  tags: string[];
+  keywords: Generated<string[]>;
+  tags: Generated<string[]>;
   /** CHECK: >= 0. Deck copy-limit override; 0 = unlimited (UNLIMITED_COPIES). */
   maxCopiesOverride: number | null;
   /** CHECK: <> '' */
@@ -156,7 +156,13 @@ export interface CardErrataTable {
   source: string;
   /** CHECK: <> '' */
   sourceUrl: string | null;
-  effectiveDate: Date | null;
+  /**
+   * `date` column, so the driver hands it back as `"2026-01-01"` rather than a
+   * `Date` (see the OID 1082 override in `db/connect.ts`). The write side takes
+   * either form because the serializer accepts both, but every caller today
+   * passes the day string.
+   */
+  effectiveDate: ColumnType<string | null, string | Date | null | undefined, string | Date | null>;
   createdAt: CreatedAt;
 }
 
@@ -175,7 +181,7 @@ export interface PrintingsTable {
   rarity: Rarity;
   /** FK → art_variants(slug) */
   artVariant: ArtVariant;
-  isSigned: boolean;
+  isSigned: Generated<boolean>;
   /**
    * Sorted slug array maintained by trigger from `printing_markers`.
    * Empty array `{}` means "no markers" (regular printing).
@@ -184,7 +190,7 @@ export interface PrintingsTable {
   /** FK → finishes(slug) */
   finish: Finish;
   /** FK → card_sizes(slug). Physical size; defaults to 'standard'. */
-  size: CardSize;
+  size: Generated<CardSize>;
   /** CHECK: <> '' */
   artist: string;
   /** CHECK: <> '' */
@@ -197,7 +203,9 @@ export interface PrintingsTable {
   flavorText: string | null;
   /** CHECK: <> '' */
   comment: string | null;
-  language: string;
+  /** FK → languages(code). Defaults to 'EN'. */
+  language: Generated<string>;
+  /** CHECK: <> '' */
   printedName: string | null;
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
@@ -231,7 +239,7 @@ interface MarketplaceGroupsTable {
  */
 interface MarketplaceProductsTable {
   id: Generated<string>;
-  /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
+  /** CHECK: IN ('tcgplayer', 'cardmarket', 'cardtrader') ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
   /** CHECK: > 0 */
   externalId: number;
@@ -239,6 +247,8 @@ interface MarketplaceProductsTable {
   groupId: number;
   /** CHECK: <> '' */
   productName: string;
+  /** Normalized `productName`, maintained by a trigger. */
+  normName: Generated<string>;
   finish: string;
   language: string | null;
   createdAt: CreatedAt;
@@ -336,7 +346,7 @@ interface UsersTable {
   id: string;
   email: string;
   name: string | null;
-  emailVerified: boolean;
+  emailVerified: Generated<boolean>;
   image: string | null;
   shareToken: string | null;
   riotId: string | null;
@@ -422,8 +432,8 @@ export interface CollectionsTable {
   /** CHECK: <> '' */
   name: string;
   description: string | null;
-  isInbox: boolean;
-  sortOrder: number;
+  isInbox: Generated<boolean>;
+  sortOrder: Generated<number>;
   isPublic: Generated<boolean>;
   shareToken: string | null;
   createdAt: CreatedAt;
@@ -475,10 +485,12 @@ interface CollectionSidebarPrefsTable {
 }
 
 /**
- * CHECK: action/collection presence —
- *   added → to_collection_id NOT NULL,
- *   removed → from_collection_id NOT NULL,
- *   moved → both NOT NULL.
+ * CHECK `chk_collection_events_collection_presence` — each action needs its
+ * side identified, by id OR by denormalized name, so an event survives the
+ * collection being deleted:
+ *   added → to_collection_id or to_collection_name,
+ *   removed → from_collection_id or from_collection_name,
+ *   moved → one of each pair.
  */
 export interface CollectionEventsTable {
   id: Generated<string>;
@@ -604,7 +616,7 @@ export interface DecksTable {
    * by `deckOddsConfigSchema`.
    */
   oddsConfig: DeckOddsConfig | null;
-  isPublic: boolean;
+  isPublic: Generated<boolean>;
   shareToken: string | null;
   isPinned: Generated<boolean>;
   archivedAt: Date | null;
@@ -653,8 +665,8 @@ export interface DeckCardsTable {
   cardId: string;
   /** FK → deck_zones(slug) */
   zone: DeckZone;
-  /** CHECK: > 0 */
-  quantity: number;
+  /** CHECK: > 0. Defaults to 1. */
+  quantity: Generated<number>;
   /** Optional FK → printings(id); pins this row's art to a specific printing. */
   preferredPrintingId: string | null;
 }
@@ -740,7 +752,8 @@ export interface OverlayChannelsTable {
   userId: string;
   /** CHECK: <> ''. Unique. The secret in the OBS browser-source URL. */
   token: string;
-  payload: OverlayPayload;
+  /** Column default `{}`, so inserts may omit it. */
+  payload: ColumnType<OverlayPayload, OverlayPayload | undefined, OverlayPayload>;
   version: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -806,9 +819,9 @@ export interface TierListRow {
  * on. Card ids are bare (no FK): the list ranks cards, and one that leaves the
  * catalogue is skipped by the reader rather than blocking the delete.
  *
- * `tiers` reads back as a JSON *string* under Bun's postgres.js, so every read
- * must go through `parseJsonbRequired` — the declared type here is the parsed
- * shape, not what the driver hands over.
+ * `tiers` is typed as its parsed shape on both sides: postgres.js serializes a
+ * jsonb parameter itself, so the value goes in and comes back as an array with
+ * nothing to encode or parse at the call site.
  *
  * CHECK: title <> ''; jsonb_typeof(tiers) = 'array'.
  */
@@ -1064,11 +1077,10 @@ export interface ListsTable {
    */
   sidebarHidden: Generated<boolean>;
   /**
-   * ADR-034 dynamic rules (jsonb array). Read back as a JSON string under
-   * postgres.js (the repo parses it). The repo writes it through an explicit
-   * `text::jsonb` cast (see `rulesJsonb`) so it lands as a real jsonb array, not
-   * a json-encoded scalar string. NOT NULL with a `'[]'` default, so insert may
-   * omit it. Empty array = manual-only list.
+   * ADR-034 dynamic rules (jsonb array). Typed as the parsed shape on both
+   * sides — the repo passes the array straight through and postgres.js does the
+   * serializing, guarded by a `jsonb_typeof(rules) = 'array'` CHECK. NOT NULL
+   * with a `'[]'` default, so insert may omit it. Empty array = manual-only list.
    */
   rules: ColumnType<ListRules, ListRules | undefined, ListRules>;
   /**
@@ -1114,7 +1126,7 @@ export interface FriendGroupsTable {
   slug: string;
   /** The slug this group last renamed away from — kept as a lookup alias so
    * bookmarks and in-flight trade emails keep resolving. Same CHECK as slug. */
-  previousSlug: Generated<string | null>;
+  previousSlug: string | null;
   /** CHECK: length 1..60 */
   name: string;
   /** CHECK: length <= 500 */
@@ -1218,7 +1230,14 @@ export interface OrganizationsTable {
 export interface OrganizationMembersTable {
   orgId: string;
   userId: string;
-  /** CHECK: 'owner' | 'manager' (both inherit organizer authority). */
+  /**
+   * CHECK: 'owner' | 'manager' | 'judge'. Owner and manager both inherit
+   * organizer authority on every tournament the org hosts; judge does not.
+   * An org may have several `owner` members. `organizations.owner_user_id`
+   * names the primary one, whom `fk_organizations_owner_membership`
+   * (migration 249) keeps a member of the org — the pointer is constrained to a
+   * membership row, not to one carrying the owner role.
+   */
   role: OrganizationRole;
   joinedAt: CreatedAt;
 }
@@ -1508,11 +1527,27 @@ export interface DeckCheckKeysTable {
 
 export interface CardTradesTable {
   id: Generated<string>;
-  groupId: string;
-  /** Owns the copies (supply / tradelist side). */
-  giverUserId: string;
-  /** Wants the card (demand / wishlist side). */
-  receiverUserId: string;
+  /**
+   * CHECK: exactly one of groupId / groupName is set. The id while the friend
+   * group exists, the snapshotted name once it is deleted (migration 252), so a
+   * finished trade keeps saying where it happened. Deleting a group cancels its
+   * live trades, so a NULL here always means the trade is terminal.
+   */
+  groupId: string | null;
+  /** CHECK: <> '' when set. Set only for a deleted group. */
+  groupName: string | null;
+  /**
+   * Owns the copies (supply / tradelist side). Exactly one of giverUserId /
+   * giverName is set: the id while the account exists, the snapshotted display
+   * name once it is deleted (migration 248).
+   */
+  giverUserId: string | null;
+  /** CHECK: <> '' when set. Set only for a deleted giver. */
+  giverName: string | null;
+  /** Wants the card (demand / wishlist side). Same shape as the giver pair. */
+  receiverUserId: string | null;
+  /** CHECK: <> '' when set. Set only for a deleted receiver. */
+  receiverName: string | null;
   initiator: CardTradeInitiator;
   printingId: string;
   /** Denormalised from the printing, for grouping/display. */
@@ -1566,8 +1601,10 @@ export interface LoansTable {
   /** Owns the copies; the loan is their personal ledger entry. */
   lenderUserId: string;
   /**
-   * Exactly one of borrowerUserId / borrowerName is set at creation. Both-null
-   * only after a member borrower deleted their account (FK SET NULL).
+   * CHECK: exactly one of borrowerUserId / borrowerName is set. A member
+   * borrower who deletes their account leaves the id NULL and their display
+   * name snapshotted into borrowerName (migration 248), which is the same shape
+   * an off-platform borrower has from the start.
    */
   borrowerUserId: string | null;
   /** CHECK: <> '' when set. */
@@ -1605,8 +1642,8 @@ export interface CandidateCardsTable {
   name: string;
   normName: Generated<string>;
   /** Ordered card types (ADR-037); empty when the source didn't provide one. */
-  types: string[];
-  superTypes: string[];
+  types: Generated<string[]>;
+  superTypes: Generated<string[]>;
   domains: string[];
   /** CHECK: >= 0 */
   might: number | null;
@@ -1620,7 +1657,7 @@ export interface CandidateCardsTable {
   rulesText: string | null;
   /** CHECK: <> '' */
   effectText: string | null;
-  tags: string[];
+  tags: Generated<string[]>;
   /** CHECK: <> '' */
   shortCode: string | null;
   /** CHECK: <> '' */
@@ -1676,7 +1713,9 @@ export interface CandidatePrintingsTable {
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
 
+  /** CHECK: <> '' */
   language: string | null;
+  /** CHECK: <> '' */
   printedName: string | null;
   /** Year stamped on the physical card; differs from set release for reprints. */
   printedYear: number | null;
@@ -1759,7 +1798,8 @@ export interface CardSubmissionsTable {
    * Field names that differed from the live card when this was submitted.
    * Resolution asks how many of these the catalog now agrees with, so an admin
    * accepting the same value from another provider's column still credits the
-   * contributor. jsonb: read back through `parseJsonbRequired`.
+   * contributor. jsonb, typed as the parsed array on both sides and guarded by
+   * a `jsonb_typeof(proposed_diff) = 'array'` CHECK.
    */
   proposedDiff: ColumnType<string[], string[] | undefined, string[]>;
   status: ColumnType<CardSubmissionStatus, CardSubmissionStatus | undefined, CardSubmissionStatus>;
@@ -1814,10 +1854,10 @@ export interface ImageFilesTable {
 export interface PrintingImagesTable {
   id: Generated<string>;
   printingId: string;
-  face: CardFace;
+  face: Generated<CardFace>;
   /** FK: image_files(id) */
   imageFileId: string;
-  isActive: boolean;
+  isActive: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1835,7 +1875,7 @@ interface LanguagesTable {
   name: string;
   /** Hex color for the language chip (CHECK: ^#[0-9a-fA-F]{6}$). Migration 203. */
   color: string | null;
-  sortOrder: number;
+  sortOrder: Generated<number>;
   /**
    * Listed in `WellKnown.language`; a trigger blocks rename/delete. Migration 205.
    * `Generated` because admin-created languages are never well-known and the
@@ -2028,11 +2068,11 @@ interface PrintingDistributionChannelsTable {
 interface ProviderSettingsTable {
   /** PK — matches candidate_cards.provider */
   provider: string;
-  sortOrder: number;
-  isHidden: boolean;
-  isFavorite: boolean;
+  sortOrder: Generated<number>;
+  isHidden: Generated<boolean>;
+  isFavorite: Generated<boolean>;
   /** Whether card-review grant holders may review this provider's candidates (migration 199). */
-  helperReviewable: boolean;
+  helperReviewable: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2044,8 +2084,8 @@ export interface KeywordsTable {
   name: string;
   /** CHECK: matches ^#[0-9a-fA-F]{6}$ */
   color: string;
-  darkText: boolean;
-  isWellKnown: boolean;
+  darkText: Generated<boolean>;
+  isWellKnown: Generated<boolean>;
   /** Glyph cost renders inside the keyword bracket, e.g. `[Equip :rb_energy_1:]` (migration 191). */
   costKeyword: ColumnType<boolean, boolean | undefined, boolean>;
   createdAt: CreatedAt;
@@ -2069,7 +2109,7 @@ interface KeywordTranslationsTable {
 
 export interface FeatureFlagsTable {
   key: string;
-  enabled: boolean;
+  enabled: Generated<boolean>;
   description: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -2089,8 +2129,8 @@ export interface SiteSettingsTable {
   /** CHECK: <> '' */
   key: string;
   value: string;
-  /** CHECK: IN ('web', 'api') */
-  scope: "web" | "api";
+  /** CHECK: IN ('web', 'api'). Defaults to 'web'. */
+  scope: Generated<"web" | "api">;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2154,8 +2194,8 @@ interface RulesTable {
   /** CHECK: IN ('title', 'subtitle', 'text') */
   ruleType: RuleType;
   content: string;
-  /** CHECK: IN ('added', 'modified', 'removed') */
-  changeType: RuleChangeType;
+  /** CHECK: IN ('added', 'modified', 'removed'). Defaults to 'added'. */
+  changeType: Generated<RuleChangeType>;
   createdAt: CreatedAt;
 }
 
@@ -2165,7 +2205,12 @@ export interface ReferenceTable {
   slug: string;
   label: string;
   sortOrder: number;
-  isWellKnown: boolean;
+  /**
+   * Listed in the matching `WellKnown` group; a trigger blocks rename/delete.
+   * `Generated` because admin-created rows are never well-known and the repos
+   * omit the column, leaning on its `DEFAULT false`.
+   */
+  isWellKnown: Generated<boolean>;
 }
 
 type CardTypesTable = ReferenceTable;
@@ -2190,8 +2235,8 @@ type GradersTable = ReferenceTable;
 interface PrintingEventsTable {
   id: Generated<string>;
   printingId: string;
-  status: "pending" | "sent" | "failed";
-  retryCount: number;
+  status: Generated<"pending" | "sent" | "failed">;
+  retryCount: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -2269,7 +2314,8 @@ export const CARD_TOKEN_SOURCES = ["derived", "manual"] as const;
 interface CardTokensTable {
   cardId: string;
   tokenCardId: string;
-  source: (typeof CARD_TOKEN_SOURCES)[number];
+  /** Defaults to 'derived'. */
+  source: Generated<(typeof CARD_TOKEN_SOURCES)[number]>;
 }
 
 // ─── Materialized views (migration 085) ─────────────────────────────────────

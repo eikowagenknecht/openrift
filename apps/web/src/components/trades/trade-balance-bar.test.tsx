@@ -17,6 +17,7 @@ function trade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
     id: "trade-1",
     groupId: "group-1",
     groupSlug: "group",
+    groupName: "The Group",
     role: "giver",
     initiator: "giver",
     counterparty: {

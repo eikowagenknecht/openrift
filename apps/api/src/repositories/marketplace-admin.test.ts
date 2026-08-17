@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb, onlyStatement } from "../test/recording-db.js";
 import { marketplaceAdminRepo } from "./marketplace-admin.js";
 
 describe("marketplaceAdminRepo", () => {
@@ -141,7 +142,7 @@ describe("marketplaceAdminRepo", () => {
   });
 
   it("deleteIgnoredVariants returns deleted count for L3", async () => {
-    const db = createMockDb([{ deleted: 3 }]);
+    const db = createMockDb([{ numDeletedRows: 3n }]);
     expect(
       await marketplaceAdminRepo(db).deleteIgnoredVariants("tcgplayer", [
         { externalId: 1, finish: "normal", language: "EN" },
@@ -190,8 +191,74 @@ describe("marketplaceAdminRepo", () => {
   });
 
   it("clearPriceData returns counts", async () => {
-    const db = createMockDb([{ numDeletedRows: 5n, deleted: 5 }]);
+    const db = createMockDb([{ numDeletedRows: 5n }]);
     const result = await marketplaceAdminRepo(db).clearPriceData("tcgplayer");
     expect(result).toEqual({ prices: 5, variants: 5, products: 5 });
+  });
+});
+
+describe("marketplaceAdminRepo (generated SQL)", () => {
+  const captured = createRecordingDb();
+
+  beforeEach(() => {
+    captured.reset();
+  });
+
+  it("deleteIgnoredVariants matches a NULL language, which is the CM/TCG norm", async () => {
+    await marketplaceAdminRepo(captured.db).deleteIgnoredVariants("cardmarket", [
+      { externalId: 42, finish: "normal", language: null },
+    ]);
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toContain(
+      'delete from "marketplace_ignored_variants" as "iv" using "marketplace_products" as "mp"',
+    );
+    // `=` against NULL is never true, so an equality comparison here would
+    // silently delete nothing for cardmarket and tcgplayer.
+    expect(sql).toContain('"mp"."language" is not distinct from $4');
+    expect(parameters).toEqual(["cardmarket", 42, "normal", null]);
+  });
+
+  it("deleteIgnoredVariants ORs each SKU tuple, keeping finish and language paired", async () => {
+    await marketplaceAdminRepo(captured.db).deleteIgnoredVariants("cardtrader", [
+      { externalId: 42, finish: "normal", language: "EN" },
+      { externalId: 42, finish: "foil", language: "DE" },
+    ]);
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toContain(
+      'and (("mp"."external_id" = $2 and "mp"."finish" = $3 and "mp"."language" is not distinct from $4)' +
+        ' or ("mp"."external_id" = $5 and "mp"."finish" = $6 and "mp"."language" is not distinct from $7))',
+    );
+    expect(parameters).toEqual(["cardtrader", 42, "normal", "EN", 42, "foil", "DE"]);
+  });
+
+  it("deleteStagingCardOverride matches a NULL language", async () => {
+    await marketplaceAdminRepo(captured.db).deleteStagingCardOverride(
+      "tcgplayer",
+      42,
+      "normal",
+      null,
+    );
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toContain(
+      'delete from "marketplace_product_card_overrides" as "ov" using "marketplace_products" as "mp"',
+    );
+    expect(sql).toContain('"mp"."language" is not distinct from $4');
+    expect(parameters).toEqual(["tcgplayer", 42, "normal", null]);
+  });
+
+  it("clearPriceData deletes prices, then variants, then the products themselves", async () => {
+    await marketplaceAdminRepo(captured.db).clearPriceData("cardmarket");
+
+    // Dependency order matters: prices and variants both FK to products.
+    expect(captured.statements.map((s) => s.sql.replaceAll(/\s+/gu, " "))).toEqual([
+      'delete from "marketplace_product_prices" as "pp" using "marketplace_products" as "mp"' +
+        ' where "mp"."id" = "pp"."marketplace_product_id" and "mp"."marketplace" = $1',
+      'delete from "marketplace_product_variants" as "mpv" using "marketplace_products" as "mp"' +
+        ' where "mp"."id" = "mpv"."marketplace_product_id" and "mp"."marketplace" = $1',
+      'delete from "marketplace_products" where "marketplace" = $1',
+    ]);
   });
 });

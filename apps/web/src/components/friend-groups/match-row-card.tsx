@@ -924,14 +924,18 @@ export function MatchTradeList({
   }
   const liveTradeByKey = new Map<string, CardTradeResponse>();
   for (const trade of userTrades?.items ?? []) {
+    // A live trade always has both a group and a counterparty; the null checks
+    // are what say so to the type system, since either can go once the trade is
+    // finished history.
+    const counterpartyUserId = trade.counterparty.userId;
+    const tradeGroupSlug = trade.groupSlug;
     if (
-      listGroupSlugs.has(trade.groupSlug) &&
+      tradeGroupSlug !== null &&
+      listGroupSlugs.has(tradeGroupSlug) &&
+      counterpartyUserId !== null &&
       (trade.status === "pending" || trade.status === "reserved")
     ) {
-      liveTradeByKey.set(
-        liveTradeKey(trade.groupSlug, trade.counterparty.userId, trade.printingId),
-        trade,
-      );
+      liveTradeByKey.set(liveTradeKey(tradeGroupSlug, counterpartyUserId, trade.printingId), trade);
     }
   }
 

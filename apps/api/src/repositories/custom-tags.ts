@@ -178,16 +178,23 @@ export function customTagsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.customTagId);
     },
 
-    /** Replace the set of custom tags for a card. Atomic: clear then insert. */
+    /**
+     * Replace the set of custom tags for a card. Atomic: the clear and the
+     * insert share a transaction, so a failure between them can never leave the
+     * card with its old tags gone and the new ones unwritten.
+     */
     async setForCard(cardId: string, customTagIds: readonly string[]): Promise<void> {
-      await db.deleteFrom("cardCustomTags").where("cardId", "=", cardId).execute();
-      if (customTagIds.length === 0) {
-        return;
-      }
-      await db
-        .insertInto("cardCustomTags")
-        .values(customTagIds.map((customTagId) => ({ cardId, customTagId })))
-        .execute();
+      const run = async (trx: Kysely<Database>): Promise<void> => {
+        await trx.deleteFrom("cardCustomTags").where("cardId", "=", cardId).execute();
+        if (customTagIds.length === 0) {
+          return;
+        }
+        await trx
+          .insertInto("cardCustomTags")
+          .values(customTagIds.map((customTagId) => ({ cardId, customTagId })))
+          .execute();
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
     /**

@@ -142,14 +142,14 @@ describe("toListDetail", () => {
   it("re-hydrates a rule saved before a newer filter dimension without failing output validation", () => {
     // Regression: the list detail endpoint 500'd ("Output validation failed")
     // when a trade rule's persisted filter predated the `presence` / `keywords`
-    // / `keywordsExclude` dimensions. `rules` arrives as a JSON string (jsonb
-    // via postgres.js under Bun) missing those keys, plus the superseded
-    // `hasAnyMarker`. toListDetail must backfill so the response validates.
+    // / `keywordsExclude` dimensions. The stored rule is missing those keys and
+    // still carries the superseded `hasAnyMarker`; toListDetail must backfill
+    // so the response validates.
     const staleFilter = { ...EMPTY_CARD_FILTERS, hasAnyMarker: null } as Record<string, unknown>;
     delete staleFilter.presence;
     delete staleFilter.keywords;
     delete staleFilter.keywordsExclude;
-    const rulesJson = JSON.stringify([
+    const storedRules = [
       {
         kind: "trade",
         filter: staleFilter,
@@ -157,7 +157,7 @@ describe("toListDetail", () => {
         keepPerCard: { mode: "fixed", n: 0 },
         excludeCopyIds: [],
       },
-    ]);
+    ];
 
     const detail = toListDetail({
       id: "lst-1",
@@ -175,8 +175,7 @@ describe("toListDetail", () => {
       currency: "EUR",
       sortOrder: 0,
       sidebarHidden: false,
-      // The DB column is typed ListRules but arrives as a raw JSON string.
-      rules: rulesJson as never,
+      rules: storedRules as never,
       ruleCombine: null,
     });
 

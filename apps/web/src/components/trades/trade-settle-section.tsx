@@ -193,12 +193,12 @@ function CommitSummary({
  */
 export function TradeSettleSection({
   trades,
-  groupNames,
+  showGroupLabels,
 }: {
   /** The swaps with this person the viewer can still settle, across every shared group. */
   trades: CardTradeResponse[];
-  /** Group names by id, or null while the two share only one group. */
-  groupNames: ReadonlyMap<string, string> | null;
+  /** Whether to name each row's group; false while only one group is in play. */
+  showGroupLabels: boolean;
 }) {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -376,7 +376,7 @@ export function TradeSettleSection({
               key={trade.id}
               trade={trade}
               sequence={sequence}
-              groupLabel={groupNames?.get(trade.groupId)}
+              groupLabel={showGroupLabels ? trade.groupName : undefined}
               // The heading says it once for the whole section.
               redundantStatus="ready-to-swap"
             />
@@ -395,7 +395,7 @@ export function TradeSettleSection({
               applySync.mutate(
                 {
                   tradeId: choice.trade.id,
-                  groupSlug: choice.trade.groupSlug,
+                  groupSlug: choice.trade.groupSlug ?? undefined,
                   quantity: choice.quantity,
                   copyIds,
                 },

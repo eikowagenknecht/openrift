@@ -191,27 +191,37 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Replace a printing's channel links. The delete and the insert share a
+     * transaction, so a failure between them cannot strip a printing of every
+     * channel. Two of the callers in `printing-admin.ts` hand in a
+     * non-transactional repo set, hence the guard rather than a bare
+     * `db.transaction()` — an already-open transaction is reused.
+     */
     async setForPrinting(
       printingId: string,
       links: readonly { channelId: string; distributionNote?: string | null }[],
     ): Promise<void> {
-      await db
-        .deleteFrom("printingDistributionChannels")
-        .where("printingId", "=", printingId)
-        .execute();
-      if (links.length === 0) {
-        return;
-      }
-      await db
-        .insertInto("printingDistributionChannels")
-        .values(
-          links.map((link) => ({
-            printingId,
-            channelId: link.channelId,
-            distributionNote: link.distributionNote ?? null,
-          })),
-        )
-        .execute();
+      const run = async (trx: Kysely<Database>): Promise<void> => {
+        await trx
+          .deleteFrom("printingDistributionChannels")
+          .where("printingId", "=", printingId)
+          .execute();
+        if (links.length === 0) {
+          return;
+        }
+        await trx
+          .insertInto("printingDistributionChannels")
+          .values(
+            links.map((link) => ({
+              printingId,
+              channelId: link.channelId,
+              distributionNote: link.distributionNote ?? null,
+            })),
+          )
+          .execute();
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
   };
 }

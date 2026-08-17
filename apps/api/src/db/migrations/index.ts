@@ -190,6 +190,14 @@ import * as m241 from "./241-drop-tier-list-set.js";
 import * as m242 from "./242-stage-presets.js";
 import * as m243 from "./243-trade-email-settings.js";
 import * as m244 from "./244-jsonb-unwrap-double-encoded.js";
+import * as m245 from "./245-integrity-keys-and-fks.js";
+import * as m246 from "./246-state-timestamp-checks.js";
+import * as m247 from "./247-marketplace-vocabulary.js";
+import * as m248 from "./248-trade-loan-name-snapshots.js";
+import * as m249 from "./249-organization-owner-integrity.js";
+import * as m250 from "./250-column-types-defaults-and-norm-name.js";
+import * as m251 from "./251-query-indexes.js";
+import * as m252 from "./252-trade-group-snapshots.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -439,4 +447,12 @@ export const migrations: Record<string, Migration> = {
   "242-stage-presets": m242,
   "243-trade-email-settings": m243,
   "244-jsonb-unwrap-double-encoded": m244,
+  "245-integrity-keys-and-fks": m245,
+  "246-state-timestamp-checks": m246,
+  "247-marketplace-vocabulary": m247,
+  "248-trade-loan-name-snapshots": m248,
+  "249-organization-owner-integrity": m249,
+  "250-column-types-defaults-and-norm-name": m250,
+  "251-query-indexes": m251,
+  "252-trade-group-snapshots": m252,
 };

@@ -80,14 +80,17 @@ export function markersRepo(db: Kysely<Database>) {
     },
 
     async setForPrinting(printingId: string, markerIds: readonly string[]): Promise<void> {
-      await db.deleteFrom("printingMarkers").where("printingId", "=", printingId).execute();
-      if (markerIds.length === 0) {
-        return;
-      }
-      await db
-        .insertInto("printingMarkers")
-        .values(markerIds.map((markerId) => ({ printingId, markerId })))
-        .execute();
+      const run = async (trx: Kysely<Database>): Promise<void> => {
+        await trx.deleteFrom("printingMarkers").where("printingId", "=", printingId).execute();
+        if (markerIds.length === 0) {
+          return;
+        }
+        await trx
+          .insertInto("printingMarkers")
+          .values(markerIds.map((markerId) => ({ printingId, markerId })))
+          .execute();
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
   };
 }

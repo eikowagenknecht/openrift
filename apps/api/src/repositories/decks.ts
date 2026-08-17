@@ -288,7 +288,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("d.userId", "=", userId)
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute() as Promise<DeckCardDetailRow[]>;
+        .execute();
     },
 
     /** @returns All deck cards with card details for every deck owned by a user. */
@@ -322,7 +322,7 @@ export function decksRepo(db: Kysely<Database>) {
         .orderBy("dc.deckId")
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute() as Promise<DeckCardDetailRow[]>;
+        .execute();
     },
 
     /** Replaces all cards in a deck within a transaction. Deletes existing cards, inserts new ones, and touches updatedAt. */
@@ -377,9 +377,10 @@ export function decksRepo(db: Kysely<Database>) {
             links: source.links,
             format: source.format,
             // Carry format_config so a cloned Custom-Region deck stays locked
-            // to the same region without forcing the user to re-pick.
-            // Re-encode through serialize to handle the raw-string shape
-            // postgres.js returns for jsonb reads.
+            // to the same region without forcing the user to re-pick. The read
+            // hands back the parsed object and the write takes it as-is:
+            // postgres.js serializes a jsonb parameter itself, so stringifying
+            // here would store the JSON text as a jsonb string scalar.
             formatConfig: source.formatConfig,
             isPublic: false,
           })

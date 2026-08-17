@@ -16,6 +16,7 @@ function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeRespons
     id: "trade-1",
     groupId: "group-1",
     groupSlug: "summoner-skirmish",
+    groupName: "The Group",
     role: "receiver",
     initiator: "receiver",
     counterparty: {

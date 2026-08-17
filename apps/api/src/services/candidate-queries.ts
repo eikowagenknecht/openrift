@@ -696,11 +696,7 @@ async function buildDetailResponse(
                 correctedEffectText: errata.correctedEffectText,
                 source: errata.source,
                 sourceUrl: errata.sourceUrl,
-                effectiveDate: errata.effectiveDate
-                  ? typeof errata.effectiveDate === "string"
-                    ? errata.effectiveDate
-                    : (errata.effectiveDate as Date).toISOString().slice(0, 10)
-                  : null,
+                effectiveDate: errata.effectiveDate,
               }
             : null,
           tags: card.tags,

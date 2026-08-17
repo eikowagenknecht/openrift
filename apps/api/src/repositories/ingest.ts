@@ -15,18 +15,20 @@ export function ingestRepo(db: Db) {
   return {
     // ── Bulk reads ────────────────────────────────────────────────────────────
 
-    /** @returns All candidate cards for a given provider name. */
+    /**
+     * @returns All candidate cards for a given provider name. `extraData` comes
+     *   back as the parsed object the ingest diff compares against — jsonb
+     *   params are passed as plain values and postgres.js does the serializing,
+     *   so nothing writes JSON text into the column for a read to undo.
+     */
     async allCandidateCardsForProvider(
       provider: string,
     ): Promise<Selectable<CandidateCardsTable>[]> {
-      const rows = await db
+      return await db
         .selectFrom("candidateCards")
         .selectAll()
         .where("provider", "=", provider)
         .execute();
-      // Without the parse, the ingest diff compares a JSON string against the
-      // incoming object and flags extraData as changed on every re-ingest.
-      return rows;
     },
 
     /** @returns All cards (id + normName) for name resolution. */

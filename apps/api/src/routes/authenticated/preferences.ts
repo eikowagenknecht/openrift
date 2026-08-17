@@ -30,13 +30,9 @@ const preferenceFields = Object.entries(userPreferencesResponseSchema.shape);
  * @returns The user preferences in the {@link UserPreferencesResponse} shape.
  */
 function toUserPreferences(data: UserPreferencesResponse, userId: string): UserPreferencesResponse {
-  // Defensive: `data` is whatever the JSONB column held (the repo runs it
-  // through parseJsonbRequired), which the Kysely types promise is an object
-  // but the database does not.
-  if (typeof data !== "object" || data === null) {
-    log.warn({ userId, type: typeof data }, "stored preferences are not an object");
-    return {};
-  }
+  // `data` is always a JSON object: chk_user_preferences_data_shape enforces
+  // jsonb_typeof = 'object' at the database, and the column is NOT NULL. Only
+  // the per-key values can drift, which the projection below handles.
   const record = data as Record<string, unknown>;
   const projected: Record<string, unknown> = {};
   const dropped: string[] = [];

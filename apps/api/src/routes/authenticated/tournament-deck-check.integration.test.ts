@@ -66,16 +66,20 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         .execute();
     }
 
-    // An organization owned by ORG_OWNER, for the org-scoped key tests.
-    await host.db
-      .insertInto("organizations")
-      .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org", ownerUserId: ORG_OWNER_ID })
-      .execute();
-    await host.db
-      .insertInto("organizationMembers")
-      .values({ orgId: ORG_ID, userId: ORG_OWNER_ID, role: "owner" })
-      .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
-      .execute();
+    // An organization owned by ORG_OWNER, for the org-scoped key tests. One
+    // transaction: `fk_organizations_owner_membership` is deferred, so the org
+    // and its owner's membership row have to commit together.
+    await host.db.transaction().execute(async (trx) => {
+      await trx
+        .insertInto("organizations")
+        .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org", ownerUserId: ORG_OWNER_ID })
+        .execute();
+      await trx
+        .insertInto("organizationMembers")
+        .values({ orgId: ORG_ID, userId: ORG_OWNER_ID, role: "owner" })
+        .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
+        .execute();
+    });
 
     // A friend group owned by HOST with MEMBER as a plain member, for the lens.
     const group = await repos.friendGroups.createWithOwner(

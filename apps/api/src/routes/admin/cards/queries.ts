@@ -14,11 +14,8 @@ import { reviewableProviderScope } from "../../../services/card-review-scope.js"
 const os = implement(adminCardQueriesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Read-only admin card queries. `providerStats` coerces the `lastUpdated`
- * timestamp (a native `Date` from the driver, despite its `sql<string>` type)
- * to an ISO string for the `z.string()` output schema, and `getCandidateCard`
- * may throw `AppError` (missing alias) which is mapped by the handler's
- * appErrorInterceptor.
+ * Read-only admin card queries. `getCandidateCard` may throw `AppError`
+ * (missing alias) which is mapped by the handler's appErrorInterceptor.
  */
 export const adminCardQueriesRouter = {
   allCards: os.allCards.handler(async ({ context }) => {
@@ -38,8 +35,7 @@ export const adminCardQueriesRouter = {
 
   providerStats: os.providerStats.handler(async ({ context }) => {
     const { candidateCards } = context.repos;
-    const stats = await candidateCards.providerStats();
-    return stats.map((s) => ({ ...s, lastUpdated: new Date(s.lastUpdated).toISOString() }));
+    return await candidateCards.providerStats();
   }),
 
   listCandidates: os.listCandidates.handler(async ({ context }) => {

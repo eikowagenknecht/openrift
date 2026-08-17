@@ -27,7 +27,7 @@ interface ErrataRow {
   correctedEffectText: string | null;
   source: string;
   sourceUrl: string | null;
-  effectiveDate: Date | string | null;
+  effectiveDate: string | null;
 }
 
 interface PrintingTextRow {
@@ -171,7 +171,9 @@ describe("importErrata", () => {
   // ── Unchanged entry ─────────────────────────────────────────────────────
 
   it("classifies an identical entry as unchanged and still writes on apply (idempotent)", async () => {
-    const existingDate = new Date("2025-10-21T00:00:00Z");
+    // A `date` column: the driver returns the day string, so that is what a
+    // stored errata row looks like to the diff.
+    const existingDate = "2025-10-21";
     const mut = createMockMut({
       cards: [{ id: "card-1", slug: "jinx-rebel", name: "Jinx, Rebel" }],
       errata: [

@@ -40,29 +40,44 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       return row;
     },
 
+    /**
+     * Applies a partial preferences patch: `null` removes a key (resetting it
+     * to the default), `undefined` leaves it alone, any other value replaces
+     * the whole top-level key.
+     *
+     * The merge happens in SQL, not in JS. Reading the row, merging, and
+     * writing the result back is a lost update: two PATCHes overlapping in
+     * time each wrote the snapshot they had read, so whichever committed last
+     * silently dropped the other's keys. `jsonb ||` is exactly the shallow
+     * top-level replace the JS merge did, and `jsonb - text[]` performs the
+     * null-means-reset deletes, so the semantics are unchanged.
+     *
+     * @returns The stored preferences after the patch.
+     */
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
-      const existing = await this.getByUserId(userId);
-      const current: Record<string, unknown> = (existing?.data as Record<string, unknown>) ?? {};
-
-      // Merge: null removes the key (reset to default), undefined skips, value sets.
-      // Build a new object to avoid dynamic deletes.
-      const draft = new Map(Object.entries(current));
+      const patch: Record<string, unknown> = {};
+      const removedKeys: string[] = [];
       for (const [key, value] of Object.entries(incoming)) {
         if (value === undefined) {
           continue;
         }
         if (value === null) {
-          draft.delete(key);
+          removedKeys.push(key);
         } else {
-          draft.set(key, value);
+          patch[key] = value;
         }
       }
-      const merged = Object.fromEntries(draft);
 
       const row = await db
         .insertInto("userPreferences")
-        .values({ userId, data: merged })
-        .onConflict((oc) => oc.column("userId").doUpdateSet({ data: merged }))
+        .values({ userId, data: patch })
+        .onConflict((oc) =>
+          oc.column("userId").doUpdateSet({
+            // `excluded` is the row this statement proposed, i.e. the patch.
+            // The removals run last, though a key can never be in both halves.
+            data: sql`(user_preferences.data || excluded.data) - ${removedKeys}::text[]`,
+          }),
+        )
         .returningAll()
         .executeTakeFirstOrThrow();
 

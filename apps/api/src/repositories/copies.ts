@@ -63,11 +63,6 @@ const COPY_METADATA_COLUMNS = [
   "cp.links",
 ] as const;
 
-/** @returns The row with its `links` jsonb normalised to a parsed array. */
-function withParsedLinks<T extends { links: CopyLink[] | string }>(row: T): T {
-  return row;
-}
-
 /** Default page size, and hard maximum, for cursor-paginated copy listings. */
 const COPIES_PAGE_DEFAULT = 5000;
 const COPIES_PAGE_MAX = 5000;
@@ -161,7 +156,7 @@ export function copiesRepo(db: Kysely<Database>) {
           }),
         );
       }
-      return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
+      return query.execute();
     },
 
     /**
@@ -210,7 +205,7 @@ export function copiesRepo(db: Kysely<Database>) {
           join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
         )
         .select("cp.id")
-        .where("cp.id", "in", ids as string[])
+        .where("cp.id", "in", ids)
         .where((eb) =>
           personalOnly
             ? eb("col.userId", "=", userId)
@@ -257,7 +252,7 @@ export function copiesRepo(db: Kysely<Database>) {
           }),
         );
       }
-      return query.execute().then((rows) => rows.map((row) => withParsedLinks(row)));
+      return query.execute();
     },
 
     /** @returns The inserted copy rows including their metadata (ADR-038). */
@@ -281,13 +276,15 @@ export function copiesRepo(db: Kysely<Database>) {
         ])
         .execute();
       // A freshly inserted copy is never out on a loan (ADR-039).
-      return rows.map((row) => ({ ...withParsedLinks(row), onLoan: false, reserved: false }));
+      return rows.map((row) => ({ ...row, onLoan: false, reserved: false }));
     },
 
     /**
      * Applies one metadata patch to all given copies (ADR-038); caller verified
      * write access. Only defined keys are written, so absent patch fields stay
-     * untouched. `links` arrives pre-stringified for the jsonb column.
+     * untouched. `links` arrives as a plain `CopyLink[]` and is handed to the
+     * jsonb column as-is — postgres.js serializes jsonb parameters itself, and
+     * pre-stringifying one encodes it twice into a jsonb string scalar.
      */
     async updateMetadataBatchById(
       copyIds: string[],
@@ -377,9 +374,8 @@ export function copiesRepo(db: Kysely<Database>) {
           "col.name as collectionName",
           ...COPY_METADATA_COLUMNS,
         ])
-        .where("cp.id", "in", copyIds as string[])
-        .execute()
-        .then((rows) => rows.map((row) => withParsedLinks(row)));
+        .where("cp.id", "in", copyIds)
+        .execute();
     },
 
     /**
@@ -429,8 +425,7 @@ export function copiesRepo(db: Kysely<Database>) {
             ),
           ),
         )
-        .execute()
-        .then((rows) => rows.map((row) => withParsedLinks(row)));
+        .execute();
     },
 
     /** Moves copies to a target collection; caller verified write access. */

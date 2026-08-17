@@ -12,9 +12,10 @@ type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-comp
 export interface TradeBatch {
   kind: "trade-batch";
   at: string;
-  giverUserId: string;
+  /** NULL once that party deleted their account; the name is the snapshot. */
+  giverUserId: string | null;
   giverName: string | null;
-  receiverUserId: string;
+  receiverUserId: string | null;
   receiverName: string | null;
   /** Sum of the per-trade quantities — the "N cards" of the row text. */
   totalQuantity: number;

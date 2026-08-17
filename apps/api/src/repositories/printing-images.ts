@@ -1,5 +1,4 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -9,21 +8,35 @@ import type { Database } from "../db/index.js";
  * @returns An object with printing-image query methods bound to the given `db`.
  */
 export function printingImagesRepo(db: Kysely<Database>) {
+  /**
+   * Resolve the `image_files` row for an original URL, creating it if it is new.
+   *
+   * The insert leads and takes the deduping on itself, because a read-then-write
+   * pair loses the race: two imports of the same URL both see no row and both
+   * insert, and `idx_image_files_original_url` (a UNIQUE index on `original_url`
+   * WHERE `original_url IS NOT NULL`) makes the loser throw instead of dedupe.
+   * `ON CONFLICT` needs the index's own predicate to match that partial index,
+   * so the `where` on the conflict target is load-bearing. A conflicting insert
+   * returns nothing, which is when the select runs and picks up the winner's row.
+   *
+   * @returns The id of the existing or newly created `image_files` row.
+   */
   async function findOrCreateImageFile(originalUrl: string): Promise<string> {
+    const inserted = await db
+      .insertInto("imageFiles")
+      .values({ originalUrl })
+      .onConflict((oc) => oc.column("originalUrl").where("originalUrl", "is not", null).doNothing())
+      .returning("id")
+      .executeTakeFirst();
+    if (inserted) {
+      return inserted.id;
+    }
     const existing = await db
       .selectFrom("imageFiles")
       .select("id")
       .where("originalUrl", "=", originalUrl)
-      .executeTakeFirst();
-    if (existing) {
-      return existing.id;
-    }
-    const row = await db
-      .insertInto("imageFiles")
-      .values({ originalUrl })
-      .returning("id")
       .executeTakeFirstOrThrow();
-    return row.id;
+    return existing.id;
   }
 
   return {
@@ -301,7 +314,8 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .where("imgf.rehostedUrl", "is not", null)
         .$if(scansOnly, (qb) => qb.where("imgf.needsTrim", "=", true))
         .orderBy("imgf.id")
-        .execute() as Promise<{ imageId: string; rehostedUrl: string }[]>;
+        .$narrowType<{ rehostedUrl: string }>()
+        .execute();
     },
 
     /**
@@ -375,17 +389,8 @@ export function printingImagesRepo(db: Kysely<Database>) {
         ])
         .orderBy("s.slug")
         .orderBy("c.name")
-        .execute() as Promise<
-        {
-          imageId: string;
-          rehostedUrl: string;
-          originalUrl: string | null;
-          cardSlug: string;
-          cardName: string;
-          printingShortCode: string;
-          setSlug: string;
-        }[]
-      >;
+        .$narrowType<{ rehostedUrl: string }>()
+        .execute();
     },
 
     /** @returns All non-null rehosted URLs from image_files as a flat list. */
@@ -394,8 +399,9 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .selectFrom("imageFiles")
         .select("rehostedUrl")
         .where("rehostedUrl", "is not", null)
+        .$narrowType<{ rehostedUrl: string }>()
         .execute();
-      return rows.map((r) => r.rehostedUrl as string);
+      return rows.map((r) => r.rehostedUrl);
     },
 
     /** @returns A candidate printing by ID (all columns). */
@@ -417,13 +423,20 @@ export function printingImagesRepo(db: Kysely<Database>) {
      * @returns The number of deleted rows.
      */
     async deleteOrphanedImageFiles(): Promise<number> {
-      const result = await sql`
-        DELETE FROM image_files imgf
-        WHERE NOT EXISTS (
-          SELECT 1 FROM printing_images pi WHERE pi.image_file_id = imgf.id
+      const result = await db
+        .deleteFrom("imageFiles")
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("printingImages")
+                .select("printingImages.id")
+                .whereRef("printingImages.imageFileId", "=", "imageFiles.id"),
+            ),
+          ),
         )
-      `.execute(db);
-      return Number(result.numAffectedRows ?? 0);
+        .executeTakeFirst();
+      return Number(result.numDeletedRows);
     },
   };
 }

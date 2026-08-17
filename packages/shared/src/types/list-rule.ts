@@ -230,17 +230,17 @@ export function normalizeListRules(rules: ListRules): ListRules {
 
 /**
  * Re-hydrate the persisted `rules` jsonb column into structured, normalized
- * {@link ListRules}. postgres.js under Bun returns jsonb as a raw string, so
- * accept either the parsed value or its JSON text. Shape is enforced by
- * `listRulesSchema` at the write boundary, so the parse is a bare `JSON.parse`
- * (no schema pass) followed by a dimension backfill. Single choke point for
- * every read path (list detail, matching, public share). ADR-034.
- * @returns The parsed, normalized rules (empty array when the column is empty).
+ * {@link ListRules}. The column arrives already parsed — postgres.js returns
+ * jsonb as its decoded value, and the `jsonb_typeof` CHECK on the column rules
+ * out string scalars — so the only work left is the dimension backfill for
+ * rules saved before a newer filter existed. Shape is enforced by
+ * `listRulesSchema` at the write boundary. Single choke point for every read
+ * path (list detail, matching, public share). ADR-034.
+ * @returns The normalized rules (empty array when the column is empty).
  */
-export function hydrateListRules(value: ListRules | string | null | undefined): ListRules {
+export function hydrateListRules(value: ListRules | null | undefined): ListRules {
   if (value === null || value === undefined) {
     return [];
   }
-  const parsed = typeof value === "string" ? (JSON.parse(value) as ListRules) : value;
-  return normalizeListRules(parsed);
+  return normalizeListRules(value);
 }

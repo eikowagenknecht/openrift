@@ -220,6 +220,37 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
     expect(mockMutations.updateCardById).not.toHaveBeenCalled();
   });
 
+  it("carries a set effective date through the errata upsert unchanged", async () => {
+    // Regression: `effective_date` is a `date` column, so the driver returns the
+    // day string. The accept path used to call `.toISOString()` on it, which
+    // threw a TypeError on every errata that actually had a date — only errata
+    // with a NULL date could be edited at all.
+    mockCardErrata.getByCardId.mockResolvedValue({
+      cardId: CARD_ID,
+      correctedRulesText: "old",
+      correctedEffectText: null,
+      source: "riot-patch-notes",
+      sourceUrl: null,
+      effectiveDate: "2026-01-01",
+    });
+    mockCardErrata.upsert.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target: { entity: "card", id: CARD_ID, field: "correctedRulesText" },
+        proposed: "new’",
+      }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockCardErrata.upsert).toHaveBeenCalledWith(
+      CARD_ID,
+      expect.objectContaining({ effectiveDate: "2026-01-01", correctedRulesText: "new’" }),
+    );
+  });
+
   it("writes a printing field through the typed printing update", async () => {
     mockCatalog.printingById.mockResolvedValue(basePrinting);
     mockMutations.updatePrintingById.mockResolvedValue(undefined);

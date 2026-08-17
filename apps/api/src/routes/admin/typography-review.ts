@@ -190,9 +190,6 @@ export const adminTypographyReviewRouter = {
       }
       await cardErrata.upsert(id, {
         ...errata,
-        effectiveDate: errata.effectiveDate
-          ? errata.effectiveDate.toISOString().slice(0, 10)
-          : null,
         ...(field === "correctedRulesText"
           ? { correctedRulesText: proposed }
           : { correctedEffectText: proposed }),

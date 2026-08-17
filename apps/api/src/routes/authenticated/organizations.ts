@@ -123,6 +123,9 @@ export const organizationsRouter = {
       await context.transact(async (trxRepos) => {
         if (target.role === "owner") {
           await assertNotLastOwner(trxRepos, org.id);
+          // The primary-owner pointer has to name a member, so hand it to one of
+          // the other owners before this membership row goes.
+          await trxRepos.organizations.repointPrimaryOwner(org.id, input.userId);
         }
         await trxRepos.organizations.removeMember(org.id, input.userId);
       });

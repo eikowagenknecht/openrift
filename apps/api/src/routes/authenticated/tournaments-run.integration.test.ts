@@ -69,19 +69,23 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
         })
         .execute();
     }
-    // An org owned by ORGOWNER with ORGJUDGE as a judge member.
-    await host.db
-      .insertInto("organizations")
-      .values({ id: ORG_ID, slug: "run-org", name: "Run Org", ownerUserId: ORGOWNER_ID })
-      .execute();
-    await host.db
-      .insertInto("organizationMembers")
-      .values([
-        { orgId: ORG_ID, userId: ORGOWNER_ID, role: "owner" },
-        { orgId: ORG_ID, userId: ORGJUDGE_ID, role: "judge" },
-      ])
-      .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
-      .execute();
+    // An org owned by ORGOWNER with ORGJUDGE as a judge member. One transaction:
+    // `fk_organizations_owner_membership` is deferred, so the org and its
+    // owner's membership row have to commit together.
+    await host.db.transaction().execute(async (trx) => {
+      await trx
+        .insertInto("organizations")
+        .values({ id: ORG_ID, slug: "run-org", name: "Run Org", ownerUserId: ORGOWNER_ID })
+        .execute();
+      await trx
+        .insertInto("organizationMembers")
+        .values([
+          { orgId: ORG_ID, userId: ORGOWNER_ID, role: "owner" },
+          { orgId: ORG_ID, userId: ORGJUDGE_ID, role: "judge" },
+        ])
+        .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
+        .execute();
+    });
   });
 
   afterAll(async () => {

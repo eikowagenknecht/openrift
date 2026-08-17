@@ -100,7 +100,11 @@ const cardTradeStatusResponseSchema = z
 
 export const cardTradeCounterpartySchema = z
   .object({
-    userId: z.string(),
+    /**
+     * NULL once they have deleted their account. `name` then carries the
+     * snapshot taken at deletion, and there is no profile left to link to.
+     */
+    userId: z.string().nullable(),
     name: z.string().nullable(),
     image: z.string().nullable(),
     gravatarHash: z.string(),
@@ -111,8 +115,20 @@ export const cardTradeCounterpartySchema = z
 export const cardTradeResponseSchema = z
   .object({
     id: z.string(),
-    groupId: z.string(),
-    groupSlug: z.string(),
+    /**
+     * NULL once the friend group was deleted. The id and the slug go together —
+     * both present for a live group, both absent afterwards — so they stay flat
+     * fields rather than a nullable object: `groupName` below is what display
+     * code wants, and it never has to reach through a null to get it.
+     */
+    groupId: z.string().nullable(),
+    /** NULL once the group was deleted; there is nothing left to link to. */
+    groupSlug: z.string().nullable(),
+    /**
+     * Always set: the live group's name, or the name it had when it was deleted.
+     * A trade always says where it happened.
+     */
+    groupName: z.string(),
     role: cardTradeSideSchema,
     initiator: cardTradeSideSchema,
     counterparty: cardTradeCounterpartySchema,

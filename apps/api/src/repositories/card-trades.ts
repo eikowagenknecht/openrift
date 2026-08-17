@@ -19,6 +19,21 @@ import { gravatarHashForEmail } from "../lib/gravatar.js";
 /** Raw trade row, for the service layer's authorization / state checks. */
 export type CardTrade = Selectable<CardTradesTable>;
 
+/**
+ * A trade whose group and both of whose parties still exist.
+ *
+ * Each of these ids goes NULL only when the thing it named was deleted — an
+ * account (migration 248) or a friend group (migration 252) — and both triggers
+ * cancel every live trade involved before snapshotting, so a trade missing any
+ * of the three is always terminal. Every mutation therefore works on this
+ * shape; `loadTradeForParty` in the service is where the narrowing is checked.
+ */
+export interface LiveCardTrade extends CardTrade {
+  groupId: string;
+  giverUserId: string;
+  receiverUserId: string;
+}
+
 /** Fields set at creation; status defaults to `pending` in the DB. */
 export interface NewCardTrade {
   groupId: string;
@@ -39,7 +54,7 @@ export interface NewCardTrade {
  * inherited from the row being split, so the two halves stay one agreed swap.
  */
 export interface NewCardTradeSplit {
-  from: CardTrade;
+  from: LiveCardTrade;
   quantity: number;
   /** Which side is settling, i.e. whose timestamp the new row is stamped with. */
   role: CardTradeRole;
@@ -58,9 +73,10 @@ export interface CompletedTradeFeedRow {
   cardId: string;
   quantity: number;
   completedAt: Date;
-  giverUserId: string;
+  /** NULL once that party deleted their account; `giverName` then holds the snapshot. */
+  giverUserId: string | null;
   giverName: string | null;
-  receiverUserId: string;
+  receiverUserId: string | null;
   receiverName: string | null;
 }
 
@@ -171,18 +187,27 @@ function deriveActionNeeded(
  * Base DTO query: trade + group slug + both parties' user columns. The
  * counterparty's revealed contact methods are loaded separately (per group) by
  * {@link loadCounterpartyContacts} and merged in {@link mapTradeRow}.
+ *
+ * Every join is outer, for the same reason each time: a party who deleted their
+ * account (migration 248) or a friend group that was deleted (migration 252)
+ * leaves its id NULL and its display name snapshotted on the trade row, and the
+ * trade stays visible to whoever else took part in it. Both the live and the
+ * snapshotted name come back for each, so {@link mapTradeRow} can prefer the
+ * live one.
  * @returns The Kysely select builder for trade DTO rows.
  */
 function tradeDtoBaseQuery(db: Kysely<Database>) {
   return db
     .selectFrom("cardTrades as t")
-    .innerJoin("friendGroups as g", "g.id", "t.groupId")
-    .innerJoin("users as giverUser", "giverUser.id", "t.giverUserId")
-    .innerJoin("users as receiverUser", "receiverUser.id", "t.receiverUserId")
+    .leftJoin("friendGroups as g", "g.id", "t.groupId")
+    .leftJoin("users as giverUser", "giverUser.id", "t.giverUserId")
+    .leftJoin("users as receiverUser", "receiverUser.id", "t.receiverUserId")
     .select([
       "t.id",
       "t.groupId",
       "g.slug as groupSlug",
+      "g.name as groupLiveName",
+      "t.groupName as groupSnapshotName",
       "t.giverUserId",
       "t.receiverUserId",
       "t.initiator",
@@ -202,9 +227,11 @@ function tradeDtoBaseQuery(db: Kysely<Database>) {
       "giverUser.name as giverName",
       "giverUser.image as giverImage",
       "giverUser.email as giverEmail",
+      "t.giverName as giverSnapshotName",
       "receiverUser.name as receiverName",
       "receiverUser.image as receiverImage",
       "receiverUser.email as receiverEmail",
+      "t.receiverName as receiverSnapshotName",
     ]);
 }
 
@@ -219,9 +246,21 @@ function contactsKey(groupId: string, userId: string): string {
 }
 
 /**
+ * The counterparty's user id, or `null` when they have deleted their account.
+ * @returns The other party's id relative to the viewer.
+ */
+function counterpartyIdOf(row: TradeDtoRow, userId: string): string | null {
+  return row.giverUserId === userId ? row.receiverUserId : row.giverUserId;
+}
+
+/**
  * Loads, for each trade's counterparty, the contact methods they reveal to that
  * group — one query for all the rows. The viewer's own contacts are never
- * needed (the viewer knows how to reach themselves).
+ * needed (the viewer knows how to reach themselves). Rows missing either half of
+ * the key are skipped: a deleted counterparty has no contacts left to reveal,
+ * and contacts are revealed *per group*, so a trade whose group is gone has no
+ * scope to look them up in. Both cases are terminal trades, which need no
+ * contact details because there is no action left to coordinate.
  * @returns A map of `${groupId}:${counterpartyUserId}` → revealed contacts.
  */
 async function loadCounterpartyContacts(
@@ -229,10 +268,13 @@ async function loadCounterpartyContacts(
   rows: TradeDtoRow[],
   userId: string,
 ): Promise<Map<string, ContactMethod[]>> {
-  const pairs = rows.map((row) => ({
-    groupId: row.groupId,
-    counterpartyUserId: row.giverUserId === userId ? row.receiverUserId : row.giverUserId,
-  }));
+  const pairs: { groupId: string; counterpartyUserId: string }[] = [];
+  for (const row of rows) {
+    const counterpartyUserId = counterpartyIdOf(row, userId);
+    if (counterpartyUserId !== null && row.groupId !== null) {
+      pairs.push({ groupId: row.groupId, counterpartyUserId });
+    }
+  }
   const lookup = new Map<string, ContactMethod[]>();
   if (pairs.length === 0) {
     return lookup;
@@ -283,21 +325,28 @@ function mapTradeRow(
   const viewerIsGiver = row.giverUserId === userId;
   const role: CardTradeRole = viewerIsGiver ? "giver" : "receiver";
 
-  const counterpartyUserId = viewerIsGiver ? row.receiverUserId : row.giverUserId;
-  const contactMethods = contactsLookup.get(contactsKey(row.groupId, counterpartyUserId)) ?? [];
+  const counterpartyUserId = counterpartyIdOf(row, userId);
+  const contactMethods =
+    counterpartyUserId === null || row.groupId === null
+      ? []
+      : (contactsLookup.get(contactsKey(row.groupId, counterpartyUserId)) ?? []);
+  // A deleted counterparty keeps a name and nothing else: the snapshot on the
+  // trade row stands in for the user row that is gone. Their gravatar hash is
+  // taken over an empty address, which is a stable hash Gravatar answers with
+  // its placeholder avatar.
   const counterparty: CardTradeCounterparty = viewerIsGiver
     ? {
         userId: row.receiverUserId,
-        name: row.receiverName,
+        name: row.receiverName ?? row.receiverSnapshotName,
         image: row.receiverImage,
-        gravatarHash: gravatarHashForEmail(row.receiverEmail),
+        gravatarHash: gravatarHashForEmail(row.receiverEmail ?? ""),
         contactMethods,
       }
     : {
         userId: row.giverUserId,
-        name: row.giverName,
+        name: row.giverName ?? row.giverSnapshotName,
         image: row.giverImage,
-        gravatarHash: gravatarHashForEmail(row.giverEmail),
+        gravatarHash: gravatarHashForEmail(row.giverEmail ?? ""),
         contactMethods,
       };
 
@@ -310,6 +359,11 @@ function mapTradeRow(
     id: row.id,
     groupId: row.groupId,
     groupSlug: row.groupSlug,
+    // `chk_card_trades_group_shape` allows exactly one of the group id and the
+    // name snapshot, and `friend_groups.name` is NOT NULL, so one of these two
+    // is always there. The empty string is unreachable; it exists so a bad row
+    // would render an unlabelled chip rather than break a history page.
+    groupName: row.groupLiveName ?? row.groupSnapshotName ?? "",
     role,
     initiator: row.initiator,
     counterparty,
@@ -343,8 +397,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
      * Inserts a `pending` trade.
      * @returns The created row.
      */
-    create(values: NewCardTrade): Promise<CardTrade> {
-      return db
+    async create(values: NewCardTrade): Promise<LiveCardTrade> {
+      const row = await db
         .insertInto("cardTrades")
         .values({
           groupId: values.groupId,
@@ -360,6 +414,14 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+      // The group and both party ids were just written from `values`, so the
+      // row is live.
+      return {
+        ...row,
+        groupId: values.groupId,
+        giverUserId: values.giverUserId,
+        receiverUserId: values.receiverUserId,
+      };
     },
 
     /**
@@ -402,10 +464,10 @@ export function cardTradesRepo(db: Kysely<Database>) {
      * both halves are theirs, and the new row is immediately completable.
      * @returns The created row.
      */
-    createSettledSplit(values: NewCardTradeSplit): Promise<CardTrade> {
+    async createSettledSplit(values: NewCardTradeSplit): Promise<LiveCardTrade> {
       const { from, role } = values;
       const settledNow = sql<Date>`now()`;
-      return db
+      const row = await db
         .insertInto("cardTrades")
         .values({
           groupId: from.groupId,
@@ -430,6 +492,13 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+      // The group and both party ids are inherited from `from`, which is live.
+      return {
+        ...row,
+        groupId: from.groupId,
+        giverUserId: from.giverUserId,
+        receiverUserId: from.receiverUserId,
+      };
     },
 
     /**
@@ -487,11 +556,11 @@ export function cardTradesRepo(db: Kysely<Database>) {
      * allocation is stable and reproducible.
      * @returns The pending rows, oldest first.
      */
-    listPendingForGiverPrinting(
+    async listPendingForGiverPrinting(
       giverUserId: string,
       printingId: string,
     ): Promise<PendingGiverTrade[]> {
-      return db
+      const rows = await db
         .selectFrom("cardTrades")
         .select(["id", "groupId", "quantity", "initiator"])
         .where("giverUserId", "=", giverUserId)
@@ -500,6 +569,9 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .orderBy("createdAt", "asc")
         .orderBy("id", "asc")
         .execute();
+      // `pending` rules NULL out — deleting a group cancels its live trades —
+      // and the filter is what says so to the type system.
+      return rows.filter((row): row is PendingGiverTrade => row.groupId !== null);
     },
 
     /**
@@ -630,7 +702,11 @@ export function cardTradesRepo(db: Kysely<Database>) {
       ]);
       const totals = new Map<string, number>();
       for (const row of [...given, ...received]) {
-        totals.set(row.userId, (totals.get(row.userId) ?? 0) + row.total);
+        // A counterparty who deleted their account is no longer a member and has
+        // no row in the member list this map keys.
+        if (row.userId !== null) {
+          totals.set(row.userId, (totals.get(row.userId) ?? 0) + row.total);
+        }
       }
       return totals;
     },
@@ -638,8 +714,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     async recentCompletedInGroup(groupId: string, limit: number): Promise<CompletedTradeFeedRow[]> {
       const rows = await db
         .selectFrom("cardTrades as t")
-        .innerJoin("users as giver", "giver.id", "t.giverUserId")
-        .innerJoin("users as receiver", "receiver.id", "t.receiverUserId")
+        .leftJoin("users as giver", "giver.id", "t.giverUserId")
+        .leftJoin("users as receiver", "receiver.id", "t.receiverUserId")
         .select([
           "t.id as tradeId",
           "t.printingId",
@@ -650,6 +726,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
           "t.receiverUserId",
           "giver.name as giverName",
           "receiver.name as receiverName",
+          "t.giverName as giverSnapshotName",
+          "t.receiverName as receiverSnapshotName",
         ])
         .where("t.groupId", "=", groupId)
         .where("t.status", "=", "completed")
@@ -665,9 +743,9 @@ export function cardTradesRepo(db: Kysely<Database>) {
         // Non-null by the `completedAt is not null` filter above.
         completedAt: row.completedAt as Date,
         giverUserId: row.giverUserId,
-        giverName: row.giverName,
+        giverName: row.giverName ?? row.giverSnapshotName,
         receiverUserId: row.receiverUserId,
-        receiverName: row.receiverName,
+        receiverName: row.receiverName ?? row.receiverSnapshotName,
       }));
     },
 
@@ -720,7 +798,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
       const rows = await db
         .selectFrom("cardTrades as t")
         .innerJoin("friendGroups as g", "g.id", "t.groupId")
-        .select(["t.groupId as groupId", "g.slug as groupSlug"])
+        .select(["g.id as groupId", "g.slug as groupSlug"])
         .select([
           sql<string>`count(*) filter (where ${awaitingResponse})`.as("respondCount"),
           sql<string>`count(*) filter (where ${awaitingSettle})`.as("settleCount"),
@@ -729,7 +807,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
           eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
         )
         .where(sql<boolean>`(${awaitingResponse} or ${awaitingSettle})`)
-        .groupBy(["t.groupId", "g.slug"])
+        .groupBy(["g.id", "g.slug"])
         .execute();
       return rows.map((row) => {
         const respondCount = Number(row.respondCount);

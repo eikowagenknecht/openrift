@@ -9,6 +9,7 @@ function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeRespons
     id: "trade-1",
     groupId: "group-1",
     groupSlug: "the-group",
+    groupName: "The Group",
     role: "receiver",
     initiator: "receiver",
     counterparty: {

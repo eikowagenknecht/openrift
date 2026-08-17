@@ -147,7 +147,7 @@ export function priceRefreshRepo(db: Db) {
      *
      * @returns One row per input SKU with its product id.
      */
-    async upsertProductsForMarketplace(
+    upsertProductsForMarketplace(
       marketplace: string,
       skus: {
         externalId: number;
@@ -158,32 +158,38 @@ export function priceRefreshRepo(db: Db) {
       }[],
     ): Promise<{ externalId: number; finish: string; language: string | null; id: string }[]> {
       if (skus.length === 0) {
-        return [];
+        return Promise.resolve([]);
       }
       const dedupByKey = new Map<string, (typeof skus)[number]>();
       for (const sku of skus) {
         dedupByKey.set(skuKey(sku.externalId, sku.finish, sku.language), sku);
       }
-      const rows = await sql<{
-        id: string;
-        externalId: number;
-        finish: string;
-        language: string | null;
-      }>`
-        INSERT INTO marketplace_products (marketplace, external_id, group_id, product_name, finish, language)
-        VALUES ${sql.join(
-          [...dedupByKey.values()].map(
-            (r) =>
-              sql`(${marketplace}, ${r.externalId}, ${r.groupId}, ${r.productName}, ${r.finish}, ${r.language})`,
-          ),
-        )}
-        ON CONFLICT (marketplace, external_id, finish, language)
-        DO UPDATE SET
-          group_id = EXCLUDED.group_id,
-          product_name = EXCLUDED.product_name
-        RETURNING id, external_id AS "externalId", finish, language
-      `.execute(db);
-      return rows.rows;
+      // `doUpdateSet` (rather than `doNothing`) is what makes RETURNING cover
+      // conflicting rows as well as inserted ones — the caller needs an id for
+      // every input SKU, and most of them already exist by the second refresh.
+      // The conflict target is inferred from the column list; the index it
+      // resolves to (`marketplace_products_sku_key`) is NULLS NOT DISTINCT, so
+      // CM/TCG's NULL language still collapses onto the existing row.
+      return db
+        .insertInto("marketplaceProducts")
+        .values(
+          [...dedupByKey.values()].map((r) => ({
+            marketplace,
+            externalId: r.externalId,
+            groupId: r.groupId,
+            productName: r.productName,
+            finish: r.finish,
+            language: r.language,
+          })),
+        )
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doUpdateSet({
+            groupId: (eb) => eb.ref("excluded.groupId"),
+            productName: (eb) => eb.ref("excluded.productName"),
+          }),
+        )
+        .returning(["id", "externalId", "finish", "language"])
+        .execute();
     },
 
     // ── Row counts ──────────────────────────────────────────────────────────
@@ -322,12 +328,22 @@ export function priceRefreshRepo(db: Db) {
         )
         .execute();
 
-      const productIdByKey = new Map(
-        products.map((p) => [skuKey(p.externalId, p.finish, p.language), p.id]),
-      );
+      // Keyed with the marketplace, unlike the single-marketplace `skuKey`.
+      // `values` spans marketplaces and the re-select above matches on
+      // `(marketplace, externalId)` pairs, so two marketplaces handing out the
+      // same external id would otherwise collapse onto one key and bind every
+      // variant to whichever product landed in the map last.
+      const productKey = (v: {
+        marketplace: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+      }): string => `${v.marketplace}::${skuKey(v.externalId, v.finish, v.language)}`;
+
+      const productIdByKey = new Map(products.map((p) => [productKey(p), p.id]));
 
       const variantRows = values.map((v) => {
-        const productId = productIdByKey.get(skuKey(v.externalId, v.finish, v.language));
+        const productId = productIdByKey.get(productKey(v));
         if (!productId) {
           throw new Error(
             `batchInsertProductVariants: missing product id for ${v.marketplace} ${v.externalId} ${v.finish}/${v.language ?? "NULL"}`,

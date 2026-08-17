@@ -418,9 +418,10 @@ export const friendGroupActivityEventSchema = z
       printingId: z.string(),
       cardId: z.string(),
       quantity: z.number().int().positive(),
-      giverUserId: z.string(),
+      /** NULL once that party deleted their account; the name is the snapshot. */
+      giverUserId: z.string().nullable(),
       giverName: z.string().nullable(),
-      receiverUserId: z.string(),
+      receiverUserId: z.string().nullable(),
       receiverName: z.string().nullable(),
     }),
     z.object({

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
-import type { CardTrade } from "../repositories/card-trades.js";
+import type { LiveCardTrade } from "../repositories/card-trades.js";
 import {
   acceptTrade,
   autoCancelUnfillablePendingTrades,
@@ -27,7 +27,7 @@ const TRADE = {
   printingId: "printing-1",
   quantity: 1,
   status: "pending",
-} as unknown as CardTrade;
+} as unknown as LiveCardTrade;
 
 describe("acceptTrade cross-claim with a concurrent loan", () => {
   it("409s and never pins when the locked copy was pinned to a loan after the supply read", async () => {
@@ -83,7 +83,7 @@ const OFFER = {
   id: "offer-1",
   quantity: 1,
   receiverWishEntryId: "wish-1",
-} as unknown as CardTrade;
+} as unknown as LiveCardTrade;
 
 /** A pending row as `listPendingForGiverPrinting` returns it (oldest first). */
 interface Pending {
@@ -106,7 +106,7 @@ function supplyRepos(supplyByGroup: Record<string, string[]>, pending: Pending[]
     const copies = supplyByGroup[groupId] ?? [];
     return { unreservedCopyIds: copies, hasAny: copies.length > 0 };
   });
-  const create = vi.fn(async () => ({ id: "trade-new" }) as unknown as CardTrade);
+  const create = vi.fn(async () => ({ id: "trade-new" }) as unknown as LiveCardTrade);
   const setPendingQuantity = vi.fn(async () => 1);
   const repos = {
     friendGroups: {
@@ -426,7 +426,7 @@ const REQUEST = {
   ...TRADE,
   id: "request-1",
   initiator: "receiver",
-} as unknown as CardTrade;
+} as unknown as LiveCardTrade;
 
 /** @returns A candidate copy row as `copies.listMetadataByIds` returns it. */
 function candidate(id: string, overrides: Record<string, unknown> = {}) {
@@ -452,7 +452,7 @@ function candidate(id: string, overrides: Record<string, unknown> = {}) {
  * decide is which ids get pinned.
  * @returns The stub repos plus the mocks the assertions read.
  */
-function acceptRepos(trade: CardTrade, candidates: ReturnType<typeof candidate>[]) {
+function acceptRepos(trade: LiveCardTrade, candidates: ReturnType<typeof candidate>[]) {
   const pinCopies = vi.fn(async () => undefined);
   const markReserved = vi.fn(async () => 1);
   const listMetadataByIds = vi.fn(async (ids: readonly string[]) =>
@@ -487,7 +487,7 @@ function acceptRepos(trade: CardTrade, candidates: ReturnType<typeof candidate>[
  * Runs acceptTrade against the stub and returns the result, error included.
  * @returns The reserved DTO, or the thrown error.
  */
-function runAccept(repos: Repos, trade: CardTrade, copyIds?: string[]): Promise<unknown> {
+function runAccept(repos: Repos, trade: LiveCardTrade, copyIds?: string[]): Promise<unknown> {
   const acceptedBy = trade.initiator === "giver" ? trade.receiverUserId : trade.giverUserId;
   return acceptTrade(mockTransact(repos), trade.id, acceptedBy, copyIds).catch(
     (error: unknown) => error,
@@ -554,7 +554,7 @@ describe("acceptTrade with a chosen copy", () => {
   });
 
   it("409s on a duplicated id", async () => {
-    const twoAtATime = { ...REQUEST, quantity: 2 } as unknown as CardTrade;
+    const twoAtATime = { ...REQUEST, quantity: 2 } as unknown as LiveCardTrade;
     const { repos, pinCopies } = acceptRepos(twoAtATime, [
       candidate("copy-1"),
       candidate("copy-2"),
@@ -629,7 +629,7 @@ describe("listTradeCopyOptions", () => {
   });
 
   it("409s once the trade has left pending", async () => {
-    const reserved = { ...REQUEST, status: "reserved" } as unknown as CardTrade;
+    const reserved = { ...REQUEST, status: "reserved" } as unknown as LiveCardTrade;
     const { repos } = acceptRepos(reserved, [candidate("copy-1")]);
 
     const result = await listTradeCopyOptions(repos, reserved.id, reserved.giverUserId).catch(

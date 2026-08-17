@@ -39,7 +39,7 @@ export function cardErrataRepo(db: Kysely<Database>) {
         correctedEffectText: data.correctedEffectText,
         source: data.source,
         sourceUrl: data.sourceUrl,
-        effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : null,
+        effectiveDate: data.effectiveDate,
       };
       await db
         .insertInto("cardErrata")

@@ -1,6 +1,5 @@
-import { extractKeywords } from "@openrift/shared/keywords";
-
 import type { Transact } from "../deps.js";
+import { deriveKeywords } from "../repositories/keywords.js";
 import type { UploadErrataEntry } from "../routes/admin/cards/schemas.js";
 
 interface EntryRef {
@@ -68,21 +67,6 @@ function matchesAllPrinted(
       (entry.correctedEffectText === null ||
         printing.printedEffectText === entry.correctedEffectText),
   );
-}
-
-function dedupedKeywords(
-  entry: Pick<UploadErrataEntry, "correctedRulesText" | "correctedEffectText">,
-  printings: { printedRulesText: string | null; printedEffectText: string | null }[],
-): string[] {
-  const all = [
-    ...extractKeywords(entry.correctedRulesText ?? ""),
-    ...extractKeywords(entry.correctedEffectText ?? ""),
-    ...printings.flatMap((printing) => [
-      ...extractKeywords(printing.printedRulesText ?? ""),
-      ...extractKeywords(printing.printedEffectText ?? ""),
-    ]),
-  ];
-  return [...new Set(all)];
 }
 
 /**
@@ -180,11 +164,7 @@ export async function importErrata(
           correctedEffectText: existing.correctedEffectText,
           source: existing.source,
           sourceUrl: existing.sourceUrl,
-          // effective_date is returned as Date from kysely; normalise to ISO date string
-          effectiveDate:
-            existing.effectiveDate instanceof Date
-              ? existing.effectiveDate.toISOString().slice(0, 10)
-              : (existing.effectiveDate ?? null),
+          effectiveDate: existing.effectiveDate,
         };
         const diffs = diffErrata(existingFields, incoming);
         if (diffs.length === 0) {
@@ -204,7 +184,7 @@ export async function importErrata(
       }
 
       await errata.upsert(card.id, incoming);
-      await mut.updateCardById(card.id, { keywords: dedupedKeywords(entry, printings) });
+      await mut.updateCardById(card.id, { keywords: deriveKeywords({ errata: entry, printings }) });
     }
   });
 

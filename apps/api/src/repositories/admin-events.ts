@@ -34,6 +34,13 @@ export interface AdminEventRow {
 /** Filters for the audit event list. */
 export interface AdminEventFilters {
   actorUserId?: string;
+  /**
+   * Free text from the client (the contract types it `z.string()`), matched
+   * against the stored action. Not an {@link AdminEventAction}: the column is
+   * plain `text` with no CHECK and the union is a write-side convention, so an
+   * action the code no longer emits is still queryable and an unknown one just
+   * returns nothing.
+   */
   action?: string;
   search?: string;
 }
@@ -99,8 +106,14 @@ export function adminEventsRepo(db: Kysely<Database>) {
       if (filters.actorUserId) {
         query = query.where("ae.actorUserId", "=", filters.actorUserId);
       }
-      if (filters.action) {
-        query = query.where("ae.action", "=", filters.action as never);
+      const action = filters.action;
+      if (action) {
+        // Compared as text, not through the `AdminEventAction` union: the
+        // filter is free-text (see AdminEventFilters). `action` is a plain
+        // `text` column with no index, so the cast costs nothing and keeps the
+        // column reference type-checked, where the old `as never` on the value
+        // let any string past the union unchecked.
+        query = query.where((eb) => eb(eb.cast<string>(eb.ref("ae.action"), "text"), "=", action));
       }
       if (filters.search) {
         const pattern = `%${filters.search}%`;

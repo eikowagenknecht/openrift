@@ -15,7 +15,7 @@ import {
   buildTradeRequestEmail,
 } from "../emails/trade-emails.js";
 import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
-import type { CardTrade } from "../repositories/card-trades.js";
+import type { LiveCardTrade } from "../repositories/card-trades.js";
 import type { EmailNotificationContext } from "../repositories/user-preferences.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
@@ -82,7 +82,7 @@ export interface TradeEmailDeps {
  */
 export async function sendTradeRequestEmail(
   repos: Repos,
-  trade: CardTrade,
+  trade: LiveCardTrade,
   deps: TradeEmailDeps,
 ): Promise<void> {
   try {
@@ -131,6 +131,10 @@ export async function sendTradeRequestEmail(
     // The email is about this one trade, so it lands on the sheet with the
     // person who started it — where the trade sits alongside everything else
     // between the two of them, pooled across every shared group.
+    if (dto.counterparty.userId === null) {
+      // The initiator closed their account between the request and this send.
+      return;
+    }
     const sheetUrl = `${deps.appBaseUrl}/trades/${dto.counterparty.userId}`;
     const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
       deps.appBaseUrl,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb } from "../test/recording-db.js";
 import { setsRepo } from "./sets.js";
 
 const SET = {
@@ -148,20 +149,24 @@ describe("setsRepo", () => {
     await expect(setsRepo(db).reorder([])).resolves.toBeUndefined();
   });
 
-  it("upsert creates set when it doesn't exist", async () => {
-    // The mock can't distinguish between the two sequential calls, but we exercise the
-    // `!existing` branch by having executeTakeFirst return undefined. The subsequent
-    // executeTakeFirstOrThrow will also see undefined and throw, but the branch is covered.
+  it("upsert resolves without a result row", async () => {
     const db = createMockDb([]);
-    try {
-      await setsRepo(db).upsert("NEW", "New Set");
-    } catch {
-      // Expected: mock returns undefined for executeTakeFirstOrThrow too
-    }
+    await expect(setsRepo(db).upsert("NEW", "New Set")).resolves.toBeUndefined();
   });
 
-  it("upsert does nothing when set exists", async () => {
-    const db = createMockDb([{ id: "s-1" }]);
-    await expect(setsRepo(db).upsert("OGS", "Proving Grounds")).resolves.toBeUndefined();
+  // Regression: upsert used to SELECT the slug, then SELECT max(sort_order),
+  // then INSERT. Two ingests naming the same new set both saw it missing and
+  // the loser threw on sets_slug_key. One INSERT ... ON CONFLICT DO NOTHING,
+  // with sort_order computed inline, can't lose that race.
+  it("upsert issues a single conflict-tolerant insert", async () => {
+    const { db, queries } = createRecordingDb();
+
+    await setsRepo(db).upsert("NEW", "New Set");
+
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toMatch(/^insert into "sets"/u);
+    expect(queries[0]).toContain('on conflict ("slug") do nothing');
+    expect(queries[0]).toContain("coalesce((select max(sort_order) from sets), 0) + 1");
+    expect(queries[0]).not.toContain("select id from");
   });
 });

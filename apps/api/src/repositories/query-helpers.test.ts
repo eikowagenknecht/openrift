@@ -145,6 +145,9 @@ describe("buildKeysetCursor", () => {
 
 describe("keysetCursorPredicate", () => {
   const TIME = new Date("2026-01-15T12:30:00.000Z");
+  // The redundant sargable bound is exclusive at the cursor's millisecond + 1,
+  // which is what keeps the µs rows of the cursor's own millisecond eligible.
+  const BOUND = new Date("2026-01-15T12:30:00.001Z");
   const OPTIONS = { timeColumn: "cp.createdAt", idColumn: "cp.id" } as const;
 
   it("breaks ties ascending on the id column", () => {
@@ -152,10 +155,11 @@ describe("keysetCursorPredicate", () => {
       keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "asc" }),
     );
     expect(where).toBe(
-      `(date_trunc('milliseconds', "cp"."created_at") < $1 or ` +
-        `(date_trunc('milliseconds', "cp"."created_at") = $2 and "cp"."id" > $3))`,
+      `("cp"."created_at" < $1 and ` +
+        `(date_trunc('milliseconds', "cp"."created_at") < $2 or ` +
+        `(date_trunc('milliseconds', "cp"."created_at") = $3 and "cp"."id" > $4)))`,
     );
-    expect(parameters).toEqual([TIME, TIME, "cp-9"]);
+    expect(parameters).toEqual([BOUND, TIME, TIME, "cp-9"]);
   });
 
   it("breaks ties descending on the id column", () => {
@@ -163,10 +167,37 @@ describe("keysetCursorPredicate", () => {
       keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "desc" }),
     );
     expect(where).toBe(
-      `(date_trunc('milliseconds', "cp"."created_at") < $1 or ` +
-        `(date_trunc('milliseconds', "cp"."created_at") = $2 and "cp"."id" < $3))`,
+      `("cp"."created_at" < $1 and ` +
+        `(date_trunc('milliseconds', "cp"."created_at") < $2 or ` +
+        `(date_trunc('milliseconds', "cp"."created_at") = $3 and "cp"."id" < $4)))`,
     );
-    expect(parameters).toEqual([TIME, TIME, "cp-9"]);
+    expect(parameters).toEqual([BOUND, TIME, TIME, "cp-9"]);
+  });
+
+  // Regression: the truncated comparison alone is unsargable (date_trunc is
+  // STABLE, so no index can serve it) and every keyset list degraded into a
+  // full scan. The bare-column bound must be present in both branches.
+  it("adds a bare-column upper bound an index can seek on", () => {
+    const withId = compileWhere(
+      keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "asc" }),
+    );
+    const legacy = compileWhere(
+      keysetCursorPredicate(TIME.toISOString(), { ...OPTIONS, idDirection: "asc" }),
+    );
+    for (const compiled of [withId, legacy]) {
+      expect(compiled.where).toContain(`"cp"."created_at" < $1`);
+      expect(compiled.parameters[0]).toEqual(BOUND);
+    }
+  });
+
+  // The bound must never exclude a row the truncated half accepts: a row one
+  // microsecond past the cursor still truncates back onto it, so it is still a
+  // tie the id comparator decides. One millisecond above is the exact width.
+  it("keeps the bound one millisecond above the cursor so ties survive", () => {
+    const { parameters } = compileWhere(
+      keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "asc" }),
+    );
+    expect(parameters[0]).toEqual(new Date(TIME.getTime() + 1));
   });
 
   // A cursor minted before the id suffix shipped is still in flight during a
@@ -175,15 +206,17 @@ describe("keysetCursorPredicate", () => {
     const { where, parameters } = compileWhere(
       keysetCursorPredicate(TIME.toISOString(), { ...OPTIONS, idDirection: "asc" }),
     );
-    expect(where).toBe(`date_trunc('milliseconds', "cp"."created_at") < $1`);
-    expect(parameters).toEqual([TIME]);
+    expect(where).toBe(
+      `("cp"."created_at" < $1 and date_trunc('milliseconds', "cp"."created_at") < $2)`,
+    );
+    expect(parameters).toEqual([BOUND, TIME]);
   });
 
   it("keeps the id when it contains the separator", () => {
     const { parameters } = compileWhere(
       keysetCursorPredicate(`${TIME.toISOString()}_a_b`, { ...OPTIONS, idDirection: "asc" }),
     );
-    expect(parameters).toEqual([TIME, TIME, "a_b"]);
+    expect(parameters).toEqual([BOUND, TIME, TIME, "a_b"]);
   });
 
   // Regression (fixed once per repo before this helper existed): an unparseable

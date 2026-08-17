@@ -147,17 +147,14 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .orderBy("startedAt", "desc")
         .limit(1)
         .executeTakeFirst();
-      if (!row) {
-        return null;
-      }
-      return row as JobRun;
+      return row ?? null;
     },
 
     /**
      * List the most recent runs, optionally filtered by kind.
      * @returns Rows ordered by started_at descending.
      */
-    async listRecent(params: { kind?: string; limit?: number }): Promise<JobRun[]> {
+    listRecent(params: { kind?: string; limit?: number }): Promise<JobRun[]> {
       let q = db
         .selectFrom("jobRuns")
         .select([
@@ -177,8 +174,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (params.kind !== undefined) {
         q = q.where("kind", "=", params.kind);
       }
-      const rows = await q.execute();
-      return rows as JobRun[];
+      return q.execute();
     },
 
     /**
@@ -240,10 +236,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         rowQuery.execute(),
         countQuery.executeTakeFirstOrThrow(),
       ]);
-      return {
-        rows: rows as JobRun[],
-        total: Number(countRow.total),
-      };
+      return { rows, total: Number(countRow.total) };
     },
 
     /**
@@ -268,16 +261,26 @@ export function jobRunsRepo(db: Kysely<Database>) {
      * @returns A map from kind to its latest JobRun.
      */
     async getLatestPerKind(): Promise<Record<string, JobRun>> {
-      const rows = await sql<JobRun>`
-        SELECT DISTINCT ON (kind)
-          id, kind, trigger, status, started_at AS "startedAt",
-          finished_at AS "finishedAt", duration_ms AS "durationMs",
-          error_message AS "errorMessage", result, noop
-        FROM job_runs
-        ORDER BY kind, started_at DESC
-      `.execute(db);
+      const rows = await db
+        .selectFrom("jobRuns")
+        .select([
+          "id",
+          "kind",
+          "trigger",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "errorMessage",
+          "result",
+          "noop",
+        ])
+        .distinctOn("kind")
+        .orderBy("kind")
+        .orderBy("startedAt", "desc")
+        .execute();
       const out: Record<string, JobRun> = {};
-      for (const row of rows.rows) {
+      for (const row of rows) {
         out[row.kind] = row;
       }
       return out;
@@ -289,19 +292,19 @@ export function jobRunsRepo(db: Kysely<Database>) {
      * @returns The number of rows swept.
      */
     async sweepOrphaned(): Promise<number> {
-      const result = await sql<{ count: string }>`
-        WITH swept AS (
-          UPDATE job_runs
-          SET status = 'failed',
-              finished_at = now(),
-              duration_ms = (extract(epoch from (now() - started_at)) * 1000)::int,
-              error_message = 'server restarted during run'
-          WHERE status = 'running'
-          RETURNING 1
-        )
-        SELECT count(*)::text AS count FROM swept
-      `.execute(db);
-      return Number(result.rows[0]?.count ?? 0);
+      const result = await db
+        .updateTable("jobRuns")
+        .set({
+          status: "failed",
+          finishedAt: sql<Date>`now()`,
+          // The run's own start time is the only clock we have for how long it
+          // was up, so the duration is computed per row in SQL.
+          durationMs: sql<number>`(extract(epoch from (now() - started_at)) * 1000)::int`,
+          errorMessage: "server restarted during run",
+        })
+        .where("status", "=", "running")
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
     },
 
     /**

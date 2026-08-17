@@ -96,9 +96,20 @@ function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
  * (events page id-descending, copies id-ascending) stay explicit rather than
  * drifting apart.
  *
- * The timestamp is compared through `date_trunc('milliseconds', ...)`: the
+ * The predicate has two parts, and both are needed.
+ *
+ * The correctness half compares through `date_trunc('milliseconds', ...)`: the
  * column keeps µs precision that a JS `Date` cannot carry, so an untruncated
- * equality would silently skip the rows sharing the cursor's second.
+ * equality would silently skip the rows sharing the cursor's millisecond.
+ *
+ * The performance half is the redundant `<timeColumn> < cursorTime + 1ms`
+ * bound. `date_trunc` is only STABLE, so no index can serve the truncated
+ * comparison and the planner falls back to scanning the table. The bare column
+ * bound is sargable, so an index on `(timeColumn, idColumn)` can seek. It
+ * excludes nothing: the cursor time is millisecond-aligned (it comes from a JS
+ * `Date`), every row passing the truncated half satisfies
+ * `date_trunc(col) <= cursorTime`, and that is equivalent to
+ * `col < cursorTime + 1ms`.
  *
  * @param cursor — a cursor produced by {@link buildKeysetCursor}
  * @param options — the ordered columns and the id tie-break direction
@@ -110,14 +121,20 @@ export function keysetCursorPredicate(
   options: { timeColumn: string; idColumn: string; idDirection: "asc" | "desc" },
 ): Expression<SqlBool> {
   const { time, id } = parseKeysetCursor(cursor);
-  const truncatedTime = sql<Date>`date_trunc('milliseconds', ${sql.ref(options.timeColumn)})`;
+  const timeRef = sql.ref(options.timeColumn);
+  const truncatedTime = sql<Date>`date_trunc('milliseconds', ${timeRef})`;
+  // Exclusive upper bound: the cursor's millisecond plus one, so every µs
+  // inside the cursor's own millisecond still passes and the truncated half
+  // stays the only thing deciding those rows.
+  const upperBound = new Date(time.getTime() + 1);
+  const sargableBound = sql<SqlBool>`${timeRef} < ${upperBound}`;
   if (id === null) {
-    return sql<SqlBool>`${truncatedTime} < ${time}`;
+    return sql<SqlBool>`(${sargableBound} and ${truncatedTime} < ${time})`;
   }
   const idRef = sql.ref(options.idColumn);
   const tieBreak =
     options.idDirection === "asc" ? sql<SqlBool>`${idRef} > ${id}` : sql<SqlBool>`${idRef} < ${id}`;
-  return sql<SqlBool>`(${truncatedTime} < ${time} or (${truncatedTime} = ${time} and ${tieBreak}))`;
+  return sql<SqlBool>`(${sargableBound} and (${truncatedTime} < ${time} or (${truncatedTime} = ${time} and ${tieBreak})))`;
 }
 
 interface FrontImageTables {

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb, onlyStatement } from "../test/recording-db.js";
 import { priceRefreshRepo } from "./price-refresh.js";
 
 describe("priceRefreshRepo", () => {
@@ -122,5 +123,93 @@ describe("priceRefreshRepo", () => {
   it("batchInsertProductVariants is no-op for empty array", async () => {
     const db = createMockDb([]);
     await expect(priceRefreshRepo(db).batchInsertProductVariants([])).resolves.toBeUndefined();
+  });
+});
+
+describe("priceRefreshRepo (generated SQL)", () => {
+  const captured = createRecordingDb();
+
+  beforeEach(() => {
+    captured.reset();
+  });
+
+  it("batchInsertProductVariants keeps two marketplaces sharing an external id apart", async () => {
+    // Regression: the product lookup was keyed on (externalId, finish,
+    // language) alone while the inputs and the re-select both span
+    // marketplaces. Two marketplaces handing out the same external id
+    // collapsed onto one key, and every variant bound to whichever product
+    // happened to land in the map last.
+    captured.setRows([
+      { id: "p-tcg", marketplace: "tcgplayer", externalId: 42, finish: "normal", language: null },
+      { id: "p-cm", marketplace: "cardmarket", externalId: 42, finish: "normal", language: null },
+    ]);
+
+    await priceRefreshRepo(captured.db).batchInsertProductVariants([
+      {
+        marketplace: "tcgplayer",
+        externalId: 42,
+        groupId: 7,
+        productName: "Card",
+        printingId: "pr-tcg",
+        finish: "normal",
+        language: null,
+      },
+      {
+        marketplace: "cardmarket",
+        externalId: 42,
+        groupId: 7,
+        productName: "Card",
+        printingId: "pr-cm",
+        finish: "normal",
+        language: null,
+      },
+    ]);
+
+    const variantInsert = captured.statements.at(-1)!;
+    expect(variantInsert.sql).toContain('insert into "marketplace_product_variants"');
+    expect(variantInsert.parameters).toEqual(["p-tcg", "pr-tcg", "p-cm", "pr-cm"]);
+  });
+
+  it("batchInsertProductVariants throws when a marketplace's product is missing", async () => {
+    // Only the tcgplayer product comes back, so the cardmarket input has no
+    // id to bind to. Before the key carried the marketplace this silently
+    // bound to the wrong product instead of failing.
+    captured.setRows([
+      { id: "p-tcg", marketplace: "tcgplayer", externalId: 42, finish: "normal", language: null },
+    ]);
+
+    await expect(
+      priceRefreshRepo(captured.db).batchInsertProductVariants([
+        {
+          marketplace: "cardmarket",
+          externalId: 42,
+          groupId: 7,
+          productName: "Card",
+          printingId: "pr-cm",
+          finish: "normal",
+          language: null,
+        },
+      ]),
+    ).rejects.toThrow("missing product id for cardmarket 42 normal/NULL");
+  });
+
+  it("upsertProductsForMarketplace updates on conflict so RETURNING covers existing rows", async () => {
+    // `doNothing` would drop conflicting rows from RETURNING, and the caller
+    // needs an id for every input SKU — on any refresh past the first, most
+    // of them already exist.
+    await priceRefreshRepo(captured.db).upsertProductsForMarketplace("cardmarket", [
+      { externalId: 42, finish: "normal", language: null, groupId: 7, productName: "Card" },
+    ]);
+
+    const { sql, parameters } = onlyStatement(captured);
+    expect(sql).toContain(
+      'on conflict ("marketplace", "external_id", "finish", "language") do update set',
+    );
+    expect(sql).toContain('"group_id" = "excluded"."group_id"');
+    expect(sql).toContain('"product_name" = "excluded"."product_name"');
+    expect(sql).toContain('returning "id", "external_id", "finish", "language"');
+    // A NULL language is bound as NULL, so the NULLS NOT DISTINCT unique
+    // (`marketplace_products_sku_key`) collapses it onto the existing row.
+    expect(parameters).toEqual(["cardmarket", 42, 7, "Card", "normal", null]);
   });
 });

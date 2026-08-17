@@ -233,6 +233,7 @@ describe("pendingRequestsByPrinting", () => {
       id: "trade-1",
       groupId: "group-1",
       groupSlug: "my-group",
+      groupName: "The Group",
       role: "receiver",
       initiator: "receiver",
       counterparty: {

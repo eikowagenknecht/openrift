@@ -448,6 +448,14 @@ export function friendGroupsRepo(db: Kysely<Database>) {
      * index (`uq_friend_group_one_owner`) would otherwise reject a naive
      * "promote then demote" because it'd briefly see two owners; we order
      * demote → promote and rely on the transaction.
+     *
+     * The promote must match a row: a `toUserId` who is not a member updates
+     * nothing, and the demote alone would leave the group ownerless. The route
+     * checks membership first, so reaching the throw means the target left the
+     * group in between — the transaction rolls back and the owner keeps the
+     * group.
+     *
+     * @throws {Error} When `toUserId` is not a member of the group.
      */
     async transferOwnership(groupId: string, fromUserId: string, toUserId: string): Promise<void> {
       await db.transaction().execute(async (trx) => {
@@ -464,7 +472,13 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           .set({ role: "owner" })
           .where("groupId", "=", groupId)
           .where("userId", "=", toUserId)
-          .execute();
+          .returning("userId")
+          .executeTakeFirstOrThrow(
+            () =>
+              new Error(
+                `Cannot transfer ownership of group ${groupId}: user ${toUserId} is not a member`,
+              ),
+          );
       });
     },
 

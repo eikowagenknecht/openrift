@@ -19,6 +19,7 @@ import {
   summarizeMatchCopies,
   sumTradeValues,
   tradeBadge,
+  tradeGroupKey,
   tradeSection,
   tradesHubSummary,
   tradeStatusLabel,
@@ -35,6 +36,7 @@ function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeRespons
     id: "trade-1",
     groupId: "group-1",
     groupSlug: "the-group",
+    groupName: "The Group",
     role: "receiver",
     initiator: "receiver",
     counterparty: {
@@ -423,7 +425,10 @@ describe("countTradeSuggestions", () => {
   });
 });
 
-function stubCounterparty(userId: string, name: string | null): CardTradeResponse["counterparty"] {
+function stubCounterparty(
+  userId: string | null,
+  name: string | null,
+): CardTradeResponse["counterparty"] {
   return { userId, name, image: null, gravatarHash: `${userId}-hash`, contactMethods: [] };
 }
 
@@ -504,6 +509,52 @@ describe("groupTradesByCounterparty", () => {
 
   it("returns an empty array for no trades", () => {
     expect(groupTradesByCounterparty([])).toEqual([]);
+  });
+
+  it("keeps two deleted counterparties with different names apart", () => {
+    const gone1 = stubTrade({ id: "g1", counterparty: stubCounterparty(null, "Ekko") });
+    const gone2 = stubTrade({ id: "g2", counterparty: stubCounterparty(null, "Jinx") });
+
+    const groups = groupTradesByCounterparty([gone1, gone2]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.flatMap((group) => group.trades.map((trade) => trade.id)).toSorted()).toEqual([
+      "g1",
+      "g2",
+    ]);
+  });
+});
+
+describe("tradeGroupKey", () => {
+  it("identifies a live group by its id", () => {
+    expect(tradeGroupKey(stubTrade({ groupId: "group-7", groupName: "Rift Runners" }))).toBe(
+      "group-7",
+    );
+  });
+
+  it("falls back to the snapshotted name once the group is deleted", () => {
+    const key = tradeGroupKey(stubTrade({ groupId: null, groupName: "Rift Runners" }));
+    expect(key).not.toBe("group-7");
+    expect(key).toContain("Rift Runners");
+  });
+
+  it("keeps a deleted group apart from a live one of the same name", () => {
+    const live = tradeGroupKey(stubTrade({ groupId: "group-7", groupName: "Rift Runners" }));
+    const deleted = tradeGroupKey(stubTrade({ groupId: null, groupName: "Rift Runners" }));
+    expect(live).not.toBe(deleted);
+  });
+
+  it("tells two deleted groups with different names apart", () => {
+    const a = tradeGroupKey(stubTrade({ groupId: null, groupName: "Rift Runners" }));
+    const b = tradeGroupKey(stubTrade({ groupId: null, groupName: "Bandle Crew" }));
+    expect(a).not.toBe(b);
+  });
+
+  it("collapses two deleted groups that shared a name, which is the accepted trade-off", () => {
+    // The snapshot keeps only the name, so nothing distinguishes them any more.
+    const a = tradeGroupKey(stubTrade({ groupId: null, groupName: "Playtest" }));
+    const b = tradeGroupKey(stubTrade({ groupId: null, groupName: "Playtest" }));
+    expect(a).toBe(b);
   });
 });
 

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createCapturingDb, onlyStatement } from "../test/capturing-db.js";
+import { createRecordingDb, onlyStatement } from "../test/recording-db.js";
 import { reorderBySortOrder } from "./sort-order.js";
 
-const captured = createCapturingDb();
+const captured = createRecordingDb();
 const { db } = captured;
 
 describe("reorderBySortOrder", () => {

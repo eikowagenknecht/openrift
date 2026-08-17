@@ -81,7 +81,10 @@ export function TradeRowActions({
     mutation.mutate(variables, { onSettled: () => settle(trade.id) });
   }
 
-  const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug };
+  // `groupSlug` only scopes the cache invalidation these mutations trigger. A
+  // trade with no group is finished history and shows no actions at all, so the
+  // undefined branch is unreachable.
+  const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug ?? undefined };
 
   return (
     <>

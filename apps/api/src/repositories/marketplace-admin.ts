@@ -310,27 +310,27 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         return 0;
       }
 
-      const skuMatches = variants.map(
-        (v) => sql`(
-          mp.external_id = ${v.externalId}::integer
-          AND mp.finish = ${v.finish}
-          AND mp.language IS NOT DISTINCT FROM ${v.language}
-        )`,
-      );
-
-      const result = await sql<{ deleted: number }>`
-        WITH deleted AS (
-          DELETE FROM marketplace_ignored_variants iv
-          USING marketplace_products mp
-          WHERE mp.id = iv.marketplace_product_id
-            AND mp.marketplace = ${marketplace}
-            AND (${sql.join(skuMatches, sql` OR `)})
-          RETURNING 1 as one
+      // `is not distinct from` on language, not `=`: CM/TCG store NULL there
+      // and an `=` comparison would never match those rows.
+      const result = await db
+        .deleteFrom("marketplaceIgnoredVariants as iv")
+        .using("marketplaceProducts as mp")
+        .whereRef("mp.id", "=", "iv.marketplaceProductId")
+        .where("mp.marketplace", "=", marketplace)
+        .where((eb) =>
+          eb.or(
+            variants.map((v) =>
+              eb.and([
+                eb("mp.externalId", "=", v.externalId),
+                eb("mp.finish", "=", v.finish),
+                eb("mp.language", "is not distinct from", v.language),
+              ]),
+            ),
+          ),
         )
-        SELECT count(*)::int as deleted FROM deleted
-      `.execute(db);
+        .executeTakeFirst();
 
-      return result.rows[0]?.deleted ?? 0;
+      return Number(result?.numDeletedRows ?? 0n);
     },
 
     // ── Staging card overrides ──────────────────────────────────────────────
@@ -379,15 +379,16 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       finish: string,
       language: string | null,
     ): Promise<void> {
-      await sql`
-        DELETE FROM marketplace_product_card_overrides ov
-        USING marketplace_products mp
-        WHERE ov.marketplace_product_id = mp.id
-          AND mp.marketplace = ${marketplace}
-          AND mp.external_id = ${externalId}
-          AND mp.finish = ${finish}
-          AND mp.language IS NOT DISTINCT FROM ${language}
-      `.execute(db);
+      await db
+        .deleteFrom("marketplaceProductCardOverrides as ov")
+        .using("marketplaceProducts as mp")
+        .whereRef("ov.marketplaceProductId", "=", "mp.id")
+        .where("mp.marketplace", "=", marketplace)
+        .where("mp.externalId", "=", externalId)
+        .where("mp.finish", "=", finish)
+        // `is not distinct from`, not `=`: CM/TCG store a NULL language.
+        .where("mp.language", "is not distinct from", language)
+        .execute();
     },
 
     // ── Clear price data ────────────────────────────────────────────────────
@@ -403,37 +404,29 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       variants: number;
       products: number;
     }> {
-      const prices = await sql<{ deleted: number }>`
-        WITH deleted AS (
-          DELETE FROM marketplace_product_prices pp
-          USING marketplace_products mp
-          WHERE mp.id = pp.marketplace_product_id
-            AND mp.marketplace = ${marketplace}
-          RETURNING 1 as one
-        )
-        SELECT count(*)::int as deleted FROM deleted
-      `.execute(db);
+      const prices = await db
+        .deleteFrom("marketplaceProductPrices as pp")
+        .using("marketplaceProducts as mp")
+        .whereRef("mp.id", "=", "pp.marketplaceProductId")
+        .where("mp.marketplace", "=", marketplace)
+        .executeTakeFirst();
 
-      const variants = await sql<{ deleted: number }>`
-        WITH deleted AS (
-          DELETE FROM marketplace_product_variants mpv
-          USING marketplace_products mp
-          WHERE mp.id = mpv.marketplace_product_id
-            AND mp.marketplace = ${marketplace}
-          RETURNING 1 as one
-        )
-        SELECT count(*)::int as deleted FROM deleted
-      `.execute(db);
+      const variants = await db
+        .deleteFrom("marketplaceProductVariants as mpv")
+        .using("marketplaceProducts as mp")
+        .whereRef("mp.id", "=", "mpv.marketplaceProductId")
+        .where("mp.marketplace", "=", marketplace)
+        .executeTakeFirst();
 
       const products = await db
         .deleteFrom("marketplaceProducts")
         .where("marketplace", "=", marketplace)
-        .execute();
+        .executeTakeFirst();
 
       return {
-        prices: prices.rows[0]?.deleted ?? 0,
-        variants: variants.rows[0]?.deleted ?? 0,
-        products: Number(products[0].numDeletedRows),
+        prices: Number(prices?.numDeletedRows ?? 0n),
+        variants: Number(variants?.numDeletedRows ?? 0n),
+        products: Number(products?.numDeletedRows ?? 0n),
       };
     },
   };

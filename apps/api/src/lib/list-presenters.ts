@@ -82,7 +82,7 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
  * (ADR-034).
  * @returns The parsed, normalized rules (empty array when the column is empty).
  */
-export function parseListRules(value: ListRules | string | null | undefined): ListRules {
+export function parseListRules(value: ListRules | null | undefined): ListRules {
   return hydrateListRules(value);
 }
 

@@ -14,16 +14,15 @@ import { readJson } from "../../test/read-json.js";
 // PATCH /preferences — upserts partial preferences
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 //
-// Note: under bun, postgres.js returns jsonb as a string. The preferences
-// repo's upsert reads `existing?.data` and spreads it, which produces
-// incorrect merges when data is a string. The first PATCH works (no existing
-// row), but subsequent PATCHes may produce unexpected results. This test
-// fully validates the first PATCH and only checks status codes for the rest.
+// The upsert merges by reading `existing?.data` and spreading it. That is a
+// plain object round-trip: the jsonb column is typed as its parsed shape and
+// postgres.js does the serializing on both legs, so a merge over several
+// PATCHes composes as written.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0044-4000-a000-000000000001";
 // A dedicated user so the emailNotifications round-trip runs as a clean first
-// PATCH, sidestepping the bun jsonb-as-string merge quirk noted above.
+// PATCH, independent of whatever the shared user's preferences already hold.
 const EMAIL_PREF_USER_ID = "a0000000-0044-4000-a000-000000000002";
 
 const ctx = createTestContext(USER_ID);

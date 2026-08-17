@@ -26,7 +26,8 @@ export interface SettleBatchResult {
 export interface SettleBatchDeps {
   settle: (variables: {
     tradeId: string;
-    groupSlug: string;
+    /** Scopes the cache invalidation; absent for a trade whose group is gone. */
+    groupSlug?: string;
     quantity: number;
     targetCollectionId?: string;
   }) => Promise<unknown>;
@@ -71,7 +72,7 @@ export async function runSettleBatch(
     try {
       await deps.settle({
         tradeId: trade.id,
-        groupSlug: trade.groupSlug,
+        groupSlug: trade.groupSlug ?? undefined,
         quantity,
         targetCollectionId: trade.role === "receiver" ? deps.targetCollectionId : undefined,
       });

@@ -28,7 +28,8 @@ import { useRequiredUserId } from "@/lib/auth-session";
 /** The trade an accept was started for. */
 export interface TradeAcceptTarget {
   tradeId: string;
-  groupSlug: string;
+  /** Scopes the cache invalidation; absent for a trade whose group is gone. */
+  groupSlug?: string;
   /** The viewer's side. Only a giver has copies of their own to promise. */
   role: CardTradeRole;
   /** Card name, for the picker's heading. */

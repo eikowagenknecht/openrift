@@ -835,28 +835,51 @@ export function deckCheckRepo(db: Kysely<Database>) {
         ...(patch.playerMessage === undefined ? {} : { playerMessage: patch.playerMessage }),
       };
 
-      if (Object.keys(participantPatch).length > 0) {
-        const participantId = await participantIdForEntry(entryId);
-        if (participantId === undefined) {
-          return undefined;
-        }
-        if (participantId) {
-          await db
-            .updateTable("tournamentParticipants")
-            .set(participantPatch)
-            .where("id", "=", participantId)
-            .execute();
-        }
-      }
+      const writesParticipant = Object.keys(participantPatch).length > 0;
+      const writesEntry = Object.keys(entryPatch).length > 0;
 
-      if (Object.keys(entryPatch).length > 0) {
-        const updated = await db
-          .updateTable("deckCheckEntries")
-          .set(entryPatch)
-          .where("id", "=", entryId)
-          .returning("id")
-          .executeTakeFirst();
-        if (!updated) {
+      // One patch spans two tables, so the two writes share a transaction: a
+      // failure between them used to leave the participant renamed while the
+      // entry kept its old state, which the checked/approved columns make
+      // visible to judges immediately.
+      const applyPatches = async (trx: Kysely<Database>): Promise<boolean> => {
+        if (writesParticipant) {
+          const row = await trx
+            .selectFrom("deckCheckEntries")
+            .select("participantId")
+            .where("id", "=", entryId)
+            .executeTakeFirst();
+          if (row === undefined) {
+            return false;
+          }
+          if (row.participantId) {
+            await trx
+              .updateTable("tournamentParticipants")
+              .set(participantPatch)
+              .where("id", "=", row.participantId)
+              .execute();
+          }
+        }
+
+        if (writesEntry) {
+          const updated = await trx
+            .updateTable("deckCheckEntries")
+            .set(entryPatch)
+            .where("id", "=", entryId)
+            .returning("id")
+            .executeTakeFirst();
+          if (!updated) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      if (writesParticipant || writesEntry) {
+        const applied = db.isTransaction
+          ? await applyPatches(db)
+          : await db.transaction().execute(applyPatches);
+        if (!applied) {
           return undefined;
         }
       }
@@ -1211,45 +1234,52 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * Removes one physical copy of a card line: the quantity drops by one and
      * the clicked copy's found tick is spliced out (other ticks keep their
      * cells). Removing the last copy deletes the line.
+     *
+     * Wrapped in a transaction with a FOR UPDATE lock on the line, for the same
+     * reason as {@link moveCardCopies} (audit #1): two judges removing copies of
+     * a quantity-2 line would otherwise both read 2 and take the decrement
+     * branch, and the second write would drive quantity to 0 and trip the
+     * `quantity > 0` CHECK as a 500 instead of deleting the line.
+     *
      * @returns False when the row or copy no longer exists.
      */
-    async deleteEntryCardCopy(
-      entryId: string,
-      cardId: string,
-      copyIndex: number,
-    ): Promise<boolean> {
+    deleteEntryCardCopy(entryId: string, cardId: string, copyIndex: number): Promise<boolean> {
       const position = copyIndex + 1;
-      const card = await db
-        .selectFrom("deckCheckEntryCards")
-        .select(["quantity"])
-        .where("id", "=", cardId)
-        .where("entryId", "=", entryId)
-        .executeTakeFirst();
-      if (!card || position > card.quantity) {
-        return false;
-      }
-      if (card.quantity === 1) {
-        const result = await db
-          .deleteFrom("deckCheckEntryCards")
+      const run = async (trx: Kysely<Database>): Promise<boolean> => {
+        const card = await trx
+          .selectFrom("deckCheckEntryCards")
+          .select(["quantity"])
           .where("id", "=", cardId)
           .where("entryId", "=", entryId)
+          .forUpdate()
           .executeTakeFirst();
-        return result.numDeletedRows > 0n;
-      }
-      const result = await sql`
-        UPDATE deck_check_entry_cards
-           SET quantity = quantity - 1,
-               found_copies = (
-                 SELECT COALESCE(
-                   array_agg(COALESCE(found_copies[gs.i], false) ORDER BY gs.i),
-                   '{}'
+        if (!card || position > card.quantity) {
+          return false;
+        }
+        if (card.quantity === 1) {
+          const result = await trx
+            .deleteFrom("deckCheckEntryCards")
+            .where("id", "=", cardId)
+            .where("entryId", "=", entryId)
+            .executeTakeFirst();
+          return result.numDeletedRows > 0n;
+        }
+        const result = await sql`
+          UPDATE deck_check_entry_cards
+             SET quantity = quantity - 1,
+                 found_copies = (
+                   SELECT COALESCE(
+                     array_agg(COALESCE(found_copies[gs.i], false) ORDER BY gs.i),
+                     '{}'
+                   )
+                   FROM generate_series(1, quantity) AS gs(i)
+                   WHERE gs.i <> ${position}
                  )
-                 FROM generate_series(1, quantity) AS gs(i)
-                 WHERE gs.i <> ${position}
-               )
-         WHERE id = ${cardId} AND entry_id = ${entryId} AND ${position} <= quantity
-      `.execute(db);
-      return (result.numAffectedRows ?? 0n) > 0n;
+           WHERE id = ${cardId} AND entry_id = ${entryId} AND ${position} <= quantity
+        `.execute(trx);
+        return (result.numAffectedRows ?? 0n) > 0n;
+      };
+      return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
     /**

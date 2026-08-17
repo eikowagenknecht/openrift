@@ -2,13 +2,15 @@ import type { CardFace, MissingImageCard, ProviderStatsResponse } from "@openrif
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import type {
   DeleteResult,
+  Expression,
   ExpressionBuilder,
   Kysely,
   Selectable,
+  SqlBool,
   Updateable,
   UpdateResult,
 } from "kysely";
-import { sql } from "kysely";
+import { expressionBuilder, sql } from "kysely";
 
 import type {
   CardNameAliasesTable,
@@ -49,64 +51,78 @@ const CANONICAL_CANDIDATE_PRINTING_ORDER = [
 ];
 
 /**
+ * The three filters below correlate to the outer query only through `sql.ref`
+ * on a caller-supplied alias, so they need nothing from the calling query's
+ * table scope. Building them on a standalone expression builder rather than the
+ * one Kysely hands a `.where()` callback keeps the subqueries fully checked
+ * against `Database`, where the old `ExpressionBuilder<Database, any>` parameter
+ * silently disabled checking for the whole body. Call sites are unchanged:
+ * `.where()` takes a boolean expression as readily as a callback.
+ * @returns An expression builder rooted at `Database` with no tables in scope.
+ */
+function candidateFilterEb() {
+  return expressionBuilder<Database, never>();
+}
+
+/**
  * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
  * @param alias — the candidate_cards table alias used in the query (e.g. "cs", "candidateCards")
- * @returns Expression builder callback for NOT EXISTS subquery
+ * @returns A NOT EXISTS boolean expression.
  */
-function notIgnoredCard(alias: string) {
-  return (eb: ExpressionBuilder<Database, any>) =>
-    eb.not(
-      eb.exists(
-        eb
-          .selectFrom("ignoredCandidateCards as ics")
-          .select(sql.lit(1).as("x"))
-          .where("ics.provider", "=", sql<string>`${sql.ref(`${alias}.provider`)}`)
-          .where("ics.externalId", "=", sql<string>`${sql.ref(`${alias}.externalId`)}`),
-      ),
-    );
+function notIgnoredCard(alias: string): Expression<SqlBool> {
+  const eb = candidateFilterEb();
+  return eb.not(
+    eb.exists(
+      eb
+        .selectFrom("ignoredCandidateCards as ics")
+        .select(sql.lit(1).as("x"))
+        .where("ics.provider", "=", sql<string>`${sql.ref(`${alias}.provider`)}`)
+        .where("ics.externalId", "=", sql<string>`${sql.ref(`${alias}.externalId`)}`),
+    ),
+  );
 }
 
 /**
  * Reusable WHERE filter: exclude candidate_cards whose provider is hidden in provider_settings.
  * @param alias — the candidate_cards table alias used in the query (e.g. "cs", "candidateCards")
- * @returns Expression builder callback for NOT EXISTS subquery
+ * @returns A NOT EXISTS boolean expression.
  */
-function notHiddenSource(alias: string) {
-  return (eb: ExpressionBuilder<Database, any>) =>
-    eb.not(
-      eb.exists(
-        eb
-          .selectFrom("providerSettings as ss")
-          .select(sql.lit(1).as("x"))
-          .where("ss.provider", "=", sql<string>`${sql.ref(`${alias}.provider`)}`)
-          .where("ss.isHidden", "=", true),
-      ),
-    );
+function notHiddenSource(alias: string): Expression<SqlBool> {
+  const eb = candidateFilterEb();
+  return eb.not(
+    eb.exists(
+      eb
+        .selectFrom("providerSettings as ss")
+        .select(sql.lit(1).as("x"))
+        .where("ss.provider", "=", sql<string>`${sql.ref(`${alias}.provider`)}`)
+        .where("ss.isHidden", "=", true),
+    ),
+  );
 }
 
 /**
  * Reusable WHERE filter: exclude candidate_printings that appear in ignored_candidate_printings.
  * @param alias — the candidate_printings table alias used in the query (e.g. "ps", "candidatePrintings")
  * @param csAlias — the candidate_cards table alias to resolve the provider name
- * @returns Expression builder callback for NOT EXISTS subquery
+ * @returns A NOT EXISTS boolean expression.
  */
-function notIgnoredPrinting(alias: string, csAlias: string) {
-  return (eb: ExpressionBuilder<Database, any>) =>
-    eb.not(
-      eb.exists(
-        eb
-          .selectFrom("ignoredCandidatePrintings as ips")
-          .select(sql.lit(1).as("x"))
-          .where("ips.provider", "=", sql<string>`${sql.ref(`${csAlias}.provider`)}`)
-          .where("ips.externalId", "=", sql<string>`${sql.ref(`${alias}.externalId`)}`)
-          .where((eb2) =>
-            eb2.or([
-              eb2("ips.finish", "is", null),
-              eb2("ips.finish", "=", sql<string>`${sql.ref(`${alias}.finish`)}`),
-            ]),
-          ),
-      ),
-    );
+function notIgnoredPrinting(alias: string, csAlias: string): Expression<SqlBool> {
+  const eb = candidateFilterEb();
+  return eb.not(
+    eb.exists(
+      eb
+        .selectFrom("ignoredCandidatePrintings as ips")
+        .select(sql.lit(1).as("x"))
+        .where("ips.provider", "=", sql<string>`${sql.ref(`${csAlias}.provider`)}`)
+        .where("ips.externalId", "=", sql<string>`${sql.ref(`${alias}.externalId`)}`)
+        .where((eb2) =>
+          eb2.or([
+            eb2("ips.finish", "is", null),
+            eb2("ips.finish", "=", sql<string>`${sql.ref(`${alias}.finish`)}`),
+          ]),
+        ),
+    ),
+  );
 }
 
 // ── Row types for aggregate / joined queries ────────────────────────────────
@@ -323,7 +339,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.provider);
     },
 
-    /** @returns Per-provider card count, printing count, and last-updated timestamp. */
+    /**
+     * @returns Per-provider card count, printing count, and last-updated
+     *   timestamp as an ISO string. The aggregate is a `timestamptz`, which the
+     *   driver hands back as a native `Date`, so the conversion happens here
+     *   rather than leaving every caller to do it.
+     */
     async providerStats(): Promise<ProviderStatsResponse[]> {
       const rows = await db
         .selectFrom("candidateCards as cs")
@@ -332,7 +353,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "cs.provider" as const,
           eb.cast<number>(eb.fn.count("cs.name").distinct(), "integer").as("cardCount"),
           eb.cast<number>(eb.fn.count("ps.id").distinct(), "integer").as("printingCount"),
-          sql<string>`max(greatest(cs.updated_at, coalesce(ps.updated_at, cs.updated_at)))`.as(
+          // Never null: the group has at least one candidate card, and
+          // `candidate_cards.updated_at` is NOT NULL.
+          sql<Date>`max(greatest(cs.updated_at, coalesce(ps.updated_at, cs.updated_at)))`.as(
             "lastUpdated",
           ),
         ])
@@ -345,7 +368,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         provider: r.provider,
         cardCount: r.cardCount,
         printingCount: r.printingCount,
-        lastUpdated: r.lastUpdated,
+        lastUpdated: r.lastUpdated.toISOString(),
       }));
     },
 
@@ -400,7 +423,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "mca.types",
         ])
         .where("cards.slug", "=", slug)
-        .executeTakeFirst() as Promise<any>;
+        .executeTakeFirst();
     },
 
     /** @returns Name aliases for a card. */
@@ -804,7 +827,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .selectAll("cards")
         .select(["mca.domains", "mca.superTypes", "mca.types"])
         .orderBy("cards.name")
-        .execute() as any;
+        .execute();
     },
 
     /** @returns All card errata keyed by cardId for export. */
@@ -842,7 +865,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           // led with the set UUID, which is an arbitrary order).
           .innerJoin("printingsOrdered as po", "po.id", "printings.id")
           .orderBy("po.canonicalRank")
-          .execute() as Promise<ExportPrintingRow[]>
+          .execute()
       );
     },
 

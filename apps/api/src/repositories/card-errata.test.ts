@@ -8,7 +8,8 @@ const ERRATA = {
   correctedEffectText: null,
   source: "riot-patch-notes",
   sourceUrl: null,
-  effectiveDate: new Date("2026-01-01"),
+  // A `date` column: the driver hands back the day string, never a Date.
+  effectiveDate: "2026-01-01",
 };
 
 describe("cardErrataRepo", () => {

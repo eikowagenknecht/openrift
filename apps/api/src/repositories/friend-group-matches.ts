@@ -312,7 +312,7 @@ interface DemandEntry extends BoxWantDemand {
  * dimension existed still matches (the backfill mirrors `filterCards`). ADR-034.
  * @returns The parsed, normalized rules (empty array when the column is empty).
  */
-function parseRules(value: ListRules | string | null | undefined): ListRules {
+function parseRules(value: ListRules | null | undefined): ListRules {
   return hydrateListRules(value);
 }
 
@@ -510,6 +510,11 @@ async function loadPromisedIncoming(
     .groupBy(["receiverUserId", "printingId", "cardId"])
     .execute();
   for (const row of rows) {
+    // The `receiverUserId in ownerIds` filter above rules NULL out; the column
+    // is nullable only for a party who has deleted their account.
+    if (row.receiverUserId === null) {
+      continue;
+    }
     const printingKey = promisedKey(row.receiverUserId, row.printingId);
     byPrinting.set(printingKey, (byPrinting.get(printingKey) ?? 0) + row.quantity);
     const cardKey = promisedKey(row.receiverUserId, row.cardId);
@@ -534,11 +539,11 @@ interface PendingOfferRow {
  * several members may keep asking for one card while the giver decides.
  * @returns The offers, oldest first (the order {@link claimCopiesForOffers} allocates in).
  */
-function loadPendingOffers(
+async function loadPendingOffers(
   db: Kysely<Database>,
   giverUserIds: string[],
 ): Promise<PendingOfferRow[]> {
-  return db
+  const rows = await db
     .selectFrom("cardTrades")
     .select(["id", "groupId", "quantity", "giverUserId", "printingId"])
     .where("giverUserId", "in", giverUserIds)
@@ -547,6 +552,10 @@ function loadPendingOffers(
     .orderBy("createdAt", "asc")
     .orderBy("id", "asc")
     .execute();
+  // The `giverUserId in giverUserIds` filter rules NULL out; the column is
+  // nullable only for a party who has deleted their account, and their offers
+  // are cancelled at the same moment.
+  return rows.filter((row): row is PendingOfferRow => row.giverUserId !== null);
 }
 
 /**

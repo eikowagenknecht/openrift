@@ -155,15 +155,15 @@ describe("GET /api/admin/v1/cards/provider-stats", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with provider statistics, coercing a Date lastUpdated to ISO", async () => {
-    // The driver returns the `max(timestamptz)` as a native Date despite the
-    // repo's `sql<string>` type; the handler coerces it to ISO for the schema.
+  it("returns 200 with provider statistics", async () => {
+    // The repo already converts the `max(timestamptz)` the driver hands back as
+    // a native Date into the ISO string the schema declares.
     mockCandidateCards.providerStats.mockResolvedValue([
       {
         provider: "gallery",
         cardCount: 100,
         printingCount: 200,
-        lastUpdated: new Date("2026-01-15T08:30:00.000Z"),
+        lastUpdated: "2026-01-15T08:30:00.000Z",
       },
     ]);
 

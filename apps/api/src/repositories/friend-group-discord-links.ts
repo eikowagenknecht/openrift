@@ -53,55 +53,72 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
      * Redeems a pending code, turning it into a live guild link. Redeeming the
      * same guild into the group it is already linked to consumes the code and
      * returns the existing link (idempotent re-link); a guild held by another
-     * group is a conflict.
+     * group is a conflict, and leaves the code unspent.
+     *
+     * The whole redeem runs in one transaction with the pending row locked
+     * `FOR UPDATE`. Two concurrent redeems of the same one-time code therefore
+     * serialize: the loser re-checks the qualifier after the lock is released,
+     * no longer matches (the winner cleared `code`), and reports
+     * `unknown-code` instead of binding a second guild. The transaction also
+     * closes the crash window — a failure part-way through rolls back, so the
+     * code is either fully spent or still redeemable, never half-consumed.
+     *
      * @returns The redeem outcome (see {@link RedeemResult}).
      */
-    async redeemCode(values: {
+    redeemCode(values: {
       code: string;
       guildId: string;
       guildName: string | null;
     }): Promise<RedeemResult> {
-      const pending = await db
-        .selectFrom("friendGroupDiscordLinks")
-        .selectAll()
-        .where("code", "=", values.code)
-        .where("codeExpiresAt", ">", new Date())
-        .executeTakeFirst();
-      if (!pending) {
-        return { status: "unknown-code" };
-      }
-      const existing = await db
-        .selectFrom("friendGroupDiscordLinks")
-        .selectAll()
-        .where("guildId", "=", values.guildId)
-        .executeTakeFirst();
-      if (existing) {
-        if (existing.groupId !== pending.groupId) {
-          return { status: "guild-taken" };
+      const run = async (trx: Kysely<Database>): Promise<RedeemResult> => {
+        const pending = await trx
+          .selectFrom("friendGroupDiscordLinks")
+          .selectAll()
+          .where("code", "=", values.code)
+          .where("codeExpiresAt", ">", new Date())
+          .forUpdate()
+          .executeTakeFirst();
+        if (!pending) {
+          return { status: "unknown-code" };
         }
-        // Same guild, same group: refresh the name, drop the pending row.
-        const link = await db
+        // Locked too: a concurrent redeem targeting the same guild has to wait
+        // rather than read a stale owner and decide the branch on it.
+        const existing = await trx
+          .selectFrom("friendGroupDiscordLinks")
+          .selectAll()
+          .where("guildId", "=", values.guildId)
+          .forUpdate()
+          .executeTakeFirst();
+        if (existing) {
+          if (existing.groupId !== pending.groupId) {
+            // Nothing written, so the code survives for a correct retry.
+            return { status: "guild-taken" };
+          }
+          // Same guild, same group: refresh the name, drop the pending row.
+          const link = await trx
+            .updateTable("friendGroupDiscordLinks")
+            .set({ guildName: values.guildName })
+            .where("id", "=", existing.id)
+            .returningAll()
+            .executeTakeFirstOrThrow();
+          await trx.deleteFrom("friendGroupDiscordLinks").where("id", "=", pending.id).execute();
+          return { status: "linked", link };
+        }
+        const link = await trx
           .updateTable("friendGroupDiscordLinks")
-          .set({ guildName: values.guildName })
-          .where("id", "=", existing.id)
+          .set({
+            guildId: values.guildId,
+            guildName: values.guildName,
+            linkedAt: new Date(),
+            code: null,
+            codeExpiresAt: null,
+          })
+          .where("id", "=", pending.id)
           .returningAll()
           .executeTakeFirstOrThrow();
-        await db.deleteFrom("friendGroupDiscordLinks").where("id", "=", pending.id).execute();
         return { status: "linked", link };
-      }
-      const link = await db
-        .updateTable("friendGroupDiscordLinks")
-        .set({
-          guildId: values.guildId,
-          guildName: values.guildName,
-          linkedAt: new Date(),
-          code: null,
-          codeExpiresAt: null,
-        })
-        .where("id", "=", pending.id)
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      return { status: "linked", link };
+      };
+      return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
     /**

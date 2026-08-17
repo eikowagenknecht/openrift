@@ -139,40 +139,56 @@ export function statusRepo(db: Kysely<Database>) {
     /**
      * Gathers pricing/marketplace statistics per source. Counts come from
      * `marketplace_product_prices` (one row per SKU per recorded_at).
+     *
+     * The price aggregate runs as its own query rather than a third join in
+     * the product query. Variants and prices both hang off a product, so
+     * joining them together multiplies each product's price rows by its
+     * variant count — the dev database reported 519354 cardmarket price rows
+     * against 270817 real ones.
+     *
      * @returns Product counts, price-row counts, and latest recorded_at per marketplace.
      */
     async getPricingStats(): Promise<PricingStats> {
-      const productRows = await sql<{
-        marketplace: string;
-        products: number;
-        variants: number;
-        prices: number;
-        latestPrice: string | null;
-      }>`
-        SELECT
-          mp.marketplace,
-          count(DISTINCT mp.id)::int AS products,
-          count(DISTINCT mpv.id)::int AS variants,
-          count(pp.*)::int AS prices,
-          max(pp.recorded_at)::text AS latest_price
-        FROM marketplace_products mp
-        LEFT JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
-        LEFT JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
-        GROUP BY mp.marketplace
-        ORDER BY mp.marketplace
-      `.execute(db);
+      const [productRows, priceRows] = await Promise.all([
+        db
+          .selectFrom("marketplaceProducts as mp")
+          .leftJoin("marketplaceProductVariants as mpv", "mpv.marketplaceProductId", "mp.id")
+          .select((eb) => [
+            "mp.marketplace as marketplace",
+            eb.cast<number>(eb.fn.count("mp.id").distinct(), "integer").as("products"),
+            eb.cast<number>(eb.fn.count("mpv.id").distinct(), "integer").as("variants"),
+          ])
+          .groupBy("mp.marketplace")
+          .orderBy("mp.marketplace")
+          .execute(),
+        db
+          .selectFrom("marketplaceProductPrices as pp")
+          .innerJoin("marketplaceProducts as mp", "mp.id", "pp.marketplaceProductId")
+          .select((eb) => [
+            "mp.marketplace as marketplace",
+            eb.cast<number>(eb.fn.countAll(), "integer").as("prices"),
+            eb.cast<string>(eb.fn.max("pp.recordedAt"), "text").as("latestPrice"),
+          ])
+          .groupBy("mp.marketplace")
+          .execute(),
+      ]);
 
-      const totalPrices = productRows.rows.reduce((sum, row) => sum + row.prices, 0);
+      const pricesByMarketplace = new Map(priceRows.map((row) => [row.marketplace, row]));
 
-      return {
-        totalPrices,
-        sources: productRows.rows.map((row) => ({
+      const sources = productRows.map((row) => {
+        const prices = pricesByMarketplace.get(row.marketplace);
+        return {
           marketplace: row.marketplace,
           products: row.products,
           variants: row.variants,
-          prices: row.prices,
-          latestPrice: row.latestPrice,
-        })),
+          prices: prices?.prices ?? 0,
+          latestPrice: prices?.latestPrice ?? null,
+        };
+      });
+
+      return {
+        totalPrices: sources.reduce((sum, source) => sum + source.prices, 0),
+        sources,
       };
     },
   };

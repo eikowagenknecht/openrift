@@ -172,7 +172,7 @@ describe("GET /api/v1/promos", () => {
         correctedEffectText: null,
         source: "Riot",
         sourceUrl: null,
-        effectiveDate: new Date("2026-01-01T00:00:00Z"),
+        effectiveDate: "2026-01-01",
       },
     ]);
 

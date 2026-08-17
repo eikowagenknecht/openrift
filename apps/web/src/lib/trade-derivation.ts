@@ -55,11 +55,15 @@ function liveTradeKey(counterpartyUserId: string, printingId: string): string {
 export function withoutLiveTradeMatches<
   TMatch extends { counterpartyUserId: string; printingId: string },
 >(matches: readonly TMatch[], trades: readonly CardTradeResponse[]): TMatch[] {
-  const live = new Set(
-    trades
-      .filter((trade) => isLiveCardTradeStatus(trade.status))
-      .map((trade) => liveTradeKey(trade.counterparty.userId, trade.printingId)),
-  );
+  // A live trade always has both parties — closing an account cancels the ones
+  // that person was in — so a null counterparty means the trade is history.
+  const live = new Set<string>();
+  for (const trade of trades) {
+    const counterpartyUserId = trade.counterparty.userId;
+    if (isLiveCardTradeStatus(trade.status) && counterpartyUserId !== null) {
+      live.add(liveTradeKey(counterpartyUserId, trade.printingId));
+    }
+  }
   return matches.filter(
     (match) => !live.has(liveTradeKey(match.counterpartyUserId, match.printingId)),
   );
@@ -493,6 +497,22 @@ export function collapseTradeAnnotations(
   );
 }
 
+/**
+ * A trade's friend group as an identity to compare and bucket by: the group id
+ * while it exists, and the name it was deleted under once it does not.
+ *
+ * Two different deleted groups that happened to share a name collapse into one
+ * identity. That is accepted rather than worked around: the snapshot keeps only
+ * the name, so after deletion nothing tells them apart, and the visible
+ * consequence is one shared label on rows that are pure history. The same rule
+ * covers a deleted counterparty in {@link groupTradesByCounterparty}.
+ * @param trade The trade to identify the group of.
+ * @returns A stable key for the trade's group.
+ */
+export function tradeGroupKey(trade: Pick<CardTradeResponse, "groupId" | "groupName">): string {
+  return trade.groupId ?? `name:${trade.groupName}`;
+}
+
 /** One counterparty's trades, kept together so the Trades tab can show one
  * per-person header (avatar, count, value) above their rows. */
 export interface TradeCounterpartyGroup {
@@ -513,10 +533,13 @@ export function groupTradesByCounterparty(
 ): TradeCounterpartyGroup[] {
   const byId = new Map<string, TradeCounterpartyGroup>();
   for (const trade of trades) {
-    let group = byId.get(trade.counterparty.userId);
+    // A counterparty who deleted their account has no id left, so their
+    // snapshotted name is the only identity their finished trades still carry.
+    const key = trade.counterparty.userId ?? `name:${trade.counterparty.name ?? ""}`;
+    let group = byId.get(key);
     if (!group) {
       group = { counterparty: trade.counterparty, trades: [] };
-      byId.set(trade.counterparty.userId, group);
+      byId.set(key, group);
     }
     group.trades.push(trade);
   }

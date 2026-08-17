@@ -393,6 +393,21 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(target?.role).toBe("owner");
   });
 
+  // Regression: the promote was unguarded, so transferring to someone who is
+  // not a member updated nothing while the demote still committed. The group
+  // was left with no owner, and no owner-only action could ever fix it.
+  it("rolls back a transfer to a non-member, keeping the current owner", async () => {
+    const group = await createGroup(VIEWER_ID);
+
+    await expect(repo.transferOwnership(group.id, VIEWER_ID, OUTSIDER_ID)).rejects.toThrow(
+      /is not a member/u,
+    );
+
+    const viewer = await repo.getMembership(group.id, VIEWER_ID);
+    expect(viewer?.role).toBe("owner");
+    expect(await repo.getMembership(group.id, OUTSIDER_ID)).toBeUndefined();
+  });
+
   it("leave-cascade drops the user's shares for that group", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");

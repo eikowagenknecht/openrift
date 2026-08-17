@@ -1,0 +1,213 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { PRINTING_1 } from "../test/fixtures/constants.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
+import { cardTradesRepo } from "./card-trades.js";
+import { friendGroupsRepo } from "./friend-groups.js";
+
+// Migration 252: deleting a friend group must not delete the trades that
+// happened inside it. `trg_snapshot_deleted_group_names` releases the pins of
+// the group's live trades, cancels them, then swaps every trade's group
+// reference for the name the group had — so both members keep a readable record
+// of what they exchanged, on a sheet that pools history across groups.
+//
+// The sibling file `trade-loan-name-snapshots.integration.test.ts` covers the
+// account-deletion half of the same shape.
+//
+// One deletion in `beforeAll`; each test reads a different part of the result.
+const MEMBER_A_ID = crypto.randomUUID();
+const MEMBER_B_ID = crypto.randomUUID();
+const ALL_IDS = [MEMBER_A_ID, MEMBER_B_ID];
+const GROUP_NAME = "Bandle City Playtest";
+
+const ctx = createDbContext(MEMBER_A_ID);
+
+describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
+  const { db } = ctx!;
+  const groupsRepo = friendGroupsRepo(db);
+  const trades = cardTradesRepo(db);
+
+  let groupId: string;
+  let survivingGroupId: string;
+  let completedTradeId: string;
+  let reservedTradeId: string;
+  let collectionId: string;
+  let copyId: string;
+
+  beforeAll(async () => {
+    for (const id of ALL_IDS) {
+      await seedTestUser(db, { id });
+    }
+
+    const group = await groupsRepo.createWithOwner(
+      {
+        slug: `snapshot-252-${MEMBER_A_ID.slice(0, 8)}`,
+        name: GROUP_NAME,
+        description: null,
+        code: null,
+      },
+      MEMBER_A_ID,
+    );
+    groupId = group.id;
+    await groupsRepo.addMember(groupId, MEMBER_B_ID, "member");
+
+    // Survives the deletion below, so the "names both" case has a live group id
+    // to push at a trade that already carries a snapshot.
+    const surviving = await groupsRepo.createWithOwner(
+      {
+        slug: `snapshot-252-live-${MEMBER_A_ID.slice(0, 8)}`,
+        name: "Still Here",
+        description: null,
+        code: null,
+      },
+      MEMBER_A_ID,
+    );
+    survivingGroupId = surviving.id;
+
+    const completed = await db
+      .insertInto("cardTrades")
+      .values({
+        groupId,
+        giverUserId: MEMBER_A_ID,
+        receiverUserId: MEMBER_B_ID,
+        initiator: "receiver",
+        printingId: PRINTING_1.id,
+        cardId: PRINTING_1.cardId,
+        quantity: 1,
+        status: "completed",
+        acceptedAt: new Date("2026-03-01T00:00:00Z"),
+        completedAt: new Date("2026-03-02T00:00:00Z"),
+        giverSyncAppliedAt: new Date("2026-03-02T00:00:00Z"),
+        receiverSyncAppliedAt: new Date("2026-03-02T00:00:00Z"),
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    completedTradeId = completed.id;
+
+    // A reserved trade holds pins, which is the part of the teardown the
+    // trigger has to do explicitly now that the trades themselves survive.
+    const collection = await db
+      .insertInto("collections")
+      .values({ userId: MEMBER_A_ID, name: "Snapshot 252 binder" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    collectionId = collection.id;
+    const copy = await db
+      .insertInto("copies")
+      .values({ collectionId, printingId: PRINTING_1.id })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    copyId = copy.id;
+
+    const reserved = await db
+      .insertInto("cardTrades")
+      .values({
+        groupId,
+        giverUserId: MEMBER_B_ID,
+        receiverUserId: MEMBER_A_ID,
+        initiator: "giver",
+        printingId: PRINTING_1.id,
+        cardId: PRINTING_1.cardId,
+        quantity: 1,
+        status: "reserved",
+        acceptedAt: new Date("2026-03-05T00:00:00Z"),
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    reservedTradeId = reserved.id;
+    await db.insertInto("cardTradeCopies").values({ tradeId: reservedTradeId, copyId }).execute();
+
+    await db.deleteFrom("friendGroups").where("id", "=", groupId).execute();
+  });
+
+  afterAll(async () => {
+    await db
+      .deleteFrom("cardTrades")
+      .where("id", "in", [completedTradeId, reservedTradeId])
+      .execute();
+    await db.deleteFrom("copies").where("id", "=", copyId).execute();
+    await db.deleteFrom("collections").where("id", "=", collectionId).execute();
+    await db.deleteFrom("friendGroups").where("id", "=", survivingGroupId).execute();
+    await db.deleteFrom("users").where("id", "in", ALL_IDS).execute();
+  });
+
+  it("keeps a completed trade and snapshots the group name", async () => {
+    const trade = await db
+      .selectFrom("cardTrades")
+      .select(["status", "groupId", "groupName"])
+      .where("id", "=", completedTradeId)
+      .executeTakeFirst();
+    expect(trade).toBeDefined();
+    expect(trade?.status).toBe("completed");
+    expect(trade?.groupId).toBeNull();
+    expect(trade?.groupName).toBe(GROUP_NAME);
+  });
+
+  it("cancels the live trade the group held and snapshots it too", async () => {
+    const trade = await db
+      .selectFrom("cardTrades")
+      .select(["status", "closedAt", "expiresAt", "groupId", "groupName"])
+      .where("id", "=", reservedTradeId)
+      .executeTakeFirst();
+    expect(trade?.status).toBe("cancelled");
+    expect(trade?.closedAt).not.toBeNull();
+    expect(trade?.expiresAt).toBeNull();
+    // Cancelling and snapshotting are separate statements, so this is also the
+    // check that the cancelled row did not stop at "no group, no name".
+    expect(trade?.groupId).toBeNull();
+    expect(trade?.groupName).toBe(GROUP_NAME);
+  });
+
+  it("releases the pins the cancelled trade held", async () => {
+    const pins = await db
+      .selectFrom("cardTradeCopies")
+      .select(["copyId"])
+      .where("tradeId", "=", reservedTradeId)
+      .execute();
+    expect(pins).toEqual([]);
+    // The copy itself is untouched — it was never the group's to delete.
+    const copy = await db
+      .selectFrom("copies")
+      .select(["id"])
+      .where("id", "=", copyId)
+      .executeTakeFirst();
+    expect(copy?.id).toBe(copyId);
+  });
+
+  it("still shows the finished trade to both members, named", async () => {
+    const seen = await Promise.all(
+      ALL_IDS.map(async (userId) => {
+        const listed = await trades.listForUser(userId, {});
+        return listed.find((trade) => trade.id === completedTradeId);
+      }),
+    );
+    expect(seen.filter((row) => row !== undefined)).toHaveLength(ALL_IDS.length);
+    for (const row of seen) {
+      expect(row?.groupId).toBeNull();
+      expect(row?.groupSlug).toBeNull();
+      expect(row?.groupName).toBe(GROUP_NAME);
+    }
+  });
+
+  it("refuses a trade that names both a group and a snapshot", async () => {
+    // The row already carries the snapshot, so handing it a live group as well
+    // is the "both" case.
+    await expect(
+      db
+        .updateTable("cardTrades")
+        .set({ groupId: survivingGroupId })
+        .where("id", "=", reservedTradeId)
+        .execute(),
+    ).rejects.toThrow();
+  });
+
+  it("refuses a trade that names neither", async () => {
+    await expect(
+      db
+        .updateTable("cardTrades")
+        .set({ groupName: null })
+        .where("id", "=", completedTradeId)
+        .execute(),
+    ).rejects.toThrow();
+  });
+});

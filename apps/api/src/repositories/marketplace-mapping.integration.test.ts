@@ -248,4 +248,102 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       expect(await repo.pricesByMarketplace(marketplace, [])).toEqual([]);
     });
   });
+
+  describe("allStaging", () => {
+    const unboundExternalId = 872_490;
+    const boundExternalId = 872_491;
+
+    it("returns unbound SKUs with their newest price, and a NULL language as null", async () => {
+      // Cardmarket and TCGplayer don't split SKUs by language, so NULL is the
+      // normal value here — the row type has to admit it.
+      const unbound = await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace,
+          externalId: unboundExternalId,
+          groupId,
+          productName: "Unbound Product",
+          finish: "normal",
+          language: null,
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values([
+          {
+            marketplaceProductId: unbound.id,
+            recordedAt: new Date("2026-03-01T00:00:00Z"),
+            marketCents: 100,
+          },
+          {
+            marketplaceProductId: unbound.id,
+            recordedAt: new Date("2026-03-02T00:00:00Z"),
+            marketCents: 250,
+          },
+        ])
+        .execute();
+
+      const rows = await repo.allStaging(marketplace);
+      const mine = rows.filter((r) => r.externalId === unboundExternalId);
+
+      expect(mine).toHaveLength(1);
+      expect(mine[0].language).toBeNull();
+      expect(mine[0].marketCents).toBe(250);
+      expect(mine[0].recordedAt).toEqual(new Date("2026-03-02T00:00:00Z"));
+    });
+
+    it("excludes SKUs that already have a variant binding", async () => {
+      const bound = await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace,
+          externalId: boundExternalId,
+          groupId,
+          productName: "Bound Product",
+          finish: "normal",
+          language: null,
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: bound.id,
+          recordedAt: new Date("2026-03-01T00:00:00Z"),
+          marketCents: 100,
+        })
+        .execute();
+      await db
+        .insertInto("marketplaceProductVariants")
+        .values({ marketplaceProductId: bound.id, printingId: enPrintingId })
+        .execute();
+
+      const rows = await repo.allStaging(marketplace);
+
+      expect(rows.some((r) => r.externalId === boundExternalId)).toBe(false);
+    });
+  });
+
+  describe("variantsForCard", () => {
+    it("returns one row per (printing, variant) for the card", async () => {
+      const printing = await db
+        .selectFrom("printings")
+        .select(["id", "cardId", "language"])
+        .where("id", "=", enPrintingId)
+        .executeTakeFirstOrThrow();
+
+      const rows = await repo.variantsForCard(printing.cardId);
+      const mine = rows.filter((r) => r.marketplace === marketplace);
+
+      expect(mine.length).toBeGreaterThanOrEqual(1);
+      for (const row of mine) {
+        expect(row.targetPrintingId).toBe(row.ownerPrintingId);
+      }
+      const own = mine.filter((r) => r.targetPrintingId === enPrintingId);
+      expect(own.length).toBeGreaterThanOrEqual(1);
+      expect(own[0].ownerLanguage).toBe(printing.language);
+    });
+  });
 });

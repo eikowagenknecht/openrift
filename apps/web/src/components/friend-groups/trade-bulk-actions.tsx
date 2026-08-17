@@ -78,7 +78,7 @@ export function BulkTradeActions({
     for (const trade of targets) {
       begin(trade.id);
       mutation.mutate(
-        { tradeId: trade.id, groupSlug: trade.groupSlug },
+        { tradeId: trade.id, groupSlug: trade.groupSlug ?? undefined },
         { onSettled: () => settle(trade.id) },
       );
     }

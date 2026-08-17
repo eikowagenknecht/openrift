@@ -161,11 +161,16 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns Marketplace variants linked to a printing, including cross-language
-     *          aggregate variants attached to any sibling printing. The `language`
-     *          field is `null` for aggregate variants so callers can label them.
+     * Marketplace variants bound to a printing. Cross-language aggregates were
+     * materialised as explicit variant rows by migration 107, so a printing
+     * sees exactly the variants that carry its own `printing_id` — there is no
+     * sibling fan-out here. `language` is the parent product's SKU axis, and is
+     * `null` on the marketplaces that don't split by language (CM/TCG), which
+     * is how callers still recognise an aggregate.
+     *
+     * @returns One row per variant bound to the printing.
      */
-    async sourcesForPrinting(printingId: string): Promise<
+    sourcesForPrinting(printingId: string): Promise<
       {
         variantId: string;
         externalId: number;
@@ -173,32 +178,27 @@ export function marketplaceRepo(db: Kysely<Database>) {
         language: string | null;
       }[]
     > {
-      const result = await sql<{
-        variantId: string;
-        externalId: number;
-        marketplace: string;
-        language: string | null;
-      }>`
-        SELECT
-          mpv.id as "variantId",
-          mp.external_id as "externalId",
-          mp.marketplace as "marketplace",
-          mp.language as "language"
-        FROM marketplace_product_variants mpv
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE mpv.printing_id = ${printingId}
-      `.execute(db);
-      return result.rows;
+      return db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "mpv.id as variantId",
+          "mp.externalId as externalId",
+          "mp.marketplace as marketplace",
+          "mp.language as language",
+        ])
+        .where("mpv.printingId", "=", printingId)
+        .execute();
     },
 
     /**
      * Batch version of {@link sourcesForPrinting}. Returns marketplace source rows
      * for each given printing, tagged with the target `printingId` so callers can
-     * group by printing without replaying the sibling fan-out join client-side.
+     * group by printing without a second pass.
      *
      * @returns Rows keyed by the requested `printingId`.
      */
-    async sourcesForPrintings(printingIds: string[]): Promise<
+    sourcesForPrintings(printingIds: string[]): Promise<
       {
         printingId: string;
         externalId: number;
@@ -206,22 +206,18 @@ export function marketplaceRepo(db: Kysely<Database>) {
       }[]
     > {
       if (printingIds.length === 0) {
-        return [];
+        return Promise.resolve([]);
       }
-      const result = await sql<{
-        printingId: string;
-        externalId: number;
-        marketplace: string;
-      }>`
-        SELECT
-          mpv.printing_id as "printingId",
-          mp.external_id as "externalId",
-          mp.marketplace as "marketplace"
-        FROM marketplace_product_variants mpv
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE mpv.printing_id = ANY(${printingIds}::uuid[])
-      `.execute(db);
-      return result.rows;
+      return db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "mpv.printingId as printingId",
+          "mp.externalId as externalId",
+          "mp.marketplace as marketplace",
+        ])
+        .where("mpv.printingId", "in", printingIds)
+        .execute();
     },
 
     /**

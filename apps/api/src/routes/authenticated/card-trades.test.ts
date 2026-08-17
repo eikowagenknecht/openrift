@@ -85,6 +85,7 @@ const tradeResponse = {
   id: TRADE_ID,
   groupId: "a0000000-0001-4000-a000-000000000040",
   groupSlug: "friday-night",
+  groupName: "Friday Night",
   role: "giver" as const,
   initiator: "giver" as const,
   counterparty: {

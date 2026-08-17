@@ -335,122 +335,105 @@ CHECK constraints enforce valid action/type combinations (e.g. acquisitions can 
 
 Marketplace product group/expansion metadata. Used to associate marketplace groups with sets.
 
-| Column         | Type        | Constraints                   |
-| -------------- | ----------- | ----------------------------- |
-| `id`           | uuid        | primary key, default uuidv7() |
-| `marketplace`  | text        | not null                      |
-| `group_id`     | integer     | not null                      |
-| `name`         | text        | nullable                      |
-| `abbreviation` | text        | nullable                      |
-| `created_at`   | timestamptz | not null, default now()       |
-| `updated_at`   | timestamptz | not null, default now()       |
+| Column         | Type                   | Constraints                               |
+| -------------- | ---------------------- | ----------------------------------------- |
+| `id`           | uuid                   | primary key, default uuidv7()             |
+| `marketplace`  | text                   | not null                                  |
+| `group_id`     | integer                | not null                                  |
+| `name`         | text                   | nullable                                  |
+| `abbreviation` | text                   | nullable                                  |
+| `group_kind`   | marketplace_group_kind | not null, default 'basic'                 |
+| `set_id`       | uuid                   | nullable, FK → sets.id ON DELETE SET NULL |
+| `created_at`   | timestamptz            | not null, default now()                   |
+| `updated_at`   | timestamptz            | not null, default now()                   |
 
-Unique constraint on `(marketplace, group_id)`.
+Unique constraint on `(marketplace, group_id)`, which is what `marketplace_products` FKs into.
 
-### Marketplace 4-level hierarchy
+### Marketplace 3-level hierarchy
 
-The marketplace domain is modelled in four levels:
+The marketplace domain is modelled in three levels:
 
 1. **`marketplace_groups`** — marketplace-side "set" concept (TCGplayer groupId, Cardmarket expansion, etc.)
-2. **`marketplace_products`** — one row per upstream listing (the marketplace's concept of a "product", keyed on `(marketplace, external_id)`). Carries upstream metadata like group_id, product_name.
-3. **`marketplace_product_variants`** — one row per SKU: a specific `(finish, language)` of an upstream product, linked to one of our `printings`. This is where the finish/language dimension lives.
-4. **`marketplace_snapshots`** — time-series price observations, hanging off a variant (not a product).
+2. **`marketplace_products`** — one row per upstream **SKU**: an `(external_id, finish, language)` of a listing. The finish/language dimension lives here, not on the variant.
+3. **`marketplace_product_prices`** — time-series price observations, hanging off a product (one price stream per SKU).
 
-A single TCGplayer product like "Sunken Temple" can have both foil and normal SKUs: that's one `marketplace_products` row plus two `marketplace_product_variants` rows pointing at the foil and normal printings respectively, with separate price streams.
+`marketplace_product_variants` sits beside that hierarchy rather than inside it: it is a bare many-to-many mapping from a product SKU to one of our `printings`, carrying no SKU axes of its own.
+
+A single TCGplayer listing like "Sunken Temple" that sells in both foil and normal is two `marketplace_products` rows sharing an `external_id`, each with its own price stream, and each mapped by a variant row to the matching printing. A Cardmarket listing that covers every language of a card is one product row with `language` NULL, mapped by several variant rows to each language's printing.
 
 ### `marketplace_products`
 
-One row per upstream marketplace listing. Carries the product-level metadata (name, group) without any finish/language split.
+One row per upstream SKU. Carries the listing metadata (name, group) **and** the finish/language axes.
 
-| Column         | Type        | Constraints                                              |
-| -------------- | ----------- | -------------------------------------------------------- |
-| `id`           | uuid        | primary key, default uuidv7()                            |
-| `marketplace`  | text        | not null (e.g. "tcgplayer", "cardmarket")                |
-| `external_id`  | integer     | not null (> 0) — marketplace product ID                  |
-| `group_id`     | integer     | not null, FK → marketplace_groups(marketplace, group_id) |
-| `product_name` | text        | not null                                                 |
-| `created_at`   | timestamptz | not null, default now()                                  |
-| `updated_at`   | timestamptz | not null, default now()                                  |
+| Column         | Type        | Constraints                                                           |
+| -------------- | ----------- | --------------------------------------------------------------------- |
+| `id`           | uuid        | primary key, default uuidv7()                                         |
+| `marketplace`  | text        | not null, CHECK `<> ''` (e.g. "tcgplayer", "cardmarket")              |
+| `external_id`  | integer     | not null, CHECK `> 0` — marketplace product ID                        |
+| `group_id`     | integer     | not null, FK → marketplace_groups(marketplace, group_id)              |
+| `product_name` | text        | not null, CHECK `<> ''`                                               |
+| `finish`       | text        | not null ("normal" or "foil")                                         |
+| `language`     | text        | **nullable** — NULL on marketplaces that don't split SKUs by language |
+| `norm_name`    | text        | not null, default '' — maintained by trigger from `product_name`      |
+| `created_at`   | timestamptz | not null, default now()                                               |
+| `updated_at`   | timestamptz | not null, default now()                                               |
 
-Unique constraint on `(marketplace, external_id)`.
+Unique index `marketplace_products_sku_key` on `(marketplace, external_id, finish, language)` **NULLS NOT DISTINCT**, so two Cardmarket rows with a NULL language collapse onto one instead of duplicating. GIN trigram index on `norm_name` for the admin mapping UI's name search.
+
+**A NULL `language` is the normal case for cardmarket and tcgplayer**, not an edge case — neither exposes language as a SKU axis, and only CardTrader does. Every lookup on the SKU tuple must therefore compare it with `IS NOT DISTINCT FROM`; `=` against NULL is never true and would silently match nothing on two of the three marketplaces.
 
 ### `marketplace_product_variants`
 
-One row per SKU of an upstream product, linking a specific `(finish, language)` to one of our `printings`. Snapshots hang off the variant, not the parent product.
+The product↔printing mapping. One row per `(product SKU, printing)` pair, with no columns of its own beyond the two ids — the finish and language belong to the product.
 
 | Column                   | Type        | Constraints                            |
 | ------------------------ | ----------- | -------------------------------------- |
 | `id`                     | uuid        | primary key, default uuidv7()          |
 | `marketplace_product_id` | uuid        | not null, FK → marketplace_products.id |
 | `printing_id`            | uuid        | not null, FK → printings.id            |
-| `finish`                 | text        | not null ("normal" or "foil")          |
-| `language`               | text        | not null, default "EN"                 |
 | `created_at`             | timestamptz | not null, default now()                |
 | `updated_at`             | timestamptz | not null, default now()                |
 
-Unique constraint on `(marketplace_product_id, finish, language)`. Index on `printing_id`.
+Unique index on `(marketplace_product_id, printing_id)`. Index on `printing_id`.
 
-Unmapping a printing deletes only the variant row — the parent `marketplace_products` row is left behind as an orphan so it can be re-mapped later without losing upstream metadata.
+One product can map to several printings (Cardmarket's language-aggregate listing covers every language of a card), and one printing can carry variants for several marketplaces. Migration 107 materialised the old cross-language fan-out as explicit variant rows, so a printing now sees exactly the variants that name its own `printing_id` — there is no sibling join left anywhere.
 
-### `marketplace_snapshots`
+Unmapping a printing deletes only the variant row. The parent `marketplace_products` row and its price history are left in place, so a later rebind inherits the full history without the product being recreated.
 
-Price observations at a point in time, one stream per variant. All monetary values are stored in integer cents.
+### `marketplace_product_prices`
 
-| Column         | Type        | Constraints                                    |
-| -------------- | ----------- | ---------------------------------------------- |
-| `id`           | uuid        | primary key, default uuidv7()                  |
-| `variant_id`   | uuid        | not null, FK → marketplace_product_variants.id |
-| `recorded_at`  | timestamptz | not null, default now()                        |
-| `market_cents` | integer     | nullable (>= 0)                                |
-| `low_cents`    | integer     | nullable (>= 0)                                |
-| `mid_cents`    | integer     | nullable (>= 0) — TCGplayer mid price          |
-| `high_cents`   | integer     | nullable (>= 0) — TCGplayer high price         |
-| `trend_cents`  | integer     | nullable (>= 0) — Cardmarket trend             |
-| `avg1_cents`   | integer     | nullable (>= 0) — Cardmarket 1-day avg         |
-| `avg7_cents`   | integer     | nullable (>= 0) — Cardmarket 7-day avg         |
-| `avg30_cents`  | integer     | nullable (>= 0) — Cardmarket 30-day avg        |
+Price observations at a point in time, one stream per product SKU. All monetary values are stored in integer cents. Every bound printing for a SKU reads the same stream — prices live on the product, not the binding.
 
-Unique constraint on `(variant_id, recorded_at)`. Index on `(variant_id, recorded_at)`.
+| Column                   | Type        | Constraints                                                             |
+| ------------------------ | ----------- | ----------------------------------------------------------------------- |
+| `marketplace_product_id` | uuid        | not null, FK → marketplace_products.id ON DELETE CASCADE                |
+| `recorded_at`            | timestamptz | not null                                                                |
+| `market_cents`           | integer     | nullable (>= 0) — NULL where there is no true market price (CardTrader) |
+| `low_cents`              | integer     | nullable (>= 0)                                                         |
+| `zero_low_cents`         | integer     | nullable (>= 0) — lowest CardTrader Zero asking price                   |
+| `mid_cents`              | integer     | nullable (>= 0) — TCGplayer mid price                                   |
+| `high_cents`             | integer     | nullable (>= 0) — TCGplayer high price                                  |
+| `trend_cents`            | integer     | nullable (>= 0) — Cardmarket trend                                      |
+| `avg1_cents`             | integer     | nullable (>= 0) — Cardmarket 1-day avg                                  |
+| `avg7_cents`             | integer     | nullable (>= 0) — Cardmarket 7-day avg                                  |
+| `avg30_cents`            | integer     | nullable (>= 0) — Cardmarket 30-day avg                                 |
+| `created_at`             | timestamptz | not null, default now()                                                 |
 
-### `marketplace_staging`
+Primary key on `(marketplace_product_id, recorded_at)` — one row per SKU per fetch cycle, regardless of how many printings are bound to that SKU. **Anything counting price rows must aggregate them on their own**: joining variants and prices off the same product multiplies each price row by the product's variant count.
 
-Staging table for marketplace prices that can't yet be matched to a specific printing (the marketplace group is known but the card isn't mapped yet). Staged rows are reconciled when marketplace mappings are updated.
+Two materialized views sit on top: `mv_daily_printing_prices` (the headline-price rule and the cheapest-bound-SKU aggregation, per printing per day) and `mv_latest_printing_prices` (its latest day). Every surface that prices a printing reads one of those, so they agree by construction — see `marketplaceRepo` in `apps/api/src/repositories/marketplace.ts`.
 
-| Column         | Type        | Constraints                                 |
-| -------------- | ----------- | ------------------------------------------- |
-| `id`           | uuid        | primary key, default uuidv7()               |
-| `marketplace`  | text        | not null ("tcgplayer" or "cardmarket")      |
-| `external_id`  | integer     | not null — marketplace product ID           |
-| `group_id`     | integer     | not null — marketplace group ID             |
-| `product_name` | text        | not null — original name for reconciliation |
-| `finish`       | text        | not null ("normal" or "foil")               |
-| `recorded_at`  | timestamptz | not null                                    |
-| `market_cents` | integer     | not null                                    |
-| `low_cents`    | integer     | nullable                                    |
-| `mid_cents`    | integer     | nullable                                    |
-| `high_cents`   | integer     | nullable                                    |
-| `trend_cents`  | integer     | nullable                                    |
-| `avg1_cents`   | integer     | nullable                                    |
-| `avg7_cents`   | integer     | nullable                                    |
-| `avg30_cents`  | integer     | nullable                                    |
-| `created_at`   | timestamptz | not null, default now()                     |
-| `updated_at`   | timestamptz | not null, default now()                     |
+### `marketplace_product_card_overrides`
 
-Unique constraint on `(marketplace, external_id, finish, recorded_at)`. Index on `(marketplace, group_id)`.
+Manual overrides that force an unmatched marketplace SKU onto a specific card when automatic name matching fails. Keyed on the product, so one override per SKU.
 
-### `marketplace_staging_card_overrides`
+| Column                   | Type        | Constraints                                                 |
+| ------------------------ | ----------- | ----------------------------------------------------------- |
+| `marketplace_product_id` | uuid        | primary key, FK → marketplace_products.id ON DELETE CASCADE |
+| `card_id`                | uuid        | not null, FK → cards.id                                     |
+| `created_at`             | timestamptz | not null, default now()                                     |
 
-Manual overrides that force a staged marketplace product to match a specific card when automatic name matching fails.
-
-| Column        | Type        | Constraints             |
-| ------------- | ----------- | ----------------------- |
-| `marketplace` | text        | not null                |
-| `external_id` | integer     | not null                |
-| `finish`      | text        | not null                |
-| `card_id`     | uuid        | not null, FK → cards.id |
-| `created_at`  | timestamptz | not null, default now() |
-
-Primary key on `(marketplace, external_id, finish)`.
+There is no `marketplace_staging` table. Fetched prices go straight into `marketplace_products` + `marketplace_product_prices`; a SKU is "staged" (unmatched) exactly when no `marketplace_product_variants` row points at it.
 
 ### `marketplace_ignored_products` (level 2)
 
@@ -470,18 +453,16 @@ Primary key on `(marketplace, external_id)`.
 
 Individual SKUs of an otherwise-mapped upstream product that have no home in our catalog. For example, when an upstream product exists in both foil and normal but our catalog only has a normal printing, the foil SKU is recorded here.
 
-| Column                   | Type        | Constraints                            |
-| ------------------------ | ----------- | -------------------------------------- |
-| `marketplace_product_id` | uuid        | not null, FK → marketplace_products.id |
-| `finish`                 | text        | not null                               |
-| `language`               | text        | not null, default "EN"                 |
-| `product_name`           | text        | not null (cached for admin UI)         |
-| `created_at`             | timestamptz | not null, default now()                |
-| `updated_at`             | timestamptz | not null, default now()                |
+| Column                   | Type        | Constraints                               |
+| ------------------------ | ----------- | ----------------------------------------- |
+| `marketplace_product_id` | uuid        | primary key, FK → marketplace_products.id |
+| `product_name`           | text        | not null (cached for admin UI)            |
+| `created_at`             | timestamptz | not null, default now()                   |
+| `updated_at`             | timestamptz | not null, default now()                   |
 
-Primary key on `(marketplace_product_id, finish, language)`.
+The finish and language are not repeated here — a `marketplace_products` row already _is_ one SKU, so pointing at the product is enough to name the ignored variant.
 
-During price refresh, a staging row is dropped if _either_ its external*id matches a level-2 ignore \_or* its `(external_id, finish, language)` tuple matches a level-3 ignore.
+During price refresh, a fetched row is dropped if _either_ its `external_id` matches a level-2 ignore _or_ its `(external_id, finish, language)` tuple matches a level-3 ignore.
 
 ## Candidate Tables (Card Ingestion Pipeline)
 
@@ -696,9 +677,9 @@ Daily price data is fetched from two sources via the admin API (`POST /api/admin
 
 Key differences from the catalog refresh:
 
-- **Appends** snapshots to `marketplace_snapshots` (vs. catalog refresh which upserts candidates)
+- **Appends** price rows to `marketplace_product_prices` (vs. catalog refresh which upserts candidates)
 - **Auto-discovers** group/expansion → set mapping by scoring product numbers or names against DB data — no hardcoded mapping tables
-- **Idempotent** via ON CONFLICT on `(product_id, recorded_at)` — same-day re-runs update rather than duplicate
+- **Idempotent** via ON CONFLICT on `(marketplace_product_id, recorded_at)` — same-day re-runs update rather than duplicate
 - **Two currencies** — TCGCSV writes USD sources, Cardmarket writes EUR sources, each with source-specific fields
 
 Source-specific secondary price columns:

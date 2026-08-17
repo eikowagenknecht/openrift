@@ -73,6 +73,11 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     const rows = await repo.listRecent({ kind: "test.kind" });
     expect(rows.every((r) => r.status === "failed")).toBe(true);
     expect(rows.every((r) => r.errorMessage === "server restarted during run")).toBe(true);
+    // The duration is the one part still computed in SQL, per row, off that
+    // row's own started_at — a swept run always gets a finish time and a
+    // non-negative elapsed time rather than the null it was left with.
+    expect(rows.every((r) => r.finishedAt instanceof Date)).toBe(true);
+    expect(rows.every((r) => (r.durationMs ?? -1) >= 0)).toBe(true);
   });
 
   it("updateResult overwrites only the result column without changing status", async () => {

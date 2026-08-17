@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";
 import { createMockDb } from "../test/mock-db.js";
+import { createRecordingDb } from "../test/recording-db.js";
 import { adminEventsRepo } from "./admin-events.js";
 
 describe("adminEventsRepo", () => {
@@ -9,6 +10,29 @@ describe("adminEventsRepo", () => {
     const db = createMockDb([]);
     const repo = adminEventsRepo(db);
     expect(await repo.list({}, 20)).toEqual([]);
+  });
+
+  // The `action` filter is free text from the client and the column is plain
+  // `text`, so it is compared as text rather than through the AdminEventAction
+  // union. The value must stay a bound parameter, and an action outside the
+  // union must still reach the query (it simply matches nothing) rather than
+  // being dropped.
+  it("list compares the action filter as a bound text parameter", async () => {
+    const { db, queries, parameters } = createRecordingDb();
+
+    await adminEventsRepo(db).list({ action: "card.retired-long-ago" }, 20);
+
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toContain('cast("ae"."action" as text) =');
+    expect(parameters[0]).toContain("card.retired-long-ago");
+  });
+
+  it("list omits the action filter when absent", async () => {
+    const { db, queries } = createRecordingDb();
+
+    await adminEventsRepo(db).list({}, 20);
+
+    expect(queries[0]).not.toContain('"ae"."action" =');
   });
 
   it("list applies cursor filter when provided", async () => {

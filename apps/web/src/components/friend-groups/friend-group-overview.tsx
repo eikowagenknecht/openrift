@@ -139,33 +139,37 @@ function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailRespon
     >
       {waiting.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
-          {waiting.map(({ counterparty, trades: theirs }) => (
-            <li key={counterparty.userId} className="min-w-0">
-              {/* Badge's warning tone carries the band's gold palette; the
+          {/* Everything here is a live trade, and a live trade always has both
+              parties, so the sheet link always has someone to point at. */}
+          {waiting.map(({ counterparty, trades: theirs }) =>
+            counterparty.userId === null ? null : (
+              <li key={counterparty.userId} className="min-w-0">
+                {/* Badge's warning tone carries the band's gold palette; the
                   height and left padding open up for the avatar, which is
                   taller than a plain text chip. */}
-              <Badge
-                variant="warning"
-                className="h-auto max-w-52 gap-1.5 py-1 pl-1 text-sm hover:bg-amber-500/20 dark:hover:bg-amber-500/30"
-                render={
-                  <Link
-                    to="/trades/$userId"
-                    params={{ userId: counterparty.userId }}
-                    search={{ from: slug }}
+                <Badge
+                  variant="warning"
+                  className="h-auto max-w-52 gap-1.5 py-1 pl-1 text-sm hover:bg-amber-500/20 dark:hover:bg-amber-500/30"
+                  render={
+                    <Link
+                      to="/trades/$userId"
+                      params={{ userId: counterparty.userId }}
+                      search={{ from: slug }}
+                    />
+                  }
+                >
+                  <UserAvatar
+                    image={counterparty.image}
+                    name={counterparty.name}
+                    gravatarHash={counterparty.gravatarHash}
+                    size="sm"
                   />
-                }
-              >
-                <UserAvatar
-                  image={counterparty.image}
-                  name={counterparty.name}
-                  gravatarHash={counterparty.gravatarHash}
-                  size="sm"
-                />
-                <span className="truncate font-medium">{counterparty.name ?? "A member"}</span>
-                <span className="tabular-nums opacity-80">· {theirs.length}</span>
-              </Badge>
-            </li>
-          ))}
+                  <span className="truncate font-medium">{counterparty.name ?? "A member"}</span>
+                  <span className="tabular-nums opacity-80">· {theirs.length}</span>
+                </Badge>
+              </li>
+            ),
+          )}
         </ul>
       ) : null}
     </ActionBand>

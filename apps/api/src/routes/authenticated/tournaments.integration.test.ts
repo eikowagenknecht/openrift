@@ -56,26 +56,27 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           })
           .execute();
       }
-      // An org hosted by OTHER (OTHER is the only member) for the host-authz test.
-      await host.db
-        .insertInto("organizations")
-        .values({ id: ORG_ID, slug: "trn-org", name: "Trn Org", ownerUserId: OTHER_ID })
-        .execute();
-      await host.db
-        .insertInto("organizationMembers")
-        .values({ orgId: ORG_ID, userId: OTHER_ID, role: "owner" })
-        .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
-        .execute();
-      // A second org owned by HOST, the reassignment target HOST may host into.
-      await host.db
-        .insertInto("organizations")
-        .values({ id: ORG2_ID, slug: "trn-org2", name: "Trn Org 2", ownerUserId: HOST_ID })
-        .execute();
-      await host.db
-        .insertInto("organizationMembers")
-        .values({ orgId: ORG2_ID, userId: HOST_ID, role: "owner" })
-        .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
-        .execute();
+      // An org hosted by OTHER (OTHER is the only member) for the host-authz
+      // test, and a second one owned by HOST as the reassignment target HOST may
+      // host into. Each org commits with its owner's membership row, because
+      // `fk_organizations_owner_membership` is deferred to commit.
+      await host.db.transaction().execute(async (trx) => {
+        await trx
+          .insertInto("organizations")
+          .values([
+            { id: ORG_ID, slug: "trn-org", name: "Trn Org", ownerUserId: OTHER_ID },
+            { id: ORG2_ID, slug: "trn-org2", name: "Trn Org 2", ownerUserId: HOST_ID },
+          ])
+          .execute();
+        await trx
+          .insertInto("organizationMembers")
+          .values([
+            { orgId: ORG_ID, userId: OTHER_ID, role: "owner" },
+            { orgId: ORG2_ID, userId: HOST_ID, role: "owner" },
+          ])
+          .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
+          .execute();
+      });
     });
 
     afterAll(async () => {

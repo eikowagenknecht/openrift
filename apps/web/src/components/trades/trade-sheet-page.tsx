@@ -37,7 +37,11 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { useTradeSheet, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupDetail } from "@/hooks/use-friend-groups";
-import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
+import {
+  countTradeSuggestions,
+  tradeGroupKey,
+  withoutLiveTradeMatches,
+} from "@/lib/trade-derivation";
 import { splitTradeLedger, stepSequence } from "@/lib/trade-sheet";
 
 /**
@@ -51,7 +55,7 @@ function LedgerSection({
   icon,
   tone,
   trades,
-  groupNames,
+  showGroupLabels,
   bulk,
   redundantStatus,
 }: {
@@ -59,8 +63,8 @@ function LedgerSection({
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   tone?: IconChipTone;
   trades: CardTradeResponse[];
-  /** Group names by id, or null while the two share only one group. */
-  groupNames: ReadonlyMap<string, string> | null;
+  /** Whether to name each row's group; false while only one group is in play. */
+  showGroupLabels: boolean;
   /** Bulk actions rendered on the heading's right, if the section offers any. */
   bulk?: ReactNode;
   /** The state this section's heading already says, dropped from its rows' badges. */
@@ -84,7 +88,7 @@ function LedgerSection({
             key={trade.id}
             trade={trade}
             sequence={sequence}
-            groupLabel={groupNames?.get(trade.groupId)}
+            groupLabel={showGroupLabels ? trade.groupName : undefined}
             redundantStatus={redundantStatus}
           />
         ))}
@@ -103,11 +107,11 @@ function LedgerSection({
  */
 function HistoryFold({
   trades,
-  groupNames,
+  showGroupLabels,
 }: {
   trades: CardTradeResponse[];
-  /** Group names by id, or null while the two share only one group. */
-  groupNames: ReadonlyMap<string, string> | null;
+  /** Whether to name each row's group; false while only one group is in play. */
+  showGroupLabels: boolean;
 }) {
   if (trades.length === 0) {
     return null;
@@ -129,7 +133,7 @@ function HistoryFold({
               key={trade.id}
               trade={trade}
               sequence={sequence}
-              groupLabel={groupNames?.get(trade.groupId)}
+              groupLabel={showGroupLabels ? trade.groupName : undefined}
             />
           ))}
         </div>
@@ -198,12 +202,21 @@ export function TradeSheetPage({
   const name = sheet.counterparty.name ?? "Member";
   // Which group a trade sits in only tells the viewer something when there is
   // more than one it could have been, so a single shared group names nothing.
-  // Trade rows key on the id, suggestion rows on the slug, so both maps exist.
-  const multipleGroups = sheet.groups.length > 1;
-  const groupNames = multipleGroups
-    ? new Map(sheet.groups.map((group) => [group.id, group.name]))
-    : null;
-  const groupNamesBySlug = multipleGroups
+  // A group that has since been deleted counts as one of them: its trades keep
+  // the name they were made under and sit on this sheet beside a live group's.
+  const groupKeys = new Set(sheet.groups.map((group) => group.id));
+  for (const trade of [
+    ...ledger.yourMove,
+    ...ledger.readyToSwap,
+    ...ledger.waiting,
+    ...ledger.history,
+  ]) {
+    groupKeys.add(tradeGroupKey(trade));
+  }
+  const showGroupLabels = groupKeys.size > 1;
+  // Trade rows carry their own group name; suggestions are always in a live
+  // group and key on its slug, so that one map remains.
+  const groupNamesBySlug = showGroupLabels
     ? new Map(sheet.groups.map((group) => [group.slug, group.name]))
     : null;
   // What the balance bar weighs: the trades still in flight. A swap the viewer
@@ -292,13 +305,13 @@ export function TradeSheetPage({
             }
           >
             <ContactMethodChips methods={sheet.counterparty.contactMethods} />
-            {groupNames === null
-              ? null
-              : sheet.groups.map((group) => (
+            {showGroupLabels
+              ? sheet.groups.map((group) => (
                   <Badge key={group.id} variant="outline">
                     {group.name}
                   </Badge>
-                ))}
+                ))
+              : null}
           </PersonPageHeader>
 
           <TradeBalanceBar trades={live} />
@@ -320,17 +333,17 @@ export function TradeSheetPage({
               icon={BellIcon}
               tone="gold"
               trades={ledger.yourMove}
-              groupNames={groupNames}
+              showGroupLabels={showGroupLabels}
               bulk={<BulkTradeActions trades={ledger.yourMove} mode="accept-decline" />}
               redundantStatus="your-move"
             />
             {ledger.readyToSwap.length > 0 ? (
-              <TradeSettleSection trades={ledger.readyToSwap} groupNames={groupNames} />
+              <TradeSettleSection trades={ledger.readyToSwap} showGroupLabels={showGroupLabels} />
             ) : null}
             <LedgerSection
               heading={`Waiting on ${name}`}
               trades={ledger.waiting}
-              groupNames={groupNames}
+              showGroupLabels={showGroupLabels}
               redundantStatus="waiting-for-them"
             />
             {incoming.length > 0 || outgoing.length > 0 ? (
@@ -352,7 +365,7 @@ export function TradeSheetPage({
           </>
         )}
 
-        <HistoryFold trades={ledger.history} groupNames={groupNames} />
+        <HistoryFold trades={ledger.history} showGroupLabels={showGroupLabels} />
       </div>
 
       <TradeCardmarketExportDialog

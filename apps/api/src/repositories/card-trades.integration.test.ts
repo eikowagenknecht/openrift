@@ -1,6 +1,5 @@
 import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import type { ListRule } from "@openrift/shared";
-import { sql } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createRepos, createTransact } from "../deps.js";
@@ -243,7 +242,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
         name: "Auto Haves",
         intent: "trade",
         kind: "copy",
-        rules: sql<ListRule[]>`${JSON.stringify([tradeRule])}::text::jsonb`,
+        rules: [tradeRule],
       })
       .returning("id")
       .executeTakeFirstOrThrow();

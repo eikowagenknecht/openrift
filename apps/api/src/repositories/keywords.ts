@@ -19,11 +19,13 @@ interface KeywordTextSources {
 
 /**
  * Derive a card's keyword list from its card-level errata text plus every EN
- * printing's text, in that order, deduped by first occurrence.
+ * printing's text, in that order, deduped by first occurrence. Exported so
+ * `services/import-errata.ts` shares the exact derivation the recompute paths
+ * use instead of carrying its own copy.
  *
  * @returns The card's keywords.
  */
-function deriveKeywords({ errata, printings }: KeywordTextSources): string[] {
+export function deriveKeywords({ errata, printings }: KeywordTextSources): string[] {
   return [
     ...extractKeywords(errata?.correctedRulesText ?? ""),
     ...extractKeywords(errata?.correctedEffectText ?? ""),
@@ -177,7 +179,7 @@ export function keywordsRepo(db: Kysely<Database>) {
      *
      * @returns Rows with card_id, EN text fields, and non-EN text fields + language.
      */
-    async getTranslationCandidates(): Promise<
+    getTranslationCandidates(): Promise<
       {
         cardId: string;
         enRulesText: string | null;
@@ -187,31 +189,52 @@ export function keywordsRepo(db: Kysely<Database>) {
         otherEffectText: string | null;
       }[]
     > {
-      const rows = await sql<{
-        cardId: string;
-        enRulesText: string | null;
-        enEffectText: string | null;
-        otherLanguage: string;
-        otherRulesText: string | null;
-        otherEffectText: string | null;
-      }>`
-        SELECT
-          en.card_id AS "cardId",
-          en.printed_rules_text AS "enRulesText",
-          en.printed_effect_text AS "enEffectText",
-          other.language AS "otherLanguage",
-          other.printed_rules_text AS "otherRulesText",
-          other.printed_effect_text AS "otherEffectText"
-        FROM printings en
-        JOIN printings other ON en.card_id = other.card_id AND other.language <> ${WellKnown.language.EN}
-        WHERE en.language = ${WellKnown.language.EN}
-          AND (en.printed_rules_text IS NOT NULL OR en.printed_effect_text IS NOT NULL)
-          AND (other.printed_rules_text IS NOT NULL OR other.printed_effect_text IS NOT NULL)
-      `.execute(db);
-      return rows.rows;
+      return db
+        .selectFrom("printings as en")
+        .innerJoin("printings as other", (jb) =>
+          jb
+            .onRef("other.cardId", "=", "en.cardId")
+            .on("other.language", "!=", WellKnown.language.EN),
+        )
+        .select([
+          "en.cardId",
+          "en.printedRulesText as enRulesText",
+          "en.printedEffectText as enEffectText",
+          "other.language as otherLanguage",
+          "other.printedRulesText as otherRulesText",
+          "other.printedEffectText as otherEffectText",
+        ])
+        .where("en.language", "=", WellKnown.language.EN)
+        .where((eb) =>
+          eb.or([
+            eb("en.printedRulesText", "is not", null),
+            eb("en.printedEffectText", "is not", null),
+          ]),
+        )
+        .where((eb) =>
+          eb.or([
+            eb("other.printedRulesText", "is not", null),
+            eb("other.printedEffectText", "is not", null),
+          ]),
+        )
+        .execute();
     },
 
     // ── Derivation (cards.keywords) ───────────────────────────────────────
+    //
+    // `cards.keywords` is a derived cache, never a source of truth. Its only
+    // input is card text: `extractKeywords` reads the `[...]` bracket spans out
+    // of EN printing text and card-level errata text, so the cache goes stale
+    // exactly when one of those texts changes, and only then. Any write path
+    // for those texts owes the cache a refresh — `services/printing-admin.ts`
+    // calls `recomputeForPrintingCard`, and `services/import-errata.ts` writes
+    // `keywords` in the same statement via the shared `deriveKeywords` export.
+    //
+    // The `keywords` table is *not* an input. It holds per-name display
+    // metadata (colour, dark text, cost-keyword flag) that the extractor never
+    // reads, and the name is its primary key, so there is no rename to chase.
+    // Creating, restyling, or deleting a keyword row therefore cannot
+    // invalidate this cache and needs no recompute.
 
     /**
      * Recompute keywords for the card that owns the given printing by scanning
@@ -277,7 +300,7 @@ export function keywordsRepo(db: Kysely<Database>) {
           printings: printingsByCard.get(card.id) ?? [],
         });
 
-        const existing = card.keywords as string[];
+        const existing = card.keywords;
         const changed =
           keywords.length !== existing.length || keywords.some((kw) => !existing.includes(kw));
 

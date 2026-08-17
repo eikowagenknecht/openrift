@@ -386,7 +386,7 @@ function ruleListRow(overrides: Record<string, unknown> = {}): Record<string, un
   return {
     id: "lst-rule",
     kind: "card",
-    rules: JSON.stringify([CATCH_ALL_WISH_RULE]),
+    rules: [CATCH_ALL_WISH_RULE],
     ruleCombine: null,
     userId: "u1",
     ...overrides,
@@ -469,7 +469,7 @@ describe("listsRepo.expandedCounts", () => {
   it("skips lists that carry no rules, so callers keep the materialized count", async () => {
     const { providers } = countingProviders();
     const db = tableDb({
-      lists: [ruleListRow(), ruleListRow({ id: "lst-manual", rules: JSON.stringify([]) })],
+      lists: [ruleListRow(), ruleListRow({ id: "lst-manual", rules: [] })],
       listEntries: [],
     });
     const counts = await listsRepo(db, providers).expandedCounts(["lst-rule", "lst-manual"]);
@@ -489,9 +489,9 @@ describe("listsRepo.expandedCounts", () => {
     const { providers, ownedCopyCalls } = countingProviders();
     const db = tableDb({
       lists: [
-        ruleListRow({ id: "a", kind: "copy", userId: "u1", rules: JSON.stringify([tradeRule]) }),
-        ruleListRow({ id: "b", kind: "copy", userId: "u1", rules: JSON.stringify([tradeRule]) }),
-        ruleListRow({ id: "c", kind: "copy", userId: "u2", rules: JSON.stringify([tradeRule]) }),
+        ruleListRow({ id: "a", kind: "copy", userId: "u1", rules: [tradeRule] }),
+        ruleListRow({ id: "b", kind: "copy", userId: "u1", rules: [tradeRule] }),
+        ruleListRow({ id: "c", kind: "copy", userId: "u2", rules: [tradeRule] }),
       ],
       listEntries: [],
     });
