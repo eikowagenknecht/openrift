@@ -14,6 +14,7 @@ export type {
   OverlayPush,
   OverlayPushBoard,
   OverlaySetBoardReveal,
+  OverlaySetHidden,
   OverlaySettings,
   OverlayStateResponse,
 } from "@openrift/shared/contracts/overlay";

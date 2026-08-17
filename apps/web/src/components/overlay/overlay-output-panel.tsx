@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeftIcon, ChevronRightIcon, EyeOffIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { useMeasuredWidth } from "@/hooks/use-measured-width";
-import { useClearOverlay, useOverlayChannel, usePushOverlayCard } from "@/hooks/use-overlay";
+import {
+  useClearOverlay,
+  useOverlayChannel,
+  usePushOverlayCard,
+  useSetOverlayHidden,
+} from "@/hooks/use-overlay";
 import type { OverlayBoardScene } from "@/lib/overlay-board-scene";
 import { deriveOverlayBoardScene } from "@/lib/overlay-board-scene";
 import { deriveOverlayWalk } from "@/lib/overlay-walk";
@@ -49,13 +54,27 @@ function LivePreview({
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const boxWidth = useMeasuredWidth(box);
   const liveCard = payload.printingId !== null && printing !== undefined;
-  const live = liveCard || payload.board !== null;
+  const holding = liveCard || payload.board !== null;
+  const live = holding && !payload.hidden;
   // Whatever is up, named: the board's own title, or the card's.
   let caption = "Push a card or a tier list to put it on screen.";
   if (payload.board !== null) {
     caption = payload.board.title;
   } else if (liveCard) {
     caption = legendDisplayName(printing.card);
+  }
+  // Said twice on purpose. The preview above paints the payload exactly as the
+  // browser source does, so hiding empties it — and an empty preview with a card
+  // still named under it has to explain itself, or it reads as the push having
+  // failed.
+  if (payload.hidden && holding) {
+    caption = `${caption} (hidden)`;
+  }
+  let status = "Nothing up";
+  if (live) {
+    status = "● Live";
+  } else if (holding) {
+    status = "Hidden";
   }
   return (
     <section className="flex flex-col gap-2">
@@ -67,7 +86,7 @@ function LivePreview({
             live ? "text-primary" : "text-muted-foreground",
           )}
         >
-          {live ? "● Live" : "Nothing up"}
+          {status}
         </span>
       </div>
       {/* The checkerboard stands for the transparency OBS composites through.
@@ -193,6 +212,7 @@ export function OverlayOutputPanel() {
   const { cardsById, printingsById, printingsByCardId } = useCards();
   const pushCard = usePushOverlayCard();
   const clearOverlay = useClearOverlay();
+  const setHidden = useSetOverlayHidden();
   const queue = usePresentQueueStore((state) => state.ids);
 
   // The card size being dragged in the settings panel, or null when the thumb
@@ -207,6 +227,7 @@ export function OverlayOutputPanel() {
 
   const livePrintingId = channel.payload.printingId;
   const liveBoard = channel.payload.board;
+  const hidden = channel.payload.hidden;
   // A board pushed from the stage previews here like anything else on the
   // channel, resolved against the catalogue the frame draws from.
   const boardScene =
@@ -228,13 +249,25 @@ export function OverlayOutputPanel() {
               onPush={(printingId) => pushCard.mutate({ printingId })}
               isPending={pushCard.isPending}
             />
+            {/* Offered even with nothing up, unlike Clear: dropping the curtain
+                before the first push is how a creator sets a scene without the
+                audience watching them do it. */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHidden.mutate({ hidden: !hidden })}
+              disabled={setHidden.isPending}
+            >
+              {hidden ? <EyeIcon className="size-4" /> : <EyeOffIcon className="size-4" />}
+              {hidden ? "Show" : "Hide"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => clearOverlay.mutate()}
               disabled={clearOverlay.isPending || (livePrintingId === null && liveBoard === null)}
             >
-              <EyeOffIcon className="size-4" />
+              <XIcon className="size-4" />
               Clear
             </Button>
           </div>

@@ -88,15 +88,32 @@ export const overlayRouter = {
     },
   ),
 
+  setHidden: os.setHidden.handler(async ({ context, input }): Promise<OverlayChannelResponse> => {
+    const channel = await ensureChannel(context.repos, context.userId);
+    // Whatever is up stays up, off-screen. Raising the curtain again is what
+    // puts it back, and the source still holds the art, so the return costs no
+    // round trip and no decode.
+    const updated = await context.repos.overlayChannels.setPayload(context.userId, {
+      ...channel.payload,
+      hidden: input.hidden,
+    });
+    return toOverlayChannel(updated ?? channel);
+  }),
+
   clear: os.clear.handler(async ({ context }): Promise<OverlayChannelResponse> => {
     const channel = await ensureChannel(context.repos, context.userId);
     // Only what is on screen leaves. The dressing is scene setup the creator
     // tuned once against their layout, and clearing between cards must not
     // undo it.
+    //
+    // `hidden` does go, though, because it is not dressing: clearing ends a
+    // segment, and leaving the curtain down would make the next segment's first
+    // push land on a scene that silently shows nothing.
     const updated = await context.repos.overlayChannels.setPayload(context.userId, {
       ...channel.payload,
       printingId: null,
       board: null,
+      hidden: false,
     });
     return toOverlayChannel(updated ?? channel);
   }),

@@ -8,17 +8,28 @@ import { createStoreResetter } from "@/test/store-helpers";
 
 import { PresentationStage } from "./presentation-stage";
 
-const { mockPushBoard, mockSetReveal, mockClear } = vi.hoisted(() => ({
-  mockPushBoard: vi.fn(() => Promise.resolve()),
-  mockSetReveal: vi.fn(() => Promise.resolve()),
-  mockClear: vi.fn(),
-}));
+const { mockPushBoard, mockSetReveal, mockClear, mockSetHidden, channelHidden } = vi.hoisted(
+  () => ({
+    mockPushBoard: vi.fn(() => Promise.resolve()),
+    mockSetReveal: vi.fn(() => Promise.resolve()),
+    mockClear: vi.fn(),
+    mockSetHidden: vi.fn(),
+    // The curtain's current state, as the channel query would report it.
+    // Undefined stands for a channel that has not loaded yet.
+    channelHidden: vi.fn<() => boolean | undefined>(() => false),
+  }),
+);
 
 vi.mock("@/hooks/use-overlay", () => ({
   usePushOverlayCard: () => ({ mutate: vi.fn() }),
   usePushOverlayBoard: () => ({ mutateAsync: mockPushBoard }),
   useSetOverlayBoardReveal: () => ({ mutateAsync: mockSetReveal }),
   useClearOverlay: () => ({ mutate: mockClear }),
+  useSetOverlayHidden: () => ({ mutate: mockSetHidden }),
+  useOverlayChannel: () => {
+    const hidden = channelHidden();
+    return { data: hidden === undefined ? undefined : { payload: { hidden } } };
+  },
 }));
 
 vi.mock("@/hooks/use-stage-presets", () => ({
@@ -98,6 +109,8 @@ function press(key: string) {
 
 beforeEach(() => {
   userId.mockReturnValue(null);
+  mockSetHidden.mockReset();
+  channelHidden.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -210,7 +223,11 @@ describe("PresentationStage while editing", () => {
     userId.mockReturnValue("user-1");
     renderStage({ editing: true });
     press("?");
-    expect(screen.queryByText(/OBS overlay/u)).not.toBeInTheDocument();
+    // Scoped to the push and the mirror rather than every mention of the
+    // overlay: the curtain is deliberately still listed here, because it covers
+    // the overlay rather than the walk.
+    expect(screen.queryByText(/Push this card/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show this board/u)).not.toBeInTheDocument();
   });
 });
 
@@ -273,6 +290,75 @@ describe("PresentationStage board on OBS", () => {
     press("o");
 
     expect(mockPushBoard).not.toHaveBeenCalled();
+  });
+});
+
+describe("PresentationStage curtain", () => {
+  beforeEach(() => {
+    userId.mockReturnValue("u-1");
+  });
+
+  it("drops the curtain on H", () => {
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: true });
+  });
+
+  it("raises it again from the state the channel reports", () => {
+    // Read from the channel rather than a local boolean, so the key, the phone,
+    // and the OBS panel cannot drift onto opposite states.
+    channelHidden.mockReturnValue(true);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: false });
+  });
+
+  it("stays live while the board is being ranked, unlike the walk's keys", () => {
+    // The whole point: the mirror is frozen on the old board during a rank, and
+    // hiding is what takes that stale ladder off the stream.
+    renderStage({ editing: true });
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: true });
+  });
+
+  it("leaves H alone while signed out, since there is no channel to reach", () => {
+    userId.mockReturnValue(null);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).not.toHaveBeenCalled();
+  });
+
+  it("leaves H alone until the channel has loaded", () => {
+    // Guessing at a state here could blank a live scene on the first keypress.
+    channelHidden.mockReturnValue(undefined);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).not.toHaveBeenCalled();
+  });
+
+  it("lists the key, in the show and in the editor alike", () => {
+    renderStage();
+    press("?");
+    expect(screen.getByText("Hide / show the OBS overlay")).toBeInTheDocument();
+  });
+
+  it("keeps the key listed while editing, unlike the push", () => {
+    renderStage({ editing: true });
+
+    press("?");
+
+    expect(screen.getByText("Hide / show the OBS overlay")).toBeInTheDocument();
+    expect(screen.queryByText(/Push this card/u)).not.toBeInTheDocument();
   });
 });
 

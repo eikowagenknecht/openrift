@@ -83,6 +83,17 @@ export const overlayPayloadSchema = z.object({
    * clears the other rather than stacking them in the same corner.
    */
   board: overlayBoardSchema.nullable(),
+  /**
+   * Holds the scene off the stream without giving up what is on it. The card or
+   * board stays in the payload and slides back in on its own when this goes
+   * false, which is what separates hiding from clearing: hiding is a break in
+   * the segment, clearing is the end of one.
+   *
+   * Deliberately sticky. A push while hidden lands behind the curtain rather
+   * than raising it, because the board mirror pushes on every reveal step and
+   * an auto-raise would undo the hide on the creator's next keypress.
+   */
+  hidden: z.boolean(),
   /** The plate beside the card. Off leaves the bare card (and the QR, which stands alone). */
   showPlate: z.boolean(),
   platePosition: overlayPlatePositionSchema,
@@ -155,6 +166,13 @@ export const overlaySetBoardRevealSchema = z.object({
   revealCount: z.number().int().min(0),
 });
 
+/**
+ * Drops the curtain, or raises it. An explicit boolean rather than a toggle so
+ * the phone clicker and the show's `H` key can both be pressed against a stale
+ * view without the two of them landing on opposite states.
+ */
+export const overlaySetHiddenSchema = z.object({ hidden: z.boolean() });
+
 export type OverlayCorner = z.infer<typeof overlayCornerSchema>;
 export type OverlayPlatePosition = z.infer<typeof overlayPlatePositionSchema>;
 export type OverlayPlateFields = z.infer<typeof overlayPlateFieldsSchema>;
@@ -168,11 +186,13 @@ export type OverlayPush = z.infer<typeof overlayPushSchema>;
 export type OverlaySettings = z.infer<typeof overlaySettingsSchema>;
 export type OverlayPushBoard = z.infer<typeof overlayPushBoardSchema>;
 export type OverlaySetBoardReveal = z.infer<typeof overlaySetBoardRevealSchema>;
+export type OverlaySetHidden = z.infer<typeof overlaySetHiddenSchema>;
 
 /** What a channel starts as, and what a cleared overlay falls back to. */
 export const DEFAULT_OVERLAY_PAYLOAD: OverlayPayload = {
   printingId: null,
   board: null,
+  hidden: false,
   showPlate: true,
   platePosition: "auto",
   plateFields: { name: true, code: true, stats: true, rulesText: false, flavorText: false },
@@ -232,6 +252,10 @@ export const overlayContract = {
   setBoardReveal: authedRoute
     .route({ method: "POST", path: "/api/v1/overlay/me/board/reveal", tags: [TAG] })
     .input(overlaySetBoardRevealSchema)
+    .output(overlayChannelResponseSchema),
+  setHidden: authedRoute
+    .route({ method: "POST", path: "/api/v1/overlay/me/hidden", tags: [TAG] })
+    .input(overlaySetHiddenSchema)
     .output(overlayChannelResponseSchema),
   clear: authedRoute
     .route({ method: "POST", path: "/api/v1/overlay/me/clear", tags: [TAG] })

@@ -19,6 +19,7 @@ export type PresentationAction =
   | "toggleObs"
   | "toggleEdit"
   | "push"
+  | "toggleHidden"
   | "exit";
 
 /**
@@ -47,6 +48,11 @@ export const BOARD_ACTIONS: ReadonlySet<PresentationAction> = new Set<Presentati
  * the walk, so none of them survive into the editor either. The OBS mirror goes
  * with them — a board being changed is deliberately not one that goes out live,
  * so its switch is off the settings panel while editing and its key is inert.
+ *
+ * `toggleHidden` is pointedly not here. The curtain covers the overlay rather
+ * than the walk, and dropping it while ranking is exactly when a creator wants
+ * it: the mirror is already frozen on the old board, and hiding takes that off
+ * the stream too instead of leaving a stale ladder up for the whole segment.
  */
 export const WALK_ACTIONS: ReadonlySet<PresentationAction> = new Set<PresentationAction>([
   "prev",
@@ -136,6 +142,10 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
     case "p":
     case "P": {
       return "push";
+    }
+    case "h":
+    case "H": {
+      return "toggleHidden";
     }
     case "?": {
       return "toggleHelp";

@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(App): **Hide the OBS overlay** — Hide (or H on the stage) takes the card or ranking off stream for a break and puts the same one back, no second push needed.
 - fix(Trades): **Trade history survives deletions** — completed trades now keep the other person's and the group's name when an account or group is deleted, instead of vanishing from your history.
 
 ## 2026-08-15

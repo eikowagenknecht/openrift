@@ -24,6 +24,7 @@ const ALL_FIELDS: OverlayPlateFields = {
 const PAYLOAD: OverlayPayload = {
   printingId: "printing-1",
   board: null,
+  hidden: false,
   showPlate: true,
   platePosition: "left",
   plateFields: { ...ALL_FIELDS, flavorText: false },

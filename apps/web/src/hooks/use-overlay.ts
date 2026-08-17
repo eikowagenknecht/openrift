@@ -3,6 +3,7 @@ import type {
   OverlayPush,
   OverlayPushBoard,
   OverlaySetBoardReveal,
+  OverlaySetHidden,
   OverlaySettings,
 } from "@openrift/shared";
 import { overlayContract } from "@openrift/shared/contracts/overlay";
@@ -112,7 +113,7 @@ const pushOverlayCardFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Shared shape of the four dashboard mutations: every one returns the complete
+ * Shared shape of the dashboard mutations: every one returns the complete
  * updated channel, so the response seeds the channel query directly instead of
  * invalidating it — the dashboard is driven mid-stream, and an invalidate
  * would leave the live preview and the Clear button a full extra round trip
@@ -169,6 +170,26 @@ const setOverlayBoardRevealFn = createServerFn({ method: "POST" })
 export function useSetOverlayBoardReveal() {
   return useOverlayChannelMutation((input: OverlaySetBoardReveal) =>
     setOverlayBoardRevealFn({ data: input }),
+  );
+}
+
+const setOverlayHiddenFn = createServerFn({ method: "POST" })
+  .validator((input: OverlaySetHidden) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<OverlayChannelResponse> =>
+    apiOrpcClient(overlayContract, context.cookie).setHidden(data),
+  );
+
+/**
+ * Takes the scene off stream without giving up what is on it, so a break in the
+ * segment does not cost the creator their place. Unlike {@link useClearOverlay},
+ * the card or board survives and comes back when this is sent false.
+ *
+ * @returns The mutation that drops or raises the curtain.
+ */
+export function useSetOverlayHidden() {
+  return useOverlayChannelMutation((input: OverlaySetHidden) =>
+    setOverlayHiddenFn({ data: input }),
   );
 }
 

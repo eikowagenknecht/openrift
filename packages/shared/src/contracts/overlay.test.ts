@@ -48,6 +48,16 @@ describe("normalizeOverlayPayload", () => {
     });
   });
 
+  it("reads a channel stored before the curtain existed as showing", () => {
+    // The field arrived without a migration, so every row written until then
+    // lacks it. Defaulting the other way would blank live streams on deploy.
+    expect(normalizeOverlayPayload({ printingId: "p-1" }).hidden).toBe(false);
+  });
+
+  it("keeps a dropped curtain across a read", () => {
+    expect(normalizeOverlayPayload({ printingId: "p-1", hidden: true }).hidden).toBe(true);
+  });
+
   it("carries a link set under the old deck-only key over to the QR field", () => {
     const result = normalizeOverlayPayload({
       deckShareUrl: "https://openrift.app/decks/share/abc",

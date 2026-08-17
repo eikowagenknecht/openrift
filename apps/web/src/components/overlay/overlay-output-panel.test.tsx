@@ -13,12 +13,14 @@ const PRINTING = stubPrinting({
   card: { name: "Garen" },
 });
 
-const { mockUseOverlayChannel, mockUpdateSettings, mockPushCard, mockClear } = vi.hoisted(() => ({
-  mockUseOverlayChannel: vi.fn(),
-  mockUpdateSettings: vi.fn(),
-  mockPushCard: vi.fn(),
-  mockClear: vi.fn(),
-}));
+const { mockUseOverlayChannel, mockUpdateSettings, mockPushCard, mockClear, mockSetHidden } =
+  vi.hoisted(() => ({
+    mockUseOverlayChannel: vi.fn(),
+    mockUpdateSettings: vi.fn(),
+    mockPushCard: vi.fn(),
+    mockClear: vi.fn(),
+    mockSetHidden: vi.fn(),
+  }));
 
 /** A ranking pushed from the stage, of which the catalogue can draw one card. */
 const TIER_LIST = {
@@ -35,6 +37,7 @@ vi.mock("@/hooks/use-overlay", () => ({
   useOverlayChannel: mockUseOverlayChannel,
   usePushOverlayCard: () => ({ mutate: mockPushCard, isPending: false }),
   useClearOverlay: () => ({ mutate: mockClear, isPending: false }),
+  useSetOverlayHidden: () => ({ mutate: mockSetHidden, isPending: false }),
   useRotateOverlayToken: () => idleMutation,
   useUpdateOverlaySettings: () => ({ mutate: mockUpdateSettings, isPending: false }),
 }));
@@ -102,13 +105,17 @@ function cardHeight(container: HTMLElement): string | undefined {
 }
 
 /** Points the mocked channel at whatever is meant to be live. */
-function channelShowing(printingId: string | null, board: OverlayBoard | null = null) {
+function channelShowing(
+  printingId: string | null,
+  board: OverlayBoard | null = null,
+  hidden = false,
+) {
   mockUseOverlayChannel.mockReturnValue({
     data: {
       token: "AbC123XyZ789",
       version: 3,
       updatedAt: "2026-08-14T10:30:00.000Z",
-      payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId, board, scale: 70 },
+      payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId, board, hidden, scale: 70 },
     },
   });
 }
@@ -265,6 +272,64 @@ describe("OverlayOutputPanel clear", () => {
     // Regression risk from the merge: the dashboard's Clear only looked at the
     // pushed card, so a ranking on screen left the button dead.
     channelShowing(null, liveBoard(1));
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    expect(getByText("Clear").closest("button")?.hasAttribute("disabled")).toBe(false);
+  });
+});
+
+describe("OverlayOutputPanel curtain", () => {
+  beforeEach(() => {
+    mockSetHidden.mockReset();
+  });
+
+  it("drops the curtain over what is up", () => {
+    channelShowing(PRINTING.id);
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    fireEvent.click(getByText("Hide"));
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: true });
+  });
+
+  it("offers to raise it again once it is down", () => {
+    channelShowing(PRINTING.id, null, true);
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    fireEvent.click(getByText("Show"));
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: false });
+  });
+
+  it("stays available with nothing up, unlike Clear", () => {
+    // Dropping the curtain before the first push is how a creator sets a scene
+    // without the audience watching them do it.
+    channelShowing(null);
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    expect(getByText("Hide").closest("button")?.hasAttribute("disabled")).toBe(false);
+    expect(getByText("Clear").closest("button")?.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("does not read as live while hidden", () => {
+    channelShowing(PRINTING.id, null, true);
+    const { getByText, queryByText } = render(<OverlayOutputPanel />);
+
+    expect(queryByText("● Live")).toBeNull();
+    expect(getByText("Hidden")).toBeTruthy();
+  });
+
+  it("says a hidden card is still held, so the empty preview explains itself", () => {
+    // The preview paints the payload exactly as the browser source does, so it
+    // empties out — without the caption this reads as a failed push.
+    channelShowing(PRINTING.id, null, true);
+    const { getByText } = render(<OverlayOutputPanel />);
+
+    expect(getByText("Garen (hidden)")).toBeTruthy();
+  });
+
+  it("keeps Clear reachable while hidden, since hiding is not ending", () => {
+    channelShowing(PRINTING.id, null, true);
     const { getByText } = render(<OverlayOutputPanel />);
 
     expect(getByText("Clear").closest("button")?.hasAttribute("disabled")).toBe(false);

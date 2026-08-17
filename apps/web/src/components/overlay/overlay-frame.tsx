@@ -320,9 +320,15 @@ export function OverlayFrame({
   // hand), and hidden again the moment the push is cleared or unresolvable
   // (the retained `displayed` card is what slides out). The board's own
   // visibility is the push alone, for want of anything to wait on.
-  const visible = boardMode
-    ? pushedBoard !== null
-    : payload.printingId !== null && printing !== undefined && displayed !== undefined;
+  //
+  // `payload.hidden` rides on top of all of that and is the only one of these
+  // that comes back: it changes nothing the frame is holding, so raising the
+  // curtain slides the very same card in again with no refetch and no decode.
+  const visible =
+    !payload.hidden &&
+    (boardMode
+      ? pushedBoard !== null
+      : payload.printingId !== null && printing !== undefined && displayed !== undefined);
   const atTop = payload.corner.startsWith("top");
   const atLeft = payload.corner.endsWith("left");
   // Slides out toward the edge it came from, so an exit reads as the card

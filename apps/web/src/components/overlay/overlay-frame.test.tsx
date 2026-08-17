@@ -373,3 +373,59 @@ describe("OverlayFrame board", () => {
     expect(boardCluster?.className).toContain("opacity-0");
   });
 });
+
+describe("OverlayFrame curtain", () => {
+  /** @returns The element the slide's transform and opacity sit on. */
+  function boardCluster(getByText: (text: string) => HTMLElement): HTMLElement {
+    return getByText("Origins, ranked").closest("div")?.parentElement as HTMLElement;
+  }
+
+  it("takes a board off screen while hidden", () => {
+    const { getByText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null, hidden: true })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    expect(boardCluster(getByText).className).toContain("opacity-0");
+  });
+
+  it("puts the same board back when the curtain lifts, without a second push", () => {
+    // The point of the feature: hiding is not clearing, so the payload still
+    // carries the board and raising the curtain needs nothing from the server
+    // beyond the flag itself.
+    const { rerender, getByText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null, hidden: true })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    rerender(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null, hidden: false })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    expect(boardCluster(getByText).className).toContain("opacity-100");
+  });
+
+  it("keeps the board mounted while hidden, so the return animates", () => {
+    const { getByText } = render(
+      <OverlayFrame
+        payload={payload({ board: BOARD, printingId: null, hidden: true })}
+        printing={undefined}
+        board={SCENE}
+      />,
+    );
+
+    // The title is still in the tree — a curtain that unmounted would snap the
+    // board back rather than sliding it.
+    expect(getByText("Origins, ranked")).toBeTruthy();
+  });
+});

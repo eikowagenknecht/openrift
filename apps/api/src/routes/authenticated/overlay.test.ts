@@ -288,7 +288,159 @@ describe("POST /api/v1/overlay/me/board/reveal", () => {
   });
 });
 
+describe("POST /api/v1/overlay/me/hidden", () => {
+  /** @returns The response, after asking for the given curtain state. */
+  function setHidden(hidden: boolean) {
+    return app.request("/api/v1/overlay/me/hidden", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ hidden }),
+    });
+  }
+
+  it("drops the curtain without giving up what is on screen", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1" } }),
+    );
+
+    const res = await setHidden(true);
+
+    expect(res.status).toBe(200);
+    // The card surviving is the whole difference from Clear: raising the
+    // curtain has to put the same thing back with no second push.
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(USER_ID, {
+      ...DEFAULT_OVERLAY_PAYLOAD,
+      printingId: "p-1",
+      hidden: true,
+    });
+  });
+
+  it("keeps a hidden board hidden and intact", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),
+    );
+
+    await setHidden(true);
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ board: BOARD, hidden: true }),
+    );
+  });
+
+  it("raises the curtain again", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1", hidden: true } }),
+    );
+
+    await setHidden(false);
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ printingId: "p-1", hidden: false }),
+    );
+  });
+
+  it("leaves the scene setup alone", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({
+        payload: { ...DEFAULT_OVERLAY_PAYLOAD, corner: "top-left", scale: 55, showPlate: false },
+      }),
+    );
+
+    await setHidden(true);
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ corner: "top-left", scale: 55, showPlate: false }),
+    );
+  });
+
+  it("rejects a request that names no state", async () => {
+    const res = await app.request("/api/v1/overlay/me/hidden", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("the curtain is sticky", () => {
+  /**
+   * The board mirror pushes on every reveal step, so a push that raised the
+   * curtain would undo a hide on the creator's next keypress. These three are
+   * the regression that keeps hiding usable mid-ranking.
+   */
+  beforeEach(() => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, hidden: true } }),
+    );
+  });
+
+  it("survives a card push", async () => {
+    await app.request("/api/v1/overlay/me/push", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ printingId: "p-2" }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ printingId: "p-2", hidden: true }),
+    );
+  });
+
+  it("survives a board push", async () => {
+    await app.request("/api/v1/overlay/me/board", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ board: BOARD }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ hidden: true }),
+    );
+  });
+
+  it("survives a reveal step", async () => {
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({
+        payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD }, hidden: true },
+      }),
+    );
+
+    await app.request("/api/v1/overlay/me/board/reveal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revealCount: 1 }),
+    });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ hidden: true }),
+    );
+  });
+});
+
 describe("POST /api/v1/overlay/me/clear", () => {
+  it("raises the curtain, so the next segment's first push is seen", async () => {
+    // Clearing ends a segment. Leaving the curtain down would make the next
+    // push land on a scene that silently shows nothing.
+    mockRepo.findByUserId.mockResolvedValue(
+      stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1", hidden: true } }),
+    );
+
+    await app.request("/api/v1/overlay/me/clear", { method: "POST" });
+
+    expect(mockRepo.setPayload).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ printingId: null, hidden: false }),
+    );
+  });
+
   it("takes the board down along with the card", async () => {
     mockRepo.findByUserId.mockResolvedValue(
       stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, board: { ...BOARD } } }),

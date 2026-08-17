@@ -26,7 +26,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { usePushOverlayCard } from "@/hooks/use-overlay";
+import { useOverlayChannel, usePushOverlayCard, useSetOverlayHidden } from "@/hooks/use-overlay";
 import { useOverlayBoardSync } from "@/hooks/use-overlay-board-sync";
 import { useCreateStagePreset, useStagePresets } from "@/hooks/use-stage-presets";
 import { useUserId } from "@/lib/auth-session";
@@ -74,6 +74,12 @@ const OBS_BOARD_KEY_HELP: KeyHelpRow[] = [
   { keys: ["O"], what: "Show this board on the OBS overlay" },
 ];
 
+/**
+ * Shown while signed in, editing included — the curtain is over the overlay
+ * rather than over the walk, so unlike `P` and `O` it stays live in the editor.
+ */
+const HIDE_KEY_HELP: KeyHelpRow[] = [{ keys: ["H"], what: "Hide / show the OBS overlay" }];
+
 /** The two rows every stage carries, whichever mode it is in. Always last. */
 const COMMON_KEY_HELP: KeyHelpRow[] = [
   { keys: ["?"], what: "This help" },
@@ -97,6 +103,7 @@ function PresentationHelpSheet({
   editing,
 }: {
   boardControls: boolean;
+  /** Whether there is a channel to reach, i.e. whether `P` and `H` do anything. */
   pushControls: boolean;
   /** Whether this run can mirror its board onto the overlay, i.e. whether `O` does anything. */
   obsControls: boolean;
@@ -109,6 +116,7 @@ function PresentationHelpSheet({
     ...(boardControls && !editing ? BOARD_KEY_HELP : []),
     ...(pushControls && !editing ? PUSH_KEY_HELP : []),
     ...(obsControls && !editing ? OBS_BOARD_KEY_HELP : []),
+    ...(pushControls ? HIDE_KEY_HELP : []),
     ...(editControls
       ? [{ keys: ["E"], what: editing ? "Back to the show" : "Edit the board" }]
       : []),
@@ -656,6 +664,51 @@ function StageOverlayPushKey({ printingId }: { printingId: string }) {
 }
 
 /**
+ * `H` drops the curtain over the OBS browser source, and raises it again.
+ *
+ * Bound apart from {@link StageOverlayPushKey} because the two have different
+ * lives: a push needs a card of the moment and stands down while the board is
+ * being edited, whereas the curtain covers whatever is out there and is most
+ * useful exactly when there is no card to push.
+ *
+ * The channel query supplies the current state rather than a local boolean, so
+ * the key, the phone, and the OBS panel cannot drift apart — and so a Clear
+ * (which raises the curtain server-side) is reflected here without this
+ * component knowing Clear exists.
+ *
+ * @returns Nothing — it only binds the key.
+ */
+function StageOverlayHideKey() {
+  const { data: channel } = useOverlayChannel();
+  const setHidden = useSetOverlayHidden();
+  const mutate = setHidden.mutate;
+  const hidden = channel?.payload.hidden;
+
+  useEffect(() => {
+    // Nothing to flip until the channel has loaded. The key is left to the
+    // browser for that first moment rather than guessing at a state and
+    // possibly blanking a live scene.
+    if (hidden === undefined) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (resolvePresentationKey(event) !== "toggleHidden") {
+        return;
+      }
+      event.preventDefault();
+      mutate({ hidden: !hidden });
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [mutate, hidden]);
+
+  return null;
+}
+
+/**
  * The board the stage is showing, as the OBS overlay would draw it.
  *
  * The rows are the list's saved ones rather than the resolved ones — the overlay
@@ -791,10 +844,10 @@ export function PresentationStage({
       if (editing && WALK_ACTIONS.has(action)) {
         return;
       }
-      // The OBS push belongs to StageOverlayPushKey, which is only mounted
-      // while signed in. Swallowing it here would make the key dead for
-      // everyone, signed in included.
-      if (action === "push") {
+      // The OBS push and the curtain belong to StageOverlayPushKey and
+      // StageOverlayHideKey, which are only mounted while signed in. Swallowing
+      // them here would make the keys dead for everyone, signed in included.
+      if (action === "push" || action === "toggleHidden") {
         return;
       }
       if (action === "toggleObs") {
@@ -900,6 +953,9 @@ export function PresentationStage({
       {userId !== null && current && !editing && (
         <StageOverlayPushKey printingId={current.printing.id} />
       )}
+      {/* Mounted through editing as well, unlike the push above: the curtain is
+          over the overlay rather than over the walk. */}
+      {userId !== null && <StageOverlayHideKey />}
       {/* Mounted whether or not the switch is on, so flipping it is what starts
           and stops the mirror rather than a component appearing. Editing pauses
           it rather than taking it down: the board on stream stays as it was

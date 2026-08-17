@@ -39,6 +39,8 @@ describe("resolvePresentationKey", () => {
     ["E", "toggleEdit"],
     ["p", "push"],
     ["P", "push"],
+    ["h", "toggleHidden"],
+    ["H", "toggleHidden"],
     ["?", "toggleHelp"],
     ["Escape", "exit"],
   ])("maps %s to %s", (key, expected) => {
@@ -101,10 +103,10 @@ describe("WALK_ACTIONS", () => {
     ]);
   });
 
-  // The three the editor keeps. Adding one of these to WALK_ACTIONS would leave
+  // The four the editor keeps. Adding one of these to WALK_ACTIONS would leave
   // a creator ranking on camera with no way to see the keys, get back to the
-  // show, or leave the stage.
-  it.each(["toggleHelp", "toggleEdit", "exit"] as const)(
+  // show, leave the stage, or take the stale board off the stream.
+  it.each(["toggleHelp", "toggleEdit", "toggleHidden", "exit"] as const)(
     "keeps %s alive while editing",
     (action) => {
       expect(WALK_ACTIONS.has(action)).toBe(false);
