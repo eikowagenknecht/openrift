@@ -49,6 +49,19 @@ function drawerBadge(drawer: Locator, labelPrefix: RegExp): Locator {
 }
 
 /**
+ * Locate one chip in the active-filter strip. A card tile carries domain
+ * badges with the same labels, so once a matching card has been scrolled into
+ * view the label alone is ambiguous; the remove button, which only an
+ * active-filter chip has, is what tells them apart.
+ * @returns The chip locator.
+ */
+function activeFilterChip(page: Page, label: RegExp): Locator {
+  return page
+    .locator('[data-slot="badge"]', { hasText: label })
+    .filter({ has: page.locator('[data-slot="chip-remove-button"]') });
+}
+
+/**
  * Click a filter badge and wait for its effect to land on the URL. Under load
  * the drawer re-renders continuously (hydration, owned-count bridge), detaching
  * an animated badge mid-click. Retry with a freshly-resolved locator, but only
@@ -162,7 +175,7 @@ test.describe("card filters (mobile drawer)", () => {
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
 
     // The active-filter strip shows a Fury chip (exact label, no count).
-    await expect(page.locator('[data-slot="badge"]', { hasText: /^Fury$/u })).toBeVisible();
+    await expect(activeFilterChip(page, /^Fury$/u)).toBeVisible();
   });
 
   test("combining a domain and a type filter is AND", async ({ page }) => {
@@ -189,9 +202,10 @@ test.describe("card filters (mobile drawer)", () => {
     await closeFilterDrawer(page);
     await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
 
-    // Each include chip carries an unnamed X button that removes just that value.
-    const furyChip = page.locator('[data-slot="badge"]', { hasText: /^Fury$/u });
-    await furyChip.getByRole("button").click();
+    // Each include chip carries an X button that removes just that value.
+    await activeFilterChip(page, /^Fury$/u)
+      .getByRole("button")
+      .click();
 
     await expect(page).not.toHaveURL(/[?&]domains=/u);
     await scrollUntilVisible(page, cardImage(page, "Lux, Illuminated"));

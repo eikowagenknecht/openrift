@@ -58,7 +58,11 @@ async function deleteUser(email: string) {
 // default. Seeding any printing of the card is not enough: the cell's owned
 // pill counts the *displayed* printing, so a copy of a sibling variant leaves
 // the strip empty.
-const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
+// The printing the cards-view tile stands on: a tile keeps the first printing
+// of its card in the active sort order, and for OGS-001 that is the foil. The
+// strip counts the tile's own printing, not the card's siblings, so seeding the
+// normal printing instead leaves the tile reading zero.
+const ANNIE_FIERY_TILE_PRINTING = "019d17a1-2723-733a-a21e-4630e4370046";
 
 async function seedInboxCopy(email: string, printingId: string): Promise<void> {
   const sql = loadDb();
@@ -157,7 +161,7 @@ test.describe("cards /cards (logged in)", () => {
 
   test("Show owned count toggle shows an owned-count strip on cards", async ({ page }) => {
     userEmail = await createAndLogin(page);
-    await seedInboxCopy(userEmail, ANNIE_FIERY_NORMAL);
+    await seedInboxCopy(userEmail, ANNIE_FIERY_TILE_PRINTING);
     await page.goto("/cards");
     await waitForCards(page);
 

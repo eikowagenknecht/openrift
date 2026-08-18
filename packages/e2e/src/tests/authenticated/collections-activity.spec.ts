@@ -314,15 +314,17 @@ test.describe("collection activity", () => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        // formatDateHeading uses toLocaleDateString with weekday/month long.
-        // Browser locale and Node locale can differ, so match on any weekday word
-        // plus the current year — locale-independent enough to stay stable.
-        const currentYear = new Date().getFullYear().toString();
-        const weekdayPattern = /Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/u;
+        // Day headings are ISO days on the viewer's own clock (formatDayLocal),
+        // so the seeded events group under today's local date.
+        const now = new Date();
+        const today = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, "0"),
+          String(now.getDate()).padStart(2, "0"),
+        ].join("-");
         const heading = page.getByRole("heading", { level: 2 }).first();
         await expect(heading).toBeVisible({ timeout: 15_000 });
-        await expect(heading).toHaveText(weekdayPattern);
-        await expect(heading).toContainText(currentYear);
+        await expect(heading).toHaveText(today);
 
         // Each event card shows the card name and the short code.
         await expect(page.getByText("Annie, Fiery")).toBeVisible();

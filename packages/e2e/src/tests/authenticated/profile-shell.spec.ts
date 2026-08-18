@@ -69,9 +69,9 @@ test.describe("profile shell", () => {
       });
       await expect(page.locator('[data-slot="card-description"]').first()).toHaveText(email);
 
-      // "Joined <localized date>" — match format used by the component.
-      const joinedPattern = /^Joined \w+ \d{1,2}, \d{4}$|^Joined \d{1,2} \w+ \d{4}$/u;
-      await expect(page.getByText(joinedPattern)).toBeVisible();
+      // "Joined <ISO day>" — every date in the app goes through formatDay now,
+      // so there is no locale variant to allow for.
+      await expect(page.getByText(/^Joined \d{4}-\d{2}-\d{2}$/u)).toBeVisible();
 
       // Avatar: the Gravatar URL uses `d=404` so arbitrary test emails will
       // miss and BaseUI shows the initials fallback. If the image happens to

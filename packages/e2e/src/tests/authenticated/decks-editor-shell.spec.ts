@@ -97,15 +97,16 @@ test.describe("deck editor shell", () => {
       // (The "Saved" status tooltip indicator was removed from the top bar;
       // the "Constructed · Draft" badge now communicates the unsaved state.)
 
-      // Desktop-only action button (Export stayed on the bar; Proxies moved
-      // into the actions kebab menu and is card-gated, so it's absent on this
-      // empty deck).
-      await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
+      // Share is the bar's one desktop-only action; Export and Print sit in
+      // the kebab with the rest of the deck actions.
+      await expect(page.getByRole("button", { name: "Share", exact: true })).toBeVisible();
 
       // Kebab menu opens a dropdown. Renaming a server deck now happens in the
       // combined name-and-description dialog ("Rename" is the local-deck-only
       // wording), so that is the item to look for.
       await kebabTrigger(page).click();
+      await expect(page.getByRole("menuitem", { name: "Export" })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "Print" })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "Name & description" })).toBeVisible();
 
       // Close the menu before navigating.

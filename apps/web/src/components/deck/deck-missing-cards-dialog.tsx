@@ -2,7 +2,7 @@ import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailOverlay } from "@/components/cards/card-detail-overlay";
@@ -143,7 +143,25 @@ function incomingTooltipText(card: CardOwnership): string {
     : `${card.incoming} copies are on the way from a trade. They'll count once you've got them.`;
 }
 
-export function DeckMissingCardsDialog({
+/**
+ * Suspense boundary for the dialog below. Every call site mounts this dialog
+ * while it is closed, so a suspending read inside it would be caught by
+ * whatever boundary the *page* sits behind — hiding the page, which destroys
+ * its effects. The deck editor lost the open zone that way: hiding ran its
+ * unmount cleanup, which resets the builder's UI state. `null` is the right
+ * fallback because a closed dialog renders nothing anyway.
+ *
+ * @returns The dialog, behind its own boundary.
+ */
+export function DeckMissingCardsDialog(props: DeckMissingCardsDialogProps) {
+  return (
+    <Suspense fallback={null}>
+      <MissingCardsDialogBody {...props} />
+    </Suspense>
+  );
+}
+
+function MissingCardsDialogBody({
   open,
   onOpenChange,
   missingCards,
@@ -373,7 +391,11 @@ export function DeckMissingCardsDialog({
         // overlay, and neither may read the other's history entry as its own.
         historyKey="missingCardDetail"
       />
-      {showWishlistButton && (
+      {/* Mounted only while open: AddToWishlistDialog reads the user's
+          wishlists with a suspense query in its body, and this dialog itself
+          stays mounted while closed, so an unconditional mount fetched (and
+          suspended on) wishlists for a picker nobody had opened. */}
+      {showWishlistButton && wishlistPickerOpen && (
         <AddToWishlistDialog
           open={wishlistPickerOpen}
           onOpenChange={setWishlistPickerOpen}

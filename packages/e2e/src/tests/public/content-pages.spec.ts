@@ -174,7 +174,10 @@ test.describe("/changelog", () => {
 
   test("shows the most recent changelog date", async ({ page }) => {
     await page.goto("/changelog");
-    await expect(page.getByText(topDate).first()).toBeVisible();
+    // The heading's visible text is relative wording ("Today", "3 days ago"),
+    // so assert on the <time> element's machine-readable day instead — it says
+    // the same thing without the test having to restate `formatRelativeDay`.
+    await expect(page.locator(`time[datetime="${topDate}"]`).first()).toBeVisible();
   });
 
   test("sets document title and description meta", async ({ page }) => {

@@ -82,10 +82,17 @@ export function ChangelogPage() {
                 style={{ top: dateHeaderTop }}
               >
                 {/* One date per heading: the relative label falls back to the
-                    plain day, which is what the second column used to show. */}
-                <span className="text-foreground text-sm font-semibold tabular-nums">
+                    plain day, which is what the second column used to show.
+                    A <time> rather than a <span> so the ISO day stays readable
+                    to machines — assistive tech, feed readers, and the e2e test
+                    that asserts the newest entry rendered — while the visible
+                    text is the relative wording. */}
+                <time
+                  dateTime={group.date}
+                  className="text-foreground text-sm font-semibold tabular-nums"
+                >
                   {formatRelativeDay(group.date)}
-                </span>
+                </time>
               </div>
               {group.highlights.length > 0 && (
                 <ul className="space-y-2 pt-2">

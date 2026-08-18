@@ -349,12 +349,10 @@ test.describe("deck editor card browser", () => {
       // Main Deck sidebar section reflects the new count (Main Deck shows "N/39").
       await expect(zoneCount(page, "Main Deck")).toHaveText("1/39");
 
-      // Once a card is added, the Constructed · Draft badge flips to the
-      // amber violations badge (one of several constructed-format rules).
-      // The amber indicator is now inside the format-badge's bg-amber-500/10
-      // span; use an attribute-contains selector that tolerates the color
-      // opacity modifier.
-      await expect(page.locator('span[class*="bg-amber"]').first()).toBeVisible();
+      // The bar's build-state indicator inside a zone is the completion chip
+      // (required cards across all zones), not the amber format badge — that
+      // badge belongs to the hero, which the zone view scrolls past.
+      await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
       await addCardButton(tile).click();
       await expect(row.getByTitle("2 in deck")).toBeVisible();
@@ -366,9 +364,9 @@ test.describe("deck editor card browser", () => {
       const saveResponse = await saveRequest;
       expect(saveResponse.method()).toBe("POST");
 
-      // Once saved, deck still has violations so the amber badge remains.
+      // Saving doesn't complete the deck, so the chip still reports 1 of 56.
       // (The "Unsaved" indicator was removed — saves are just silent now.)
-      await expect(page.locator('span[class*="bg-amber"]').first()).toBeVisible();
+      await expect(page.getByText("1/56", { exact: true })).toBeVisible();
     });
   });
 
@@ -464,7 +462,14 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await expect(row.getByTitle("1 in deck")).toBeVisible();
 
-      await addCardButton(tile).click({ modifiers: ["Shift"] });
+      // Holding Shift swaps the + icon for a labeled "+2" button — a different
+      // element. Press Shift and wait for the swap before clicking: passing it
+      // as a click modifier replaces the element mid-click, and the actionability
+      // check then never settles.
+      await page.keyboard.down("Shift");
+      await expect(addCardButton(tile)).toHaveText("+2");
+      await addCardButton(tile).click();
+      await page.keyboard.up("Shift");
       await expect(row.getByTitle("3 in deck")).toBeVisible();
     });
 
@@ -484,7 +489,12 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await expect(row.getByTitle("2 in deck")).toBeVisible();
 
-      await removeCardButton(tile).click({ modifiers: ["Shift"] });
+      // Same element swap as the bulk add above: Shift turns the − icon into a
+      // labeled "-2", so hold the key and let it land before clicking.
+      await page.keyboard.down("Shift");
+      await expect(removeCardButton(tile)).toHaveText("-2");
+      await removeCardButton(tile).click();
+      await page.keyboard.up("Shift");
       await expect(row.getByText(/in deck/u)).toBeHidden();
     });
   });
@@ -535,16 +545,16 @@ test.describe("deck editor card browser", () => {
 
       await addCardButton(cardTile(page, "Annie, Fiery")).click();
 
-      // Adding one card to Main Deck surfaces the amber Constructed-violations
-      // badge (deck needs 39 cards, has 1). This is not an "unsaved" indicator
-      // — the standalone unsaved marker was removed. The badge stays visible
-      // through save because the violations persist regardless of save state.
-      await expect(page.locator('span[class*="bg-amber-500"]').first()).toBeVisible();
+      // Adding one card to Main Deck leaves the deck short (needs 56, has 1),
+      // which the bar's completion chip reports. This is not an "unsaved"
+      // indicator — the standalone unsaved marker was removed — so it reads the
+      // same before and after the save.
+      await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
-      // Confirm the debounced save completes. The badge continues to indicate
-      // violations, not dirty state.
+      // Confirm the debounced save completes. The chip tracks completeness,
+      // not dirty state, so it is unchanged.
       await saveResponse;
-      await expect(page.locator('span[class*="bg-amber-500"]').first()).toBeVisible();
+      await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
       // Reload the page — the added card persists.
       await page.reload();

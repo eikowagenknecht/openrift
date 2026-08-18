@@ -432,13 +432,18 @@ export function ListEntryBrowser({
             onMove={handleBulkMove}
             isPending={moveEntries.isPending}
           />
-          <MoveCopiesToCollectionDialog
-            listId={listId}
-            copyIds={moveCopyIds}
-            open={moveToCollectionOpen}
-            onOpenChange={setMoveToCollectionOpen}
-            onMoved={clearSelection}
-          />
+          {/* Mounted only while open: it reads the user's collections with a
+              suspense query, and a mounted-but-closed dialog suspends into
+              whatever boundary the page sits behind (ADR-034). */}
+          {moveToCollectionOpen && (
+            <MoveCopiesToCollectionDialog
+              listId={listId}
+              copyIds={moveCopyIds}
+              open={moveToCollectionOpen}
+              onOpenChange={setMoveToCollectionOpen}
+              onMoved={clearSelection}
+            />
+          )}
           <ListRemoveDialog
             open={removeOpen}
             onOpenChange={setRemoveOpen}

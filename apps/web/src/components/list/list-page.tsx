@@ -311,16 +311,20 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
-  const importDialog = (data.list.kind === "card" || data.list.kind === "printing") && (
-    <ListImportDialog
-      listId={listId}
-      listKind={data.list.kind}
-      open={importOpen}
-      onOpenChange={setImportOpen}
-    />
-  );
+  // Both mounted only while open, same reasoning as ruleDialog below: each
+  // reads with a suspense query, and a mounted-but-closed dialog suspends into
+  // whatever boundary the page sits behind rather than one of its own.
+  const importDialog = importOpen &&
+    (data.list.kind === "card" || data.list.kind === "printing") && (
+      <ListImportDialog
+        listId={listId}
+        listKind={data.list.kind}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
+    );
 
-  const moveAllDialog = (
+  const moveAllDialog = moveAllOpen && (
     <MoveCopiesToCollectionDialog
       listId={listId}
       copyIds={allCopyIds}

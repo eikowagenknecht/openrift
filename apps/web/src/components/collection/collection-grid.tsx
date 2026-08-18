@@ -1101,14 +1101,19 @@ export function CollectionGrid({
               annotatedCount={disposeAnnotatedCount}
             />
 
-            <AddToListDialog
-              open={addToListOpen}
-              onOpenChange={setAddToListOpen}
-              copyIds={actionCopyIds}
-              groupOwnedOnly={sourceCollectionIsGroup}
-              singleCard={actionSingleCard}
-              onAdded={clearSelection}
-            />
+            {/* Mounted only while open: it reads the user's lists with a
+                suspense query, and a mounted-but-closed dialog suspends into
+                whatever boundary the page sits behind (ADR-034). */}
+            {addToListOpen && (
+              <AddToListDialog
+                open={addToListOpen}
+                onOpenChange={setAddToListOpen}
+                copyIds={actionCopyIds}
+                groupOwnedOnly={sourceCollectionIsGroup}
+                singleCard={actionSingleCard}
+                onAdded={clearSelection}
+              />
+            )}
 
             {lendTarget ? (
               <LendCardDialog

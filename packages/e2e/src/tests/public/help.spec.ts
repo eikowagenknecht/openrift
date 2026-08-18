@@ -34,6 +34,12 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
       "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
   },
   {
+    slug: "deck-importer-extension",
+    title: "Deck Importer Extension",
+    description:
+      "Send the decklist you're looking at on another site straight to OpenRift with one click, using the Firefox add-on.",
+  },
+  {
     slug: "lists",
     title: "Wishlists & Tradelists",
     description:
