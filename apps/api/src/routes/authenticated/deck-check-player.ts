@@ -335,13 +335,24 @@ export const deckCheckPlayerRouter = {
         };
       }
 
-      const entry = await context.transact((txRepos) =>
-        applyPlayerList(txRepos, row, lines, cardRows, {
+      const entry = await context.transact(async (txRepos) => {
+        // Re-load under the row lock: the state checked above may be stale by
+        // now (a judge lock, a second tab), and the write must apply to the
+        // entry as it is, not as it was.
+        const fresh = await txRepos.deckCheck.getEntryForUpdate(event.id, row.id);
+        if (!fresh || fresh.state !== "editable") {
+          throw new AppError(
+            409,
+            ERROR_CODES.CONFLICT,
+            "Your deck is locked. Unlock it before editing.",
+          );
+        }
+        return applyPlayerList(txRepos, fresh, lines, cardRows, {
           allowDeckPublishing: input.allowDeckPublishing,
           allowNameSharing: input.allowNameSharing,
           allowRiotIdSharing: input.allowRiotIdSharing,
-        }),
-      );
+        });
+      });
       const cards = await repos.deckCheck.listCardsForEntry(entry.id);
       return {
         entryId: entry.id,
@@ -372,7 +383,15 @@ export const deckCheckPlayerRouter = {
       if (row.state !== "editable") {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Only an editable deck can be submitted");
       }
-      const submitted = await context.transact((txRepos) => submitEntryList(txRepos, row));
+      const submitted = await context.transact(async (txRepos) => {
+        // Re-load under the row lock — the state above may be stale, and a
+        // judge transition committed in the gap must not be overwritten.
+        const fresh = await txRepos.deckCheck.getEntryForUpdate(event.id, row.id);
+        if (!fresh || fresh.state !== "editable") {
+          throw new AppError(409, ERROR_CODES.CONFLICT, "Only an editable deck can be submitted");
+        }
+        return submitEntryList(txRepos, fresh);
+      });
       return buildPlayerDetail(repos, { ...row, ...submitted }, event);
     },
   ),
@@ -389,9 +408,19 @@ export const deckCheckPlayerRouter = {
         // Self-service in the lenient mode: delivery only happens when the
         // window closes. An existing baseline is kept so repeated unlock/submit
         // cycles diff against the same reviewed list.
-        const unlocked = await context.transact((txRepos) =>
-          unlockEntryToEditable(txRepos, row, { keepExistingBaseline: true }),
-        );
+        const unlocked = await context.transact(async (txRepos) => {
+          // Re-load under the row lock: an approval committed in the gap must
+          // not be silently reverted by a stale self-unlock.
+          const fresh = await txRepos.deckCheck.getEntryForUpdate(event.id, row.id);
+          if (!fresh || fresh.state !== "submitted") {
+            throw new AppError(
+              409,
+              ERROR_CODES.CONFLICT,
+              "The deck's state changed in the meantime. Reload and try again.",
+            );
+          }
+          return unlockEntryToEditable(txRepos, fresh, { keepExistingBaseline: true });
+        });
         return buildPlayerDetail(repos, { ...row, ...unlocked }, event);
       }
       if (row.state === "submitted" || row.state === "approved") {

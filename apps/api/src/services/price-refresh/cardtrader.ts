@@ -9,7 +9,7 @@
  */
 
 import { WellKnown } from "@openrift/shared";
-import type { PriceRefreshResponse } from "@openrift/shared";
+import type { Marketplace, PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../../deps.js";
@@ -416,7 +416,7 @@ async function autoMatchBlueprints(
   );
 
   const toInsert: {
-    marketplace: string;
+    marketplace: Marketplace;
     externalId: number;
     groupId: number;
     productName: string;

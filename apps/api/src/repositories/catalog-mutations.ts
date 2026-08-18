@@ -232,19 +232,26 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
 
     /** Replace all domains for a card by UUID (delete + insert). */
     async replaceCardDomainsById(cardId: string, domains: string[]): Promise<void> {
-      await db.deleteFrom("cardDomains").where("cardId", "=", cardId).execute();
-      if (domains.length > 0) {
-        await db
-          .insertInto("cardDomains")
-          .values(
-            domains.map((domain, index) => ({
-              cardId,
-              domainSlug: domain,
-              ordinal: index,
-            })),
-          )
-          .execute();
-      }
+      // Delete + insert must share a transaction: outside one, each statement
+      // commits alone, so an insert refused by the FK (an unknown slug the
+      // validator let through) would leave the delete committed and the card
+      // stripped of all its domains.
+      const run = async (trx: typeof db): Promise<void> => {
+        await trx.deleteFrom("cardDomains").where("cardId", "=", cardId).execute();
+        if (domains.length > 0) {
+          await trx
+            .insertInto("cardDomains")
+            .values(
+              domains.map((domain, index) => ({
+                cardId,
+                domainSlug: domain,
+                ordinal: index,
+              })),
+            )
+            .execute();
+        }
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
     /**
@@ -272,13 +279,17 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
 
     /** Replace all super types for a card by UUID (delete + insert). */
     async replaceCardSuperTypesById(cardId: string, superTypes: string[]): Promise<void> {
-      await db.deleteFrom("cardSuperTypes").where("cardId", "=", cardId).execute();
-      if (superTypes.length > 0) {
-        await db
-          .insertInto("cardSuperTypes")
-          .values(superTypes.map((superType) => ({ cardId, superTypeSlug: superType })))
-          .execute();
-      }
+      // Same transactional pairing as replaceCardDomainsById above.
+      const run = async (trx: typeof db): Promise<void> => {
+        await trx.deleteFrom("cardSuperTypes").where("cardId", "=", cardId).execute();
+        if (superTypes.length > 0) {
+          await trx
+            .insertInto("cardSuperTypes")
+            .values(superTypes.map((superType) => ({ cardId, superTypeSlug: superType })))
+            .execute();
+        }
+      };
+      await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
     /** Delete all bans for a card by UUID. */

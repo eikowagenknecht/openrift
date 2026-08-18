@@ -20,13 +20,19 @@ function makeIndex({
   cardNorms = [{ id: "card-uuid", normName: "fireball" }],
   aliases = [] as { cardId: string; normName: string }[],
   printings = [FIREBALL_PRINTING],
-  linkOverrides = [] as { externalId: string; finish: string; printingId: string }[],
+  linkOverrides = [] as {
+    externalId: string;
+    finish: string;
+    provider: string;
+    printingId: string;
+  }[],
 } = {}) {
   return buildCandidateLinkIndex({ cardNorms, aliases, printings, linkOverrides });
 }
 
 function candidate(overrides: Record<string, unknown> = {}) {
   return {
+    provider: "test-provider",
     externalId: "ext-1",
     shortCode: "OGN-001",
     finish: "normal" as string | null,
@@ -143,17 +149,61 @@ describe("resolvePrintingLink", () => {
 
   it("prefers a manual link override over key resolution", () => {
     const index = makeIndex({
-      linkOverrides: [{ externalId: "ext-1", finish: "normal", printingId: "override-uuid" }],
+      linkOverrides: [
+        {
+          externalId: "ext-1",
+          finish: "normal",
+          provider: "test-provider",
+          printingId: "override-uuid",
+        },
+      ],
     });
     expect(resolvePrintingLink(index, candidate())).toBe("override-uuid");
   });
 
   it("applies an override to a candidate with no finish, where the key cannot", () => {
     const index = makeIndex({
-      linkOverrides: [{ externalId: "ext-1", finish: "", printingId: "override-uuid" }],
+      linkOverrides: [
+        { externalId: "ext-1", finish: "", provider: "test-provider", printingId: "override-uuid" },
+      ],
     });
     expect(resolvePrintingLink(index, candidate({ finish: null, cardLinked: false }))).toBe(
       "override-uuid",
     );
+  });
+
+  it("scopes an override to its provider, with '' as the legacy wildcard", () => {
+    // Regression (migration 253): two providers reusing the same external id
+    // must not hijack each other's pins; pre-scoping rows keep applying to
+    // every provider, and a provider-scoped row beats the wildcard.
+    const index = makeIndex({
+      linkOverrides: [
+        { externalId: "ext-1", finish: "normal", provider: "", printingId: "wildcard-uuid" },
+        {
+          externalId: "ext-1",
+          finish: "normal",
+          provider: "test-provider",
+          printingId: "scoped-uuid",
+        },
+      ],
+    });
+    expect(resolvePrintingLink(index, candidate())).toBe("scoped-uuid");
+    expect(resolvePrintingLink(index, candidate({ provider: "other-provider" }))).toBe(
+      "wildcard-uuid",
+    );
+  });
+
+  it("ignores another provider's override and falls back to the key", () => {
+    const index = makeIndex({
+      linkOverrides: [
+        {
+          externalId: "ext-1",
+          finish: "normal",
+          provider: "other-provider",
+          printingId: "override-uuid",
+        },
+      ],
+    });
+    expect(resolvePrintingLink(index, candidate())).toBe("printing-uuid");
   });
 });

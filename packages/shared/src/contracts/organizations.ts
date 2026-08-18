@@ -24,7 +24,6 @@ export const organizationResponseSchema = z
     slug: z.string(),
     name: z.string(),
     description: z.string().nullable(),
-    ownerUserId: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

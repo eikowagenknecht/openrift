@@ -198,6 +198,8 @@ import * as m249 from "./249-organization-owner-integrity.js";
 import * as m250 from "./250-column-types-defaults-and-norm-name.js";
 import * as m251 from "./251-query-indexes.js";
 import * as m252 from "./252-trade-group-snapshots.js";
+import * as m253 from "./253-schema-integrity-hardening.js";
+import * as m254 from "./254-org-owner-from-roles.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -455,4 +457,6 @@ export const migrations: Record<string, Migration> = {
   "250-column-types-defaults-and-norm-name": m250,
   "251-query-indexes": m251,
   "252-trade-group-snapshots": m252,
+  "253-schema-integrity-hardening": m253,
+  "254-org-owner-from-roles": m254,
 };

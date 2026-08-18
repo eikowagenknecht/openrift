@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-18
+
+### Other
+
+- fix(App): **Fast double actions land once** — clicking twice or acting from two tabs at the same moment (submitting a tournament deck, clearing a collection while a trade lands, toggling a Discord trade channel) now applies once instead of racing itself into duplicates or lost changes.
+
 ## 2026-08-17
 
 ### Other

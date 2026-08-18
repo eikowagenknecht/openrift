@@ -45,7 +45,12 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     });
 
     afterAll(async () => {
-      await admin.db.deleteFrom("organizations").where("ownerUserId", "in", ALL_IDS).execute();
+      await admin.db
+        .deleteFrom("organizations")
+        .where("id", "in", (eb) =>
+          eb.selectFrom("organizationMembers").select("orgId").where("userId", "in", ALL_IDS),
+        )
+        .execute();
       await admin.db.deleteFrom("admins").where("userId", "=", ADMIN_ID).execute();
       await admin.db.deleteFrom("users").where("id", "in", ALL_IDS).execute();
     });

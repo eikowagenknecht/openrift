@@ -90,18 +90,24 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
      * @returns The newly created channel.
      */
     create(userId: string): Promise<OverlayChannel> {
-      return withUniqueShareToken(async (token) => {
-        const row = await db
-          .insertInto("overlayChannels")
-          .values({
-            userId,
-            token,
-            payload: DEFAULT_OVERLAY_PAYLOAD,
-          })
-          .returningAll()
-          .executeTakeFirstOrThrow();
-        return toChannel(row);
-      });
+      // Scoped to the token constraint: without it, two concurrent first-opens
+      // colliding on the user_id unique burned all retries and 500ed instead
+      // of letting the caller recover the winner's row.
+      return withUniqueShareToken(
+        async (token) => {
+          const row = await db
+            .insertInto("overlayChannels")
+            .values({
+              userId,
+              token,
+              payload: DEFAULT_OVERLAY_PAYLOAD,
+            })
+            .returningAll()
+            .executeTakeFirstOrThrow();
+          return toChannel(row);
+        },
+        { constraint: "overlay_channels_token_key" },
+      );
     },
 
     /**

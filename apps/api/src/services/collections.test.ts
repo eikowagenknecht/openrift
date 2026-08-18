@@ -287,7 +287,11 @@ function createResetMocks(
   const insertEvents = vi.fn(async (_events: unknown[]) => {});
 
   const repos = {
-    copies: { listInPersonalCollections, deleteAllInPersonalCollections },
+    copies: {
+      listInPersonalCollections,
+      deleteAllInPersonalCollections,
+      lockByIds: vi.fn(async (ids: string[]) => ids),
+    },
     collections: { deleteAllPersonalExceptInbox, ensureInbox },
     lists: { listIdsWithEntries, deleteEmptyWithoutRules },
     cardTrades: { filterReservedCopyIds, listPendingForGiverPrinting: vi.fn(async () => []) },

@@ -1,6 +1,7 @@
 import {
   arrangeSeating,
   assignTableNumbers,
+  ERROR_CODES,
   foldSeatingHistory,
   placementsFromGamePoints,
   pointsForPlacements,
@@ -25,6 +26,7 @@ import type {
   PodsTable,
   TournamentParticipantsTable,
 } from "../db/index.js";
+import { AppError } from "../errors.js";
 import type { Tournament } from "./tournaments.js";
 
 export type PodPlayer = Selectable<TournamentParticipantsTable>;
@@ -695,11 +697,25 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .values({ tournamentId })
           .returning("id")
           .executeTakeFirstOrThrow();
-        await trx
+        // The teamId IS NULL guard makes concurrent creates sharing a
+        // participant safe: the loser updates fewer than two rows, throws, and
+        // its team row rolls back with the transaction — no half-team remains.
+        // Scoping to the tournament also backstops a cross-tournament id mixup
+        // (the composite team FK from migration 253 rejects those outright).
+        const updated = await trx
           .updateTable("tournamentParticipants")
           .set({ teamId: team.id })
           .where("id", "in", participantIds)
-          .execute();
+          .where("tournamentId", "=", tournamentId)
+          .where("teamId", "is", null)
+          .executeTakeFirst();
+        if (updated.numUpdatedRows !== 2n) {
+          throw new AppError(
+            409,
+            ERROR_CODES.CONFLICT,
+            "A player is already on a team or no longer in this tournament.",
+          );
+        }
         return team.id;
       });
     },

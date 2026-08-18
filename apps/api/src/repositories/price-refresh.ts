@@ -1,3 +1,4 @@
+import type { Marketplace } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -86,7 +87,7 @@ export function priceRefreshRepo(db: Db) {
      *          is in `productIds` OR its `externalId::finish::language` tuple
      *          is in `variantKeys`.
      */
-    async loadIgnoredKeys(marketplace: string): Promise<LoadedIgnoredKeys> {
+    async loadIgnoredKeys(marketplace: Marketplace): Promise<LoadedIgnoredKeys> {
       const [productRows, variantRows] = await Promise.all([
         db
           .selectFrom("marketplaceIgnoredProducts")
@@ -111,7 +112,7 @@ export function priceRefreshRepo(db: Db) {
 
     /** Upsert marketplace groups, preserving existing name/abbreviation. */
     async upsertGroups(
-      marketplace: string,
+      marketplace: Marketplace,
       groups: { groupId: number; name?: string | null; abbreviation?: string | null }[],
     ): Promise<void> {
       if (groups.length === 0) {
@@ -148,7 +149,7 @@ export function priceRefreshRepo(db: Db) {
      * @returns One row per input SKU with its product id.
      */
     upsertProductsForMarketplace(
-      marketplace: string,
+      marketplace: Marketplace,
       skus: {
         externalId: number;
         finish: string;
@@ -195,7 +196,7 @@ export function priceRefreshRepo(db: Db) {
     // ── Row counts ──────────────────────────────────────────────────────────
 
     /** @returns Row count for marketplace product prices (joined via products). */
-    async countProductPrices(marketplace: string): Promise<number> {
+    async countProductPrices(marketplace: Marketplace): Promise<number> {
       const result = await db
         .selectFrom("marketplaceProductPrices as pp")
         .innerJoin("marketplaceProducts as mp", "mp.id", "pp.marketplaceProductId")
@@ -250,9 +251,9 @@ export function priceRefreshRepo(db: Db) {
      *          external_id can now resolve to multiple rows (e.g. foil + normal
      *          SKUs of the same upstream product).
      */
-    existingSourcesByMarketplaces(marketplaces: string[]): Promise<
+    existingSourcesByMarketplaces(marketplaces: Marketplace[]): Promise<
       {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         printingId: string;
         finish: string;
@@ -285,7 +286,7 @@ export function priceRefreshRepo(db: Db) {
      */
     async batchInsertProductVariants(
       values: {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         groupId: number;
         productName: string;
@@ -334,7 +335,7 @@ export function priceRefreshRepo(db: Db) {
       // same external id would otherwise collapse onto one key and bind every
       // variant to whichever product landed in the map last.
       const productKey = (v: {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         finish: string;
         language: string | null;

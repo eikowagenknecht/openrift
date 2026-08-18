@@ -9,33 +9,47 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceAdminRepo(db);
-  const marketplace = "test-mp-admin";
+  // The marketplace vocabulary is a closed CHECK (migration 247), so these
+  // fixtures live under a real marketplace. Isolation comes from this file's
+  // own id ranges, not the marketplace value: seeded fixtures and other test
+  // files share "cardmarket", so every assertion and delete below is scoped
+  // to the ids this file owns.
+  const marketplace = "cardmarket" as const;
 
   const groupId = 92_001;
+  // Every externalId this file writes, in one place so cleanup can target
+  // exactly these rows. Extend it when a test adds a new id.
+  const fileExternalIds = [88_001, 88_002, 88_101, 88_102, 88_103, 88_201];
 
   afterAll(async () => {
     await db
       .deleteFrom("marketplaceIgnoredProducts")
       .where("marketplace", "=", marketplace)
+      .where("externalId", "in", fileExternalIds)
       .execute();
+    const ownProductIds = db
+      .selectFrom("marketplaceProducts")
+      .select("id")
+      .where("marketplace", "=", marketplace)
+      .where("externalId", "in", fileExternalIds);
     await db
       .deleteFrom("marketplaceProductCardOverrides")
-      .where(
-        "marketplaceProductId",
-        "in",
-        db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
-      )
+      .where("marketplaceProductId", "in", ownProductIds)
       .execute();
     await db
       .deleteFrom("marketplaceIgnoredVariants")
-      .where(
-        "marketplaceProductId",
-        "in",
-        db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
-      )
+      .where("marketplaceProductId", "in", ownProductIds)
       .execute();
-    await db.deleteFrom("marketplaceProducts").where("marketplace", "=", marketplace).execute();
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "=", marketplace).execute();
+    await db
+      .deleteFrom("marketplaceProducts")
+      .where("marketplace", "=", marketplace)
+      .where("externalId", "in", fileExternalIds)
+      .execute();
+    await db
+      .deleteFrom("marketplaceGroups")
+      .where("marketplace", "=", marketplace)
+      .where("groupId", "=", groupId)
+      .execute();
   });
 
   it("stagingCountsByMarketplaceGroup with marketplace filter", async () => {
@@ -62,16 +76,23 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
       },
     ]);
 
+    // The listing spans the whole marketplace, so scope down to this file's
+    // externalIds before counting.
     const list = await repo.listIgnoredProducts();
-    const ours = list.filter((p) => p.marketplace === marketplace);
+    const ours = list.filter(
+      (p) => p.marketplace === marketplace && [88_001, 88_002].includes(p.externalId),
+    );
     expect(ours.length).toBe(2);
 
     const count = await repo.deleteIgnoredProducts(marketplace, [88_001]);
     expect(count).toBe(1);
 
     const after = await repo.listIgnoredProducts();
-    const remaining = after.filter((p) => p.marketplace === marketplace);
+    const remaining = after.filter(
+      (p) => p.marketplace === marketplace && [88_001, 88_002].includes(p.externalId),
+    );
     expect(remaining.length).toBe(1);
+    expect(remaining[0].externalId).toBe(88_002);
   });
 
   it("deleteIgnoredProducts bulk deletes", async () => {
@@ -125,7 +146,10 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
 
       const remaining = await repo.listIgnoredProducts();
       const ours = remaining.filter(
-        (row) => row.level === "variant" && row.marketplace === marketplace,
+        (row) =>
+          row.level === "variant" &&
+          row.marketplace === marketplace &&
+          [nullLangExternalId, enLangExternalId].includes(row.externalId),
       );
       expect(ours.map((row) => row.externalId)).toEqual([enLangExternalId]);
     });
@@ -201,20 +225,61 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
   });
 
   it("clearPriceData reports the rows it deleted per table", async () => {
-    // Its own marketplace: clearPriceData wipes everything under the name it
-    // is given, so sharing one with the tests above would make the counts
-    // depend on their leftovers.
-    const clearMarketplace = `${marketplace}-clear`;
+    // clearPriceData wipes the entire marketplace — seeded fixture rows and
+    // this file's earlier rows included. Capture everything under the
+    // marketplace first, assert the counts as deltas over that baseline, and
+    // restore the captured rows so later test files still see the seed data.
+    const baseProducts = await db
+      .selectFrom("marketplaceProducts")
+      .selectAll()
+      .where("marketplace", "=", marketplace)
+      .execute();
+    const baseProductIds = baseProducts.map((p) => p.id);
+    const baseVariants =
+      baseProductIds.length === 0
+        ? []
+        : await db
+            .selectFrom("marketplaceProductVariants")
+            .selectAll()
+            .where("marketplaceProductId", "in", baseProductIds)
+            .execute();
+    const basePrices =
+      baseProductIds.length === 0
+        ? []
+        : await db
+            .selectFrom("marketplaceProductPrices")
+            .selectAll()
+            .where("marketplaceProductId", "in", baseProductIds)
+            .execute();
+    // These two cascade from the product delete as well — capture them so the
+    // restore is complete even when a preceding test left rows behind.
+    const baseOverrides =
+      baseProductIds.length === 0
+        ? []
+        : await db
+            .selectFrom("marketplaceProductCardOverrides")
+            .selectAll()
+            .where("marketplaceProductId", "in", baseProductIds)
+            .execute();
+    const baseIgnoredVariants =
+      baseProductIds.length === 0
+        ? []
+        : await db
+            .selectFrom("marketplaceIgnoredVariants")
+            .selectAll()
+            .where("marketplaceProductId", "in", baseProductIds)
+            .execute();
+
     await db
       .insertInto("marketplaceGroups")
-      .values({ marketplace: clearMarketplace, groupId, name: "Clearable Group" })
+      .values({ marketplace, groupId, name: "Clearable Group" })
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
     const product = await db
       .insertInto("marketplaceProducts")
       .values({
-        marketplace: clearMarketplace,
+        marketplace,
         externalId: 88_201,
         groupId,
         productName: "Clearable Product",
@@ -236,11 +301,33 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
       ])
       .execute();
 
-    // Two price rows against one variant — the counts are per table, so the
-    // variant must not multiply the price figure.
-    const counts = await repo.clearPriceData(clearMarketplace);
-    expect(counts).toEqual({ prices: 2, variants: 1, products: 1 });
+    const counts = await repo.clearPriceData(marketplace);
 
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "=", clearMarketplace).execute();
+    // Restore before asserting so a failed expectation can't leave the shared
+    // DB without its marketplace rows.
+    if (baseProducts.length > 0) {
+      await db.insertInto("marketplaceProducts").values(baseProducts).execute();
+    }
+    if (baseVariants.length > 0) {
+      await db.insertInto("marketplaceProductVariants").values(baseVariants).execute();
+    }
+    if (basePrices.length > 0) {
+      await db.insertInto("marketplaceProductPrices").values(basePrices).execute();
+    }
+    if (baseOverrides.length > 0) {
+      await db.insertInto("marketplaceProductCardOverrides").values(baseOverrides).execute();
+    }
+    if (baseIgnoredVariants.length > 0) {
+      await db.insertInto("marketplaceIgnoredVariants").values(baseIgnoredVariants).execute();
+    }
+
+    // Two price rows against one variant — the counts are per table, so the
+    // variant must not multiply the price figure: exactly +2 / +1 / +1 over
+    // the baseline.
+    expect(counts).toEqual({
+      prices: basePrices.length + 2,
+      variants: baseVariants.length + 1,
+      products: baseProducts.length + 1,
+    });
   });
 });

@@ -78,7 +78,7 @@ describe("marketplaceMappingRepo", () => {
     ]);
     const values = [
       {
-        marketplace: "tcgplayer",
+        marketplace: "tcgplayer" as const,
         printingId: "p1",
         externalId: 100,
         groupId: 1,

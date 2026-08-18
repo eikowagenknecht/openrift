@@ -579,13 +579,23 @@ export const tournamentsRouter = {
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await loadParticipant(repos, input.id, input.participantId);
-      if (await repos.tournaments.participantHasMemberships(input.participantId)) {
-        throw errors.CONFLICT({
-          message:
-            "This participant is in a paired round and cannot be removed. Drop them instead.",
-        });
-      }
-      await repos.tournaments.deleteParticipant(input.participantId);
+      await context.transact(async (trxRepos) => {
+        // Lock before the membership check: a concurrent pairing holds FOR KEY
+        // SHARE on this row through its pod_members inserts, so the check here
+        // sees the committed seat and refuses, instead of the delete cascading
+        // a freshly seated pod member away mid-round.
+        const exists = await trxRepos.tournaments.lockParticipant(input.participantId);
+        if (!exists) {
+          return;
+        }
+        if (await trxRepos.tournaments.participantHasMemberships(input.participantId)) {
+          throw errors.CONFLICT({
+            message:
+              "This participant is in a paired round and cannot be removed. Drop them instead.",
+          });
+        }
+        await trxRepos.tournaments.deleteParticipant(input.participantId);
+      });
       return buildParticipantList(repos, input.id);
     },
   ),

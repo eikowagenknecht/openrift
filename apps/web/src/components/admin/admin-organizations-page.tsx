@@ -78,8 +78,8 @@ function EditOrgDialog({ org }: { org: OrganizationSummaryResponse }) {
           <DialogHeader>
             <DialogTitle>Edit organization</DialogTitle>
             <DialogDescription>
-              Owner {org.ownerName ?? org.ownerUserId}. The owner can only be changed by
-              transferring membership.
+              Owner {org.ownerName ?? "(no display name)"}. Owners are managed through the
+              organization&apos;s member roles.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -136,7 +136,7 @@ function OrgRow({ org }: { org: OrganizationSummaryResponse }) {
           </Badge>
         </span>
         <span className="text-muted-foreground text-sm">
-          Owner {org.ownerName ?? org.ownerUserId} · {org.memberCount} member
+          Owner {org.ownerName ?? "(no display name)"} · {org.memberCount} member
           {org.memberCount === 1 ? "" : "s"}
         </span>
       </span>

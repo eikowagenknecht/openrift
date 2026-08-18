@@ -656,6 +656,24 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /**
+     * Locks the participant row (`SELECT … FOR UPDATE`). Call inside a
+     * transaction before a check-then-mutate on the participant (deck-entry
+     * creation, removal): a concurrent pairing holds `FOR KEY SHARE` on this
+     * row through its pod_members FK inserts, so the lock serializes the two
+     * and the re-check after it sees the committed truth.
+     * @returns True when the row exists (and is now locked).
+     */
+    async lockParticipant(participantId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("tournamentParticipants")
+        .select("id")
+        .where("id", "=", participantId)
+        .forUpdate()
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     /** Removes one participant row outright (deny / remove). */
     async deleteParticipant(participantId: string): Promise<void> {
       // Their decklist is discarded too, enforced by the deck_check_entries

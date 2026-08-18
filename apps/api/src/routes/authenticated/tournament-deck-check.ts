@@ -142,12 +142,21 @@ export const tournamentDeckCheckRouter = {
       if (!participant || participant.tournamentId !== event.id) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Participant not found");
       }
-      if (await repos.deckCheck.participantHasDeck(participant.id)) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "This participant already has a deck");
-      }
-      const created = await createManualDeckCheckEntry(repos, event.id, {
-        participantId: participant.id,
-        cards: input.cards,
+      // One transaction for the whole creation: the has-deck check re-runs
+      // under a participant row lock (a judge double-click otherwise inserts
+      // two entries — nothing unique covers participant_id, since a later
+      // provider push may legitimately add a second entry), and the entry row
+      // and its card lines land atomically instead of a failure between them
+      // stranding a cardless entry.
+      const created = await context.transact(async (trxRepos) => {
+        await trxRepos.tournaments.lockParticipant(participant.id);
+        if (await trxRepos.deckCheck.participantHasDeck(participant.id)) {
+          throw new AppError(409, ERROR_CODES.CONFLICT, "This participant already has a deck");
+        }
+        return createManualDeckCheckEntry(trxRepos, event.id, {
+          participantId: participant.id,
+          cards: input.cards,
+        });
       });
       return buildEntryDetail(repos, event, created);
     },

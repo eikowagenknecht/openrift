@@ -84,6 +84,7 @@ export function ingestRepo(db: Db) {
         language: string | null;
         externalId: string;
         cardName: string;
+        provider: string;
       }[]
     > {
       return db
@@ -97,6 +98,7 @@ export function ingestRepo(db: Db) {
           "cp.language",
           "cp.externalId",
           "cc.name as cardName",
+          "cc.provider",
         ])
         .where("cp.printingId", "is", null)
         .execute();
@@ -111,13 +113,17 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All printing link overrides (manual links that survive re-uploads). */
+    /**
+     * @returns All printing link overrides (manual links that survive
+     * re-uploads). `provider` scopes a pin to one source; '' is the legacy
+     * wildcard that applies to every provider.
+     */
     allPrintingLinkOverrides(): Promise<
-      { externalId: string; finish: string; printingId: string }[]
+      { externalId: string; finish: string; provider: string; printingId: string }[]
     > {
       return db
         .selectFrom("printingLinkOverrides")
-        .select(["externalId", "finish", "printingId"])
+        .select(["externalId", "finish", "provider", "printingId"])
         .execute();
     },
 

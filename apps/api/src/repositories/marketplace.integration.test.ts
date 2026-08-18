@@ -11,14 +11,29 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const { db, userId } = ctx!;
   const repo = marketplaceRepo(db);
 
-  // Use the seed printing but create our own marketplace data with unique
-  // marketplace names so other tests' cleanup never deletes them.
+  // Real marketplace names — the CHECK constraint (migration 247) rejects
+  // made-up ones. The seed carries products AND prices for these same cards
+  // under every real marketplace, so isolation comes from two levers:
+  //   - this file's own 913_xxx externalId range keys every scoped assertion
+  //     and the cleanup;
+  //   - every price this file inserts is dated far in the future (2126), so
+  //     `mv_latest_printing_prices` (DISTINCT ON (printing, marketplace),
+  //     latest day wins) deterministically shows THIS file's rows for the
+  //     printings under test, seed data and carry-forward islands included.
+  // The afterAll deletes the fixture rows and refreshes both MVs, so the
+  // future-dated prices cannot leak into later test files.
   const anniePrintingId = PRINTING_1.id;
-  const mpTcg = "mp-repo-test-tcg";
-  const mpCm = "mp-repo-test-cm";
+  const mpTcg = "tcgplayer" as const;
+  const mpCm = "cardmarket" as const;
   // Third marketplace, used only by the deckValues language tests so their
   // prices can't shift the assertions above.
-  const mpLang = "mp-repo-test-lang";
+  const mpLang = "cardtrader" as const;
+
+  const tcgGroupId = 80_101;
+  const cmGroupId = 80_102;
+  const langGroupId = 80_103;
+  const tcgExternalId = 913_101;
+  const cmExternalId = 913_102;
 
   // Fury Rune is printed in both EN and SC in the seed, which is what the
   // language-aware pricing needs.
@@ -29,30 +44,34 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   let tcgProductId = "";
   let langDeckId = "";
 
-  // Track recordedAt timestamps we inserted for cleanup
-  const createdPriceKeys: { productId: string; recordedAt: Date }[] = [];
+  const createdProductIds: string[] = [];
   const createdDeckIds: string[] = [];
 
   beforeAll(async () => {
-    // Create marketplace groups for our test marketplaces
+    // Groups in this file's own id range; products FK (marketplace, group_id).
     await db
       .insertInto("marketplaceGroups")
       .values([
-        { marketplace: mpTcg, groupId: 80_001, name: "MP Repo Test TCG", abbreviation: null },
-        { marketplace: mpCm, groupId: 80_002, name: "MP Repo Test CM", abbreviation: null },
-        { marketplace: mpLang, groupId: 80_003, name: "MP Repo Test Lang", abbreviation: null },
+        { marketplace: mpTcg, groupId: tcgGroupId, name: "MP Repo Test TCG", abbreviation: null },
+        { marketplace: mpCm, groupId: cmGroupId, name: "MP Repo Test CM", abbreviation: null },
+        {
+          marketplace: mpLang,
+          groupId: langGroupId,
+          name: "MP Repo Test Lang",
+          abbreviation: null,
+        },
       ])
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
     // Create products + variants for the same printing in two marketplaces.
-    // Each product represents one SKU; CM/TCG stand-ins use language=null.
+    // Each product represents one SKU; CM/TCG products carry language=null.
     const [tcgProduct] = await db
       .insertInto("marketplaceProducts")
       .values({
         marketplace: mpTcg,
-        groupId: 80_001,
-        externalId: 653_136,
+        groupId: tcgGroupId,
+        externalId: tcgExternalId,
         productName: "Annie Fiery (Test TCG)",
         finish: "normal",
         language: null,
@@ -60,6 +79,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .returning("id")
       .execute();
     tcgProductId = tcgProduct.id;
+    createdProductIds.push(tcgProduct.id);
 
     const [tcgVariant] = await db
       .insertInto("marketplaceProductVariants")
@@ -75,14 +95,15 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .insertInto("marketplaceProducts")
       .values({
         marketplace: mpCm,
-        groupId: 80_002,
-        externalId: 847_523,
+        groupId: cmGroupId,
+        externalId: cmExternalId,
         productName: "Annie, Fiery (Test CM)",
         finish: "normal",
         language: null,
       })
       .returning("id")
       .execute();
+    createdProductIds.push(cmProduct.id);
 
     await db
       .insertInto("marketplaceProductVariants")
@@ -100,7 +121,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .values([
         {
           marketplace: mpLang,
-          groupId: 80_003,
+          groupId: langGroupId,
           externalId: 913_001,
           productName: "Fury Rune (Test EN)",
           finish: "normal",
@@ -108,7 +129,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         },
         {
           marketplace: mpLang,
-          groupId: 80_003,
+          groupId: langGroupId,
           externalId: 913_002,
           productName: "Fury Rune (Test SC)",
           finish: "normal",
@@ -119,6 +140,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .execute();
     const langEnProductId = langProducts.find((row) => row.language === "EN")!.id;
     const langScProductId = langProducts.find((row) => row.language === "SC")!.id;
+    createdProductIds.push(langEnProductId, langScProductId);
 
     await db
       .insertInto("marketplaceProductVariants")
@@ -128,7 +150,43 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       ])
       .execute();
 
-    const langPriceAt = new Date("2026-03-01T00:00:00Z");
+    // deckValues picks the cheapest across ALL of the card's printings, and
+    // the seed prices several of them under cardtrader (showcase foils, SFD
+    // reprints). Override every other printing of the card with a high
+    // future-dated price so the cheapest-EN / cheapest-SC math stays exact.
+    const otherPrintings = await db
+      .selectFrom("printings")
+      .select("id")
+      .where("cardId", "=", CARD_FURY_RUNE.id)
+      .where("id", "not in", [runeEnPrintingId, runeScPrintingId])
+      .execute();
+    const overrideProducts = await db
+      .insertInto("marketplaceProducts")
+      .values(
+        otherPrintings.map((_row, index) => ({
+          marketplace: mpLang,
+          groupId: langGroupId,
+          externalId: 913_003 + index,
+          productName: `Fury Rune Override ${index}`,
+          finish: "foil",
+          language: null,
+        })),
+      )
+      .returning("id")
+      .execute();
+    createdProductIds.push(...overrideProducts.map((row) => row.id));
+
+    await db
+      .insertInto("marketplaceProductVariants")
+      .values(
+        otherPrintings.map((row, index) => ({
+          marketplaceProductId: overrideProducts[index].id,
+          printingId: row.id,
+        })),
+      )
+      .execute();
+
+    const langPriceAt = new Date("2126-03-01T00:00:00Z");
     await db
       .insertInto("marketplaceProductPrices")
       .values([
@@ -144,12 +202,14 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
           lowCents: 100,
           recordedAt: langPriceAt,
         },
+        ...overrideProducts.map((row) => ({
+          marketplaceProductId: row.id,
+          marketCents: 900,
+          lowCents: 900,
+          recordedAt: langPriceAt,
+        })),
       ])
       .execute();
-    createdPriceKeys.push(
-      { productId: langEnProductId, recordedAt: langPriceAt },
-      { productId: langScProductId, recordedAt: langPriceAt },
-    );
 
     await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
     await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
@@ -187,28 +247,27 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       await db.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
       await db.deleteFrom("decks").where("id", "=", deckId).execute();
     }
-    for (const key of createdPriceKeys.toReversed()) {
-      await db
-        .deleteFrom("marketplaceProductPrices")
-        .where("marketplaceProductId", "=", key.productId)
-        .where("recordedAt", "=", key.recordedAt)
-        .execute();
-    }
-    // Delete variants first (FK), then products.
-    await sql`
-      DELETE FROM marketplace_product_variants mpv
-      USING marketplace_products mp
-      WHERE mp.id = mpv.marketplace_product_id
-        AND mp.marketplace IN (${mpTcg}, ${mpCm}, ${mpLang})
-    `.execute(db);
+    // This file's rows only, keyed by tracked product ids: prices cascade from
+    // the product delete, variants don't (plain FK) and go first.
     await db
-      .deleteFrom("marketplaceProducts")
-      .where("marketplace", "in", [mpTcg, mpCm, mpLang])
+      .deleteFrom("marketplaceProductVariants")
+      .where("marketplaceProductId", "in", createdProductIds)
       .execute();
+    await db.deleteFrom("marketplaceProducts").where("id", "in", createdProductIds).execute();
     await db
       .deleteFrom("marketplaceGroups")
-      .where("marketplace", "in", [mpTcg, mpCm, mpLang])
+      .where((eb) =>
+        eb.or([
+          eb.and([eb("marketplace", "=", mpTcg), eb("groupId", "=", tcgGroupId)]),
+          eb.and([eb("marketplace", "=", mpCm), eb("groupId", "=", cmGroupId)]),
+          eb.and([eb("marketplace", "=", mpLang), eb("groupId", "=", langGroupId)]),
+        ]),
+      )
       .execute();
+    // Purge the future-dated fixture prices from the MVs, or every later file
+    // reading them would see this file's 2126 rows as "latest".
+    await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
+    await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
   });
 
   // ---------------------------------------------------------------------------
@@ -218,11 +277,12 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   it("returns marketplace sources for a known printing", async () => {
     const sources = await repo.sourcesForPrinting(anniePrintingId);
 
-    // At least our 2 test products (other tests may have added more)
-    expect(sources.length).toBeGreaterThanOrEqual(2);
-
-    const testSources = sources.filter((s) => s.marketplace === mpTcg || s.marketplace === mpCm);
+    // The seed binds this printing too, so scope to this file's externalIds.
+    const testSources = sources.filter(
+      (s) => s.externalId === tcgExternalId || s.externalId === cmExternalId,
+    );
     expect(testSources.length).toBe(2);
+    expect(new Set(testSources.map((s) => s.marketplace))).toEqual(new Set([mpTcg, mpCm]));
   });
 
   it("returns empty array for a nonexistent printing", async () => {
@@ -237,9 +297,9 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
   it("returns snapshots ordered by recordedAt ascending", async () => {
     // Insert two price rows for our TCG product. `snapshots()` reads per-product
-    // via the mpv ↔ product join.
-    const snap1At = new Date("2026-01-01T00:00:00Z");
-    const snap2At = new Date("2026-02-01T00:00:00Z");
+    // via the mpv ↔ product join, so only this file's rows can appear.
+    const snap1At = new Date("2126-01-01T00:00:00Z");
+    const snap2At = new Date("2126-02-01T00:00:00Z");
     await db
       .insertInto("marketplaceProductPrices")
       .values([
@@ -257,10 +317,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         },
       ])
       .execute();
-    createdPriceKeys.push(
-      { productId: tcgProductId, recordedAt: snap1At },
-      { productId: tcgProductId, recordedAt: snap2At },
-    );
 
     // Refresh the MVs so latestPrices() sees the new rows. Daily first — the
     // latest view is defined over it (migration 219).
@@ -279,10 +335,10 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   });
 
   it("filters snapshots by cutoff date", async () => {
-    const cutoff = new Date("2026-01-15T00:00:00Z");
+    const cutoff = new Date("2126-01-15T00:00:00Z");
     const snaps = await repo.snapshots(tcgVariantId, cutoff);
 
-    // Should only include snap2 (Feb) and anything after cutoff
+    // Should only include snap2 (Feb 2126) and anything after cutoff
     for (const s of snaps) {
       expect(new Date(s.recordedAt).getTime()).toBeGreaterThanOrEqual(cutoff.getTime());
     }
@@ -304,8 +360,9 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     // We inserted snapshots for our TCG product, so it should appear
     expect(prices.length).toBeGreaterThanOrEqual(1);
 
-    // Filter by our test marketplace so seed-data rows for the same printing
-    // in other marketplaces (e.g. cardmarket) don't shadow our inserted price.
+    // The MV keeps one row per (printing, marketplace), latest day first. The
+    // seed prices this printing under tcgplayer too, but this file's snapshots
+    // are dated 2126, so they are the latest and define the row.
     const anniePrice = prices.find(
       (p) => p.printingId === anniePrintingId && p.marketplace === mpTcg,
     );
@@ -331,6 +388,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const values = await repo.deckValues(userId, mpLang, ["EN"]);
 
     // The SC printing is cheaper (100), but the viewer only collects EN.
+    // (The showcase printings sit at 900, so they can't win either.)
     expect(values.get(langDeckId)).toBe(500);
   });
 

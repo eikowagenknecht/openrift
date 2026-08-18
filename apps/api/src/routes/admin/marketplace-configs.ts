@@ -1,3 +1,5 @@
+import type { Marketplace } from "@openrift/shared";
+
 import type { Repos } from "../../deps.js";
 import type { marketplaceMappingRepo } from "../../repositories/marketplace-mapping.js";
 
@@ -55,7 +57,7 @@ interface MappedPriceRow extends PriceColumns {
 // ── Marketplace-specific config ─────────────────────────────────────────────
 
 export interface MarketplaceConfig {
-  marketplace: string;
+  marketplace: Marketplace;
   currency: string;
   /** Map a staging row → the unified product-info price fields */
   mapStagingPrices: (row: StagingRow) => Omit<ProductInfo, "productName" | "recordedAt">;
@@ -68,7 +70,7 @@ export interface MarketplaceConfig {
 // ── Factory helper ──────────────────────────────────────────────────────────
 
 function createMarketplaceConfig(opts: {
-  marketplace: string;
+  marketplace: Marketplace;
   currency: string;
   mapPrices: (row: PriceColumns) => Omit<ProductInfo, "productName" | "recordedAt">;
   repo: ReturnType<typeof marketplaceMappingRepo>;

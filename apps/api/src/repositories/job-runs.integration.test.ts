@@ -10,12 +10,25 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   const { db } = ctx!;
   const repo = jobRunsRepo(db);
 
+  /**
+   * Starts a run that the test expects to win the claim; throws when the
+   * partial unique index refused it (which would mean test-state leakage).
+   * @returns The started run's id handle.
+   */
+  async function begin(kind: string, trigger: "cron" | "admin" = "cron"): Promise<{ id: string }> {
+    const started = await repo.start({ kind, trigger });
+    if (started === null) {
+      throw new Error(`expected to claim a run for ${kind}`);
+    }
+    return started;
+  }
+
   afterEach(async () => {
     await db.deleteFrom("jobRuns").execute();
   });
 
   it("start writes a running row", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "cron" });
+    const { id } = await begin("test.kind", "cron");
     const rows = await repo.listRecent({ kind: "test.kind" });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(id);
@@ -24,8 +37,20 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(rows[0]?.finishedAt).toBeNull();
   });
 
+  it("start refuses a second concurrent run of the same kind", async () => {
+    // Regression (migration 253): the check-then-insert race used to let a
+    // double-triggered job run twice; the partial unique index now makes the
+    // second insert lose, reported as null instead of a thrown 23505.
+    const first = await begin("test.kind");
+    expect(await repo.start({ kind: "test.kind", trigger: "admin" })).toBeNull();
+    // A different kind is unaffected, and finishing frees the slot.
+    expect(await repo.start({ kind: "other.kind", trigger: "cron" })).not.toBeNull();
+    await repo.succeed(first.id, { durationMs: 1 });
+    expect(await repo.start({ kind: "test.kind", trigger: "cron" })).not.toBeNull();
+  });
+
   it("succeed updates status to succeeded and stores result JSONB", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const { id } = await begin("test.kind", "admin");
     await repo.succeed(id, { durationMs: 1234, result: { transformed: 42 } });
     const rows = await repo.listRecent({ kind: "test.kind" });
     expect(rows[0]?.status).toBe("succeeded");
@@ -35,7 +60,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("fail updates status to failed and stores error message", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const { id } = await begin("test.kind", "admin");
     await repo.fail(id, { durationMs: 500, errorMessage: "upstream 502" });
     const rows = await repo.listRecent({ kind: "test.kind" });
     expect(rows[0]?.status).toBe("failed");
@@ -43,8 +68,8 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(rows[0]?.durationMs).toBe(500);
   });
 
-  it("findRunning returns the latest running row for a kind", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "cron" });
+  it("findRunning returns the running row for a kind", async () => {
+    const { id } = await begin("test.kind", "cron");
     const running = await repo.findRunning("test.kind");
     expect(running?.id).toBe(id);
 
@@ -53,11 +78,11 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("getLatestPerKind returns one row per distinct kind (the most recent)", async () => {
-    const a1 = await repo.start({ kind: "kind.a", trigger: "cron" });
+    const a1 = await begin("kind.a");
     await repo.succeed(a1.id, { durationMs: 1 });
-    const a2 = await repo.start({ kind: "kind.a", trigger: "cron" });
+    const a2 = await begin("kind.a");
     await repo.succeed(a2.id, { durationMs: 2 });
-    const b1 = await repo.start({ kind: "kind.b", trigger: "cron" });
+    const b1 = await begin("kind.b");
     await repo.succeed(b1.id, { durationMs: 3 });
 
     const latest = await repo.getLatestPerKind();
@@ -66,11 +91,12 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("sweepOrphaned marks running rows as failed and returns count", async () => {
-    await repo.start({ kind: "test.kind", trigger: "cron" });
-    await repo.start({ kind: "test.kind", trigger: "admin" });
+    await begin("test.kind", "cron");
+    await begin("other.kind", "admin");
     const swept = await repo.sweepOrphaned();
     expect(swept).toBe(2);
-    const rows = await repo.listRecent({ kind: "test.kind" });
+    const rows = await repo.listRecent({});
+    expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.status === "failed")).toBe(true);
     expect(rows.every((r) => r.errorMessage === "server restarted during run")).toBe(true);
     // The duration is the one part still computed in SQL, per row, off that
@@ -81,7 +107,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("updateResult overwrites only the result column without changing status", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const { id } = await begin("test.kind", "admin");
     await repo.updateResult(id, { processed: 5, total: 10 });
     const firstRows = await repo.listRecent({ kind: "test.kind" });
     expect(firstRows[0]?.status).toBe("running");
@@ -94,7 +120,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("getResult returns the parsed JSONB or null", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const { id } = await begin("test.kind", "admin");
     expect(await repo.getResult(id)).toBeNull();
     await repo.updateResult(id, { foo: "bar" });
     expect(await repo.getResult(id)).toEqual({ foo: "bar" });
@@ -103,9 +129,9 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
 
   it("findLatestForResume returns the most recent run with a non-null result", async () => {
     expect(await repo.findLatestForResume("test.kind")).toBeNull();
-    const a = await repo.start({ kind: "test.kind", trigger: "cron" });
+    const a = await begin("test.kind");
     await repo.fail(a.id, { durationMs: 100, errorMessage: "boom" });
-    const b = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const b = await begin("test.kind", "admin");
     await repo.succeed(b.id, { durationMs: 200, result: { ok: true } });
     const latest = await repo.findLatestForResume("test.kind");
     expect(latest?.id).toBe(b.id);
@@ -115,10 +141,10 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   it("findLatestForResume skips later runs whose result is null", async () => {
     // Regression: a failure that never wrote a checkpoint must not shadow
     // the watermark from an earlier partially-progressed run.
-    const old = await repo.start({ kind: "test.kind", trigger: "cron" });
+    const old = await begin("test.kind");
     await repo.updateResult(old.id, { lastPostedDate: "2026-04-17" });
     await repo.fail(old.id, { durationMs: 100, errorMessage: "boom" });
-    const fresh = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const fresh = await begin("test.kind", "admin");
     await repo.fail(fresh.id, { durationMs: 50, errorMessage: "first post 400'd" });
     const latest = await repo.findLatestForResume("test.kind");
     expect(latest?.id).toBe(old.id);
@@ -131,7 +157,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     // and every read had to repair it. `jsonb_typeof` is asserted directly,
     // because a round trip alone cannot tell the two shapes apart.
     const result = { processed: 5, total: 10, errors: ["a", "b"] };
-    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    const { id } = await begin("test.kind", "admin");
     await repo.updateResult(id, result);
 
     const stored = await sql<{
@@ -150,7 +176,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
 
   it("listPage returns a page of rows plus the total matching count", async () => {
     for (let index = 0; index < 5; index++) {
-      const { id } = await repo.start({ kind: "page.kind", trigger: "cron" });
+      const { id } = await begin("page.kind");
       await repo.succeed(id, { durationMs: index });
     }
 
@@ -170,11 +196,11 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("listPage counts only rows matching the filters", async () => {
-    const cron = await repo.start({ kind: "kind.x", trigger: "cron" });
+    const cron = await begin("kind.x");
     await repo.succeed(cron.id, { durationMs: 1 });
-    const admin = await repo.start({ kind: "kind.x", trigger: "admin" });
+    const admin = await begin("kind.x", "admin");
     await repo.fail(admin.id, { durationMs: 2, errorMessage: "boom" });
-    const other = await repo.start({ kind: "kind.y", trigger: "cron" });
+    const other = await begin("kind.y");
     await repo.succeed(other.id, { durationMs: 3 });
 
     const byKind = await repo.listPage({ kind: "kind.x", limit: 10, offset: 0 });
@@ -194,14 +220,15 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("listKinds returns distinct kinds sorted alphabetically", async () => {
-    await repo.start({ kind: "kind.b", trigger: "cron" });
-    await repo.start({ kind: "kind.a", trigger: "cron" });
-    await repo.start({ kind: "kind.b", trigger: "admin" });
+    const b1 = await begin("kind.b");
+    await repo.succeed(b1.id, { durationMs: 1 });
+    await begin("kind.a");
+    await begin("kind.b", "admin");
     expect(await repo.listKinds()).toEqual(["kind.a", "kind.b"]);
   });
 
   it("purgeOlderThan deletes rows whose started_at is before the cutoff", async () => {
-    const { id } = await repo.start({ kind: "test.kind", trigger: "cron" });
+    const { id } = await begin("test.kind");
     // Backdate the row so the cutoff catches it
     await db
       .updateTable("jobRuns")

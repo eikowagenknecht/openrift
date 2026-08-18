@@ -29,8 +29,11 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   const repo = marketplaceRepo(db);
 
   const friendGroups = friendGroupsRepo(db);
-  const mpSynthetic = "mp-value-history";
-  const syntheticGroupId = 80_101;
+  // A real marketplace (the CHECK constraint allows nothing else). All queries
+  // and cleanup stay keyed on this file's own printings / group ids / external
+  // ids, so rows other files leave under tcgplayer never leak into assertions.
+  const mpTcg = "tcgplayer" as const;
+  const tcgGroupId = 80_101;
   const ctGroupId = 80_102;
 
   let collectionId = "";
@@ -86,9 +89,9 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .insertInto("marketplaceGroups")
       .values([
         {
-          marketplace: mpSynthetic,
-          groupId: syntheticGroupId,
-          name: "VH Synthetic",
+          marketplace: mpTcg,
+          groupId: tcgGroupId,
+          name: "VH TCG",
           abbreviation: null,
         },
         { marketplace: "cardtrader", groupId: ctGroupId, name: "VH CT", abbreviation: null },
@@ -105,16 +108,16 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .insertInto("marketplaceProducts")
       .values([
         {
-          marketplace: mpSynthetic,
-          groupId: syntheticGroupId,
+          marketplace: mpTcg,
+          groupId: tcgGroupId,
           externalId: 91_001,
           productName: "VH Normal",
           finish: "normal",
           language: null,
         },
         {
-          marketplace: mpSynthetic,
-          groupId: syntheticGroupId,
+          marketplace: mpTcg,
+          groupId: tcgGroupId,
           externalId: 91_001,
           productName: "VH Normal",
           finish: "foil",
@@ -132,8 +135,8 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .returning(["id", "finish", "marketplace"])
       .execute();
 
-    const cheapSku = skuRows.find((r) => r.marketplace === mpSynthetic && r.finish === "normal")!;
-    const bogusSku = skuRows.find((r) => r.marketplace === mpSynthetic && r.finish === "foil")!;
+    const cheapSku = skuRows.find((r) => r.marketplace === mpTcg && r.finish === "normal")!;
+    const bogusSku = skuRows.find((r) => r.marketplace === mpTcg && r.finish === "foil")!;
     const ctSku = skuRows.find((r) => r.marketplace === "cardtrader")!;
 
     await db
@@ -145,8 +148,8 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       ])
       .execute();
 
-    // Synthetic marketplace falls into the ELSE branch of the headline CASE,
-    // so market_cents is the headline. Cheap SKU 100, bogus SKU 10000.
+    // TCGPlayer falls into the ELSE branch of the headline CASE, so
+    // market_cents is the headline. Cheap SKU 100, bogus SKU 10000.
     await db
       .insertInto("marketplaceProductPrices")
       .values([
@@ -288,7 +291,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .execute();
     await sql`
       DELETE FROM marketplace_groups
-      WHERE (marketplace, group_id) IN ((${mpSynthetic}, ${syntheticGroupId}), ('cardtrader', ${ctGroupId}))
+      WHERE (marketplace, group_id) IN ((${mpTcg}, ${tcgGroupId}), ('cardtrader', ${ctGroupId}))
     `.execute(db);
     await db.deleteFrom("printings").where("id", "in", [normalPrintingId, ctPrintingId]).execute();
     await repo.refreshLatestPrices();
@@ -301,12 +304,12 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   it("ends the series on the same value the Stats card shows", async () => {
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: [collectionId],
       cutoff: null,
       scope: {},
     });
-    const values = await repo.collectionValues([collectionId], mpSynthetic);
+    const values = await repo.collectionValues([collectionId], mpTcg);
 
     const last = series.at(-1);
     expect(last).toBeDefined();
@@ -316,7 +319,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   it("ends the series on the collection's actual copy count", async () => {
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: [collectionId],
       cutoff: null,
       scope: {},
@@ -330,7 +333,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   it("leaves group-collection copies out of the all-collections total", async () => {
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: null,
       cutoff: null,
       scope: {},
@@ -344,12 +347,12 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   it("counts group copies when that collection is the one selected", async () => {
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: [groupCollectionId],
       cutoff: null,
       scope: {},
     });
-    const value = await repo.singleCollectionValue(groupCollectionId, mpSynthetic);
+    const value = await repo.singleCollectionValue(groupCollectionId, mpTcg);
 
     expect(series.at(-1)!.copyCount).toBe(1);
     expect(series.at(-1)!.valueCents).toBe(value!.totalValueCents);
@@ -359,7 +362,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
     // Every event in this fixture is at least two days old.
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: [collectionId],
       cutoff: new Date(Date.now() - 86_400_000),
       scope: {},
@@ -372,7 +375,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   it("returns dates ascending with no gaps", async () => {
     const series = await repo.collectionValueTimeSeries({
       userId,
-      marketplace: mpSynthetic,
+      marketplace: mpTcg,
       collectionIds: [collectionId],
       cutoff: null,
       scope: {},
@@ -407,7 +410,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .selectFrom("mvLatestPrintingPrices")
       .select("headlineCents")
       .where("printingId", "=", normalPrintingId)
-      .where("marketplace", "=", mpSynthetic)
+      .where("marketplace", "=", mpTcg)
       .executeTakeFirstOrThrow();
 
     // 100 (real listing), not 10000 (the bogus foil SKU bound to the same
@@ -420,7 +423,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       [0, 1, 2].map(async () => {
         const series = await repo.collectionValueTimeSeries({
           userId,
-          marketplace: mpSynthetic,
+          marketplace: mpTcg,
           collectionIds: [collectionId],
           cutoff: null,
           scope: {},
@@ -450,7 +453,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .selectFrom("mvDailyPrintingPrices")
       .select(["headlineCents"])
       .where("printingId", "=", normalPrintingId)
-      .where("marketplace", "=", mpSynthetic)
+      .where("marketplace", "=", mpTcg)
       .orderBy("day", "desc")
       .limit(1)
       .executeTakeFirstOrThrow();
@@ -458,7 +461,7 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .selectFrom("mvLatestPrintingPrices")
       .select("headlineCents")
       .where("printingId", "=", normalPrintingId)
-      .where("marketplace", "=", mpSynthetic)
+      .where("marketplace", "=", mpTcg)
       .executeTakeFirstOrThrow();
 
     expect(latest.headlineCents).toBe(daily.headlineCents);

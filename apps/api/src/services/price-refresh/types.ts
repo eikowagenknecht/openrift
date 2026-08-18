@@ -1,4 +1,4 @@
-import type { PriceRefreshUpsertCounts } from "@openrift/shared";
+import type { Marketplace, PriceRefreshUpsertCounts } from "@openrift/shared";
 
 // ── Row-count types ─────────────────────────────────────────────────────
 
@@ -9,7 +9,7 @@ export interface UpsertCounts {
 // ── Price upsert config ─────────────────────────────────────────────────
 
 export interface PriceUpsertConfig {
-  marketplace: string;
+  marketplace: Marketplace;
 }
 
 // ── Generic row types ───────────────────────────────────────────────────

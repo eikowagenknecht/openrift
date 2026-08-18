@@ -464,15 +464,15 @@ export function deckCheckRepo(db: Kysely<Database>) {
           eb.ref("cu.name").as("claimedUserName"),
           eb
             .selectFrom("deckCheckEntryCards as c")
-            .select((inner) =>
-              inner.fn.coalesce(inner.fn.sum<number>("c.quantity"), sql<number>`0`).as("count"),
-            )
+            // ::int because sum() yields int8, which the driver returns as a
+            // string; the cast makes the declared number type true at runtime.
+            .select(sql<number>`coalesce(sum(c.quantity), 0)::int`.as("count"))
             .whereRef("c.entryId", "=", "en.id")
             .as("copyCount"),
           eb
             .selectFrom("deckCheckEntryCards as c")
             .select(
-              sql<number>`coalesce(sum((SELECT count(*) FROM unnest(c.found_copies) AS f(v) WHERE f.v)), 0)`.as(
+              sql<number>`coalesce(sum((SELECT count(*) FROM unnest(c.found_copies) AS f(v) WHERE f.v)), 0)::int`.as(
                 "count",
               ),
             )
@@ -480,7 +480,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
             .as("verifiedCopyCount"),
           eb
             .selectFrom("deckCheckEntryCards as c")
-            .select(eb.fn.countAll<number>().as("count"))
+            .select(sql<number>`count(*)::int`.as("count"))
             .whereRef("c.entryId", "=", "en.id")
             .where("c.matchStatus", "!=", "matched")
             .as("unmatchedLineCount"),
@@ -494,9 +494,9 @@ export function deckCheckRepo(db: Kysely<Database>) {
         approvedByName: row.approvedByName ?? null,
         claimedUserName: row.claimedUserName ?? null,
         participantStatus: row.participantStatus ?? null,
-        copyCount: Number(row.copyCount ?? 0),
-        verifiedCopyCount: Number(row.verifiedCopyCount ?? 0),
-        unmatchedLineCount: Number(row.unmatchedLineCount ?? 0),
+        copyCount: row.copyCount ?? 0,
+        verifiedCopyCount: row.verifiedCopyCount ?? 0,
+        unmatchedLineCount: row.unmatchedLineCount ?? 0,
       }));
     },
 
@@ -680,18 +680,31 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * when set.
      * @param entryId The entry whose participant to stamp.
      * @param token The token to write.
+     * @returns The token now stored on the participant — `token` when this
+     *   call won the guarded write, the existing one when a concurrent mint
+     *   beat it (so callers never report a token that was not stored), or
+     *   null for an entry with no participant.
      */
-    async setClaimTokenIfMissing(entryId: string, token: string): Promise<void> {
+    async setClaimTokenIfMissing(entryId: string, token: string): Promise<string | null> {
       const participantId = await participantIdForEntry(entryId);
       if (!participantId) {
-        return;
+        return null;
       }
-      await db
+      const written = await db
         .updateTable("tournamentParticipants")
         .set({ claimToken: token })
         .where("id", "=", participantId)
         .where("claimToken", "is", null)
-        .execute();
+        .executeTakeFirst();
+      if (written.numUpdatedRows === 1n) {
+        return token;
+      }
+      const row = await db
+        .selectFrom("tournamentParticipants")
+        .select("claimToken")
+        .where("id", "=", participantId)
+        .executeTakeFirst();
+      return row?.claimToken ?? null;
     },
 
     /**
@@ -1118,6 +1131,10 @@ export function deckCheckRepo(db: Kysely<Database>) {
                 .where("zone", "=", zone)
                 .where("resolvedCardId", "=", resolution.resolvedCardId)
                 .where("id", "!=", cardId)
+                // Locked like the source line: the quantity is recomputed in
+                // JS, so a concurrent merge into the same line must serialize
+                // or one merge's copies are lost.
+                .forUpdate()
                 .executeTakeFirst()
             : undefined;
 

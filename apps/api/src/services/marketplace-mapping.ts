@@ -1,4 +1,5 @@
 import type {
+  Marketplace,
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   MarketplaceGroupKind,
   StagedProductResponse,
@@ -597,7 +598,7 @@ export async function saveMappings(
 
     // 2. Resolve each mapping to a concrete SKU and build upsert values.
     const upsertValues: {
-      marketplace: string;
+      marketplace: Marketplace;
       printingId: string;
       externalId: number;
       groupId: number;

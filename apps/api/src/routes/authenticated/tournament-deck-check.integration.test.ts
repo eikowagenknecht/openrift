@@ -72,7 +72,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     await host.db.transaction().execute(async (trx) => {
       await trx
         .insertInto("organizations")
-        .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org", ownerUserId: ORG_OWNER_ID })
+        .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org" })
         .execute();
       await trx
         .insertInto("organizationMembers")

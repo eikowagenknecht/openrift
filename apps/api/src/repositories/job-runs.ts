@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { isUniqueViolationOn } from "../lib/pg-errors.js";
 
 export interface JobRun {
   id: string;
@@ -27,16 +28,26 @@ export interface JobRun {
 export function jobRunsRepo(db: Kysely<Database>) {
   return {
     /**
-     * Insert a new run row in 'running' state.
-     * @returns The id of the newly created row.
+     * Insert a new run row in 'running' state. The partial unique index on
+     * running rows (migration 253) allows at most one per kind, so two
+     * concurrent triggers can't both claim a run.
+     * @returns The id of the newly created row, or null when a concurrent
+     *   start of the same kind won the race (its row is the running one).
      */
-    async start(params: { kind: string; trigger: JobTrigger }): Promise<{ id: string }> {
-      const row = await db
-        .insertInto("jobRuns")
-        .values({ kind: params.kind, trigger: params.trigger, status: "running" })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      return { id: row.id };
+    async start(params: { kind: string; trigger: JobTrigger }): Promise<{ id: string } | null> {
+      try {
+        const row = await db
+          .insertInto("jobRuns")
+          .values({ kind: params.kind, trigger: params.trigger, status: "running" })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        return { id: row.id };
+      } catch (error) {
+        if (isUniqueViolationOn(error, "idx_job_runs_running")) {
+          return null;
+        }
+        throw error;
+      }
     },
 
     /**

@@ -45,7 +45,6 @@ function org(): Organization {
     slug: "summoner-skirmish",
     name: "Summoner Skirmish",
     description: null,
-    ownerUserId: USER_ID,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

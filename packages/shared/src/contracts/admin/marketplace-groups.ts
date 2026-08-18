@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { marketplaceEnum } from "../../schemas.js";
 import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Marketplace Groups";
@@ -9,7 +10,7 @@ const MG = "/api/admin/v1/marketplace-groups";
 export const groupKindEnum = z.enum(["basic", "special"]);
 
 export const marketplaceGroupSchema = z.object({
-  marketplace: z.string(),
+  marketplace: marketplaceEnum,
   groupId: z.number(),
   name: z.string().nullable(),
   abbreviation: z.string().nullable(),
@@ -37,7 +38,7 @@ export const adminMarketplaceGroupsContract = {
     .input(
       z
         .object({
-          marketplace: z.string().min(1),
+          marketplace: marketplaceEnum,
           id: z.coerce.number().int(),
           name: z.string().nullable().optional(),
           groupKind: groupKindEnum.optional(),

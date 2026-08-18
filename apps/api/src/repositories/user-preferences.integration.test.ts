@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { createDbContext } from "../test/integration-context.js";
+import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { userPreferencesRepo } from "./user-preferences.js";
 
 const ctx = createDbContext("a0000000-0037-4000-a000-000000000001");
@@ -61,7 +61,9 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
   // concurrent PATCHes each wrote the snapshot they had read and the last one
   // in dropped every key the others had added. Merging in SQL leaves no window.
   it("keeps every key when concurrent patches overlap", async () => {
-    const concurrentUserId = `${userId}-concurrent`;
+    // A real user row: user_preferences.user_id is FK-enforced (migration 245).
+    const concurrentUserId = crypto.randomUUID();
+    await seedTestUser(db, { id: concurrentUserId });
     await repo.upsert(concurrentUserId, { showImages: true });
 
     await Promise.all([
@@ -80,6 +82,7 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
       defaultCurrency: "USD",
     });
 
-    await db.deleteFrom("userPreferences").where("userId", "=", concurrentUserId).execute();
+    // The prefs row cascades away with the user.
+    await db.deleteFrom("users").where("id", "=", concurrentUserId).execute();
   });
 });

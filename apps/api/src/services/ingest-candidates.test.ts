@@ -762,11 +762,14 @@ describe("ingestCandidates", () => {
 
   it("uses link override to resolve printingId", async () => {
     const repos = createMockRepos({
-      allPrintingLinkOverrides: vi
-        .fn()
-        .mockResolvedValue([
-          { externalId: "ext-print-1", finish: "normal", printingId: "override-printing-uuid" },
-        ]),
+      allPrintingLinkOverrides: vi.fn().mockResolvedValue([
+        {
+          externalId: "ext-print-1",
+          finish: "normal",
+          provider: "gallery",
+          printingId: "override-printing-uuid",
+        },
+      ]),
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
     });
     const transact = mockTransact(repos);
@@ -1320,11 +1323,14 @@ describe("ingestCandidates", () => {
           language: "EN",
         },
       ]),
-      allPrintingLinkOverrides: vi
-        .fn()
-        .mockResolvedValue([
-          { externalId: "ext-print-1", finish: "normal", printingId: "override-uuid" },
-        ]),
+      allPrintingLinkOverrides: vi.fn().mockResolvedValue([
+        {
+          externalId: "ext-print-1",
+          finish: "normal",
+          provider: "gallery",
+          printingId: "override-uuid",
+        },
+      ]),
     });
     const transact = mockTransact(repos);
     const card = makeCard({

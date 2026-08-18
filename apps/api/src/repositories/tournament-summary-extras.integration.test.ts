@@ -166,6 +166,8 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
       submittedAt: options.submittedAt ?? new Date("2026-07-01T12:00:00Z"),
       allowDeckPublishing: options.publish ?? true,
       contentHash: `hash-${counter}`,
+      // The withdrawn-shape CHECK (migration 246) couples state and timestamp.
+      state: options.withdrawn ? "withdrawn" : undefined,
       withdrawnAt: options.withdrawn ? new Date("2026-07-02T12:00:00Z") : null,
     });
     await repos.deckCheck.replaceEntryCards(entry.id, [

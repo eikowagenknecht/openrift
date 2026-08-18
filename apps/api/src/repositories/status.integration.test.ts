@@ -9,36 +9,60 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("statusRepo (integration)", () => {
   const { db } = ctx!;
   const repo = statusRepo(db);
-  const marketplace = "test-mp-status";
+  // The marketplace vocabulary is a closed CHECK (migration 247), so the
+  // fixtures live under a real marketplace and isolate through this file's own
+  // group/external id range; assertions compare before/after deltas instead of
+  // absolute totals.
+  const marketplace = "tcgplayer" as const;
   const groupId = 91_001;
   const externalId = 87_001;
 
   afterAll(async () => {
-    await db
-      .deleteFrom("marketplaceProductPrices")
-      .where(
-        "marketplaceProductId",
-        "in",
-        db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
-      )
-      .execute();
+    // Variants don't cascade from the product delete (plain FK); prices do.
     await db
       .deleteFrom("marketplaceProductVariants")
-      .where(
-        "marketplaceProductId",
-        "in",
-        db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
+      .where("marketplaceProductId", "in", (eb) =>
+        eb
+          .selectFrom("marketplaceProducts")
+          .select("id")
+          .where("marketplace", "=", marketplace)
+          .where("groupId", "=", groupId),
       )
       .execute();
-    await db.deleteFrom("marketplaceProducts").where("marketplace", "=", marketplace).execute();
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "=", marketplace).execute();
+    await db
+      .deleteFrom("marketplaceProducts")
+      .where("marketplace", "=", marketplace)
+      .where("groupId", "=", groupId)
+      .execute();
+    await db
+      .deleteFrom("marketplaceGroups")
+      .where("marketplace", "=", marketplace)
+      .where("groupId", "=", groupId)
+      .execute();
   });
+
+  /** @returns The pricing stats for this file's marketplace (zeros when absent). */
+  async function marketplaceStats(): Promise<{
+    products: number;
+    variants: number;
+    prices: number;
+  }> {
+    const stats = await repo.getPricingStats();
+    const source = stats.sources.find((s) => s.marketplace === marketplace);
+    return {
+      products: source?.products ?? 0,
+      variants: source?.variants ?? 0,
+      prices: source?.prices ?? 0,
+    };
+  }
 
   it("counts price rows once per (product, recorded_at), not once per variant", async () => {
     // Regression: variants and prices both hang off a product. Counting them
     // in one join multiplied each product's price rows by its variant count —
     // on the dev database cardmarket reported 519354 rows against 270817 real
-    // ones. Two variants and three price rows must stay 2 and 3, not 2 and 6.
+    // ones. Two variants and three price rows must add 2 and 3, not 2 and 6.
+    const before = await marketplaceStats();
+
     await db
       .insertInto("marketplaceGroups")
       .values({ marketplace, groupId, name: "Status Test Group" })
@@ -69,35 +93,30 @@ describe.skipIf(!ctx)("statusRepo (integration)", () => {
     await db
       .insertInto("marketplaceProductPrices")
       .values([
-        { marketplaceProductId: product.id, recordedAt: new Date("2026-01-01T00:00:00Z") },
-        { marketplaceProductId: product.id, recordedAt: new Date("2026-01-02T00:00:00Z") },
-        { marketplaceProductId: product.id, recordedAt: new Date("2026-01-03T00:00:00Z") },
+        { marketplaceProductId: product.id, recordedAt: new Date("2126-01-01T00:00:00Z") },
+        { marketplaceProductId: product.id, recordedAt: new Date("2126-01-02T00:00:00Z") },
+        { marketplaceProductId: product.id, recordedAt: new Date("2126-01-03T00:00:00Z") },
       ])
       .execute();
 
+    const after = await marketplaceStats();
+    expect(after.products - before.products).toBe(1);
+    expect(after.variants - before.variants).toBe(2);
+    expect(after.prices - before.prices).toBe(3);
+    // The far-future recorded_at guarantees this file's newest row wins.
     const stats = await repo.getPricingStats();
     const source = stats.sources.find((s) => s.marketplace === marketplace);
-
-    expect(source).toBeDefined();
-    expect(source!.products).toBe(1);
-    expect(source!.variants).toBe(2);
-    expect(source!.prices).toBe(3);
-    expect(source!.latestPrice).toContain("2026-01-03");
+    expect(source?.latestPrice).toContain("2126-01-03");
   });
 
-  it("reports zero prices for a marketplace whose products have no price rows", async () => {
+  it("counts a product without price rows once, adding no prices", async () => {
     const priceless = 87_002;
-    // `marketplace_products` FKs (marketplace, group_id) into
-    // `marketplace_groups`, so the group has to exist under this marketplace.
-    await db
-      .insertInto("marketplaceGroups")
-      .values({ marketplace: `${marketplace}-empty`, groupId, name: "Empty Group" })
-      .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
-      .execute();
+    const before = await marketplaceStats();
+
     await db
       .insertInto("marketplaceProducts")
       .values({
-        marketplace: `${marketplace}-empty`,
+        marketplace,
         externalId: priceless,
         groupId,
         productName: "Priceless Product",
@@ -106,25 +125,10 @@ describe.skipIf(!ctx)("statusRepo (integration)", () => {
       })
       .execute();
 
-    const stats = await repo.getPricingStats();
-    const source = stats.sources.find((s) => s.marketplace === `${marketplace}-empty`);
-
-    expect(source).toEqual({
-      marketplace: `${marketplace}-empty`,
-      products: 1,
-      variants: 0,
-      prices: 0,
-      latestPrice: null,
-    });
-
-    await db
-      .deleteFrom("marketplaceProducts")
-      .where("marketplace", "=", `${marketplace}-empty`)
-      .execute();
-    await db
-      .deleteFrom("marketplaceGroups")
-      .where("marketplace", "=", `${marketplace}-empty`)
-      .execute();
+    const after = await marketplaceStats();
+    expect(after.products - before.products).toBe(1);
+    expect(after.variants - before.variants).toBe(0);
+    expect(after.prices - before.prices).toBe(0);
   });
 
   it("totals the per-marketplace price counts", async () => {

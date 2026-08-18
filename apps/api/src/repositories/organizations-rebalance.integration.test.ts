@@ -3,18 +3,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 
 // Migration 188 invariants: deleting a user account must rebalance the
-// organizations they own to the best surviving member (owner > manager >
-// judge, oldest first) instead of cascading the org away. Only a memberless
-// org dies with its owner.
+// organizations they own to the best surviving member (manager before judge,
+// oldest first) instead of cascading the org away. Only a memberless org dies
+// with its owner.
 //
-// Migration 249 refines two things. An org may have several `owner` members, so
-// when one of them survives the primary owner's deletion the pointer simply
-// moves to them and no role changes — a promotion would be a lie about what
-// happened. Promotion is the fallback for when no owner-role member is left.
-// And `fk_organizations_owner_membership` (deferred to commit) now requires
-// `organizations.owner_user_id` to name a member of that org, which is why the
-// fixtures below insert each org together with its owner's membership row in
-// one transaction.
+// Migration 254 removes the `owner_user_id` pointer entirely: ownership is the
+// `role = 'owner'` membership rows alone, several owners are fine, and a
+// deferred constraint trigger keeps every org at one owner or more. The
+// rebalance trigger now keys on the deleted user's owner *role*: when another
+// owner survives, nothing changes at all; when none does, the best surviving
+// member is promoted; when nobody survives, the org is deleted.
 //
 // Random per-file users (seeded via seedTestUser in beforeAll) so this file
 // cannot collide with pre-seeded registry users or other files' fixtures.
@@ -37,7 +35,7 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
     return db.transaction().execute(async (trx) => {
       const org = await trx
         .insertInto("organizations")
-        .values({ slug, name: "Rebalance Test LGS", ownerUserId })
+        .values({ slug, name: "Rebalance Test LGS" })
         .returning("id")
         .executeTakeFirstOrThrow();
       await trx
@@ -60,9 +58,9 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
     await seedTestUser(db, { id: JUDGE_ID });
     await seedTestUser(db, { id: OUTSIDER_ID });
 
-    // Org 1: a co-owner who joined after the primary owner, plus a manager who
-    // joined before them. The co-owner wins on role, and nobody is promoted.
-    coOwnedOrgId = await insertOrg("rebalance-co-owned-249", OWNER_ID);
+    // Org 1: a co-owner plus a manager. The co-owner already carries the role,
+    // so the deletion must change nothing for the survivors.
+    coOwnedOrgId = await insertOrg("rebalance-co-owned-254", OWNER_ID);
     await db
       .insertInto("organizationMembers")
       .values([
@@ -83,7 +81,7 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
 
     // Org 2: no second owner. A judge joined first and a manager later, so role
     // rank has to beat join order and the manager is promoted.
-    mixedOrgId = await insertOrg("rebalance-mixed-249", OWNER_ID);
+    mixedOrgId = await insertOrg("rebalance-mixed-254", OWNER_ID);
     await db
       .insertInto("organizationMembers")
       .values([
@@ -103,10 +101,10 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
       .execute();
 
     // Org 3: the owner is the only member.
-    soloOrgId = await insertOrg("rebalance-solo-249", OWNER_ID);
+    soloOrgId = await insertOrg("rebalance-solo-254", OWNER_ID);
 
-    // Org 4: untouched by the deletion, so the FK test below has a stable org.
-    survivingOrgId = await insertOrg("rebalance-surviving-249", OUTSIDER_ID);
+    // Org 4: untouched by the deletion, so the guard tests below have a stable org.
+    survivingOrgId = await insertOrg("rebalance-surviving-254", OUTSIDER_ID);
 
     await db.deleteFrom("users").where("id", "=", OWNER_ID).execute();
   });
@@ -122,18 +120,9 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
       .execute();
   });
 
-  it("hands an org with a co-owner to that co-owner", async () => {
-    const org = await db
-      .selectFrom("organizations")
-      .select(["ownerUserId"])
-      .where("id", "=", coOwnedOrgId)
-      .executeTakeFirst();
-    expect(org?.ownerUserId).toBe(CO_OWNER_ID);
-  });
-
-  it("moves only the pointer when a co-owner survives", async () => {
-    // The co-owner already held the role, so the rebalance is a repoint and
-    // nobody's role changes — the manager in particular is not promoted.
+  it("changes nothing when a co-owner survives", async () => {
+    // The co-owner already held the role, so the deleted owner's membership
+    // simply cascades away — the manager in particular is not promoted.
     const members = await db
       .selectFrom("organizationMembers")
       .select(["userId", "role"])
@@ -145,13 +134,6 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
   });
 
   it("promotes the highest-ranked member when no owner survives", async () => {
-    const org = await db
-      .selectFrom("organizations")
-      .select(["ownerUserId"])
-      .where("id", "=", mixedOrgId)
-      .executeTakeFirst();
-    expect(org?.ownerUserId).toBe(MANAGER_ID);
-
     const members = await db
       .selectFrom("organizationMembers")
       .select(["userId", "role"])
@@ -162,7 +144,7 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
     expect(members.find((member) => member.userId === JUDGE_ID)?.role).toBe("judge");
   });
 
-  it("still cascade-deletes an org whose owner was the only member", async () => {
+  it("still deletes an org whose owner was the only member", async () => {
     const org = await db
       .selectFrom("organizations")
       .select(["id"])
@@ -183,18 +165,59 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
       .where("role", "=", "owner")
       .execute();
     expect(owners).toHaveLength(2);
+    // Put the org back to one owner for the guard tests below.
+    await db
+      .deleteFrom("organizationMembers")
+      .where("orgId", "=", survivingOrgId)
+      .where("userId", "=", MANAGER_ID)
+      .execute();
   });
 
-  it("refuses an owner_user_id that is not a member", async () => {
-    // Deferred, so this fails at commit rather than on the UPDATE itself.
+  it("refuses to demote an org's last owner", async () => {
+    // Deferred constraint trigger (migration 254): fails at commit.
     await expect(
       db.transaction().execute(async (trx) => {
         await trx
-          .updateTable("organizations")
-          .set({ ownerUserId: JUDGE_ID })
-          .where("id", "=", survivingOrgId)
+          .updateTable("organizationMembers")
+          .set({ role: "manager" })
+          .where("orgId", "=", survivingOrgId)
+          .where("userId", "=", OUTSIDER_ID)
           .execute();
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/at least one owner/u);
+  });
+
+  it("refuses to remove an org's last owner", async () => {
+    await expect(
+      db.transaction().execute(async (trx) => {
+        await trx
+          .deleteFrom("organizationMembers")
+          .where("orgId", "=", survivingOrgId)
+          .where("userId", "=", OUTSIDER_ID)
+          .execute();
+      }),
+    ).rejects.toThrow(/at least one owner/u);
+  });
+
+  it("refuses an organization inserted without an owner membership", async () => {
+    await expect(
+      db
+        .insertInto("organizations")
+        .values({ slug: "rebalance-ownerless-254", name: "Ownerless LGS" })
+        .execute(),
+    ).rejects.toThrow(/at least one owner/u);
+  });
+
+  it("still deletes an organization outright with its members", async () => {
+    // The guard must not block org deletion itself: the members cascade away
+    // while the org row is already gone by commit time.
+    const orgId = await insertOrg("rebalance-deletable-254", OUTSIDER_ID);
+    await db.deleteFrom("organizations").where("id", "=", orgId).execute();
+    const members = await db
+      .selectFrom("organizationMembers")
+      .select("userId")
+      .where("orgId", "=", orgId)
+      .execute();
+    expect(members).toHaveLength(0);
   });
 });

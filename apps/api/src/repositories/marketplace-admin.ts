@@ -1,4 +1,4 @@
-import type { MarketplaceGroupKind } from "@openrift/shared";
+import type { Marketplace, MarketplaceGroupKind } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -7,7 +7,7 @@ import type { Database } from "../db/index.js";
 /** Listing row for a level-2 ignored product. */
 interface IgnoredProductRow {
   level: "product";
-  marketplace: string;
+  marketplace: Marketplace;
   externalId: number;
   productName: string;
   createdAt: Date;
@@ -16,7 +16,7 @@ interface IgnoredProductRow {
 /** Listing row for a level-3 ignored variant. */
 interface IgnoredVariantRow {
   level: "variant";
-  marketplace: string;
+  marketplace: Marketplace;
   externalId: number;
   finish: string;
   /** NULL for CM/TCG (language is not a SKU dimension there). */
@@ -53,7 +53,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      *          reads from `marketplace_products` filtered to products with no
      *          variant binding.
      */
-    stagingCountsByMarketplaceGroup(marketplace?: string) {
+    stagingCountsByMarketplaceGroup(marketplace?: Marketplace) {
       let query = db
         .selectFrom("marketplaceProducts as mp")
         .select((eb) => [
@@ -86,7 +86,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      *          (marketplace, groupId) with the count of variants whose parent
      *          product belongs to that group.
      */
-    assignedCountsByMarketplaceGroup(marketplace?: string) {
+    assignedCountsByMarketplaceGroup(marketplace?: Marketplace) {
       let query = db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -110,7 +110,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      * @returns `true` if a row was updated.
      */
     async updateGroup(
-      marketplace: string,
+      marketplace: Marketplace,
       groupId: number,
       patch: { name?: string | null; groupKind?: MarketplaceGroupKind; setId?: string | null },
     ): Promise<boolean> {
@@ -174,7 +174,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     },
 
     /** @returns Product names from `marketplace_products` for the given external IDs. */
-    getStagingProductNames(marketplace: string, externalIds: number[]) {
+    getStagingProductNames(marketplace: Marketplace, externalIds: number[]) {
       return db
         .selectFrom("marketplaceProducts")
         .select(["externalId", "productName"])
@@ -186,7 +186,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     /** Insert level-2 ignored products (whole upstream listings). Skips conflicts. */
     async insertIgnoredProducts(
       values: {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         productName: string;
       }[],
@@ -209,7 +209,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      */
     async insertIgnoredVariants(
       values: {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         finish: string;
         language: string | null;
@@ -222,7 +222,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       }
 
       const skuKey = (v: {
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         finish: string;
         language: string | null;
@@ -284,7 +284,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      * Delete level-2 ignored products.
      * @returns Count of deleted rows.
      */
-    async deleteIgnoredProducts(marketplace: string, externalIds: number[]): Promise<number> {
+    async deleteIgnoredProducts(marketplace: Marketplace, externalIds: number[]): Promise<number> {
       if (externalIds.length === 0) {
         return 0;
       }
@@ -303,7 +303,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      * @returns Count of deleted rows.
      */
     async deleteIgnoredVariants(
-      marketplace: string,
+      marketplace: Marketplace,
       variants: { externalId: number; finish: string; language: string | null }[],
     ): Promise<number> {
       if (variants.length === 0) {
@@ -342,7 +342,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      * table (one card per SKU). Throws if the SKU has no product row yet.
      */
     async upsertStagingCardOverride(values: {
-      marketplace: string;
+      marketplace: Marketplace;
       externalId: number;
       finish: string;
       language: string | null;
@@ -374,7 +374,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
 
     /** Delete a card override for the given marketplace SKU (no-op if missing). */
     async deleteStagingCardOverride(
-      marketplace: string,
+      marketplace: Marketplace,
       externalId: number,
       finish: string,
       language: string | null,
@@ -399,7 +399,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      * counts are deleted in dependency order.
      * @returns Counts of deleted rows per table.
      */
-    async clearPriceData(marketplace: string): Promise<{
+    async clearPriceData(marketplace: Marketplace): Promise<{
       prices: number;
       variants: number;
       products: number;

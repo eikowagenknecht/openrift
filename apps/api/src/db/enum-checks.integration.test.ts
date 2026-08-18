@@ -125,7 +125,13 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
  * Listed explicitly so a new compound constraint is noticed rather than
  * silently skipped.
  */
-const COMPOUND_CHECKS = new Set(["chk_lists_intent_kind", "chk_lists_prefs_only_on_trade_intents"]);
+const COMPOUND_CHECKS = new Set([
+  "chk_lists_intent_kind",
+  "chk_lists_prefs_only_on_trade_intents",
+  // Biconditional over the closed statuses (migration 246), not a vocabulary:
+  // the status list itself is covered by chk_card_trades_status above.
+  "chk_card_trades_closed_shape",
+]);
 
 /** A plain `col = ANY (ARRAY['a'::text, 'b'::text])`, optionally NULL-guarded. */
 const SIMPLE_ENUM_CHECK =

@@ -348,6 +348,7 @@ export async function ingestCandidates(
         }
 
         const resolvedPrintingId = resolvePrintingLink(linkIndex, {
+          provider,
           externalId: p.external_id,
           shortCode: p.short_code,
           finish: p.finish,

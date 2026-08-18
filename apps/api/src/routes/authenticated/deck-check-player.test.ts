@@ -164,6 +164,7 @@ function makeRepos() {
     getEventById: stub<any>(undefined),
     getEventBySubmissionToken: stub<any>(undefined),
     getLinkedEntryForUser: stub<any>(undefined),
+    getEntryForUpdate: stub<any>(undefined),
     getEntryByExternalId: stub<any>(undefined),
     getUserAccount: stub<any>(undefined),
     listCardsForEntry: stub([] as unknown[]),
@@ -469,6 +470,7 @@ describe("PUT /deck-check/mine/{entryId}/list (editList)", () => {
     const repos = makeRepos();
     const row = entryRow({ state: "editable" });
     repos.deckCheck.getEntryForPlayer.mockResolvedValue(row);
+    repos.deckCheck.getEntryForUpdate.mockResolvedValue(row);
     repos.deckCheck.getEventById.mockResolvedValue(deckEvent());
     repos.deckCheck.updateEntry.mockImplementation((_id: string, patch: Record<string, unknown>) =>
       Promise.resolve({ ...row, ...patch }),
@@ -658,6 +660,7 @@ describe("POST /deck-check/mine/{entryId}/submit", () => {
     const repos = makeRepos();
     const row = playerRow({ state: "editable" });
     repos.deckCheck.getEntryForPlayer.mockResolvedValue(row);
+    repos.deckCheck.getEntryForUpdate.mockResolvedValue(row);
     repos.deckCheck.getEventById.mockResolvedValue(deckEvent());
     repos.deckCheck.updateEntry.mockImplementation((_id: string, patch: Record<string, unknown>) =>
       Promise.resolve({ ...row, ...patch }),
@@ -749,6 +752,7 @@ describe("POST/DELETE /deck-check/mine/{entryId}/unlock", () => {
     const repos = makeRepos();
     const row = playerRow({ state: "submitted", preEditLines: storedPreEditLines });
     repos.deckCheck.getEntryForPlayer.mockResolvedValue(row);
+    repos.deckCheck.getEntryForUpdate.mockResolvedValue(row);
     repos.deckCheck.getEventById.mockResolvedValue(deckEvent({ listLockMode: "at_deadline" }));
     repos.deckCheck.updateEntry.mockImplementation((_id: string, patch: Record<string, unknown>) =>
       Promise.resolve({ ...row, ...patch }),

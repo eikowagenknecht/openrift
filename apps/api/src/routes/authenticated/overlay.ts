@@ -4,6 +4,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { applyOverlaySettings, toOverlayChannel } from "../../lib/overlay-presenters.js";
+import { isUniqueViolationOn } from "../../lib/pg-errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { OverlayChannel } from "../../repositories/overlay-channels.js";
@@ -18,7 +19,22 @@ const os = implement(overlayContract).$context<ApiContext>().use(requireAuthedUs
  */
 async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChannel> {
   const existing = await repos.overlayChannels.findByUserId(userId);
-  return existing ?? (await repos.overlayChannels.create(userId));
+  if (existing) {
+    return existing;
+  }
+  try {
+    return await repos.overlayChannels.create(userId);
+  } catch (error) {
+    // Two first-opens raced; the loser hits the user_id unique. The winner's
+    // row is the channel — return it instead of surfacing a 500.
+    if (isUniqueViolationOn(error, "overlay_channels_user_id_key")) {
+      const winner = await repos.overlayChannels.findByUserId(userId);
+      if (winner) {
+        return winner;
+      }
+    }
+    throw error;
+  }
 }
 
 /**

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0QGfUuNuf9P0pqFuu3SPFeEL9QMI0PkdFEc0tLn6MbcwbynrnvLgllp7KXbkLcs
+\restrict 2pVwE1k1IOCEHNpaAcgvR59svUKiV1S8zQl4v5Pqex2hPV6D9gf7nfC0o9fl8p7
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -77,6 +77,36 @@ CREATE TYPE public.set_type AS ENUM (
     'main',
     'supplemental'
 );
+
+
+--
+-- Name: assert_organization_has_owner(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.assert_organization_has_owner() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+  DECLARE
+    target uuid;
+  BEGIN
+    IF TG_TABLE_NAME = 'organizations' THEN
+      target := NEW.id;
+    ELSE
+      target := COALESCE(OLD.org_id, NEW.org_id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM organizations o WHERE o.id = target)
+       AND NOT EXISTS (
+         SELECT 1 FROM organization_members m
+         WHERE m.org_id = target AND m.role = 'owner'
+       )
+    THEN
+      RAISE EXCEPTION 'organization % must keep at least one owner', target
+        USING ERRCODE = '23514', CONSTRAINT = 'trg_organization_members_owner_guard';
+    END IF;
+    RETURN NULL;
+  END;
+  $$;
 
 
 --
@@ -285,23 +315,28 @@ CREATE FUNCTION public.rebalance_organization_owner() RETURNS trigger
     org RECORD;
     successor RECORD;
   BEGIN
-    FOR org IN SELECT id FROM organizations WHERE owner_user_id = OLD.id LOOP
-      SELECT user_id, role INTO successor
+    FOR org IN
+      SELECT om.org_id AS id FROM organization_members om
+      WHERE om.user_id = OLD.id AND om.role = 'owner'
+        AND NOT EXISTS (
+          SELECT 1 FROM organization_members co
+          WHERE co.org_id = om.org_id AND co.user_id <> OLD.id AND co.role = 'owner'
+        )
+    LOOP
+      SELECT user_id INTO successor
       FROM organization_members
       WHERE org_id = org.id AND user_id <> OLD.id
-      ORDER BY (role = 'owner') DESC, (role = 'manager') DESC, joined_at ASC
+      ORDER BY (role = 'manager') DESC, joined_at ASC
       LIMIT 1;
 
       IF FOUND THEN
-        -- A surviving co-owner already holds the role; only the pointer moves.
-        IF successor.role <> 'owner' THEN
-          UPDATE organization_members
-             SET role = 'owner'
-           WHERE org_id = org.id AND user_id = successor.user_id;
-        END IF;
-        UPDATE organizations
-           SET owner_user_id = successor.user_id
-         WHERE id = org.id;
+        UPDATE organization_members
+           SET role = 'owner'
+         WHERE org_id = org.id AND user_id = successor.user_id;
+      ELSE
+        -- The last member of an org is by invariant its last owner; the org
+        -- goes with them, as the owner-pointer CASCADE used to arrange.
+        DELETE FROM organizations WHERE id = org.id;
       END IF;
     END LOOP;
     RETURN OLD;
@@ -707,7 +742,9 @@ CREATE TABLE public.art_variants (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_art_variants_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_art_variants_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -879,6 +916,7 @@ CREATE TABLE public.card_bans (
     unbanned_at date,
     reason text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_bans_dates_ordered CHECK (((unbanned_at IS NULL) OR (unbanned_at >= banned_at))),
     CONSTRAINT chk_card_bans_reason_not_empty CHECK ((reason <> ''::text))
 );
 
@@ -956,7 +994,9 @@ CREATE TABLE public.card_sizes (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_card_sizes_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_card_sizes_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1015,6 +1055,7 @@ CREATE TABLE public.card_tokens (
     card_id uuid NOT NULL,
     token_card_id uuid NOT NULL,
     source text DEFAULT 'derived'::text NOT NULL,
+    CONSTRAINT chk_card_tokens_no_self CHECK ((card_id <> token_card_id)),
     CONSTRAINT chk_card_tokens_source CHECK ((source = ANY (ARRAY['derived'::text, 'manual'::text])))
 );
 
@@ -1067,6 +1108,7 @@ CREATE TABLE public.card_trades (
     CONSTRAINT chk_card_trades_group_name_not_empty CHECK (((group_name IS NULL) OR (group_name <> ''::text))),
     CONSTRAINT chk_card_trades_group_shape CHECK ((num_nonnulls(group_id, group_name) = 1)),
     CONSTRAINT chk_card_trades_initiator CHECK ((initiator = ANY (ARRAY['giver'::text, 'receiver'::text]))),
+    CONSTRAINT chk_card_trades_pending_expiry CHECK (((status <> 'pending'::text) OR (expires_at IS NOT NULL))),
     CONSTRAINT chk_card_trades_quantity CHECK ((quantity > 0)),
     CONSTRAINT chk_card_trades_receiver_name_not_empty CHECK (((receiver_name IS NULL) OR (receiver_name <> ''::text))),
     CONSTRAINT chk_card_trades_receiver_party_shape CHECK ((num_nonnulls(receiver_user_id, receiver_name) = 1)),
@@ -1083,7 +1125,9 @@ CREATE TABLE public.card_types (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_card_types_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_card_types_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1190,7 +1234,9 @@ CREATE TABLE public.conditions (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_conditions_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_conditions_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1388,7 +1434,9 @@ CREATE TABLE public.deck_formats (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_deck_formats_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_deck_formats_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1461,7 +1509,9 @@ CREATE TABLE public.deck_zones (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_deck_zones_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_deck_zones_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1534,7 +1584,9 @@ CREATE TABLE public.domains (
     sort_order smallint NOT NULL,
     is_well_known boolean DEFAULT false NOT NULL,
     color text,
-    CONSTRAINT chk_domains_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text))
+    CONSTRAINT chk_domains_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
+    CONSTRAINT chk_domains_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_domains_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1559,7 +1611,9 @@ CREATE TABLE public.finishes (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_finishes_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_finishes_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1689,7 +1743,9 @@ CREATE TABLE public.graders (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_graders_label_not_empty CHECK ((label <> ''::text)),
+    CONSTRAINT chk_graders_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -1785,6 +1841,8 @@ CREATE TABLE public.job_runs (
     error_message text,
     result jsonb,
     noop boolean,
+    CONSTRAINT chk_job_runs_duration_nonnegative CHECK (((duration_ms IS NULL) OR (duration_ms >= 0))),
+    CONSTRAINT chk_job_runs_finished_shape CHECK (((status = 'running'::text) = (finished_at IS NULL))),
     CONSTRAINT chk_job_runs_status CHECK ((status = ANY (ARRAY['running'::text, 'succeeded'::text, 'failed'::text]))),
     CONSTRAINT chk_job_runs_trigger CHECK ((trigger = ANY (ARRAY['cron'::text, 'admin'::text, 'api'::text])))
 );
@@ -1879,6 +1937,7 @@ CREATE TABLE public.list_entries (
     trade_type text,
     CONSTRAINT chk_list_entries_absolute_positive CHECK (((price_absolute_cents IS NULL) OR (price_absolute_cents > 0))),
     CONSTRAINT chk_list_entries_absolute_shape CHECK (((price_pref = 'absolute'::text) = (price_absolute_cents IS NOT NULL))),
+    CONSTRAINT chk_list_entries_copy_quantity CHECK (((kind <> 'copy'::text) OR (quantity = 1))),
     CONSTRAINT chk_list_entries_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_list_entries_kind_shape CHECK ((((kind = 'card'::text) AND (card_id IS NOT NULL) AND (printing_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'printing'::text) AND (printing_id IS NOT NULL) AND (card_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'copy'::text) AND (copy_id IS NOT NULL) AND (card_id IS NULL) AND (printing_id IS NULL)))),
     CONSTRAINT chk_list_entries_price_pref CHECK (((price_pref IS NULL) OR (price_pref = ANY (ARRAY['cm_lowest'::text, 'tcg_lowest'::text, 'ct_zero'::text, 'absolute'::text])))),
@@ -2124,7 +2183,8 @@ CREATE TABLE public.meta_decks (
     CONSTRAINT chk_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20)))),
     CONSTRAINT chk_meta_decks_source_event_external_id CHECK ((source_event_external_id <> ''::text)),
     CONSTRAINT chk_meta_decks_source_external_id CHECK ((source_external_id <> ''::text)),
-    CONSTRAINT chk_meta_decks_source_provider CHECK ((source_provider <> ''::text))
+    CONSTRAINT chk_meta_decks_source_provider CHECK ((source_provider <> ''::text)),
+    CONSTRAINT chk_meta_decks_source_shape CHECK ((num_nonnulls(source_provider, source_event_external_id, source_external_id) = ANY (ARRAY[0, 3])))
 );
 
 
@@ -2153,6 +2213,7 @@ CREATE TABLE public.meta_events (
     CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text)),
     CONSTRAINT chk_meta_events_source_external_id CHECK ((source_external_id <> ''::text)),
     CONSTRAINT chk_meta_events_source_provider CHECK ((source_provider <> ''::text)),
+    CONSTRAINT chk_meta_events_source_shape CHECK (((source_provider IS NULL) = (source_external_id IS NULL))),
     CONSTRAINT chk_meta_events_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000))))
 );
 
@@ -2343,7 +2404,6 @@ CREATE TABLE public.organizations (
     slug text NOT NULL,
     name text NOT NULL,
     description text,
-    owner_user_id text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_organizations_description CHECK (((description IS NULL) OR (length(description) <= 4000))),
@@ -2483,6 +2543,7 @@ CREATE TABLE public.printing_link_overrides (
     finish text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid NOT NULL,
+    provider text NOT NULL,
     CONSTRAINT chk_plo_no_empty_external_id CHECK ((external_id <> ''::text))
 );
 
@@ -3838,7 +3899,7 @@ ALTER TABLE ONLY public.printing_images
 --
 
 ALTER TABLE ONLY public.printing_link_overrides
-    ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (external_id, finish);
+    ADD CONSTRAINT printing_link_overrides_pkey PRIMARY KEY (external_id, finish, provider);
 
 
 --
@@ -4218,6 +4279,14 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: tournament_teams uq_tournament_teams_id_tournament; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_teams
+    ADD CONSTRAINT uq_tournament_teams_id_tournament UNIQUE (id, tournament_id);
+
+
+--
 -- Name: user_contact_methods user_contact_methods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4318,7 +4387,7 @@ CREATE INDEX idx_candidate_cards_norm_name ON public.candidate_cards USING btree
 -- Name: idx_candidate_cards_provider_external_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_candidate_cards_provider_external_id ON public.candidate_cards USING btree (provider, external_id) WHERE (external_id IS NOT NULL);
+CREATE UNIQUE INDEX idx_candidate_cards_provider_external_id ON public.candidate_cards USING btree (provider, external_id);
 
 
 --
@@ -4350,10 +4419,10 @@ CREATE INDEX idx_candidate_cards_unchecked ON public.candidate_cards USING btree
 
 
 --
--- Name: idx_candidate_meta_decks_event; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_meta_decks_deck; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_candidate_meta_decks_event ON public.candidate_meta_decks USING btree (candidate_event_id);
+CREATE INDEX idx_candidate_meta_decks_deck ON public.candidate_meta_decks USING btree (deck_id) WHERE (deck_id IS NOT NULL);
 
 
 --
@@ -4567,13 +4636,6 @@ CREATE INDEX idx_deck_cards_card ON public.deck_cards USING btree (card_id);
 
 
 --
--- Name: idx_deck_cards_deck; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
-
-
---
 -- Name: idx_deck_cards_preferred_printing; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4616,24 +4678,10 @@ CREATE INDEX idx_deck_folder_entries_deck ON public.deck_folder_entries USING bt
 
 
 --
--- Name: idx_deck_folders_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_folders_user_id ON public.deck_folders USING btree (user_id);
-
-
---
 -- Name: idx_deck_matchup_plans_deck; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_deck_matchup_plans_deck ON public.deck_matchup_plans USING btree (deck_id);
-
-
---
--- Name: idx_deck_matchup_swaps_plan; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_matchup_swaps_plan ON public.deck_matchup_swaps USING btree (plan_id);
 
 
 --
@@ -4700,13 +4748,6 @@ CREATE INDEX idx_friend_group_list_shares_list ON public.friend_group_list_share
 
 
 --
--- Name: idx_friend_group_members_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_friend_group_members_user ON public.friend_group_members USING btree (user_id);
-
-
---
 -- Name: idx_friend_groups_previous_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4745,7 +4786,7 @@ CREATE INDEX idx_job_runs_kind_started_at ON public.job_runs USING btree (kind, 
 -- Name: idx_job_runs_running; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (status = 'running'::text);
+CREATE UNIQUE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (status = 'running'::text);
 
 
 --
@@ -4875,13 +4916,6 @@ CREATE INDEX idx_organization_members_user ON public.organization_members USING 
 
 
 --
--- Name: idx_organizations_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_organizations_owner ON public.organizations USING btree (owner_user_id);
-
-
---
 -- Name: idx_pod_byes_player; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4914,6 +4948,13 @@ CREATE INDEX idx_printing_events_status_created ON public.printing_events USING 
 --
 
 CREATE UNIQUE INDEX idx_printing_images_active ON public.printing_images USING btree (printing_id, face) WHERE (is_active = true);
+
+
+--
+-- Name: idx_printing_images_image_file; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_images_image_file ON public.printing_images USING btree (image_file_id);
 
 
 --
@@ -5152,6 +5193,13 @@ CREATE UNIQUE INDEX uq_fg_discord_links_code ON public.friend_group_discord_link
 --
 
 CREATE UNIQUE INDEX uq_fg_discord_links_guild ON public.friend_group_discord_links USING btree (guild_id) WHERE (guild_id IS NOT NULL);
+
+
+--
+-- Name: uq_fg_discord_links_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_fg_discord_links_pending ON public.friend_group_discord_links USING btree (group_id) WHERE (code IS NOT NULL);
 
 
 --
@@ -5439,6 +5487,20 @@ CREATE TRIGGER trg_languages_protect_well_known BEFORE DELETE OR UPDATE ON publi
 --
 
 CREATE TRIGGER trg_marketplace_products_set_norm_name BEFORE INSERT OR UPDATE OF product_name ON public.marketplace_products FOR EACH ROW EXECUTE FUNCTION public.marketplace_products_set_norm_name();
+
+
+--
+-- Name: organization_members trg_organization_members_owner_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER trg_organization_members_owner_guard AFTER DELETE OR UPDATE OF role ON public.organization_members DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.assert_organization_has_owner();
+
+
+--
+-- Name: organizations trg_organizations_owner_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER trg_organizations_owner_guard AFTER INSERT ON public.organizations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.assert_organization_has_owner();
 
 
 --
@@ -6636,14 +6698,6 @@ ALTER TABLE ONLY public.loans
 
 
 --
--- Name: organizations fk_organizations_owner_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.organizations
-    ADD CONSTRAINT fk_organizations_owner_membership FOREIGN KEY (id, owner_user_id) REFERENCES public.organization_members(org_id, user_id) DEFERRABLE INITIALLY DEFERRED;
-
-
---
 -- Name: printing_link_overrides fk_plo_printing_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6856,7 +6910,7 @@ ALTER TABLE ONLY public.marketplace_groups
 --
 
 ALTER TABLE ONLY public.marketplace_ignored_variants
-    ADD CONSTRAINT marketplace_ignored_variants_product_id_fkey FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id);
+    ADD CONSTRAINT marketplace_ignored_variants_product_id_fkey FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id) ON DELETE CASCADE;
 
 
 --
@@ -6945,14 +6999,6 @@ ALTER TABLE ONLY public.organization_members
 
 ALTER TABLE ONLY public.organization_members
     ADD CONSTRAINT organization_members_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: organizations organizations_owner_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.organizations
-    ADD CONSTRAINT organizations_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -7168,7 +7214,7 @@ ALTER TABLE ONLY public.tier_lists
 --
 
 ALTER TABLE ONLY public.tournament_participants
-    ADD CONSTRAINT tournament_participants_team_fkey FOREIGN KEY (team_id) REFERENCES public.tournament_teams(id) ON DELETE SET NULL;
+    ADD CONSTRAINT tournament_participants_team_fkey FOREIGN KEY (team_id, tournament_id) REFERENCES public.tournament_teams(id, tournament_id) ON DELETE SET NULL (team_id);
 
 
 --
@@ -7279,5 +7325,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0QGfUuNuf9P0pqFuu3SPFeEL9QMI0PkdFEc0tLn6MbcwbynrnvLgllp7KXbkLcs
+\unrestrict 2pVwE1k1IOCEHNpaAcgvR59svUKiV1S8zQl4v5Pqex2hPV6D9gf7nfC0o9fl8p7
 

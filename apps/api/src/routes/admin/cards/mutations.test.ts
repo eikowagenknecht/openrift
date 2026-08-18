@@ -1057,7 +1057,7 @@ describe("POST /cards/new/:name/accept-favorites", () => {
   });
 
   it("returns 200 with accept result", async () => {
-    const result = { cardSlug: "fire-dragon", printingsCreated: 3 };
+    const result = { cardSlug: "fire-dragon", printingsCreated: 3, skipped: [] };
     mockAcceptFavoriteNewCard.mockResolvedValue(result);
 
     const res = await app.request("/api/admin/v1/cards/new/Fire%20Dragon/accept-favorites", {

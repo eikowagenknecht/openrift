@@ -1,4 +1,4 @@
-import { sql } from "kysely";
+import type { Marketplace } from "@openrift/shared";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../test/fixtures/constants.js";
@@ -12,22 +12,48 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   const repo = priceRefreshRepo(db);
   const seedPrintingId = PRINTING_1.id;
   const secondPrintingId = PRINTING_2.id;
-  const marketplaces = ["test-marketplace-pr", "test-marketplace-pr2"];
+
+  // Real marketplace names — the CHECK constraint (migration 247) rejects
+  // made-up ones. The marketplaces are shared with the seed and other test
+  // files, so isolation comes from this file's groupId/externalId ranges:
+  // every assertion and every cleanup scopes on those, never on the
+  // marketplace alone.
+  const firstMarketplace = "tcgplayer" as const;
+  const secondMarketplace = "cardmarket" as const;
+  const marketplaces: Marketplace[] = [firstMarketplace, secondMarketplace];
+  const groupIds = [9001, 9002, 9003];
+  const firstExternalId = 80_001;
+  const sharedExternalId = 80_002;
+  const externalIds = [firstExternalId, sharedExternalId];
 
   afterAll(async () => {
-    // Clean up test marketplace data — variants first (FK), then products, then groups.
-    await sql`
-      DELETE FROM marketplace_product_variants mpv
-      USING marketplace_products mp
-      WHERE mp.id = mpv.marketplace_product_id
-        AND mp.marketplace = ANY(${marketplaces}::text[])
-    `.execute(db);
-    await db.deleteFrom("marketplaceProducts").where("marketplace", "in", marketplaces).execute();
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "in", marketplaces).execute();
+    // Clean up only this file's rows, keyed by its externalId/groupId ranges.
+    // Variants don't cascade from the product delete, so they go first;
+    // price rows (none here) would cascade.
+    await db
+      .deleteFrom("marketplaceProductVariants")
+      .where("marketplaceProductId", "in", (eb) =>
+        eb
+          .selectFrom("marketplaceProducts")
+          .select("id")
+          .where("marketplace", "in", marketplaces)
+          .where("externalId", "in", externalIds),
+      )
+      .execute();
+    await db
+      .deleteFrom("marketplaceProducts")
+      .where("marketplace", "in", marketplaces)
+      .where("externalId", "in", externalIds)
+      .execute();
+    await db
+      .deleteFrom("marketplaceGroups")
+      .where("marketplace", "in", marketplaces)
+      .where("groupId", "in", groupIds)
+      .execute();
   });
 
   it("upsertGroups creates new marketplace groups", async () => {
-    await repo.upsertGroups("test-marketplace-pr", [
+    await repo.upsertGroups(firstMarketplace, [
       { groupId: 9001, name: "Test Group A" },
       { groupId: 9002, name: "Test Group B", abbreviation: "TGB" },
     ]);
@@ -35,21 +61,22 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
     const groups = await db
       .selectFrom("marketplaceGroups")
       .selectAll()
-      .where("marketplace", "=", "test-marketplace-pr")
+      .where("marketplace", "=", firstMarketplace)
+      .where("groupId", "in", [9001, 9002])
       .execute();
     expect(groups.length).toBe(2);
   });
 
   it("upsertGroups with empty array is a no-op", async () => {
-    await repo.upsertGroups("test-marketplace-pr", []);
+    await repo.upsertGroups(firstMarketplace, []);
   });
 
   it("upsertGroups preserves existing name on conflict", async () => {
-    await repo.upsertGroups("test-marketplace-pr", [{ groupId: 9001 }]);
+    await repo.upsertGroups(firstMarketplace, [{ groupId: 9001 }]);
     const group = await db
       .selectFrom("marketplaceGroups")
       .selectAll()
-      .where("marketplace", "=", "test-marketplace-pr")
+      .where("marketplace", "=", firstMarketplace)
       .where("groupId", "=", 9001)
       .executeTakeFirst();
     expect(group!.name).toBe("Test Group A");
@@ -58,13 +85,14 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   it("batchInsertProductVariants inserts marketplace products + variants", async () => {
     await repo.batchInsertProductVariants([
       {
-        marketplace: "test-marketplace-pr",
-        externalId: 80_001,
+        marketplace: firstMarketplace,
+        externalId: firstExternalId,
         groupId: 9001,
         productName: "Test Product",
         printingId: seedPrintingId,
+        // Real TCG rows store NULL language; a value here just checks that the
+        // language axis round-trips onto the product row.
         finish: "normal",
-        // Non-cardmarket/tcg marketplace used only for test isolation; language carried on product row.
         language: "EN",
       },
     ]);
@@ -72,7 +100,8 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
     const products = await db
       .selectFrom("marketplaceProducts")
       .selectAll()
-      .where("marketplace", "=", "test-marketplace-pr")
+      .where("marketplace", "=", firstMarketplace)
+      .where("externalId", "=", firstExternalId)
       .execute();
     expect(products.length).toBe(1);
     expect(products[0].productName).toBe("Test Product");
@@ -83,7 +112,8 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .selectFrom("marketplaceProductVariants as mpv")
       .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
       .selectAll("mpv")
-      .where("mp.marketplace", "=", "test-marketplace-pr")
+      .where("mp.marketplace", "=", firstMarketplace)
+      .where("mp.externalId", "=", firstExternalId)
       .execute();
     expect(variants.length).toBe(1);
   });
@@ -97,13 +127,13 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
     // language) with no marketplace, so two marketplaces handing out the same
     // external id collapsed onto one key and both variants bound to whichever
     // product the re-select returned last.
-    const sharedExternalId = 80_002;
-    const second = "test-marketplace-pr2";
-    await repo.upsertGroups(second, [{ groupId: 9003, name: "Second Marketplace Group" }]);
+    await repo.upsertGroups(secondMarketplace, [
+      { groupId: 9003, name: "Second Marketplace Group" },
+    ]);
 
     await repo.batchInsertProductVariants([
       {
-        marketplace: "test-marketplace-pr",
+        marketplace: firstMarketplace,
         externalId: sharedExternalId,
         groupId: 9001,
         productName: "Shared Id, First Marketplace",
@@ -112,7 +142,7 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
         language: null,
       },
       {
-        marketplace: second,
+        marketplace: secondMarketplace,
         externalId: sharedExternalId,
         groupId: 9003,
         productName: "Shared Id, Second Marketplace",
@@ -126,22 +156,30 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .selectFrom("marketplaceProductVariants as mpv")
       .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
       .select(["mp.marketplace", "mpv.printingId"])
+      .where("mp.marketplace", "in", marketplaces)
       .where("mp.externalId", "=", sharedExternalId)
       .execute();
 
     expect(
       rows.map((r) => [r.marketplace, r.printingId]).toSorted((a, b) => a[0].localeCompare(b[0])),
     ).toEqual([
-      ["test-marketplace-pr", seedPrintingId],
-      [second, secondPrintingId],
+      [secondMarketplace, secondPrintingId],
+      [firstMarketplace, seedPrintingId],
     ]);
   });
 
   it("existingSourcesByMarketplaces returns variants for given marketplaces", async () => {
-    const result = await repo.existingSourcesByMarketplaces(["test-marketplace-pr"]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0].marketplace).toBe("test-marketplace-pr");
-    expect(result[0].finish).toBeTypeOf("string");
-    expect(result[0].language).toBeTypeOf("string");
+    const result = await repo.existingSourcesByMarketplaces([firstMarketplace]);
+    // The whole marketplace is shared with the seed and other files — scope
+    // to this file's externalIds before asserting.
+    const mine = result.filter((r) => externalIds.includes(r.externalId));
+    expect(mine.length).toBeGreaterThanOrEqual(1);
+    for (const row of mine) {
+      expect(row.marketplace).toBe(firstMarketplace);
+    }
+    const firstProduct = mine.find((r) => r.externalId === firstExternalId);
+    expect(firstProduct).toBeDefined();
+    expect(firstProduct!.finish).toBeTypeOf("string");
+    expect(firstProduct!.language).toBeTypeOf("string");
   });
 });

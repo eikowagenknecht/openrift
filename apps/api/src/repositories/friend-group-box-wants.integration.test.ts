@@ -255,6 +255,9 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
         cardId: CARD_FURY_SPELL.id,
         quantity: 1,
         status: "reserved",
+        // Every writer stamps accepted_at with the reservation, and the shape
+        // CHECK (migration 246) enforces the pair.
+        acceptedAt: new Date(),
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -290,6 +293,7 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
         status: "reserved",
+        acceptedAt: new Date(),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

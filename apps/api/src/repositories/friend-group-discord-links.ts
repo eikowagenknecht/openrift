@@ -1,4 +1,5 @@
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { Database, FriendGroupDiscordLinksTable } from "../db/index.js";
 
@@ -27,26 +28,32 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
      * else deletes.
      * @returns The pending link row carrying the new code.
      */
-    async createPendingLink(values: {
+    createPendingLink(values: {
       groupId: string;
       createdByUserId: string;
       code: string;
       codeExpiresAt: Date;
     }): Promise<DiscordLink> {
-      await db
-        .deleteFrom("friendGroupDiscordLinks")
-        .where((eb) =>
-          eb.or([
-            eb.and([eb("groupId", "=", values.groupId), eb("code", "is not", null)]),
-            eb.and([eb("code", "is not", null), eb("codeExpiresAt", "<", new Date())]),
-          ]),
-        )
-        .execute();
-      return await db
-        .insertInto("friendGroupDiscordLinks")
-        .values(values)
-        .returningAll()
-        .executeTakeFirstOrThrow();
+      // Delete + insert share a transaction so two concurrent requests can't
+      // interleave into two live codes; the partial unique index on pending
+      // rows (migration 253) rejects whichever loser slips through anyway.
+      const run = async (trx: typeof db): Promise<DiscordLink> => {
+        await trx
+          .deleteFrom("friendGroupDiscordLinks")
+          .where((eb) =>
+            eb.or([
+              eb.and([eb("groupId", "=", values.groupId), eb("code", "is not", null)]),
+              eb.and([eb("code", "is not", null), eb("codeExpiresAt", "<", new Date())]),
+            ]),
+          )
+          .execute();
+        return await trx
+          .insertInto("friendGroupDiscordLinks")
+          .values(values)
+          .returningAll()
+          .executeTakeFirstOrThrow();
+      };
+      return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
     /**
@@ -159,28 +166,22 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       channelId: string;
       enabled: boolean;
     }): Promise<string[] | null> {
-      const link = await db
-        .selectFrom("friendGroupDiscordLinks")
-        .select(["id", "tradeChannelIds"])
-        .where("guildId", "=", values.guildId)
-        .executeTakeFirst();
-      if (!link) {
-        return null;
-      }
-      const current = new Set(link.tradeChannelIds);
-      if (values.enabled) {
-        current.add(values.channelId);
-      } else {
-        current.delete(values.channelId);
-      }
-      const next = [...current].toSorted();
+      // One atomic UPDATE, computed in SQL: a read-modify-write here lost one
+      // of two quick toggles to the other's stale snapshot.
       const updated = await db
         .updateTable("friendGroupDiscordLinks")
-        .set({ tradeChannelIds: next })
-        .where("id", "=", link.id)
+        .set({
+          tradeChannelIds: values.enabled
+            ? sql<string[]>`(
+                SELECT coalesce(array_agg(DISTINCT v ORDER BY v), '{}')
+                FROM unnest(array_append(trade_channel_ids, ${values.channelId})) AS t(v)
+              )`
+            : sql<string[]>`array_remove(trade_channel_ids, ${values.channelId})`,
+        })
+        .where("guildId", "=", values.guildId)
         .returning("tradeChannelIds")
-        .executeTakeFirstOrThrow();
-      return updated.tradeChannelIds;
+        .executeTakeFirst();
+      return updated?.tradeChannelIds ?? null;
     },
 
     /**

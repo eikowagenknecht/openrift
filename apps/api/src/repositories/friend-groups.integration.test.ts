@@ -629,6 +629,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
         status: "pending",
+        // A pending trade always carries its TTL (migration 253's CHECK).
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -648,7 +650,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(1);
 
-    // A closed offer releases the copy too.
+    // A closed offer releases the copy too. Closing stamps closed_at and
+    // clears the TTL, as every real writer does (shape CHECKs, migration 246).
     await db
       .updateTable("cardTrades")
       .set({
@@ -656,6 +659,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         giverUserId: SELLER_ID,
         receiverUserId: OUTSIDER_ID,
         status: "cancelled",
+        closedAt: new Date(),
+        expiresAt: null,
       })
       .where("id", "=", offer.id)
       .execute();

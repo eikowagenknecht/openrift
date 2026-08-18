@@ -268,6 +268,7 @@ export function ingestUserSubmission(
     const printingFields = card.printings.map((printing) => buildCandidatePrintingFields(printing));
     for (const [index, printing] of card.printings.entries()) {
       const resolvedPrintingId = resolvePrintingLink(linkIndex, {
+        provider: USER_SUBMISSION_PROVIDER,
         externalId: printing.external_id,
         shortCode: printing.short_code,
         finish: printing.finish,

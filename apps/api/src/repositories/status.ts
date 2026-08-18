@@ -49,8 +49,9 @@ export function statusRepo(db: Kysely<Database>) {
     async getDatabaseStatus(): Promise<DbStatus> {
       try {
         // Database size
+        // ::float8 because the numeric division would come back as a string.
         const [sizeRow] = await sql<{ sizeMb: number }>`
-          SELECT pg_database_size(current_database()) / (1024 * 1024.0) AS size_mb
+          SELECT (pg_database_size(current_database()) / (1024 * 1024.0))::float8 AS size_mb
         `
           .execute(db)
           .then((r) => r.rows);

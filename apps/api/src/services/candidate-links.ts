@@ -34,7 +34,13 @@ export interface CardNameIndex {
 export interface CandidateLinkIndex extends CardNameIndex {
   /** {@link buildPrintingLinkKey} output to live printing id. */
   printingIdByKey: Map<string, string>;
-  /** `"<externalId>:<finish>"` to the manually pinned live printing id. */
+  /**
+   * `"<provider>:<externalId>:<finish>"` to the manually pinned live printing
+   * id. Provider '' is the legacy wildcard (pre-scoping rows, migration 253);
+   * resolution consults the candidate's own provider first, the wildcard
+   * second, so two providers reusing the same external id can't hijack each
+   * other's pins.
+   */
   printingIdByOverrideKey: Map<string, string>;
 }
 
@@ -51,7 +57,12 @@ interface CandidateLinkSources extends CardNameSources {
     markerSlugs: string[];
     language: string;
   }[];
-  linkOverrides: readonly { externalId: string; finish: string; printingId: string }[];
+  linkOverrides: readonly {
+    externalId: string;
+    finish: string;
+    provider: string;
+    printingId: string;
+  }[];
 }
 
 /** The subset of the ingest repo {@link loadCardNameIndex} reads. */
@@ -104,7 +115,7 @@ export function buildCandidateLinkIndex(sources: CandidateLinkSources): Candidat
     ...buildCardNameIndex(sources),
     printingIdByKey: new Map(sources.printings.map((p) => [buildPrintingLinkKey(p), p.id])),
     printingIdByOverrideKey: new Map(
-      sources.linkOverrides.map((r) => [`${r.externalId}:${r.finish}`, r.printingId]),
+      sources.linkOverrides.map((r) => [`${r.provider}:${r.externalId}:${r.finish}`, r.printingId]),
     ),
   };
 }
@@ -168,6 +179,8 @@ export function resolveCardIdByName(index: CardNameIndex, name: string): string 
 export function resolvePrintingLink(
   index: CandidateLinkIndex,
   candidate: {
+    /** The candidate card's source provider, scoping which pins apply. */
+    provider: string;
     externalId: string;
     shortCode: string;
     finish: string | null;
@@ -177,9 +190,10 @@ export function resolvePrintingLink(
     cardLinked: boolean;
   },
 ): string | null {
-  const override = index.printingIdByOverrideKey.get(
-    `${candidate.externalId}:${candidate.finish ?? ""}`,
-  );
+  const override =
+    index.printingIdByOverrideKey.get(
+      `${candidate.provider}:${candidate.externalId}:${candidate.finish ?? ""}`,
+    ) ?? index.printingIdByOverrideKey.get(`:${candidate.externalId}:${candidate.finish ?? ""}`);
   if (override) {
     return override;
   }

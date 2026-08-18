@@ -75,7 +75,7 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     await host.db.transaction().execute(async (trx) => {
       await trx
         .insertInto("organizations")
-        .values({ id: ORG_ID, slug: "run-org", name: "Run Org", ownerUserId: ORGOWNER_ID })
+        .values({ id: ORG_ID, slug: "run-org", name: "Run Org" })
         .execute();
       await trx
         .insertInto("organizationMembers")

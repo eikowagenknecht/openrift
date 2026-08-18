@@ -842,7 +842,11 @@ export const adminCardMutationsRouter = {
       entityId: result.cardSlug,
       entityLabel: input.name,
       cardSlug: result.cardSlug,
-      newValues: { cardSlug: result.cardSlug, printingsCreated: result.printingsCreated },
+      newValues: {
+        cardSlug: result.cardSlug,
+        printingsCreated: result.printingsCreated,
+        skipped: result.skipped,
+      },
     });
 
     return result;

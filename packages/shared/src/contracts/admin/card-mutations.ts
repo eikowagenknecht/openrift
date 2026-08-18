@@ -575,7 +575,13 @@ export const adminCardMutationsContract = {
   acceptFavoriteNewCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/new/{name}/accept-favorites`, tags: [TAG] })
     .input(z.object({ name: z.string() }))
-    .output(z.object({ cardSlug: z.string(), printingsCreated: z.number() })),
+    .output(
+      z.object({
+        cardSlug: z.string(),
+        printingsCreated: z.number(),
+        skipped: z.array(skippedPrintingSchema),
+      }),
+    ),
   acceptFavoritePrintings: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardSlug}/accept-favorite-printings`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Card not found" } })

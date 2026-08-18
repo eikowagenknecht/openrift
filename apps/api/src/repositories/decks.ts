@@ -16,6 +16,35 @@ import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/ind
 import { createsCycle } from "../lib/deck-lineage.js";
 
 /**
+ * Locks every deck of the given families in id order (`FOR UPDATE`), so the
+ * family repairs (delete, unlink, link) serialize instead of electing
+ * survivors from stale reads — two concurrent repairs could otherwise leave a
+ * one-deck "family" with no primary. Id order keeps two lockers from meeting
+ * in opposite order and deadlocking.
+ * @param trx The surrounding transaction.
+ * @param userId The family owner.
+ * @param familyIds The families to lock; empty is a no-op.
+ * @returns Resolves once every member row is locked.
+ */
+async function lockFamilies(
+  trx: Kysely<Database>,
+  userId: string,
+  familyIds: string[],
+): Promise<void> {
+  if (familyIds.length === 0) {
+    return;
+  }
+  await trx
+    .selectFrom("decks")
+    .select("id")
+    .where("familyId", "in", familyIds)
+    .where("userId", "=", userId)
+    .orderBy("id")
+    .forUpdate()
+    .execute();
+}
+
+/**
  * Input for {@link decksRepo}.`update`: every editable deck column, with the
  * jsonb ones required rather than optional-by-absence, so `"links" in updates`
  * distinguishes "clear it" from "leave it alone".
@@ -183,6 +212,19 @@ export function decksRepo(db: Kysely<Database>) {
      */
     deleteByIdForUser(id: string, userId: string): Promise<{ numDeletedRows: bigint }> {
       return db.transaction().execute(async (trx) => {
+        // Peek the family without a lock, then lock the whole family in id
+        // order (target included). Locking the target row first and the
+        // family second would deadlock two concurrent deletes of siblings.
+        const peek = await trx
+          .selectFrom("decks")
+          .select("familyId")
+          .where("id", "=", id)
+          .where("userId", "=", userId)
+          .executeTakeFirst();
+        if (!peek) {
+          return { numDeletedRows: 0n };
+        }
+        await lockFamilies(trx, userId, peek.familyId ? [peek.familyId] : []);
         const target = await trx
           .selectFrom("decks")
           .select(["familyId", "isPrimary"])
@@ -192,6 +234,10 @@ export function decksRepo(db: Kysely<Database>) {
           .executeTakeFirst();
         if (!target) {
           return { numDeletedRows: 0n };
+        }
+        if (target.familyId && target.familyId !== peek.familyId) {
+          // The deck changed families between the peek and the lock.
+          await lockFamilies(trx, userId, [target.familyId]);
         }
         // Read the recency order before the delete, not after: the FK detaching
         // the predecessor pointers is an UPDATE, and the updated_at trigger
@@ -588,6 +634,9 @@ export function decksRepo(db: Kysely<Database>) {
         );
         const standaloneIds = rows.filter((row) => row.familyId === null).map((row) => row.id);
 
+        // Lock every member of the families being merged before reading their
+        // primaries — see lockFamilies.
+        await lockFamilies(trx, userId, [familyId, ...absorbedFamilyIds]);
         const primaries = await trx
           .selectFrom("decks")
           .select(["id", "familyId"])
@@ -674,6 +723,11 @@ export function decksRepo(db: Kysely<Database>) {
         if (!departing.familyId) {
           return "no-family" as const;
         }
+        // Lock the rest of the family before electing survivors — see
+        // lockFamilies. (The departing row is already locked above; a
+        // concurrent sibling repair meeting us in opposite order aborts on
+        // deadlock detection rather than corrupting the family.)
+        await lockFamilies(trx, userId, [departing.familyId]);
 
         // Read the recency order before anything writes: the splice below is an
         // UPDATE, and the updated_at trigger stamps every row it touches with

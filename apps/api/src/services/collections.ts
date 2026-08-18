@@ -87,6 +87,10 @@ export function clearCollection(
     }
 
     const copyIds = copies.map((copy) => copy.id);
+    // Lock before reading the pins (the audit #7 ordering): without the lock a
+    // concurrent trade-accept or loan could pin a copy in the gap between the
+    // filter and the delete, and the delete would cascade the fresh pin away.
+    await trxRepos.copies.lockByIds(copyIds);
     const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
     const loaned = await trxRepos.loans.filterLoanedCopyIds(copyIds);
     const kept = new Set([...reserved, ...loaned]);
@@ -140,7 +144,11 @@ export function resetCollections(
 
     // Same guards as disposeCopies: a reserved copy is physically promised to
     // a trade, a loaned copy is out of the house — refuse to destroy either.
+    // Each batch is locked before its pin reads (the audit #7 ordering), so a
+    // concurrent trade-accept or loan can't pin a copy between the guard and
+    // the delete below and have the delete cascade the fresh pin away.
     for (const batch of copyIdBatches) {
+      await trxRepos.copies.lockByIds(batch);
       const reserved = await trxRepos.cardTrades.filterReservedCopyIds(batch);
       if (reserved.length > 0) {
         throw new AppError(

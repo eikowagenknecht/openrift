@@ -44,7 +44,9 @@ export const deckCheckIngestEntryResultSchema = z
   .object({
     externalId: z.string(),
     entryId: z.string(),
-    claimUrl: z.string(),
+    // Null only in the defensive corner where the entry has no participant
+    // row to carry a claim token.
+    claimUrl: z.string().nullable(),
   })
   .openapi("DeckCheckIngestEntryResult");
 

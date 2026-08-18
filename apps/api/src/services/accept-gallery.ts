@@ -39,7 +39,11 @@ export async function acceptFavoriteNewCard(
   },
   normalizedName: string,
   favoriteProviders: Set<string>,
-): Promise<{ cardSlug: string; printingsCreated: number }> {
+): Promise<{
+  cardSlug: string;
+  printingsCreated: number;
+  skipped: { shortCode: string; reason: string }[];
+}> {
   const mut = repos.catalogMutations;
 
   // 1. Find candidate cards for this name, filtered to favorite providers
@@ -102,11 +106,13 @@ export async function acceptFavoriteNewCard(
   }
 
   let printingsCreated = 0;
+  const skipped: { shortCode: string; reason: string }[] = [];
 
   for (const [, group] of groupMap) {
     const first = group[0];
 
     if (!first.setId) {
+      skipped.push({ shortCode: first.shortCode, reason: "missing setId" });
       continue; // setId is required for printing creation
     }
 
@@ -140,8 +146,13 @@ export async function acceptFavoriteNewCard(
         io,
       );
       printingsCreated++;
-    } catch {
-      // Skip failed printing groups — partial success is acceptable
+    } catch (error) {
+      // Partial success is acceptable, but a skipped group must leave a trace
+      // or a systematically failing provider drains the queue invisibly.
+      skipped.push({
+        shortCode: first.shortCode,
+        reason: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -152,5 +163,5 @@ export async function acceptFavoriteNewCard(
 
   // Each acceptPrinting above fire-and-forget rehosts the image it inserted, so
   // there is no separate batch rehost step here.
-  return { cardSlug, printingsCreated };
+  return { cardSlug, printingsCreated, skipped };
 }

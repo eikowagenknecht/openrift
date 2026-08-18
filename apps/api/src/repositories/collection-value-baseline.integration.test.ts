@@ -30,7 +30,10 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceRepo(db);
 
-  const marketplace = "mp-value-baseline";
+  // A real marketplace (the CHECK constraint allows nothing else). All queries
+  // and cleanup stay keyed on this file's own printings / group id / external
+  // ids, so rows other files leave under tcgplayer never leak into assertions.
+  const marketplace = "tcgplayer" as const;
   const groupId = 80_201;
 
   let risingCollectionId = "";
@@ -97,7 +100,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
 
     await db
       .insertInto("marketplaceGroups")
-      .values({ marketplace, groupId, name: "VB Synthetic", abbreviation: null })
+      .values({ marketplace, groupId, name: "VB TCG", abbreviation: null })
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
@@ -129,8 +132,8 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       ])
       .execute();
 
-    // A synthetic marketplace falls into the ELSE branch of the headline CASE,
-    // so market_cents is the headline and these numbers are the prices.
+    // TCGPlayer falls into the ELSE branch of the headline CASE, so
+    // market_cents is the headline and these numbers are the prices.
     await db
       .insertInto("marketplaceProductPrices")
       .values([

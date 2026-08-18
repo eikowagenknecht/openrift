@@ -25,12 +25,12 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
         image: null,
       })
       .execute();
-    // One transaction: `fk_organizations_owner_membership` is deferred, so the
-    // org and its owner's membership row have to commit together.
+    // One transaction: the owner-guard trigger is deferred, so the org and its
+    // owner's membership row have to commit together.
     orgId = await db.transaction().execute(async (trx) => {
       const org = await trx
         .insertInto("organizations")
-        .values({ slug: `lgs-${HOST_ID.slice(14, 22)}`, name: "Test LGS", ownerUserId: HOST_ID })
+        .values({ slug: `lgs-${HOST_ID.slice(14, 22)}`, name: "Test LGS" })
         .returning("id")
         .executeTakeFirstOrThrow();
       await trx
@@ -43,7 +43,7 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
 
   afterAll(async () => {
     await db.deleteFrom("tournaments").where("hostUserId", "=", HOST_ID).execute();
-    await db.deleteFrom("organizations").where("ownerUserId", "=", HOST_ID).execute();
+    await db.deleteFrom("organizations").where("id", "=", orgId).execute();
     await db.deleteFrom("users").where("id", "=", HOST_ID).execute();
   });
 

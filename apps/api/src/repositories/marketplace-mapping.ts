@@ -1,3 +1,4 @@
+import type { Marketplace } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -15,7 +16,7 @@ type Db = Kysely<Database>;
 export function marketplaceMappingRepo(db: Db) {
   return {
     /** @returns Level-2 ignored products (whole upstream listings) for a marketplace. */
-    ignoredProducts(marketplace: string) {
+    ignoredProducts(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceIgnoredProducts")
         .select(["externalId", "productName", "createdAt"])
@@ -24,7 +25,7 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /** @returns Level-3 ignored variants (specific SKUs of an upstream product) for a marketplace. */
-    ignoredVariants(marketplace: string) {
+    ignoredVariants(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceIgnoredVariants as iv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "iv.marketplaceProductId")
@@ -59,7 +60,7 @@ export function marketplaceMappingRepo(db: Db) {
      * so only one price row per product is ever read.
      * @returns One row per distinct (printingId, externalId, finish, language), each carrying that SKU's newest price.
      */
-    pricesByMarketplace(marketplace: string, printingIds: string[]) {
+    pricesByMarketplace(marketplace: Marketplace, printingIds: string[]) {
       if (printingIds.length === 0) {
         return Promise.resolve([]);
       }
@@ -122,7 +123,7 @@ export function marketplaceMappingRepo(db: Db) {
      *          is `null` on the marketplaces that don't split SKUs by language,
      *          which is the normal case for cardmarket and tcgplayer.
      */
-    allStaging(marketplace: string) {
+    allStaging(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceProducts as mp")
         .innerJoinLateral(
@@ -178,7 +179,7 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /** @returns Group display names, kind, and assigned-set slug for a marketplace. */
-    groupNames(marketplace: string) {
+    groupNames(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceGroups as mg")
         .leftJoin("sets as s", "s.id", "mg.setId")
@@ -193,7 +194,7 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /** @returns All cards with their printings, sets, marketplace variant mappings, and images. */
-    allCardsWithPrintings(marketplace: string) {
+    allCardsWithPrintings(marketplace: Marketplace) {
       return (
         joinFrontImage(
           db
@@ -361,7 +362,7 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /** @returns Manual card overrides for a marketplace, with the override's SKU axes inlined. */
-    async stagingCardOverrides(marketplace: string) {
+    async stagingCardOverrides(marketplace: Marketplace) {
       const rows = await db
         .selectFrom("marketplaceProductCardOverrides as ov")
         .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")
@@ -395,7 +396,7 @@ export function marketplaceMappingRepo(db: Db) {
      * @returns One row per SKU (external_id × finish × language) with its
      *          display name and group ID.
      */
-    productsByExternalIds(marketplace: string, externalIds: number[]) {
+    productsByExternalIds(marketplace: Marketplace, externalIds: number[]) {
       if (externalIds.length === 0) {
         return Promise.resolve([]);
       }
@@ -422,7 +423,7 @@ export function marketplaceMappingRepo(db: Db) {
      */
     async upsertProductVariants(
       values: {
-        marketplace: string;
+        marketplace: Marketplace;
         printingId: string;
         externalId: number;
         groupId: number;
@@ -454,7 +455,7 @@ export function marketplaceMappingRepo(db: Db) {
       const productRowsByKey = new Map<
         string,
         {
-          marketplace: string;
+          marketplace: Marketplace;
           externalId: number;
           groupId: number;
           productName: string;
@@ -561,7 +562,7 @@ export function marketplaceMappingRepo(db: Db) {
      *          delete the wrong variant.
      */
     getVariantForPrinting(
-      marketplace: string,
+      marketplace: Marketplace,
       printingId: string,
       externalId: number,
       finish: string,
@@ -627,7 +628,7 @@ export function marketplaceMappingRepo(db: Db) {
     variantsForCard(cardId: string): Promise<
       {
         targetPrintingId: string;
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         productName: string;
         finish: string;
@@ -696,12 +697,12 @@ export function marketplaceMappingRepo(db: Db) {
      *
      * @returns One row per unique staged SKU that could be assigned to the card, across the requested marketplaces.
      */
-    async stagingForCardAcrossMarketplaces(cardIdentifier: string, marketplaces: string[]) {
+    async stagingForCardAcrossMarketplaces(cardIdentifier: string, marketplaces: Marketplace[]) {
       if (marketplaces.length === 0) {
         return [];
       }
       const result = await sql<{
-        marketplace: string;
+        marketplace: Marketplace;
         externalId: number;
         productName: string;
         finish: string;

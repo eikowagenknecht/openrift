@@ -86,13 +86,13 @@ async function memberPreviewsByGroup(
           "pu.email as userEmail",
           "pu.image as userImage",
           // Raw fragment, so column names are the SQL-level snake_case ones.
-          sql<number>`row_number() over (
+          sql<number>`(row_number() over (
             partition by pm.group_id
             order by
               case pm.role when 'owner' then 0 when 'admin' then 1 else 2 end,
               lower(pu.name),
               pm.joined_at
-          )`.as("rosterRank"),
+          ))::int`.as("rosterRank"),
         ])
         .where("pm.groupId", "in", groupIds)
         .as("ranked"),

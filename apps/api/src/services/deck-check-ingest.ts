@@ -153,13 +153,14 @@ export async function ingestDeckCheckPush(
   ): Promise<void> => {
     let token = entry.claimToken;
     if (!token) {
-      token = generateShareToken();
-      await repos.deckCheck.setClaimTokenIfMissing(entry.id, token);
+      // The guarded write reports back which token actually landed, so a
+      // concurrent mint can't leave this response carrying a dead claim URL.
+      token = await repos.deckCheck.setClaimTokenIfMissing(entry.id, generateShareToken());
     }
     result.entries.push({
       externalId,
       entryId: entry.id,
-      claimUrl: `${appBaseUrl}/tournaments/claim/${token}`,
+      claimUrl: token ? `${appBaseUrl}/tournaments/claim/${token}` : null,
     });
   };
 

@@ -34,6 +34,7 @@ export async function relinkCandidatePrintings(repos: {
   const idsByPrinting = new Map<string, string[]>();
   for (const cp of unlinked) {
     const resolvedId = resolvePrintingLink(linkIndex, {
+      provider: cp.provider,
       externalId: cp.externalId,
       shortCode: cp.shortCode,
       finish: cp.finish,

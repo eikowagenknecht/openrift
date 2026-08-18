@@ -28,7 +28,6 @@ function org(overrides: Partial<Organization> = {}): Organization {
     slug: "lgs-store",
     name: "LGS Store",
     description: null,
-    ownerUserId: "user-1",
     createdAt,
     updatedAt,
     ...overrides,
@@ -68,7 +67,6 @@ describe("toOrganizationResponse", () => {
       slug: "lgs-store",
       name: "LGS Store",
       description: "Local shop",
-      ownerUserId: "user-1",
       createdAt: createdAt.toISOString(),
       updatedAt: updatedAt.toISOString(),
     });

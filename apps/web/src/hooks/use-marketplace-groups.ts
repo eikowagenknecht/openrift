@@ -1,4 +1,4 @@
-import type { MarketplaceGroupKind } from "@openrift/shared";
+import type { Marketplace, MarketplaceGroupKind } from "@openrift/shared";
 import type { MarketplaceGroupsResponse } from "@openrift/shared/contracts/admin/marketplace-groups";
 import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts/admin/marketplace-groups";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -27,7 +27,7 @@ export function useMarketplaceGroups() {
 }
 
 interface UpdateMarketplaceGroupInput {
-  marketplace: string;
+  marketplace: Marketplace;
   groupId: number;
   name?: string | null;
   groupKind?: MarketplaceGroupKind;

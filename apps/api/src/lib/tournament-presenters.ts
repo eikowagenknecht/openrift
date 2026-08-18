@@ -36,7 +36,6 @@ export function toOrganizationResponse(org: Organization): OrganizationResponse 
     slug: org.slug,
     name: org.name,
     description: org.description,
-    ownerUserId: org.ownerUserId,
     createdAt: org.createdAt.toISOString(),
     updatedAt: org.updatedAt.toISOString(),
   };

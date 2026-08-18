@@ -32,6 +32,7 @@ import type {
   ListRuleCombine,
   ListRules,
   LoanStatus,
+  Marketplace,
   MarketplaceGroupKind,
   MetaListStatus,
   OrganizationRole,
@@ -217,7 +218,8 @@ export interface PrintingsTable {
 
 interface MarketplaceGroupsTable {
   id: Generated<string>;
-  marketplace: string;
+  /** CHECK: IN ('tcgplayer', 'cardmarket', 'cardtrader') */
+  marketplace: Marketplace;
   groupId: number;
   name: string | null;
   abbreviation: string | null;
@@ -240,7 +242,7 @@ interface MarketplaceGroupsTable {
 interface MarketplaceProductsTable {
   id: Generated<string>;
   /** CHECK: IN ('tcgplayer', 'cardmarket', 'cardtrader') ; FK composite → marketplace_groups(marketplace, group_id) */
-  marketplace: string;
+  marketplace: Marketplace;
   /** CHECK: > 0 */
   externalId: number;
   /** FK composite → marketplace_groups(marketplace, group_id) */
@@ -300,7 +302,8 @@ export interface MarketplaceProductPricesTable {
 
 /** Level 2 ignores: deny an entire upstream product (e.g. sealed product, bundles). */
 interface MarketplaceIgnoredProductsTable {
-  marketplace: string;
+  /** CHECK: IN ('tcgplayer', 'cardmarket', 'cardtrader') */
+  marketplace: Marketplace;
   externalId: number;
   productName: string;
   createdAt: CreatedAt;
@@ -1213,6 +1216,8 @@ export interface FriendGroupDiscordLinksTable {
 // A first-class tournament host alongside users (a local game store, a league).
 // Admin-provisioned. `organization_members` carries org-level authority; both
 // `owner` and `manager` are implicit organizers on every tournament the org hosts.
+// Ownership is the `role = 'owner'` membership rows alone (migration 254); a
+// deferred constraint trigger keeps every org at one owner or more.
 
 export interface OrganizationsTable {
   id: Generated<string>;
@@ -1222,7 +1227,6 @@ export interface OrganizationsTable {
   name: string;
   /** CHECK: NULL or length <= 4000 */
   description: string | null;
-  ownerUserId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1819,6 +1823,12 @@ interface PrintingLinkOverridesTable {
   /** CHECK: <> '' */
   externalId: string;
   finish: string;
+  /**
+   * Source provider the pin is scoped to (migration 253); '' is the legacy
+   * wildcard that matches candidates from any provider. Resolution prefers a
+   * provider-scoped row over the wildcard.
+   */
+  provider: string;
   /** FK: printings(id) ON DELETE CASCADE */
   printingId: string;
   createdAt: CreatedAt;

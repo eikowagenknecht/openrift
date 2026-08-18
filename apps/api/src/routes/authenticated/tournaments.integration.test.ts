@@ -64,8 +64,8 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         await trx
           .insertInto("organizations")
           .values([
-            { id: ORG_ID, slug: "trn-org", name: "Trn Org", ownerUserId: OTHER_ID },
-            { id: ORG2_ID, slug: "trn-org2", name: "Trn Org 2", ownerUserId: HOST_ID },
+            { id: ORG_ID, slug: "trn-org", name: "Trn Org" },
+            { id: ORG2_ID, slug: "trn-org2", name: "Trn Org 2" },
           ])
           .execute();
         await trx

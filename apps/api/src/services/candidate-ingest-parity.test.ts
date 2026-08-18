@@ -66,7 +66,7 @@ function submission(printing: Record<string, unknown> = {}): CardSubmissionInput
 interface Catalog {
   printings?: (typeof LIVE_PRINTING)[];
   cardNorms?: { id: string; normName: string }[];
-  linkOverrides?: { externalId: string; finish: string; printingId: string }[];
+  linkOverrides?: { externalId: string; finish: string; provider: string; printingId: string }[];
 }
 
 /**
@@ -183,10 +183,13 @@ describe("candidate ingest link parity", () => {
     const built = buildUserSubmissionCard(submission(), USER_ID, formatSubmissionDateStamp(NOW));
     const { submission: fromSubmission, batch } = await bothPaths(submission(), {
       printings: [],
+      // The '' wildcard provider (pre-scoping legacy rows) applies to both
+      // entry points, which is exactly what parity needs here.
       linkOverrides: [
         {
           externalId: built.printings[0].external_id,
           finish: "foil",
+          provider: "",
           printingId: "override-uuid",
         },
       ],

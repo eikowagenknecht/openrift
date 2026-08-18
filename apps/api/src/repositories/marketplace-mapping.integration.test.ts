@@ -9,9 +9,17 @@ const ctx = createDbContext("a0000000-0044-4000-a000-000000000001");
 describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceMappingRepo(db);
-  const marketplace = "test-mp-mapping";
+  // The marketplace vocabulary is a closed CHECK (migration 247), so these
+  // fixtures live under a real marketplace. Isolation comes from this file's
+  // own id ranges, not the marketplace value: seeded fixtures and other test
+  // files share "cardtrader", so every assertion and delete below is scoped
+  // to the ids this file owns.
+  const marketplace = "cardtrader" as const;
   const externalId = 872_479;
   const groupId = 90_001;
+  // Every externalId this file writes, in one place so cleanup can target
+  // exactly these rows. Extend it when a test adds a new id.
+  const fileExternalIds = [872_479, 872_480, 872_481, 872_482, 872_490, 872_491];
 
   const enPrintingId = PRINTINGS["SFD-R01:common:normal::EN"].id;
   const scPrintingId = PRINTINGS["SFD-R01:common:normal::SC"].id;
@@ -22,11 +30,23 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       .where(
         "marketplaceProductId",
         "in",
-        db.selectFrom("marketplaceProducts").select("id").where("marketplace", "=", marketplace),
+        db
+          .selectFrom("marketplaceProducts")
+          .select("id")
+          .where("marketplace", "=", marketplace)
+          .where("externalId", "in", fileExternalIds),
       )
       .execute();
-    await db.deleteFrom("marketplaceProducts").where("marketplace", "=", marketplace).execute();
-    await db.deleteFrom("marketplaceGroups").where("marketplace", "=", marketplace).execute();
+    await db
+      .deleteFrom("marketplaceProducts")
+      .where("marketplace", "=", marketplace)
+      .where("externalId", "in", fileExternalIds)
+      .execute();
+    await db
+      .deleteFrom("marketplaceGroups")
+      .where("marketplace", "=", marketplace)
+      .where("groupId", "=", groupId)
+      .execute();
   });
 
   it("upsertProductVariants allows one product to map to multiple printings (language-aggregate CM)", async () => {
@@ -335,7 +355,11 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
         .executeTakeFirstOrThrow();
 
       const rows = await repo.variantsForCard(printing.cardId);
-      const mine = rows.filter((r) => r.marketplace === marketplace);
+      // Seeded fixtures may also bind this card's printings for the same
+      // marketplace, so scope down to this file's externalIds.
+      const mine = rows.filter(
+        (r) => r.marketplace === marketplace && fileExternalIds.includes(r.externalId),
+      );
 
       expect(mine.length).toBeGreaterThanOrEqual(1);
       for (const row of mine) {

@@ -1,4 +1,5 @@
 import type {
+  Marketplace,
   AssignableCardResponse,
   MarketplaceAssignmentResponse,
   MarketplaceGroupKind,
@@ -37,7 +38,7 @@ type MatchedCardsRow = Awaited<
  */
 function deriveCardsForMarketplace(
   unifiedRows: UnifiedCardRow[],
-  marketplace: string,
+  marketplace: Marketplace,
 ): MatchedCardsRow[] {
   const byPrinting = Map.groupBy(unifiedRows, (r) => r.printingId);
   const result: MatchedCardsRow[] = [];

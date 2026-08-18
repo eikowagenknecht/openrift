@@ -54,6 +54,33 @@ interface RunJobDeps {
 }
 
 /**
+ * Claim the single running row for `kind`. The partial unique index on
+ * running rows (migration 253) means only one insert can win; a loser
+ * re-reads the winner's row and reports it instead of running a duplicate.
+ * @returns The claimed run id, or the already-running run's id.
+ */
+async function claimRun(
+  deps: RunJobDeps,
+  kind: string,
+  trigger: JobTrigger,
+): Promise<{ started: string } | { alreadyRunning: string }> {
+  const { repos } = deps;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const existing = await repos.jobRuns.findRunning(kind);
+    if (existing !== null) {
+      return { alreadyRunning: existing.id };
+    }
+    const started = await repos.jobRuns.start({ kind, trigger });
+    if (started !== null) {
+      return { started: started.id };
+    }
+    // Lost the insert race; loop to read the winner's row (which may already
+    // have finished, in which case the next attempt claims cleanly).
+  }
+  throw new Error(`Could not claim a run for job kind "${kind}"`);
+}
+
+/**
  * Execute `fn` while tracking its lifecycle in the `job_runs` table.
  *
  * Awaits completion. On failure, logs the error, reports it to Sentry and
@@ -114,13 +141,13 @@ async function runJobInner<T>(
 ): Promise<JobOutcome<T>> {
   const { repos, log } = deps;
 
-  const existing = await repos.jobRuns.findRunning(kind);
-  if (existing !== null) {
-    log.warn({ kind, runId: existing.id }, "Job already running, skipping");
-    return { status: "already_running", runId: existing.id };
+  const claim = await claimRun(deps, kind, trigger);
+  if ("alreadyRunning" in claim) {
+    log.warn({ kind, runId: claim.alreadyRunning }, "Job already running, skipping");
+    return { status: "already_running", runId: claim.alreadyRunning };
   }
 
-  const { id } = await repos.jobRuns.start({ kind, trigger });
+  const id = claim.started;
   const startMs = Date.now();
   log.info({ kind, runId: id, trigger }, "Job started");
 
@@ -167,13 +194,16 @@ export async function runJobAsync<T>(
 ): Promise<{ runId: string; status: "running" | "already_running" }> {
   const { repos, log } = deps;
 
-  const existing = await repos.jobRuns.findRunning(kind);
-  if (existing !== null) {
-    log.warn({ kind, runId: existing.id }, "Job already running, returning existing runId");
-    return { runId: existing.id, status: "already_running" };
+  const claim = await claimRun(deps, kind, trigger);
+  if ("alreadyRunning" in claim) {
+    log.warn(
+      { kind, runId: claim.alreadyRunning },
+      "Job already running, returning existing runId",
+    );
+    return { runId: claim.alreadyRunning, status: "already_running" };
   }
 
-  const { id } = await repos.jobRuns.start({ kind, trigger });
+  const id = claim.started;
   const startMs = Date.now();
   log.info({ kind, runId: id, trigger }, "Job started (async)");
 

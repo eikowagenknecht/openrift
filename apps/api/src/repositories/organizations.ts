@@ -1,12 +1,30 @@
 import type { OrganizationRole } from "@openrift/shared";
-import type { Kysely, Selectable } from "kysely";
+import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 
 import type { Database, OrganizationMembersTable, OrganizationsTable } from "../db/index.js";
+
+/**
+ * Correlated subquery for the longest-standing owner's display name, shown in
+ * the two summary listings. Ownership is the `role = 'owner'` membership rows
+ * (migration 254), so the "owner" an admin list names is simply the oldest one.
+ * @param eb An expression builder of a query with `organizations as o` in scope.
+ * @returns A scalar subquery yielding the owner's user name (nullable).
+ */
+function ownerNameSubquery(eb: ExpressionBuilder<Database & { o: OrganizationsTable }, "o">) {
+  return eb
+    .selectFrom("organizationMembers as om")
+    .leftJoin("users as ou", "ou.id", "om.userId")
+    .select("ou.name")
+    .whereRef("om.orgId", "=", "o.id")
+    .where("om.role", "=", "owner")
+    .orderBy("om.joinedAt", "asc")
+    .limit(1);
+}
 
 export type Organization = Selectable<OrganizationsTable>;
 export type OrganizationMember = Selectable<OrganizationMembersTable>;
 
-/** Admin-list row: the org plus its owner's display name and a member count. */
+/** Admin-list row: the org plus its longest-standing owner's name and a member count. */
 export interface OrganizationSummary extends Organization {
   ownerName: string | null;
   memberCount: number;
@@ -24,6 +42,7 @@ export interface NewOrganization {
   slug: string;
   name: string;
   description?: string | null;
+  /** Seeds the first `role = 'owner'` membership; ownership lives on the roles alone. */
   ownerUserId: string;
 }
 
@@ -49,6 +68,8 @@ export function organizationsRepo(db: Kysely<Database>) {
      * @returns The created organization row.
      */
     create(input: NewOrganization): Promise<Organization> {
+      // One transaction: the deferred owner-guard trigger (migration 254)
+      // checks at commit that the org has an owner-role member.
       return db.transaction().execute(async (trx) => {
         const org = await trx
           .insertInto("organizations")
@@ -56,7 +77,6 @@ export function organizationsRepo(db: Kysely<Database>) {
             slug: input.slug,
             name: input.name,
             description: input.description ?? null,
-            ownerUserId: input.ownerUserId,
           })
           .returningAll()
           .executeTakeFirstOrThrow();
@@ -95,10 +115,9 @@ export function organizationsRepo(db: Kysely<Database>) {
     async listAll(): Promise<OrganizationSummary[]> {
       const rows = await db
         .selectFrom("organizations as o")
-        .leftJoin("users as u", "u.id", "o.ownerUserId")
         .selectAll("o")
         .select((eb) => [
-          eb.ref("u.name").as("ownerName"),
+          ownerNameSubquery(eb).as("ownerName"),
           eb
             .selectFrom("organizationMembers as m")
             .select(eb.fn.countAll<number>().as("c"))
@@ -143,10 +162,9 @@ export function organizationsRepo(db: Kysely<Database>) {
     async listForUser(userId: string): Promise<OrganizationSummary[]> {
       const rows = await db
         .selectFrom("organizations as o")
-        .leftJoin("users as u", "u.id", "o.ownerUserId")
         .selectAll("o")
         .select((eb) => [
-          eb.ref("u.name").as("ownerName"),
+          ownerNameSubquery(eb).as("ownerName"),
           eb
             .selectFrom("organizationMembers as m")
             .select(eb.fn.countAll<number>().as("c"))
@@ -225,37 +243,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .set({ role })
         .where("orgId", "=", orgId)
         .where("userId", "=", userId)
-        .execute();
-    },
-
-    /**
-     * Hands the primary-owner pointer from `leavingUserId` to the longest-standing
-     * other owner, so the row they are about to vacate is no longer named by
-     * `organizations.owner_user_id`.
-     *
-     * `fk_organizations_owner_membership` (migration 249) requires the pointer to
-     * name a member of the org, so removing the primary owner's membership while
-     * it still points at them aborts the transaction at commit. A no-op when
-     * they are not the primary owner, or when no other owner exists — callers
-     * guard the latter with `assertNotLastOwner`.
-     */
-    async repointPrimaryOwner(orgId: string, leavingUserId: string): Promise<void> {
-      const successor = await db
-        .selectFrom("organizationMembers")
-        .select("userId")
-        .where("orgId", "=", orgId)
-        .where("role", "=", "owner")
-        .where("userId", "!=", leavingUserId)
-        .orderBy("joinedAt", "asc")
-        .executeTakeFirst();
-      if (!successor) {
-        return;
-      }
-      await db
-        .updateTable("organizations")
-        .set({ ownerUserId: successor.userId, updatedAt: new Date() })
-        .where("id", "=", orgId)
-        .where("ownerUserId", "=", leavingUserId)
         .execute();
     },
 

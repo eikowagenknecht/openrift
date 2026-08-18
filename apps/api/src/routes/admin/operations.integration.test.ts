@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import type { Marketplace } from "@openrift/shared";
+import { afterAll, describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";
 import { defaultIo } from "../../io.js";
@@ -17,6 +18,13 @@ import { readJson } from "../../test/read-json.js";
 // via a mock io.fetch that returns empty data, so the real refresh functions
 // run but produce no-op results.
 // Uses prefix OPS- for entities it creates.
+//
+// This file owns the DESTRUCTIVE clear-prices tests, and it wipes cardtrader:
+// the endpoint deletes everything for one marketplace, integration files run
+// sequentially, and every other file cleans up its own rows in afterAll, so
+// clearing cardtrader here cannot eat another file's data. Assertions about
+// what got deleted stay scoped to this file's own rows (its externalIds) —
+// deleted counts are only ever >= what this file seeded.
 // ---------------------------------------------------------------------------
 
 const mockIo: Io = {
@@ -53,8 +61,21 @@ if (ctx) {
 
 let seedCounter = 0;
 
-/** Seed marketplace data for a given marketplace (tcgplayer or cardmarket). */
-async function seedMarketplaceData(marketplace: string) {
+/** Distinguishes id ranges when one seed call per marketplace shares a suffix. */
+const MARKETPLACE_ORDINAL: Record<Marketplace, number> = {
+  tcgplayer: 1,
+  cardmarket: 2,
+  cardtrader: 3,
+};
+
+/** Groups this file created; the clear endpoint leaves groups behind, so afterAll removes them. */
+const seededGroups: { marketplace: Marketplace; groupId: number }[] = [];
+
+/**
+ * Seed marketplace data for a given marketplace.
+ * @returns The ids identifying this call's rows (the file's isolation keys).
+ */
+async function seedMarketplaceData(marketplace: Marketplace) {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
 
@@ -117,9 +138,10 @@ async function seedMarketplaceData(marketplace: string) {
     .execute();
 
   // Use suffix-based IDs to avoid conflicts across repeated seed calls
-  const baseGroupId = 90_000 + suffix * 10 + (marketplace === "tcgplayer" ? 1 : 2);
-  const baseExtId = 90_000 + suffix * 100 + (marketplace === "tcgplayer" ? 99 : 98);
-  const stagingExtId = 90_000 + suffix * 100 + (marketplace === "tcgplayer" ? 88 : 87);
+  const ordinal = MARKETPLACE_ORDINAL[marketplace];
+  const baseGroupId = 90_000 + suffix * 10 + ordinal;
+  const baseExtId = 90_000 + suffix * 100 + 90 + ordinal;
+  const stagingExtId = 90_000 + suffix * 100 + 80 + ordinal;
 
   // marketplace_groups (needed for marketplace_sources FK)
   await db
@@ -131,6 +153,7 @@ async function seedMarketplaceData(marketplace: string) {
     })
     .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
     .execute();
+  seededGroups.push({ marketplace, groupId: baseGroupId });
 
   // marketplace_products — one row per SKU. CM/TCG: language=null.
   const [product] = await db
@@ -191,6 +214,12 @@ async function seedMarketplaceData(marketplace: string) {
       lowCents: 100,
     })
     .execute();
+
+  return {
+    productId: product.id,
+    stagingProductId: stagingProduct.id,
+    externalIds: [baseExtId, stagingExtId],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +229,35 @@ async function seedMarketplaceData(marketplace: string) {
 describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
+
+  afterAll(async () => {
+    // The clear endpoint deletes products/variants/prices but not groups. A
+    // mid-test failure can also leave products behind, so sweep the file's
+    // groups' remaining products (variants first — they don't cascade) before
+    // removing exactly the groups this file seeded.
+    for (const group of seededGroups) {
+      await db
+        .deleteFrom("marketplaceProductVariants")
+        .where("marketplaceProductId", "in", (eb) =>
+          eb
+            .selectFrom("marketplaceProducts")
+            .select("id")
+            .where("marketplace", "=", group.marketplace)
+            .where("groupId", "=", group.groupId),
+        )
+        .execute();
+      await db
+        .deleteFrom("marketplaceProducts")
+        .where("marketplace", "=", group.marketplace)
+        .where("groupId", "=", group.groupId)
+        .execute();
+      await db
+        .deleteFrom("marketplaceGroups")
+        .where("marketplace", "=", group.marketplace)
+        .where("groupId", "=", group.groupId)
+        .execute();
+    }
+  });
 
   // ── Authentication & authorization ──────────────────────────────────────
 
@@ -264,119 +322,128 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/clear-prices (tcgplayer) ────────────────────────────────
+  // ── POST /admin/clear-prices (cardtrader — the marketplace this file wipes) ──
 
-  describe("POST /admin/clear-prices (tcgplayer)", () => {
-    it("clears tcgplayer marketplace data and returns counts", async () => {
-      await seedMarketplaceData("tcgplayer");
+  describe("POST /admin/clear-prices (cardtrader)", () => {
+    it("clears cardtrader marketplace data and returns counts", async () => {
+      const seeded = await seedMarketplaceData("cardtrader");
 
-      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      expect(json.marketplace).toBe("tcgplayer");
+      expect(json.marketplace).toBe("cardtrader");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.prices).toBe("number");
       expect(typeof json.deleted.variants).toBe("number");
       expect(typeof json.deleted.products).toBe("number");
-      expect(json.deleted.prices).toBeGreaterThanOrEqual(1);
+      // At least this file's rows: 2 products, 2 price rows, 1 variant. Earlier
+      // files may have left more behind, so never assert exact totals.
+      expect(json.deleted.prices).toBeGreaterThanOrEqual(2);
       expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.products).toBeGreaterThanOrEqual(1);
-    });
+      expect(json.deleted.products).toBeGreaterThanOrEqual(2);
 
-    it("verifies tables are empty for tcgplayer after clearing", async () => {
-      const products = await db
+      // This file's specific rows are gone.
+      const remaining = await db
         .selectFrom("marketplaceProducts")
         .select("id")
-        .where("marketplace", "=", "tcgplayer")
+        .where("marketplace", "=", "cardtrader")
+        .where("externalId", "in", seeded.externalIds)
         .execute();
-      expect(products).toHaveLength(0);
+      expect(remaining).toHaveLength(0);
     });
 
-    it("returns zero counts when clearing already-empty tcgplayer data", async () => {
-      // Tables are already empty from the previous clear
-      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
+    it("returns zero counts when clearing already-empty cardtrader data", async () => {
+      // The previous test wiped the whole marketplace and files run
+      // sequentially, so nothing can have inserted cardtrader rows since.
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      expect(json.marketplace).toBe("tcgplayer");
+      expect(json.marketplace).toBe("cardtrader");
       expect(json.deleted.prices).toBe(0);
       expect(json.deleted.variants).toBe(0);
       expect(json.deleted.products).toBe(0);
     });
-  });
 
-  // ── POST /admin/clear-prices (cardmarket) ──────────────────────────────
+    it("clears a marketplace with ignored variants (migration 253 regression)", async () => {
+      const seeded = await seedMarketplaceData("cardtrader");
+      await db
+        .insertInto("marketplaceIgnoredVariants")
+        .values({ marketplaceProductId: seeded.productId, productName: "OPS Ignored Variant" })
+        .execute();
 
-  describe("POST /admin/clear-prices (cardmarket)", () => {
-    it("clears cardmarket marketplace data and returns counts", async () => {
-      await seedMarketplaceData("cardmarket");
-
-      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
+      // Before migration 253 added ON DELETE CASCADE to
+      // marketplace_ignored_variants.marketplace_product_id, this endpoint
+      // FK-faulted whenever any variant of the marketplace was ignored.
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
-      const json = await readJson(res);
-      expect(json.marketplace).toBe("cardmarket");
-      expect(json.deleted).toBeDefined();
-      expect(typeof json.deleted.prices).toBe("number");
-      expect(typeof json.deleted.variants).toBe("number");
-      expect(typeof json.deleted.products).toBe("number");
-      expect(json.deleted.prices).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.products).toBeGreaterThanOrEqual(1);
-    });
-
-    it("verifies tables are empty for cardmarket after clearing", async () => {
       const products = await db
         .selectFrom("marketplaceProducts")
         .select("id")
-        .where("marketplace", "=", "cardmarket")
+        .where("id", "=", seeded.productId)
         .execute();
       expect(products).toHaveLength(0);
-    });
 
-    it("returns zero counts when clearing already-empty cardmarket data", async () => {
-      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
-      expect(res.status).toBe(200);
-
-      const json = await readJson(res);
-      expect(json.marketplace).toBe("cardmarket");
-      expect(json.deleted.prices).toBe(0);
-      expect(json.deleted.variants).toBe(0);
-      expect(json.deleted.products).toBe(0);
+      const ignored = await db
+        .selectFrom("marketplaceIgnoredVariants")
+        .select("marketplaceProductId")
+        .where("marketplaceProductId", "=", seeded.productId)
+        .execute();
+      expect(ignored).toHaveLength(0);
     });
   });
 
   // ── POST /admin/clear-prices does not affect other marketplace ─────────
 
   describe("POST /admin/clear-prices (cross-marketplace isolation)", () => {
-    it("clearing tcgplayer does not remove cardmarket data", async () => {
+    it("clearing cardtrader does not remove tcgplayer data", async () => {
       // Seed both marketplaces
-      await seedMarketplaceData("tcgplayer");
-      await seedMarketplaceData("cardmarket");
+      const ct = await seedMarketplaceData("cardtrader");
+      const tcg = await seedMarketplaceData("tcgplayer");
 
-      // Clear only tcgplayer
-      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
+      // Clear only cardtrader
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
-      // Verify tcgplayer is cleared
-      const tcgSources = await db
+      // Verify this file's cardtrader rows are cleared
+      const ctRows = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardtrader")
+        .where("externalId", "in", ct.externalIds)
+        .execute();
+      expect(ctRows).toHaveLength(0);
+
+      // Verify this file's tcgplayer rows are untouched
+      const tcgRows = await db
         .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "in", tcg.externalIds)
         .execute();
-      expect(tcgSources).toHaveLength(0);
+      expect(tcgRows).toHaveLength(2);
 
-      // Verify cardmarket is untouched
-      const cmSources = await db
-        .selectFrom("marketplaceProducts")
-        .select("id")
-        .where("marketplace", "=", "cardmarket")
+      // Scoped cleanup of the tcgplayer rows. Prices cascade from the product
+      // delete; variants don't (plain FK) and go first. Never call
+      // clear-prices for tcgplayer here — other files own rows under that
+      // marketplace; only cardtrader is ours to wipe.
+      await db
+        .deleteFrom("marketplaceProductVariants")
+        .where("marketplaceProductId", "in", (eb) =>
+          eb
+            .selectFrom("marketplaceProducts")
+            .select("id")
+            .where("marketplace", "=", "tcgplayer")
+            .where("externalId", "in", tcg.externalIds),
+        )
         .execute();
-      expect(cmSources.length).toBeGreaterThanOrEqual(1);
-
-      // Clean up cardmarket for subsequent tests
-      await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
+      await db
+        .deleteFrom("marketplaceProducts")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "in", tcg.externalIds)
+        .execute();
     });
   });
 

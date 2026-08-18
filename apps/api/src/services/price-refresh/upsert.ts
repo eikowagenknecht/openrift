@@ -7,6 +7,7 @@
  * (LEFT JOIN bindings) — no staging side-table.
  */
 
+import type { Marketplace } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../../deps.js";
@@ -36,7 +37,7 @@ const BATCH_SIZE = 200;
  */
 export function loadIgnoredKeys(
   priceRefresh: Repos["priceRefresh"],
-  marketplace: string,
+  marketplace: Marketplace,
 ): Promise<LoadedIgnoredKeys> {
   return priceRefresh.loadIgnoredKeys(marketplace);
 }
@@ -49,7 +50,7 @@ export function loadIgnoredKeys(
  */
 export async function upsertMarketplaceGroups(
   priceRefresh: Repos["priceRefresh"],
-  marketplace: string,
+  marketplace: Marketplace,
   groups: GroupRow[],
 ): Promise<void> {
   await priceRefresh.upsertGroups(marketplace, groups);

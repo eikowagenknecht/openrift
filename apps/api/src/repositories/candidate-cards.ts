@@ -1252,40 +1252,64 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       printingId: string,
     ): Promise<void> {
       const rows = await db
-        .selectFrom("candidatePrintings")
-        .select(["externalId", "finish"])
-        .where("id", "in", candidatePrintingIds)
+        .selectFrom("candidatePrintings as cp")
+        .innerJoin("candidateCards as cc", "cc.id", "cp.candidateCardId")
+        .select(["cp.externalId", "cp.finish", "cc.provider"])
+        .where("cp.id", "in", candidatePrintingIds)
         .execute();
-      for (const row of rows) {
-        await db
-          .insertInto("printingLinkOverrides")
-          .values({
+      // Dedupe on the conflict key: two candidate printings sharing one
+      // (external id, finish, provider) would make the single INSERT hit the
+      // same row twice, which ON CONFLICT DO UPDATE refuses.
+      const byKey = new Map(
+        rows.map((row) => [
+          `${row.provider}:${row.externalId}:${row.finish ?? ""}`,
+          {
             externalId: row.externalId,
             finish: row.finish ?? "",
+            provider: row.provider,
             printingId,
-          })
-          .onConflict((oc) => oc.columns(["externalId", "finish"]).doUpdateSet({ printingId }))
-          .execute();
+          },
+        ]),
+      );
+      if (byKey.size === 0) {
+        return;
       }
+      await db
+        .insertInto("printingLinkOverrides")
+        .values([...byKey.values()])
+        .onConflict((oc) =>
+          oc.columns(["externalId", "finish", "provider"]).doUpdateSet({ printingId }),
+        )
+        .execute();
     },
 
     /** Remove printing link overrides for the given candidate printing IDs (unlink). */
     async removePrintingLinkOverrides(candidatePrintingIds: string[]): Promise<void> {
       const rows = await db
-        .selectFrom("candidatePrintings")
-        .select(["externalId", "finish"])
-        .where("id", "in", candidatePrintingIds)
+        .selectFrom("candidatePrintings as cp")
+        .innerJoin("candidateCards as cc", "cc.id", "cp.candidateCardId")
+        .select(["cp.externalId", "cp.finish", "cc.provider"])
+        .where("cp.id", "in", candidatePrintingIds)
         .execute();
       if (rows.length === 0) {
         return;
       }
-      for (const row of rows) {
-        await db
-          .deleteFrom("printingLinkOverrides")
-          .where("externalId", "=", row.externalId)
-          .where("finish", "=", row.finish ?? "")
-          .execute();
-      }
+      await db
+        .deleteFrom("printingLinkOverrides")
+        .where((eb) =>
+          eb.or(
+            rows.map((row) =>
+              eb.and([
+                eb("externalId", "=", row.externalId),
+                eb("finish", "=", row.finish ?? ""),
+                // The '' wildcard row would keep re-pinning this candidate on
+                // the next ingest, so an unlink removes it too.
+                eb("provider", "in", [row.provider, ""]),
+              ]),
+            ),
+          ),
+        )
+        .execute();
     },
 
     /** Delete printing_link_overrides that reference a printing ID. */
