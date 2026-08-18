@@ -40,6 +40,10 @@ export type {
   CandidateMetaDeckCard,
   CandidateMetaDecksTable,
   CandidateMetaEventsTable,
+  // Meta archive multi-source (migration 255, ADR-014)
+  MetaEventSourcesTable,
+  MetaCreditsTable,
+  MetaDeckSubmissionsTable,
   TierListCard,
   TierListRow,
   TierListsTable,

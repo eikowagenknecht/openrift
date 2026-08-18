@@ -52,7 +52,7 @@ function eventBody(slug: string, overrides: Record<string, unknown> = {}) {
     format: FORMAT,
     playerCount: 32,
     organizer: "MTR Organizer",
-    sourceUrl: "https://example.invalid/mtr",
+    // No `sourceUrl` since migration 255: attribution is the citation list.
     notes: "MTR notes",
     ...overrides,
   };
@@ -231,6 +231,75 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       const res = await app.fetch(
         adminReq("PATCH", `/meta/events/${crypto.randomUUID()}`, { name: "MTR Ghost" }),
       );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("event citations", () => {
+    it("creates a hand-entered citation and lists it", async () => {
+      const eventId = await createEvent("mtr-citations");
+      const created = await app.fetch(
+        adminReq("POST", `/meta/events/${eventId}/sources`, {
+          label: "Twitch VOD",
+          sourceUrl: "https://example.invalid/mtr-vod",
+        }),
+      );
+      expect(created.status).toBe(201);
+      const citation = await readJson(created);
+      expect(citation.provider).toBeNull();
+      expect(citation.externalId).toBeNull();
+      expect(citation.label).toBe("Twitch VOD");
+
+      const listed = await app.fetch(adminReq("GET", `/meta/events/${eventId}/sources`));
+      expect(listed.status).toBe(200);
+      const body = await readJson(listed);
+      expect(body.sources).toHaveLength(1);
+      expect(body.sources[0].id).toBe(citation.id);
+    });
+
+    it("rejects a body that tries to claim a provider key", async () => {
+      const eventId = await createEvent("mtr-citation-provider");
+      const res = await app.fetch(
+        adminReq("POST", `/meta/events/${eventId}/sources`, {
+          label: "uvsgames",
+          sourceUrl: "https://example.invalid/uvs",
+          provider: "uvsgames",
+          externalId: "evt-1",
+        }),
+      );
+      // A provider citation is written by linking that provider's candidate,
+      // never typed in: one typed here would collide with the unique key or
+      // outlive the link that owns it.
+      expect(res.status).toBe(400);
+    });
+
+    it("deletes a hand-entered citation", async () => {
+      const eventId = await createEvent("mtr-citation-delete");
+      const created = await app.fetch(
+        adminReq("POST", `/meta/events/${eventId}/sources`, { label: "Standings photo" }),
+      );
+      const citation = await readJson(created);
+
+      const removed = await app.fetch(
+        adminReq("DELETE", `/meta/events/${eventId}/sources/${citation.id}`),
+      );
+      expect(removed.status).toBe(204);
+
+      const listed = await app.fetch(adminReq("GET", `/meta/events/${eventId}/sources`));
+      const body = await readJson(listed);
+      expect(body.sources).toEqual([]);
+    });
+
+    it("404s a citation that belongs to another event", async () => {
+      const eventId = await createEvent("mtr-citation-404");
+      const res = await app.fetch(
+        adminReq("DELETE", `/meta/events/${eventId}/sources/${crypto.randomUUID()}`),
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("404s citations for an unknown event", async () => {
+      const res = await app.fetch(adminReq("GET", `/meta/events/${crypto.randomUUID()}/sources`));
       expect(res.status).toBe(404);
     });
   });
@@ -610,6 +679,27 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     expect(json.decks[0].playerName).toBe("MTR Anon");
     expect(json.decks[0].legendName).toBe("MTR Legend");
     expect(json.decks[0].event.slug).toBe("mtr-public-event");
+  });
+
+  it("prints the event's citations and no contributor line by default", async () => {
+    const eventId = await createEvent("mtr-public-sources");
+    // Citations are written on the admin surface and read on the public one.
+    await ctx!.app.fetch(
+      adminReq("POST", `/meta/events/${eventId}/sources`, {
+        label: "uvsgames",
+        sourceUrl: "https://example.invalid/uvs",
+      }),
+    );
+
+    const res = await anonApp.fetch(req("GET", "/meta/events/mtr-public-sources"));
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.event.sources).toHaveLength(1);
+    expect(json.event.sources[0].label).toBe("uvsgames");
+    expect(json.event.sources[0].sourceUrl).toBe("https://example.invalid/uvs");
+    // Nobody contributed by hand, and the single `sourceUrl` column is gone.
+    expect(json.event.contributors).toEqual([]);
+    expect(json.event.sourceUrl).toBeUndefined();
   });
 
   it("404s an unknown event slug", async () => {

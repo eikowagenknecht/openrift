@@ -442,3 +442,97 @@ describe("buildNewCardFields", () => {
     expect(keys.indexOf("effectText")).toBe(keys.indexOf("domains") + 2);
   });
 });
+
+// The grid is generic over its row type: it reads id, checkedAt, an optional
+// provider and an optional parent card id, and indexes everything else by field
+// key. A candidate entity outside the card pipeline — a meta-archive event
+// (ADR-014) — passes its own row shape with no cast at all.
+describe("CandidateSpreadsheet foreign row shapes", () => {
+  interface MetaLikeRow {
+    id: string;
+    checkedAt: string | null;
+    name: string;
+    eventDate: string;
+  }
+
+  const metaFields: FieldDef[] = [
+    { key: "name", label: "Name" },
+    { key: "eventDate", label: "Date" },
+  ];
+
+  const metaRow: MetaLikeRow = {
+    id: "abcdef1234567890",
+    checkedAt: null,
+    name: "Summoner Skirmish Berlin",
+    eventDate: "2026-08-01",
+  };
+
+  it("reads a row that carries neither a provider nor a parent card id", () => {
+    render(<CandidateSpreadsheet fields={metaFields} activeRow={null} candidateRows={[metaRow]} />);
+
+    // No provider to head the column with, and no parent to inherit one from,
+    // so the header falls back to a stand-in derived from the row id.
+    expect(screen.getByText("provider-abcdef12")).toBeDefined();
+    expect(screen.getByText("Summoner Skirmish Berlin")).toBeDefined();
+    expect(screen.getByText("2026-08-01")).toBeDefined();
+  });
+
+  it("heads the column with the row's own provider when it has one", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={metaFields}
+        activeRow={null}
+        candidateRows={[{ ...metaRow, provider: "uvsgames" }]}
+      />,
+    );
+
+    expect(screen.getByText("uvsgames")).toBeDefined();
+    expect(screen.queryByText(/^provider-/u)).toBeNull();
+  });
+
+  it("resolves a parentless row's submitter by its own id", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={metaFields}
+        activeRow={null}
+        candidateRows={[metaRow]}
+        submitters={{ [metaRow.id]: { userId: "u1", name: "shurima_main", note: null } }}
+      />,
+    );
+
+    expect(screen.getByText("by shurima_main")).toBeDefined();
+  });
+
+  it("hands the row back to columnClassName with its own type", () => {
+    const columnClassName = vi.fn((row: MetaLikeRow) => `col-${row.eventDate}`);
+
+    render(
+      <CandidateSpreadsheet
+        fields={metaFields}
+        activeRow={null}
+        candidateRows={[metaRow]}
+        columnClassName={columnClassName}
+      />,
+    );
+
+    expect(columnClassName).toHaveBeenCalledWith(metaRow);
+    expect(screen.getByRole("columnheader", { name: /provider-abcdef12/u }).className).toContain(
+      "col-2026-08-01",
+    );
+  });
+
+  it("still marks a reviewed row as checked", () => {
+    render(
+      <CandidateSpreadsheet
+        fields={metaFields}
+        activeRow={null}
+        candidateRows={[{ ...metaRow, checkedAt: "2026-08-02T10:00:00.000Z" }]}
+        onUncheck={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: /provider-abcdef12/u }).className).toContain(
+      "opacity-50",
+    );
+  });
+});

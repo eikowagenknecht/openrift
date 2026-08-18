@@ -1,4 +1,4 @@
-import type { MetaListStatus } from "@openrift/shared/types";
+import type { MetaCreditVisibility, MetaListStatus } from "@openrift/shared/types";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
@@ -23,6 +23,34 @@ let championCardId: string;
 let spellCardId: string;
 const createdEventIds: string[] = [];
 const createdDeckIds: string[] = [];
+const createdUserIds: string[] = [];
+
+/**
+ * A contributor, with the credit visibility the test is about.
+ * @param suffix Makes the id and email unique within the file.
+ * @param visibility What the user consented to show.
+ * @param profile The name and Riot ID the credit resolves from.
+ * @returns The created user's id, tracked for teardown.
+ */
+async function seedUser(
+  suffix: string,
+  visibility: MetaCreditVisibility,
+  profile: { name?: string | null; riotId?: string | null } = {},
+): Promise<string> {
+  const id = `mta-user-${suffix}`;
+  await ctx!.db
+    .insertInto("users")
+    .values({
+      id,
+      email: `${id}@example.invalid`,
+      name: profile.name === undefined ? "MTA Contributor" : profile.name,
+      riotId: profile.riotId ?? null,
+      metaCreditVisibility: visibility,
+    })
+    .execute();
+  createdUserIds.push(id);
+  return id;
+}
 
 /** @returns The inserted card's id. */
 async function seedCard(name: string, normName: string, type: string): Promise<string> {
@@ -47,10 +75,7 @@ async function seedEvent(
     format: overrides.format ?? FORMAT,
     playerCount: 64,
     organizer: "MTA Organizer",
-    sourceUrl: null,
     notes: null,
-    sourceProvider: null,
-    sourceExternalId: null,
   });
   createdEventIds.push(event.id);
   return event.id;
@@ -95,9 +120,6 @@ async function seedDeck(
       // partial is the side zones the source never sent, which by definition
       // leave no trace in the row.
       listStatus: opts.listStatus ?? "full",
-      sourceProvider: null,
-      sourceEventExternalId: null,
-      sourceExternalId: null,
     },
     `mta${Math.random().toString(36).slice(2, 11).padEnd(9, "x")}`,
   );
@@ -129,9 +151,6 @@ async function seedArchetypeDeck(
       finishTier: 8,
       record: null,
       listStatus: "archetype",
-      sourceProvider: null,
-      sourceEventExternalId: null,
-      sourceExternalId: null,
     },
     null,
   );
@@ -158,6 +177,8 @@ if (ctx) {
       .deleteFrom("cards")
       .where("id", "in", [legendCardId, championCardId, spellCardId])
       .execute();
+    // Credits cascade off the user, so the contributors go last.
+    await db.deleteFrom("users").where("id", "in", createdUserIds).execute();
   });
 }
 
@@ -266,9 +287,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
           finishTier: 1,
           record: null,
           listStatus: "full",
-          sourceProvider: null,
-          sourceEventExternalId: null,
-          sourceExternalId: null,
         },
         "mtaorphan001",
       );
@@ -617,6 +635,187 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(decks.every((entry) => entry.slug !== null && entry.slug !== "")).toBe(true);
       const event = await repo.eventById(eventId);
       expect(event?.deckCount).toBe(1);
+    });
+  });
+
+  describe("source citations", () => {
+    it("lets two providers cite one event", async () => {
+      const eventId = await seedEvent(repo, "mta-two-sources");
+
+      await repo.insertEventSource({
+        metaEventId: eventId,
+        provider: "mta-uvs",
+        externalId: "evt-1",
+        label: "mta-uvs",
+        sourceUrl: "https://example.invalid/uvs",
+      });
+      await repo.insertEventSource({
+        metaEventId: eventId,
+        provider: "mta-prb",
+        externalId: "evt-1",
+        label: "mta-prb",
+        sourceUrl: null,
+      });
+
+      // One event, two citations: the fan-in the amendment exists for. Neither
+      // is reachable by a live-side key any more — the link is the candidate's
+      // own FK, and this list is the credit it writes.
+      const sources = await repo.sourcesForEvent(eventId);
+      expect(sources.map((source) => source.label).toSorted()).toEqual(["mta-prb", "mta-uvs"]);
+    });
+
+    it("takes a hand-entered citation with no source key at all", async () => {
+      const eventId = await seedEvent(repo, "mta-hand-cite");
+      await repo.insertEventSource({
+        metaEventId: eventId,
+        provider: null,
+        externalId: null,
+        label: "Twitch VOD",
+        sourceUrl: "https://example.invalid/vod",
+      });
+      const [source] = await repo.sourcesForEvent(eventId);
+      expect(source.provider).toBeNull();
+      expect(source.externalId).toBeNull();
+    });
+
+    it("removes one provider's citation by key and leaves the other's", async () => {
+      const eventId = await seedEvent(repo, "mta-uncite");
+      await repo.insertEventSource({
+        metaEventId: eventId,
+        provider: "mta-gone",
+        externalId: "evt-2",
+        label: "mta-gone",
+        sourceUrl: null,
+      });
+      await repo.insertEventSource({
+        metaEventId: eventId,
+        provider: "mta-stays",
+        externalId: "evt-2",
+        label: "mta-stays",
+        sourceUrl: null,
+      });
+
+      expect(await repo.deleteEventSourceByKey("mta-gone", "evt-2")).toBe(true);
+      expect(await repo.deleteEventSourceByKey("mta-gone", "evt-2")).toBe(false);
+      const sources = await repo.sourcesForEvent(eventId);
+      expect(sources.map((source) => source.provider)).toEqual(["mta-stays"]);
+    });
+  });
+
+  describe("contributor credit", () => {
+    it("credits one person once per event however many decks they added", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-once");
+      const deckA = await seedDeck(repo, eventId, { playerName: "MTA A", finishTier: 1 });
+      const deckB = await seedDeck(repo, eventId, { playerName: "MTA B", finishTier: 2 });
+      const userId = await seedUser("once", "name", { name: "MTA Nova" });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId: deckA, userId });
+      await repo.insertCredit({ metaEventId: eventId, deckId: deckB, userId });
+
+      const contributors = await repo.contributorsForEvent(eventId);
+      expect(contributors).toEqual([{ metaEventId: eventId, userId, displayName: "MTA Nova" }]);
+    });
+
+    it("is idempotent, so re-accepting a corrected list adds no second row", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-idempotent");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA C", finishTier: 1 });
+      const userId = await seedUser("idem", "name", { name: "MTA Rell" });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      // The event-level credit is a different contribution, NULLS NOT DISTINCT
+      // keeping it to one of its own.
+      await repo.insertCredit({ metaEventId: eventId, deckId: null, userId });
+      await repo.insertCredit({ metaEventId: eventId, deckId: null, userId });
+
+      const rows = await db
+        .selectFrom("metaCredits")
+        .select("id")
+        .where("metaEventId", "=", eventId)
+        .execute();
+      expect(rows).toHaveLength(2);
+    });
+
+    it("drops a contributor who never opted in", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-hidden");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA D", finishTier: 1 });
+      const userId = await seedUser("hidden", "hidden", { name: "MTA Invisible" });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      expect(await repo.contributorsForEvent(eventId)).toEqual([]);
+    });
+
+    it("falls back to the display name when the Riot ID is unset", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-riot-fallback");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA E", finishTier: 1 });
+      const userId = await seedUser("riotless", "riot_id", { name: "MTA Ekko", riotId: null });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      const [contributor] = await repo.contributorsForEvent(eventId);
+      expect(contributor.displayName).toBe("MTA Ekko");
+    });
+
+    it("prefers the Riot ID when the contributor chose it", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-riot");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA F", finishTier: 1 });
+      const userId = await seedUser("riot", "riot_id", {
+        name: "MTA Ekko",
+        riotId: "MTA Ekko#EUW",
+      });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      const [contributor] = await repo.contributorsForEvent(eventId);
+      expect(contributor.displayName).toBe("MTA Ekko#EUW");
+    });
+
+    it("omits a contributor whose chosen field is blank rather than printing an id", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-blank");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA G", finishTier: 1 });
+      const userId = await seedUser("blank", "name", { name: "   " });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+      expect(await repo.contributorsForEvent(eventId)).toEqual([]);
+    });
+
+    it("scopes a credit delete to one contributor of a shared deck", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-unlink");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA H", finishTier: 1 });
+      const staying = await seedUser("staying", "name", { name: "MTA Stays" });
+      const leaving = await seedUser("leaving", "name", { name: "MTA Leaves" });
+
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId: staying });
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId: leaving });
+      await repo.deleteCreditsForDeck(deckId, leaving);
+
+      const contributors = await repo.contributorsForEvent(eventId);
+      expect(contributors.map((row) => row.displayName)).toEqual(["MTA Stays"]);
+      const deckContributors = await repo.contributorsForDeck(deckId);
+      expect(deckContributors.map((row) => row.userId)).toEqual([staying]);
+    });
+
+    it("reads and writes a contributor's visibility setting", async () => {
+      const eventId = await seedEvent(repo, "mta-credit-visibility");
+      const deckId = await seedDeck(repo, eventId, { playerName: "MTA K", finishTier: 1 });
+      const userId = await seedUser("visibility", "hidden", { name: "MTA Opt In" });
+      await repo.insertCredit({ metaEventId: eventId, deckId, userId });
+
+      expect(await repo.creditVisibility(userId)).toBe("hidden");
+      expect(await repo.contributorsForEvent(eventId)).toEqual([]);
+
+      // Opting in credits every past contribution, without touching a credit row.
+      expect(await repo.setCreditVisibility(userId, "name")).toBe(true);
+      expect(await repo.creditVisibility(userId)).toBe("name");
+      const contributors = await repo.contributorsForEvent(eventId);
+      expect(contributors.map((row) => row.displayName)).toEqual(["MTA Opt In"]);
+
+      // And opting back out removes them all, again without a sweep.
+      expect(await repo.setCreditVisibility(userId, "hidden")).toBe(true);
+      expect(await repo.contributorsForEvent(eventId)).toEqual([]);
+    });
+
+    it("reports a missing user rather than pretending they are hidden", async () => {
+      expect(await repo.creditVisibility("mta-user-nobody")).toBeUndefined();
+      expect(await repo.setCreditVisibility("mta-user-nobody", "name")).toBe(false);
     });
   });
 });

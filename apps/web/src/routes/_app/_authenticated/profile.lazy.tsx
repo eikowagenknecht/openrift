@@ -13,6 +13,7 @@ import { DangerZoneSection } from "@/components/profile/danger-zone-section";
 import { DisplaySection } from "@/components/profile/display-section";
 import { LanguagesSection } from "@/components/profile/languages-section";
 import { MarketplacesSection } from "@/components/profile/marketplaces-section";
+import { MetaCreditSection } from "@/components/profile/meta-credit-section";
 import { PasswordSection } from "@/components/profile/password-section";
 import { PublicSharingSection } from "@/components/profile/public-sharing-section";
 import { TradingSection } from "@/components/profile/trading-section";
@@ -87,6 +88,10 @@ function ProfilePage() {
 
         <SettingsGroup id="sharing" title="Public sharing">
           <PublicSharingSection />
+          {/* Both cards in this group answer "what of mine is public": the
+              bundle link, and whether the meta archive prints your name. The
+              credit card renders nothing while the archive is unlaunched. */}
+          <MetaCreditSection />
         </SettingsGroup>
 
         <SettingsGroup id="preferences" title="Preferences">

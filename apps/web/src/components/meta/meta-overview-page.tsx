@@ -8,6 +8,9 @@ import { Heading } from "@/components/heading";
 import {
   PageDescription,
   PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
@@ -29,6 +32,7 @@ import {
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents, useMetaStats } from "@/hooks/use-meta";
+import { useUserId } from "@/lib/auth-session";
 
 const routeApi = getRouteApi("/_app/meta");
 
@@ -161,6 +165,7 @@ function MetaFilters({ formats }: { formats: string[] }) {
  */
 export function MetaOverviewPage() {
   const search = routeApi.useSearch();
+  const userId = useUserId();
   const { data: eventsData } = useMetaEvents();
   const { data: stats } = useMetaStats({
     format: search.format,
@@ -189,6 +194,19 @@ export function MetaOverviewPage() {
       <PageTopBarSticky maxWidth="5xl">
         <PageTopBar>
           <PageTopBarTitle>Meta</PageTopBarTitle>
+          {/* The archive takes decklists from anyone signed in (ADR-014), and
+              this is where someone who has one starts. Logged out there is
+              nowhere to send it to, so the pair stands down entirely. */}
+          {userId !== null && (
+            <PageTopBarActions>
+              <PageTopBarButton render={<Link to="/meta/submissions" />}>
+                What you&apos;ve sent
+              </PageTopBarButton>
+              <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
+                Send a decklist
+              </PageTopBarPrimaryButton>
+            </PageTopBarActions>
+          )}
         </PageTopBar>
       </PageTopBarSticky>
       <div className="px-safe mx-auto w-full max-w-5xl pt-3 pb-6">

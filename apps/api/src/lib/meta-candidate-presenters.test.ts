@@ -9,6 +9,7 @@ import {
   toMetaCandidateDeck,
   toMetaCandidateDetail,
   toMetaCandidateQueueRow,
+  toMetaCandidateSource,
   unresolvedCardNames,
 } from "./meta-candidate-presenters.js";
 
@@ -44,6 +45,11 @@ function deckRow(overrides: Partial<CandidateMetaDeckRow> = {}): CandidateMetaDe
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000010",
     candidateEventId: "3f7a1c2e-0000-7000-8000-000000000001",
+    // Exactly one parent (migration 255): a provider's deck hangs off its
+    // candidate event, a user submission off the live event it targets.
+    metaEventId: null,
+    submittedByUserId: null,
+    submissionNote: null,
     externalId: "deck-991",
     playerName: "Renata",
     finishTier: 1,
@@ -90,6 +96,8 @@ describe("unresolvedCardNames", () => {
 });
 
 describe("toMetaCandidateDeck", () => {
+  // Whole-object, not field by field: a presenter's job is the shape, so a new
+  // field the presenter forgets has to fail here rather than ship as undefined.
   it("presents an unlinked deck as new with no diff", () => {
     const row = toMetaCandidateDeck(deckRow(), {
       diff: null,
@@ -97,13 +105,70 @@ describe("toMetaCandidateDeck", () => {
       cardNames: CARD_NAMES,
       eventNames: EVENT_NAMES,
     });
-    expect(row.state).toBe("new");
-    expect(row.diff).toBeNull();
-    expect(row.deckId).toBeNull();
-    expect(row.unresolvedNames).toEqual([]);
-    expect(row.cards).toHaveLength(2);
-    expect(row.checkedAt).toBeNull();
-    expect(row.listStatus).toBe("full");
+    expect(row).toEqual({
+      id: "3f7a1c2e-0000-7000-8000-000000000010",
+      externalId: "deck-991",
+      playerName: "Renata",
+      finishTier: 1,
+      record: "5-1",
+      name: null,
+      cards: [
+        { name: "Azir", zone: "legend", quantity: 1, cardId: AZIR },
+        { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
+      ],
+      listStatus: "full",
+      unresolvedNames: [],
+      deckId: null,
+      shareToken: null,
+      submittedByUserId: null,
+      submittedByName: null,
+      submissionNote: null,
+      state: "new",
+      diff: null,
+      checkedAt: null,
+    });
+  });
+
+  it("presents a linked user submission whole, attribution included", () => {
+    const row = toMetaCandidateDeck(
+      deckRow({
+        candidateEventId: null,
+        metaEventId: "live-1",
+        deckId: "deck-1",
+        submittedByUserId: "user-7",
+        submissionNote: "Saw it on the stream.",
+        checkedAt: CHECKED,
+      }),
+      {
+        diff: { fields: [], cards: { added: [], removed: [], changed: [] } },
+        shareToken: "aB3xY9zQ1p2R",
+        cardNames: CARD_NAMES,
+        eventNames: EVENT_NAMES,
+        submittedByName: "Skarner Fan",
+      },
+    );
+    expect(row).toEqual({
+      id: "3f7a1c2e-0000-7000-8000-000000000010",
+      externalId: "deck-991",
+      playerName: "Renata",
+      finishTier: 1,
+      record: "5-1",
+      name: null,
+      cards: [
+        { name: "Azir", zone: "legend", quantity: 1, cardId: AZIR },
+        { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
+      ],
+      listStatus: "full",
+      unresolvedNames: [],
+      deckId: "deck-1",
+      shareToken: "aB3xY9zQ1p2R",
+      submittedByUserId: "user-7",
+      submittedByName: "Skarner Fan",
+      submissionNote: "Saw it on the stream.",
+      state: "inSync",
+      diff: { fields: [], cards: { added: [], removed: [], changed: [] } },
+      checkedAt: "2026-08-10T09:30:00.000Z",
+    });
   });
 
   it("carries the source's archetype claim through", () => {
@@ -303,17 +368,37 @@ describe("toMetaCandidateDetail", () => {
       cardNames: CARD_NAMES,
       eventNames: EVENT_NAMES,
     });
+    const source = toMetaCandidateSource(eventRow(), [deck]);
     const detail = toMetaCandidateDetail(eventRow(), {
       diff: null,
       formatKnown: true,
       metaEventSlug: null,
       decks: [deck],
+      sources: [source],
+      submittedDecks: [],
     });
-    expect(detail.state).toBe("new");
-    expect(detail.diff).toBeNull();
-    expect(detail.formatKnown).toBe(true);
-    expect(detail.decks).toEqual([deck]);
-    expect(detail.extraData).toBeNull();
+    expect(detail).toEqual({
+      id: "3f7a1c2e-0000-7000-8000-000000000001",
+      provider: "riftdecks",
+      externalId: "evt-482",
+      name: "Summoner Skirmish Berlin",
+      eventDate: "2026-08-01",
+      format: "constructed",
+      formatKnown: true,
+      playerCount: 64,
+      organizer: "LGS Berlin",
+      sourceUrl: "https://example.invalid/skirmish",
+      notes: "Top 8 lists only.",
+      extraData: null,
+      metaEventId: null,
+      metaEventSlug: null,
+      state: "new",
+      diff: null,
+      checkedAt: null,
+      decks: [deck],
+      sources: [source],
+      submittedDecks: [],
+    });
   });
 
   it("carries extraData through untouched", () => {
@@ -322,6 +407,8 @@ describe("toMetaCandidateDetail", () => {
       formatKnown: false,
       metaEventSlug: null,
       decks: [],
+      sources: [],
+      submittedDecks: [],
     });
     expect(detail.extraData).toEqual({ region: "EUW" });
     expect(detail.formatKnown).toBe(false);
@@ -333,6 +420,8 @@ describe("toMetaCandidateDetail", () => {
       formatKnown: true,
       metaEventSlug: "skirmish-2026",
       decks: [],
+      sources: [],
+      submittedDecks: [],
     });
     expect(detail.state).toBe("changed");
     expect(detail.metaEventSlug).toBe("skirmish-2026");
@@ -344,7 +433,117 @@ describe("toMetaCandidateDetail", () => {
       formatKnown: true,
       metaEventSlug: "skirmish-2026",
       decks: [],
+      sources: [],
+      submittedDecks: [],
     });
     expect(detail.state).toBe("inSync");
+  });
+});
+
+describe("submitter attribution", () => {
+  it("carries the submitter, their resolved name, and their note", () => {
+    const deck = toMetaCandidateDeck(
+      deckRow({ submittedByUserId: "user-7", submissionNote: "Saw it on the stream." }),
+      {
+        diff: null,
+        shareToken: null,
+        cardNames: CARD_NAMES,
+        eventNames: EVENT_NAMES,
+        submittedByName: "Skarner Fan",
+      },
+    );
+    expect(deck.submittedByUserId).toBe("user-7");
+    expect(deck.submittedByName).toBe("Skarner Fan");
+    expect(deck.submissionNote).toBe("Saw it on the stream.");
+  });
+
+  it("leaves a provider deck unattributed", () => {
+    const deck = toMetaCandidateDeck(deckRow(), {
+      diff: null,
+      shareToken: null,
+      cardNames: CARD_NAMES,
+      eventNames: EVENT_NAMES,
+    });
+    expect(deck.submittedByUserId).toBeNull();
+    expect(deck.submittedByName).toBeNull();
+    expect(deck.submissionNote).toBeNull();
+  });
+});
+
+describe("toMetaCandidateSource", () => {
+  it("presents one source column with its own values and decks", () => {
+    const deck = toMetaCandidateDeck(deckRow(), {
+      diff: null,
+      shareToken: null,
+      cardNames: CARD_NAMES,
+      eventNames: EVENT_NAMES,
+    });
+    const source = toMetaCandidateSource(
+      eventRow({ provider: "uvsgames", externalId: "uvs-9", checkedAt: CHECKED }),
+      [deck],
+    );
+    expect(source).toEqual({
+      id: "3f7a1c2e-0000-7000-8000-000000000001",
+      provider: "uvsgames",
+      externalId: "uvs-9",
+      name: "Summoner Skirmish Berlin",
+      eventDate: "2026-08-01",
+      format: "constructed",
+      playerCount: 64,
+      organizer: "LGS Berlin",
+      sourceUrl: "https://example.invalid/skirmish",
+      notes: "Top 8 lists only.",
+      checkedAt: "2026-08-10T09:30:00.000Z",
+      decks: [deck],
+    });
+  });
+
+  it("reports a source that has pushed no decks as an empty column", () => {
+    const source = toMetaCandidateSource(eventRow(), []);
+    expect(source.decks).toEqual([]);
+    expect(source.checkedAt).toBeNull();
+  });
+});
+
+describe("toMetaCandidateDetail sources", () => {
+  it("carries every sibling source and the directly-submitted decks", () => {
+    const own = toMetaCandidateDeck(deckRow(), {
+      diff: null,
+      shareToken: null,
+      cardNames: CARD_NAMES,
+      eventNames: EVENT_NAMES,
+    });
+    const submitted = toMetaCandidateDeck(
+      deckRow({
+        id: "3f7a1c2e-0000-7000-8000-000000000099",
+        candidateEventId: null,
+        metaEventId: "live-1",
+        submittedByUserId: "user-7",
+      }),
+      {
+        diff: null,
+        shareToken: null,
+        cardNames: CARD_NAMES,
+        eventNames: EVENT_NAMES,
+        submittedByName: "Skarner Fan",
+      },
+    );
+    const detail = toMetaCandidateDetail(eventRow({ metaEventId: "live-1" }), {
+      diff: [],
+      formatKnown: true,
+      metaEventSlug: "skirmish-2026",
+      decks: [own],
+      sources: [
+        toMetaCandidateSource(eventRow({ metaEventId: "live-1" }), [own]),
+        toMetaCandidateSource(
+          eventRow({ id: "other", provider: "playriftbound", externalId: "prb-3" }),
+          [],
+        ),
+      ],
+      submittedDecks: [submitted],
+    });
+
+    expect(detail.sources.map((source) => source.provider)).toEqual(["riftdecks", "playriftbound"]);
+    expect(detail.submittedDecks).toEqual([submitted]);
   });
 });

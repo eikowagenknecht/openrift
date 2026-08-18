@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { CopyIcon, InfoIcon } from "lucide-react";
 
 import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
+import { MetaContributors } from "@/components/meta/meta-contributors";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCloneSharedDeck } from "@/hooks/use-decks";
@@ -60,15 +61,19 @@ export function MetaDeckPage({ token }: { token: string }) {
     }
   };
 
-  return (
-    <PublicDeckSurface
-      data={data}
-      isLoggedIn={isLoggedIn}
-      returnPath={`/meta/decks/${token}`}
-      // An archetype-only entry has no page at all, so "partial" is the only
-      // status this ever fires on.
-      notice={
-        data.meta.listStatus === "partial" ? (
+  // An archetype-only entry has no page at all, so "partial" is the only status
+  // the incomplete-list callout ever fires on.
+  const isPartial = data.meta.listStatus === "partial";
+  const contributors = data.meta.contributors;
+  // Both belong directly under the hero, with the archive's own facts: the
+  // byline carries finish, player, record and event, and this carries who typed
+  // the list in. They share one slot, and one flex child, because the page's
+  // frame spaces its children six apart — far too much between a callout and
+  // the caption under it.
+  const notice =
+    isPartial || contributors.length > 0 ? (
+      <div className="flex flex-col gap-2">
+        {isPartial && (
           <Alert variant="info">
             <InfoIcon />
             <AlertTitle>This list is incomplete</AlertTitle>
@@ -77,8 +82,17 @@ export function MetaDeckPage({ token }: { token: string }) {
               sideboard you see may be missing cards the pilot actually played.
             </AlertDescription>
           </Alert>
-        ) : undefined
-      }
+        )}
+        <MetaContributors contributors={contributors} />
+      </div>
+    ) : undefined;
+
+  return (
+    <PublicDeckSurface
+      data={data}
+      isLoggedIn={isLoggedIn}
+      returnPath={`/meta/decks/${token}`}
+      notice={notice}
       // The archive's byline: never the account that owns the row. It carries
       // the whole event context, since the page shows nothing above the hero.
       heroByline={

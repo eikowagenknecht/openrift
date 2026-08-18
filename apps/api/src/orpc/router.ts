@@ -37,6 +37,7 @@ import { adminLanguagesRouter } from "../routes/admin/languages.js";
 import { adminMarkersRouter } from "../routes/admin/markers.js";
 import { adminMarketplaceGroupsRouter } from "../routes/admin/marketplace-groups.js";
 import { adminMetaCandidatesRouter } from "../routes/admin/meta-candidates.js";
+import { adminMetaSubmissionsRouter } from "../routes/admin/meta-submissions.js";
 import { adminMetaRouter } from "../routes/admin/meta.js";
 import { adminOperationsRouter } from "../routes/admin/operations.js";
 import { adminOrganizationsRouter } from "../routes/admin/organizations.js";
@@ -67,6 +68,7 @@ import { decksRouter } from "../routes/authenticated/decks.js";
 import { friendGroupsRouter } from "../routes/authenticated/friend-groups.js";
 import { listsRouter } from "../routes/authenticated/lists.js";
 import { loansRouter } from "../routes/authenticated/loans.js";
+import { metaSubmissionsRouter } from "../routes/authenticated/meta-submissions.js";
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { overlayRouter } from "../routes/authenticated/overlay.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
@@ -142,6 +144,7 @@ const apiRouter = {
   adminMarketplaceGroupsRouter,
   adminMetaCandidatesRouter,
   adminMetaRouter,
+  adminMetaSubmissionsRouter,
   adminOperationsRouter,
   adminOrganizationsRouter,
   adminPrintingEventsRouter,
@@ -171,6 +174,7 @@ const apiRouter = {
   friendGroupsRouter,
   listsRouter,
   loansRouter,
+  metaSubmissionsRouter,
   organizationsRouter,
   overlayRouter,
   preferencesRouter,

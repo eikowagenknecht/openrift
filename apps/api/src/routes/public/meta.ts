@@ -81,11 +81,17 @@ export const metaRouter = {
       throw errors.NOT_FOUND({ message: "Event not found" });
     }
 
-    const deckRows = await meta.deckSummariesForEvent(event.id);
+    const [deckRows, sources, contributors] = await Promise.all([
+      meta.deckSummariesForEvent(event.id),
+      meta.sourcesForEvent(event.id),
+      // Already filtered by the repo: anyone on `hidden`, and anyone whose
+      // chosen profile field is blank, never reaches this payload.
+      meta.contributorsForEvent(event.id),
+    ]);
     const images = await imageIdsForCards(canonicalPrintings, summaryCardIds(deckRows));
 
     return {
-      event: toMetaEventDetail(event),
+      event: toMetaEventDetail(event, { sources, contributors }),
       decks: deckRows.map((row) => toMetaDeckSummary(row, images)),
     };
   }),
@@ -123,8 +129,13 @@ export const metaRouter = {
       throw errors.NOT_FOUND({ message: "Deck not found" });
     }
 
-    const payload = await buildPublicDeckDetail(context.repos, found);
-    return { ...payload, meta: toMetaDeckContext(metaContext) };
+    const [payload, contributors] = await Promise.all([
+      buildPublicDeckDetail(context.repos, found),
+      // The deck's own credit line: whoever contributed this list, not everyone
+      // who fed its event. Already filtered by the repo, as on the event page.
+      meta.contributorsForDeck(found.deck.id),
+    ]);
+    return { ...payload, meta: toMetaDeckContext(metaContext, contributors) };
   }),
 
   stats: os.stats.handler(async ({ input, context }): Promise<MetaStatsResponse> => {

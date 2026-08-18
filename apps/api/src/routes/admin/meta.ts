@@ -8,7 +8,7 @@ import type { MetaEventsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
 import { assertFound, assertSlugAvailable } from "../../lib/assertions.js";
 import { assertKnownFormat, validateFormatConfig } from "../../lib/deck-format-validation.js";
-import { toAdminMetaDeck, toAdminMetaEvent } from "../../lib/meta-presenters.js";
+import { toAdminMetaDeck, toAdminMetaEvent, toMetaEventSource } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -26,7 +26,6 @@ const EVENT_FIELDS: FieldMapping<Updateable<MetaEventsTable>> = {
   format: "format",
   playerCount: "playerCount",
   organizer: "organizer",
-  sourceUrl: "sourceUrl",
   notes: "notes",
 };
 
@@ -89,12 +88,7 @@ export const adminMetaRouter = {
       format: input.format,
       playerCount: input.playerCount ?? null,
       organizer: input.organizer ?? null,
-      sourceUrl: input.sourceUrl ?? null,
       notes: input.notes ?? null,
-      // Hand-entered, so it belongs to no ingest provider. Only the candidate
-      // accept path (ADR-014) stamps these.
-      sourceProvider: null,
-      sourceExternalId: null,
     });
     return toAdminMetaEvent(row);
   }),
@@ -146,9 +140,6 @@ export const adminMetaRouter = {
       finishTier: input.finishTier,
       record: input.record ?? null,
       listStatus: input.listStatus,
-      sourceProvider: null,
-      sourceEventExternalId: null,
-      sourceExternalId: null,
     });
 
     assertFound(result, "Event not found");
@@ -177,5 +168,54 @@ export const adminMetaRouter = {
 
   deleteDeck: os.deleteDeck.handler(async ({ input, context }): Promise<void> => {
     assertExisted(await context.repos.meta.deleteDeck(input.id), "Archived deck not found");
+  }),
+
+  // ── Source citations (ADR-014, migration 255) ────────────────────────────
+  // A citation says where a slice of the event's data came from. It is public,
+  // and it never carries a user: a contributor is credited through
+  // `meta_credits`, which this router never touches.
+
+  eventSources: os.eventSources.handler(async ({ input, context }) => {
+    const { meta } = context.repos;
+    assertFound(await meta.eventById(input.id), "Event not found");
+    const rows = await meta.sourcesForEvent(input.id);
+    return { sources: rows.map((row) => toMetaEventSource(row)) };
+  }),
+
+  createEventSource: os.createEventSource.handler(async ({ input, context }) => {
+    const { meta } = context.repos;
+    assertFound(await meta.eventById(input.id), "Event not found");
+
+    // Hand-entered, so the key stays null: a provider's citation is written by
+    // linking that provider's candidate, and one typed in here would either
+    // collide with that unique key or outlive the link that owns it.
+    const row = await meta.insertEventSource({
+      metaEventId: input.id,
+      provider: null,
+      externalId: null,
+      label: input.label,
+      sourceUrl: input.sourceUrl,
+    });
+    return toMetaEventSource(row);
+  }),
+
+  deleteEventSource: os.deleteEventSource.handler(async ({ input, context }): Promise<void> => {
+    const { meta } = context.repos;
+
+    const rows = await meta.sourcesForEvent(input.id);
+    const existing = rows.find((row) => row.id === input.sourceId);
+    assertFound(existing, "Citation not found");
+
+    // Refusing a provider row is not pedantry: unlinking is what removes it, and
+    // deleting it here would leave a linked source with no credit and no way to
+    // get one back short of a relink.
+    if (existing.provider !== null) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "That citation belongs to a linked source. Unlink its candidate to remove it.",
+      );
+    }
+    assertExisted(await meta.deleteEventSource(input.sourceId), "Citation not found");
   }),
 };

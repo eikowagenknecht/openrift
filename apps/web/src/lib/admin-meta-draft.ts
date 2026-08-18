@@ -23,7 +23,6 @@ export interface MetaEventDraft {
   format: string;
   playerCount: string;
   organizer: string;
-  sourceUrl: string;
   notes: string;
 }
 
@@ -35,7 +34,6 @@ export const EMPTY_META_EVENT_DRAFT: MetaEventDraft = {
   format: "",
   playerCount: "",
   organizer: "",
-  sourceUrl: "",
   notes: "",
 };
 
@@ -70,9 +68,6 @@ export function validateMetaEventDraft(draft: MetaEventDraft): string | null {
   if (draft.organizer.trim().length > 120) {
     return "Organizer must be 120 characters or fewer";
   }
-  if (draft.sourceUrl.trim().length > 2000) {
-    return "Source URL must be 2000 characters or fewer";
-  }
   if (draft.notes.trim().length > 4000) {
     return "Notes must be 4000 characters or fewer";
   }
@@ -87,7 +82,6 @@ export interface MetaEventBody {
   format: string;
   playerCount: number | null;
   organizer: string | null;
-  sourceUrl: string | null;
   notes: string | null;
 }
 
@@ -108,7 +102,6 @@ export function metaEventDraftToBody(draft: MetaEventDraft): MetaEventBody {
     format: draft.format.trim(),
     playerCount: players.length > 0 ? Number(players) : null,
     organizer: draft.organizer.trim() || null,
-    sourceUrl: draft.sourceUrl.trim() || null,
     notes: draft.notes.trim() || null,
   };
 }
@@ -127,7 +120,6 @@ export function metaEventToDraft(event: AdminMetaEvent): MetaEventDraft {
     format: event.format,
     playerCount: event.playerCount === null ? "" : String(event.playerCount),
     organizer: event.organizer ?? "",
-    sourceUrl: event.sourceUrl ?? "",
     notes: event.notes ?? "",
   };
 }

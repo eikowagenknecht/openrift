@@ -1,0 +1,170 @@
+import type { MetaDeckSubmission } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
+import { ScrollTextIcon } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
+import {
+  PageDescription,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarBack,
+  PageTopBarPrimaryButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMetaDecks } from "@/hooks/use-meta";
+import { useMetaSubmissions } from "@/hooks/use-meta-submissions";
+import {
+  metaSubmissionExplanation,
+  metaSubmissionStatusBadgeVariant,
+  metaSubmissionStatusHints,
+  metaSubmissionStatusLabels,
+} from "@/lib/meta-submission-copy";
+
+/**
+ * One decklist a contributor sent: what it was, where it ended up, and anything
+ * the reviewer wrote back.
+ *
+ * @param props.submission The row to render.
+ * @param props.shareToken The archived deck's permalink slug, when it has one.
+ * @returns The row element.
+ */
+function SubmissionRow({
+  submission,
+  shareToken,
+}: {
+  submission: MetaDeckSubmission;
+  shareToken: string | null;
+}) {
+  const explanation = metaSubmissionExplanation(
+    submission.resolutionReason,
+    submission.resolutionNote,
+  );
+  const hint = metaSubmissionStatusHints[submission.status];
+
+  return (
+    <Card className="flex flex-col gap-2 p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="font-medium">{submission.eventName}</span>
+          <span className="text-muted-foreground text-sm">{submission.playerName}</span>
+        </div>
+        <Badge variant={metaSubmissionStatusBadgeVariant[submission.status]}>
+          {metaSubmissionStatusLabels[submission.status]}
+        </Badge>
+      </div>
+
+      <p className="text-muted-foreground text-sm">
+        Sent {formatDay(submission.createdAt)}
+        {submission.resolvedAt ? ` · Reviewed ${formatDay(submission.resolvedAt)}` : ""}
+      </p>
+
+      {explanation ? <p>{explanation}</p> : null}
+      {!explanation && hint ? <p className="text-muted-foreground">{hint}</p> : null}
+
+      {submission.note ? (
+        <p className="text-muted-foreground border-border border-l-2 pl-3 text-sm italic">
+          {submission.note}
+        </p>
+      ) : null}
+
+      {shareToken ? (
+        <Link
+          to="/meta/decks/$token"
+          params={{ token: shareToken }}
+          className="text-sm underline underline-offset-4"
+        >
+          See the deck on the archive
+        </Link>
+      ) : null}
+    </Card>
+  );
+}
+
+/**
+ * `/meta/submissions` — every decklist the viewer has sent to the archive, and
+ * what happened to each one (ADR-014's User submissions).
+ *
+ * This page is the reason the archive keeps outcomes at all: provider uploads
+ * get none, because those are the maintainer's own tooling, while a person who
+ * types in a top-8 list needs to see whether it landed.
+ *
+ * @returns The page element.
+ */
+export function MetaSubmissionsPage() {
+  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMetaSubmissions();
+  // The accepted-deck id is a deck id, but a public archive link is keyed by the
+  // deck's share token, so the archive payload (already cached for /meta/decks)
+  // is what turns one into the other.
+  const { data: archive } = useMetaDecks();
+  const tokensByDeckId = new Map(archive.decks.map((deck) => [deck.deckId, deck.shareToken]));
+  const submissions = data?.pages.flatMap((page) => page.items) ?? [];
+
+  return (
+    <>
+      <PageTopBarSticky maxWidth="4xl">
+        <PageTopBar>
+          <PageTopBarBack to="/meta" />
+          <PageTopBarTitle>Decklists you sent</PageTopBarTitle>
+          <PageTopBarActions>
+            <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
+              Send a decklist
+            </PageTopBarPrimaryButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+
+      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
+        <PageDescription>
+          Every decklist you&apos;ve sent to the archive. Each one is read by hand before it goes
+          up, so an answer can take a while.
+        </PageDescription>
+
+        {isPending ? (
+          <div className="space-y-3">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
+        ) : null}
+
+        {!isPending && submissions.length === 0 ? (
+          <EmptyState
+            icon={ScrollTextIcon}
+            title="Nothing sent in yet"
+            description="Watched a tournament and know what people played? Help us fill in the gaps."
+          >
+            <Button render={<Link to="/meta/submit" />}>Send a decklist</Button>
+          </EmptyState>
+        ) : null}
+
+        {submissions.map((submission) => (
+          <SubmissionRow
+            key={submission.id}
+            submission={submission}
+            shareToken={
+              submission.acceptedDeckId
+                ? (tokensByDeckId.get(submission.acceptedDeckId) ?? null)
+                : null
+            }
+          />
+        ))}
+
+        {hasNextPage ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={isFetchingNextPage}
+            onClick={() => void fetchNextPage()}
+          >
+            {isFetchingNextPage ? "Loading…" : "Show older decklists"}
+          </Button>
+        ) : null}
+      </div>
+    </>
+  );
+}

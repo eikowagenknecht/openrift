@@ -38,7 +38,8 @@ const eventBodySchema = z.object({
   format: z.string().min(1),
   playerCount: z.number().int().positive().nullable().optional(),
   organizer: z.string().min(1).max(120).nullable().optional(),
-  sourceUrl: z.string().min(1).max(2000).nullable().optional(),
+  // No `sourceUrl` (migration 255): attribution is the event's citation list,
+  // written through the source endpoints below and by linking a candidate.
   notes: z.string().max(4000).nullable().optional(),
 });
 
@@ -54,11 +55,38 @@ export const adminMetaEventSchema = z
     format: deckFormatSchema,
     playerCount: z.number().int().nullable(),
     organizer: z.string().nullable(),
-    sourceUrl: z.string().nullable(),
     notes: z.string().nullable(),
     deckCount: z.number().int().nonnegative(),
   })
   .openapi("AdminMetaEvent");
+
+/**
+ * One citation on an event, as the admin table lists it. Same row the public
+ * event page prints — citations are not admin data, they are the credit line —
+ * so this mirrors `metaEventSourceSchema` field for field.
+ */
+export const adminMetaEventSourceSchema = z
+  .object({
+    id: z.string(),
+    /** Null together with `externalId` for a hand-entered citation. */
+    provider: z.string().nullable(),
+    externalId: z.string().nullable(),
+    label: z.string(),
+    sourceUrl: z.string().nullable(),
+  })
+  .openapi("AdminMetaEventSource");
+
+/**
+ * A hand-entered citation: a label and, usually, a link. There is deliberately
+ * no way to send `provider` / `externalId` here (the schema is strict, so an
+ * attempt is a 400) — a provider citation is written by linking that
+ * provider's candidate and removed by unlinking it, and one typed in by hand
+ * would collide with that key or outlive the link that owns it.
+ */
+const createMetaEventSourceFields = {
+  label: z.string().trim().min(1).max(60),
+  sourceUrl: z.string().trim().min(1).max(2000).nullable().optional().default(null),
+};
 
 export const adminMetaDeckSchema = z
   .object({
@@ -321,12 +349,45 @@ export const metaCandidateDeckSchema = z
     deckId: z.string().nullable(),
     /** The linked live deck's permalink token. */
     shareToken: z.string().nullable(),
+    /**
+     * Set only for the `usersubmission` provider (ADR-036) — who contributed
+     * this list. Admin-facing: nothing public reads it, and the public credit
+     * is the event page's contributor line.
+     */
+    submittedByUserId: z.string().nullable(),
+    /** The submitter's display name, resolved from the id. Null when unset or deleted. */
+    submittedByName: z.string().nullable(),
+    /** Free-text note the contributor attached to their submission. */
+    submissionNote: z.string().nullable(),
     state: metaCandidateStateSchema,
     /** Null while unlinked — there is nothing to diff against yet. */
     diff: metaDeckDiffSchema.nullable(),
     checkedAt: isoDateTime.nullable(),
   })
   .openapi("MetaCandidateDeck");
+
+/**
+ * One source's version of an event, for the review screen's compare grid: its
+ * key, the field values it proposes, and the decks it holds. The live values it
+ * is compared against are the event's own row, which the caller already has.
+ */
+export const metaCandidateSourceSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    externalId: z.string(),
+    name: z.string(),
+    eventDate: isoDate,
+    format: z.string(),
+    playerCount: z.number().int().nullable(),
+    organizer: z.string().nullable(),
+    /** This provider's page for the event; becomes its citation when linked. */
+    sourceUrl: z.string().nullable(),
+    notes: z.string().nullable(),
+    checkedAt: isoDateTime.nullable(),
+    decks: z.array(metaCandidateDeckSchema),
+  })
+  .openapi("MetaCandidateSource");
 
 export const metaCandidateDetailSchema = z
   .object({
@@ -350,8 +411,141 @@ export const metaCandidateDetailSchema = z
     diff: z.array(metaFieldDiffSchema).nullable(),
     checkedAt: isoDateTime.nullable(),
     decks: z.array(metaCandidateDeckSchema),
+    /**
+     * Every candidate linked to the same live event, this one included, so the
+     * review screen renders one column per source without a second request
+     * (the card pipeline's `sources` array, applied to events). Ordered by
+     * provider, so the columns keep their places between visits.
+     *
+     * A candidate that is not linked yet has no siblings by definition, and the
+     * array then holds only itself.
+     */
+    sources: z.array(metaCandidateSourceSchema),
+    /**
+     * Candidate decks hanging off the *live* event directly rather than off any
+     * candidate event — user submissions against an event the archive already
+     * has (ADR-014). They belong to the deck roster like any source's decks, but
+     * to no source column. Empty while this candidate is unlinked.
+     */
+    submittedDecks: z.array(metaCandidateDeckSchema),
   })
   .openapi("MetaCandidateDetail");
+
+/**
+ * The live event columns one source's value can be taken into (ADR-014's
+ * per-field review). `slug` is absent because it is minted once at accept and
+ * renaming it breaks every published link; attribution is absent because it is
+ * no longer a column.
+ *
+ * The API holds the same list on the write side
+ * (`META_EVENT_ACCEPT_FIELDS` in `services/meta-candidate-accept.ts`) and
+ * asserts at compile time that the two are identical — `apps/api` cannot export
+ * into `packages/shared`, so the wire list lives here and the parity check
+ * lives there.
+ */
+export const META_EVENT_ACCEPT_FIELDS = [
+  "name",
+  "eventDate",
+  "format",
+  "playerCount",
+  "organizer",
+  "notes",
+] as const;
+
+/**
+ * The archived-deck columns one source's value can be taken into. The card list
+ * is not among them: it moves whole, through `acceptMetaDeckList`.
+ * @see META_EVENT_ACCEPT_FIELDS
+ */
+export const META_DECK_ACCEPT_FIELDS = [
+  "playerName",
+  "finishTier",
+  "record",
+  "listStatus",
+] as const;
+
+/** One live-event column the per-field accept will write. */
+export type MetaEventAcceptField = (typeof META_EVENT_ACCEPT_FIELDS)[number];
+
+/** One archived-deck column the per-field accept will write. */
+export type MetaDeckAcceptField = (typeof META_DECK_ACCEPT_FIELDS)[number];
+
+const acceptMetaEventFieldSchema = z.object({ field: z.enum(META_EVENT_ACCEPT_FIELDS) });
+const acceptMetaDeckFieldSchema = z.object({ field: z.enum(META_DECK_ACCEPT_FIELDS) });
+
+/** The live event a link, relink or unlink left the candidate pointing at. */
+export const metaEventLinkResultSchema = z
+  .object({
+    /** Null after an unlink. */
+    metaEventId: z.string().nullable(),
+    slug: z.string().nullable(),
+  })
+  .openapi("MetaEventLinkResult");
+
+/** The archived deck a link, relink or unlink left the candidate pointing at. */
+export const metaDeckLinkResultSchema = z
+  .object({ deckId: z.string().nullable() })
+  .openapi("MetaDeckLinkResult");
+
+const linkMetaEventSchema = z.object({ metaEventId: z.uuid() });
+const linkMetaDeckSchema = z.object({ deckId: z.uuid() });
+
+/**
+ * One proposed live event for an unlinked candidate, with the signals behind
+ * its rank. Ranked hints only — nothing is ever linked automatically, because a
+ * wrong link fans two unrelated tournaments onto one page.
+ */
+export const metaEventMatchSuggestionSchema = z
+  .object({
+    metaEventId: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    eventDate: isoDate,
+    format: z.string(),
+    deckCount: z.number().int().nonnegative(),
+    /** Higher is better. Comparable only within one response. */
+    score: z.number(),
+    /** Why it ranked, in the order the signals were weighed. */
+    reasons: z.array(z.string()),
+  })
+  .openapi("MetaEventMatchSuggestion");
+
+/** One proposed archived deck for an unlinked candidate deck, inside its own event. */
+export const metaDeckMatchSuggestionSchema = z
+  .object({
+    deckId: z.string(),
+    name: z.string(),
+    playerName: z.string(),
+    finishTier: z.number().int(),
+    score: z.number(),
+    reasons: z.array(z.string()),
+  })
+  .openapi("MetaDeckMatchSuggestion");
+
+/**
+ * The whole-entity event accept's refusal when another source also feeds the
+ * live event and the caller did not confirm the overwrite.
+ *
+ * A code of its own rather than a second `CONFLICT`, because the two 409s want
+ * opposite responses from the UI: a slug collision is a dead end, while this
+ * one is a question — "also fed by uvsgames, overwrite?" — that the client
+ * answers by retrying with `overwriteAll`. `status` is pinned because the code
+ * is not one of oRPC's standard ones, and without it the defined-error upgrade
+ * is silently skipped and the client sees a generic failure.
+ */
+const OVERWRITE_NOT_CONFIRMED_ERROR = {
+  status: 409,
+  message: "This event also carries values from another source",
+} as const;
+
+/**
+ * Confirms taking every field of one source over an event a second source also
+ * feeds. Required only in that case: a single-source event has no other
+ * source's values to clobber, so the one-click accept stays one click.
+ */
+const acceptMetaEventSchema = z.object({
+  overwriteAll: z.boolean().optional().default(false),
+});
 
 export const acceptedMetaEventSchema = z
   .object({
@@ -410,8 +604,14 @@ const checkedInput = z.object({ checked: z.boolean() });
  * grantable section.
  *
  * Domain codes: `createEvent` → CONFLICT (slug taken); `updateEvent`,
- * `deleteEvent`, `eventDecks`, `createDeck`, `updateDeck`, `deleteDeck` →
- * NOT_FOUND; `updateEvent` also CONFLICT when a rename collides.
+ * `deleteEvent`, `eventDecks`, `createDeck`, `updateDeck`, `deleteDeck`,
+ * `eventSources`, `createEventSource`, `deleteEventSource` → NOT_FOUND;
+ * `updateEvent` also CONFLICT when a rename collides; `deleteEventSource` also
+ * CONFLICT for a provider citation, which is owned by its candidate's link.
+ *
+ * Citations replaced the single `source_url` column (migration 255). Only
+ * hand-entered ones are created here; a provider's row is written when its
+ * candidate is linked and removed when it is unlinked.
  *
  * `deleteEvent` removes the underlying `decks` rows too. The FK cascade only
  * clears the satellite rows, which would otherwise strand the decks under the
@@ -470,6 +670,41 @@ export const adminMetaContract = {
     .route({ method: "DELETE", path: `${BASE}/decks/{id}`, tags: [TAG], successStatus: 204 })
     .input(idParamSchema)
     .errors({ NOT_FOUND: { message: "Archived deck not found" } }),
+
+  eventSources: authedRoute
+    .route({ method: "GET", path: `${BASE}/events/{id}/sources`, tags: [TAG] })
+    .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Event not found" } })
+    .output(z.object({ sources: z.array(adminMetaEventSourceSchema) })),
+
+  createEventSource: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/events/{id}/sources`,
+      tags: [TAG],
+      successStatus: 201,
+    })
+    // Strict, so a body carrying `provider` / `externalId` fails validation
+    // instead of being silently stripped.
+    .input(withParams(idParamSchema, createMetaEventSourceFields).strict())
+    .errors({ NOT_FOUND: { message: "Event not found" } })
+    .output(adminMetaEventSourceSchema),
+
+  // Nested under the event rather than a flat `/event-sources/{id}`: the
+  // handler has to read the event's citations anyway, to refuse a provider row
+  // before deleting it.
+  deleteEventSource: authedRoute
+    .route({
+      method: "DELETE",
+      path: `${BASE}/events/{id}/sources/{sourceId}`,
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .input(withParams(idParamSchema, { sourceId: z.uuid() }))
+    .errors({
+      NOT_FOUND: { message: "Citation not found" },
+      CONFLICT: { message: "That citation belongs to a linked source" },
+    }),
 };
 
 export type AdminMetaContract = typeof adminMetaContract;
@@ -487,7 +722,23 @@ export type AdminMetaContract = typeof adminMetaContract;
  * Domain codes: every `{id}` route → NOT_FOUND; the accepts additionally →
  * BAD_REQUEST carrying the reason an accept is blocked (unknown format, parent
  * event not accepted yet, unmatched card names), and `acceptEvent` → CONFLICT
- * when no free slug could be minted for the event's name.
+ * when no free slug could be minted for the event's name. `linkCandidateEvent`
+ * and `linkCandidateDeck` → CONFLICT when the candidate is already linked
+ * (relink is the verb that moves one), and the deck links → BAD_REQUEST when
+ * the target sits under a different event.
+ *
+ * Three tiers of write, and the tier is the point (ADR-014, amended
+ * 2026-08-18): link/relink/unlink move the FK and the citation and write no
+ * field values; `acceptEvent` still takes a whole unlinked candidate in one
+ * click, which is what a single-source event uses and what must not get slower;
+ * `acceptMetaEventField` / `acceptMetaDeckField` / `acceptMetaDeckList` take
+ * exactly one source's version of one thing, which is what the compare grid
+ * needs once a second source is linked.
+ *
+ * `acceptEvent` and `acceptEventWithDecks` refuse with
+ * `OVERWRITE_NOT_CONFIRMED` when a second source is linked and `overwriteAll`
+ * is not set — the one case where taking everything from one source silently
+ * reverts what the maintainer curated from the other.
  */
 export const adminMetaCandidatesContract = {
   upload: authedRoute
@@ -538,11 +789,12 @@ export const adminMetaCandidatesContract = {
 
   acceptEvent: authedRoute
     .route({ method: "POST", path: `${BASE}/candidates/{id}/accept`, tags: [CANDIDATE_TAG] })
-    .input(idParamSchema)
+    .input(withParams(idParamSchema, acceptMetaEventSchema))
     .errors({
       NOT_FOUND: { message: "Candidate event not found" },
       BAD_REQUEST: { message: "Candidate cannot be accepted" },
       CONFLICT: { message: "No free slug available for this event name" },
+      OVERWRITE_NOT_CONFIRMED: OVERWRITE_NOT_CONFIRMED_ERROR,
     })
     .output(acceptedMetaEventSchema),
 
@@ -552,11 +804,12 @@ export const adminMetaCandidatesContract = {
       path: `${BASE}/candidates/{id}/accept-with-decks`,
       tags: [CANDIDATE_TAG],
     })
-    .input(idParamSchema)
+    .input(withParams(idParamSchema, acceptMetaEventSchema))
     .errors({
       NOT_FOUND: { message: "Candidate event not found" },
       BAD_REQUEST: { message: "Candidate cannot be accepted" },
       CONFLICT: { message: "No free slug available for this event name" },
+      OVERWRITE_NOT_CONFIRMED: OVERWRITE_NOT_CONFIRMED_ERROR,
     })
     .output(acceptedMetaEventWithDecksSchema),
 
@@ -637,6 +890,128 @@ export const adminMetaCandidatesContract = {
     })
     .input(deckSourceKeyInput)
     .errors({ NOT_FOUND: { message: "Ignore entry not found" } }),
+
+  // ── Linking (ADR-014, multi-source) ──────────────────────────────────────
+  // Separate from accepting on purpose: a source whose field values you
+  // rejected still contributed, usually its decks, so the link and the citation
+  // it writes must not depend on taking any of them.
+
+  linkCandidateEvent: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidates/{id}/link`, tags: [CANDIDATE_TAG] })
+    .input(withParams(idParamSchema, linkMetaEventSchema))
+    .errors({
+      NOT_FOUND: { message: "Candidate event not found" },
+      CONFLICT: { message: "This candidate is already linked" },
+    })
+    .output(metaEventLinkResultSchema),
+
+  relinkCandidateEvent: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidates/{id}/relink`, tags: [CANDIDATE_TAG] })
+    .input(withParams(idParamSchema, linkMetaEventSchema))
+    .errors({ NOT_FOUND: { message: "Candidate event not found" } })
+    .output(metaEventLinkResultSchema),
+
+  unlinkCandidateEvent: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidates/{id}/unlink`, tags: [CANDIDATE_TAG] })
+    .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Candidate event not found" } })
+    .output(metaEventLinkResultSchema),
+
+  linkCandidateDeck: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidate-decks/{id}/link`, tags: [CANDIDATE_TAG] })
+    .input(withParams(idParamSchema, linkMetaDeckSchema))
+    .errors({
+      NOT_FOUND: { message: "Candidate deck not found" },
+      CONFLICT: { message: "This candidate is already linked" },
+      BAD_REQUEST: { message: "That deck belongs to a different event" },
+    })
+    .output(metaDeckLinkResultSchema),
+
+  relinkCandidateDeck: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidate-decks/{id}/relink`, tags: [CANDIDATE_TAG] })
+    .input(withParams(idParamSchema, linkMetaDeckSchema))
+    .errors({
+      NOT_FOUND: { message: "Candidate deck not found" },
+      BAD_REQUEST: { message: "That deck belongs to a different event" },
+    })
+    .output(metaDeckLinkResultSchema),
+
+  unlinkCandidateDeck: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidate-decks/{id}/unlink`, tags: [CANDIDATE_TAG] })
+    .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Candidate deck not found" } })
+    .output(metaDeckLinkResultSchema),
+
+  // ── Per-field accept (the compare grid's arrow) ──────────────────────────
+  // With two sources on one event, "accept" cannot mean "take all of it": one
+  // provider would silently revert the other's name on every re-publish.
+
+  acceptMetaEventField: authedRoute
+    .route({ method: "POST", path: `${BASE}/candidates/{id}/accept-field`, tags: [CANDIDATE_TAG] })
+    .input(withParams(idParamSchema, acceptMetaEventFieldSchema))
+    .errors({
+      NOT_FOUND: { message: "Candidate event not found" },
+      BAD_REQUEST: { message: "Link this candidate to a live event first" },
+    })
+    .output(z.object({ metaEventId: z.string() })),
+
+  acceptMetaDeckField: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/candidate-decks/{id}/accept-field`,
+      tags: [CANDIDATE_TAG],
+    })
+    .input(withParams(idParamSchema, acceptMetaDeckFieldSchema))
+    .errors({
+      NOT_FOUND: { message: "Candidate deck not found" },
+      BAD_REQUEST: { message: "Link this candidate to an archived deck first" },
+    })
+    .output(z.object({ deckId: z.string() })),
+
+  acceptMetaDeckList: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/candidate-decks/{id}/accept-list`,
+      tags: [CANDIDATE_TAG],
+    })
+    .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Candidate deck not found" },
+      BAD_REQUEST: { message: "Candidate deck's list cannot be taken" },
+    })
+    .output(z.object({ deckId: z.string() })),
+
+  // ── Match suggestions ────────────────────────────────────────────────────
+  // Ranked hints for the link action. Empty for a candidate that is already
+  // linked, and for a deck whose event has no live event to look inside.
+
+  eventMatchSuggestions: authedRoute
+    .route({
+      method: "GET",
+      path: `${BASE}/candidates/{id}/match-suggestions`,
+      tags: [CANDIDATE_TAG],
+    })
+    .input(idParamSchema)
+    .output(
+      z.object({
+        suggestions: z.array(metaEventMatchSuggestionSchema),
+        /**
+         * How many days apart two events may be and still be offered as one
+         * tournament. Travels so an empty list can say why ("no events within
+         * 3 days") instead of just being empty.
+         */
+        windowDays: z.number().int().positive(),
+      }),
+    ),
+
+  deckMatchSuggestions: authedRoute
+    .route({
+      method: "GET",
+      path: `${BASE}/candidate-decks/{id}/match-suggestions`,
+      tags: [CANDIDATE_TAG],
+    })
+    .input(idParamSchema)
+    .output(z.object({ suggestions: z.array(metaDeckMatchSuggestionSchema) })),
 };
 
 export type AdminMetaCandidatesContract = typeof adminMetaCandidatesContract;

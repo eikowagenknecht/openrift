@@ -6,10 +6,11 @@
  * view, the ingest pass (which auto-settles rows that match live) and the accept
  * path all read the same verdict. Nothing in this module touches the database.
  *
- * The archive has one or two sources, so accepts are whole-entity with a diff
- * view rather than the card pipeline's per-field compare grid. These diffs
- * exist to show a reviewer what will change, and to answer "is this row already
- * identical to live?" — not to be merged field by field.
+ * A diff exists to show a reviewer what will change, and to answer "is this row
+ * already identical to live?". It is not itself the merge: since migration 255
+ * several sources fan into one live event, and taking one source's value for
+ * one field is `acceptMetaEventField` in `meta-candidate-accept.ts`, which
+ * reads the same field list this module compares.
  */
 import type { DiffValue } from "@openrift/shared/response-schemas";
 import type { MetaListStatus } from "@openrift/shared/types";
@@ -21,14 +22,18 @@ export interface MetaFieldDiff {
   to: DiffValue;
 }
 
-/** The event fields a candidate can propose. `slug` is not among them — it is minted at accept. */
+/**
+ * The event fields a candidate can propose. `slug` is not among them — it is
+ * minted at accept. Neither is `source_url`: migration 255 moved attribution to
+ * `meta_event_sources`, where a candidate's URL becomes that provider's
+ * citation when it is linked, so it is never a field the live row disagrees on.
+ */
 export interface MetaEventFields {
   name: string;
   eventDate: string;
   format: string;
   playerCount: number | null;
   organizer: string | null;
-  sourceUrl: string | null;
   notes: string | null;
 }
 
@@ -89,7 +94,6 @@ const EVENT_FIELDS = [
   "format",
   "playerCount",
   "organizer",
-  "sourceUrl",
   "notes",
 ] as const satisfies readonly (keyof MetaEventFields)[];
 

@@ -48,7 +48,6 @@ describe("validateMetaEventDraft", () => {
     const draft = eventDraft({
       playerCount: "128",
       organizer: "LGS Berlin",
-      sourceUrl: "https://example.invalid/results",
       notes: "Top cut only.",
     });
     expect(validateMetaEventDraft(draft)).toBeNull();
@@ -116,7 +115,6 @@ describe("metaEventDraftToBody", () => {
     const body = metaEventDraftToBody(eventDraft());
     expect(body.playerCount).toBeNull();
     expect(body.organizer).toBeNull();
-    expect(body.sourceUrl).toBeNull();
     expect(body.notes).toBeNull();
   });
 
@@ -135,7 +133,6 @@ describe("metaEventToDraft", () => {
       format: "standard",
       playerCount: 96,
       organizer: "Riot Games",
-      sourceUrl: "https://example.invalid/vod",
       notes: "Swiss into top 8.",
       deckCount: 8,
     };
@@ -147,7 +144,6 @@ describe("metaEventToDraft", () => {
       format: "standard",
       playerCount: 96,
       organizer: "Riot Games",
-      sourceUrl: "https://example.invalid/vod",
       notes: "Swiss into top 8.",
     });
   });
@@ -161,14 +157,12 @@ describe("metaEventToDraft", () => {
       format: "standard",
       playerCount: null,
       organizer: null,
-      sourceUrl: null,
       notes: null,
       deckCount: 0,
     };
     const draft = metaEventToDraft(event);
     expect(draft.playerCount).toBe("");
     expect(draft.organizer).toBe("");
-    expect(draft.sourceUrl).toBe("");
     expect(draft.notes).toBe("");
   });
 });

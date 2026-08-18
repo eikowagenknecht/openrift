@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2pVwE1k1IOCEHNpaAcgvR59svUKiV1S8zQl4v5Pqex2hPV6D9gf7nfC0o9fl8p7
+\restrict txFjyZFm45vmbvxnwFsHFItcEhRyhi9szohMxdwIkdRb7gYgaZ3DtRpFOxjHAvK
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -797,7 +797,7 @@ CREATE TABLE public.candidate_cards (
 
 CREATE TABLE public.candidate_meta_decks (
     id uuid DEFAULT uuidv7() NOT NULL,
-    candidate_event_id uuid NOT NULL,
+    candidate_event_id uuid,
     external_id text NOT NULL,
     player_name text NOT NULL,
     finish_tier integer NOT NULL,
@@ -809,13 +809,18 @@ CREATE TABLE public.candidate_meta_decks (
     checked_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    meta_event_id uuid,
+    submitted_by_user_id text,
+    submission_note text,
     CONSTRAINT chk_candidate_meta_decks_cards_shape CHECK (((cards IS NULL) OR (jsonb_typeof(cards) = 'array'::text))),
     CONSTRAINT chk_candidate_meta_decks_external_id CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_candidate_meta_decks_finish_tier CHECK ((finish_tier >= 1)),
     CONSTRAINT chk_candidate_meta_decks_list_status CHECK ((list_status = ANY (ARRAY['full'::text, 'partial'::text, 'archetype'::text]))),
     CONSTRAINT chk_candidate_meta_decks_name CHECK (((name IS NULL) OR ((length(name) >= 1) AND (length(name) <= 120)))),
+    CONSTRAINT chk_candidate_meta_decks_parent CHECK ((num_nonnulls(candidate_event_id, meta_event_id) = 1)),
     CONSTRAINT chk_candidate_meta_decks_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
-    CONSTRAINT chk_candidate_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20))))
+    CONSTRAINT chk_candidate_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20)))),
+    CONSTRAINT chk_candidate_meta_decks_submission_note CHECK ((submission_note <> ''::text))
 );
 
 
@@ -2162,6 +2167,53 @@ CREATE TABLE public.marketplace_products (
 
 
 --
+-- Name: meta_credits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_credits (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    meta_event_id uuid NOT NULL,
+    deck_id uuid,
+    user_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: meta_deck_submissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_deck_submissions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    provider text NOT NULL,
+    external_id text NOT NULL,
+    candidate_meta_deck_id uuid,
+    meta_event_id uuid,
+    event_name text NOT NULL,
+    player_name text NOT NULL,
+    note text,
+    status text DEFAULT 'pending'::text NOT NULL,
+    resolution_reason text,
+    resolution_note text,
+    resolved_at timestamp with time zone,
+    resolved_by_user_id text,
+    accepted_deck_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_meta_deck_submissions_event_name CHECK (((length(event_name) >= 1) AND (length(event_name) <= 120))),
+    CONSTRAINT chk_meta_deck_submissions_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_meta_deck_submissions_note CHECK ((note <> ''::text)),
+    CONSTRAINT chk_meta_deck_submissions_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_meta_deck_submissions_provider CHECK ((provider <> ''::text)),
+    CONSTRAINT chk_meta_deck_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'incomplete_list'::text, 'not_an_event'::text])))),
+    CONSTRAINT chk_meta_deck_submissions_resolution_note CHECK ((resolution_note <> ''::text)),
+    CONSTRAINT chk_meta_deck_submissions_resolved_at CHECK (((status = 'pending'::text) = (resolved_at IS NULL))),
+    CONSTRAINT chk_meta_deck_submissions_status CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'already_correct'::text, 'not_applied'::text, 'rejected'::text])))
+);
+
+
+--
 -- Name: meta_decks; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2174,17 +2226,30 @@ CREATE TABLE public.meta_decks (
     list_status text DEFAULT 'full'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    source_provider text,
-    source_external_id text,
-    source_event_external_id text,
     CONSTRAINT chk_meta_decks_finish_tier CHECK ((finish_tier >= 1)),
     CONSTRAINT chk_meta_decks_list_status CHECK ((list_status = ANY (ARRAY['full'::text, 'partial'::text, 'archetype'::text]))),
     CONSTRAINT chk_meta_decks_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
-    CONSTRAINT chk_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20)))),
-    CONSTRAINT chk_meta_decks_source_event_external_id CHECK ((source_event_external_id <> ''::text)),
-    CONSTRAINT chk_meta_decks_source_external_id CHECK ((source_external_id <> ''::text)),
-    CONSTRAINT chk_meta_decks_source_provider CHECK ((source_provider <> ''::text)),
-    CONSTRAINT chk_meta_decks_source_shape CHECK ((num_nonnulls(source_provider, source_event_external_id, source_external_id) = ANY (ARRAY[0, 3])))
+    CONSTRAINT chk_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20))))
+);
+
+
+--
+-- Name: meta_event_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_event_sources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    meta_event_id uuid NOT NULL,
+    provider text,
+    external_id text,
+    label text NOT NULL,
+    source_url text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_meta_event_sources_external_id CHECK (((external_id IS NULL) OR (external_id <> ''::text))),
+    CONSTRAINT chk_meta_event_sources_key_shape CHECK (((provider IS NULL) = (external_id IS NULL))),
+    CONSTRAINT chk_meta_event_sources_label CHECK (((length(label) >= 1) AND (length(label) <= 60))),
+    CONSTRAINT chk_meta_event_sources_provider CHECK (((provider IS NULL) OR (provider <> ''::text))),
+    CONSTRAINT chk_meta_event_sources_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000))))
 );
 
 
@@ -2200,21 +2265,14 @@ CREATE TABLE public.meta_events (
     format text NOT NULL,
     player_count integer,
     organizer text,
-    source_url text,
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    source_provider text,
-    source_external_id text,
     CONSTRAINT chk_meta_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_meta_events_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_meta_events_organizer CHECK (((organizer IS NULL) OR ((length(organizer) >= 1) AND (length(organizer) <= 120)))),
     CONSTRAINT chk_meta_events_player_count CHECK (((player_count IS NULL) OR (player_count > 0))),
-    CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text)),
-    CONSTRAINT chk_meta_events_source_external_id CHECK ((source_external_id <> ''::text)),
-    CONSTRAINT chk_meta_events_source_provider CHECK ((source_provider <> ''::text)),
-    CONSTRAINT chk_meta_events_source_shape CHECK (((source_provider IS NULL) = (source_external_id IS NULL))),
-    CONSTRAINT chk_meta_events_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000))))
+    CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text))
 );
 
 
@@ -2996,7 +3054,9 @@ CREATE TABLE public.users (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     share_token text,
-    riot_id text
+    riot_id text,
+    meta_credit_visibility text DEFAULT 'hidden'::text NOT NULL,
+    CONSTRAINT chk_users_meta_credit_visibility CHECK ((meta_credit_visibility = ANY (ARRAY['hidden'::text, 'name'::text, 'riot_id'::text])))
 );
 
 
@@ -3775,11 +3835,35 @@ ALTER TABLE ONLY public.marketplace_products
 
 
 --
+-- Name: meta_credits meta_credits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_credits
+    ADD CONSTRAINT meta_credits_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: meta_decks meta_decks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.meta_decks
     ADD CONSTRAINT meta_decks_pkey PRIMARY KEY (deck_id);
+
+
+--
+-- Name: meta_event_sources meta_event_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_sources
+    ADD CONSTRAINT meta_event_sources_pkey PRIMARY KEY (id);
 
 
 --
@@ -4426,6 +4510,13 @@ CREATE INDEX idx_candidate_meta_decks_deck ON public.candidate_meta_decks USING 
 
 
 --
+-- Name: idx_candidate_meta_decks_meta_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_candidate_meta_decks_meta_event ON public.candidate_meta_decks USING btree (meta_event_id) WHERE (meta_event_id IS NOT NULL);
+
+
+--
 -- Name: idx_candidate_printings_card_external_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4853,10 +4944,45 @@ CREATE INDEX idx_marketplace_products_norm_name_trgm ON public.marketplace_produ
 
 
 --
+-- Name: idx_meta_credits_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_credits_event ON public.meta_credits USING btree (meta_event_id);
+
+
+--
+-- Name: idx_meta_credits_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_credits_user ON public.meta_credits USING btree (user_id);
+
+
+--
+-- Name: idx_meta_deck_submissions_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_deck_submissions_user_created ON public.meta_deck_submissions USING btree (user_id, created_at DESC, id DESC);
+
+
+--
+-- Name: idx_meta_deck_submissions_user_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_deck_submissions_user_status ON public.meta_deck_submissions USING btree (user_id, status);
+
+
+--
 -- Name: idx_meta_decks_event_finish; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_meta_decks_event_finish ON public.meta_decks USING btree (meta_event_id, finish_tier);
+
+
+--
+-- Name: idx_meta_event_sources_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_event_sources_event ON public.meta_event_sources USING btree (meta_event_id);
 
 
 --
@@ -5133,6 +5259,13 @@ CREATE UNIQUE INDEX uq_accounts_provider_account ON public.accounts USING btree 
 
 
 --
+-- Name: uq_candidate_meta_decks_submission; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_candidate_meta_decks_submission ON public.candidate_meta_decks USING btree (meta_event_id, external_id) WHERE (meta_event_id IS NOT NULL);
+
+
+--
 -- Name: uq_card_bans_active; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5238,17 +5371,24 @@ CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree 
 
 
 --
--- Name: uq_meta_decks_source; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_meta_credits_contribution; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_meta_decks_source ON public.meta_decks USING btree (source_provider, source_event_external_id, source_external_id) WHERE ((source_provider IS NOT NULL) AND (source_event_external_id IS NOT NULL) AND (source_external_id IS NOT NULL));
+CREATE UNIQUE INDEX uq_meta_credits_contribution ON public.meta_credits USING btree (meta_event_id, user_id, deck_id) NULLS NOT DISTINCT;
 
 
 --
--- Name: uq_meta_events_source; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_meta_deck_submissions_provider_external; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_meta_events_source ON public.meta_events USING btree (source_provider, source_external_id) WHERE ((source_provider IS NOT NULL) AND (source_external_id IS NOT NULL));
+CREATE UNIQUE INDEX uq_meta_deck_submissions_provider_external ON public.meta_deck_submissions USING btree (provider, external_id);
+
+
+--
+-- Name: uq_meta_event_sources_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_meta_event_sources_key ON public.meta_event_sources USING btree (provider, external_id) WHERE (provider IS NOT NULL);
 
 
 --
@@ -5756,6 +5896,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products F
 
 
 --
+-- Name: meta_deck_submissions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_deck_submissions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: meta_decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5991,6 +6138,22 @@ ALTER TABLE ONLY public.candidate_meta_decks
 
 ALTER TABLE ONLY public.candidate_meta_decks
     ADD CONSTRAINT candidate_meta_decks_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_decks candidate_meta_decks_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_decks
+    ADD CONSTRAINT candidate_meta_decks_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: candidate_meta_decks candidate_meta_decks_submitted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_decks
+    ADD CONSTRAINT candidate_meta_decks_submitted_by_user_id_fkey FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -6962,6 +7125,70 @@ ALTER TABLE ONLY public.marketplace_product_card_overrides
 
 
 --
+-- Name: meta_credits meta_credits_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_credits
+    ADD CONSTRAINT meta_credits_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_credits meta_credits_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_credits
+    ADD CONSTRAINT meta_credits_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_credits meta_credits_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_credits
+    ADD CONSTRAINT meta_credits_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_accepted_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_accepted_deck_id_fkey FOREIGN KEY (accepted_deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_candidate_meta_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_candidate_meta_deck_id_fkey FOREIGN KEY (candidate_meta_deck_id) REFERENCES public.candidate_meta_decks(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_resolved_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_resolved_by_user_id_fkey FOREIGN KEY (resolved_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_deck_submissions meta_deck_submissions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_submissions
+    ADD CONSTRAINT meta_deck_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: meta_decks meta_decks_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6975,6 +7202,14 @@ ALTER TABLE ONLY public.meta_decks
 
 ALTER TABLE ONLY public.meta_decks
     ADD CONSTRAINT meta_decks_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_event_sources meta_event_sources_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_sources
+    ADD CONSTRAINT meta_event_sources_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
 
 
 --
@@ -7325,5 +7560,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2pVwE1k1IOCEHNpaAcgvR59svUKiV1S8zQl4v5Pqex2hPV6D9gf7nfC0o9fl8p7
+\unrestrict txFjyZFm45vmbvxnwFsHFItcEhRyhi9szohMxdwIkdRb7gYgaZ3DtRpFOxjHAvK
 

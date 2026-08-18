@@ -25,11 +25,45 @@ export const metaEventSummarySchema = z
   })
   .openapi("MetaEventSummary");
 
-/** The summary plus the fields only the event's own page renders. */
+/**
+ * One citation on an event: where a slice of its data came from (ADR-014,
+ * migration 255). Public, and never a contributor — a person is credited
+ * through the event's `contributors` line instead.
+ *
+ * `provider` and `externalId` are null together for a hand-entered citation (a
+ * VOD, a photo of the standings board). They travel on the public payload
+ * because neither is a secret and the admin review screen keys its source
+ * columns on them.
+ */
+export const metaEventSourceSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string().nullable(),
+    externalId: z.string().nullable(),
+    /** What the page prints, e.g. "uvsgames" or "Twitch VOD". */
+    label: z.string(),
+    sourceUrl: z.string().nullable(),
+  })
+  .openapi("MetaEventSource");
+
+/**
+ * The summary plus the fields only the event's own page renders.
+ *
+ * `sourceUrl` is gone (migration 255): one column held one link, and an event
+ * fed by two sources owes both a credit. `sources` is that list, in a stable
+ * order (provider citations first, then oldest first).
+ *
+ * `contributors` are display names already resolved and already filtered:
+ * anyone whose `meta_credit_visibility` is `hidden`, and anyone whose chosen
+ * profile field is blank, is absent from the array entirely. Plain text with no
+ * profile link behind it, because linking a credit to a profile is a separate
+ * consent question.
+ */
 export const metaEventDetailSchema = metaEventSummarySchema
   .extend({
-    sourceUrl: z.string().nullable(),
     notes: z.string().nullable(),
+    sources: z.array(metaEventSourceSchema),
+    contributors: z.array(z.string()),
   })
   .openapi("MetaEventDetail");
 
@@ -108,6 +142,16 @@ export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
       playerName: z.string(),
       finishTier: z.number().int(),
       record: z.string().nullable(),
+      /**
+       * Who added this deck to the archive, as the page prints them: display
+       * names already resolved and already filtered by
+       * `meta_credit_visibility`, never user ids. Empty when nobody is credited
+       * or everybody who is has opted out.
+       *
+       * The deck's own line, not the event's: a contributor's name on the
+       * specific list they typed in is the thing they submitted for.
+       */
+      contributors: z.array(z.string()),
     }),
   })
   .openapi("MetaDeckDetailResponse");

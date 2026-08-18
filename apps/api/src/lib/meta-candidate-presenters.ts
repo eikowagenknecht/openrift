@@ -2,6 +2,7 @@ import type {
   MetaCandidateDeck,
   MetaCandidateDetail,
   MetaCandidateQueueRow,
+  MetaCandidateSource,
 } from "@openrift/shared";
 
 import type {
@@ -74,6 +75,9 @@ function toCardDiffResponse(diff: MetaDeckCardDiff, cardNames: CardNames): CardD
  * @param options.shareToken The linked live deck's permalink, or null.
  * @param options.cardNames Display names for the cards the diff mentions.
  * @param options.eventNames Display names for the live events the diff mentions.
+ * @param options.submittedByName The submitter's display name, for a user
+ *   submission. Null for a provider's deck, and for a submitter who never set a
+ *   name or whose account is gone.
  * @returns The deck as the review screen reads it.
  */
 export function toMetaCandidateDeck(
@@ -83,6 +87,7 @@ export function toMetaCandidateDeck(
     shareToken: string | null;
     cardNames: CardNames;
     eventNames: ReadonlyMap<string, string>;
+    submittedByName?: string | null;
   },
 ): MetaCandidateDeck {
   const { diff, shareToken, cardNames, eventNames } = options;
@@ -103,6 +108,9 @@ export function toMetaCandidateDeck(
     unresolvedNames: unresolvedCardNames(deck),
     deckId: deck.deckId,
     shareToken,
+    submittedByUserId: deck.submittedByUserId,
+    submittedByName: options.submittedByName ?? null,
+    submissionNote: deck.submissionNote,
     state: metaCandidateState(deck.deckId !== null, diff !== null && hasDeckDiff(diff)),
     diff:
       diff === null
@@ -164,6 +172,10 @@ export function toMetaCandidateQueueRow(
  * @param options.formatKnown Whether `event.format` exists in `deck_formats`.
  * @param options.metaEventSlug The linked live event's slug, or null.
  * @param options.decks Its decks, already presented.
+ * @param options.sources Every candidate on the same live event, this one
+ *   included, so the review screen gets one column per source.
+ * @param options.submittedDecks Candidate decks attached to the live event
+ *   directly — user submissions, which belong to no source column.
  * @returns The detail response.
  */
 export function toMetaCandidateDetail(
@@ -173,6 +185,8 @@ export function toMetaCandidateDetail(
     formatKnown: boolean;
     metaEventSlug: string | null;
     decks: MetaCandidateDeck[];
+    sources: MetaCandidateSource[];
+    submittedDecks: MetaCandidateDeck[];
   },
 ): MetaCandidateDetail {
   return {
@@ -194,5 +208,36 @@ export function toMetaCandidateDetail(
     diff: options.diff,
     checkedAt: event.checkedAt?.toISOString() ?? null,
     decks: options.decks,
+    sources: options.sources,
+    submittedDecks: options.submittedDecks,
+  };
+}
+
+/**
+ * One source's column in the review grid: its key, the values it proposes, and
+ * the decks it holds. The live values it is compared against are the event's
+ * own row, which the caller already has.
+ *
+ * @param event The candidate event this source pushed.
+ * @param decks Its decks, already presented.
+ * @returns The source row.
+ */
+export function toMetaCandidateSource(
+  event: CandidateMetaEventRow,
+  decks: MetaCandidateDeck[],
+): MetaCandidateSource {
+  return {
+    id: event.id,
+    provider: event.provider,
+    externalId: event.externalId,
+    name: event.name,
+    eventDate: event.eventDate,
+    format: event.format,
+    playerCount: event.playerCount,
+    organizer: event.organizer,
+    sourceUrl: event.sourceUrl,
+    notes: event.notes,
+    checkedAt: event.checkedAt?.toISOString() ?? null,
+    decks,
   };
 }

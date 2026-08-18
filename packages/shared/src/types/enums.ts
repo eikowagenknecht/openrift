@@ -91,3 +91,54 @@ export type MetaListStatus = "full" | "partial" | "archetype";
 
 /** The {@link MetaListStatus} values, in decreasing completeness. */
 export const META_LIST_STATUSES = ["full", "partial", "archetype"] as const;
+
+/**
+ * Whether a contributor's name appears on the meta archive pages they
+ * contributed to, and which of their profile fields it reads (ADR-014).
+ *
+ * Credit rows are always written; this is what the public read filters on, so
+ * opting in later credits every past contribution and opting out removes them
+ * all without touching an archive row. `riot_id` falls back to the display name
+ * when the Riot ID is unset.
+ */
+export type MetaCreditVisibility = "hidden" | "name" | "riot_id";
+
+/** The {@link MetaCreditVisibility} values. */
+export const META_CREDIT_VISIBILITIES = ["hidden", "name", "riot_id"] as const;
+
+/**
+ * Where a user's decklist submission ended up (ADR-014, ADR-036). Same
+ * vocabulary as `card_submissions.status`, so the two ledgers read alike.
+ */
+export type MetaSubmissionStatus =
+  | "pending"
+  | "accepted"
+  | "already_correct"
+  | "not_applied"
+  | "rejected";
+
+/** The {@link MetaSubmissionStatus} values. */
+export const META_SUBMISSION_STATUSES = [
+  "pending",
+  "accepted",
+  "already_correct",
+  "not_applied",
+  "rejected",
+] as const;
+
+/** Why an admin resolved a decklist submission without accepting it. */
+export type MetaSubmissionReason =
+  | "duplicate"
+  | "already_correct"
+  | "unverified"
+  | "incomplete_list"
+  | "not_an_event";
+
+/** The {@link MetaSubmissionReason} values. */
+export const META_SUBMISSION_REASONS = [
+  "duplicate",
+  "already_correct",
+  "unverified",
+  "incomplete_list",
+  "not_an_event",
+] as const;

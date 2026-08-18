@@ -57,6 +57,13 @@ export const queryKeys = {
     stats: (format?: string, dateFrom?: string, dateTo?: string) =>
       ["meta", "stats", format ?? null, dateFrom ?? null, dateTo ?? null] as const,
   },
+  // The archive's signed-in surfaces (ADR-014): a contributor's own decklist
+  // submissions and their credit setting. Both are scoped to the session user
+  // server-side, so the id here only keys the cache.
+  metaSubmissions: {
+    all: (userId: string) => ["meta-submissions", userId] as const,
+    creditVisibility: (userId: string) => ["meta-submissions", userId, "credit"] as const,
+  },
   init: {
     all: ["init"] as const,
   },
@@ -325,11 +332,24 @@ export const queryKeys = {
     meta: {
       events: ["admin", "meta", "events"] as const,
       eventDecks: (eventId: string) => ["admin", "meta", "events", eventId, "decks"] as const,
+      // The event's citation list. Nested under `events` so an event write that
+      // invalidates the list refetches the citations of whichever event is open.
+      eventSources: (eventId: string) => ["admin", "meta", "events", eventId, "sources"] as const,
       // The candidate review queue (ADR-014). `candidate` nests under
       // `candidates` on purpose, so invalidating the queue also refetches any
       // open detail.
       candidates: ["admin", "meta", "candidates"] as const,
       candidate: (candidateId: string) => ["admin", "meta", "candidates", candidateId] as const,
+      // Ranked link targets for an unlinked candidate. Under `candidates` for
+      // the same reason: linking one is what makes its suggestions stale.
+      eventSuggestions: (candidateId: string) =>
+        ["admin", "meta", "candidates", candidateId, "match-suggestions"] as const,
+      deckSuggestions: (candidateDeckId: string) =>
+        ["admin", "meta", "candidate-decks", candidateDeckId, "match-suggestions"] as const,
+      // The ledger row behind one candidate deck (ADR-014's user submissions).
+      // Null for a provider's deck, which is an answer and gets cached as one.
+      submissionForDeck: (candidateDeckId: string) =>
+        ["admin", "meta", "candidate-decks", candidateDeckId, "submission"] as const,
       ignored: ["admin", "meta", "ignored-candidates"] as const,
     },
     customTags: ["admin", "custom-tags"] as const,

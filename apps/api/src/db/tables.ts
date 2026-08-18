@@ -34,7 +34,10 @@ import type {
   LoanStatus,
   Marketplace,
   MarketplaceGroupKind,
+  MetaCreditVisibility,
   MetaListStatus,
+  MetaSubmissionReason,
+  MetaSubmissionStatus,
   OrganizationRole,
   OverlayPayload,
   PodResultStatus,
@@ -353,6 +356,13 @@ interface UsersTable {
   image: string | null;
   shareToken: string | null;
   riotId: string | null;
+  /**
+   * DEFAULT 'hidden'. CHECK: one of 'hidden' / 'name' / 'riot_id' (migration
+   * 255). Whether this user's meta-archive contributions are credited
+   * publicly, and which field the credit reads. Consent cannot live on the
+   * credit row because the name is resolved at render.
+   */
+  metaCreditVisibility: Generated<MetaCreditVisibility>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -551,7 +561,9 @@ export type AdminEventAction =
   | "ban.delete"
   | "provider.delete-candidates"
   | "candidates.upload"
-  | "meta-candidates.upload";
+  | "meta-candidates.upload"
+  | "meta-submission.resolve"
+  | "meta-submission.reopen";
 
 /** Entity vocabulary for {@link AdminEventsTable}. */
 export type AdminEventEntityType =
@@ -560,6 +572,7 @@ export type AdminEventEntityType =
   | "candidate-card"
   | "candidate-printing"
   | "card-submission"
+  | "meta-submission"
   | "image"
   | "errata"
   | "ban"
@@ -865,19 +878,12 @@ export interface MetaEventsTable {
   playerCount: number | null;
   /** CHECK: NULL or length 1..120 — free text, e.g. "Riot Games" */
   organizer: string | null;
-  /** CHECK: NULL or length 1..2000 — canonical external link, rendered as attribution */
-  sourceUrl: string | null;
   /** Markdown. CHECK: NULL or length <= 4000 */
   notes: string | null;
-  /**
-   * Which ingest provider this event was accepted from (migration 236), NULL
-   * for a hand-entered event. Together with {@link sourceExternalId} it is what
-   * a later upload matches on to find this row and diff against it. Partial
-   * UNIQUE index over both columns, where both are NOT NULL.
-   */
-  sourceProvider: string | null;
-  /** The provider's own id for this event. See {@link sourceProvider}. */
-  sourceExternalId: string | null;
+  // No source key and no source URL: migration 255 moved both off the live
+  // row. Attribution is {@link MetaEventSourcesTable}, and the link to a
+  // provider is the candidate-side FK, which is many-to-one so several
+  // sources can feed one event.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -908,17 +914,9 @@ export interface MetaDecksTable {
    * of 'archetype' is what mints the token.
    */
   listStatus: Generated<MetaListStatus>;
-  /** Ingest provider this deck was accepted from (migration 236); NULL when hand-entered. */
-  sourceProvider: string | null;
-  /** The provider's own id for this deck's event. See {@link sourceExternalId}. */
-  sourceEventExternalId: string | null;
-  /**
-   * The provider's own id for this deck, scoped to its event — sources number
-   * their lists per event, so only the triple with {@link sourceProvider} and
-   * {@link sourceEventExternalId} identifies a deck. Partial UNIQUE index over
-   * all three, where all three are NOT NULL.
-   */
-  sourceExternalId: string | null;
+  // No source key: migration 255 moved it to the candidate side, where
+  // `candidate_meta_decks.deck_id` is many-to-one, so two providers can both
+  // describe one archived deck.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -986,8 +984,15 @@ export interface CandidateMetaDeckCard {
  */
 export interface CandidateMetaDecksTable {
   id: Generated<string>;
-  /** FK → candidate_meta_events.id ON DELETE CASCADE */
-  candidateEventId: string;
+  /**
+   * FK → candidate_meta_events.id ON DELETE CASCADE. NULL for a user
+   * submission, which targets a live event directly through
+   * {@link metaEventId} rather than inventing a placeholder candidate event.
+   * CHECK: exactly one of the two is set (migration 255).
+   */
+  candidateEventId: string | null;
+  /** FK → meta_events.id ON DELETE CASCADE. See {@link candidateEventId}. */
+  metaEventId: string | null;
   /** CHECK: <> '' */
   externalId: string;
   /** CHECK: length 1..80 */
@@ -1009,6 +1014,14 @@ export interface CandidateMetaDecksTable {
   listStatus: Generated<MetaListStatus>;
   /** FK → decks.id ON DELETE SET NULL — the live archived deck this became. */
   deckId: string | null;
+  /**
+   * FK → users.id ON DELETE SET NULL (migration 255). Set for the
+   * `usersubmission` provider only; scraped providers leave it NULL. Copied
+   * from `candidate_cards`, and admin-facing: nothing public reads it.
+   */
+  submittedByUserId: string | null;
+  /** What the submitter wrote about their submission. CHECK: <> ''. */
+  submissionNote: string | null;
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -1040,6 +1053,97 @@ interface IgnoredCandidateMetaDecksTable {
   /** PK part. CHECK: <> '' */
   externalId: string;
   createdAt: CreatedAt;
+}
+
+// ─── Meta archive multi-source (migration 255, ADR-014) ─────────────────────
+
+/**
+ * Where an event's data came from, one row per source (migration 255). This is
+ * a citation, public and printed on the event page. It never carries a user: a
+ * contributor is credited through {@link MetaCreditsTable} instead.
+ *
+ * A provider row is written when that provider's candidate is linked and
+ * removed when it is unlinked, so linking a source credits it even when the
+ * admin took none of its field values. A hand-entered row leaves the key NULL,
+ * for an admin transcribing from a VOD or a photo of the standings board.
+ */
+export interface MetaEventSourcesTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE */
+  metaEventId: string;
+  /** NULL together with {@link externalId} for a hand-entered citation. CHECK: <> ''. */
+  provider: string | null;
+  /** The provider's own id for the event. See {@link provider}. */
+  externalId: string | null;
+  /** What the event page prints, e.g. "uvsgames" or "Twitch VOD". CHECK: length 1..60. */
+  label: string;
+  /** CHECK: NULL or length 1..2000. A back-reference, never a fetch target. */
+  sourceUrl: string | null;
+  createdAt: CreatedAt;
+}
+
+/**
+ * One contribution by a signed-in user, written in the same transaction as the
+ * accept it belongs to (migration 255). Never written for provider ingest or
+ * hand entry.
+ *
+ * The row holds the user id and nothing else on purpose: a credit points at a
+ * person, so it follows their rename, their profile fields, and their account
+ * deletion with no sweep across rows. Whether it is shown is
+ * `users.meta_credit_visibility`, read at render.
+ */
+export interface MetaCreditsTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE */
+  metaEventId: string;
+  /** FK → decks.id ON DELETE CASCADE. NULL credits the event itself. */
+  deckId: string | null;
+  /** FK → users.id ON DELETE CASCADE — deleting an account removes its credits. */
+  userId: string;
+  createdAt: CreatedAt;
+}
+
+/**
+ * The outcome ledger for user decklist submissions (migration 255), shaped
+ * like `card_submissions` (ADR-036). Provider uploads get none: those sources
+ * are the maintainer's own tooling, and staging's presence semantics suffice.
+ *
+ * Every FK out of this row is ON DELETE SET NULL except the submitter's, so
+ * the ledger keeps reading correctly after the candidate is accepted, the
+ * target event is deleted, or the deck is removed.
+ */
+export interface MetaDeckSubmissionsTable {
+  id: Generated<string>;
+  /** FK → users.id ON DELETE CASCADE */
+  userId: string;
+  /** CHECK: <> '' — `usersubmission` today, matching the candidate's provider. */
+  provider: string;
+  /** CHECK: <> '' — per-submission id, UNIQUE with {@link provider}. */
+  externalId: string;
+  /** FK → candidate_meta_decks.id ON DELETE SET NULL */
+  candidateMetaDeckId: string | null;
+  /** FK → meta_events.id ON DELETE SET NULL — the event this targets, when it has one. */
+  metaEventId: string | null;
+  /** What the submitter called the event, so the row still reads without a target. CHECK: length 1..120. */
+  eventName: string;
+  /** CHECK: length 1..80 */
+  playerName: string;
+  /** The submitter's own note. CHECK: <> ''. */
+  note: string | null;
+  /** DEFAULT 'pending'. CHECK: one of the {@link MetaSubmissionStatus} values. */
+  status: Generated<MetaSubmissionStatus>;
+  /** CHECK: NULL or one of the {@link MetaSubmissionReason} values. */
+  resolutionReason: MetaSubmissionReason | null;
+  /** What the admin told the submitter. CHECK: <> ''. */
+  resolutionNote: string | null;
+  /** CHECK: set exactly when {@link status} is not 'pending'. */
+  resolvedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  /** FK → users.id ON DELETE SET NULL */
+  resolvedByUserId: string | null;
+  /** FK → decks.id ON DELETE SET NULL — the archived deck an accept produced. */
+  acceptedDeckId: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
 }
 
 /**
@@ -2416,6 +2520,9 @@ export interface Database {
   candidateMetaDecks: CandidateMetaDecksTable;
   ignoredCandidateMetaEvents: IgnoredCandidateMetaEventsTable;
   ignoredCandidateMetaDecks: IgnoredCandidateMetaDecksTable;
+  metaEventSources: MetaEventSourcesTable;
+  metaCredits: MetaCreditsTable;
+  metaDeckSubmissions: MetaDeckSubmissionsTable;
 
   // Tier lists (migration 237)
   tierLists: TierListsTable;

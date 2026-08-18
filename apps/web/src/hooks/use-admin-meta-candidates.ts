@@ -4,10 +4,19 @@ import type {
   AcceptedMetaEventWithDecksResponse,
   MetaCandidateDetail,
   MetaCandidateQueueRow,
+  MetaDeckLinkResult,
+  MetaDeckMatchSuggestion,
+  MetaEventLinkResult,
+  MetaEventMatchSuggestion,
   MetaUploadBody,
   MetaUploadResponse,
 } from "@openrift/shared";
+import type {
+  MetaDeckAcceptField,
+  MetaEventAcceptField,
+} from "@openrift/shared/contracts/admin/meta";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -176,41 +185,90 @@ export function useResolveMetaCandidateName() {
 // Event review actions
 // ---------------------------------------------------------------------------
 
+/**
+ * What a whole-source accept did. The refusal is a return value rather than a
+ * thrown error because it is a question, not a failure: the live event also
+ * carries another source's values, and the answer is either "yes, overwrite" —
+ * a retry with `overwriteAll` — or "no, take the fields one at a time". Letting
+ * it throw would put it in the global error toast, where it reads as a bug and
+ * offers the admin nothing to do about it.
+ */
+export type MetaAcceptEventResult =
+  | { status: "accepted"; event: AcceptedMetaEventResponse }
+  | { status: "needsOverwriteConfirm"; message: string };
+
+/** The same, for the accept that takes the event's ready decks with it. */
+export type MetaAcceptEventWithDecksResult =
+  | { status: "accepted"; event: AcceptedMetaEventWithDecksResponse }
+  | { status: "needsOverwriteConfirm"; message: string };
+
+/** An accept, with the confirmation the multi-source guard asks for. */
+export interface AcceptMetaEventInput {
+  id: string;
+  /** Only ever true on a retry the admin confirmed. */
+  overwriteAll?: boolean;
+}
+
 const acceptMetaCandidateEventFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string }) => input)
+  .validator((input: AcceptMetaEventInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<AcceptedMetaEventResponse> =>
-    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptEvent({ id: data.id }),
-  );
+  .handler(async ({ context, data }): Promise<MetaAcceptEventResult> => {
+    const { error, data: event } = await safe(
+      apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptEvent({
+        id: data.id,
+        overwriteAll: data.overwriteAll ?? false,
+      }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "OVERWRITE_NOT_CONFIRMED") {
+        return { status: "needsOverwriteConfirm", message: error.message };
+      }
+      throw error;
+    }
+    return { status: "accepted", event };
+  });
 
 /**
  * Accepts a candidate event into the archive, creating or updating the live row.
+ * Resolves with a refusal instead of throwing when a second source feeds the
+ * event and the overwrite was not confirmed.
  *
- * @returns The mutation; resolves with the live event's id and slug.
+ * @returns The mutation; resolves with the live event, or the refusal to confirm.
  */
 export function useAcceptMetaCandidateEvent() {
-  return useMutationWithInvalidation<AcceptedMetaEventResponse, { id: string }>({
+  return useMutationWithInvalidation<MetaAcceptEventResult, AcceptMetaEventInput>({
     mutationFn: (vars) => acceptMetaCandidateEventFn({ data: vars }),
     invalidates: ALL_META_KEYS,
   });
 }
 
 const acceptMetaCandidateEventWithDecksFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string }) => input)
+  .validator((input: AcceptMetaEventInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<AcceptedMetaEventWithDecksResponse> =>
-    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptEventWithDecks({
-      id: data.id,
-    }),
-  );
+  .handler(async ({ context, data }): Promise<MetaAcceptEventWithDecksResult> => {
+    const { error, data: event } = await safe(
+      apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptEventWithDecks({
+        id: data.id,
+        overwriteAll: data.overwriteAll ?? false,
+      }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "OVERWRITE_NOT_CONFIRMED") {
+        return { status: "needsOverwriteConfirm", message: error.message };
+      }
+      throw error;
+    }
+    return { status: "accepted", event };
+  });
 
 /**
  * Accepts a candidate event together with every deck under it that is ready.
  *
- * @returns The mutation; resolves with the accepted and skipped decks.
+ * @returns The mutation; resolves with the accepted and skipped decks, or the
+ *   refusal to confirm.
  */
 export function useAcceptMetaCandidateEventWithDecks() {
-  return useMutationWithInvalidation<AcceptedMetaEventWithDecksResponse, { id: string }>({
+  return useMutationWithInvalidation<MetaAcceptEventWithDecksResult, AcceptMetaEventInput>({
     mutationFn: (vars) => acceptMetaCandidateEventWithDecksFn({ data: vars }),
     invalidates: ALL_META_KEYS,
   });
@@ -410,5 +468,249 @@ export function useUnignoreMetaCandidateDeck() {
   return useMutationWithInvalidation({
     mutationFn: (vars: MetaDeckSourceKey) => unignoreMetaDeckFn({ data: vars }),
     invalidates: [queryKeys.admin.meta.ignored],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Linking (ADR-014, multi-source)
+// ---------------------------------------------------------------------------
+// Separate from accepting on purpose: a source whose field values were rejected
+// still contributed, usually its decks, so the link — and the citation the API
+// writes with it — must not depend on taking any of them.
+
+const linkMetaCandidateEventFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; metaEventId: string; relink: boolean }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<MetaEventLinkResult> => {
+    const client = apiOrpcClient(adminMetaCandidatesContract, context.cookie);
+    const body = { id: data.id, metaEventId: data.metaEventId };
+    if (data.relink) {
+      return client.relinkCandidateEvent(body);
+    }
+    return client.linkCandidateEvent(body);
+  });
+
+/** Which verb a link action uses: `relink` moves a candidate that already has one. */
+export interface LinkMetaEventInput {
+  id: string;
+  metaEventId: string;
+  /** True when the candidate is already linked, since `link` refuses that. */
+  relink?: boolean;
+}
+
+/**
+ * Points a candidate event at a live event, or moves an existing link.
+ *
+ * @returns The mutation; resolves with the live event it now points at.
+ */
+export function useLinkMetaCandidateEvent() {
+  return useMutationWithInvalidation<MetaEventLinkResult, LinkMetaEventInput>({
+    mutationFn: (vars) =>
+      linkMetaCandidateEventFn({
+        data: { id: vars.id, metaEventId: vars.metaEventId, relink: vars.relink ?? false },
+      }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const unlinkMetaCandidateEventFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<MetaEventLinkResult> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).unlinkCandidateEvent({
+      id: data.id,
+    }),
+  );
+
+/**
+ * Detaches a candidate event from its live event, which also removes that
+ * provider's citation. No field value on the live event changes.
+ *
+ * @returns The mutation.
+ */
+export function useUnlinkMetaCandidateEvent() {
+  return useMutationWithInvalidation<MetaEventLinkResult, { id: string }>({
+    mutationFn: (vars) => unlinkMetaCandidateEventFn({ data: vars }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const linkMetaCandidateDeckFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; deckId: string; relink: boolean }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<MetaDeckLinkResult> => {
+    const client = apiOrpcClient(adminMetaCandidatesContract, context.cookie);
+    const body = { id: data.id, deckId: data.deckId };
+    if (data.relink) {
+      return client.relinkCandidateDeck(body);
+    }
+    return client.linkCandidateDeck(body);
+  });
+
+/** A candidate deck may only link to a deck inside its own event's live event. */
+export interface LinkMetaDeckInput {
+  id: string;
+  deckId: string;
+  relink?: boolean;
+}
+
+/**
+ * Points a candidate deck at an archived deck, or moves an existing link.
+ *
+ * @returns The mutation; resolves with the archived deck it now points at.
+ */
+export function useLinkMetaCandidateDeck() {
+  return useMutationWithInvalidation<MetaDeckLinkResult, LinkMetaDeckInput>({
+    mutationFn: (vars) =>
+      linkMetaCandidateDeckFn({
+        data: { id: vars.id, deckId: vars.deckId, relink: vars.relink ?? false },
+      }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const unlinkMetaCandidateDeckFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<MetaDeckLinkResult> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).unlinkCandidateDeck({ id: data.id }),
+  );
+
+/**
+ * Detaches a candidate deck from its archived deck.
+ *
+ * @returns The mutation.
+ */
+export function useUnlinkMetaCandidateDeck() {
+  return useMutationWithInvalidation<MetaDeckLinkResult, { id: string }>({
+    mutationFn: (vars) => unlinkMetaCandidateDeckFn({ data: vars }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Per-field accept (the compare grid's arrow)
+// ---------------------------------------------------------------------------
+// With two sources on one event, "accept" cannot mean "take all of it": one
+// provider would silently revert the other's name on every re-publish.
+
+const acceptMetaEventFieldFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; field: MetaEventAcceptField }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptMetaEventField(data),
+  );
+
+/**
+ * Writes one source's value into one column of the live event.
+ *
+ * @returns The mutation; resolves with the live event's id.
+ */
+export function useAcceptMetaEventField() {
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { id: string; field: MetaEventAcceptField }) =>
+      acceptMetaEventFieldFn({ data: vars }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const acceptMetaDeckFieldFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; field: MetaDeckAcceptField }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptMetaDeckField(data),
+  );
+
+/**
+ * Writes one source's value into one column of an archived deck.
+ *
+ * @returns The mutation; resolves with the archived deck's id.
+ */
+export function useAcceptMetaDeckField() {
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { id: string; field: MetaDeckAcceptField }) =>
+      acceptMetaDeckFieldFn({ data: vars }),
+    // `admin.meta.events` is the prefix of the per-event deck and citation keys,
+    // so invalidating it refetches the roster's live decks too.
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const acceptMetaDeckListFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptMetaDeckList({ id: data.id }),
+  );
+
+/**
+ * Replaces an archived deck's card list with this source's. Card lists move
+ * whole: per-card accept would write `deck_cards` row by row for a marginal
+ * gain over taking a list and editing it in the deck editor.
+ *
+ * @returns The mutation; resolves with the archived deck's id.
+ */
+export function useAcceptMetaDeckList() {
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { id: string }) => acceptMetaDeckListFn({ data: vars }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Match suggestions
+// ---------------------------------------------------------------------------
+// Ranked hints for the link action, never applied automatically: a wrong link
+// fans two unrelated tournaments onto one page.
+
+const fetchMetaEventSuggestionsFn = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<{ suggestions: MetaEventMatchSuggestion[]; windowDays: number }> =>
+      apiOrpcClient(adminMetaCandidatesContract, context.cookie).eventMatchSuggestions({
+        id: data.id,
+      }),
+  );
+
+/**
+ * Live events this candidate might describe, best first. Fetched only while the
+ * candidate is unlinked — a linked one has nothing to propose.
+ *
+ * @param candidateId - The candidate event.
+ * @param enabled - False once the candidate is linked.
+ * @returns The query holding the ranked suggestions and the date window.
+ */
+export function useMetaEventMatchSuggestions(candidateId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.eventSuggestions(candidateId),
+    queryFn: () => fetchMetaEventSuggestionsFn({ data: { id: candidateId } }),
+    staleTime: 5 * 60 * 1000,
+    enabled,
+  });
+}
+
+const fetchMetaDeckSuggestionsFn = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<{ suggestions: MetaDeckMatchSuggestion[] }> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).deckMatchSuggestions({
+      id: data.id,
+    }),
+  );
+
+/**
+ * Archived decks inside this candidate's event that its pilot might be.
+ *
+ * @param candidateDeckId - The candidate deck.
+ * @param enabled - False while the deck is linked, or its event is not.
+ * @returns The query holding the ranked suggestions.
+ */
+export function useMetaDeckMatchSuggestions(candidateDeckId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.deckSuggestions(candidateDeckId),
+    queryFn: () => fetchMetaDeckSuggestionsFn({ data: { id: candidateDeckId } }),
+    staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }

@@ -15,10 +15,18 @@ export type CandidateMetaEventRow = Selectable<CandidateMetaEventsTable>;
 /** A candidate deck with its `cards` jsonb already parsed. */
 export type CandidateMetaDeckRow = Selectable<CandidateMetaDecksTable>;
 
-/** A live event reached through its source key, so `sourceExternalId` is known non-null. */
-export type LiveMetaEventRow = Selectable<MetaEventsTable> & { sourceExternalId: string };
+/**
+ * A live event reached through the candidate row that links to it, carrying
+ * that candidate's own external id so the caller can key its index on the
+ * source's vocabulary.
+ *
+ * Migration 255 moved the source key off `meta_events` entirely: a live event
+ * is described by any number of sources, so the only thing that can say "this
+ * provider's event N is that live row" is the candidate itself.
+ */
+export type LiveMetaEventRow = Selectable<MetaEventsTable> & { candidateExternalId: string };
 
-/** A live archived deck seen through its source key, with the fields a diff reads. */
+/** A live archived deck with the fields a diff reads. */
 export interface LiveMetaDeckRow {
   deckId: string;
   metaEventId: string;
@@ -33,8 +41,15 @@ export interface LiveMetaDeckRow {
    * is the one case an archive deck has none.
    */
   shareToken: string | null;
-  sourceEventExternalId: string | null;
-  sourceExternalId: string | null;
+}
+
+/**
+ * A live archived deck reached through the candidate deck that links to it,
+ * carrying that candidate's event-scoped source key. @see LiveMetaEventRow
+ */
+export interface LiveMetaDeckForCandidateRow extends LiveMetaDeckRow {
+  candidateEventExternalId: string;
+  candidateExternalId: string;
 }
 
 /** One card row of a live archived deck. */
@@ -76,8 +91,8 @@ export interface MetaCandidateDeckKey {
  */
 export function metaCandidatesRepo(db: Kysely<Database>) {
   /**
-   * The live archived deck shape both source-key and id lookups return: the
-   * satellite placement plus the deck's own name and permalink.
+   * The live archived deck shape both the candidate-key and the id lookups
+   * return: the satellite placement plus the deck's own name and permalink.
    * @returns The joined query, unfiltered.
    */
   function liveDeckQuery() {
@@ -93,9 +108,41 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         "md.finishTier",
         "md.record",
         "md.listStatus",
-        "md.sourceEventExternalId",
-        "md.sourceExternalId",
       ]);
+  }
+
+  /**
+   * The one write behind link, relink and unlink at the event level.
+   * @param id The candidate event.
+   * @param metaEventId The live row to point at, or null to clear the link.
+   * @param checkedAt Set when linking; omitted when unlinking, which is not a review.
+   * @returns Whether the candidate existed.
+   */
+  async function setEventLink(
+    id: string,
+    metaEventId: string | null,
+    checkedAt?: Date,
+  ): Promise<boolean> {
+    const result = await db
+      .updateTable("candidateMetaEvents")
+      .set(checkedAt === undefined ? { metaEventId } : { metaEventId, checkedAt })
+      .where("id", "=", id)
+      .executeTakeFirst();
+    return (result.numUpdatedRows ?? 0n) > 0n;
+  }
+
+  /** @returns Whether the candidate existed. @see setEventLink */
+  async function setDeckLink(
+    id: string,
+    deckId: string | null,
+    checkedAt?: Date,
+  ): Promise<boolean> {
+    const result = await db
+      .updateTable("candidateMetaDecks")
+      .set(checkedAt === undefined ? { deckId } : { deckId, checkedAt })
+      .where("id", "=", id)
+      .executeTakeFirst();
+    return (result.numUpdatedRows ?? 0n) > 0n;
   }
 
   return {
@@ -164,29 +211,39 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Live events this provider has already contributed, for the uploaded keys.
+     * The live events this provider's uploaded keys already point at, read
+     * through the candidate rows that hold the link.
+     *
      * This is what re-links a candidate after an accept and what the in-sync
-     * check diffs against.
+     * check diffs against. It goes through `candidate_meta_events` because
+     * migration 255 took the source key off `meta_events`: one live event can
+     * be described by several providers, so the candidate row is the only
+     * place the pairing survives.
+     *
      * @param provider The uploading provider.
      * @param externalIds The event keys in the payload.
-     * @returns The matching live events.
+     * @returns The linked live events, each tagged with its candidate's key.
      */
-    liveEventsBySource(provider: string, externalIds: string[]): Promise<LiveMetaEventRow[]> {
+    liveEventsByCandidateKeys(
+      provider: string,
+      externalIds: string[],
+    ): Promise<LiveMetaEventRow[]> {
       if (externalIds.length === 0) {
         return Promise.resolve([]);
       }
       return db
-        .selectFrom("metaEvents")
-        .selectAll()
-        .where("sourceProvider", "=", provider)
-        .where("sourceExternalId", "in", externalIds)
-        .$narrowType<{ sourceExternalId: string }>()
+        .selectFrom("candidateMetaEvents as ce")
+        .innerJoin("metaEvents as me", "me.id", "ce.metaEventId")
+        .selectAll("me")
+        .select("ce.externalId as candidateExternalId")
+        .where("ce.provider", "=", provider)
+        .where("ce.externalId", "in", externalIds)
         .execute();
     },
 
     /**
-     * The live archived decks this provider contributed, within the uploaded
-     * events and carrying one of the uploaded deck ids.
+     * The live archived decks this provider's uploaded deck keys already point
+     * at, read through the candidate decks that hold the link.
      *
      * The two id lists are matched independently rather than as pairs, so the
      * result can hold a deck whose event and deck ids each appear in the
@@ -196,21 +253,26 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
      * @param provider The uploading provider.
      * @param eventExternalIds The event keys in the payload.
      * @param deckExternalIds The deck keys in the payload.
-     * @returns The matching live decks, source key populated.
+     * @returns The linked live decks, each tagged with its candidate's event-scoped key.
      */
-    liveDecksBySource(
+    liveDecksByCandidateKeys(
       provider: string,
       eventExternalIds: string[],
       deckExternalIds: string[],
-    ): Promise<(LiveMetaDeckRow & { sourceEventExternalId: string; sourceExternalId: string })[]> {
+    ): Promise<LiveMetaDeckForCandidateRow[]> {
       if (eventExternalIds.length === 0 || deckExternalIds.length === 0) {
         return Promise.resolve([]);
       }
       return liveDeckQuery()
-        .where("md.sourceProvider", "=", provider)
-        .where("md.sourceEventExternalId", "in", eventExternalIds)
-        .where("md.sourceExternalId", "in", deckExternalIds)
-        .$narrowType<{ sourceEventExternalId: string; sourceExternalId: string }>()
+        .innerJoin("candidateMetaDecks as cd", "cd.deckId", "md.deckId")
+        .innerJoin("candidateMetaEvents as ce", "ce.id", "cd.candidateEventId")
+        .select([
+          "ce.externalId as candidateEventExternalId",
+          "cd.externalId as candidateExternalId",
+        ])
+        .where("ce.provider", "=", provider)
+        .where("ce.externalId", "in", eventExternalIds)
+        .where("cd.externalId", "in", deckExternalIds)
         .execute();
     },
 
@@ -295,6 +357,45 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
       return rows;
     },
 
+    /**
+     * Every candidate event linked to one live event, so the review screen can
+     * put one column per source next to the live values. Ordered by provider so
+     * the columns keep the same places between visits.
+     * @param metaEventId The live event.
+     * @returns The candidates citing it.
+     */
+    async eventsByMetaEventId(metaEventId: string): Promise<CandidateMetaEventRow[]> {
+      const rows = await db
+        .selectFrom("candidateMetaEvents")
+        .selectAll()
+        .where("metaEventId", "=", metaEventId)
+        .orderBy("provider", "asc")
+        .orderBy("externalId", "asc")
+        .execute();
+      return rows;
+    },
+
+    /**
+     * The candidate decks hanging off live events directly — user submissions
+     * (ADR-036), which target an event the archive already has rather than a
+     * candidate event of their own.
+     * @param metaEventIds The live events.
+     * @returns Their directly-attached candidate decks.
+     */
+    async decksByMetaEventIds(metaEventIds: string[]): Promise<CandidateMetaDeckRow[]> {
+      if (metaEventIds.length === 0) {
+        return [];
+      }
+      const rows = await db
+        .selectFrom("candidateMetaDecks")
+        .selectAll()
+        .where("metaEventId", "in", metaEventIds)
+        .orderBy("finishTier", "asc")
+        .orderBy("playerName", "asc")
+        .execute();
+      return rows;
+    },
+
     /** @returns The candidate event with that id, or `undefined`. */
     async eventById(id: string): Promise<CandidateMetaEventRow | undefined> {
       const row = await db
@@ -333,22 +434,36 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
 
     // ── Linking and review state ─────────────────────────────────────────────
 
-    /** Points a candidate event at the live row it was accepted into, and marks it reviewed. */
-    async linkEvent(id: string, metaEventId: string, checkedAt: Date): Promise<void> {
-      await db
-        .updateTable("candidateMetaEvents")
-        .set({ metaEventId, checkedAt })
-        .where("id", "=", id)
-        .execute();
+    /**
+     * Points a candidate event at a live row, and marks it reviewed. Used by an
+     * accept that created the row, by an admin linking this source to an event
+     * another source already produced, and by a relink moving it (ADR-014,
+     * multi-source) — the three differ in what the *service* does around the
+     * write, not in the write itself, so there is one method here.
+     * @returns Whether the candidate existed.
+     */
+    linkEvent(id: string, metaEventId: string, checkedAt: Date): Promise<boolean> {
+      return setEventLink(id, metaEventId, checkedAt);
     },
 
-    /** Points a candidate deck at the live deck it was accepted into, and marks it reviewed. */
-    async linkDeck(id: string, deckId: string, checkedAt: Date): Promise<void> {
-      await db
-        .updateTable("candidateMetaDecks")
-        .set({ deckId, checkedAt })
-        .where("id", "=", id)
-        .execute();
+    /**
+     * Clears a candidate event's link. `checked_at` is deliberately left
+     * alone: unlinking does not un-review the row, and it is not a source
+     * change either.
+     * @returns Whether the candidate existed.
+     */
+    unlinkEvent(id: string): Promise<boolean> {
+      return setEventLink(id, null);
+    },
+
+    /** @returns Whether the candidate existed. @see linkEvent */
+    linkDeck(id: string, deckId: string, checkedAt: Date): Promise<boolean> {
+      return setDeckLink(id, deckId, checkedAt);
+    },
+
+    /** @returns Whether the candidate existed. @see unlinkEvent */
+    unlinkDeck(id: string): Promise<boolean> {
+      return setDeckLink(id, null);
     },
 
     /**

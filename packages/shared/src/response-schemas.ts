@@ -4,7 +4,12 @@ import { z } from "zod";
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
 import { isAllowedLinkUrl } from "./link-hosts.js";
-import { META_LIST_STATUSES } from "./types/enums.js";
+import {
+  META_CREDIT_VISIBILITIES,
+  META_LIST_STATUSES,
+  META_SUBMISSION_REASONS,
+  META_SUBMISSION_STATUSES,
+} from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
 // Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
@@ -78,6 +83,19 @@ export const cardFaceSchema = z.enum(["front", "back"]);
  * means.
  */
 export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
+
+/**
+ * Whether a contributor's name appears on the archive pages they contributed
+ * to, and which profile field it reads (ADR-014). Built from the same constant
+ * as the `MetaCreditVisibility` type.
+ */
+export const metaCreditVisibilitySchema = z.enum(META_CREDIT_VISIBILITIES);
+
+/** Where a user's decklist submission ended up (ADR-014, ADR-036). */
+export const metaSubmissionStatusSchema = z.enum(META_SUBMISSION_STATUSES);
+
+/** Why an admin resolved a decklist submission without accepting it. */
+export const metaSubmissionReasonSchema = z.enum(META_SUBMISSION_REASONS);
 
 // ── Health ───────────────────────────────────────────────────────────────────
 

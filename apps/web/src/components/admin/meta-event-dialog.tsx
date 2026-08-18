@@ -2,6 +2,7 @@ import type { AdminMetaEvent } from "@openrift/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MetaEventSourcesEditor } from "@/components/admin/meta-event-sources-editor";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -183,16 +184,6 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="meta-event-source">Source link</Label>
-              <Input
-                id="meta-event-source"
-                value={draft.sourceUrl}
-                onChange={(e) => set("sourceUrl", e.target.value)}
-                placeholder="Optional, shown as attribution on the event page"
-              />
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="meta-event-notes">Notes</Label>
               <Textarea
                 id="meta-event-notes"
@@ -203,6 +194,11 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
               />
             </div>
           </div>
+
+          {/* Citations replaced the old single source link (ADR-014). They are
+              their own rows, written and deleted on their own, so they live
+              beside the form rather than inside its save. */}
+          {event && <MetaEventSourcesEditor eventId={event.id} />}
 
           {formError && <p className="text-destructive text-sm">{formError}</p>}
 

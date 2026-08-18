@@ -1,7 +1,7 @@
 import type { CardSubmissionReason } from "@openrift/shared/contracts/card-submissions";
 import { useState } from "react";
 
-import { CategorySelectOptions } from "@/components/admin/admin-crud-shared";
+import { SubmissionMessageFields } from "@/components/admin/submission-message-fields";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   useSetSubmissionResolution,
   useSubmissionForCandidate,
@@ -30,11 +27,6 @@ const REASON_ORDER: CardSubmissionReason[] = [
   "unverified",
   "bad_image",
 ];
-
-const reasonItems = REASON_ORDER.map((reason) => ({
-  value: reason,
-  label: submissionReasonLabels[reason],
-}));
 
 /**
  * Declared above the component on purpose: the React Compiler bails on a
@@ -115,8 +107,6 @@ export function SubmissionResolutionDialog({
     onOpenChange(false);
   }
 
-  const preview = effectiveReason ? submissionReasonSentences[effectiveReason] : null;
-
   return (
     <Dialog open={candidateCardId !== null} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -133,40 +123,22 @@ export function SubmissionResolutionDialog({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="submission-reason">Reason</Label>
-              <Select
-                items={reasonItems}
-                value={effectiveReason}
-                onValueChange={(next) => {
-                  setTouched(true);
-                  setReason(next as CardSubmissionReason | null);
-                }}
-              >
-                <SelectTrigger id="submission-reason" aria-label="Reason">
-                  <SelectValue />
-                </SelectTrigger>
-                <CategorySelectOptions items={reasonItems} />
-              </Select>
-              {preview ? (
-                <p className="text-muted-foreground text-sm">They will read: {preview}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="submission-note">Your own words (optional)</Label>
-              <Textarea
-                id="submission-note"
-                value={effectiveNote}
-                maxLength={2000}
-                rows={3}
-                placeholder="Replaces the sentence above when filled in."
-                onChange={(event) => {
-                  setTouched(true);
-                  setNote(event.target.value);
-                }}
-              />
-            </div>
+            <SubmissionMessageFields
+              idPrefix="submission"
+              reasonOrder={REASON_ORDER}
+              reasonLabels={submissionReasonLabels}
+              reasonSentences={submissionReasonSentences}
+              reason={effectiveReason}
+              note={effectiveNote}
+              onReasonChange={(next) => {
+                setTouched(true);
+                setReason(next);
+              }}
+              onNoteChange={(next) => {
+                setTouched(true);
+                setNote(next);
+              }}
+            />
           </div>
 
           <DialogFooter>

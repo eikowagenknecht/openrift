@@ -450,8 +450,8 @@ export async function ingestMetaCandidates(
         repo.eventsBySourceKeys(provider, eventKeys),
         repo.ignoredEventIds(provider),
         repo.ignoredDeckKeys(provider),
-        repo.liveEventsBySource(provider, eventKeys),
-        repo.liveDecksBySource(provider, eventKeys, deckKeys),
+        repo.liveEventsByCandidateKeys(provider, eventKeys),
+        repo.liveDecksByCandidateKeys(provider, eventKeys, deckKeys),
         loadCardNameIndex(repos.ingest),
       ]);
 
@@ -460,9 +460,13 @@ export async function ingestMetaCandidates(
     const ignoredDecks = new Set(
       ignoredDeckKeys.map((key) => deckKey(key.eventExternalId, key.externalId)),
     );
-    const liveEventByKey = new Map(liveEvents.map((row) => [row.sourceExternalId, row]));
+    // Both indexes are keyed on the *source's* vocabulary, which since
+    // migration 255 only the candidate rows hold: the live tables carry no
+    // provider key, so the repo reads the link through the candidate and hands
+    // back the key alongside the live row.
+    const liveEventByKey = new Map(liveEvents.map((row) => [row.candidateExternalId, row]));
     const liveDeckByKey = new Map<string, LiveMetaDeckRow>(
-      liveDecks.map((row) => [deckKey(row.sourceEventExternalId, row.sourceExternalId), row]),
+      liveDecks.map((row) => [deckKey(row.candidateEventExternalId, row.candidateExternalId), row]),
     );
 
     const liveDeckCardRows = await repo.liveDeckCards(liveDecks.map((row) => row.deckId));

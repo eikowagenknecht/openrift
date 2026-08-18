@@ -1,38 +1,37 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArchiveXIcon, ArrowLeftIcon, CheckIcon, UndoIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { MetaCandidateDeckPanel } from "@/components/admin/meta-candidate-deck-panel";
+import { MetaCandidateEventGrid } from "@/components/admin/meta-candidate-event-grid";
+import { MetaCandidateLinkPanel } from "@/components/admin/meta-candidate-link-panel";
 import {
   CandidateDisclosure,
   CandidateStateBadge,
   ConfirmActionButton,
 } from "@/components/admin/meta-candidate-shared";
+import { MetaDeckRoster } from "@/components/admin/meta-deck-roster";
+import type { MetaOverwriteConfirm } from "@/components/admin/meta-overwrite-confirm-dialog";
+import { MetaOverwriteConfirmDialog } from "@/components/admin/meta-overwrite-confirm-dialog";
 import { MetaPublicLinkButton } from "@/components/admin/meta-public-link";
 import { Heading } from "@/components/heading";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useAdminMetaEvents } from "@/hooks/use-admin-meta";
 import {
   useAcceptMetaCandidateEvent,
   useAcceptMetaCandidateEventWithDecks,
   useAdminMetaCandidate,
   useCheckMetaCandidateEvent,
   useIgnoreMetaCandidateEvent,
+  useUnlinkMetaCandidateEvent,
 } from "@/hooks/use-admin-meta-candidates";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { formatDiffValue } from "@/lib/meta-candidate-review";
 
 /**
  * Summarizes what an "accept event and decks" run did, for the success toast.
@@ -63,49 +62,104 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * One candidate event's review page (ADR-014): the staged event, its diff
- * against the live row once linked, and every deck under it. Accepting is split
- * on purpose — the event alone, or the event plus every deck that is ready —
- * because an unmatched card name blocks its deck without blocking the event.
+ * One candidate event's review screen (ADR-014, amended for multi-source).
+ *
+ * It has two shapes, and which one shows is the link. An unlinked candidate is
+ * still the one-click path a single-source event uses every week: the staged
+ * values, its decks, and an accept that creates everything. A linked one opens
+ * the two-tier compare screen — the event header as a field-by-field grid
+ * against every source feeding the live event, then the deck roster — because
+ * once two sources describe one tournament, taking everything from one of them
+ * reverts what the other contributed.
  *
  * @returns The candidate detail page.
  */
 export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }) {
   const { data: candidate } = useAdminMetaCandidate(candidateId);
+  const { data: eventsData } = useAdminMetaEvents();
   const { labels: formatLabels } = useDeckFormatList();
   const navigate = useNavigate();
   const acceptEvent = useAcceptMetaCandidateEvent();
   const acceptWithDecks = useAcceptMetaCandidateEventWithDecks();
   const checkEvent = useCheckMetaCandidateEvent();
   const ignoreEvent = useIgnoreMetaCandidateEvent();
+  const unlinkEvent = useUnlinkMetaCandidateEvent();
+  const [overwrite, setOverwrite] = useState<MetaOverwriteConfirm | null>(null);
 
   const reviewed = candidate.checkedAt !== null;
-  const eventAccepted = candidate.metaEventId !== null;
-  const diffRows = candidate.diff ?? [];
+  const linked = candidate.metaEventId !== null;
+  const liveEvent = eventsData.events.find((event) => event.id === candidate.metaEventId);
+  // Once a second source feeds the event, "take everything" stops being the
+  // default move — it is the one that overwrites the other source's values — so
+  // the per-field grid gets the emphasis and this drops to a plain button.
+  const multiSource = candidate.sources.length > 1;
+  const accepting = acceptEvent.isPending || acceptWithDecks.isPending;
 
-  async function handleAcceptEvent() {
+  async function acceptSource(input: {
+    candidateId: string;
+    provider: string;
+    withDecks: boolean;
+    overwriteAll: boolean;
+  }) {
+    if (input.withDecks) {
+      let result;
+      try {
+        result = await acceptWithDecks.mutateAsync({
+          id: input.candidateId,
+          overwriteAll: input.overwriteAll,
+        });
+      } catch {
+        // Reported by the global mutation error toast.
+        return;
+      }
+      if (result.status === "needsOverwriteConfirm") {
+        setOverwrite({
+          candidateId: input.candidateId,
+          provider: input.provider,
+          message: result.message,
+          withDecks: true,
+        });
+        return;
+      }
+      setOverwrite(null);
+      toast.success(`"${candidate.name}" is in the archive`, {
+        description: acceptSummary(result.event.acceptedDecks.length, result.event.skippedDecks),
+      });
+      return;
+    }
+
+    let result;
     try {
-      await acceptEvent.mutateAsync({ id: candidateId });
+      result = await acceptEvent.mutateAsync({
+        id: input.candidateId,
+        overwriteAll: input.overwriteAll,
+      });
     } catch {
       // Reported by the global mutation error toast.
       return;
     }
-    toast.success(`"${candidate.name}" is in the archive`);
+    if (result.status === "needsOverwriteConfirm") {
+      setOverwrite({
+        candidateId: input.candidateId,
+        provider: input.provider,
+        message: result.message,
+        withDecks: false,
+      });
+      return;
+    }
+    setOverwrite(null);
+    toast.success(`Took ${input.provider}'s values`);
   }
 
-  async function handleAcceptAll() {
-    let accepted = 0;
-    let skipped: { playerName: string; reason: string }[] = [];
-    try {
-      const result = await acceptWithDecks.mutateAsync({ id: candidateId });
-      accepted = result.acceptedDecks.length;
-      skipped = result.skippedDecks;
-    } catch {
-      // Reported by the global mutation error toast.
+  async function handleConfirmOverwrite() {
+    if (overwrite === null) {
       return;
     }
-    toast.success(`"${candidate.name}" is in the archive`, {
-      description: acceptSummary(accepted, skipped),
+    await acceptSource({
+      candidateId: overwrite.candidateId,
+      provider: overwrite.provider,
+      withDecks: overwrite.withDecks,
+      overwriteAll: true,
     });
   }
 
@@ -113,6 +167,10 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
     await ignoreEvent.mutateAsync({ id: candidateId });
     await navigate({ to: "/admin/meta", search: { tab: "candidates" } });
   }
+
+  const acceptAllLabel = linked
+    ? `Take everything from ${candidate.provider}`
+    : "Accept event + ready decks";
 
   return (
     <div className="space-y-6">
@@ -137,9 +195,35 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
               {reviewed ? <UndoIcon /> : <CheckIcon />}
               {reviewed ? "Unmark" : "Mark reviewed"}
             </PageTopBarButton>
-            <PageTopBarPrimaryButton onClick={handleAcceptAll} disabled={acceptWithDecks.isPending}>
-              Accept event + ready decks
-            </PageTopBarPrimaryButton>
+            {multiSource ? (
+              <PageTopBarButton
+                disabled={accepting}
+                onClick={() =>
+                  acceptSource({
+                    candidateId,
+                    provider: candidate.provider,
+                    withDecks: true,
+                    overwriteAll: false,
+                  })
+                }
+              >
+                {acceptAllLabel}
+              </PageTopBarButton>
+            ) : (
+              <PageTopBarPrimaryButton
+                disabled={accepting}
+                onClick={() =>
+                  acceptSource({
+                    candidateId,
+                    provider: candidate.provider,
+                    withDecks: true,
+                    overwriteAll: false,
+                  })
+                }
+              >
+                {acceptAllLabel}
+              </PageTopBarPrimaryButton>
+            )}
           </>
         }
       />
@@ -172,38 +256,56 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
                 mono
               />
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-auto"
-              onClick={handleAcceptEvent}
-              disabled={acceptEvent.isPending}
-            >
-              Accept event only
-            </Button>
+            {!linked && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                disabled={accepting}
+                onClick={() =>
+                  acceptSource({
+                    candidateId,
+                    provider: candidate.provider,
+                    withDecks: false,
+                    overwriteAll: false,
+                  })
+                }
+              >
+                Accept event only
+              </Button>
+            )}
           </div>
 
-          <dl className="grid gap-3 sm:grid-cols-3">
-            <Field label="Date">{candidate.eventDate}</Field>
-            <Field label="Format">{formatLabels[candidate.format] ?? candidate.format}</Field>
-            <Field label="Players">{candidate.playerCount ?? "—"}</Field>
-            <Field label="Organizer">{candidate.organizer ?? "—"}</Field>
-            <Field label="Source">
-              {candidate.sourceUrl ? (
-                <a
-                  href={candidate.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-2"
-                >
-                  {candidate.sourceUrl}
-                </a>
-              ) : (
-                "—"
-              )}
-            </Field>
-            <Field label="Notes">{candidate.notes ?? "—"}</Field>
-          </dl>
+          <MetaCandidateLinkPanel
+            candidateId={candidateId}
+            provider={candidate.provider}
+            metaEventId={candidate.metaEventId}
+            metaEventName={liveEvent?.name ?? null}
+          />
+
+          {!linked && (
+            <dl className="grid gap-3 sm:grid-cols-3">
+              <Field label="Date">{candidate.eventDate}</Field>
+              <Field label="Format">{formatLabels[candidate.format] ?? candidate.format}</Field>
+              <Field label="Players">{candidate.playerCount ?? "—"}</Field>
+              <Field label="Organizer">{candidate.organizer ?? "—"}</Field>
+              <Field label="Source">
+                {candidate.sourceUrl ? (
+                  <a
+                    href={candidate.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    {candidate.sourceUrl}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </Field>
+              <Field label="Notes">{candidate.notes ?? "—"}</Field>
+            </dl>
+          )}
 
           {candidate.extraData !== null && (
             <CandidateDisclosure title="Source fields we have no home for">
@@ -212,54 +314,69 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
               </pre>
             </CandidateDisclosure>
           )}
-
-          {candidate.diff !== null && (
-            <div className="space-y-2">
-              <Heading level={3}>Changes against the live event</Heading>
-              {diffRows.length === 0 && (
-                <p className="text-muted-foreground text-sm">No changes.</p>
-              )}
-              {diffRows.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Field</TableHead>
-                      <TableHead>Live</TableHead>
-                      <TableHead>Candidate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {diffRows.map((row) => (
-                      <TableRow key={row.field}>
-                        <TableCell>{row.field}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDiffValue(row.from)}
-                        </TableCell>
-                        <TableCell>{formatDiffValue(row.to)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Heading level={2}>Decks ({candidate.decks.length})</Heading>
-          {!eventAccepted && candidate.decks.length > 0 && (
-            <Badge variant="warning">Accept the event first to enable deck accepts</Badge>
+      {linked && liveEvent && (
+        <section className="space-y-2">
+          <Heading level={2}>Event header</Heading>
+          <p className="text-muted-foreground text-sm">
+            The Active column is the live event. Click a source cell to take that one value; edit
+            Active directly to write something neither source got right.
+          </p>
+          <MetaCandidateEventGrid
+            event={liveEvent}
+            sources={candidate.sources}
+            onAcceptSource={(sourceCandidateId, provider) =>
+              acceptSource({
+                candidateId: sourceCandidateId,
+                provider,
+                withDecks: false,
+                overwriteAll: false,
+              })
+            }
+            // Unlinking writes no field value and takes only that provider's
+            // citation with it, and relinking puts it back, so it acts straight
+            // away rather than through a confirmation.
+            onUnlinkSource={(sourceCandidateId, provider) => {
+              unlinkEvent.mutate({ id: sourceCandidateId });
+              toast.success(`Unlinked ${provider}`);
+            }}
+          />
+        </section>
+      )}
+
+      {linked && candidate.metaEventId !== null && (
+        <MetaDeckRoster
+          metaEventId={candidate.metaEventId}
+          sources={candidate.sources}
+          submittedDecks={candidate.submittedDecks}
+        />
+      )}
+
+      {!linked && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Heading level={2}>Decks ({candidate.decks.length})</Heading>
+            {candidate.decks.length > 0 && (
+              <Badge variant="warning">Accept the event first to enable deck accepts</Badge>
+            )}
+          </div>
+          {candidate.decks.length === 0 && (
+            <p className="text-muted-foreground text-sm">This event carries no decks.</p>
           )}
-        </div>
-        {candidate.decks.length === 0 && (
-          <p className="text-muted-foreground text-sm">This event carries no decks.</p>
-        )}
-        {candidate.decks.map((deck) => (
-          <MetaCandidateDeckPanel key={deck.id} deck={deck} eventAccepted={eventAccepted} />
-        ))}
-      </section>
+          {candidate.decks.map((deck) => (
+            <MetaCandidateDeckPanel key={deck.id} deck={deck} eventAccepted={false} />
+          ))}
+        </section>
+      )}
+
+      <MetaOverwriteConfirmDialog
+        confirm={overwrite}
+        pending={accepting}
+        onCancel={() => setOverwrite(null)}
+        onConfirm={handleConfirmOverwrite}
+      />
     </div>
   );
 }

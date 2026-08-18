@@ -1,6 +1,12 @@
-import type { AdminMetaDeck, AdminMetaEvent, DeckZone, MetaListStatus } from "@openrift/shared";
+import type {
+  AdminMetaDeck,
+  AdminMetaEvent,
+  AdminMetaEventSource,
+  DeckZone,
+  MetaListStatus,
+} from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -29,7 +35,6 @@ export interface MetaEventInput {
   format: string;
   playerCount?: number | null;
   organizer?: string | null;
-  sourceUrl?: string | null;
   notes?: string | null;
 }
 
@@ -253,5 +258,100 @@ export function useDeleteMetaDeck() {
       queryKeys.admin.meta.events,
       queryKeys.meta.all,
     ],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Source citations
+// ---------------------------------------------------------------------------
+
+const fetchMetaEventSources = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<{ sources: AdminMetaEventSource[] }> =>
+    apiOrpcClient(adminMetaContract, context.cookie).eventSources({ id: data.id }),
+  );
+
+/**
+ * Query options for one event's citation list.
+ *
+ * @param eventId - The event whose citations to load.
+ * @returns The query options.
+ */
+export function adminMetaEventSourcesQueryOptions(eventId: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.meta.eventSources(eventId),
+    queryFn: () => fetchMetaEventSources({ data: { id: eventId } }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * One event's citations. A plain query, not a suspense one: the editor opens
+ * inside a dialog, so no route loader warms it and there is no boundary to
+ * suspend against.
+ *
+ * @param eventId - The event whose citations to load, or null while the dialog
+ *   is creating an event that does not exist yet.
+ * @returns The query holding the citation list.
+ */
+export function useAdminMetaEventSources(eventId: string | null) {
+  return useQuery({
+    ...adminMetaEventSourcesQueryOptions(eventId ?? ""),
+    enabled: eventId !== null,
+  });
+}
+
+/** A hand-entered citation. Provider citations are written by linking, never here. */
+export interface CreateMetaEventSourceInput {
+  eventId: string;
+  label: string;
+  sourceUrl?: string | null;
+}
+
+const createMetaEventSourceFn = createServerFn({ method: "POST" })
+  .validator((input: CreateMetaEventSourceInput) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<AdminMetaEventSource> =>
+    apiOrpcClient(adminMetaContract, context.cookie).createEventSource({
+      id: data.eventId,
+      label: data.label,
+      sourceUrl: data.sourceUrl ?? null,
+    }),
+  );
+
+/**
+ * Adds a hand-entered citation to an event.
+ *
+ * @returns The mutation; resolves with the created citation row.
+ */
+export function useCreateMetaEventSource() {
+  return useMutationWithInvalidation<AdminMetaEventSource, CreateMetaEventSourceInput>({
+    mutationFn: (vars) => createMetaEventSourceFn({ data: vars }),
+    invalidates: (vars) => [queryKeys.admin.meta.eventSources(vars.eventId), queryKeys.meta.all],
+  });
+}
+
+const deleteMetaEventSourceFn = createServerFn({ method: "POST" })
+  .validator((input: { eventId: string; sourceId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminMetaContract, context.cookie).deleteEventSource({
+      id: data.eventId,
+      sourceId: data.sourceId,
+    });
+  });
+
+/**
+ * Removes a citation. The API refuses a provider row — that one belongs to its
+ * candidate's link, and unlinking is what takes it away.
+ *
+ * @returns The mutation.
+ */
+export function useDeleteMetaEventSource() {
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { eventId: string; sourceId: string }) =>
+      deleteMetaEventSourceFn({ data: vars }),
+    invalidates: (vars) => [queryKeys.admin.meta.eventSources(vars.eventId), queryKeys.meta.all],
   });
 }

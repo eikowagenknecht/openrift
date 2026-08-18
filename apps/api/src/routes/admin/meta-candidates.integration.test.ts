@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { adminReq, createTestContext, seedTestUser } from "../../test/integration-context.js";
+import { adminReq, createTestContext, req, seedTestUser } from "../../test/integration-context.js";
 import type { JsonBody } from "../../test/read-json.js";
 import { readJson } from "../../test/read-json.js";
 
@@ -21,6 +21,8 @@ const USER_ID = crypto.randomUUID();
 const ctx = createTestContext(USER_ID);
 
 const PROVIDER = "mtc-provider";
+/** The second source describing the same tournament (ADR-014, multi-source). */
+const PROVIDER_B = "mtc-provider-b";
 const FORMAT = "freeform";
 
 let legendCardId: string;
@@ -73,9 +75,12 @@ function event(externalId: string, overrides: Record<string, unknown> = {}) {
 
 /** @returns The upload summary. */
 async function upload(events: unknown[]): Promise<JsonBody> {
-  const res = await ctx!.app.fetch(
-    adminReq("POST", "/meta/upload", { provider: PROVIDER, events }),
-  );
+  return uploadAs(PROVIDER, events);
+}
+
+/** @returns The upload summary for a named provider. */
+async function uploadAs(provider: string, events: unknown[]): Promise<JsonBody> {
+  const res = await ctx!.app.fetch(adminReq("POST", "/meta/upload", { provider, events }));
   expect(res.status).toBe(200);
   return readJson(res);
 }
@@ -134,6 +139,24 @@ async function deckCountOf(externalId: string): Promise<number> {
   return decks.length;
 }
 
+/** @returns The live event's URL slug. */
+async function slugOf(metaEventId: string): Promise<string> {
+  const row = await ctx!.db
+    .selectFrom("metaEvents")
+    .select("slug")
+    .where("id", "=", metaEventId)
+    .executeTakeFirstOrThrow();
+  return row.slug;
+}
+
+/** @returns One live event's citations, oldest first. */
+async function sourcesOf(metaEventId: string): Promise<JsonBody[]> {
+  const res = await ctx!.app.fetch(adminReq("GET", `/meta/events/${metaEventId}/sources`));
+  expect(res.status).toBe(200);
+  const body = await readJson(res);
+  return body.sources;
+}
+
 /** @returns The parsed body of a POST to an admin path, after asserting its status. */
 async function post(path: string, body?: unknown, status = 200): Promise<JsonBody> {
   const res = await ctx!.app.fetch(adminReq("POST", path, body));
@@ -150,9 +173,18 @@ if (ctx) {
   aliasCardId = await seedCard("MTC Aliased", "mtc-aliased", "spell");
 
   afterAll(async () => {
-    await db.deleteFrom("candidateMetaEvents").where("provider", "=", PROVIDER).execute();
-    await db.deleteFrom("ignoredCandidateMetaEvents").where("provider", "=", PROVIDER).execute();
-    await db.deleteFrom("ignoredCandidateMetaDecks").where("provider", "=", PROVIDER).execute();
+    await db
+      .deleteFrom("candidateMetaEvents")
+      .where("provider", "in", [PROVIDER, PROVIDER_B])
+      .execute();
+    await db
+      .deleteFrom("ignoredCandidateMetaEvents")
+      .where("provider", "in", [PROVIDER, PROVIDER_B])
+      .execute();
+    await db
+      .deleteFrom("ignoredCandidateMetaDecks")
+      .where("provider", "in", [PROVIDER, PROVIDER_B])
+      .execute();
     if (createdDeckIds.length > 0) {
       await db.deleteFrom("decks").where("id", "in", createdDeckIds).execute();
     }
@@ -486,7 +518,7 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(body.message).toContain("Accept the event first");
     });
 
-    it("creates the live event and stamps the source columns", async () => {
+    it("creates the live event and cites the source that produced it", async () => {
       const row = await queueRow("mtc-a");
       const accepted = await post(`/meta/candidates/${row.id}/accept`);
       createdMetaEventIds.push(accepted.metaEventId);
@@ -499,10 +531,15 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
         .selectAll()
         .where("id", "=", accepted.metaEventId)
         .executeTakeFirstOrThrow();
-      expect(live.sourceProvider).toBe(PROVIDER);
-      expect(live.sourceExternalId).toBe("mtc-a");
       expect(live.name).toBe("MTC renamed");
       expect(live.organizer).toBe("MTC Organizer");
+
+      // The live row carries no source key since migration 255; the credit is
+      // a citation, and the link is the candidate's own FK.
+      const citations = await sourcesOf(accepted.metaEventId);
+      expect(citations).toHaveLength(1);
+      expect(citations[0].provider).toBe(PROVIDER);
+      expect(citations[0].externalId).toBe("mtc-a");
     });
 
     it("links the candidate and marks it reviewed", async () => {
@@ -525,7 +562,7 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(body.message).toContain("MTC Ghost");
     });
 
-    it("creates the live deck, names it after its legend, and stamps the source columns", async () => {
+    it("creates the live deck, names it after its legend, and links the candidate", async () => {
       const decks = await decksOf("mtc-a");
       const accepted = await post(`/meta/candidate-decks/${decks[0].id}/accept`);
       createdDeckIds.push(accepted.deckId);
@@ -536,9 +573,16 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
         .selectAll()
         .where("deckId", "=", accepted.deckId)
         .executeTakeFirstOrThrow();
-      expect(satellite.sourceProvider).toBe(PROVIDER);
-      expect(satellite.sourceExternalId).toBe("mtc-a-d1");
       expect(satellite.finishTier).toBe(1);
+
+      // The source key lives on the candidate now: `deck_id` is the only link.
+      const candidate = await db
+        .selectFrom("candidateMetaDecks")
+        .select(["deckId", "externalId"])
+        .where("id", "=", decks[0].id)
+        .executeTakeFirstOrThrow();
+      expect(candidate.deckId).toBe(accepted.deckId);
+      expect(candidate.externalId).toBe("mtc-a-d1");
 
       const live = await db
         .selectFrom("decks")
@@ -1018,15 +1062,15 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       const two = await onlyDeckOf("mtc-e2");
       expect(one.deckId).not.toBe(two.deckId);
 
-      const satellites = await db
-        .selectFrom("metaDecks")
-        .selectAll()
-        .where("deckId", "in", [one.deckId, two.deckId])
+      // Each live deck is reachable only through the candidate that produced
+      // it, and each candidate sits under its own event.
+      const links = await db
+        .selectFrom("candidateMetaDecks as cd")
+        .innerJoin("candidateMetaEvents as ce", "ce.id", "cd.candidateEventId")
+        .select(["ce.externalId as eventExternalId", "cd.deckId"])
+        .where("cd.deckId", "in", [one.deckId, two.deckId])
         .execute();
-      expect(satellites.map((s) => s.sourceEventExternalId).toSorted()).toEqual([
-        "mtc-e1",
-        "mtc-e2",
-      ]);
+      expect(links.map((row) => row.eventExternalId).toSorted()).toEqual(["mtc-e1", "mtc-e2"]);
     });
 
     it("re-links each deck to its own event's live row", async () => {
@@ -1126,6 +1170,366 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
 
       const settled = await onlyDeckOf("mtc-e1");
       expect(settled.state).toBe("inSync");
+    });
+  });
+
+  // ── Multi-source (ADR-014, amended 2026-08-18) ────────────────────────────
+  // Two sources describing one tournament have to land on one live event. The
+  // whole point of the amendment is that the second one links rather than
+  // accepting into an event of its own.
+
+  describe("a second source on one event", () => {
+    let liveEventId: string;
+    let secondCandidateId: string;
+
+    it("accepts the first source into a live event", async () => {
+      await upload([event("mtc-ms", { name: "MTC Multi Source", decks: [deck("mtc-ms-d1")] })]);
+      const row = await queueRow("mtc-ms");
+      const accepted = await post(`/meta/candidates/${row.id}/accept-with-decks`);
+      liveEventId = accepted.metaEventId;
+      createdMetaEventIds.push(liveEventId);
+      for (const d of accepted.acceptedDecks) {
+        createdDeckIds.push(d.deckId);
+      }
+      expect(accepted.created).toBe(true);
+    });
+
+    it("suggests that live event for the second source's candidate", async () => {
+      await uploadAs(PROVIDER_B, [
+        event("mtc-ms-b", {
+          // The same tournament under the other site's spelling, which is the
+          // case the suggestion has to survive.
+          name: "MTC Multi Source Berlin",
+          decks: [deck("mtc-ms-b-d1")],
+        }),
+      ]);
+      const row = await queueRow("mtc-ms-b");
+      secondCandidateId = row.id;
+      expect(row.metaEventId).toBeNull();
+
+      const res = await app.fetch(
+        adminReq("GET", `/meta/candidates/${secondCandidateId}/match-suggestions`),
+      );
+      expect(res.status).toBe(200);
+      const body = await readJson(res);
+      expect(body.suggestions.map((s: JsonBody) => s.metaEventId)).toContain(liveEventId);
+    });
+
+    it("links it to that event without creating a second one", async () => {
+      const before = await db
+        .selectFrom("metaEvents")
+        .select("id")
+        .where("name", "like", "MTC Multi Source%")
+        .execute();
+      expect(before).toHaveLength(1);
+
+      const linked = await post(`/meta/candidates/${secondCandidateId}/link`, {
+        metaEventId: liveEventId,
+      });
+      expect(linked.metaEventId).toBe(liveEventId);
+
+      const after = await db
+        .selectFrom("metaEvents")
+        .select("id")
+        .where("name", "like", "MTC Multi Source%")
+        .execute();
+      expect(after).toHaveLength(1);
+    });
+
+    it("cites both sources on the one event", async () => {
+      const citations = await sourcesOf(liveEventId);
+      expect(citations.map((c: JsonBody) => c.provider).toSorted()).toEqual([PROVIDER, PROVIDER_B]);
+    });
+
+    it("refuses to link the same candidate twice", async () => {
+      const res = await app.fetch(
+        adminReq("POST", `/meta/candidates/${secondCandidateId}/link`, {
+          metaEventId: liveEventId,
+        }),
+      );
+      expect(res.status).toBe(409);
+    });
+
+    it("returns both sources on the detail, each with its own decks", async () => {
+      const full = await detail(secondCandidateId);
+      expect(full.sources.map((source: JsonBody) => source.provider).toSorted()).toEqual([
+        PROVIDER,
+        PROVIDER_B,
+      ]);
+      const own = full.sources.find((source: JsonBody) => source.provider === PROVIDER_B);
+      expect(own.decks).toHaveLength(1);
+      expect(own.name).toBe("MTC Multi Source Berlin");
+    });
+
+    it("takes one field from the second source and leaves every other column alone", async () => {
+      const before = await db
+        .selectFrom("metaEvents")
+        .selectAll()
+        .where("id", "=", liveEventId)
+        .executeTakeFirstOrThrow();
+      expect(before.name).toBe("MTC Multi Source");
+
+      const result = await post(`/meta/candidates/${secondCandidateId}/accept-field`, {
+        field: "name",
+      });
+      expect(result.metaEventId).toBe(liveEventId);
+
+      const after = await db
+        .selectFrom("metaEvents")
+        .selectAll()
+        .where("id", "=", liveEventId)
+        .executeTakeFirstOrThrow();
+      expect(after.name).toBe("MTC Multi Source Berlin");
+      // Everything the field accept did not name is untouched — including the
+      // slug, which is minted once and never renamed.
+      expect(after.slug).toBe(before.slug);
+      expect(after.organizer).toBe(before.organizer);
+      expect(after.playerCount).toBe(before.playerCount);
+      expect(after.eventDate).toBe(before.eventDate);
+      expect(after.notes).toBe(before.notes);
+    });
+
+    it("refuses a whole-entity accept that would overwrite the other source", async () => {
+      const res = await app.fetch(adminReq("POST", `/meta/candidates/${secondCandidateId}/accept`));
+      expect(res.status).toBe(409);
+      const body = await readJson(res);
+      // A code of its own, so the client can prompt "overwrite?" instead of
+      // showing a dead-end failure.
+      expect(body.code).toBe("OVERWRITE_NOT_CONFIRMED");
+      expect(body.message).toContain(PROVIDER);
+    });
+
+    it("refuses the first source's whole-entity accept just the same", async () => {
+      const first = await queueRow("mtc-ms");
+      const res = await app.fetch(adminReq("POST", `/meta/candidates/${first.id}/accept`));
+      expect(res.status).toBe(409);
+      const body = await readJson(res);
+      expect(body.message).toContain(PROVIDER_B);
+    });
+
+    it("takes everything from one source once the overwrite is confirmed", async () => {
+      const accepted = await post(`/meta/candidates/${secondCandidateId}/accept`, {
+        overwriteAll: true,
+      });
+      expect(accepted.created).toBe(false);
+      expect(accepted.metaEventId).toBe(liveEventId);
+
+      const live = await db
+        .selectFrom("metaEvents")
+        .selectAll()
+        .where("id", "=", liveEventId)
+        .executeTakeFirstOrThrow();
+      expect(live.name).toBe("MTC Multi Source Berlin");
+    });
+
+    it("unlinks the second source, removing its citation and keeping its values", async () => {
+      const unlinked = await post(`/meta/candidates/${secondCandidateId}/unlink`);
+      expect(unlinked.metaEventId).toBeNull();
+
+      const citations = await sourcesOf(liveEventId);
+      expect(citations.map((c: JsonBody) => c.provider)).toEqual([PROVIDER]);
+
+      // The name this source contributed is the archive's now.
+      const live = await db
+        .selectFrom("metaEvents")
+        .selectAll()
+        .where("id", "=", liveEventId)
+        .executeTakeFirstOrThrow();
+      expect(live.name).toBe("MTC Multi Source Berlin");
+    });
+  });
+
+  // ── User submissions (ADR-014, ADR-036) ───────────────────────────────────
+
+  describe("a signed-in user's decklist submission", () => {
+    let liveEventId: string;
+    let submissionId: string;
+    let candidateDeckId: string;
+    let acceptedDeckId: string;
+
+    it("accepts an event for the submission to target", async () => {
+      await upload([event("mtc-sub", { name: "MTC Submission Target", decks: [] })]);
+      const row = await queueRow("mtc-sub");
+      const accepted = await post(`/meta/candidates/${row.id}/accept`);
+      liveEventId = accepted.metaEventId;
+      createdMetaEventIds.push(liveEventId);
+    });
+
+    it("stages the submission and its ledger row", async () => {
+      const res = await app.fetch(
+        req("POST", "/meta/submissions", {
+          metaEventId: liveEventId,
+          playerName: "MTC Contributor Pilot",
+          finishTier: 2,
+          record: "4-2",
+          cards: [
+            { name: "MTC Legend", zone: "legend", quantity: 1 },
+            { name: "MTC Main", zone: "main", quantity: 3 },
+          ],
+          note: "Copied from the stream overlay.",
+        }),
+      );
+      expect(res.status).toBe(201);
+      const body = await readJson(res);
+      submissionId = body.id;
+      expect(body.unresolvedNames).toEqual([]);
+
+      const ledger = await db
+        .selectFrom("metaDeckSubmissions")
+        .selectAll()
+        .where("id", "=", submissionId)
+        .executeTakeFirstOrThrow();
+      expect(ledger.status).toBe("pending");
+      expect(ledger.metaEventId).toBe(liveEventId);
+      expect(ledger.eventName).toBe("MTC Submission Target");
+    });
+
+    it("shows up on the reviewing admin's detail as a directly-submitted deck", async () => {
+      const full = await detailOf("mtc-sub");
+      expect(full.submittedDecks).toHaveLength(1);
+      candidateDeckId = full.submittedDecks[0].id;
+      expect(full.submittedDecks[0].submittedByUserId).toBe(USER_ID);
+      expect(full.submittedDecks[0].submissionNote).toBe("Copied from the stream overlay.");
+      // A submission hangs off the live event, not off any source column.
+      expect(full.decks).toHaveLength(0);
+    });
+
+    it("lists it in the contributor's own history", async () => {
+      const res = await app.fetch(req("GET", "/meta/submissions"));
+      expect(res.status).toBe(200);
+      const body = await readJson(res);
+      const mine = body.items.find((item: JsonBody) => item.id === submissionId);
+      expect(mine.status).toBe("pending");
+      expect(mine.playerName).toBe("MTC Contributor Pilot");
+    });
+
+    it("refuses to ignore it, because a submission has no source event to key on", async () => {
+      const res = await app.fetch(
+        adminReq("POST", `/meta/candidate-decks/${candidateDeckId}/ignore`),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("credits the contributor and resolves the ledger when an admin accepts it", async () => {
+      const accepted = await post(`/meta/candidate-decks/${candidateDeckId}/accept`);
+      acceptedDeckId = accepted.deckId;
+      createdDeckIds.push(acceptedDeckId);
+      expect(accepted.created).toBe(true);
+
+      const credits = await db
+        .selectFrom("metaCredits")
+        .selectAll()
+        .where("metaEventId", "=", liveEventId)
+        .execute();
+      expect(credits).toHaveLength(1);
+      expect(credits[0].userId).toBe(USER_ID);
+      expect(credits[0].deckId).toBe(acceptedDeckId);
+
+      const ledger = await db
+        .selectFrom("metaDeckSubmissions")
+        .selectAll()
+        .where("id", "=", submissionId)
+        .executeTakeFirstOrThrow();
+      expect(ledger.status).toBe("accepted");
+      expect(ledger.acceptedDeckId).toBe(acceptedDeckId);
+      expect(ledger.resolvedByUserId).toBe(USER_ID);
+      expect(ledger.resolvedAt).not.toBeNull();
+    });
+
+    it("keeps the contributor off the public page until they opt in", async () => {
+      const hidden = await app.fetch(req("GET", `/meta/events/${await slugOf(liveEventId)}`));
+      expect(hidden.status).toBe(200);
+      const hiddenBody = await readJson(hidden);
+      expect(hiddenBody.event.contributors).toEqual([]);
+
+      const patched = await app.fetch(
+        req("PATCH", "/meta/credit-visibility", { visibility: "name" }),
+      );
+      expect(patched.status).toBe(200);
+
+      const shown = await app.fetch(req("GET", `/meta/events/${await slugOf(liveEventId)}`));
+      const shownBody = await readJson(shown);
+      expect(shownBody.event.contributors).toHaveLength(1);
+      // And the citation list is the other half of the credit line.
+      expect(shownBody.event.sources.map((s: JsonBody) => s.provider)).toEqual([PROVIDER]);
+    });
+
+    it("resolves a second copy of the same list as already_correct", async () => {
+      const sent = await app.fetch(
+        req("POST", "/meta/submissions", {
+          metaEventId: liveEventId,
+          playerName: "MTC Contributor Pilot",
+          finishTier: 2,
+          cards: [
+            { name: "MTC Legend", zone: "legend", quantity: 1 },
+            { name: "MTC Main", zone: "main", quantity: 3 },
+          ],
+        }),
+      );
+      expect(sent.status).toBe(201);
+      const duplicate = await readJson(sent);
+      const duplicateId = duplicate.id;
+
+      const resolved = await app.fetch(
+        adminReq("POST", `/meta/submissions/${duplicateId}/resolve`, {
+          status: "already_correct",
+          reason: "already_correct",
+          note: "We already have this list from the event's own source.",
+        }),
+      );
+      expect(resolved.status).toBe(204);
+
+      const ledger = await db
+        .selectFrom("metaDeckSubmissions")
+        .selectAll()
+        .where("id", "=", duplicateId)
+        .executeTakeFirstOrThrow();
+      expect(ledger.status).toBe("already_correct");
+      expect(ledger.resolutionReason).toBe("already_correct");
+      expect(ledger.resolutionNote).toBe("We already have this list from the event's own source.");
+      expect(ledger.resolvedByUserId).toBe(USER_ID);
+      expect(ledger.resolvedAt).not.toBeNull();
+
+      // Staging survives, which is what lets a misclick be undone.
+      const reopened = await app.fetch(adminReq("POST", `/meta/submissions/${duplicateId}/reopen`));
+      expect(reopened.status).toBe(204);
+      const back = await db
+        .selectFrom("metaDeckSubmissions")
+        .selectAll()
+        .where("id", "=", duplicateId)
+        .executeTakeFirstOrThrow();
+      expect(back.status).toBe("pending");
+      expect(back.resolvedAt).toBeNull();
+      // The admin's message is kept: a reopened submission is one being looked
+      // at again, not one nothing was ever said about.
+      expect(back.resolutionNote).toBe("We already have this list from the event's own source.");
+    });
+
+    it("refuses to resolve the accepted submission over its own credit", async () => {
+      const res = await app.fetch(
+        adminReq("POST", `/meta/submissions/${submissionId}/resolve`, { status: "rejected" }),
+      );
+      expect(res.status).toBe(409);
+    });
+
+    it("hands the reviewing admin the ledger row behind a staged deck", async () => {
+      const res = await app.fetch(
+        adminReq("GET", `/meta/submissions/by-candidate-deck/${candidateDeckId}`),
+      );
+      expect(res.status).toBe(200);
+      const body = await readJson(res);
+      expect(body.submission.id).toBe(submissionId);
+      expect(body.submission.status).toBe("accepted");
+    });
+
+    it("takes the credit back when the contributor's candidate is unlinked", async () => {
+      await post(`/meta/candidate-decks/${candidateDeckId}/unlink`);
+      const credits = await db
+        .selectFrom("metaCredits")
+        .selectAll()
+        .where("metaEventId", "=", liveEventId)
+        .execute();
+      expect(credits).toEqual([]);
     });
   });
 });

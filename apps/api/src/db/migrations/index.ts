@@ -200,6 +200,7 @@ import * as m251 from "./251-query-indexes.js";
 import * as m252 from "./252-trade-group-snapshots.js";
 import * as m253 from "./253-schema-integrity-hardening.js";
 import * as m254 from "./254-org-owner-from-roles.js";
+import * as m255 from "./255-meta-multi-source.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -459,4 +460,5 @@ export const migrations: Record<string, Migration> = {
   "252-trade-group-snapshots": m252,
   "253-schema-integrity-hardening": m253,
   "254-org-owner-from-roles": m254,
+  "255-meta-multi-source": m255,
 };

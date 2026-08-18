@@ -6,12 +6,25 @@ import type {
   acceptedMetaEventWithDecksSchema,
   adminMetaDeckSchema,
   adminMetaEventSchema,
+  adminMetaEventSourceSchema,
   metaCandidateDeckSchema,
   metaCandidateDetailSchema,
   metaCandidateQueueRowSchema,
+  metaCandidateSourceSchema,
+  metaDeckLinkResultSchema,
+  metaDeckMatchSuggestionSchema,
+  metaEventLinkResultSchema,
+  metaEventMatchSuggestionSchema,
   metaUploadResponseSchema,
   metaUploadSchema,
 } from "../../contracts/admin/meta.js";
+import type {
+  metaCreditVisibilityResponseSchema,
+  metaDeckSubmissionInputSchema,
+  metaDeckSubmissionListResponseSchema,
+  metaDeckSubmissionResultSchema,
+  metaDeckSubmissionSchema,
+} from "../../contracts/meta-submissions.js";
 import type {
   metaDeckDetailResponseSchema,
   metaDeckListResponseSchema,
@@ -19,6 +32,7 @@ import type {
   metaEventDetailResponseSchema,
   metaEventDetailSchema,
   metaEventListResponseSchema,
+  metaEventSourceSchema,
   metaEventSummarySchema,
   metaStatsResponseSchema,
 } from "../../contracts/meta.js";
@@ -28,6 +42,9 @@ export type MetaEventSummary = z.infer<typeof metaEventSummarySchema>;
 
 /** The summary plus the long-form fields only the event's own page shows. */
 export type MetaEventDetail = z.infer<typeof metaEventDetailSchema>;
+
+/** One citation on an event: where a slice of its data came from. */
+export type MetaEventSource = z.infer<typeof metaEventSourceSchema>;
 
 /**
  * One archived deck as a tile or table row. Legend and champion are
@@ -96,3 +113,42 @@ export type AcceptedMetaDeckResponse = z.infer<typeof acceptedMetaDeckSchema>;
 
 /** The result of accepting a candidate event together with its ready decks. */
 export type AcceptedMetaEventWithDecksResponse = z.infer<typeof acceptedMetaEventWithDecksSchema>;
+
+/** One citation as the admin event editor lists it. */
+export type AdminMetaEventSource = z.infer<typeof adminMetaEventSourceSchema>;
+
+/** One source's version of a candidate event, with the decks it holds. */
+export type MetaCandidateSource = z.infer<typeof metaCandidateSourceSchema>;
+
+/** Where a link, relink, or unlink left a candidate event. */
+export type MetaEventLinkResult = z.infer<typeof metaEventLinkResultSchema>;
+
+/** Where a link, relink, or unlink left a candidate deck. */
+export type MetaDeckLinkResult = z.infer<typeof metaDeckLinkResultSchema>;
+
+/** One ranked live event proposed for an unlinked candidate event. */
+export type MetaEventMatchSuggestion = z.infer<typeof metaEventMatchSuggestionSchema>;
+
+/** One ranked archived deck proposed for an unlinked candidate deck. */
+export type MetaDeckMatchSuggestion = z.infer<typeof metaDeckMatchSuggestionSchema>;
+
+// ── User submissions (ADR-014, ADR-036) ──────────────────────────────────────
+
+/**
+ * POST /meta/submissions — one decklist against an existing or proposed event.
+ * `z.input`, because the schema defaults every optional field: a client may omit
+ * them, the handler always sees them filled in.
+ */
+export type MetaDeckSubmissionInput = z.input<typeof metaDeckSubmissionInputSchema>;
+
+/** What staging one submission produced, including any names that matched nothing. */
+export type MetaDeckSubmissionResult = z.infer<typeof metaDeckSubmissionResultSchema>;
+
+/** One row of the contributor's own submission history. */
+export type MetaDeckSubmission = z.infer<typeof metaDeckSubmissionSchema>;
+
+/** GET /meta/submissions — the contributor's own history, newest first. */
+export type MetaDeckSubmissionListResponse = z.infer<typeof metaDeckSubmissionListResponseSchema>;
+
+/** GET/PATCH /meta/credit-visibility — whether the caller's contributions are credited. */
+export type MetaCreditVisibilityResponse = z.infer<typeof metaCreditVisibilityResponseSchema>;

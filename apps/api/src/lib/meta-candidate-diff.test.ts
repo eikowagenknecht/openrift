@@ -24,7 +24,6 @@ function event(overrides: Partial<MetaEventFields> = {}): MetaEventFields {
     format: "constructed",
     playerCount: 64,
     organizer: "LGS Berlin",
-    sourceUrl: "https://example.invalid/skirmish",
     notes: "Top 8 lists only.",
     ...overrides,
   };

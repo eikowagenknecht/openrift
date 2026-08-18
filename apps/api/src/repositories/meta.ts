@@ -1,9 +1,21 @@
 import { WellKnown, getOrientation } from "@openrift/shared";
-import type { CardType, DeckFormatConfig, DeckZone, MetaListStatus } from "@openrift/shared/types";
-import type { Kysely, Selectable, Updateable } from "kysely";
+import type {
+  CardType,
+  DeckFormatConfig,
+  DeckZone,
+  MetaCreditVisibility,
+  MetaListStatus,
+} from "@openrift/shared/types";
+import type { Kysely, Selectable, SqlBool, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, DecksTable, MetaDecksTable, MetaEventsTable } from "../db/index.js";
+import type {
+  Database,
+  DecksTable,
+  MetaDecksTable,
+  MetaEventSourcesTable,
+  MetaEventsTable,
+} from "../db/index.js";
 
 /**
  * The synthetic account that owns every archived deck (ADR-014, seeded by
@@ -113,34 +125,46 @@ export interface MetaStatsScope {
 }
 
 /**
- * Where an accepted row came from (migration 236). Both null for a
- * hand-entered event or deck; both set when a candidate was accepted, which is
- * how the next upload finds this row instead of proposing a duplicate.
+ * One citation on an event (migration 255): where a slice of its data came
+ * from. Public, and never a contributor — a person is credited through
+ * {@link MetaContributorRow} instead.
  */
-interface MetaSourceKey {
-  sourceProvider: string | null;
-  sourceExternalId: string | null;
+export type MetaEventSourceRow = Selectable<MetaEventSourcesTable>;
+
+/**
+ * Columns a citation insert accepts. `provider` and `externalId` are null
+ * together for a hand-entered citation (a VOD, a photo of the standings
+ * board); a provider row carries the candidate's key so unlinking can find it.
+ */
+export interface MetaEventSourceInput {
+  metaEventId: string;
+  provider: string | null;
+  externalId: string | null;
+  label: string;
+  sourceUrl: string | null;
 }
 
 /**
- * A deck's source key, which needs its event's id as well: sources number
- * their lists per event, so the deck id alone is not unique across a provider.
- * Kept apart from {@link MetaSourceKey} because `meta_events` has no such
- * column to write.
+ * One contributor as an event page prints them. The name is resolved at read
+ * time from the user's profile and their `meta_credit_visibility`, so a rename
+ * or an opt-out reaches every past contribution with no sweep across rows
+ * (ADR-014).
  */
-interface MetaDeckSourceKey extends MetaSourceKey {
-  sourceEventExternalId: string | null;
+export interface MetaContributorRow {
+  metaEventId: string;
+  userId: string;
+  /** Never empty: a contributor whose chosen field is blank is dropped instead. */
+  displayName: string;
 }
 
 /** Columns an event create accepts; the rest are defaulted by the table. */
-export interface MetaEventInput extends MetaSourceKey {
+export interface MetaEventInput {
   slug: string;
   name: string;
   eventDate: string;
   format: string;
   playerCount: number | null;
   organizer: string | null;
-  sourceUrl: string | null;
   notes: string | null;
 }
 
@@ -153,7 +177,7 @@ export interface MetaDeckCardInput {
 }
 
 /** Everything needed to mint an archived deck plus its satellite row in one go. */
-export interface MetaDeckInput extends MetaDeckSourceKey {
+export interface MetaDeckInput {
   eventId: string;
   name: string;
   format: string;
@@ -289,6 +313,35 @@ export function metaRepo(db: Kysely<Database>) {
         "me.eventDate",
         "me.format as eventFormat",
       ]);
+  }
+
+  /**
+   * The public contributor read, shared by the single-event, multi-event and
+   * per-deck forms.
+   *
+   * The display string is resolved in SQL so the filter and the ordering agree
+   * with it: a contributor on `riot_id` falls back to their display name, a
+   * blank result drops the row rather than printing part of a user id, and the
+   * `DISTINCT` collapses the several decks one person contributed into one name
+   * per event.
+   *
+   * @returns The query, unfiltered.
+   */
+  function contributorQuery() {
+    const displayName = sql<string>`nullif(btrim(case
+      when u.meta_credit_visibility = 'riot_id' then coalesce(nullif(btrim(u.riot_id), ''), u.name)
+      else u.name
+    end), '')`;
+    return db
+      .selectFrom("metaCredits as mc")
+      .innerJoin("users as u", "u.id", "mc.userId")
+      .select(["mc.metaEventId", "mc.userId"])
+      .select(displayName.as("displayName"))
+      .distinct()
+      .where("u.metaCreditVisibility", "!=", "hidden")
+      .where(sql<SqlBool>`${displayName} is not null`)
+      .orderBy("displayName", "asc")
+      .orderBy("mc.userId", "asc");
   }
 
   return {
@@ -620,9 +673,6 @@ export function metaRepo(db: Kysely<Database>) {
             finishTier: input.finishTier,
             record: input.record,
             listStatus: input.listStatus,
-            sourceProvider: input.sourceProvider,
-            sourceEventExternalId: input.sourceEventExternalId,
-            sourceExternalId: input.sourceExternalId,
           })
           .execute();
 
@@ -719,6 +769,156 @@ export function metaRepo(db: Kysely<Database>) {
         )
         .executeTakeFirst();
       return (result.numDeletedRows ?? 0n) > 0n;
+    },
+
+    // ── Source citations (migration 255) ─────────────────────────────────────
+
+    /** @returns The event's citations, provider rows first, then oldest first. */
+    sourcesForEvent(eventId: string): Promise<MetaEventSourceRow[]> {
+      return db
+        .selectFrom("metaEventSources")
+        .selectAll()
+        .where("metaEventId", "=", eventId)
+        .orderBy(sql`provider asc nulls last`)
+        .orderBy("createdAt", "asc")
+        .execute();
+    },
+
+    /** @returns The new citation row. */
+    insertEventSource(input: MetaEventSourceInput): Promise<MetaEventSourceRow> {
+      return db
+        .insertInto("metaEventSources")
+        .values(input)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    },
+
+    /** @returns Whether the citation existed. */
+    async deleteEventSource(id: string): Promise<boolean> {
+      const result = await db
+        .deleteFrom("metaEventSources")
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return (result.numDeletedRows ?? 0n) > 0n;
+    },
+
+    /**
+     * Removes a provider's citation by its source key, which is what unlinking
+     * a candidate has to work with: it knows the key, not the row id.
+     * @param provider The citing provider.
+     * @param externalId That provider's id for the event.
+     * @returns Whether a citation was removed.
+     */
+    async deleteEventSourceByKey(provider: string, externalId: string): Promise<boolean> {
+      const result = await db
+        .deleteFrom("metaEventSources")
+        .where("provider", "=", provider)
+        .where("externalId", "=", externalId)
+        .executeTakeFirst();
+      return (result.numDeletedRows ?? 0n) > 0n;
+    },
+
+    // ── Contributor credit (migration 255) ───────────────────────────────────
+
+    /**
+     * Records one contribution. Idempotent on the contribution's unique index
+     * (`NULLS NOT DISTINCT`, so a second event-level credit for the same user
+     * is the same row), because an accept is legitimately re-run — a corrected
+     * list, a re-upload — and a contributor is credited once per thing they
+     * contributed, not once per click.
+     *
+     * @param values The event, the deck (null credits the event itself), and the contributor.
+     */
+    async insertCredit(values: {
+      metaEventId: string;
+      deckId: string | null;
+      userId: string;
+    }): Promise<void> {
+      await db
+        .insertInto("metaCredits")
+        .values(values)
+        .onConflict((oc) => oc.columns(["metaEventId", "userId", "deckId"]).doNothing())
+        .execute();
+    },
+
+    /**
+     * Drops credits for one archived deck. Deleting the deck itself cascades;
+     * this is the narrower case of taking a credit back while the deck stays,
+     * which is what unlinking a contributor's candidate does.
+     *
+     * @param deckId The archived deck.
+     * @param userId One contributor, when only their credit should go. Several
+     *   people can have contributed to one deck, so the unlink path always
+     *   passes it.
+     */
+    async deleteCreditsForDeck(deckId: string, userId?: string): Promise<void> {
+      let query = db.deleteFrom("metaCredits").where("deckId", "=", deckId);
+      if (userId !== undefined) {
+        query = query.where("userId", "=", userId);
+      }
+      await query.execute();
+    },
+
+    /**
+     * One event's public contributor line.
+     *
+     * Consent is `users.meta_credit_visibility`, read here rather than frozen
+     * onto the credit row: opting in later credits every past contribution and
+     * opting out removes them all, without touching an archive row.
+     *
+     * @param eventId The event to read.
+     * @returns One row per contributor, name already resolved.
+     */
+    contributorsForEvent(eventId: string): Promise<MetaContributorRow[]> {
+      return contributorQuery().where("mc.metaEventId", "=", eventId).execute();
+    },
+
+    /**
+     * The contributors of one archived deck, for the deck page's own line.
+     * @param deckId The archived deck.
+     * @returns Its public contributors.
+     */
+    contributorsForDeck(deckId: string): Promise<MetaContributorRow[]> {
+      return contributorQuery().where("mc.deckId", "=", deckId).execute();
+    },
+
+    /**
+     * One user's credit-visibility setting.
+     *
+     * The column lives on `users` but its meaning is this domain's: it is the
+     * consent behind {@link contributorsForEvent}, and reading it anywhere
+     * else would be reading a meta-archive rule out of context.
+     *
+     * @param userId The user.
+     * @returns Their setting, or `undefined` when the user is gone.
+     */
+    async creditVisibility(userId: string): Promise<MetaCreditVisibility | undefined> {
+      const row = await db
+        .selectFrom("users")
+        .select("metaCreditVisibility")
+        .where("id", "=", userId)
+        .executeTakeFirst();
+      return row?.metaCreditVisibility;
+    },
+
+    /**
+     * Changes one user's credit visibility.
+     *
+     * Nothing else moves: opting in credits every past contribution and opting
+     * out removes them all, because the public read resolves the name at render
+     * rather than freezing it onto a credit row.
+     *
+     * @param userId The user.
+     * @param visibility What their contributions should show.
+     * @returns Whether the user existed.
+     */
+    async setCreditVisibility(userId: string, visibility: MetaCreditVisibility): Promise<boolean> {
+      const result = await db
+        .updateTable("users")
+        .set({ metaCreditVisibility: visibility })
+        .where("id", "=", userId)
+        .executeTakeFirst();
+      return (result.numUpdatedRows ?? 0n) > 0n;
     },
 
     /**

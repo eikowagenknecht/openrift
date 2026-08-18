@@ -54,6 +54,7 @@ import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
 import { metaCandidatesRepo } from "./repositories/meta-candidates.js";
+import { metaSubmissionsRepo } from "./repositories/meta-submissions.js";
 import { metaRepo } from "./repositories/meta.js";
 import { organizationsRepo } from "./repositories/organizations.js";
 import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
@@ -114,8 +115,22 @@ import {
   acceptCandidateDeck,
   acceptCandidateEvent,
   acceptCandidateEventWithDecks,
+  acceptMetaDeckField,
+  acceptMetaDeckList,
+  acceptMetaEventField,
+  linkCandidateDeck,
+  linkCandidateEvent,
+  relinkCandidateDeck,
+  relinkCandidateEvent,
   rematchMetaCandidates,
+  unlinkCandidateDeck,
+  unlinkCandidateEvent,
 } from "./services/meta-candidate-accept.js";
+import {
+  suggestMetaDeckMatches,
+  suggestMetaEventMatches,
+} from "./services/meta-match-suggestions.js";
+import { submitMetaDeck } from "./services/meta-submission.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
 export interface Repos {
@@ -173,6 +188,7 @@ export interface Repos {
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   meta: ReturnType<typeof metaRepo>;
   metaCandidates: ReturnType<typeof metaCandidatesRepo>;
+  metaSubmissions: ReturnType<typeof metaSubmissionsRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   products: ReturnType<typeof productsRepo>;
   markers: ReturnType<typeof markersRepo>;
@@ -215,6 +231,18 @@ export interface Services {
   acceptCandidateEvent: typeof acceptCandidateEvent;
   acceptCandidateEventWithDecks: typeof acceptCandidateEventWithDecks;
   acceptCandidateDeck: typeof acceptCandidateDeck;
+  acceptMetaEventField: typeof acceptMetaEventField;
+  acceptMetaDeckField: typeof acceptMetaDeckField;
+  acceptMetaDeckList: typeof acceptMetaDeckList;
+  linkCandidateEvent: typeof linkCandidateEvent;
+  relinkCandidateEvent: typeof relinkCandidateEvent;
+  unlinkCandidateEvent: typeof unlinkCandidateEvent;
+  linkCandidateDeck: typeof linkCandidateDeck;
+  relinkCandidateDeck: typeof relinkCandidateDeck;
+  unlinkCandidateDeck: typeof unlinkCandidateDeck;
+  suggestMetaEventMatches: typeof suggestMetaEventMatches;
+  suggestMetaDeckMatches: typeof suggestMetaDeckMatches;
+  submitMetaDeck: typeof submitMetaDeck;
   rematchMetaCandidates: typeof rematchMetaCandidates;
   notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   importErrata: typeof importErrata;
@@ -364,6 +392,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceAdmin: marketplaceAdminRepo(db),
     meta: metaRepo(db),
     metaCandidates: metaCandidatesRepo(db),
+    metaSubmissions: metaSubmissionsRepo(db),
     printingImages: printingImagesRepo(db),
     products: productsRepo(db),
     markers: markersRepo(db),
@@ -420,6 +449,18 @@ export const services: Services = {
   acceptCandidateEvent,
   acceptCandidateEventWithDecks,
   acceptCandidateDeck,
+  acceptMetaEventField,
+  acceptMetaDeckField,
+  acceptMetaDeckList,
+  linkCandidateEvent,
+  relinkCandidateEvent,
+  unlinkCandidateEvent,
+  linkCandidateDeck,
+  relinkCandidateDeck,
+  unlinkCandidateDeck,
+  suggestMetaEventMatches,
+  suggestMetaDeckMatches,
+  submitMetaDeck,
   rematchMetaCandidates,
   notifyAdminsOfCardSubmission,
   importErrata,

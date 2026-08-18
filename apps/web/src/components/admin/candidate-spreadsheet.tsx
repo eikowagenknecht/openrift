@@ -1,5 +1,4 @@
 import type {
-  CandidateCardResponse,
   CandidatePrintingResponse,
   EnumOrders,
   ProviderSettingResponse,
@@ -272,10 +271,38 @@ export interface PrintingGroup {
 
 // -- Spreadsheet component ----------------------------------------------------
 
-interface CandidateSpreadsheetProps<TKey extends string = string> {
+/**
+ * Everything the grid needs to know about a candidate row. Anything else it
+ * touches, it reads by field key out of the row, so a new candidate entity —
+ * meta-archive events (ADR-014) alongside the card pipeline's cards and
+ * printings — joins by satisfying this and nothing more.
+ *
+ * Both optional members are genuinely optional: a row may carry a provider of
+ * its own (candidate cards, candidate meta events), or inherit one from a
+ * parent candidate card (candidate printings), or carry neither, in which case
+ * the column falls back to a label derived from the row id.
+ */
+export interface CandidateSpreadsheetRow {
+  id: string;
+  /** ISO instant an admin last reviewed this row, or null. Only its nullness is read. */
+  checkedAt: string | null;
+  /** The source this row came from, when the row names one itself. */
+  provider?: string;
+  /**
+   * The candidate card this row hangs off, for rows that have one. Its provider
+   * label, its display name and its submitter all resolve through the parent,
+   * because a printing carries no attribution of its own.
+   */
+  candidateCardId?: string;
+}
+
+interface CandidateSpreadsheetProps<
+  TKey extends string = string,
+  TRow extends CandidateSpreadsheetRow = CandidateSpreadsheetRow,
+> {
   fields: FieldDef<TKey>[];
   activeRow: Record<string, unknown> | null;
-  candidateRows: (CandidateCardResponse | CandidatePrintingResponse)[];
+  candidateRows: TRow[];
   /** Map from candidateCardId -> provider name (e.g. "gallery"), used to label columns. */
   providerLabels?: Record<string, string>;
   /** Map from candidateCardId -> candidate card name (e.g. "Yone - Blademaster (Overnumbered)"). */
@@ -296,12 +323,15 @@ interface CandidateSpreadsheetProps<TKey extends string = string> {
    * Extra action items rendered in each candidate column header's dropdown
    * menu. The candidate `row` is injected via cloneElement, so the wrapper
    * component should declare it as an optional prop.
+   *
+   * `NoInfer` here and on {@link columnClassName}: the row type is decided by
+   * the data in `candidateRows`, never by what an action component happened to
+   * annotate. Without it a wrapper declaring a wider `row` silently widens the
+   * whole grid's row type instead of failing where the mismatch is.
    */
-  columnActions?: React.ReactElement<{
-    row?: CandidateCardResponse | CandidatePrintingResponse;
-  }>;
+  columnActions?: React.ReactElement<{ row?: NoInfer<TRow> }>;
   /** Extra CSS classes for a candidate column header `<th>`. */
-  columnClassName?: (row: CandidateCardResponse | CandidatePrintingResponse) => string | undefined;
+  columnClassName?: (row: NoInfer<TRow>) => string | undefined;
   /** Return a warning tooltip for a candidate cell; shown as a small icon. */
   cellWarning?: (fieldKey: string, candidateValue: unknown) => string | null;
   /** Normalize a candidate value before comparing it to the active value.
@@ -444,22 +474,32 @@ function formatValue(value: unknown, suffix?: unknown): string {
   return text;
 }
 
+/**
+ * What a candidate column is headed with: the row's own provider, else the one
+ * its parent candidate card was labelled with, else a stand-in derived from the
+ * row id so a column is never nameless.
+ * @param row The candidate row.
+ * @param providerLabels Provider names by parent candidate card id.
+ * @returns The column's provider label.
+ */
 function getProviderLabel(
-  row: CandidateCardResponse | CandidatePrintingResponse,
+  row: CandidateSpreadsheetRow,
   providerLabels?: Record<string, string>,
 ): string {
-  if ("provider" in row) {
+  if (row.provider !== undefined) {
     return row.provider;
   }
-  return providerLabels?.[row.candidateCardId] ?? `provider-${row.id.slice(0, 8)}`;
+  const parentCardId = row.candidateCardId;
+  const inherited = parentCardId === undefined ? undefined : providerLabels?.[parentCardId];
+  return inherited ?? `provider-${row.id.slice(0, 8)}`;
 }
 
-function isChecked(row: CandidateCardResponse | CandidatePrintingResponse): boolean {
+function isChecked(row: CandidateSpreadsheetRow): boolean {
   return row.checkedAt !== null;
 }
 
 function isFavoriteProvider(
-  row: CandidateCardResponse | CandidatePrintingResponse,
+  row: CandidateSpreadsheetRow,
   providerLabels: Record<string, string> | undefined,
   favoriteProviders: Set<string>,
 ): boolean {
@@ -672,7 +712,10 @@ function SubmitterLine({ submitter }: { submitter: SourceSubmitter }) {
   );
 }
 
-export function CandidateSpreadsheet<TKey extends string = string>({
+export function CandidateSpreadsheet<
+  TKey extends string = string,
+  TRow extends CandidateSpreadsheetRow = CandidateSpreadsheetRow,
+>({
   fields,
   activeRow,
   candidateRows,
@@ -692,7 +735,7 @@ export function CandidateSpreadsheet<TKey extends string = string>({
   activeImageUrl,
   costKeywords = [],
   activeColumnBadge,
-}: CandidateSpreadsheetProps<TKey>) {
+}: CandidateSpreadsheetProps<TKey, TRow>) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const favoriteProviders = new Set(
     providerSettings?.filter((s) => s.isFavorite).map((s) => s.provider),
@@ -762,8 +805,8 @@ export function CandidateSpreadsheet<TKey extends string = string>({
             {sortedRows.map((row) => {
               // Printing rows carry no attribution of their own — they inherit
               // it from the candidate card they belong to.
-              const submitter =
-                submitters?.["candidateCardId" in row ? row.candidateCardId : row.id];
+              const parentCardId = row.candidateCardId;
+              const submitter = submitters?.[parentCardId ?? row.id];
               return (
                 <th
                   key={row.id}
@@ -778,9 +821,9 @@ export function CandidateSpreadsheet<TKey extends string = string>({
                   <div className="flex items-center gap-1">
                     <span className="min-w-0 break-words">
                       {getProviderLabel(row, providerLabels)}
-                      {"candidateCardId" in row && providerNames?.[row.candidateCardId] && (
+                      {parentCardId !== undefined && providerNames?.[parentCardId] && (
                         <span className="text-muted-foreground ml-1">
-                          ({providerNames[row.candidateCardId]})
+                          ({providerNames[parentCardId]})
                         </span>
                       )}
                     </span>

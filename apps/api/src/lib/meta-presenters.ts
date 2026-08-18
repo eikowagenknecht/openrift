@@ -7,14 +7,45 @@ import type {
   MetaEventSummary,
   MetaStatsResponse,
 } from "@openrift/shared";
+import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
 
+import type { MetaDeckSubmissionRow } from "../repositories/meta-submissions.js";
 import type {
   AdminMetaDeckRow,
   MetaCardStatRow,
+  MetaContributorRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
+  MetaEventSourceRow,
   MetaEventWithCount,
 } from "../repositories/meta.js";
+
+/**
+ * One citation as a page prints it (migration 255). `provider` and `externalId`
+ * are null together for a hand-entered row; they travel because the admin
+ * review screen keys its source columns on them, and neither is a secret.
+ */
+export interface MetaEventSourceResponse {
+  id: string;
+  provider: string | null;
+  externalId: string | null;
+  label: string;
+  sourceUrl: string | null;
+}
+
+/** One user submission as the contributor's own list shows it. */
+export interface MetaDeckSubmissionResponse {
+  id: string;
+  eventName: string;
+  playerName: string;
+  note: string | null;
+  status: MetaDeckSubmissionRow["status"];
+  resolutionReason: MetaDeckSubmissionRow["resolutionReason"];
+  resolutionNote: string | null;
+  acceptedDeckId: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
 
 /**
  * Canonical front image per card id, as resolved by the canonical-printings
@@ -44,12 +75,44 @@ export function toMetaEventSummary(row: MetaEventWithCount): MetaEventSummary {
   };
 }
 
-/** @returns The event with the long-form fields only its own page renders. */
-export function toMetaEventDetail(row: MetaEventWithCount): MetaEventDetail {
+/** @returns One citation row. */
+export function toMetaEventSource(row: MetaEventSourceRow): MetaEventSourceResponse {
+  return {
+    id: row.id,
+    provider: row.provider,
+    externalId: row.externalId,
+    label: row.label,
+    sourceUrl: row.sourceUrl,
+  };
+}
+
+/**
+ * The event with the long-form fields only its own page renders, plus the two
+ * lists that replaced the single `source_url` column (migration 255):
+ * where the data came from, and who typed it in.
+ *
+ * Contributors arrive as resolved display strings and never as user ids: the
+ * repo has already dropped anyone on `hidden` and anyone whose chosen profile
+ * field is blank, and a credit is deliberately plain text with no profile link
+ * behind it.
+ *
+ * @param row The event with its deck count.
+ * @param options.sources Its citations.
+ * @param options.contributors Its public contributors, one row per person.
+ * @returns The event detail.
+ */
+export function toMetaEventDetail(
+  row: MetaEventWithCount,
+  options: {
+    sources: readonly MetaEventSourceRow[];
+    contributors: readonly MetaContributorRow[];
+  },
+): MetaEventDetail {
   return {
     ...toMetaEventSummary(row),
-    sourceUrl: row.sourceUrl,
     notes: row.notes,
+    sources: options.sources.map((source) => toMetaEventSource(source)),
+    contributors: options.contributors.map((contributor) => contributor.displayName),
   };
 }
 
@@ -90,9 +153,21 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
 /**
  * The archive panel appended to the public share-deck payload on an archived
  * deck's page.
+ *
+ * Contributors arrive resolved and pre-filtered, exactly as they do on the
+ * event page: the repo has already dropped anyone on `hidden` and anyone whose
+ * chosen profile field is blank, so a user id never reaches the wire. This is
+ * the deck's own credit line rather than its event's — one names whoever typed
+ * in this list, the other everyone who fed the tournament.
+ *
+ * @param row The deck's placement and event.
+ * @param contributors Its public contributors, one row per person.
  * @returns The `meta` block of the deck-detail response.
  */
-export function toMetaDeckContext(row: MetaDeckContextRow): MetaDeckDetailResponse["meta"] {
+export function toMetaDeckContext(
+  row: MetaDeckContextRow,
+  contributors: readonly MetaContributorRow[],
+): MetaDeckDetailResponse["meta"] {
   return {
     event: {
       slug: row.eventSlug,
@@ -104,6 +179,7 @@ export function toMetaDeckContext(row: MetaDeckContextRow): MetaDeckDetailRespon
     playerName: row.playerName,
     finishTier: row.finishTier,
     record: row.record,
+    contributors: contributors.map((contributor) => contributor.displayName),
   };
 }
 
@@ -126,7 +202,12 @@ export function toMetaStatRow(
   };
 }
 
-/** @returns The event as the admin table shows it — every stored field plus the count. */
+/**
+ * @param row The event with its deck count.
+ * @returns The event as the admin table shows it — every stored field plus the
+ *   count. Attribution is no longer one of them: citations are their own list,
+ *   presented by {@link toMetaEventSource}.
+ */
 export function toAdminMetaEvent(row: MetaEventWithCount): AdminMetaEvent {
   return {
     id: row.id,
@@ -136,9 +217,50 @@ export function toAdminMetaEvent(row: MetaEventWithCount): AdminMetaEvent {
     format: row.format,
     playerCount: row.playerCount,
     organizer: row.organizer,
-    sourceUrl: row.sourceUrl,
     notes: row.notes,
     deckCount: row.deckCount,
+  };
+}
+
+/**
+ * @param row A submission ledger row.
+ * @returns The submission as its contributor's own list shows it. The candidate
+ *   id and the provider key stay off the wire: they are staging details a
+ *   contributor has no use for, and staging is disposable.
+ */
+export function toMetaDeckSubmission(row: MetaDeckSubmissionRow): MetaDeckSubmissionResponse {
+  return {
+    id: row.id,
+    eventName: row.eventName,
+    playerName: row.playerName,
+    note: row.note,
+    status: row.status,
+    resolutionReason: row.resolutionReason,
+    resolutionNote: row.resolutionNote,
+    acceptedDeckId: row.acceptedDeckId,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * @param row A submission ledger row.
+ * @returns The submission as the reviewing admin sees it: the contributor's
+ *   claim plus whatever outcome it carries. The submitter's identity is left
+ *   out — the candidate deck beside it carries that.
+ */
+export function toAdminMetaSubmission(row: MetaDeckSubmissionRow): AdminMetaSubmission {
+  return {
+    id: row.id,
+    eventName: row.eventName,
+    playerName: row.playerName,
+    note: row.note,
+    status: row.status,
+    reason: row.resolutionReason,
+    resolutionNote: row.resolutionNote,
+    acceptedDeckId: row.acceptedDeckId,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
 }
 
