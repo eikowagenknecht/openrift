@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(Decks): **Deck menu submenus stay put** — picking "Change format" or "Add to folder" on a deck opened that deck instead of the submenu.
 - fix(App): **Fast double actions land once** — clicking twice or acting from two tabs at the same moment (submitting a tournament deck, clearing a collection while a trade lands, toggling a Discord trade channel) now applies once instead of racing itself into duplicates or lost changes.
 
 ## 2026-08-17

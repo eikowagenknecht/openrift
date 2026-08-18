@@ -110,11 +110,6 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         .filter((card): card is DeckBuilderCard => card !== null)
     : undefined;
 
-  const stop = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   const handleDelete = () => {
     // Guard against double-submission: a second confirm (re-opened dialog,
     // rapid double-click) while the first delete is still in flight would
@@ -126,8 +121,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     setDeleteOpen(false);
   };
 
-  const handleFormatChange = (event: React.MouseEvent, slug: string) => {
-    stop(event);
+  const handleFormatChange = (slug: string) => {
     updateDeck.mutate({ deckId: deck.id, format: slug });
   };
 
@@ -145,14 +139,12 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="ghost" size="icon-sm" aria-label="Deck actions" />}
-          onClick={stop}
         >
           <EllipsisVerticalIcon className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setPinned.mutate({ deckId: deck.id, isPinned: !deck.isPinned });
             }}
           >
@@ -169,8 +161,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             )}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setShareOpen(true);
             }}
           >
@@ -178,8 +169,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Share…
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setExportOpen(true);
             }}
           >
@@ -187,8 +177,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Export…
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setPrintOpen(true);
             }}
           >
@@ -197,8 +186,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           </DropdownMenuItem>
           {item.totalCards > 0 && (
             <DropdownMenuItem
-              onClick={(event: React.MouseEvent) => {
-                stop(event);
+              onClick={() => {
                 void navigate({ to: "/stage", search: { deck: deck.id, i: 0 } });
               }}
             >
@@ -207,8 +195,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setRenameOpen(true);
             }}
           >
@@ -223,10 +210,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 {otherFormats.map((entry) => (
-                  <DropdownMenuItem
-                    key={entry.slug}
-                    onClick={(event: React.MouseEvent) => handleFormatChange(event, entry.slug)}
-                  >
+                  <DropdownMenuItem key={entry.slug} onClick={() => handleFormatChange(entry.slug)}>
                     {entry.label}
                   </DropdownMenuItem>
                 ))}
@@ -245,8 +229,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
                 <DropdownMenuCheckboxItem
                   key={folder.id}
                   checked={item.folderIds.includes(folder.id)}
-                  onClick={(event: React.MouseEvent) => {
-                    stop(event);
+                  onClick={() => {
                     handleToggleFolder(folder.id);
                   }}
                 >
@@ -255,8 +238,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               ))}
               {folderList.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem
-                onClick={(event: React.MouseEvent) => {
-                  stop(event);
+                onClick={() => {
                   setFoldersOpen(true);
                 }}
               >
@@ -269,8 +251,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               dialog is where a version is created, and also where a standalone
               deck gets linked to its first sibling. */}
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setVariantsOpen(true);
             }}
           >
@@ -279,8 +260,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           </DropdownMenuItem>
           {deck.familyId !== null && !deck.isPrimary && (
             <DropdownMenuItem
-              onClick={(event: React.MouseEvent) => {
-                stop(event);
+              onClick={() => {
                 promotePrimary.mutate(deck.id);
               }}
             >
@@ -289,8 +269,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               updateDeck.mutate({ deckId: deck.id, isDraft: !deck.isDraft });
             }}
           >
@@ -298,8 +277,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             {deck.isDraft ? "Remove draft mark" : "Mark as draft"}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setArchived.mutate({ deckId: deck.id, archived: deck.archivedAt === null });
             }}
           >
@@ -316,8 +294,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             )}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setDeleteOpen(true);
             }}
             className="text-destructive focus:text-destructive"

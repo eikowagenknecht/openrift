@@ -280,14 +280,22 @@ export function DeckTile({
     ) : null;
 
   return (
-    <Link
-      to="/decks/$deckId"
-      params={{ deckId: deck.id }}
+    <div
       className={cn(
         cardLinkVariants(),
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep tiles consistent.
-        "ring-foreground/10 focus-visible:ring-ring/50 group relative flex flex-col overflow-hidden rounded-lg ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+        "ring-foreground/10 group relative flex flex-col overflow-hidden rounded-lg ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
+        // The deck name's link stretches over the whole tile through its ::after
+        // instead of the tile being one big anchor, because an anchor may not
+        // contain the menu and the badges that live in here. It is the only
+        // anchor in the tile, so the ring the root used to wear follows it.
+        "has-[a:focus-visible]:ring-ring/50 has-[a:focus-visible]:ring-2",
+        // Anything that reacts to a hover has to sit above that overlay or it
+        // never sees one: every tooltip trigger, and every native title. The
+        // menu and the variant plates carry their own z-10.
+        "**:data-[slot=tooltip-trigger]:relative **:data-[slot=tooltip-trigger]:z-10",
+        "[&_[title]]:relative [&_[title]]:z-10",
       )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
@@ -332,7 +340,17 @@ export function DeckTile({
                 aria-label="Archived"
               />
             )}
-            <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
+            {/* The ::after is what makes the whole tile clickable. It resolves
+                against the tile root, the only positioned ancestor. */}
+            <h3 className="min-w-0 truncate leading-tight font-semibold">
+              <Link
+                to="/decks/$deckId"
+                params={{ deckId: deck.id }}
+                className="rounded-lg outline-none after:absolute after:inset-0"
+              >
+                {deck.name}
+              </Link>
+            </h3>
             {deck.isDraft && <DraftBadge />}
           </div>
           <DeckIdentityLine
@@ -382,6 +400,6 @@ export function DeckTile({
         {/* Footer */}
         <DeckMetaLine item={item} className="mt-auto pt-1" />
       </div>
-    </Link>
+    </div>
   );
 }

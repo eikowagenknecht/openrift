@@ -67,13 +67,7 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
         .filter((card): card is DeckBuilderCard => card !== null)
     : [];
 
-  const stop = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  const handleDuplicate = (event: React.MouseEvent) => {
-    stop(event);
+  const handleDuplicate = () => {
     const newId = duplicateDeck(deck.id);
     if (newId) {
       toast.success(`Duplicated "${deck.name}".`);
@@ -90,14 +84,12 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="ghost" size="icon-sm" aria-label="Deck actions" />}
-          onClick={stop}
         >
           <EllipsisVerticalIcon className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setShareOpen(true);
             }}
           >
@@ -105,8 +97,7 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Share…
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setExportOpen(true);
             }}
           >
@@ -114,8 +105,7 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Export…
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setPrintOpen(true);
             }}
           >
@@ -123,8 +113,7 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Print…
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setRenameOpen(true);
             }}
           >
@@ -136,8 +125,7 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             Duplicate
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(event: React.MouseEvent) => {
-              stop(event);
+            onClick={() => {
               setDeleteOpen(true);
             }}
             className="text-destructive focus:text-destructive"

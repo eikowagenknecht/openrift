@@ -670,6 +670,9 @@ function MostExpensivePrintings({
               </span>
               {printing.thumbnail && (
                 <HoverCard>
+                  {/* The span is required, not cosmetic: this trigger sits
+                      inside the row's link, and Base UI's default trigger
+                      element is an anchor, which may not nest in another. */}
                   <HoverCardTrigger render={<span />}>
                     <CardArtThumb src={printing.thumbnail} className="h-32" />
                   </HoverCardTrigger>

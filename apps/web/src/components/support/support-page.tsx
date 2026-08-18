@@ -82,7 +82,12 @@ function TierCard({ tier, label }: { tier: SupportTier; label: string }) {
   );
 }
 
-function ShareButton({
+/**
+ * One share action: a link out when `href` is set, a plain action otherwise.
+ * Exported for the markup test that pins the anchor/button shape.
+ * @returns The share button.
+ */
+export function ShareButton({
   label,
   icon,
   onClick,
@@ -93,13 +98,20 @@ function ShareButton({
   onClick?: () => void;
   href?: string;
 }) {
+  // A share that goes somewhere is a button-styled anchor, the same treatment
+  // the donate links use. It used to be a Button inside an <a>, which an anchor
+  // may not contain, and Base UI's `render` escape hatch is no better here: it
+  // stamps role="button" on the anchor, so a link stops announcing as one.
   if (href) {
     return (
-      <a href={href} target="_blank" rel="noreferrer">
-        <Button variant="outline" size="lg" className="w-full gap-2">
-          {icon}
-          {label}
-        </Button>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full gap-2")}
+      >
+        {icon}
+        {label}
       </a>
     );
   }

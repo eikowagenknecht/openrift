@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 // kept together so the list and the grid can't drift apart on wording or state.
 
 /**
- * The expand control on a family's front entry. Both the row and the tile are
- * one big Link, so the click is cancelled before it can navigate.
+ * The expand control on a family's front entry. The row and the tile are
+ * stretched-link surfaces, so this sits above the link overlay to take its own
+ * clicks rather than cancelling the row's navigation after the fact.
  * @returns The toggle pill.
  */
 export function VariantCountToggle({
@@ -25,12 +26,10 @@ export function VariantCountToggle({
 }) {
   return (
     <CountPillButton
-      className={cn("shrink-0", className)}
+      className={cn("relative z-10 shrink-0", className)}
       aria-expanded={family.expanded}
       aria-label={family.expanded ? "Hide variants" : "Show variants"}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
+      onClick={() => {
         onToggle(family.id);
       }}
     >
@@ -43,8 +42,8 @@ export function VariantCountToggle({
 }
 
 /**
- * The draft marker. Like `LocalDeckBadge` it renders as a span so it stays valid
- * inside the anchor-wrapped rows and tiles.
+ * The draft marker. Like `LocalDeckBadge` it renders as a span, so it adds no
+ * tab stop to a row that already has one for the deck itself.
  * @returns The draft badge.
  */
 export function DraftBadge({ className }: { className?: string }) {

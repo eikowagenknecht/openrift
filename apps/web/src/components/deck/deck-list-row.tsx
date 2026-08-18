@@ -104,14 +104,22 @@ export function DeckListRow({
   );
 
   return (
-    <Link
-      to="/decks/$deckId"
-      params={{ deckId: deck.id }}
+    <div
       className={cn(
         cardLinkVariants(),
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep rows consistent.
-        "ring-foreground/10 focus-visible:ring-ring/50 group flex items-center gap-3 rounded-lg px-3 py-2 ring-1 outline-none hover:bg-transparent focus-visible:ring-2 data-[archived=true]:opacity-60",
+        "ring-foreground/10 group relative flex items-center gap-3 rounded-lg px-3 py-2 ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
+        // The deck name's link stretches over the whole row through its ::after
+        // instead of the row being one big anchor, because an anchor may not
+        // contain the menu and the badges that live in here. It is the only
+        // anchor in the row, so the ring the root used to wear follows it.
+        "has-[a:focus-visible]:ring-ring/50 has-[a:focus-visible]:ring-2",
+        // Anything that reacts to a hover has to sit above that overlay or it
+        // never sees one: every tooltip trigger, and every native title. The
+        // menu and the variant toggle carry their own z-10.
+        "**:data-[slot=tooltip-trigger]:relative **:data-[slot=tooltip-trigger]:z-10",
+        "[&_[title]]:relative [&_[title]]:z-10",
         // A revealed sibling is indented under its family's front row, which is
         // the only thing marking it as one — the rows are otherwise identical.
         family?.role === "member" && "ml-4 sm:ml-8",
@@ -136,7 +144,15 @@ export function DeckListRow({
                 aria-label="Archived"
               />
             )}
-            <span className="truncate font-medium">{deck.name}</span>
+            {/* The ::after is what makes the whole row clickable. It resolves
+                against the row root, the only positioned ancestor. */}
+            <Link
+              to="/decks/$deckId"
+              params={{ deckId: deck.id }}
+              className="truncate rounded-lg font-medium outline-none after:absolute after:inset-0"
+            >
+              {deck.name}
+            </Link>
             {deck.isDraft && <DraftBadge />}
             {variantToggle}
           </div>
@@ -181,10 +197,11 @@ export function DeckListRow({
         className="hidden shrink-0 md:flex"
       />
 
-      <div className="flex shrink-0 items-center gap-1">
+      {/* Above the stretched link, so the menu takes its own clicks. */}
+      <div className="relative z-10 flex shrink-0 items-center gap-1">
         {isLocal && <LocalDeckBadge className="hidden md:inline-flex" />}
         {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
       </div>
-    </Link>
+    </div>
   );
 }
