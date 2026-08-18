@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, PinIcon } from "lucide-react";
 
 import { cardLinkVariants } from "@/components/ui/card-link";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { useHomeCollection } from "@/hooks/use-home-collection";
@@ -12,7 +11,6 @@ import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { deckBoxPart } from "@/lib/deck-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
-import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
@@ -21,24 +19,10 @@ import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
+import { DomainIcon } from "./deck-tile";
 import { DraftBadge, VariantCountToggle } from "./deck-variant-controls";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
-
-function DomainDot({ domain }: { domain: string }) {
-  const domainIcon = getFilterIconPath("domains", domain);
-  if (!domainIcon) {
-    return null;
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <img src={domainIcon} alt={domain} className="size-4" />
-      </TooltipTrigger>
-      <TooltipContent>{domain}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 /**
  * Compact one-row deck list entry — denser alternative to the tile grid.
@@ -130,7 +114,7 @@ export function DeckListRow({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="flex shrink-0 items-center gap-0.5">
           {legendDomains?.map((domain) => (
-            <DomainDot key={domain} domain={domain} />
+            <DomainIcon key={domain} domain={domain} className="size-4" />
           ))}
         </div>
         <div className="min-w-0 flex-1">

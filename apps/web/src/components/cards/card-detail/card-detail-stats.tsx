@@ -51,8 +51,8 @@ export function CardDetailStats({
             <img
               key={d}
               src={domainIcon}
-              alt={d}
-              title={d}
+              alt={labels.domains[d]}
+              title={labels.domains[d]}
               width={64}
               height={64}
               className="size-5"
@@ -62,8 +62,8 @@ export function CardDetailStats({
       {rarityIcon && (
         <img
           src={rarityIcon}
-          alt={printing.rarity}
-          title={printing.rarity}
+          alt={labels.rarities[printing.rarity]}
+          title={labels.rarities[printing.rarity]}
           width={28}
           height={28}
           className="size-5"

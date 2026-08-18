@@ -32,7 +32,12 @@ export function DeckDomainBar({
         const percent = ((segment.count / total) * 100).toFixed(1);
         return (
           <Tooltip key={segment.domain}>
+            {/* A span, not the default trigger element: Base UI renders that
+                as a button, and these segments are a visual summary with no
+                action behind them. As buttons they were unlabelled tab stops,
+                several per deck. */}
             <TooltipTrigger
+              render={<span />}
               className="h-full"
               style={{
                 flexBasis: `${percent}%`,

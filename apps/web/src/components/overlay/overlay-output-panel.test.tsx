@@ -66,7 +66,7 @@ vi.mock("@/components/overlay/overlay-presets-section", () => ({
 // The preview renders the real OverlayFrame, whose plate reaches for enum
 // labels and domain colors through a query client this render has none of.
 vi.mock("@/hooks/use-enums", () => ({
-  useEnumOrders: () => ({ labels: { finishes: {}, cardSizes: {} } }),
+  useEnumOrders: () => ({ labels: { finishes: {}, cardSizes: {}, domains: {}, rarities: {} } }),
 }));
 
 vi.mock("@/hooks/use-domain-colors", () => ({

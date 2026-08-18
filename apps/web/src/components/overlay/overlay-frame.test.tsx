@@ -13,7 +13,7 @@ vi.mock("@/components/cards/card-text", () => ({
   CardText: ({ text }: { text: string }) => <span>{text}</span>,
 }));
 vi.mock("@/hooks/use-enums", () => ({
-  useEnumOrders: () => ({ labels: { finishes: {}, cardSizes: {} } }),
+  useEnumOrders: () => ({ labels: { finishes: {}, cardSizes: {}, domains: {}, rarities: {} } }),
 }));
 vi.mock("@/hooks/use-domain-colors", () => ({
   useDomainColors: () => ({}),
