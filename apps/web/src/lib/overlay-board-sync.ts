@@ -1,7 +1,7 @@
 import type { OverlayBoard } from "@openrift/shared";
 
 /** What the stage wants the OBS overlay's board to be right now. */
-export interface OverlayBoardIntent {
+interface OverlayBoardIntent {
   /**
    * The whole board, when it has to go out again — the first push, a changed
    * ranking, a flipped direction. Null steps the reveal of the board already up,
