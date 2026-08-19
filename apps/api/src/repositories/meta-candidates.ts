@@ -16,13 +16,13 @@ export type CandidateMetaEventRow = Selectable<CandidateMetaEventsTable>;
 export type CandidateMetaDeckRow = Selectable<CandidateMetaDecksTable>;
 
 /**
- * A live event reached through the candidate row that links to it, carrying
- * that candidate's own external id so the caller can key its index on the
- * source's vocabulary.
+ * A live event reached through one source's key, carrying that key so the caller
+ * can index on the source's vocabulary.
  *
- * Migration 255 moved the source key off `meta_events` entirely: a live event
- * is described by any number of sources, so the only thing that can say "this
- * provider's event N is that live row" is the candidate itself.
+ * Migration 255 moved the source key off `meta_events` entirely, because a live
+ * event is described by any number of sources; migration 256 settled where it
+ * lives instead. The pairing is read from `meta_event_sources`, not from the
+ * candidate row, so it survives the candidate being deleted by an ignore.
  */
 export type LiveMetaEventRow = Selectable<MetaEventsTable> & { candidateExternalId: string };
 
@@ -44,8 +44,8 @@ export interface LiveMetaDeckRow {
 }
 
 /**
- * A live archived deck reached through the candidate deck that links to it,
- * carrying that candidate's event-scoped source key. @see LiveMetaEventRow
+ * A live archived deck reached through one source's `meta_deck_sources` row,
+ * carrying that event-scoped key. @see LiveMetaEventRow
  */
 export interface LiveMetaDeckForCandidateRow extends LiveMetaDeckRow {
   candidateEventExternalId: string;
@@ -212,17 +212,18 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
 
     /**
      * The live events this provider's uploaded keys already point at, read
-     * through the candidate rows that hold the link.
+     * through the citation rows that hold the source key.
      *
      * This is what re-links a candidate after an accept and what the in-sync
-     * check diffs against. It goes through `candidate_meta_events` because
-     * migration 255 took the source key off `meta_events`: one live event can
-     * be described by several providers, so the candidate row is the only
-     * place the pairing survives.
+     * check diffs against. It goes through `meta_event_sources` rather than the
+     * candidate row for one reason: ignoring an event *deletes* its candidate,
+     * so a candidate join would lose the pairing the moment an admin ignores
+     * and later un-ignores a key. The citation survives that, and it carries
+     * the same `(provider, external_id)` migration 255 took off `meta_events`.
      *
      * @param provider The uploading provider.
      * @param externalIds The event keys in the payload.
-     * @returns The linked live events, each tagged with its candidate's key.
+     * @returns The linked live events, each tagged with the source's key.
      */
     liveEventsByCandidateKeys(
       provider: string,
@@ -231,19 +232,28 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
       if (externalIds.length === 0) {
         return Promise.resolve([]);
       }
-      return db
-        .selectFrom("candidateMetaEvents as ce")
-        .innerJoin("metaEvents as me", "me.id", "ce.metaEventId")
-        .selectAll("me")
-        .select("ce.externalId as candidateExternalId")
-        .where("ce.provider", "=", provider)
-        .where("ce.externalId", "in", externalIds)
-        .execute();
+      return (
+        db
+          .selectFrom("metaEventSources as es")
+          .innerJoin("metaEvents as me", "me.id", "es.metaEventId")
+          .selectAll("me")
+          // Nullable on the table, because a hand-entered citation has no key.
+          // The provider predicate below only matches rows that do.
+          .select(sql<string>`${sql.ref("es.externalId")}`.as("candidateExternalId"))
+          .where("es.provider", "=", provider)
+          .where("es.externalId", "in", externalIds)
+          .execute()
+      );
     },
 
     /**
      * The live archived decks this provider's uploaded deck keys already point
-     * at, read through the candidate decks that hold the link.
+     * at, read through the `meta_deck_sources` rows that hold the source key.
+     *
+     * Same reasoning as {@link liveEventsByCandidateKeys}, and the same reason
+     * migration 256 exists: an ignore deletes the candidate deck, so reading the
+     * link off it would make un-ignoring the key archive a second copy of one
+     * pilot's deck instead of finding the deck it already made.
      *
      * The two id lists are matched independently rather than as pairs, so the
      * result can hold a deck whose event and deck ids each appear in the
@@ -253,7 +263,7 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
      * @param provider The uploading provider.
      * @param eventExternalIds The event keys in the payload.
      * @param deckExternalIds The deck keys in the payload.
-     * @returns The linked live decks, each tagged with its candidate's event-scoped key.
+     * @returns The linked live decks, each tagged with the source's event-scoped key.
      */
     liveDecksByCandidateKeys(
       provider: string,
@@ -264,15 +274,14 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
         return Promise.resolve([]);
       }
       return liveDeckQuery()
-        .innerJoin("candidateMetaDecks as cd", "cd.deckId", "md.deckId")
-        .innerJoin("candidateMetaEvents as ce", "ce.id", "cd.candidateEventId")
+        .innerJoin("metaDeckSources as ds", "ds.deckId", "md.deckId")
         .select([
-          "ce.externalId as candidateEventExternalId",
-          "cd.externalId as candidateExternalId",
+          "ds.eventExternalId as candidateEventExternalId",
+          "ds.externalId as candidateExternalId",
         ])
-        .where("ce.provider", "=", provider)
-        .where("ce.externalId", "in", eventExternalIds)
-        .where("cd.externalId", "in", deckExternalIds)
+        .where("ds.provider", "=", provider)
+        .where("ds.eventExternalId", "in", eventExternalIds)
+        .where("ds.externalId", "in", deckExternalIds)
         .execute();
     },
 

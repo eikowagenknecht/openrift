@@ -8,10 +8,10 @@
  * admin reconciles them. That gives three tiers of write here, and the tier is
  * the whole point of the split:
  *
- *   - **link / relink / unlink** move the FK and this provider's citation, and
- *     write no field values at all. A source whose values you rejected still
- *     contributed, usually its decks, so crediting it must not depend on taking
- *     any of them.
+ *   - **link / relink / unlink** move the FK, this provider's citation and its
+ *     deck source keys, and write no field values at all. A source whose values
+ *     you rejected still contributed, usually its decks, so crediting it must
+ *     not depend on taking any of them.
  *   - **accept** is unchanged for an *unlinked* candidate: one click creates the
  *     live row, links it, and cites the source. That path must not get slower —
  *     it is what a single-source event still uses.
@@ -25,6 +25,11 @@
  * A crash between the two leaves a live row with no candidate pointing at it,
  * which an admin links by hand — the same repair the multi-source model already
  * has an action for.
+ *
+ * The source *key* is a separate write from the link, in `meta_event_sources`
+ * and `meta_deck_sources` (migration 256): ignoring a candidate deletes the row,
+ * so a key held only there would make un-ignoring it archive a second copy of
+ * everything that source already produced.
  */
 import { ERROR_CODES, WellKnown } from "@openrift/shared";
 import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
@@ -39,7 +44,7 @@ import type {
   CandidateMetaDeckRow,
   CandidateMetaEventRow,
 } from "../repositories/meta-candidates.js";
-import type { MetaDeckCardInput, MetaDeckPatch } from "../repositories/meta.js";
+import type { MetaDeckCardInput, MetaDeckPatch, MetaDeckSourceKey } from "../repositories/meta.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createArchivedDeck, updateArchivedDeck } from "./create-archived-deck.js";
 
@@ -265,6 +270,29 @@ async function writeEventCitation(
     label: candidate.provider.slice(0, MAX_CITATION_LABEL_LENGTH),
     sourceUrl: candidate.sourceUrl,
   });
+}
+
+/**
+ * The `meta_deck_sources` key naming one candidate deck, or null when no
+ * provider named it — a user submission hangs off a live event directly and has
+ * no source event to scope a deck id to. Same reason it cannot be ignored.
+ *
+ * @param parent The candidate deck's parent event, null for a submission.
+ * @param deck The candidate deck.
+ * @returns The source key, or null.
+ */
+function deckSourceKey(
+  parent: CandidateMetaEventRow | null,
+  deck: CandidateMetaDeckRow,
+): MetaDeckSourceKey | null {
+  if (parent === null) {
+    return null;
+  }
+  return {
+    provider: parent.provider,
+    eventExternalId: parent.externalId,
+    externalId: deck.externalId,
+  };
 }
 
 /**
@@ -608,7 +636,7 @@ async function applyDeckLink(
   deck: CandidateMetaDeckRow,
   deckId: string,
 ): Promise<MetaDeckLinkResult> {
-  const { metaEventId } = await deckTarget(repos, deck);
+  const { metaEventId, parent } = await deckTarget(repos, deck);
   if (metaEventId === null) {
     throw new AppError(
       400,
@@ -627,8 +655,28 @@ async function applyDeckLink(
       "That deck belongs to a different event. A candidate deck can only link inside its own event.",
     );
   }
+  await writeDeckSource(repos, deckSourceKey(parent, deck), deckId);
   await repos.metaCandidates.linkDeck(deck.id, deckId, new Date());
   return { deckId };
+}
+
+/**
+ * Records the source key on the archived deck it now describes, so the pairing
+ * outlives the candidate row. Skips a submission, which has no key.
+ *
+ * @param repos The repositories.
+ * @param key The source's key, or null for a user submission.
+ * @param deckId The archived deck.
+ * @returns Nothing.
+ */
+async function writeDeckSource(
+  repos: Repos,
+  key: MetaDeckSourceKey | null,
+  deckId: string,
+): Promise<void> {
+  if (key !== null) {
+    await repos.meta.writeDeckSource(deckId, key);
+  }
 }
 
 /**
@@ -649,6 +697,14 @@ export async function unlinkCandidateDeck(
     // Scoped to this submitter: several people can have contributed to one
     // archived deck, and detaching one of them must not silence the others.
     await repos.meta.deleteCreditsForDeck(deck.deckId, deck.submittedByUserId);
+  }
+  // The source key goes with the link, exactly as an event's citation does:
+  // this provider no longer claims to describe that archived deck, so the next
+  // upload of the same key must stage as new rather than re-link.
+  const { parent } = await deckTarget(repos, deck);
+  const key = deckSourceKey(parent, deck);
+  if (key !== null) {
+    await repos.meta.deleteDeckSourceByKey(key);
   }
   await repos.metaCandidates.unlinkDeck(deck.id);
   return { deckId: null };
@@ -673,12 +729,12 @@ export async function acceptCandidateDeck(
   options?: MetaAcceptOptions,
 ): Promise<AcceptedMetaDeck> {
   const deck = await requireDeck(repos, candidateDeckId);
-  const { metaEventId } = await deckTarget(repos, deck);
+  const { metaEventId, parent } = await deckTarget(repos, deck);
   const blocked = deckBlockedReason(metaEventId, deck);
   if (blocked !== null) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, blocked);
   }
-  return acceptResolvedDeck(repos, metaEventId as string, deck, options);
+  return acceptResolvedDeck(repos, metaEventId as string, deck, parent, options);
 }
 
 /**
@@ -689,6 +745,8 @@ export async function acceptCandidateDeck(
  * @param repos The repositories.
  * @param metaEventId The live event the deck belongs under.
  * @param deck The candidate deck, fully resolved.
+ * @param parent The deck's candidate event, null for a user submission. Passed
+ *   in rather than re-read so the whole-event accept reads it once.
  * @param options Who is accepting, for any submission ledger this settles.
  * @returns The live deck id and whether it was created.
  */
@@ -696,10 +754,12 @@ async function acceptResolvedDeck(
   repos: Repos,
   metaEventId: string,
   deck: CandidateMetaDeckRow,
+  parent: CandidateMetaEventRow | null,
   options?: MetaAcceptOptions,
 ): Promise<AcceptedMetaDeck> {
   const { meta, metaCandidates } = repos;
   const now = new Date();
+  const sourceKey = deckSourceKey(parent, deck);
 
   if (deck.deckId !== null) {
     // Card replacement is wholesale, so it is only worth doing when the list
@@ -720,6 +780,7 @@ async function acceptResolvedDeck(
       listStatus: deck.listStatus,
       ...(cardsChanged ? { cards: toDeckCardInputs(deck) } : {}),
     });
+    await writeDeckSource(repos, sourceKey, deck.deckId);
     await metaCandidates.setDeckCheckedAt(deck.id, now);
     await creditDeckAccept(repos, deck, metaEventId, deck.deckId, options);
     return { deckId: deck.deckId, created: false };
@@ -744,6 +805,7 @@ async function acceptResolvedDeck(
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Linked event no longer exists");
   }
 
+  await writeDeckSource(repos, sourceKey, created.deckId);
   await metaCandidates.linkDeck(deck.id, created.deckId, now);
   await creditDeckAccept(repos, deck, metaEventId, created.deckId, options);
   return { deckId: created.deckId, created: true };
@@ -949,6 +1011,9 @@ export async function acceptCandidateEventWithDecks(
 ): Promise<AcceptedMetaEventWithDecks> {
   const event = await acceptCandidateEvent(repos, candidateEventId, options);
   const decks = await repos.metaCandidates.decksByCandidateEventIds([candidateEventId]);
+  // Read once for the whole batch: every deck under one candidate event shares
+  // its provider and event key, which is two thirds of each deck's source key.
+  const parent = await requireEvent(repos, candidateEventId);
 
   const acceptedDecks: AcceptedMetaDeck[] = [];
   const skippedDecks: SkippedMetaDeck[] = [];
@@ -963,7 +1028,7 @@ export async function acceptCandidateEventWithDecks(
       });
       continue;
     }
-    acceptedDecks.push(await acceptResolvedDeck(repos, event.metaEventId, deck, options));
+    acceptedDecks.push(await acceptResolvedDeck(repos, event.metaEventId, deck, parent, options));
   }
 
   return { ...event, acceptedDecks, skippedDecks };

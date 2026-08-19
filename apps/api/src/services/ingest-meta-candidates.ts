@@ -460,10 +460,11 @@ export async function ingestMetaCandidates(
     const ignoredDecks = new Set(
       ignoredDeckKeys.map((key) => deckKey(key.eventExternalId, key.externalId)),
     );
-    // Both indexes are keyed on the *source's* vocabulary, which since
-    // migration 255 only the candidate rows hold: the live tables carry no
-    // provider key, so the repo reads the link through the candidate and hands
-    // back the key alongside the live row.
+    // Both indexes are keyed on the *source's* vocabulary, which the live
+    // tables have not held since migration 255. The repo reads it from the
+    // `meta_event_sources` / `meta_deck_sources` rows — deliberately not from
+    // the candidate, which an ignore deletes — and hands the key back alongside
+    // the live row.
     const liveEventByKey = new Map(liveEvents.map((row) => [row.candidateExternalId, row]));
     const liveDeckByKey = new Map<string, LiveMetaDeckRow>(
       liveDecks.map((row) => [deckKey(row.candidateEventExternalId, row.candidateExternalId), row]),

@@ -1532,4 +1532,61 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(credits).toEqual([]);
     });
   });
+  // ── Ignore then un-ignore (migration 256) ─────────────────────────────────
+  // An ignore deletes the candidate rows, so the source key cannot live only
+  // there: un-ignoring the key and re-uploading has to find the rows this source
+  // already produced, or the archive gains a second copy of the same deck.
+
+  describe("un-ignoring a key that was already accepted", () => {
+    let liveEventId: string;
+    let liveDeckId: string;
+
+    it("accepts the event and its deck into live rows", async () => {
+      await upload([event("mtc-reignore")]);
+      const row = await queueRow("mtc-reignore");
+      const accepted = await post(`/meta/candidates/${row.id}/accept-with-decks`);
+      liveEventId = accepted.metaEventId;
+      liveDeckId = accepted.acceptedDecks[0].deckId;
+      createdMetaEventIds.push(liveEventId);
+      createdDeckIds.push(liveDeckId);
+      expect(accepted.acceptedDecks).toHaveLength(1);
+    });
+
+    it("ignores the whole event, dropping the candidate rows", async () => {
+      const row = await queueRow("mtc-reignore");
+      await post(`/meta/candidates/${row.id}/ignore`, undefined, 204);
+      expect(await inQueue("mtc-reignore")).toBe(false);
+    });
+
+    it("re-links both live rows on the upload after un-ignoring", async () => {
+      const res = await app.fetch(
+        adminReq("DELETE", "/meta/ignored-candidates/events", {
+          provider: PROVIDER,
+          externalId: "mtc-reignore",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      await upload([event("mtc-reignore")]);
+      const restaged = await queueRow("mtc-reignore");
+      const restagedDeck = await onlyDeckOf("mtc-reignore");
+      // The citation and the deck source key both outlived the candidate rows,
+      // so the restaged ones point back at what this source already produced.
+      expect(restaged.metaEventId).toBe(liveEventId);
+      expect(restagedDeck.deckId).toBe(liveDeckId);
+    });
+
+    it("archives no second copy when it is accepted again", async () => {
+      const target = await onlyDeckOf("mtc-reignore");
+      const accepted = await post(`/meta/candidate-decks/${target.id}/accept`);
+      expect(accepted).toEqual({ deckId: liveDeckId, created: false });
+
+      const decks = await db
+        .selectFrom("metaDecks")
+        .select("deckId")
+        .where("metaEventId", "=", liveEventId)
+        .execute();
+      expect(decks.map((row) => row.deckId)).toEqual([liveDeckId]);
+    });
+  });
 });

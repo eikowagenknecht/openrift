@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict txFjyZFm45vmbvxnwFsHFItcEhRyhi9szohMxdwIkdRb7gYgaZ3DtRpFOxjHAvK
+\restrict uFG5nf0aZ9DBIVVCNVxt8QKDa8Cggtwm56hNoQ2hKJ5QIIJKnXH7IKRlI3OPRal
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2180,6 +2180,23 @@ CREATE TABLE public.meta_credits (
 
 
 --
+-- Name: meta_deck_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_deck_sources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    deck_id uuid NOT NULL,
+    provider text NOT NULL,
+    event_external_id text NOT NULL,
+    external_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_meta_deck_sources_event_external_id CHECK ((event_external_id <> ''::text)),
+    CONSTRAINT chk_meta_deck_sources_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_meta_deck_sources_provider CHECK ((provider <> ''::text))
+);
+
+
+--
 -- Name: meta_deck_submissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3843,6 +3860,14 @@ ALTER TABLE ONLY public.meta_credits
 
 
 --
+-- Name: meta_deck_sources meta_deck_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_sources
+    ADD CONSTRAINT meta_deck_sources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: meta_deck_submissions meta_deck_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4958,6 +4983,13 @@ CREATE INDEX idx_meta_credits_user ON public.meta_credits USING btree (user_id);
 
 
 --
+-- Name: idx_meta_deck_sources_deck; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_deck_sources_deck ON public.meta_deck_sources USING btree (deck_id);
+
+
+--
 -- Name: idx_meta_deck_submissions_user_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5375,6 +5407,13 @@ CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree 
 --
 
 CREATE UNIQUE INDEX uq_meta_credits_contribution ON public.meta_credits USING btree (meta_event_id, user_id, deck_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: uq_meta_deck_sources_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_meta_deck_sources_key ON public.meta_deck_sources USING btree (provider, event_external_id, external_id);
 
 
 --
@@ -7149,6 +7188,14 @@ ALTER TABLE ONLY public.meta_credits
 
 
 --
+-- Name: meta_deck_sources meta_deck_sources_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_deck_sources
+    ADD CONSTRAINT meta_deck_sources_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
+
+
+--
 -- Name: meta_deck_submissions meta_deck_submissions_accepted_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7560,5 +7607,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict txFjyZFm45vmbvxnwFsHFItcEhRyhi9szohMxdwIkdRb7gYgaZ3DtRpFOxjHAvK
+\unrestrict uFG5nf0aZ9DBIVVCNVxt8QKDa8Cggtwm56hNoQ2hKJ5QIIJKnXH7IKRlI3OPRal
 

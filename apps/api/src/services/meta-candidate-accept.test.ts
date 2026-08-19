@@ -100,6 +100,8 @@ function harness(options: {
   const stubs = {
     deleteEventSourceByKey: vi.fn().mockResolvedValue(true),
     insertEventSource: vi.fn().mockResolvedValue({ id: "source-1" }),
+    writeDeckSource: vi.fn().mockResolvedValue(undefined),
+    deleteDeckSourceByKey: vi.fn().mockResolvedValue(true),
     linkEvent: vi.fn().mockResolvedValue(true),
     unlinkEvent: vi.fn().mockResolvedValue(true),
     linkDeck: vi.fn().mockResolvedValue(true),
@@ -122,6 +124,8 @@ function harness(options: {
       deckShareState: vi.fn().mockResolvedValue({ listStatus: "full", shareToken: "aB3dE5gH7jK9" }),
       deleteEventSourceByKey: stubs.deleteEventSourceByKey,
       insertEventSource: stubs.insertEventSource,
+      writeDeckSource: stubs.writeDeckSource,
+      deleteDeckSourceByKey: stubs.deleteDeckSourceByKey,
       insertCredit: stubs.insertCredit,
       deleteCreditsForDeck: stubs.deleteCreditsForDeck,
     },
@@ -337,6 +341,13 @@ describe("linkCandidateDeck", () => {
 
     expect(result).toEqual({ deckId: LIVE_DECK_ID });
     expect(stubs.linkDeck).toHaveBeenCalledWith(CANDIDATE_DECK_ID, LIVE_DECK_ID, expect.any(Date));
+    // The key the next upload finds the archived deck by, kept outside the
+    // candidate row so an ignore cannot take it with it (migration 256).
+    expect(stubs.writeDeckSource).toHaveBeenCalledWith(LIVE_DECK_ID, {
+      provider: "uvsgames",
+      eventExternalId: "evt-482",
+      externalId: "deck-991",
+    });
   });
 
   it("refuses a deck that belongs to another event", async () => {
@@ -364,6 +375,9 @@ describe("linkCandidateDeck", () => {
     });
     await linkCandidateDeck(repos, CANDIDATE_DECK_ID, LIVE_DECK_ID);
     expect(stubs.linkDeck).toHaveBeenCalled();
+    // No source event, so no key to record: nothing scopes a submission's deck
+    // id, which is also why a submission cannot be ignored.
+    expect(stubs.writeDeckSource).not.toHaveBeenCalled();
   });
 });
 
@@ -386,6 +400,23 @@ describe("unlinkCandidateDeck", () => {
     });
     await unlinkCandidateDeck(repos, CANDIDATE_DECK_ID);
     expect(stubs.deleteCreditsForDeck).not.toHaveBeenCalled();
+  });
+
+  it("drops the source key, so the next upload stages as new", async () => {
+    const { repos, stubs } = harness({
+      event: candidateEvent({ metaEventId: LIVE_EVENT_ID }),
+      deck: candidateDeck({ deckId: LIVE_DECK_ID }),
+    });
+    await unlinkCandidateDeck(repos, CANDIDATE_DECK_ID);
+
+    // Unlinking says this provider no longer describes that archived deck, so
+    // the key has to go with the link — an ignore, which keeps the key, is the
+    // other half of the pair.
+    expect(stubs.deleteDeckSourceByKey).toHaveBeenCalledWith({
+      provider: "uvsgames",
+      eventExternalId: "evt-482",
+      externalId: "deck-991",
+    });
   });
 });
 

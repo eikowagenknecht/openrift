@@ -145,6 +145,16 @@ export interface MetaEventSourceInput {
 }
 
 /**
+ * The key that names one source's deck. Scoped by the source's event id as well
+ * as the deck's, because deck ids restart per event.
+ */
+export interface MetaDeckSourceKey {
+  provider: string;
+  eventExternalId: string;
+  externalId: string;
+}
+
+/**
  * One contributor as an event page prints them. The name is resolved at read
  * time from the user's profile and their `meta_credit_visibility`, so a rename
  * or an opt-out reaches every past contribution with no sweep across rows
@@ -814,6 +824,45 @@ export function metaRepo(db: Kysely<Database>) {
         .deleteFrom("metaEventSources")
         .where("provider", "=", provider)
         .where("externalId", "=", externalId)
+        .executeTakeFirst();
+      return (result.numDeletedRows ?? 0n) > 0n;
+    },
+
+    // ── Deck source keys (migration 256) ─────────────────────────────────────
+
+    /**
+     * Records which source deck an archived deck came from, replacing whatever
+     * that key pointed at before. The delete is what makes a relink work: the
+     * key is unique across the table, so moving a source from one archived deck
+     * to another has to take the row with it.
+     *
+     * @param deckId The archived deck the source describes.
+     * @param key The source's key for it.
+     * @returns Nothing.
+     */
+    async writeDeckSource(deckId: string, key: MetaDeckSourceKey): Promise<void> {
+      await db
+        .deleteFrom("metaDeckSources")
+        .where("provider", "=", key.provider)
+        .where("eventExternalId", "=", key.eventExternalId)
+        .where("externalId", "=", key.externalId)
+        .execute();
+      await db
+        .insertInto("metaDeckSources")
+        .values({ deckId, ...key })
+        .execute();
+    },
+
+    /**
+     * @param key The source's key for a deck.
+     * @returns Whether a row was removed.
+     */
+    async deleteDeckSourceByKey(key: MetaDeckSourceKey): Promise<boolean> {
+      const result = await db
+        .deleteFrom("metaDeckSources")
+        .where("provider", "=", key.provider)
+        .where("eventExternalId", "=", key.eventExternalId)
+        .where("externalId", "=", key.externalId)
         .executeTakeFirst();
       return (result.numDeletedRows ?? 0n) > 0n;
     },

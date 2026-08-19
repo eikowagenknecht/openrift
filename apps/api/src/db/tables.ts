@@ -914,9 +914,10 @@ export interface MetaDecksTable {
    * of 'archetype' is what mints the token.
    */
   listStatus: Generated<MetaListStatus>;
-  // No source key: migration 255 moved it to the candidate side, where
-  // `candidate_meta_decks.deck_id` is many-to-one, so two providers can both
-  // describe one archived deck.
+  // No source key: migration 255 moved it off this row, because
+  // `candidate_meta_decks.deck_id` is many-to-one and two providers can both
+  // describe one archived deck. It lives in {@link MetaDeckSourcesTable}
+  // (migration 256), not on the candidate, which an ignore deletes.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1079,6 +1080,31 @@ export interface MetaEventSourcesTable {
   label: string;
   /** CHECK: NULL or length 1..2000. A back-reference, never a fetch target. */
   sourceUrl: string | null;
+  createdAt: CreatedAt;
+}
+
+/**
+ * Which source deck an archived deck came from, one row per source
+ * (migration 256). Not a citation and nothing public reads it — a deck prints
+ * no attribution of its own, its event's {@link MetaEventSourcesTable} list
+ * covers that. It exists so the source key outlives the candidate row: ignoring
+ * a deck deletes the candidate, and without this the next upload would archive
+ * a second copy of the same list instead of finding the deck it already made.
+ *
+ * Written for provider ingest only. A user submission targets a live event
+ * directly and has no source event to key on, which is the same reason it
+ * cannot be ignored.
+ */
+interface MetaDeckSourcesTable {
+  id: Generated<string>;
+  /** FK → decks.id ON DELETE CASCADE */
+  deckId: string;
+  /** CHECK: <> '' */
+  provider: string;
+  /** The provider's own id for the deck's event. CHECK: <> ''. */
+  eventExternalId: string;
+  /** The provider's own id for the deck, unique only within its event. CHECK: <> ''. */
+  externalId: string;
   createdAt: CreatedAt;
 }
 
@@ -2521,6 +2547,7 @@ export interface Database {
   ignoredCandidateMetaEvents: IgnoredCandidateMetaEventsTable;
   ignoredCandidateMetaDecks: IgnoredCandidateMetaDecksTable;
   metaEventSources: MetaEventSourcesTable;
+  metaDeckSources: MetaDeckSourcesTable;
   metaCredits: MetaCreditsTable;
   metaDeckSubmissions: MetaDeckSubmissionsTable;
 
