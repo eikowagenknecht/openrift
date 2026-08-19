@@ -243,6 +243,7 @@ describe("GET /api/admin/v1/cards/export", () => {
           short_code: "fireball",
           external_id: "card-1",
           extra_data: null,
+          comment: "Curator note.",
         },
         printings: [],
       },

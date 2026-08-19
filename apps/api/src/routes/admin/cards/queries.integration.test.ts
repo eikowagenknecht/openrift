@@ -57,6 +57,7 @@ if (ctx) {
       mightBonus: null,
       keywords: ["Flash"],
       tags: [],
+      comment: "Curator note on the card.",
     })
     .returning("id")
     .execute();
@@ -140,7 +141,7 @@ if (ctx) {
       printedRulesText: "Flash",
       printedEffectText: null,
       flavorText: null,
-      comment: null,
+      comment: "Curator note on the printing.",
       size: "standard",
       language: "EN",
     })
@@ -567,6 +568,24 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[2].printings[0].short_code).toBe("CSQ-001");
       expect(sorted[2].printings[0].set_id).toBe("CSQ-TEST");
       expect(sorted[2].printings[0].rarity).toBe("common");
+    });
+
+    it("carries the curator comments on cards and printings", async () => {
+      const res = await app.fetch(adminReq("GET", "/cards/export"));
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      const testCard = json.find(
+        (e: { card: { short_code: string } }) => e.card.short_code === "CSQ-001",
+      );
+      expect(testCard.card.comment).toBe("Curator note on the card.");
+      expect(testCard.printings[0].comment).toBe("Curator note on the printing.");
+
+      const noImageCard = json.find(
+        (e: { card: { short_code: string } }) => e.card.short_code === "CSQ-003",
+      );
+      expect(noImageCard.card.comment).toBeNull();
+      expect(noImageCard.printings[0].comment).toBeNull();
     });
   });
 

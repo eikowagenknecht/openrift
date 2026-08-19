@@ -273,6 +273,9 @@ export type UploadCandidatesBody = z.input<typeof uploadCandidatesSchema>;
 // admin-curated and not exported (optional here); every other field
 // round-trips, including `marker_slugs` and `size` (the private candidate
 // generators read this export as the canonical printing reference).
+// `comment` is the one exported field that does NOT round-trip: it is a
+// curator note, so the upload side deliberately has no home for it and drops
+// it. It ships here so the export can serve as the full curated reference.
 const candidateExportCardSchema = z.object({
   name: z.string(),
   types: z.array(z.string()),
@@ -288,6 +291,7 @@ const candidateExportCardSchema = z.object({
   short_code: z.string().nullable(),
   external_id: z.string(),
   extra_data: z.unknown().nullable(),
+  comment: z.string().nullable(),
 });
 
 const candidateExportPrintingSchema = z.object({
@@ -312,6 +316,7 @@ const candidateExportPrintingSchema = z.object({
   marker_slugs: z.array(z.string()).optional(),
   distribution_channel_slugs: z.array(z.string()).optional(),
   size: z.string().optional(),
+  comment: z.string().nullable(),
 });
 
 export const candidateExportDocumentSchema = z.array(

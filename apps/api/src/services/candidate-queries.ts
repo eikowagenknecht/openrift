@@ -433,6 +433,8 @@ export async function buildExport(repo: Repo) {
         short_code: card.slug,
         external_id: card.id,
         extra_data: null,
+        // Curator note. Export-only — the upload side has no field for it.
+        comment: card.comment,
       },
       printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
         short_code: p.shortCode,
@@ -460,6 +462,8 @@ export async function buildExport(repo: Repo) {
         // short_code + language + markers).
         marker_slugs: p.markerSlugs,
         size: p.size,
+        // Curator note. Export-only — the upload side has no field for it.
+        comment: p.comment,
       })),
     };
   });

@@ -26,6 +26,7 @@ const sampleExport = [
       short_code: "ogn-001",
       external_id: "11111111-1111-4111-8111-111111111111",
       extra_data: null,
+      comment: "Reprint of the promo art.",
     },
     printings: [
       {
@@ -52,6 +53,8 @@ const sampleExport = [
         // canonical printing reference (finish/marker enrichment).
         marker_slugs: ["launch-exclusive"],
         size: "standard",
+        // Curator note: exported, but the upload side has no home for it.
+        comment: "Checked against the printed sheet.",
         // distribution_channel_slugs stays admin-curated and absent from the
         // export (optional in the document schema).
       },
@@ -111,6 +114,28 @@ describe("candidate export ↔ upload round-trip", () => {
     const result = uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: noYear });
     expect(result.success).toBe(true);
     expect(result.data?.candidates[0].printings[0].printed_year).toBeNull();
+  });
+
+  it("comment is part of the exported document (not droppable)", () => {
+    const missingComment = structuredClone(sampleExport);
+    // @ts-expect-error — deleting a required key to prove the schema demands it.
+    delete missingComment[0].card.comment;
+    expect(candidateExportDocumentSchema.safeParse(missingComment).success).toBe(false);
+
+    const missingPrintingComment = structuredClone(sampleExport);
+    // @ts-expect-error — deleting a required key to prove the schema demands it.
+    delete missingPrintingComment[0].printings[0].comment;
+    expect(candidateExportDocumentSchema.safeParse(missingPrintingComment).success).toBe(false);
+  });
+
+  it("comment is dropped on re-upload rather than rejected (curator-only field)", () => {
+    const result = uploadCandidatesSchema.safeParse({
+      provider: "roundtrip",
+      candidates: sampleExport,
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.candidates[0]).not.toHaveProperty("comment");
+    expect(result.data?.candidates[0].printings[0]).not.toHaveProperty("comment");
   });
 
   it("an out-of-range printed_year is rejected on upload", () => {
