@@ -39,7 +39,10 @@ import {
   deckCheckReviewOutcomeSchema,
   listIntentResponseSchema,
   listKindResponseSchema,
+  metaCreditVisibilitySchema,
   metaListStatusSchema,
+  metaSubmissionReasonSchema,
+  metaSubmissionStatusSchema,
   podResultStatusSchema,
   podRoundStatusSchema,
   tradeTypeResponseSchema,
@@ -95,6 +98,8 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_marketplace_ignored_products_marketplace: marketplaceEnum.options,
   chk_marketplace_products_marketplace: marketplaceEnum.options,
   chk_meta_decks_list_status: metaListStatusSchema.options,
+  chk_meta_deck_submissions_reason: metaSubmissionReasonSchema.options,
+  chk_meta_deck_submissions_status: metaSubmissionStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
   chk_pod_rounds_status: podRoundStatusSchema.options,
   chk_pods_result_status: podResultStatusSchema.options,
@@ -117,6 +122,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_tournaments_scheme: scoringSchemeSchema.options,
   chk_tournaments_status: tournamentStatusSchema.options,
   chk_user_contact_methods_type: CONTACT_METHOD_TYPES,
+  chk_users_meta_credit_visibility: metaCreditVisibilitySchema.options,
 };
 
 /**

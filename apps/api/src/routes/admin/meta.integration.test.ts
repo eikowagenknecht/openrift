@@ -742,6 +742,8 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
       playerName: "MTR Detail",
       finishTier: 4,
       record: "3-3",
+      // Hand-created by this test, so nobody is credited for the list.
+      contributors: [],
     });
   });
 
