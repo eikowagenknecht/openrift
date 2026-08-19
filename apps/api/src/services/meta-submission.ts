@@ -45,7 +45,7 @@ import { formatSubmissionDateStamp } from "./ingest-user-submission.js";
 export const META_PENDING_SUBMISSION_LIMIT = 10;
 
 /** The event a submission proposes, when the archive does not have it yet. */
-export interface MetaSubmissionProposedEvent {
+interface MetaSubmissionProposedEvent {
   name: string;
   /** ISO `YYYY-MM-DD`. */
   eventDate: string;
@@ -57,7 +57,7 @@ export interface MetaSubmissionProposedEvent {
 }
 
 /** One card line as the submitter wrote it, before name resolution. */
-export interface MetaSubmissionCard {
+interface MetaSubmissionCard {
   name: string;
   /** A `WellKnown.deckZone` value. */
   zone: string;

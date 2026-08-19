@@ -278,7 +278,7 @@ const fetchMetaEventSources = createServerFn({ method: "GET" })
  * @param eventId - The event whose citations to load.
  * @returns The query options.
  */
-export function adminMetaEventSourcesQueryOptions(eventId: string) {
+function adminMetaEventSourcesQueryOptions(eventId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.meta.eventSources(eventId),
     queryFn: () => fetchMetaEventSources({ data: { id: eventId } }),

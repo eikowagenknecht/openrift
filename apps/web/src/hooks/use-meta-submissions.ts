@@ -36,7 +36,7 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
  * oRPC error the endpoint declares, and each is a sentence the form shows next
  * to itself rather than a toast — the fix is in the form.
  */
-export type MetaSubmissionRefusal = "cap" | "invalid" | "event-missing";
+type MetaSubmissionRefusal = "cap" | "invalid" | "event-missing";
 
 /** A submission either staged, or refused for a reason the submitter can act on. */
 export type MetaSubmissionOutcome =
@@ -151,7 +151,7 @@ const fetchMetaCreditVisibilityFn = createServerFn({ method: "GET" })
  * @param userId The viewer, for the cache key.
  * @returns The credit-visibility query options.
  */
-export function metaCreditVisibilityQueryOptions(userId: string) {
+function metaCreditVisibilityQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.metaSubmissions.creditVisibility(userId),
     queryFn: (): Promise<MetaCreditVisibilityResponse> =>

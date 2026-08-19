@@ -43,7 +43,6 @@ export type {
   CandidateMetaEventsTable,
   // Meta archive multi-source (migration 255, ADR-014)
   MetaEventSourcesTable,
-  MetaCreditsTable,
   MetaDeckSubmissionsTable,
   // Tier lists (migration 237)
   TierListCard,

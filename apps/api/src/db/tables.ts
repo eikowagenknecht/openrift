@@ -1118,7 +1118,7 @@ interface MetaDeckSourcesTable {
  * deletion with no sweep across rows. Whether it is shown is
  * `users.meta_credit_visibility`, read at render.
  */
-export interface MetaCreditsTable {
+interface MetaCreditsTable {
   id: Generated<string>;
   /** FK → meta_events.id ON DELETE CASCADE */
   metaEventId: string;

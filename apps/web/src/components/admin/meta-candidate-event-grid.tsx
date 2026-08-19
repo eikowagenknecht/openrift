@@ -41,7 +41,7 @@ function isEventAcceptField(key: string): key is MetaEventAcceptField {
  * @param formatOptions - The configured deck formats as value/label pairs.
  * @returns The field definitions, in the order the grid stacks them.
  */
-export function buildMetaEventFields(
+function buildMetaEventFields(
   formatOptions: { value: string; label: string }[],
 ): FieldDef<MetaEventGridFieldKey>[] {
   return [

@@ -96,7 +96,7 @@ function sourceLabel(entry: DeckMatchedEntry): string {
  * @param matched The entries as matched against the catalog.
  * @returns The card lines, summed per card name and zone.
  */
-export function metaSubmissionCardsFromMatches(
+function metaSubmissionCardsFromMatches(
   matched: readonly DeckMatchedEntry[],
 ): MetaSubmissionCardLine[] {
   const lines = new Map<string, MetaSubmissionCardLine>();
@@ -261,7 +261,7 @@ export const META_SUBMISSION_FINISH_TIERS = [1, 2, 3, 4, 8, 16, 32, 64] as const
  * is the archive's grouping axis, so an entry filed under none is not worth
  * having (ADR-014).
  */
-export const LEGEND_ZONE: string = WellKnown.deckZone.LEGEND;
+const LEGEND_ZONE: string = WellKnown.deckZone.LEGEND;
 
 /**
  * Whether an archetype-only submission names its legend. The server refuses one
