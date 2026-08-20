@@ -11,6 +11,13 @@ extendZodWithOpenApi(z);
 // schema and verified against real data (see the handoff). Deriving the
 // types/api/admin.ts interfaces from these makes the schema the single source.
 
+/**
+ * The stored substitute-art vocabulary (migration 257, `chk_printings_fallback_art_mode`).
+ * The public catalog wire carries only the two overriding modes, because
+ * `"auto"` is the absent case there; the column keeps all three.
+ */
+export const fallbackArtModeSchema = z.enum(["auto", "pinned", "none"]);
+
 export const cardErrataSchema = z
   .object({
     correctedRulesText: z.string().nullable(),
@@ -182,7 +189,7 @@ export const adminPrintingResponseSchema = z
      * because the editor has to show and change the current state — including
      * a pin whose file is not rehosted yet, which the public wire hides.
      */
-    fallbackArtMode: z.enum(["auto", "pinned", "none"]),
+    fallbackArtMode: fallbackArtModeSchema,
     fallbackImageFileId: z.string().nullable(),
   })
   .openapi("AdminPrintingResponse");

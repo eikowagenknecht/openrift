@@ -1,4 +1,5 @@
 import { CONTACT_METHOD_TYPES, listRuleCombineSchema } from "@openrift/shared";
+import { fallbackArtModeSchema } from "@openrift/shared/contracts/admin/card-detail-schemas";
 import { channelKindEnum } from "@openrift/shared/contracts/admin/distribution-channels";
 import { JOB_STATUSES, JOB_TRIGGERS } from "@openrift/shared/contracts/admin/job-runs";
 import { printingEventStatusSchema } from "@openrift/shared/contracts/admin/printing-events";
@@ -105,6 +106,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_pods_result_status: podResultStatusSchema.options,
   chk_printing_events_status: printingEventStatusSchema.options,
   chk_printing_images_face: cardFaceSchema.options,
+  chk_printings_fallback_art_mode: fallbackArtModeSchema.options,
   rule_versions_kind_check: RULE_KINDS,
   rules_change_type_check: RULE_CHANGE_TYPES,
   rules_kind_check: RULE_KINDS,
