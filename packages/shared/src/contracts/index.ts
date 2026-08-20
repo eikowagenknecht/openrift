@@ -33,6 +33,7 @@ export * from "./admin/marketplace-groups.js";
 export * from "./admin/meta.js";
 export * from "./admin/meta-submissions.js";
 export * from "./admin/operations.js";
+export * from "./admin/printing-citations.js";
 export * from "./admin/printing-events.js";
 export * from "./admin/scan.js";
 export * from "./admin/products.js";

@@ -173,6 +173,19 @@ const printingImageSchema = z.object({
   imageId: imageIdSchema,
 });
 
+/**
+ * One citation backing what the catalog claims about a promo printing
+ * (migration 258) — usually a video, sometimes a post, occasionally something
+ * with no permalink at all, which is why `sourceUrl` is nullable. The label is
+ * free text; the icon shown next to it is derived from the URL's host, never
+ * from the label.
+ */
+const printingCitationSchema = z.object({
+  id: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
+  label: z.string().openapi({ example: "Launch party unboxing (RiftboundDaily)" }),
+  sourceUrl: z.string().nullable().openapi({ example: "https://www.youtube.com/watch?v=abc123" }),
+});
+
 const cardBanSchema = z.object({
   formatId: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
   formatName: z.string().openapi({ example: "Constructed" }),
@@ -221,6 +234,11 @@ export const catalogPrintingResponseSchema = z.object({
   isSigned: z.boolean().openapi({ example: false }),
   markers: z.array(markerSchema).openapi({ example: [] }),
   distributionChannels: z.array(printingDistributionChannelSchema).openapi({ example: [] }),
+  // `.optional()` rather than this file's usual always-present array: almost no
+  // printing is cited, and this schema backs the full-catalog read every visitor
+  // downloads. The server omits the key entirely when the list is empty, so an
+  // uncited printing costs nothing. Read it as `printing.citations ?? []`.
+  citations: z.array(printingCitationSchema).optional().openapi({ example: [] }),
   finish: finishSchema,
   size: cardSizeSchema,
   images: z.array(printingImageSchema),

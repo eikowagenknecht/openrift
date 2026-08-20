@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-20
+
+### Other
+
+- feat(Cards): **Sources for promo cards** — a promo printing can now cite where its claims come from, listed on the card page with the video or site it links to.
+
 ## 2026-08-18
 
 ### Other

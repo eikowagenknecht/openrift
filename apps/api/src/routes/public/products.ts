@@ -9,7 +9,7 @@ import { assertFound } from "../../lib/assertions.js";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
-  loadMarkerAndChannelMaps,
+  loadPrintingDecorations,
 } from "../../lib/printing-presenters.js";
 import { toCoverCards, toProductSummary } from "../../lib/product-presenters.js";
 import { requireUser } from "../../orpc/base.js";
@@ -51,20 +51,19 @@ export const productsRouter = {
       repos.catalog.printingImagesByPrintingIds(printingIds),
     ]);
     const cardIds = [...new Set(printingRows.map((row) => row.cardId))];
-    const [cardRows, banRows, errataRows, markerChannelMaps, sets] = await Promise.all([
+    const [cardRows, banRows, errataRows, decorations, sets] = await Promise.all([
       repos.catalog.cardsByIds(cardIds),
       repos.catalog.cardBansByCardIds(cardIds),
       repos.catalog.cardErrataByCardIds(cardIds),
-      loadMarkerAndChannelMaps(repos, printingIds),
+      loadPrintingDecorations(repos, printingIds),
       repos.catalog.sets(),
     ]);
-    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
     return {
       product: toProductSummary(product, toCoverCards(covers)),
       contents,
       cards: buildCardsResponse(cardRows, banRows, errataRows),
-      printings: buildPrintingsResponse(printingRows, imageRows, markerBySlug, channelsByPrinting),
+      printings: buildPrintingsResponse(printingRows, imageRows, decorations),
       sets,
     };
   }),

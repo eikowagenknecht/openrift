@@ -23,6 +23,10 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
 
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const mockProductsRepo = {
   productsForCard: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
@@ -32,6 +36,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     products: mockProductsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
@@ -110,6 +115,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     mockCatalogRepo.markersList.mockResolvedValue([]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
+    mockPrintingCitationsRepo.listForPrintingIds.mockResolvedValue([]);
     mockProductsRepo.productsForCard.mockResolvedValue([]);
   });
 
@@ -221,6 +227,7 @@ describe("cards route registration", () => {
       c.set("repos", {
         catalog: mockCatalogRepo,
         distributionChannels: mockDistributionChannelsRepo,
+        printingCitations: mockPrintingCitationsRepo,
         products: mockProductsRepo,
         // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
       } as any);

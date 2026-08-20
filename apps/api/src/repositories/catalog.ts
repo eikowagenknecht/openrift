@@ -459,6 +459,9 @@ export function catalogRepo(db: Kysely<Database>) {
      *   `updated_at` — but hashing it directly keeps the guarantee from resting
      *   on a trigger side effect. `printing_distribution_channels` has no such
      *   trigger and was genuinely uncovered until this hash.
+     * - `printing_citations` — content-hashed for the same reason: the table
+     *   has no `updated_at`, and editing a citation's label or URL in place
+     *   leaves every count identical while the response text changes.
      *
      * It shares the stored aggregates rather than restating them, because the
      * failure mode of drifting out of sync is severe here: this token gates a
@@ -488,7 +491,11 @@ export function catalogRepo(db: Kysely<Database>) {
             coalesce((SELECT md5(string_agg(
               printing_id::text || ':' || channel_id::text || ':' || coalesce(distribution_note, ''),
               ',' ORDER BY printing_id, channel_id
-            )) FROM printing_distribution_channels), '')
+            )) FROM printing_distribution_channels), '') || '|' ||
+            coalesce((SELECT md5(string_agg(
+              id::text || ':' || label || ':' || coalesce(source_url, '') || ':' || sort_order::text,
+              ',' ORDER BY id
+            )) FROM printing_citations), '')
           ) AS token
         `.execute(db),
       ]);

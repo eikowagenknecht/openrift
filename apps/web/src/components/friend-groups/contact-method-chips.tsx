@@ -11,18 +11,16 @@ import {
 } from "lucide-react";
 import { siDiscord, siSignal, siTelegram, siWhatsapp } from "simple-icons";
 
+import type { BrandIconData } from "@/components/ui/brand-glyph";
+import { BrandGlyph } from "@/components/ui/brand-glyph";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
-interface BrandIcon {
-  path: string;
-}
-
 /** Per-channel brand glyph (simple-icons) where one exists. */
-const BRAND_ICONS: Partial<Record<ContactMethodType, BrandIcon>> = {
+const BRAND_ICONS: Partial<Record<ContactMethodType, BrandIconData>> = {
   discord: siDiscord,
   signal: siSignal,
   telegram: siTelegram,
@@ -67,16 +65,13 @@ function ContactGlyph({
   type: ContactMethodType;
   className?: string;
 }) {
-  const brand = BRAND_ICONS[type];
-  if (brand) {
-    return (
-      <svg viewBox="0 0 24 24" className={cn("shrink-0", className)} aria-hidden="true">
-        <path d={brand.path} fill="currentColor" />
-      </svg>
-    );
-  }
-  const Lucide = LUCIDE_ICONS[type] ?? LinkIcon;
-  return <Lucide className={cn("shrink-0", className)} aria-hidden="true" />;
+  return (
+    <BrandGlyph
+      icon={BRAND_ICONS[type]}
+      fallback={LUCIDE_ICONS[type] ?? LinkIcon}
+      className={className}
+    />
+  );
 }
 
 function ContactChip({ method }: { method: ContactMethod }) {

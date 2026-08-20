@@ -76,6 +76,18 @@ export interface PrintingDistributionChannel {
   ancestorLabels: string[];
 }
 
+/**
+ * Where a claim about a promo printing comes from: a video, a post, or a plain
+ * label when nothing is linkable. Called a citation, not a source, because a
+ * "printing source" already means a provider's candidate row in the admin.
+ */
+export interface PrintingCitation {
+  id: string;
+  label: string;
+  /** Null when the citation has no permalink (a stream nobody archived). */
+  sourceUrl: string | null;
+}
+
 export interface CardBan {
   formatId: string;
   formatName: string;
@@ -139,6 +151,8 @@ export interface Printing {
   isSigned: boolean;
   markers: Marker[];
   distributionChannels: PrintingDistributionChannel[];
+  /** Omitted when the printing has nothing cited — see the wire schema. */
+  citations?: PrintingCitation[];
   finish: Finish;
   /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
   size: CardSize;

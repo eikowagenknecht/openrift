@@ -5,7 +5,7 @@ import { implement } from "@orpc/server";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
-  loadMarkerAndChannelMaps,
+  loadPrintingDecorations,
 } from "../../lib/printing-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -29,22 +29,16 @@ export const promosRouter = {
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
 
-    const [cardRows, banRows, errataRows, imageRows, markerChannelMaps] = await Promise.all([
+    const [cardRows, banRows, errataRows, imageRows, decorations] = await Promise.all([
       catalog.cardsByIds(cardIds),
       catalog.cardBansByCardIds(cardIds),
       catalog.cardErrataByCardIds(cardIds),
       catalog.printingImagesByPrintingIds(printingIds),
-      loadMarkerAndChannelMaps(repos, printingIds),
+      loadPrintingDecorations(repos, printingIds),
     ]);
-    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
     const cards = buildCardsResponse(cardRows, banRows, errataRows);
-    const printings = buildPrintingsResponse(
-      printingRows,
-      imageRows,
-      markerBySlug,
-      channelsByPrinting,
-    );
+    const printings = buildPrintingsResponse(printingRows, imageRows, decorations);
 
     // Count cards + printings per channel by walking the resolved links.
     const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();

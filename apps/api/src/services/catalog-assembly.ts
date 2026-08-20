@@ -8,7 +8,7 @@ import { isReleasedIn, todayUtc } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import {
-  loadMarkerAndChannelMaps,
+  loadPrintingDecorations,
   resolveFallbackArt,
   resolveMarkers,
 } from "../lib/printing-presenters.js";
@@ -44,7 +44,7 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
     repos.customTags.assignmentsByCard(),
   ]);
 
-  const { markerBySlug, channelsByPrinting } = await loadMarkerAndChannelMaps(
+  const { markerBySlug, channelsByPrinting, citationsByPrinting } = await loadPrintingDecorations(
     repos,
     printingRows.map((p) => p.id),
   );
@@ -82,11 +82,15 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
 
   const printings: Record<string, CatalogResponsePrintingValue> = {};
   for (const { id, markerSlugs, fallbackArtMode, fallbackImageId, ...rest } of printingRows) {
+    const citations = citationsByPrinting.get(id);
     printings[id] = {
       ...rest,
       ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
       markers: resolveMarkers(markerSlugs, markerBySlug),
       distributionChannels: channelsByPrinting.get(id) ?? [],
+      // Omitted rather than empty — see `buildPrintingsResponse`. This is the
+      // bundle every visitor downloads, so an uncited printing costs no bytes.
+      ...(citations === undefined ? {} : { citations }),
       images: (imagesByPrinting.get(id) ?? []).map((i) => ({
         face: i.face,
         imageId: i.imageId,

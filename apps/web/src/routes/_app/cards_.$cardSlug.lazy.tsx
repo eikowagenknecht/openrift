@@ -29,6 +29,7 @@ import { toast } from "sonner";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PricingSection } from "@/components/cards/card-detail/pricing";
+import { PrintingCitationList } from "@/components/cards/card-detail/printing-citations";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardText } from "@/components/cards/card-text";
 import { FallbackArtBadges } from "@/components/cards/fallback-art-badges";
@@ -421,6 +422,7 @@ function CardDetailPage() {
                   printing={selectedPrinting}
                   products={data.productsByPrinting.get(selectedPrinting.id) ?? []}
                 />
+                <SourcesRow printing={selectedPrinting} />
                 {selectedPrinting.comment && (
                   <InfoRow label="Note">
                     <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
@@ -670,6 +672,26 @@ function FoundInRow({
             ))}
           </ul>
         )}
+      </div>
+    </InfoRow>
+  );
+}
+
+/**
+ * "Sources": where the claims about this printing come from. Shares the boxed
+ * treatment of "Found in" and "Note" so the info table reads as one column.
+ *
+ * @returns The row, or null when the printing is uncited.
+ */
+function SourcesRow({ printing }: { printing: Printing }) {
+  const citations = printing.citations ?? [];
+  if (citations.length === 0) {
+    return null;
+  }
+  return (
+    <InfoRow label={citations.length === 1 ? "Source" : "Sources"}>
+      <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+        <PrintingCitationList citations={citations} />
       </div>
     </InfoRow>
   );

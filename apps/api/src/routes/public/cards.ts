@@ -6,11 +6,7 @@ import type {
 import { cardsContract } from "@openrift/shared/contracts/cards";
 import { implement } from "@orpc/server";
 
-import {
-  loadMarkerAndChannelMaps,
-  resolveFallbackArt,
-  resolveMarkers,
-} from "../../lib/printing-presenters.js";
+import { buildPrintingsResponse, loadPrintingDecorations } from "../../lib/printing-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
@@ -40,13 +36,10 @@ export const cardsRouter = {
 
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [sets, markerChannelMaps] = await Promise.all([
+    const [sets, decorations] = await Promise.all([
       catalog.setsByIds(setIds),
-      loadMarkerAndChannelMaps(repos, printingIds),
+      loadPrintingDecorations(repos, printingIds),
     ]);
-    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
-
-    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     const errata = errataRow
       ? {
@@ -69,17 +62,10 @@ export const cardsRouter = {
       })),
     };
 
-    const printings: CatalogPrintingResponse[] = printingRows.map(
-      ({ markerSlugs, fallbackArtMode, fallbackImageId, ...rest }) => ({
-        ...rest,
-        ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
-        markers: resolveMarkers(markerSlugs, markerBySlug),
-        distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-        images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-          face: i.face,
-          imageId: i.imageId,
-        })),
-      }),
+    const printings: CatalogPrintingResponse[] = buildPrintingsResponse(
+      printingRows,
+      imageRows,
+      decorations,
     );
 
     return { card: cardResponse, printings, sets, products };

@@ -43,6 +43,12 @@ vi.mock("@/components/admin/printing-marketplace-cells", () => ({
   PrintingMarketplaceBadges: () => null,
 }));
 
+// Owns its own query; stubbed to a marker so this file can still assert that
+// only a full admin gets the citation editor.
+vi.mock("@/components/admin/printing-citations-editor", () => ({
+  PrintingCitationsEditor: () => <div data-testid="citations-editor" />,
+}));
+
 // The real chip reads language colors from the /init suspense query.
 vi.mock("@/components/language-chip", () => ({
   LanguageChip: ({ code }: { code: string }) => <span>{code}</span>,
@@ -289,6 +295,16 @@ describe("PrintingReviewCard", () => {
 
     expect(queryByText(/unchecked/u)).toBeNull();
     expect(captured.spreadsheet).not.toBeNull();
+  });
+
+  // Citing a printing is curation, not the accept-only work a card-review grant
+  // covers, so the editor stays behind full admin like triage and delete.
+  it("shows the citation editor to admins", () => {
+    expect(renderCard().queryByTestId("citations-editor")).not.toBeNull();
+  });
+
+  it("hides the citation editor from a card-review grant holder", () => {
+    expect(renderCard({ isAdmin: false }).queryByTestId("citations-editor")).toBeNull();
   });
 
   it("renders the language prefix as a chip", () => {

@@ -1,23 +1,30 @@
 import type { Printing } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { PrintingCitationList } from "@/components/cards/card-detail/printing-citations";
 import { Badge } from "@/components/ui/badge";
 
 const BREADCRUMB_SEP = " \u203A ";
 
 /**
- * Printing-specific notes shown in the detail pane. Split into two boxes: a
- * "Promo" box (markers + distribution channels) and a separate "Note" box for
- * the printing's comment, since comments aren't always promo-related. Each
- * box is omitted when its data isn't present.
+ * Printing-specific notes shown in the detail pane. Split into three boxes: a
+ * "Promo" box (markers + distribution channels), a "Sources" box citing where
+ * those claims come from, and a separate "Note" box for the printing's comment,
+ * since comments aren't always promo-related. Each box is omitted when its data
+ * isn't present.
  *
- * @returns Up to two stacked boxes, or `null` when there's nothing to say.
+ * Sources get their own box rather than a line inside "Promo": a printing can
+ * be cited without carrying a marker or a channel at all (a leak video is
+ * evidence the printing exists before anyone knows how it was handed out).
+ *
+ * @returns Up to three stacked boxes, or `null` when there's nothing to say.
  */
 export function PrintingNotesSection({ printing }: { printing: Printing }) {
   const hasMarkers = printing.markers.length > 0;
   const hasChannels = printing.distributionChannels.length > 0;
   const hasComment = Boolean(printing.comment);
-  if (!hasMarkers && !hasChannels && !hasComment) {
+  const citations = printing.citations ?? [];
+  if (!hasMarkers && !hasChannels && !hasComment && citations.length === 0) {
     return null;
   }
 
@@ -74,6 +81,15 @@ export function PrintingNotesSection({ printing }: { printing: Printing }) {
               ))}
             </ul>
           )}
+        </section>
+      )}
+
+      {citations.length > 0 && (
+        <section className="border-border/50 bg-muted/30 space-y-2 rounded-lg border px-3 py-2.5 text-sm">
+          <h3 className="text-muted-foreground font-medium tracking-wide uppercase">
+            {citations.length === 1 ? "Source" : "Sources"}
+          </h3>
+          <PrintingCitationList citations={citations} />
         </section>
       )}
 

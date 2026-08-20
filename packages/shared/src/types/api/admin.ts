@@ -59,6 +59,7 @@ import type {
   marketplaceGroupSchema,
 } from "../../contracts/admin/marketplace-groups.js";
 import type { clearPricesResponseSchema } from "../../contracts/admin/operations.js";
+import type { adminPrintingCitationSchema } from "../../contracts/admin/printing-citations.js";
 import type { providerSettingSchema } from "../../contracts/admin/provider-settings.js";
 import type { jobStartedResponseSchema } from "../../contracts/admin/shared.js";
 import type { siteSettingSchema } from "../../contracts/admin/site-settings.js";
@@ -99,6 +100,9 @@ export type CandidateCardUploadResponse = z.infer<typeof uploadCandidatesRespons
 export type AdminCardResponse = z.infer<typeof adminCardResponseSchema>;
 
 export type AdminPrintingResponse = z.infer<typeof adminPrintingResponseSchema>;
+
+/** One source citation as the admin printing editor lists it. */
+export type AdminPrintingCitation = z.infer<typeof adminPrintingCitationSchema>;
 
 export type AdminMarketplaceName = z.infer<typeof marketplaceEnum>;
 

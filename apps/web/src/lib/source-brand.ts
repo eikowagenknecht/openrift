@@ -1,0 +1,79 @@
+import {
+  siBluesky,
+  siDiscord,
+  siFacebook,
+  siInstagram,
+  siReddit,
+  siTiktok,
+  siTwitch,
+  siWikipedia,
+  siX,
+  siYoutube,
+} from "simple-icons";
+
+import type { BrandIconData } from "@/components/ui/brand-glyph";
+
+/**
+ * Registrable hosts we recognise, mapped to their brand mark. Keys are bare
+ * hosts: the lookup also matches any subdomain of one, so `m.youtube.com` and
+ * `old.reddit.com` need no entries of their own.
+ *
+ * `siTwitter` no longer exists upstream, so both Twitter hosts resolve to the X
+ * mark. Link shorteners the same platform owns (`youtu.be`, `redd.it`) are
+ * listed because a pasted share link uses them more often than not.
+ */
+const BRANDS_BY_HOST: Record<string, BrandIconData> = {
+  "youtube.com": siYoutube,
+  "youtu.be": siYoutube,
+  "twitch.tv": siTwitch,
+  "x.com": siX,
+  "twitter.com": siX,
+  "reddit.com": siReddit,
+  "redd.it": siReddit,
+  "bsky.app": siBluesky,
+  "discord.com": siDiscord,
+  "discord.gg": siDiscord,
+  "instagram.com": siInstagram,
+  "tiktok.com": siTiktok,
+  "facebook.com": siFacebook,
+  "wikipedia.org": siWikipedia,
+};
+
+/**
+ * The brand mark for a source link, resolved from the URL's host.
+ *
+ * Deliberately not from the label: labels are free text an admin types, so
+ * "watch the YouTube video" pointing at a Twitch VOD would show the wrong mark,
+ * and the mark is the part a reader trusts at a glance.
+ *
+ * @param url The citation's link, or null when it has none.
+ * @returns The brand's icon data, or undefined for an unknown or absent host.
+ */
+export function sourceBrand(url: string | null | undefined): BrandIconData | undefined {
+  if (url === null || url === undefined || url === "") {
+    return undefined;
+  }
+
+  // `new URL` in a try, not `URL.parse`: the static parser needs Safari 18 and
+  // this app's floor is 16.4, where it would throw at runtime rather than fail
+  // the build.
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+
+  const exact = BRANDS_BY_HOST[host];
+  if (exact) {
+    return exact;
+  }
+  // Suffix match so every subdomain resolves without its own entry. The leading
+  // dot is what stops "notyoutube.com" matching "youtube.com".
+  for (const [key, icon] of Object.entries(BRANDS_BY_HOST)) {
+    if (host.endsWith(`.${key}`)) {
+      return icon;
+    }
+  }
+  return undefined;
+}

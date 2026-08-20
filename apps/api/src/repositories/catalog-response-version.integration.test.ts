@@ -108,6 +108,16 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
              'a0000000-0042-4000-a000-0000000000c1')`,
   ];
 
+  // printing_citations is empty in the seed, so the mutation has to create the
+  // row — which is also the realistic case: an admin citing a promo's source
+  // for the first time must roll the token.
+  const ADD_CITATION = [
+    `INSERT INTO printing_citations (id, printing_id, label, source_url)
+     SELECT 'a0000000-0042-4000-a000-0000000000d1', id, 'Probe citation',
+            'https://example.test/probe'
+       FROM printings LIMIT 1`,
+  ];
+
   const CASES: { table: string; why: string; statements: string[] }[] = [
     { table: "cards", why: "cards map", statements: [touch("cards")] },
     { table: "printings", why: "printings map", statements: [touch("printings")] },
@@ -134,6 +144,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
       statements: [dropOne("card_super_types")],
     },
     { table: "custom_tags", why: "customTagAssignments", statements: ADD_CUSTOM_TAG },
+    { table: "printing_citations", why: "printing.citations", statements: ADD_CITATION },
     {
       table: "card_custom_tags",
       why: "customTagAssignments",
@@ -185,6 +196,21 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
       expect(after).not.toBe(before);
     },
   );
+
+  // printing_citations has no `updated_at` either, and unlike the junctions it
+  // is edited in place: fixing a typo in a label, or repointing a dead link,
+  // changes what every client reads while leaving count(*) alone.
+  it("rolls when a citation is edited in place", async () => {
+    const edit = [
+      ...ADD_CITATION,
+      `UPDATE printing_citations SET label = 'Probe citation (corrected)'
+        WHERE id = 'a0000000-0042-4000-a000-0000000000d1'`,
+    ];
+    expect(await affectedRows(edit)).toBe(2);
+
+    const { before, after } = await tokenAround(edit);
+    expect(after).not.toBe(before);
+  });
 
   it("is stable when nothing changes", async () => {
     const { before, after } = await tokenAround([]);

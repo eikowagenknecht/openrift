@@ -12,6 +12,7 @@ import {
   HeartIcon,
   InfoIcon,
   LayersIcon,
+  LinkIcon,
   MinusIcon,
   PackageIcon,
   PlusIcon,
@@ -28,6 +29,7 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Area, AreaChart } from "recharts";
+import { siDiscord, siTwitch, siYoutube } from "simple-icons";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -77,6 +79,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { BrandGlyph } from "@/components/ui/brand-glyph";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
@@ -252,6 +255,7 @@ const SECTIONS = [
   { id: "pressable", title: "Pressable & disclosure" },
   { id: "section-heading", title: "Section heading" },
   { id: "icon-chip", title: "Icon chip" },
+  { id: "brand-glyph", title: "Brand glyph" },
   { id: "qr-codes", title: "Copy rows & QR codes" },
   { id: "card-thumbnails", title: "Card thumbnails" },
   { id: "form-controls", title: "Form controls" },
@@ -303,6 +307,7 @@ export function DesignPage() {
       <PressableSection />
       <SectionHeadingSection />
       <IconChipSection />
+      <BrandGlyphSection />
       <QrCodesSection />
       <TilesSection />
       <CardThumbnailsSection />
@@ -1021,6 +1026,44 @@ function IconChipSection() {
       <SwatchRow label="Round small (feed/rail rows)">
         <Swatch label="sm round">
           <IconChip icon={HeartIcon} tone="primary" size="sm" shape="round" />
+        </Swatch>
+      </SwatchRow>
+    </DemoSection>
+  );
+}
+
+function BrandGlyphSection() {
+  return (
+    <DemoSection
+      id="brand-glyph"
+      title="Brand glyph"
+      note="A simple-icons brand mark that inherits text colour, falling back to a lucide icon when the brand is unknown. Used by contact chips and by promo source citations, where the mark is resolved from the link's host."
+    >
+      <SwatchRow label="Known brands">
+        <Swatch label="YouTube">
+          <BrandGlyph icon={siYoutube} fallback={LinkIcon} />
+        </Swatch>
+        <Swatch label="Twitch">
+          <BrandGlyph icon={siTwitch} fallback={LinkIcon} />
+        </Swatch>
+        <Swatch label="Discord">
+          <BrandGlyph icon={siDiscord} fallback={LinkIcon} />
+        </Swatch>
+      </SwatchRow>
+      <SwatchRow label="Unknown brand (fallback)">
+        <Swatch label="LinkIcon">
+          <BrandGlyph fallback={LinkIcon} />
+        </Swatch>
+      </SwatchRow>
+      <SwatchRow label="Sizes">
+        <Swatch label="size-3">
+          <BrandGlyph icon={siYoutube} fallback={LinkIcon} className="size-3" />
+        </Swatch>
+        <Swatch label="size-4 (default)">
+          <BrandGlyph icon={siYoutube} fallback={LinkIcon} />
+        </Swatch>
+        <Swatch label="size-6">
+          <BrandGlyph icon={siYoutube} fallback={LinkIcon} className="size-6" />
         </Swatch>
       </SwatchRow>
     </DemoSection>

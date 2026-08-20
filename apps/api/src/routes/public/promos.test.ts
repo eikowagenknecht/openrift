@@ -20,11 +20,16 @@ const mockDistributionChannelsRepo = {
   listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
 
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -112,6 +117,7 @@ describe("GET /api/v1/promos", () => {
     mockCatalogRepo.markersList.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
+    mockPrintingCitationsRepo.listForPrintingIds.mockResolvedValue([]);
   });
 
   it("returns an empty payload when there are no channel-distributed printings", async () => {
@@ -195,6 +201,7 @@ describe("promos route registration", () => {
       c.set("repos", {
         catalog: mockCatalogRepo,
         distributionChannels: mockDistributionChannelsRepo,
+        printingCitations: mockPrintingCitationsRepo,
         // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
       } as any);
       await next();

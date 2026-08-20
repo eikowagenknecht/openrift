@@ -41,6 +41,7 @@ import { adminMetaSubmissionsRouter } from "../routes/admin/meta-submissions.js"
 import { adminMetaRouter } from "../routes/admin/meta.js";
 import { adminOperationsRouter } from "../routes/admin/operations.js";
 import { adminOrganizationsRouter } from "../routes/admin/organizations.js";
+import { adminPrintingCitationsRouter } from "../routes/admin/printing-citations.js";
 import { adminPrintingEventsRouter } from "../routes/admin/printing-events.js";
 import { adminProductsRouter } from "../routes/admin/products.js";
 import { adminProviderSettingsRouter } from "../routes/admin/provider-settings.js";
@@ -147,6 +148,7 @@ const apiRouter = {
   adminMetaSubmissionsRouter,
   adminOperationsRouter,
   adminOrganizationsRouter,
+  adminPrintingCitationsRouter,
   adminPrintingEventsRouter,
   adminScanRouter,
   adminProductsRouter,

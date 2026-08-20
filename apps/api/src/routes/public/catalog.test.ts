@@ -29,6 +29,10 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([])),
 };
 
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const mockCustomTagsRepo = {
   assignmentsByCard: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
 };
@@ -41,6 +45,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     customTags: mockCustomTagsRepo,
   } as never);
   await next();

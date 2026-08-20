@@ -28,11 +28,16 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
     catalog: mockCatalogRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -139,6 +144,7 @@ describe("GET /api/v1/sets/:setSlug", () => {
     mockCatalogRepo.markersList.mockResolvedValue([]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
+    mockPrintingCitationsRepo.listForPrintingIds.mockResolvedValue([]);
   });
 
   it("returns 200 with the set, its cards keyed by id, and its printings", async () => {

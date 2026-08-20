@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GdYsmGaryzi6Vwt8GFNAUEelbyki52M2CY0gWguVIP8fDaMIUg44f63BMPjOnc6
+\restrict o0rXlZNf6or8U9tSkZrGraMpuqVUKfRycyzcubUyUbrl7FQR5SmGWZrwyed7mQz
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2571,6 +2571,22 @@ CREATE TABLE public.pods (
 
 
 --
+-- Name: printing_citations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printing_citations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    printing_id uuid NOT NULL,
+    label text NOT NULL,
+    source_url text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_printing_citations_label CHECK (((length(label) >= 1) AND (length(label) <= 120))),
+    CONSTRAINT chk_printing_citations_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000))))
+);
+
+
+--
 -- Name: printing_distribution_channels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3986,6 +4002,14 @@ ALTER TABLE ONLY public.pods
 
 
 --
+-- Name: printing_citations printing_citations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_citations
+    ADD CONSTRAINT printing_citations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: printing_distribution_channels printing_distribution_channels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5094,6 +5118,13 @@ CREATE INDEX idx_pod_members_player ON public.pod_members USING btree (player_id
 
 
 --
+-- Name: idx_printing_citations_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_citations_printing ON public.printing_citations USING btree (printing_id, sort_order, id);
+
+
+--
 -- Name: idx_printing_distribution_channels_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5441,6 +5472,13 @@ CREATE UNIQUE INDEX uq_meta_deck_submissions_provider_external ON public.meta_de
 --
 
 CREATE UNIQUE INDEX uq_meta_event_sources_key ON public.meta_event_sources USING btree (provider, external_id) WHERE (provider IS NOT NULL);
+
+
+--
+-- Name: uq_printing_citations_url; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_printing_citations_url ON public.printing_citations USING btree (printing_id, source_url) WHERE (source_url IS NOT NULL);
 
 
 --
@@ -7361,6 +7399,14 @@ ALTER TABLE ONLY public.pods
 
 
 --
+-- Name: printing_citations printing_citations_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_citations
+    ADD CONSTRAINT printing_citations_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
+
+
+--
 -- Name: printing_distribution_channels printing_distribution_channels_channel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7628,5 +7674,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GdYsmGaryzi6Vwt8GFNAUEelbyki52M2CY0gWguVIP8fDaMIUg44f63BMPjOnc6
+\unrestrict o0rXlZNf6or8U9tSkZrGraMpuqVUKfRycyzcubUyUbrl7FQR5SmGWZrwyed7mQz
 

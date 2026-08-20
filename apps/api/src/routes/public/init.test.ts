@@ -51,6 +51,10 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as never[])),
 };
 
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+};
+
 const mockCustomTagsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as never[])),
 };
@@ -73,6 +77,7 @@ app.use("*", async (c, next) => {
     enums: mockEnumsRepo,
     keywords: mockKeywordsRepo,
     distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     customTags: mockCustomTagsRepo,
     catalog: mockCatalogRepo,
     tagCategories: mockTagCategoriesRepo,

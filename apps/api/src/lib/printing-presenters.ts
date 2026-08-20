@@ -3,14 +3,16 @@ import type {
   CatalogPrintingResponse,
   DistributionChannelKind,
   Marker,
+  PrintingCitation,
   PrintingDistributionChannel,
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 
-interface MarkerChannelMaps {
+interface PrintingDecorations {
   markerBySlug: Map<string, Marker>;
   channelsByPrinting: Map<string, PrintingDistributionChannel[]>;
+  citationsByPrinting: Map<string, PrintingCitation[]>;
 }
 
 type CardRow = Awaited<ReturnType<Repos["catalog"]["cardsByIds"]>>[number];
@@ -22,20 +24,22 @@ type PrintingImageRow = Awaited<
 >[number];
 
 /**
- * Loads marker metadata + per-printing distribution channel links and indexes
- * them so route handlers can decorate raw printing rows with the resolved
- * `markers[]` and `distributionChannels[]` arrays expected on the wire.
+ * Loads marker metadata, per-printing distribution channel links, and source
+ * citations, and indexes them so route handlers can decorate raw printing rows
+ * with the resolved `markers[]`, `distributionChannels[]`, and `citations`
+ * fields expected on the wire.
  *
  * @returns Indexed maps keyed by marker slug and printing id.
  */
-export async function loadMarkerAndChannelMaps(
+export async function loadPrintingDecorations(
   repos: Repos,
   printingIds: readonly string[],
-): Promise<MarkerChannelMaps> {
-  const [markerRows, channelRows, allChannels] = await Promise.all([
+): Promise<PrintingDecorations> {
+  const [markerRows, channelRows, allChannels, citationRows] = await Promise.all([
     repos.catalog.markersList(),
     repos.distributionChannels.listForPrintingIds(printingIds),
     repos.distributionChannels.listAll(),
+    repos.printingCitations.listForPrintingIds(printingIds),
   ]);
 
   const markerBySlug = new Map<string, Marker>(markerRows.map((m) => [m.slug, m]));
@@ -82,7 +86,23 @@ export async function loadMarkerAndChannelMaps(
     }
   }
 
-  return { markerBySlug, channelsByPrinting };
+  // The repo already returns these in display order, so grouping preserves it.
+  const citationsByPrinting = new Map<string, PrintingCitation[]>();
+  for (const row of citationRows) {
+    const citation: PrintingCitation = {
+      id: row.id,
+      label: row.label,
+      sourceUrl: row.sourceUrl,
+    };
+    const list = citationsByPrinting.get(row.printingId);
+    if (list) {
+      list.push(citation);
+    } else {
+      citationsByPrinting.set(row.printingId, [citation]);
+    }
+  }
+
+  return { markerBySlug, channelsByPrinting, citationsByPrinting };
 }
 
 /**
@@ -168,27 +188,33 @@ export function buildCardsResponse(
 }
 
 /**
- * Builds the `printings` list shared by the public catalog reads: raw
- * printing rows decorated with resolved markers, distribution channels, and
- * images.
+ * Builds the `printings` list shared by every public catalog read (`/cards`,
+ * `/sets`, `/promos`): raw printing rows decorated with resolved markers,
+ * distribution channels, citations, and images.
  * @returns Printing responses in the same order as `printingRows`.
  */
 export function buildPrintingsResponse(
   printingRows: readonly PrintingRow[],
   imageRows: readonly PrintingImageRow[],
-  markerBySlug: ReadonlyMap<string, Marker>,
-  channelsByPrinting: ReadonlyMap<string, PrintingDistributionChannel[]>,
+  decorations: PrintingDecorations,
 ): CatalogPrintingResponse[] {
+  const { markerBySlug, channelsByPrinting, citationsByPrinting } = decorations;
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-  return printingRows.map(({ markerSlugs, fallbackArtMode, fallbackImageId, ...rest }) => ({
-    ...rest,
-    ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
-    markers: resolveMarkers(markerSlugs, markerBySlug),
-    distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-    images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-      face: i.face,
-      imageId: i.imageId,
-    })),
-  }));
+  return printingRows.map(({ markerSlugs, fallbackArtMode, fallbackImageId, ...rest }) => {
+    const citations = citationsByPrinting.get(rest.id);
+    return {
+      ...rest,
+      ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
+      markers: resolveMarkers(markerSlugs, markerBySlug),
+      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+      // Omitted rather than empty: `citations` is optional on the wire
+      // precisely so an uncited printing adds no bytes to the catalog read.
+      ...(citations === undefined ? {} : { citations }),
+      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
+        face: i.face,
+        imageId: i.imageId,
+      })),
+    };
+  });
 }

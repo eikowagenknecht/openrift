@@ -23,6 +23,7 @@ import {
   buildPrintingNormalizer,
   deduplicateSourceImages,
 } from "@/components/admin/card-detail-shared";
+import { PrintingCitationsEditor } from "@/components/admin/printing-citations-editor";
 import { PrintingIdLabel } from "@/components/admin/printing-id-label";
 import type { SiblingImage } from "@/components/admin/printing-image-switcher";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
@@ -348,6 +349,7 @@ export function PrintingReviewCard({
                 ) : undefined
               }
             />
+            {isAdmin && <PrintingCitationsEditor printingId={printingId} />}
           </div>
         </div>
       )}

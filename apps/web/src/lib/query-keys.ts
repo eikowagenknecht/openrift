@@ -289,6 +289,11 @@ export const queryKeys = {
       providerNames: ["admin", "cards", "provider-names"] as const,
       providerStats: ["admin", "cards", "provider-stats"] as const,
     },
+    // A promo printing's source citations. Not nested under `cards`: the editor
+    // is keyed by printing id, and invalidating a card's detail on every
+    // citation write would refetch the whole candidate review payload.
+    printingCitations: (printingId: string) =>
+      ["admin", "printings", printingId, "citations"] as const,
     marketplaceGroups: ["admin", "marketplace-groups"] as const,
     featureFlags: ["admin", "feature-flags"] as const,
     featureFlagOverrides: ["admin", "feature-flag-overrides"] as const,

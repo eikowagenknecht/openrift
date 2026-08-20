@@ -60,6 +60,7 @@ import { organizationsRepo } from "./repositories/organizations.js";
 import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
 import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
+import { printingCitationsRepo } from "./repositories/printing-citations.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { productsRepo } from "./repositories/products.js";
@@ -190,6 +191,7 @@ export interface Repos {
   metaCandidates: ReturnType<typeof metaCandidatesRepo>;
   metaSubmissions: ReturnType<typeof metaSubmissionsRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
+  printingCitations: ReturnType<typeof printingCitationsRepo>;
   products: ReturnType<typeof productsRepo>;
   markers: ReturnType<typeof markersRepo>;
   distributionChannels: ReturnType<typeof distributionChannelsRepo>;
@@ -394,6 +396,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     metaCandidates: metaCandidatesRepo(db),
     metaSubmissions: metaSubmissionsRepo(db),
     printingImages: printingImagesRepo(db),
+    printingCitations: printingCitationsRepo(db),
     products: productsRepo(db),
     markers: markersRepo(db),
     distributionChannels: distributionChannelsRepo(db),

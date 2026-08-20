@@ -2213,6 +2213,23 @@ interface PrintingDistributionChannelsTable {
   distributionNote: string | null;
 }
 
+/**
+ * Where a promo printing's claims come from (migration 258). Named "citations"
+ * rather than "sources" because a *printing source* already means a provider's
+ * candidate row everywhere else in this codebase.
+ */
+interface PrintingCitationsTable {
+  id: Generated<string>;
+  /** FK ON DELETE CASCADE */
+  printingId: string;
+  /** CHECK: 1..120 — e.g. "Launch party unboxing (RiftboundDaily)" */
+  label: string;
+  /** CHECK: 1..2000. NULL for a citation with no permalink. */
+  sourceUrl: string | null;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+}
+
 // ─── Provider settings (migration 035, renamed in 038) ───────────────────────
 
 interface ProviderSettingsTable {
@@ -2639,6 +2656,9 @@ export interface Database {
   printingMarkers: PrintingMarkersTable;
   distributionChannels: DistributionChannelsTable;
   printingDistributionChannels: PrintingDistributionChannelsTable;
+
+  // Promo source citations (migration 258)
+  printingCitations: PrintingCitationsTable;
 
   // Custom tags (migration 128, categories added in 130)
   customTagCategories: CustomTagCategoriesTable;

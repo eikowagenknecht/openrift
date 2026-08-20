@@ -5,7 +5,7 @@ import { implement } from "@orpc/server";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
-  loadMarkerAndChannelMaps,
+  loadPrintingDecorations,
 } from "../../lib/printing-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -55,22 +55,16 @@ export const setsRouter = {
     // Get unique card IDs and printing IDs for scoped lookups
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [cardRows, banRows, errataRows, markerChannelMaps] = await Promise.all([
+    const [cardRows, banRows, errataRows, decorations] = await Promise.all([
       catalog.cardsByIds(cardIds),
       catalog.cardBansByCardIds(cardIds),
       catalog.cardErrataByCardIds(cardIds),
-      loadMarkerAndChannelMaps(repos, printingIds),
+      loadPrintingDecorations(repos, printingIds),
     ]);
-    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
     // Build card lookup with errata and bans
     const cards = buildCardsResponse(cardRows, banRows, errataRows);
-    const printings = buildPrintingsResponse(
-      printingRows,
-      imageRows,
-      markerBySlug,
-      channelsByPrinting,
-    );
+    const printings = buildPrintingsResponse(printingRows, imageRows, decorations);
 
     return { set, cards, printings };
   }),
