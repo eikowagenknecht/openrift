@@ -4,28 +4,18 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
+import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguageLabels, useLanguageList } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
 import { formatCardId, formatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { groupPrintingsByLanguage } from "@/lib/printing-languages";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { OwnedCollectionsPopover } from "./owned-collections-popover";
-
-/**
- * Language codes present in `printings`, in the taxonomy's own order. Codes the
- * taxonomy doesn't know are appended rather than dropped, so a printing can
- * never become unreachable because its language is missing from /init.
- * @returns The languages to offer, ordered.
- */
-function languagesInOrder(byLanguage: Map<string, Printing[]>, order: string[]): string[] {
-  const known = order.filter((code) => byLanguage.has(code));
-  const unknown = [...byLanguage.keys()].filter((code) => !known.includes(code));
-  return [...known, ...unknown];
-}
 
 export function PrintingPicker({
   current,
@@ -44,11 +34,11 @@ export function PrintingPicker({
   // with it, without an effect to sync the two.
   const [picked, setPicked] = useState<{ language: string; forPrintingId: string } | null>(null);
 
-  const byLanguage = Map.groupBy(printings, (p) => p.language);
-  const languages = languagesInOrder(
-    byLanguage,
+  const groups = groupPrintingsByLanguage(
+    printings,
     languageOrder.map((entry) => entry.code),
   );
+  const languages = groups.map((group) => group.language);
 
   if (languages.length < 2) {
     return (
@@ -99,7 +89,7 @@ export function PrintingPicker({
           repeat on every row of a single-language tab. */}
       <TabsContent value={activeLanguage}>
         <PrintingList
-          printings={byLanguage.get(activeLanguage) ?? []}
+          printings={groups.find((group) => group.language === activeLanguage)?.printings ?? []}
           current={current}
           onSelect={onSelect}
         />
@@ -152,6 +142,11 @@ function PrintingList({
               isActive ? "bg-muted ring-border ring-1" : "hover:bg-muted/50",
             )}
           >
+            {/* Each row shows its own printing's art, not a representative one:
+                telling near-identical variants apart is the whole point of this
+                list. h-8 matches the row's existing text height, so adding the
+                thumbnail doesn't lengthen a list that can run to many rows. */}
+            <PrintingThumbnail printing={p} className="h-8" />
             <span className="min-w-0 flex-1 truncate">
               <PrintingVariantLabel
                 printing={p}

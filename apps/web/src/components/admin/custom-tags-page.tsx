@@ -15,7 +15,6 @@ import type {
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import {
   SectionHeader,
@@ -49,6 +48,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
+import { useAdminCardSearch } from "@/hooks/use-card-search";
 import {
   useAddCardsToCustomTag,
   useCardCustomTags,
@@ -551,13 +551,7 @@ export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
   const [search, setSearch] = useState("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const searchResults: CardSearchResult[] =
-    search.length >= 2
-      ? allCards
-          .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
-          .slice(0, 20)
-          .map((c) => ({ id: c.id, label: c.name, sublabel: c.slug, detail: c.types.join(" ") }))
-      : [];
+  const searchResults = useAdminCardSearch(allCards, search);
 
   const selectedCard = selectedCardId ? allCards.find((c) => c.id === selectedCardId) : undefined;
 
@@ -576,13 +570,15 @@ export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
         <Label>Card</Label>
         <CardSearchDropdown
           results={searchResults}
-          onSearch={(q) => {
-            setSearch(q);
-            // Picking a result makes the Combobox fill the input with the
-            // card's name, which fires this handler too — only drop the
-            // selection when the text no longer matches the selected card.
+          onSearch={setSearch}
+          // Clearing the selection tracks the raw keystrokes, not the debounced
+          // query: editing the text after a pick must drop the selection at
+          // once, not 150ms later. Picking a result makes the Combobox fill the
+          // input with the card's name, which fires this too, so only drop the
+          // selection when the text no longer matches the selected card.
+          onRawInputChange={(value) => {
             setSelectedCardId((prev) =>
-              prev !== null && allCards.find((c) => c.id === prev)?.name === q ? prev : null,
+              prev !== null && allCards.find((c) => c.id === prev)?.name === value ? prev : null,
             );
           }}
           onSelect={(id) => setSelectedCardId(id)}

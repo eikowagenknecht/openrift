@@ -1,9 +1,8 @@
-import { useDebouncedValue } from "@tanstack/react-pacer";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
+import { CardPickerButton } from "@/components/cards/card-picker-button";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCards } from "@/hooks/use-cards";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
@@ -15,10 +14,10 @@ import { prefillFromCard } from "@/lib/contribute-json";
  * form: pick it, and every field plus all its printings are filled in, so a new
  * variant is a copied printing with two edits rather than a page of retyping.
  *
- * The trigger swaps to the shared {@link CardSearchDropdown} inline, matching
- * the admin pickers. The catalog behind the search is the app's largest
- * payload, so the searching half mounts only once the trigger is used and
- * suspends on its own rather than holding up the form.
+ * The trigger swaps to the shared card search inline via
+ * {@link CardPickerButton}, matching the admin pickers. The catalog behind the
+ * search is the app's largest payload, so the searching half mounts only once
+ * the trigger is used and suspends on its own rather than holding up the form.
  *
  * @param props.onPick Receives form state prefilled from the chosen card.
  * @returns The trigger button, or the card search once it is open.
@@ -28,38 +27,26 @@ export function ExistingCardPicker({
 }: {
   onPick: (prefilled: ContributeFormState) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <SearchIcon className="size-4" />
-        Select an existing card
-      </Button>
-    );
-  }
-
-  const handlePick = (prefilled: ContributeFormState) => {
-    setOpen(false);
-    onPick(prefilled);
-  };
-
   return (
-    <span className="inline-flex items-center">
-      <Suspense fallback={<Input className="w-56" placeholder="Loading cards…" disabled />}>
-        <CatalogSearch onPick={handlePick} />
-      </Suspense>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="ml-1"
-        aria-label="Close card search"
-        onClick={() => setOpen(false)}
-      >
-        <XIcon className="size-4" />
-      </Button>
-    </span>
+    <CardPickerButton
+      type="button"
+      variant="ghost"
+      size="sm"
+      label="Select an existing card"
+      icon={<SearchIcon className="size-4" />}
+      closeLabel="Close card search"
+    >
+      {({ close }) => (
+        <Suspense fallback={<Input className="w-56" placeholder="Loading cards…" disabled />}>
+          <CatalogSearch
+            onPick={(prefilled) => {
+              close();
+              onPick(prefilled);
+            }}
+          />
+        </Suspense>
+      )}
+    </CardPickerButton>
   );
 }
 
@@ -71,8 +58,7 @@ export function ExistingCardPicker({
  */
 function CatalogSearch({ onPick }: { onPick: (prefilled: ContributeFormState) => void }) {
   const [search, setSearch] = useState("");
-  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
-  const results = useCatalogCardSearch(debouncedSearch);
+  const results = useCatalogCardSearch(search);
   const { cardsById, printingsByCardId, sets } = useCards();
 
   const handleSelect = (cardId: string) => {

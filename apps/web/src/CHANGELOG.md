@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-21
+
+### Highlights
+
+- feat(Cards): **Card art in the pickers** — every card and printing picker now shows a thumbnail, so near-identical variants are easy to tell apart at a glance.
+
+### Other
+
+- fix(Decks): **Deck plan card search** — the plan picker now folds punctuation like the rest of the app, so typing "kaisa" finds "Kai'Sa".
+
 ## 2026-08-20
 
 ### Other

@@ -6,7 +6,8 @@ import type {
 import { WellKnown, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
-import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
+import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
+import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -195,37 +196,22 @@ function CardNameSearchField({
 }) {
   const { printingsByCardId } = useCards();
   const { labels } = useEnumOrders();
+  const [query, setQuery] = useState(initialName ?? "");
+
+  const results = matchingPrintings(printingsByCardId, query);
+
   return (
-    <ImportCatalogSearch<Printing>
+    <CatalogSearchCombobox<Printing>
       ariaLabel="Card name"
       placeholder="Search card name"
       initialQuery={initialName}
-      getResults={(query) => {
-        const tokens = searchTokens(query);
-        if (tokens.length === 0) {
-          return [];
-        }
-        const matches: Printing[] = [];
-        for (const printings of printingsByCardId.values()) {
-          const printing = printings[0];
-          // Match the colloquial Legend name too, so "Azir" finds "Emperor of
-          // the Sands" (displayed as "Azir, Emperor of the Sands").
-          if (printing && matchesAllTokens(tokens, legendDisplayName(printing.card))) {
-            matches.push(printing);
-          }
-        }
-        return matches
-          .toSorted(
-            (first, second) =>
-              Number(normalizedStartsWith(legendDisplayName(second.card), query)) -
-                Number(normalizedStartsWith(legendDisplayName(first.card), query)) ||
-              legendDisplayName(first.card).localeCompare(legendDisplayName(second.card)),
-          )
-          .slice(0, 8);
-      }}
+      className="w-full"
+      results={results}
+      onQueryChange={setQuery}
       getKey={(printing) => printing.cardId}
       renderItem={(printing) => (
         <>
+          <PrintingThumbnail printing={printing} className="h-8" />
           <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
           <span className="text-muted-foreground shrink-0">
             {printing.card.types.map((slug) => labels.cardTypes[slug]).join(" ")}
@@ -233,11 +219,47 @@ function CardNameSearchField({
         </>
       )}
       onSelect={(printing) => onNameChange(legendDisplayName(printing.card))}
-      fillOnSelect={(printing) => legendDisplayName(printing.card)}
-      onQueryChange={onNameChange}
-      inputClassName="w-full"
+      itemToInputValue={(printing) => legendDisplayName(printing.card)}
+      // Free text is itself valid here: an unknown name becomes a flagged
+      // placeholder, so the field reports every keystroke, not just picks.
+      onRawInputChange={onNameChange}
     />
   );
+}
+
+/** How many name matches the deck-check field offers. */
+const MAX_NAME_MATCHES = 8;
+
+/**
+ * Name matches for the deck-check field, best prefix first. Kept out of the
+ * component so the search stays a plain function of its inputs.
+ * @returns Up to {@link MAX_NAME_MATCHES} representative printings.
+ */
+function matchingPrintings(
+  printingsByCardId: ReadonlyMap<string, Printing[]>,
+  query: string,
+): Printing[] {
+  const tokens = searchTokens(query);
+  if (tokens.length === 0) {
+    return [];
+  }
+  const matches: Printing[] = [];
+  for (const printings of printingsByCardId.values()) {
+    const printing = printings[0];
+    // Match the colloquial Legend name too, so "Azir" finds "Emperor of
+    // the Sands" (displayed as "Azir, Emperor of the Sands").
+    if (printing && matchesAllTokens(tokens, legendDisplayName(printing.card))) {
+      matches.push(printing);
+    }
+  }
+  return matches
+    .toSorted(
+      (first, second) =>
+        Number(normalizedStartsWith(legendDisplayName(second.card), query)) -
+          Number(normalizedStartsWith(legendDisplayName(first.card), query)) ||
+        legendDisplayName(first.card).localeCompare(legendDisplayName(second.card)),
+    )
+    .slice(0, MAX_NAME_MATCHES);
 }
 
 export function FixCardDialog({

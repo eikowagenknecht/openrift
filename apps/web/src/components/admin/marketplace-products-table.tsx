@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAssignableCardSearch } from "@/hooks/use-card-search";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -544,16 +544,7 @@ function MarketplaceProductRow({
   const priceDisplay =
     priceCents && priceCents > 0 ? formatCents(priceCents, product.currency) : "";
 
-  const filteredResults: CardSearchResult[] =
-    cardSearchQuery.length >= 2
-      ? allCards
-          .filter((c) => c.cardName.toLowerCase().includes(cardSearchQuery.toLowerCase()))
-          .slice(0, 10)
-          .map((c) => {
-            const firstId = c.shortCodes.toSorted((a, b) => a.localeCompare(b))[0] ?? "";
-            return { id: c.cardId, label: c.cardName, sublabel: firstId, detail: c.setName };
-          })
-      : [];
+  const filteredResults = useAssignableCardSearch(allCards, cardSearchQuery);
 
   return (
     <>

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguageLabels } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { formatCardId } from "@/lib/format";
+import { groupPrintingsByLanguage } from "@/lib/printing-languages";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 
 /** One unresolved lock waiting for the user to name its printing. */
@@ -57,10 +58,10 @@ export function ScanPrintingPicker({
   };
 
   const candidates = request?.candidates ?? [];
-  // Candidates arrive sorted language-first, so the groups come out in that
-  // same language order and each keeps its within-language order.
-  const languageGroups = [...Map.groupBy(candidates, (printing) => printing.language)];
-  const languages = languageGroups.map(([language]) => language);
+  // Candidates arrive sorted language-first, so the shared grouping is left to
+  // keep that order rather than being handed the taxonomy's.
+  const languageGroups = groupPrintingsByLanguage(candidates);
+  const languages = languageGroups.map((group) => group.language);
   // The stated card language wins when the card was printed in it; English is
   // the fallback because it is the language most stacks are in.
   const statedLanguage =
@@ -117,14 +118,14 @@ export function ScanPrintingPicker({
         {/* A card can be printed in more languages than fit one row, so the
             tabs wrap rather than scroll out of reach. */}
         <TabsList className="shrink-0 flex-wrap group-data-horizontal/tabs:h-auto">
-          {languageGroups.map(([language, items]) => (
+          {languageGroups.map(({ language, printings: items }) => (
             <TabsTrigger key={language} value={language}>
               {languageLabels[language]}
               <span className="text-muted-foreground">{items.length}</span>
             </TabsTrigger>
           ))}
         </TabsList>
-        {languageGroups.map(([language, items]) => (
+        {languageGroups.map(({ language, printings: items }) => (
           <TabsContent key={language} value={language} className="min-h-0 overflow-y-auto">
             {renderList(items)}
           </TabsContent>

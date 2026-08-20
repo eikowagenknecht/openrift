@@ -1,10 +1,11 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
+import { useState } from "react";
 
+import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { ImportPrintingLabel } from "@/components/cards/printing-label";
 import { PrintingThumbnail } from "@/components/cards/printing-option-content";
-import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 
 const MAX_RESULTS = 20;
@@ -23,21 +24,24 @@ export function PrintingSearch({
   allPrintings: Printing[];
   onSelect: (printing: Printing) => void;
 }) {
-  return (
-    <ImportCatalogSearch<Printing>
-      ariaLabel="Search catalog"
-      placeholder="Search catalog..."
-      getResults={(query) => {
-        const tokens = searchTokens(query);
-        if (tokens.length === 0) {
-          return [];
-        }
-        return allPrintings
+  const [query, setQuery] = useState("");
+  const tokens = searchTokens(query);
+  const results =
+    tokens.length === 0
+      ? []
+      : allPrintings
           .filter((printing) =>
             matchesAllTokens(tokens, legendDisplayName(printing.card), printing.shortCode),
           )
           .slice(0, MAX_RESULTS);
-      }}
+
+  return (
+    <CatalogSearchCombobox<Printing>
+      ariaLabel="Search catalog"
+      placeholder="Search catalog..."
+      className="h-7 w-44"
+      results={results}
+      onQueryChange={setQuery}
       getKey={(printing) => printing.id}
       renderItem={(printing) => (
         <div className="flex min-w-0 flex-1 items-center gap-2">

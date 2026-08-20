@@ -27,7 +27,6 @@ import {
 } from "@/components/admin/card-detail-shared";
 import { GroupImagePreview } from "@/components/admin/image-preview";
 import { SubmissionResolutionDialog } from "@/components/admin/submission-resolution-dialog";
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Heading } from "@/components/heading";
 import {
@@ -58,6 +57,7 @@ import {
   useReassignCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
+import { useAdminCardSearch } from "@/hooks/use-card-search";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import {
   describeAcceptCardFieldIssues,
@@ -187,6 +187,8 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
+  // Above the loading-state early return below, so the hook order stays fixed.
+  const cardSearchResults = useAdminCardSearch(allCards, linkSearch);
   // The column menu is cloned per source column, so the dialog it opens lives here.
   const [resolution, setResolution] = useState<{
     candidateCardId: string;
@@ -234,15 +236,6 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
 
   // Build printing groups
   const groups = buildPrintingGroups(unmatchedData.candidatePrintingGroups, candidatePrintings);
-
-  // Card search results for linking
-  const cardSearchResults: CardSearchResult[] =
-    allCards && linkSearch.length >= 2
-      ? allCards
-          .filter((c) => c.name.toLowerCase().includes(linkSearch.toLowerCase()))
-          .slice(0, 20)
-          .map((c) => ({ id: c.id, label: c.name, sublabel: c.slug, detail: c.types.join(" ") }))
-      : [];
 
   function handleAcceptAsNew() {
     if (!hasRequiredFields || !newModeCardId.trim()) {

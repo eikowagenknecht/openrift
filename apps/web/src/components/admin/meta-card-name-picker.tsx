@@ -1,10 +1,9 @@
-import { useDebouncedValue } from "@tanstack/react-pacer";
-import { LinkIcon, XIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CardPickerButton } from "@/components/cards/card-picker-button";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import { Button } from "@/components/ui/button";
 import { useResolveMetaCandidateName } from "@/hooks/use-admin-meta-candidates";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 
@@ -14,21 +13,19 @@ import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
  * any provider matches it without asking again. Rematching runs immediately, so
  * the same name in other staged decks resolves in the same click.
  *
- * Same interaction as the card pipeline's AssignButton: the trigger swaps to
- * the shared {@link CardSearchDropdown} autocomplete inline.
+ * Same interaction as the card pipeline's AssignButton, and now literally the
+ * same component: {@link CardPickerButton} owns the trigger-swaps-to-search
+ * behavior both share.
  *
  * @returns The "Link card" trigger and its card picker.
  */
 export function MetaCardNamePicker({ name }: { name: string }) {
   const resolveName = useResolveMetaCandidateName();
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
-  const results = useCatalogCardSearch(debouncedSearch);
+  const results = useCatalogCardSearch(search);
 
   async function handlePick(cardId: string) {
     const cardName = results.find((result) => result.id === cardId)?.label ?? "that card";
-    setOpen(false);
     setSearch("");
     let resolved = 0;
     try {
@@ -43,43 +40,27 @@ export function MetaCardNamePicker({ name }: { name: string }) {
     });
   }
 
-  if (!open) {
-    return (
-      <Button
-        variant="outline"
-        size="xs"
-        disabled={resolveName.isPending}
-        onClick={() => setOpen(true)}
-      >
-        <LinkIcon />
-        Link card
-      </Button>
-    );
-  }
-
   return (
-    <span className="inline-flex items-center">
-      <CardSearchDropdown
-        results={results}
-        onSearch={setSearch}
-        onSelect={(cardId) => void handlePick(cardId)}
-        placeholder="Search the catalog…"
-        className="w-56"
-        // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, the trigger just swapped to this input
-        autoFocus
-      />
-      <Button
-        variant="ghost"
-        size="xs"
-        className="ml-1"
-        aria-label="Close search"
-        onClick={() => {
-          setOpen(false);
-          setSearch("");
-        }}
-      >
-        <XIcon />
-      </Button>
-    </span>
+    <CardPickerButton
+      label="Link card"
+      icon={<LinkIcon />}
+      size="xs"
+      disabled={resolveName.isPending}
+    >
+      {({ close }) => (
+        <CardSearchDropdown
+          results={results}
+          onSearch={setSearch}
+          onSelect={(cardId) => {
+            close();
+            void handlePick(cardId);
+          }}
+          placeholder="Search the catalog…"
+          className="w-56"
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, the trigger just swapped to this input
+          autoFocus
+        />
+      )}
+    </CardPickerButton>
   );
 }

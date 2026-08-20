@@ -26,8 +26,9 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
+import { CardThumbnail } from "@/components/cards/printing-option-content";
 import { DeckImportSummary } from "@/components/deck/deck-import-summary";
-import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import {
   ImportStatusBadges,
   ImportToVerifyNote,
@@ -1338,17 +1339,22 @@ function CardSearch({
   allPrintings: Printing[];
   onSelect: (card: ResolvedCard) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const results = deduplicateToCards(allPrintings, query).slice(0, MAX_SEARCH_RESULTS);
+
   return (
-    <ImportCatalogSearch<ResolvedCard>
+    <CatalogSearchCombobox<ResolvedCard>
       ariaLabel="Search cards"
       placeholder="Search cards..."
       // Full width on phones: the cluster is already indented under the card
       // name, so the default 176px box leaves too little room to read a result.
-      inputClassName="h-8 w-full sm:h-7 sm:w-44"
-      getResults={(query) => deduplicateToCards(allPrintings, query).slice(0, MAX_SEARCH_RESULTS)}
+      className="h-8 w-full sm:h-7 sm:w-44"
+      results={results}
+      onQueryChange={setQuery}
       getKey={(card) => card.cardId}
       renderItem={(card) => (
         <>
+          <CardThumbnail cardId={card.cardId} className="h-8" />
           <span className="truncate font-medium">{card.cardName}</span>
           <span className="text-muted-foreground shrink-0">{card.shortCode}</span>
         </>
