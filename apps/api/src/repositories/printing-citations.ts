@@ -77,6 +77,44 @@ export function printingCitationsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Edit a citation in place, keeping its id and its position in the list.
+     *
+     * `sortOrder` is deliberately not writable: a citation moves only by being
+     * added, so an edit cannot reorder the list behind the reader's back.
+     *
+     * @param id The citation to edit.
+     * @param data Fields to change. An absent key leaves that column alone; a
+     *   `sourceUrl` of `null` clears the link without touching the label.
+     * @returns The edited row's id, or undefined when nothing matched.
+     */
+    async update(
+      id: string,
+      data: { label?: string; sourceUrl?: string | null },
+    ): Promise<string | undefined> {
+      // Kysely compiles an empty SET to invalid SQL, and a caller PATCHing
+      // nothing still expects the row's existence to be confirmed.
+      if (data.label === undefined && !Object.hasOwn(data, "sourceUrl")) {
+        const existing = await db
+          .selectFrom("printingCitations")
+          .select("id")
+          .where("id", "=", id)
+          .executeTakeFirst();
+        return existing?.id;
+      }
+
+      const row = await db
+        .updateTable("printingCitations")
+        .set({
+          ...(data.label === undefined ? {} : { label: data.label }),
+          ...(Object.hasOwn(data, "sourceUrl") ? { sourceUrl: data.sourceUrl } : {}),
+        })
+        .where("id", "=", id)
+        .returning("id")
+        .executeTakeFirst();
+      return row?.id;
+    },
+
+    /**
      * Delete one citation.
      * @returns The deleted row's id, or undefined when nothing matched.
      */

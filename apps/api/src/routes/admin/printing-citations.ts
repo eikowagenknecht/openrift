@@ -17,6 +17,39 @@ function toCitation(row: { id: string; label: string; sourceUrl: string | null }
 }
 
 /**
+ * Turns the partial unique index's violation into a 409 and leaves anything
+ * else alone. Caught rather than pre-read on purpose: two admins pasting the
+ * same link at once would both pass a check-then-act.
+ *
+ * @returns The error to throw — a 409 for the duplicate link, otherwise the
+ *   original.
+ */
+function asDuplicateLinkConflict(error: unknown): unknown {
+  if (isUniqueViolationOn(error, "uq_printing_citations_url")) {
+    return new AppError(409, ERROR_CODES.CONFLICT, "That link is already cited on this printing.");
+  }
+  return error;
+}
+
+/**
+ * Throws 404 unless the citation belongs to the printing in the path, so an id
+ * from one printing cannot be edited or deleted through another's URL.
+ *
+ * @returns Nothing; it throws when the citation is not the printing's.
+ */
+async function assertOwnedByPrinting(
+  repo: ApiContext["repos"]["printingCitations"],
+  printingId: string,
+  citationId: string,
+): Promise<void> {
+  const rows = await repo.listForPrinting(printingId);
+  assertFound(
+    rows.find((row) => row.id === citationId),
+    "Citation not found",
+  );
+}
+
+/**
  * Source citations on a promo printing (migration 258): the videos and posts
  * backing what the catalog claims about where a card came from.
  *
@@ -44,29 +77,32 @@ export const adminPrintingCitationsRouter = {
       });
       return toCitation(row);
     } catch (error) {
-      // The partial unique index, not a pre-read: two admins pasting the same
-      // link at once would both pass a check-then-act.
-      if (isUniqueViolationOn(error, "uq_printing_citations_url")) {
-        throw new AppError(
-          409,
-          ERROR_CODES.CONFLICT,
-          "That link is already cited on this printing.",
-        );
-      }
-      throw error;
+      throw asDuplicateLinkConflict(error);
+    }
+  }),
+
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { printingCitations } = context.repos;
+    await assertOwnedByPrinting(printingCitations, input.printingId, input.citationId);
+
+    // `sourceUrl` is read by key presence, not by value: the contract lets null
+    // through to clear a link, so `input.sourceUrl ?? undefined` would silently
+    // turn "drop the link" into "leave it alone".
+    const patch = {
+      ...(input.label === undefined ? {} : { label: input.label }),
+      ...(Object.hasOwn(input, "sourceUrl") ? { sourceUrl: input.sourceUrl } : {}),
+    };
+
+    try {
+      assertFound(await printingCitations.update(input.citationId, patch), "Citation not found");
+    } catch (error) {
+      throw asDuplicateLinkConflict(error);
     }
   }),
 
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { printingCitations } = context.repos;
-
-    // Scoped to the printing in the path, so a citation id from one printing
-    // cannot be deleted through another's URL.
-    const rows = await printingCitations.listForPrinting(input.printingId);
-    assertFound(
-      rows.find((row) => row.id === input.citationId),
-      "Citation not found",
-    );
+    await assertOwnedByPrinting(printingCitations, input.printingId, input.citationId);
     assertFound(await printingCitations.delete(input.citationId), "Citation not found");
   }),
 };

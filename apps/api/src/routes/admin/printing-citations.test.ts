@@ -15,6 +15,7 @@ const mockCatalog = { printingById: vi.fn() };
 const mockPrintingCitations = {
   listForPrinting: vi.fn(),
   insert: vi.fn(),
+  update: vi.fn(),
   delete: vi.fn(),
 };
 
@@ -171,6 +172,118 @@ describe("POST /printings/{printingId}/citations", () => {
 
     expect(res.status).toBe(404);
     expect(mockPrintingCitations.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /printings/{printingId}/citations/{citationId}", () => {
+  /** @returns The response to a citation PATCH. */
+  function patchCitation(body: unknown) {
+    return app.request(`${BASE}/${CITATION_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  // The case the route exists for: a dead link repointed at an archived copy,
+  // keeping the citation's id and its place in the list.
+  it("repoints a link without touching the label", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+    mockPrintingCitations.update.mockResolvedValue(CITATION_ID);
+
+    const res = await patchCitation({ sourceUrl: "https://web.archive.org/web/1/youtube" });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingCitations.update).toHaveBeenCalledWith(CITATION_ID, {
+      sourceUrl: "https://web.archive.org/web/1/youtube",
+    });
+  });
+
+  it("edits the label without touching the link", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+    mockPrintingCitations.update.mockResolvedValue(CITATION_ID);
+
+    const res = await patchCitation({ label: "Launch party unboxing (corrected)" });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingCitations.update).toHaveBeenCalledWith(CITATION_ID, {
+      label: "Launch party unboxing (corrected)",
+    });
+  });
+
+  // Distinct from omitting the field: an explicit null means the video came
+  // down and nothing replaced it, so the credit stays but the link goes.
+  it("clears the link when sourceUrl is explicitly null", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+    mockPrintingCitations.update.mockResolvedValue(CITATION_ID);
+
+    const res = await patchCitation({ sourceUrl: null });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingCitations.update).toHaveBeenCalledWith(CITATION_ID, { sourceUrl: null });
+  });
+
+  it("rejects a non-http(s) link", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+
+    // oxlint-disable-next-line no-script-url -- the payload under test is the point
+    const res = await patchCitation({ sourceUrl: "javascript:alert(1)" });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingCitations.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a blank label", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+
+    const res = await patchCitation({ label: "   " });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingCitations.update).not.toHaveBeenCalled();
+  });
+
+  // Otherwise a caller could move a citation up the list by patching it.
+  it("rejects an attempt to write sortOrder", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+
+    const res = await patchCitation({ sortOrder: 0 });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingCitations.update).not.toHaveBeenCalled();
+  });
+
+  it("409s when the new link is already cited on the printing", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+    mockPrintingCitations.update.mockRejectedValue(
+      Object.assign(new Error("duplicate key"), {
+        code: "23505",
+        constraint_name: "uq_printing_citations_url",
+      }),
+    );
+
+    const res = await patchCitation({ sourceUrl: "https://youtu.be/already-cited" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404s a citation that belongs to a different printing", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([
+      citationRow({ id: "c0000000-0001-4000-a000-000000000009" }),
+    ]);
+
+    const res = await patchCitation({ label: "Corrected" });
+
+    expect(res.status).toBe(404);
+    expect(mockPrintingCitations.update).not.toHaveBeenCalled();
+  });
+
+  it("404s when the row vanished between the ownership check and the write", async () => {
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+    mockPrintingCitations.update.mockResolvedValue(undefined);
+
+    const res = await patchCitation({ label: "Corrected" });
+
+    expect(res.status).toBe(404);
   });
 });
 

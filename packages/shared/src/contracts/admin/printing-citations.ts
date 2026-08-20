@@ -42,9 +42,9 @@ const createPrintingCitationFields = z.object({
  * Every citation is hand-entered — nothing ingests them — so unlike
  * `meta_event_sources` there is no provider-owned row to refuse a delete on.
  *
- * Domain codes: `list`, `create` → NOT_FOUND (unknown printing); `remove` →
- * NOT_FOUND (unknown citation); `create` → CONFLICT (the same link cited twice
- * on one printing).
+ * Domain codes: `list`, `create` → NOT_FOUND (unknown printing); `update`,
+ * `remove` → NOT_FOUND (unknown citation); `create` and `update` → CONFLICT
+ * (the same link cited twice on one printing).
  */
 export const adminPrintingCitationsContract = {
   list: authedRoute
@@ -61,6 +61,27 @@ export const adminPrintingCitationsContract = {
       CONFLICT: { message: "That link is already cited on this printing" },
     })
     .output(adminPrintingCitationSchema),
+
+  // A real PATCH rather than delete-then-create, which is what a caller
+  // without one has to do: that loses the row's id and lands the replacement at
+  // the bottom of the list, and the two calls are not atomic, so a create that
+  // fails after the delete simply loses the citation. Repointing a dead link at
+  // an archived copy is the case that matters, and it must not move the row.
+  update: authedRoute
+    .route({ method: "PATCH", path: `${BASE}/{citationId}`, tags: [TAG], successStatus: 204 })
+    // Both fields optional, and `sourceUrl` nullable on top of that, so the
+    // three intents stay distinct: omit to leave a field alone, a string to
+    // repoint it, `null` to drop the link while keeping the citation.
+    .input(
+      printingIdParamSchema
+        .extend({ citationId: z.uuid() })
+        .extend(createPrintingCitationFields.partial().shape)
+        .strict(),
+    )
+    .errors({
+      NOT_FOUND: { message: "Citation not found" },
+      CONFLICT: { message: "That link is already cited on this printing" },
+    }),
 
   // Nested under the printing rather than a flat `/citations/{id}`, so a
   // citation can only be deleted through the printing that owns it.

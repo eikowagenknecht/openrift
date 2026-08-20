@@ -86,6 +86,62 @@ describe("printingCitationsRepo", () => {
     });
   });
 
+  describe("update", () => {
+    it("writes only the fields the caller sent", async () => {
+      const { db, queries, parameters } = createRecordingDb([[{ id: "citation-1" }]]);
+
+      await printingCitationsRepo(db).update("citation-1", {
+        sourceUrl: "https://web.archive.org/x",
+      });
+
+      expect(queries[0]).toContain('update "printing_citations"');
+      expect(queries[0]).toContain('"source_url"');
+      // The label was not sent, so it must not appear in the SET clause at all.
+      expect(queries[0]).not.toContain('"label"');
+      expect(parameters[0]).toEqual(["https://web.archive.org/x", "citation-1"]);
+    });
+
+    // An explicit null clears the link. `?? undefined` anywhere on this path
+    // would turn that into "leave it alone".
+    it("clears the link when sourceUrl is explicitly null", async () => {
+      const { db, queries, parameters } = createRecordingDb([[{ id: "citation-1" }]]);
+
+      await printingCitationsRepo(db).update("citation-1", { sourceUrl: null });
+
+      expect(queries[0]).toContain('"source_url"');
+      expect(parameters[0]).toEqual([null, "citation-1"]);
+    });
+
+    // Never writable: a citation moves only by being added, so an edit cannot
+    // reorder the list behind the reader's back.
+    it("never writes sortOrder", async () => {
+      const { db, queries } = createRecordingDb([[{ id: "citation-1" }]]);
+
+      await printingCitationsRepo(db).update("citation-1", { label: "Corrected" });
+
+      expect(queries[0]).not.toContain("sort_order");
+    });
+
+    // Kysely compiles an empty SET to invalid SQL, and the caller still needs
+    // to learn whether the row exists.
+    it("falls back to an existence check when nothing was sent", async () => {
+      const { db, queries } = createRecordingDb([[{ id: "citation-1" }]]);
+
+      await expect(printingCitationsRepo(db).update("citation-1", {})).resolves.toBe("citation-1");
+
+      expect(queries).toHaveLength(1);
+      expect(queries[0]).toContain('select "id" from "printing_citations"');
+    });
+
+    it("returns undefined when nothing matched, so the route can answer 404", async () => {
+      const { db } = createRecordingDb([[]]);
+
+      await expect(
+        printingCitationsRepo(db).update("missing", { label: "Corrected" }),
+      ).resolves.toBeUndefined();
+    });
+  });
+
   describe("delete", () => {
     it("returns the deleted id", async () => {
       const { db } = createRecordingDb([[{ id: "citation-1" }]]);
