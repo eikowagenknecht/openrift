@@ -499,12 +499,13 @@ function PromosPage() {
       <div className={cn(PAGE_PADDING_NO_TOP, "pt-3")}>
         <div className="mb-6">
           <p className="text-muted-foreground text-sm">
-            Promos are all the cards you can&apos;t get by just opening booster packs. Two things
-            vary across them: <strong className="font-semibold">how they look</strong>, shown as
-            markers below each card (like &ldquo;Promo&rdquo; or &ldquo;Champion&rdquo;), and{" "}
-            <strong className="font-semibold">where you can get them</strong>, which is how the
-            sections below are organized (tournament prizes, event exclusives, bundles, or promo
-            packs).
+            This page shows all the cards you can&apos;t get by opening booster packs. I use two
+            terms here that you might not be familiar with. The first one is{" "}
+            <strong className="font-semibold">Markers</strong>: I use this to describe how the cards
+            are visually different from the base printing (like a &ldquo;Promo&rdquo; stamp). The
+            second one is <strong className="font-semibold">Distribution Channels</strong>: This
+            describes where you can (or could) get the cards (like &ldquo;Nexus Night&rdquo; or
+            &ldquo;Arcane Box Set&rdquo;).
           </p>
           {activeAggregate && (
             <p className="text-muted-foreground mt-2 text-sm">
@@ -513,9 +514,10 @@ function PromosPage() {
                 activeAggregate.printingCount,
                 activeAggregate.cardCount,
               )}{" "}
-              Spotted a missing promo?{" "}
+              If you spotted a missing promo or can help out with a picture I don&apos;t have yet,
+              please suggest one using this{" "}
               <Link to="/contribute" className="text-primary hover:underline">
-                Suggest one
+                easy form
               </Link>
               .
             </p>
