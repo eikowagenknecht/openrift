@@ -4,7 +4,9 @@
 
 ### Other
 
+- feat(Cards): **Start a submission from an existing card** — the submit-a-card page can now fill itself in from a card OpenRift already knows, and says up front that a partial entry is fine.
 - feat(Cards): **Sources for promo cards** — a promo printing can now cite where its claims come from, listed on the card page with the video or site it links to.
+- fix(Cards): **Clearer printings on the submit form** — printings now name their language and finish instead of a number, and an error inside a collapsed one no longer blocks submitting silently.
 - fix(Cards): **Readable hover on card pages** — hovering a printing, a price row, or an owned-collections popover turned the background gold and left the text on it barely legible.
 
 ## 2026-08-18

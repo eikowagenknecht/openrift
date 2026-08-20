@@ -1,19 +1,23 @@
-import type { SetListResponse } from "@openrift/shared";
+import type { SetListResponse, VariantLabelPrinting } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   CheckCircle2Icon,
   ChevronRightIcon,
   CopyIcon,
+  InfoIcon,
   LinkIcon,
   PlusIcon,
   SendIcon,
   Trash2Icon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { CardTextInput } from "@/components/contribute/card-text-input";
+import { ExistingCardPicker } from "@/components/contribute/existing-card-picker";
 import {
   ChipInput,
   FieldRow,
@@ -26,10 +30,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSubmitCard } from "@/hooks/use-card-submission";
@@ -52,9 +56,11 @@ import {
   nameToSlug,
   validateContribution,
 } from "@/lib/contribute-json";
+import { isBlankPrinting, toVariantLabelPrinting } from "@/lib/contribute-printing-labels";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
 import { computeDomainDisabled } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 interface ContributeFormProps {
@@ -69,9 +75,15 @@ interface ContributeFormProps {
 
 export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const [state, setState] = useState<ContributeFormState>(initial);
+  // What the form last opened *or was prefilled* with. `handleSubmit` diffs
+  // against it, so picking an existing card makes that card's printings the
+  // baseline and only the ones the contributor then edits reach the queue.
+  const [baseline, setBaseline] = useState<ContributeFormState>(initial);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
-  const [activePrinting, setActivePrinting] = useState(0);
+  // Index of the printing whose fields are expanded; null when all are closed.
+  // The live preview and the layout help follow it, falling back to the first.
+  const [activePrinting, setActivePrinting] = useState<number | null>(0);
   const [note, setNote] = useState("");
 
   const submit = useSubmitCard();
@@ -154,14 +166,29 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const removePrinting = (index: number) => {
     setState((s) => {
       const nextPrintings = s.printings.filter((_, i) => i !== index);
-      setActivePrinting((prev) => Math.min(prev, nextPrintings.length - 1));
+      setActivePrinting((prev) =>
+        prev === null ? null : Math.min(prev, nextPrintings.length - 1),
+      );
       return { ...s, printings: nextPrintings };
     });
   };
 
+  const prefillFromExisting = (prefilled: ContributeFormState) => {
+    clearSuccess();
+    setState(prefilled);
+    setBaseline(prefilled);
+    setErrors([]);
+    setSubmitted(false);
+    // Everything closed: the point of prefilling is to show at a glance which
+    // printings the card already has, so the contributor can copy the closest.
+    setActivePrinting(null);
+  };
+
   const startAnother = () => {
     submit.reset();
-    setState(emptyFormState());
+    const empty = emptyFormState();
+    setState(empty);
+    setBaseline(empty);
     setNote("");
     setErrors([]);
     setSubmitted(false);
@@ -174,17 +201,29 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     const result = validateContribution(state);
     setErrors(result.errors);
     if (!result.ok) {
+      // A closed printing renders none of its field errors, so open the first
+      // one that failed. Without this the form looks like it ignored the click.
+      const failed = [...printingErrorIndexes(result.errors)].toSorted((a, b) => a - b);
+      const first = failed[0];
+      if (first !== undefined) {
+        setActivePrinting(first);
+      }
       return;
     }
-    // `initial` is the baseline: printings the contributor never touched are
-    // left out of the payload so the admin column shows only real proposals.
-    submit.mutate(buildSubmissionPayload(state, note, initial));
+    // Printings the contributor never touched are left out of the payload so
+    // the admin column shows only real proposals.
+    submit.mutate(buildSubmissionPayload(state, note, baseline));
   };
 
   const errorAt = (path: string): string | undefined =>
     submitted ? errors.find((e) => e.path === path)?.message : undefined;
 
   const sets = setListData.sets;
+  // Each row names itself the way the card detail panel does: against its
+  // siblings, so shared attributes drop out and only the differences show.
+  const markerLabels = Object.fromEntries(markerOptions.map((m) => [m.slug, m.label]));
+  const printingVariants = state.printings.map((p) => toVariantLabelPrinting(p, markerLabels));
+  const printingsWithErrors = submitted ? printingErrorIndexes(errors) : new Set<number>();
   const domainDisabled = computeDomainDisabled(state.card.domains, orders.domains);
   const domainIcons = Object.fromEntries(
     orders.domains.map((slug) => [slug, getFilterIconPath("domains", slug)]),
@@ -201,6 +240,11 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
           <Card>
             <CardHeader>
               <CardTitle>Card</CardTitle>
+              {!lockedSlug && (
+                <CardAction>
+                  <ExistingCardPicker onPick={prefillFromExisting} />
+                </CardAction>
+              )}
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -323,43 +367,17 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                 Add printing
               </Button>
             </div>
-            {state.printings.length > 1 ? (
-              <Tabs
-                value={activePrinting.toString()}
-                onValueChange={(next) => setActivePrinting(Number(next))}
-              >
-                <TabsList className="w-full justify-start overflow-x-auto">
-                  {state.printings.map((printing, index) => (
-                    <TabsTrigger key={index} value={index.toString()}>
-                      {printingTabLabel(index, printing)}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                {state.printings.map((printing, index) => (
-                  <TabsContent key={index} value={index.toString()}>
-                    <PrintingCard
-                      index={index}
-                      printing={printing}
-                      errorAt={errorAt}
-                      sets={sets}
-                      languages={languages}
-                      markers={markerOptions}
-                      channels={channelOptions}
-                      orders={orders}
-                      labels={labels}
-                      onChange={(key, value) => setPrintingField(index, key, value)}
-                      onCopy={() => duplicatePrinting(index)}
-                      onRemove={() => removePrinting(index)}
-                    />
-                  </TabsContent>
-                ))}
-              </Tabs>
-            ) : (
-              state.printings.map((printing, index) => (
+            <div className="flex flex-col gap-3">
+              {state.printings.map((printing, index) => (
                 <PrintingCard
                   key={index}
                   index={index}
                   printing={printing}
+                  variant={printingVariants[index]}
+                  siblings={printingVariants}
+                  open={index === activePrinting}
+                  hasError={printingsWithErrors.has(index)}
+                  onToggle={() => setActivePrinting(index === activePrinting ? null : index)}
                   errorAt={errorAt}
                   sets={sets}
                   languages={languages}
@@ -369,10 +387,10 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                   labels={labels}
                   onChange={(key, value) => setPrintingField(index, key, value)}
                   onCopy={() => duplicatePrinting(index)}
-                  onRemove={undefined}
+                  onRemove={state.printings.length > 1 ? () => removePrinting(index) : undefined}
                 />
-              ))
-            )}
+              ))}
+            </div>
           </section>
         </div>
         <div className="xl:sticky xl:top-20 xl:w-80 xl:shrink-0">
@@ -479,9 +497,24 @@ const LAYOUT_LEGEND: { label: string; region: string }[] = [
   { label: "Artist", region: "Bottom-right of the footer" },
 ];
 
-function printingTabLabel(index: number, printing: ContributeFormPrinting): string {
-  const base = `Printing ${(index + 1).toString()}`;
-  return printing.publicCode ? `${base} · ${printing.publicCode}` : base;
+/** Matches the `printings[3].publicCode` form-state paths `validateContribution` returns. */
+const PRINTING_ERROR_PATH = /^printings\[(?<index>\d+)\]\./u;
+
+/**
+ * Which printings failed validation, so a closed one can still show that
+ * something inside it needs attention.
+ * @param errors Validation errors in form-state path form.
+ * @returns The set of printing indexes carrying at least one error.
+ */
+function printingErrorIndexes(errors: ValidationError[]): Set<number> {
+  const indexes = new Set<number>();
+  for (const error of errors) {
+    const index = PRINTING_ERROR_PATH.exec(error.path)?.groups?.index;
+    if (index !== undefined) {
+      indexes.add(Number(index));
+    }
+  }
+  return indexes;
 }
 
 function CardLayoutHelp({
@@ -489,9 +522,9 @@ function CardLayoutHelp({
   activePrinting,
 }: {
   state: ContributeFormState;
-  activePrinting: number;
+  activePrinting: number | null;
 }) {
-  const printing = state.printings[activePrinting] ?? state.printings[0];
+  const printing = state.printings[activePrinting ?? 0] ?? state.printings[0];
   const cardName = state.card.name || "Your card name";
   const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["fury"];
   const cardTypes = state.card.types.length > 0 ? state.card.types : [WellKnown.cardType.UNIT];
@@ -559,9 +592,9 @@ function LivePreview({
   activePrinting,
 }: {
   state: ContributeFormState;
-  activePrinting: number;
+  activePrinting: number | null;
 }) {
-  const printing = state.printings[activePrinting] ?? state.printings[0];
+  const printing = state.printings[activePrinting ?? 0] ?? state.printings[0];
   return (
     <Card>
       <CardHeader>
@@ -593,23 +626,54 @@ function LivePreview({
 }
 
 function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
-  // The new-card intro lives in the page header; only the correction flow needs
-  // its own lead-in here.
-  if (!lockedSlug) {
-    return null;
+  if (lockedSlug) {
+    return (
+      <Alert variant="info">
+        <InfoIcon />
+        <AlertTitle>Change only what&apos;s wrong</AlertTitle>
+        <AlertDescription>
+          You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>.
+          Edit the fields that are off and leave everything else alone. I&apos;ll review the change
+          before it goes live.
+        </AlertDescription>
+      </Alert>
+    );
   }
   return (
-    <p className="text-muted-foreground">
-      You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>. Edit
-      any field that needs fixing and submit. You don&apos;t need to touch every field, just the
-      ones that are off. I&apos;ll review the change before it goes live.
-    </p>
+    <Alert variant="info">
+      <InfoIcon />
+      <AlertTitle>It&apos;s okay to not fill in everything</AlertTitle>
+      <AlertDescription>
+        <p>
+          Only the card name and code are mandatory. If it&apos;s a new version of a card OpenRift
+          already knows, just select it first and then copy a printing, so that you only have to
+          make small changes.
+        </p>
+        <p>
+          Even a half-filled entry or a small correction is still a big help. If you need help,
+          visit the{" "}
+          <a href={SOCIAL_LINKS.discordInvite} target="_blank" rel="noreferrer">
+            Discord
+          </a>{" "}
+          and we&apos;ll get the new card in together.
+        </p>
+      </AlertDescription>
+    </Alert>
   );
 }
 
 interface PrintingCardProps {
   index: number;
   printing: ContributeFormPrinting;
+  /** This printing in the shared labeller's shape; undefined only if the arrays desync. */
+  variant?: VariantLabelPrinting;
+  /** Every printing on the form, the set the label disambiguates against. */
+  siblings: VariantLabelPrinting[];
+  /** Only the open printing renders its fields; the rest stay one summary row. */
+  open: boolean;
+  /** Set once the contributor has submitted and this printing failed validation. */
+  hasError: boolean;
+  onToggle: () => void;
   errorAt: (path: string) => string | undefined;
   sets: SetListResponse["sets"];
   languages: { code: string; name: string }[];
@@ -628,6 +692,11 @@ interface PrintingCardProps {
 function PrintingCard({
   index,
   printing,
+  variant,
+  siblings,
+  open,
+  hasError,
+  onToggle,
   errorAt,
   sets,
   languages,
@@ -646,9 +715,31 @@ function PrintingCard({
   };
 
   return (
-    <Card>
+    <Card className={cn(!open && "py-3")}>
       <CardHeader>
-        <CardTitle>Printing {index + 1}</CardTitle>
+        <CardTitle className="min-w-0">
+          <ExpandToggle expanded={open} onClick={onToggle} className="w-full min-w-0">
+            {variant && (
+              <PrintingVariantLabel
+                printing={variant}
+                siblings={siblings}
+                fallback={isBlankPrinting(printing) ? "New printing" : "Standard"}
+                className="min-w-0"
+              />
+            )}
+            {printing.publicCode && (
+              <span className="text-muted-foreground truncate font-normal">
+                {printing.publicCode}
+              </span>
+            )}
+            {hasError && (
+              <>
+                <TriangleAlertIcon className="text-destructive size-4 shrink-0" aria-hidden />
+                <span className="sr-only">has a problem</span>
+              </>
+            )}
+          </ExpandToggle>
+        </CardTitle>
         <CardAction className="flex gap-1">
           <Button type="button" variant="ghost" size="sm" onClick={onCopy}>
             <CopyIcon className="size-4" />
@@ -662,170 +753,176 @@ function PrintingCard({
           )}
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <FieldRow
-          label="Name"
-          hint="Defaults to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
-        >
-          <Input
-            value={printing.printedName}
-            onChange={(e) => onChange("printedName", e.target.value)}
+      {/* A closed printing drops its fields rather than hiding them: prefilling
+          from an existing card can bring in 40, and mounting a dozen selects
+          each is pointless. `hasError` is what keeps a problem in a closed
+          printing visible, since its own field errors render nowhere. */}
+      {open && (
+        <CardContent className="flex flex-col gap-4">
+          <FieldRow
+            label="Name"
+            hint="Defaults to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
+          >
+            <Input
+              value={printing.printedName}
+              onChange={(e) => onChange("printedName", e.target.value)}
+            />
+          </FieldRow>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FieldRow
+              label="Code"
+              required
+              error={errorAt(`printings[${index.toString()}].publicCode`)}
+            >
+              <Input
+                value={printing.publicCode ?? ""}
+                onChange={(e) => onChange("publicCode", e.target.value || null)}
+                placeholder="OGN-066/298"
+              />
+            </FieldRow>
+            <FieldRow label="Set">
+              <SingleSelect
+                value={printing.setId}
+                onChange={handleSetChange}
+                options={sets.map((s) => s.slug)}
+                labels={Object.fromEntries(sets.map((s) => [s.slug, s.name]))}
+                placeholder="Pick a set"
+              />
+            </FieldRow>
+            <FieldRow label="Language" error={errorAt(`printings[${index.toString()}].language`)}>
+              <SingleSelect
+                value={printing.language}
+                onChange={(v) => onChange("language", v)}
+                options={languages.map((language) => language.code)}
+                labels={Object.fromEntries(
+                  languages.map((language) => [language.code, language.name]),
+                )}
+                placeholder="Pick a language"
+              />
+            </FieldRow>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FieldRow label="Rarity">
+              <SingleSelect
+                value={printing.rarity}
+                onChange={(v) => onChange("rarity", v)}
+                options={orders.rarities}
+                labels={labels.rarities}
+                placeholder="Pick a rarity"
+              />
+            </FieldRow>
+            <FieldRow label="Finish">
+              <SingleSelect
+                value={printing.finish}
+                onChange={(v) => onChange("finish", v)}
+                options={orders.finishes}
+                labels={labels.finishes}
+                placeholder="Pick a finish"
+              />
+            </FieldRow>
+            <FieldRow label="Art variant">
+              <SingleSelect
+                value={printing.artVariant}
+                onChange={(v) => onChange("artVariant", v)}
+                options={orders.artVariants}
+                labels={labels.artVariants}
+                placeholder="Pick a variant"
+              />
+            </FieldRow>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FieldRow label="Size">
+              <SingleSelect
+                value={printing.size}
+                onChange={(v) => onChange("size", v ?? WellKnown.cardSize.STANDARD)}
+                options={orders.cardSizes}
+                labels={labels.cardSizes}
+                placeholder="Standard"
+              />
+            </FieldRow>
+            <FieldRow
+              label="Year"
+              hint="Year stamped on the physical card (bottom right)."
+              error={errorAt(`printings[${index.toString()}].printedYear`)}
+            >
+              <NumberInput
+                value={printing.printedYear}
+                onChange={(v) => onChange("printedYear", v)}
+              />
+            </FieldRow>
+            <FieldRow label="Signed">
+              <Switch
+                checked={printing.isSigned}
+                onCheckedChange={(checked) => onChange("isSigned", checked)}
+                className="mt-1"
+              />
+            </FieldRow>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FieldRow label="Artist">
+              <Input
+                value={printing.artist ?? ""}
+                onChange={(e) => onChange("artist", e.target.value || null)}
+              />
+            </FieldRow>
+            <FieldRow
+              label="Markers (e.g. Promo)"
+              hint="Visual add-ons stamped on the card: a promo stamp, a Skirmish circle, a launch-exclusive mark, and the like."
+            >
+              <MultiSelectDropdown
+                value={printing.markerSlugs}
+                onChange={(v) => onChange("markerSlugs", v)}
+                options={markers}
+                placeholder="None"
+              />
+            </FieldRow>
+            <FieldRow
+              label="Distribution channels"
+              hint="Where this printing was handed out, e.g. a specific event or product."
+            >
+              <MultiSelectDropdown
+                value={printing.distributionChannelSlugs}
+                onChange={(v) => onChange("distributionChannelSlugs", v)}
+                options={channels}
+                placeholder="None"
+              />
+            </FieldRow>
+          </div>
+          <CardTextInput
+            label="Rules text"
+            value={printing.printedRulesText ?? ""}
+            onChange={(v) => onChange("printedRulesText", v || null)}
           />
-        </FieldRow>
-        <div className="grid gap-4 sm:grid-cols-3">
+          <CardTextInput
+            label="Effect text"
+            value={printing.printedEffectText ?? ""}
+            onChange={(v) => onChange("printedEffectText", v || null)}
+          />
+          <CardTextInput
+            label="Flavor text"
+            variant="flavor"
+            value={printing.flavorText ?? ""}
+            onChange={(v) => onChange("flavorText", v || null)}
+          />
           <FieldRow
-            label="Code"
-            required
-            error={errorAt(`printings[${index.toString()}].publicCode`)}
+            label="Image URL"
+            hint="Direct link to the best quality image (.png, .jpg, .webp, etc.) you can find. Official images preferred, but a clear scan works too."
+            error={errorAt(`printings[${index.toString()}].imageUrl`)}
           >
-            <Input
-              value={printing.publicCode ?? ""}
-              onChange={(e) => onChange("publicCode", e.target.value || null)}
-              placeholder="OGN-066/298"
-            />
+            <InputGroup>
+              <InputGroupAddon>
+                <LinkIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                type="url"
+                value={printing.imageUrl ?? ""}
+                onChange={(e) => onChange("imageUrl", e.target.value || null)}
+                placeholder="https://..."
+              />
+            </InputGroup>
           </FieldRow>
-          <FieldRow label="Set">
-            <SingleSelect
-              value={printing.setId}
-              onChange={handleSetChange}
-              options={sets.map((s) => s.slug)}
-              labels={Object.fromEntries(sets.map((s) => [s.slug, s.name]))}
-              placeholder="Pick a set"
-            />
-          </FieldRow>
-          <FieldRow label="Language" error={errorAt(`printings[${index.toString()}].language`)}>
-            <SingleSelect
-              value={printing.language}
-              onChange={(v) => onChange("language", v)}
-              options={languages.map((language) => language.code)}
-              labels={Object.fromEntries(
-                languages.map((language) => [language.code, language.name]),
-              )}
-              placeholder="Pick a language"
-            />
-          </FieldRow>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FieldRow label="Rarity">
-            <SingleSelect
-              value={printing.rarity}
-              onChange={(v) => onChange("rarity", v)}
-              options={orders.rarities}
-              labels={labels.rarities}
-              placeholder="Pick a rarity"
-            />
-          </FieldRow>
-          <FieldRow label="Finish">
-            <SingleSelect
-              value={printing.finish}
-              onChange={(v) => onChange("finish", v)}
-              options={orders.finishes}
-              labels={labels.finishes}
-              placeholder="Pick a finish"
-            />
-          </FieldRow>
-          <FieldRow label="Art variant">
-            <SingleSelect
-              value={printing.artVariant}
-              onChange={(v) => onChange("artVariant", v)}
-              options={orders.artVariants}
-              labels={labels.artVariants}
-              placeholder="Pick a variant"
-            />
-          </FieldRow>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FieldRow label="Size">
-            <SingleSelect
-              value={printing.size}
-              onChange={(v) => onChange("size", v ?? WellKnown.cardSize.STANDARD)}
-              options={orders.cardSizes}
-              labels={labels.cardSizes}
-              placeholder="Standard"
-            />
-          </FieldRow>
-          <FieldRow
-            label="Year"
-            hint="Year stamped on the physical card (bottom right)."
-            error={errorAt(`printings[${index.toString()}].printedYear`)}
-          >
-            <NumberInput
-              value={printing.printedYear}
-              onChange={(v) => onChange("printedYear", v)}
-            />
-          </FieldRow>
-          <FieldRow label="Signed">
-            <Switch
-              checked={printing.isSigned}
-              onCheckedChange={(checked) => onChange("isSigned", checked)}
-              className="mt-1"
-            />
-          </FieldRow>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FieldRow label="Artist">
-            <Input
-              value={printing.artist ?? ""}
-              onChange={(e) => onChange("artist", e.target.value || null)}
-            />
-          </FieldRow>
-          <FieldRow
-            label="Markers (e.g. Promo)"
-            hint="Visual add-ons stamped on the card: a promo stamp, a Skirmish circle, a launch-exclusive mark, and the like."
-          >
-            <MultiSelectDropdown
-              value={printing.markerSlugs}
-              onChange={(v) => onChange("markerSlugs", v)}
-              options={markers}
-              placeholder="None"
-            />
-          </FieldRow>
-          <FieldRow
-            label="Distribution channels"
-            hint="Where this printing was handed out, e.g. a specific event or product."
-          >
-            <MultiSelectDropdown
-              value={printing.distributionChannelSlugs}
-              onChange={(v) => onChange("distributionChannelSlugs", v)}
-              options={channels}
-              placeholder="None"
-            />
-          </FieldRow>
-        </div>
-        <CardTextInput
-          label="Rules text"
-          value={printing.printedRulesText ?? ""}
-          onChange={(v) => onChange("printedRulesText", v || null)}
-        />
-        <CardTextInput
-          label="Effect text"
-          value={printing.printedEffectText ?? ""}
-          onChange={(v) => onChange("printedEffectText", v || null)}
-        />
-        <CardTextInput
-          label="Flavor text"
-          variant="flavor"
-          value={printing.flavorText ?? ""}
-          onChange={(v) => onChange("flavorText", v || null)}
-        />
-        <FieldRow
-          label="Image URL"
-          hint="Direct link to the best quality image (.png, .jpg, .webp, etc.) you can find. Official images preferred, but a clear scan works too."
-          error={errorAt(`printings[${index.toString()}].imageUrl`)}
-        >
-          <InputGroup>
-            <InputGroupAddon>
-              <LinkIcon />
-            </InputGroupAddon>
-            <InputGroupInput
-              type="url"
-              value={printing.imageUrl ?? ""}
-              onChange={(e) => onChange("imageUrl", e.target.value || null)}
-              placeholder="https://..."
-            />
-          </InputGroup>
-        </FieldRow>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }

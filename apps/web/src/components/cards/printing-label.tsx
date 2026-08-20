@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing, VariantLabelPrinting } from "@openrift/shared";
 import { formatPrintingVariantLabelParts } from "@openrift/shared";
 import type { ReactNode } from "react";
 
@@ -55,8 +55,10 @@ export function PrintingVariantLabel({
   fallback = "Standard",
   className,
 }: {
-  printing: Printing;
-  siblings?: Printing[];
+  // Structural, like `formatPrintingVariantLabelParts` itself: the catalog's
+  // `Printing` satisfies it, and so does a form's in-progress printing.
+  printing: VariantLabelPrinting;
+  siblings?: readonly VariantLabelPrinting[];
   code?: ReactNode;
   fallback?: string;
   className?: string;

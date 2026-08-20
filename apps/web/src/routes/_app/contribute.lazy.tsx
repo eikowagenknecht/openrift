@@ -21,9 +21,7 @@ function ContributePage() {
           </Button>
         </div>
         <p className="text-muted-foreground">
-          Spotted a card that&apos;s missing? Fill in what you know below and submit. You don&apos;t
-          need to complete every field. Partial entries still help, and the more detail you add, the
-          faster I can review it.
+          Spotted a missing printing or a typo? Any help is appreciated!
         </p>
       </header>
       <ContributeForm initial={emptyFormState()} />
