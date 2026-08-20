@@ -6,6 +6,8 @@ import { Fragment } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
+import { PrintingChannelCell } from "@/components/cards/printing-channel-cell";
+import { PrintingNotesCell } from "@/components/cards/printing-notes-cell";
 import { Pressable } from "@/components/ui/pressable";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -17,11 +19,16 @@ export const CARD_TABLE_HEADER_HEIGHT = 48;
 export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
 /** The static (non-actions) columns the row and header render, left to right. */
-type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity";
+export type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity" | "channel" | "notes";
 
 interface StaticColumn {
   key: StaticColumnKey;
-  /** grid-template-columns track for this column. */
+  /**
+   * grid-template-columns track for this column when it is not the stretcher
+   * (see {@link CardTableColumnOptions.stretch}). Never `auto` or `max-content`:
+   * every row is its own grid, so a content-sized track would size per row and
+   * the columns would stop lining up.
+   */
   track: string;
   /** px contribution to the min-width floor (the name column uses its 180px min). */
   minPx: number;
@@ -32,11 +39,31 @@ const STATIC_COLUMNS: readonly StaticColumn[] = [
   // ratio) plus the cell's px-3. The column was 60px while the thumb was
   // portrait and only ~29px wide.
   { key: "image", track: "72px", minPx: 72 },
-  { key: "name", track: "minmax(180px, 1fr)", minPx: 180 },
+  // Card names average 15 characters, so 240px seats the great majority and the
+  // long tail truncates under its own title rather than holding width open on
+  // every other row. Only a surface that points `stretch` elsewhere sees the
+  // cap; the catalog still grows this column to fill the table.
+  { key: "name", track: "minmax(180px, 240px)", minPx: 180 },
   { key: "set", track: "160px", minPx: 160 },
   { key: "type", track: "200px", minPx: 200 },
   { key: "rarity", track: "130px", minPx: 130 },
+  // Two lines like the name column: the channel's own label, under the
+  // breadcrumb of everything it hangs under. 200px is a floor, not a fit — a
+  // deep channel's breadcrumb runs past 400px, which is why /promos makes this
+  // the stretcher rather than the name.
+  { key: "channel", track: "200px", minPx: 200 },
+  // The floor holds the note icon plus three source marks, which covers every
+  // cited printing in the catalog today. Above it the column is flexible so a
+  // wide table spends its spare width spelling the note out rather than handing
+  // all of it to the name column; the cell watches its own width and falls back
+  // to the icons when the note would not fit.
+  { key: "notes", track: "minmax(112px, 0.8fr)", minPx: 112 },
 ];
+
+// What a surface gets when it names no columns of its own. `channel` and
+// `notes` are left out: they only carry anything on promo printings, so on the
+// catalog they would be an empty track on every row.
+const DEFAULT_COLUMN_KEYS: readonly StaticColumnKey[] = ["image", "name", "set", "type", "rarity"];
 
 // A group axis whose value is already spelled out in every group header makes
 // the matching column redundant, so it's hidden while grouping by that axis.
@@ -47,10 +74,34 @@ const GROUP_HIDDEN_COLUMN: Partial<Record<GroupByField, StaticColumnKey>> = {
   rarity: "rarity",
 };
 
-// The static columns visible for the given group-by axis (drops the grouped one).
-function visibleStaticColumns(groupBy?: GroupByField): readonly StaticColumn[] {
+/** How a surface departs from the default column set. */
+export interface CardTableColumnOptions {
+  /**
+   * The static columns this surface wants. Order is ignored — the table renders
+   * them in the canonical left-to-right order either way, so the header, the
+   * rows and the grid tracks cannot drift apart.
+   */
+  columns?: readonly StaticColumnKey[];
+  /**
+   * Which column absorbs the width past every column's minimum — it becomes the
+   * `1fr` track and the rest stop at their own maximum. Defaults to `name`,
+   * which is right when the alternatives are fixed-width facts (set, rarity);
+   * point it at a column whose content actually scales instead, and name stops
+   * growing into padding. Naming a column the surface does not render leaves the
+   * table short of the container, so keep the two in step.
+   */
+  stretch?: StaticColumnKey;
+}
+
+// The static columns visible for the given column set, minus the one the
+// group-by axis already spells out in every group header.
+function visibleStaticColumns(
+  groupBy?: GroupByField,
+  options?: CardTableColumnOptions,
+): readonly StaticColumn[] {
   const hidden = groupBy ? GROUP_HIDDEN_COLUMN[groupBy] : undefined;
-  return hidden ? STATIC_COLUMNS.filter((column) => column.key !== hidden) : STATIC_COLUMNS;
+  const wanted = new Set(options?.columns ?? DEFAULT_COLUMN_KEYS);
+  return STATIC_COLUMNS.filter((column) => column.key !== hidden && wanted.has(column.key));
 }
 
 // Track width of the rightmost actions column. "narrow" is a read-only count;
@@ -67,12 +118,21 @@ const ACTIONS_WIDTH_PX: Record<Exclude<ActionsColumn, "none">, number> = {
  * the column header, and any group headers locked to identical track widths.
  * The rightmost actions column follows `actionsColumn` ("none" omits it); when
  * `groupBy` matches a set/type/rarity column, that column is dropped since the
- * group headers already show its value.
+ * group headers already show its value. One column is flexible — see
+ * {@link CardTableColumnOptions.stretch} — so the table always fills its
+ * container and only ever grows the column that can use the room.
  *
  * @returns CSS grid-template-columns value.
  */
-export function getCardTableColumns(actionsColumn: ActionsColumn, groupBy?: GroupByField): string {
-  const tracks = visibleStaticColumns(groupBy).map((column) => column.track);
+export function getCardTableColumns(
+  actionsColumn: ActionsColumn,
+  groupBy?: GroupByField,
+  options?: CardTableColumnOptions,
+): string {
+  const stretch = options?.stretch ?? "name";
+  const tracks = visibleStaticColumns(groupBy, options).map((column) =>
+    column.key === stretch ? `minmax(${column.minPx}px, 1fr)` : column.track,
+  );
   if (actionsColumn !== "none") {
     tracks.push(`${ACTIONS_WIDTH_PX[actionsColumn]}px`);
   }
@@ -90,8 +150,12 @@ const COLUMN_GAP = 12;
  *
  * @returns Minimum table width in pixels.
  */
-export function getCardTableMinWidth(actionsColumn: ActionsColumn, groupBy?: GroupByField): number {
-  const columns = visibleStaticColumns(groupBy);
+export function getCardTableMinWidth(
+  actionsColumn: ActionsColumn,
+  groupBy?: GroupByField,
+  options?: CardTableColumnOptions,
+): number {
+  const columns = visibleStaticColumns(groupBy, options);
   const staticPx = columns.reduce((sum, column) => sum + column.minPx, 0);
   const actionsPx = actionsColumn === "none" ? 0 : ACTIONS_WIDTH_PX[actionsColumn];
   const trackCount = columns.length + (actionsColumn === "none" ? 0 : 1);
@@ -104,6 +168,8 @@ const STATIC_COLUMN_HEADER: Record<StaticColumnKey, string> = {
   set: "Set",
   type: "Type",
   rarity: "Rarity",
+  channel: "Channel",
+  notes: "Notes",
 };
 
 interface CardTableHeaderProps {
@@ -111,6 +177,8 @@ interface CardTableHeaderProps {
   actionsColumn: ActionsColumn;
   /** Group-by axis — the matching set/type/rarity column header is dropped. */
   groupBy?: GroupByField;
+  /** Column set, mirroring what the rows below render. */
+  options?: CardTableColumnOptions;
   /** When true, sticks to the top of the viewport at `stickyOffset`. */
   sticky?: boolean;
   stickyOffset?: number;
@@ -129,6 +197,7 @@ export function CardTableHeader({
   columns,
   actionsColumn,
   groupBy,
+  options,
   sticky,
   stickyOffset,
   bordered = true,
@@ -149,7 +218,7 @@ export function CardTableHeader({
         ...(sticky && stickyOffset !== undefined ? { top: stickyOffset } : {}),
       }}
     >
-      {visibleStaticColumns(groupBy).map((column) => (
+      {visibleStaticColumns(groupBy, options).map((column) => (
         <div key={column.key} className="px-3">
           {STATIC_COLUMN_HEADER[column.key]}
         </div>
@@ -217,6 +286,8 @@ interface CardTableRowProps {
   columns: string;
   /** Group-by axis — the matching set/type/rarity cell is dropped to mirror the header. */
   groupBy?: GroupByField;
+  /** Column set, mirroring what the header above renders. */
+  options?: CardTableColumnOptions;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
@@ -252,6 +323,7 @@ export function CardTableRow({
   actionsColumn,
   columns,
   groupBy,
+  options,
   cardTypeLabels,
   superTypeLabels,
   rarityLabels,
@@ -260,6 +332,7 @@ export function CardTableRow({
   actionsCell,
 }: CardTableRowProps) {
   const image = printing.images[0];
+  const cardName = legendDisplayName(printing.card);
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
   const typeLabel = [
     ...printing.card.superTypes.map((slug) => superTypeLabels[slug]),
@@ -289,7 +362,9 @@ export function CardTableRow({
     ),
     name: (
       <div className="min-w-0 px-3">
-        <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
+        <div className="truncate font-medium" title={cardName}>
+          {cardName}
+        </div>
         <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <span className="truncate tabular-nums">{printing.publicCode}</span>
           <FinishIcon finish={printing.finish} className="shrink-0" />
@@ -311,6 +386,20 @@ export function CardTableRow({
           <img src={rarityIconPath} alt="" width={28} height={28} className="size-4 shrink-0" />
         )}
         <span className="truncate">{rarityLabel}</span>
+      </div>
+    ),
+    channel: (
+      <div className="min-w-0 px-3">
+        <PrintingChannelCell channels={printing.distributionChannels} />
+      </div>
+    ),
+    notes: (
+      <div className="min-w-0 overflow-hidden px-3">
+        <PrintingNotesCell
+          comment={printing.comment}
+          markers={printing.markers}
+          citations={printing.citations ?? []}
+        />
       </div>
     ),
   };
@@ -335,7 +424,7 @@ export function CardTableRow({
       )}
       style={{ gridTemplateColumns: columns, height: CARD_TABLE_ROW_HEIGHT }}
     >
-      {visibleStaticColumns(groupBy).map((column) => (
+      {visibleStaticColumns(groupBy, options).map((column) => (
         <Fragment key={column.key}>{staticCellByKey[column.key]}</Fragment>
       ))}
       {actionsColumn === "wide" || actionsColumn === "stepper" ? (

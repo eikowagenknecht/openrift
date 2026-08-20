@@ -14,15 +14,18 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { computeGridMetrics } from "@/components/cards/card-grid-metrics";
-import type { ActionsColumn } from "@/components/cards/card-table-row";
+import type { ActionsColumn, CardTableColumnOptions } from "@/components/cards/card-table-row";
 import {
   CardTableGroupHeader,
-  CardTableHeader,
   CardTableRow,
   getCardTableColumns,
+  getCardTableMinWidth,
 } from "@/components/cards/card-table-row";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { FinishIcon } from "@/components/cards/finish-icon";
+import { PrintingChannelCell } from "@/components/cards/printing-channel-cell";
+import { PrintingNotesCell } from "@/components/cards/printing-notes-cell";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
@@ -100,6 +103,29 @@ const PROMOS_CARD_SIZES =
   "(min-width: 2560px) 261px, (min-width: 2160px) 211px, (min-width: 1720px) 217px, (min-width: 1280px) 230px, (min-width: 1024px) calc((100vw - 296px) / 3 - 12px), (min-width: 640px) calc((100vw - 56px) / 3 - 12px), calc((100vw - 40px) / 2 - 12px)";
 
 const BREADCRUMB_SEP = " › ";
+
+// Set, type and rarity are dropped here: the page is one long answer to "which
+// promos exist", and a reader already on it came for where a printing came from
+// and what it was handed out for, not for its rarity. What is left is one
+// column per question — which card, where from, what is known about it — with
+// the note column carrying the markers and sources alongside the comment.
+// Section headers name the channel when the sections are channels, so the
+// channel column only earns its place under the other groupings.
+// Without a channel column the note is the only thing here that scales, so it
+// takes the leftover width rather than the name, which tops out around 320px
+// and spends anything past that on padding.
+const PROMO_TABLE_OPTIONS: CardTableColumnOptions = {
+  columns: ["image", "name", "notes"],
+  stretch: "notes",
+};
+
+// With the channel in play it wants the width more: a channel four levels deep
+// spends more than 400px on its breadcrumb alone and was truncating at a fixed
+// width, while the note still has its own flexible track.
+const PROMO_TABLE_OPTIONS_WITH_CHANNEL: CardTableColumnOptions = {
+  columns: ["image", "name", "channel", "notes"],
+  stretch: "channel",
+};
 
 /**
  * A branch qualifies for compact-table rendering when every direct child is a
@@ -1033,11 +1059,14 @@ function FlatSection({
           })}
         </div>
       ) : (
+        // Card / year / marker sections say nothing about where a printing came
+        // from, so the rows carry the channel themselves.
         <PromoListView
           printings={sortedPrintings}
           onRowClick={onCardClick}
           ownedCounts={ownedCounts}
           setNameBySlug={setNameBySlug}
+          showChannel
         />
       )}
     </section>
@@ -1188,7 +1217,8 @@ function CompactBranchTable({
 }) {
   const { labels } = useEnumOrders();
   const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
-  const columns = getCardTableColumns(actionsColumn);
+  const columns = getCardTableColumns(actionsColumn, undefined, PROMO_TABLE_OPTIONS);
+  const minWidth = getCardTableMinWidth(actionsColumn, undefined, PROMO_TABLE_OPTIONS);
   const branches = node.children
     .map((child) => ({ child, printings: sortPrintings(child.printings) }))
     .filter(({ printings }) => printings.length > 0);
@@ -1198,50 +1228,50 @@ function CompactBranchTable({
   const multipleBranches = branches.length > 1;
   return (
     <>
-      {/* Desktop: shared CardTable layout */}
-      <div className="hidden md:block">
-        <CardTableHeader
-          columns={columns}
-          actionsColumn={actionsColumn}
-          bordered={!multipleBranches}
-        />
-        {branches.map(({ child, printings }) => {
-          const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
-          return (
-            <div
-              key={child.channel.id}
-              id={anchorId}
-              style={{ scrollMarginTop: `${stickyOffset}px` }}
-            >
-              {multipleBranches && (
-                <CardTableGroupHeader
-                  columns={columns}
-                  name={child.channel.label}
-                  count={printings.length}
-                  anchorId={anchorId}
-                />
-              )}
-              {printings.map((printing) => (
-                <CardTableRow
-                  key={printing.id}
-                  printing={printing}
-                  actionsColumn={actionsColumn}
-                  columns={columns}
-                  cardTypeLabels={labels.cardTypes}
-                  superTypeLabels={labels.superTypes}
-                  rarityLabels={labels.rarities}
-                  setNameBySlug={setNameBySlug}
-                  onRowClick={onCardClick}
-                  actionsCell={
-                    ownedCounts ? (
-                      <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
-                    ) : undefined
-                  }
-                />
-              ))}
-            </div>
-          );
-        })}
+      {/* Desktop: shared CardTable layout. The tracks are fixed px, so the
+          wrapper scrolls sideways rather than letting the rows spill past the
+          content column on narrow desktops. */}
+      <div className="hidden overflow-x-auto overflow-y-clip md:block">
+        <div style={{ minWidth }}>
+          {branches.map(({ child, printings }) => {
+            const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+            return (
+              <div
+                key={child.channel.id}
+                id={anchorId}
+                style={{ scrollMarginTop: `${stickyOffset}px` }}
+              >
+                {multipleBranches && (
+                  <CardTableGroupHeader
+                    columns={columns}
+                    name={child.channel.label}
+                    count={printings.length}
+                    anchorId={anchorId}
+                  />
+                )}
+                {printings.map((printing) => (
+                  <CardTableRow
+                    key={printing.id}
+                    printing={printing}
+                    actionsColumn={actionsColumn}
+                    columns={columns}
+                    cardTypeLabels={labels.cardTypes}
+                    superTypeLabels={labels.superTypes}
+                    rarityLabels={labels.rarities}
+                    setNameBySlug={setNameBySlug}
+                    options={PROMO_TABLE_OPTIONS}
+                    onRowClick={onCardClick}
+                    actionsCell={
+                      ownedCounts ? (
+                        <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+                      ) : undefined
+                    }
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Mobile: stacked cards, grouped by leaf channel */}
@@ -1262,8 +1292,6 @@ function CompactBranchTable({
                     printing={printing}
                     ownedCount={ownedCounts?.[printing.id] ?? 0}
                     showOwnedCount={ownedCounts !== undefined}
-                    rarityLabel={labels.rarities[printing.rarity]}
-                    finishLabel={labels.finishes[printing.finish]}
                     onClick={onCardClick}
                   />
                 ))}
@@ -1281,38 +1309,46 @@ function PromoListView({
   onRowClick,
   ownedCounts,
   setNameBySlug,
+  showChannel,
 }: {
   printings: Printing[];
   onRowClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   setNameBySlug: Map<string, string>;
+  /** Adds the channel column — for sections that group by something else. */
+  showChannel?: boolean;
 }) {
   const { labels } = useEnumOrders();
   const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
-  const columns = getCardTableColumns(actionsColumn);
+  const tableOptions = showChannel ? PROMO_TABLE_OPTIONS_WITH_CHANNEL : PROMO_TABLE_OPTIONS;
+  const columns = getCardTableColumns(actionsColumn, undefined, tableOptions);
+  const minWidth = getCardTableMinWidth(actionsColumn, undefined, tableOptions);
   return (
     <>
-      {/* Desktop: shared CardTable layout */}
-      <div className="hidden md:block">
-        <CardTableHeader columns={columns} actionsColumn={actionsColumn} />
-        {printings.map((printing) => (
-          <CardTableRow
-            key={printing.id}
-            printing={printing}
-            actionsColumn={actionsColumn}
-            columns={columns}
-            cardTypeLabels={labels.cardTypes}
-            superTypeLabels={labels.superTypes}
-            rarityLabels={labels.rarities}
-            setNameBySlug={setNameBySlug}
-            onRowClick={onRowClick}
-            actionsCell={
-              ownedCounts ? (
-                <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
-              ) : undefined
-            }
-          />
-        ))}
+      {/* Desktop: shared CardTable layout. Sideways scroll for the same reason
+          as the compact branch table above. */}
+      <div className="hidden overflow-x-auto overflow-y-clip md:block">
+        <div style={{ minWidth }}>
+          {printings.map((printing) => (
+            <CardTableRow
+              key={printing.id}
+              printing={printing}
+              actionsColumn={actionsColumn}
+              columns={columns}
+              cardTypeLabels={labels.cardTypes}
+              superTypeLabels={labels.superTypes}
+              rarityLabels={labels.rarities}
+              setNameBySlug={setNameBySlug}
+              options={tableOptions}
+              onRowClick={onRowClick}
+              actionsCell={
+                ownedCounts ? (
+                  <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+                ) : undefined
+              }
+            />
+          ))}
+        </div>
       </div>
 
       {/* Mobile: stacked cards */}
@@ -1323,8 +1359,7 @@ function PromoListView({
             printing={printing}
             ownedCount={ownedCounts?.[printing.id] ?? 0}
             showOwnedCount={ownedCounts !== undefined}
-            rarityLabel={labels.rarities[printing.rarity]}
-            finishLabel={labels.finishes[printing.finish]}
+            showChannel={showChannel}
             onClick={onRowClick}
           />
         ))}
@@ -1333,48 +1368,68 @@ function PromoListView({
   );
 }
 
+/**
+ * The list view below `md`, where the table's columns become stacked lines. It
+ * carries the same facts as a table row — art, name, code and finish, channel,
+ * then the note, markers and sources — so a phone is not a lesser view of the
+ * same page.
+ *
+ * The whole card opens the printing, but the note holds source links, and a
+ * link inside a `<button>` is invalid markup. So the click target is a
+ * stretched `Pressable` behind the content rather than a wrapper around it, and
+ * the note rises above it to keep its own links clickable.
+ *
+ * @returns The phone-sized list card.
+ */
 function PromoMobileCard({
   printing,
   ownedCount,
   showOwnedCount,
-  rarityLabel,
-  finishLabel,
+  showChannel,
   onClick,
 }: {
   printing: Printing;
   ownedCount: number;
   showOwnedCount: boolean;
-  rarityLabel: string;
-  finishLabel: string;
+  /** Mirrors the table's channel column — off when the sections are channels. */
+  showChannel?: boolean;
   onClick: (printing: Printing) => void;
 }) {
   const image = printing.images[0];
+  const cardName = legendDisplayName(printing.card);
   return (
-    <Pressable
-      onClick={() => onClick(printing)}
-      className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2"
-    >
-      <CardArtThumb
-        imageId={image?.imageId}
-        variant="400w"
-        alt={legendDisplayName(printing.card)}
-        className="h-20"
-      />
-      <div className="min-w-0 flex-1">
+    <div className="hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-lg border p-2">
+      <CardArtThumb imageId={image?.imageId} variant="400w" alt={cardName} className="h-20" />
+      <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-baseline justify-between gap-2">
-          <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
+          <div className="truncate font-medium">{cardName}</div>
           {showOwnedCount && ownedCount > 0 && (
             <span className="text-muted-foreground shrink-0 tabular-nums">&times;{ownedCount}</span>
           )}
         </div>
-        <div className="text-muted-foreground truncate text-xs tabular-nums">
-          {printing.publicCode}
-        </div>
-        <div className="text-muted-foreground truncate">
-          {rarityLabel} · {finishLabel}
+        {/* One step down for everything under the name, set once here rather
+            than per line — the cells below carry no size of their own, so the
+            card reads as two sizes instead of one per fact. */}
+        <div className="space-y-1 text-sm">
+          <div className="text-muted-foreground flex items-center gap-1">
+            <span className="truncate tabular-nums">{printing.publicCode}</span>
+            <FinishIcon finish={printing.finish} className="shrink-0" />
+          </div>
+          {showChannel && <PrintingChannelCell channels={printing.distributionChannels} />}
+          <PrintingNotesCell
+            comment={printing.comment}
+            markers={printing.markers}
+            citations={printing.citations ?? []}
+            className="relative z-10"
+          />
         </div>
       </div>
-    </Pressable>
+      <Pressable
+        aria-label={cardName}
+        onClick={() => onClick(printing)}
+        className="absolute inset-0 rounded-lg"
+      />
+    </div>
   );
 }
 
