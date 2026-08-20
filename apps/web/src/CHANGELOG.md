@@ -5,6 +5,7 @@
 ### Other
 
 - feat(Cards): **Sources for promo cards** — a promo printing can now cite where its claims come from, listed on the card page with the video or site it links to.
+- fix(Cards): **Readable hover on card pages** — hovering a printing, a price row, or an owned-collections popover turned the background gold and left the text on it barely legible.
 
 ## 2026-08-18
 

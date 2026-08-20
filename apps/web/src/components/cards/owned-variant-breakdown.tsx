@@ -42,7 +42,7 @@ export function OwnedVariantBreakdown({
                   search={{ search: `id:${variant.shortCode}`, view: "printings" }}
                   className={cn(
                     "flex items-center justify-between rounded-md px-2 py-1 text-sm",
-                    "hover:bg-accent transition-colors",
+                    "hover:bg-muted transition-colors",
                   )}
                 >
                   <span className="truncate">{entry.collectionName}</span>

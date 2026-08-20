@@ -117,7 +117,7 @@ function BundleCollectionRow({ collection }: { collection: PublicUserBundleColle
     <Link
       to="/groups/$slug/collections/$collectionId"
       params={{ slug: viaGroup.slug, collectionId: collection.id }}
-      className="hover:bg-accent flex flex-col gap-1 rounded-md border px-3 py-3"
+      className="hover:bg-muted flex flex-col gap-1 rounded-md border px-3 py-3"
     >
       <div className="flex items-center gap-2">
         <BookOpenIcon className="size-4 shrink-0" />

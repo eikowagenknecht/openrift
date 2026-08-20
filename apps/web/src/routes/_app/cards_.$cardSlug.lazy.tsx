@@ -814,7 +814,7 @@ function PrintingCard({
       <CardPanel
         className={cn(
           "h-full flex-row items-start gap-3 px-3 py-2 transition-colors",
-          isSelected ? "ring-primary ring-2" : "hover:bg-accent",
+          isSelected ? "ring-primary ring-2" : "hover:bg-muted",
         )}
       >
         <CardArtThumb
@@ -1059,7 +1059,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
                       key={row.date}
                       className={cn(
                         "border-border border-b transition-colors last:border-b-0",
-                        hoveredDate === row.date && "bg-accent",
+                        hoveredDate === row.date && "bg-muted",
                       )}
                       onMouseEnter={() => setHoveredDate(row.date)}
                       onMouseLeave={() => setHoveredDate(null)}
