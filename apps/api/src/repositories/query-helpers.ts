@@ -44,6 +44,25 @@ export function imageId(alias: string): RawBuilder<string | null> {
 }
 
 /**
+ * The same rule as {@link imageId}, applied to a printing's pinned fallback art
+ * (migration 257) one join away: NULL unless something is pinned *and* that
+ * file has been rehosted. A correlated subquery rather than a join, because the
+ * five queries that build a catalog printing row select from a shared column
+ * list and would each have to carry the join otherwise. It is a primary-key
+ * lookup on a column that is NULL for all but a handful of printings.
+ *
+ * @param alias — the printings (or `printings_ordered`) alias in the query
+ * @returns An aliased SQL expression: the servable image id, or NULL.
+ */
+export function fallbackImageId(alias: string) {
+  return sql<string | null>`(
+    SELECT fbf.id FROM image_files fbf
+    WHERE fbf.id = ${sql.ref(`${alias}.fallbackImageFileId`)}
+      AND fbf.rehosted_url IS NOT NULL
+  )`.as("fallbackImageId");
+}
+
+/**
  * Resolves the best available image URL, falling back to the original provider URL.
  * Use this only in admin contexts where showing external images is acceptable.
  * @returns A raw SQL expression: COALESCE(alias.rehosted_url, alias.original_url)

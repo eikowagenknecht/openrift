@@ -119,6 +119,13 @@ export const adminPrintingImageResponseSchema = z
   .object({
     id: z.string(),
     printingId: z.string(),
+    /**
+     * The underlying `image_files` row. Several printing images can share one
+     * (the same scan reused), and it is what the substitute-art picker pins —
+     * pinning the `printing_images` id would tie a printing's fallback to
+     * another printing's *listing* of the file rather than to the file.
+     */
+    imageFileId: z.string(),
     face: cardFaceSchema,
     originalUrl: z.string().nullable(),
     rehostedUrl: z.string().nullable(),
@@ -169,6 +176,14 @@ export const adminPrintingResponseSchema = z
     comment: z.string().nullable(),
     expectedPrintingId: z.string(),
     canonicalRank: z.number(),
+    /**
+     * Substitute-art override (migration 257). Unlike the public catalog, the
+     * admin surface carries all three modes verbatim and the raw image-file id,
+     * because the editor has to show and change the current state — including
+     * a pin whose file is not rehosted yet, which the public wire hides.
+     */
+    fallbackArtMode: z.enum(["auto", "pinned", "none"]),
+    fallbackImageFileId: z.string().nullable(),
   })
   .openapi("AdminPrintingResponse");
 

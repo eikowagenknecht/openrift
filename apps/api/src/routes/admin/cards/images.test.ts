@@ -7,6 +7,7 @@ import {
   imageRehostedUrl,
   processAndSave,
   regenerateFromOrig,
+  rehostImageFile,
   rehostSingleImage,
 } from "../../../services/images/index.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
@@ -21,6 +22,7 @@ import { adminCardImagesRouter } from "./images";
 vi.mock("../../../services/images/index.js", () => ({
   CARD_MEDIA_DIR: "/mock/media/cards",
   rehostSingleImage: vi.fn(),
+  rehostImageFile: vi.fn(),
   deleteRehostFiles: vi.fn(),
   downloadImage: vi.fn(),
   processAndSave: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("uuid", () => ({
 }));
 
 const mockRehostSingleImage = vi.mocked(rehostSingleImage);
+const mockRehostImageFile = vi.mocked(rehostImageFile);
 const mockDeleteRehostFiles = vi.mocked(deleteRehostFiles);
 const mockDownloadImage = vi.mocked(downloadImage);
 const mockProcessAndSave = vi.mocked(processAndSave);
@@ -48,6 +51,12 @@ const mockPrintingImages = {
   getIdAndRehostedUrl: vi.fn(),
   getImageFileId: vi.fn(),
   countOthersByImageFileId: vi.fn(),
+  countPinsByImageFileId: vi.fn(),
+  getFallbackArt: vi.fn(),
+  setFallbackArt: vi.fn(),
+  imageFileForUrl: vi.fn(),
+  insertUnattachedImageFile: vi.fn(),
+  getImageFileForRehost: vi.fn(),
   deleteById: vi.fn(),
   deleteOrphanedImageFiles: vi.fn(),
   getForActivate: vi.fn(),
@@ -64,6 +73,8 @@ const mockTrxPrintingImages = {
   deactivateActiveFront: vi.fn(),
   setActive: vi.fn(),
   insertUploadedImage: vi.fn(),
+  insertUnattachedImageFile: vi.fn(),
+  setFallbackArt: vi.fn(),
 };
 
 const mockTransact = vi.fn(
@@ -230,6 +241,7 @@ describe("DELETE /printing-images/:imageId", () => {
     });
     mockPrintingImages.getImageFileId.mockResolvedValue("ci-1");
     mockPrintingImages.countOthersByImageFileId.mockResolvedValue(0);
+    mockPrintingImages.countPinsByImageFileId.mockResolvedValue(0);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
     mockPrintingImages.deleteOrphanedImageFiles.mockResolvedValue(0);
     mockDeleteRehostFiles.mockResolvedValue(undefined);
@@ -248,6 +260,7 @@ describe("DELETE /printing-images/:imageId", () => {
     });
     mockPrintingImages.getImageFileId.mockResolvedValue("ci-1");
     mockPrintingImages.countOthersByImageFileId.mockResolvedValue(2);
+    mockPrintingImages.countPinsByImageFileId.mockResolvedValue(0);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
 
     const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}`, {
@@ -767,6 +780,185 @@ describe("audit events", () => {
           mode: "main",
         }),
       }),
+    );
+  });
+});
+
+const FALLBACK_ART = `/api/admin/v1/cards/printing/${PRINTING_ID}/fallback-art`;
+const IMAGE_FILE_ID = "00000000-0000-4000-a000-000000000004";
+
+/** Seeds the printing lookup every fallback-art handler starts from. */
+function mockPrintingWithAutoFallback(): void {
+  mockPrintingImages.getFallbackArt.mockResolvedValue({
+    id: "printing-1",
+    shortCode: "OGN-001",
+    fallbackArtMode: "auto",
+    fallbackImageFileId: null,
+  });
+}
+
+describe("POST /printing/:printingId/fallback-art", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
+    mockPrintingWithAutoFallback();
+  });
+
+  it("pins an image file", async () => {
+    mockPrintingImages.getImageFileForRehost.mockResolvedValue({ id: IMAGE_FILE_ID });
+
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "pinned", imageFileId: IMAGE_FILE_ID }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.setFallbackArt).toHaveBeenCalledWith(
+      PRINTING_ID,
+      "pinned",
+      IMAGE_FILE_ID,
+    );
+  });
+
+  it("clears the pin when switching back to auto", async () => {
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "auto" }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.setFallbackArt).toHaveBeenCalledWith(PRINTING_ID, "auto", null);
+  });
+
+  it("suppresses the substitute in none mode", async () => {
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "none" }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.setFallbackArt).toHaveBeenCalledWith(PRINTING_ID, "none", null);
+  });
+
+  it("returns 400 when pinning without an image file", async () => {
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "pinned" }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingImages.setFallbackArt).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when a non-pinned mode carries an image file", async () => {
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "auto", imageFileId: IMAGE_FILE_ID }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingImages.setFallbackArt).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for an unknown image file", async () => {
+    mockPrintingImages.getImageFileForRehost.mockResolvedValue(undefined);
+
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "pinned", imageFileId: IMAGE_FILE_ID }),
+    });
+
+    expect(res.status).toBe(404);
+    expect(mockPrintingImages.setFallbackArt).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for an unknown printing", async () => {
+    mockPrintingImages.getFallbackArt.mockResolvedValue(undefined);
+
+    const res = await app.request(FALLBACK_ART, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "auto" }),
+    });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /printing/:printingId/fallback-art/from-url", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
+    mockPrintingWithAutoFallback();
+  });
+
+  it("ingests the URL, pins it, and rehosts the file", async () => {
+    mockPrintingImages.imageFileForUrl.mockResolvedValue(IMAGE_FILE_ID);
+    mockRehostImageFile.mockResolvedValue(undefined);
+
+    const res = await app.request(`${FALLBACK_ART}/from-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "  https://example.com/art.png  " }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.imageFileForUrl).toHaveBeenCalledWith("https://example.com/art.png");
+    expect(mockPrintingImages.setFallbackArt).toHaveBeenCalledWith(
+      PRINTING_ID,
+      "pinned",
+      IMAGE_FILE_ID,
+    );
+    expect(mockRehostImageFile).toHaveBeenCalledWith(mockIo, mockPrintingImages, IMAGE_FILE_ID);
+  });
+
+  it("returns 400 when the url is blank", async () => {
+    const res = await app.request(`${FALLBACK_ART}/from-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "   " }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingImages.setFallbackArt).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /printing/:printingId/fallback-art/upload", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
+    mockPrintingWithAutoFallback();
+  });
+
+  it("stores the file without attaching it as a printing image", async () => {
+    mockProcessAndSave.mockResolvedValue(undefined);
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+
+    const formData = new FormData();
+    formData.append("file", new File(["art-data"], "art.png", { type: "image/png" }));
+
+    const res = await app.request(`${FALLBACK_ART}/upload`, { method: "POST", body: formData });
+
+    expect(res.status).toBe(200);
+    expect(await readJson(res)).toEqual({ rehostedUrl: "/media/cards/v7/mock-uuid-v7" });
+    expect(mockTrxPrintingImages.insertUnattachedImageFile).toHaveBeenCalledWith({
+      id: "mock-uuid-v7",
+      rehostedUrl: "/media/cards/v7/mock-uuid-v7",
+    });
+    // The whole point of the endpoint: no printing_images row, so the printing
+    // still counts as missing a scan everywhere coverage is tracked.
+    expect(mockTrxPrintingImages.insertUploadedImage).not.toHaveBeenCalled();
+    expect(mockTrxPrintingImages.setFallbackArt).toHaveBeenCalledWith(
+      PRINTING_ID,
+      "pinned",
+      "mock-uuid-v7",
     );
   });
 });

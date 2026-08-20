@@ -14,6 +14,7 @@ import {
 import {
   isRegenerateCheckpoint,
   regenerateImagesBatch,
+  rehostImageFile,
   rehostImages,
   rehostSingleImage,
   runRegenerateImagesJob,
@@ -131,16 +132,34 @@ describe("rehostImages", () => {
 });
 
 describe("rehostSingleImage", () => {
-  it("does nothing when image has no originalUrl", async () => {
-    const repo = {
-      getForRehost: vi.fn(async () => ({
-        originalUrl: null,
-        imageFileId: "if-1",
-        rotation: 0,
-        needsTrim: false,
-      })),
+  /**
+   * The repo pair the two-step lookup needs: a printing image resolves to its
+   * `image_files` id, and the rehost inputs are read from that row.
+   * @returns A repo stub whose two reads agree on one image file.
+   */
+  function makeRehostRepo(
+    file: { originalUrl: string | null; rotation?: number; needsTrim?: boolean } | null,
+    imageFileId = "00594247-a18a-4efd-8998-105449a4cf40",
+  ) {
+    return {
+      getForRehost: vi.fn(async () => (file === null ? null : { id: "img-1", imageFileId })),
+      getImageFileForRehost: vi.fn(async () =>
+        file === null
+          ? undefined
+          : {
+              id: imageFileId,
+              originalUrl: file.originalUrl,
+              rehostedUrl: null,
+              rotation: file.rotation ?? 0,
+              needsTrim: file.needsTrim ?? false,
+            },
+      ),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
+  }
+
+  it("does nothing when image has no originalUrl", async () => {
+    const repo = makeRehostRepo({ originalUrl: null });
 
     await rehostSingleImage(mockIo, repo, "img-1");
 
@@ -149,26 +168,16 @@ describe("rehostSingleImage", () => {
   });
 
   it("does nothing when image is not found", async () => {
-    const repo = {
-      getForRehost: vi.fn(async () => null),
-      updateRehostedUrl: vi.fn(async () => {}),
-    } as any;
+    const repo = makeRehostRepo(null);
 
     await rehostSingleImage(mockIo, repo, "img-1");
 
     expect(mockFetch).not.toHaveBeenCalled();
+    expect(repo.getImageFileForRehost).not.toHaveBeenCalled();
   });
 
   it("downloads, processes, and updates the rehosted URL", async () => {
-    const repo = {
-      getForRehost: vi.fn(async () => ({
-        originalUrl: "https://example.com/img.png",
-        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
-        rotation: 0,
-        needsTrim: false,
-      })),
-      updateRehostedUrl: vi.fn(async () => {}),
-    } as any;
+    const repo = makeRehostRepo({ originalUrl: "https://example.com/img.png" });
 
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
@@ -181,15 +190,10 @@ describe("rehostSingleImage", () => {
   });
 
   it("propagates needsTrim from the image_file row to the scan analysis", async () => {
-    const repo = {
-      getForRehost: vi.fn(async () => ({
-        originalUrl: "https://example.com/img.png",
-        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
-        rotation: 0,
-        needsTrim: true,
-      })),
-      updateRehostedUrl: vi.fn(async () => {}),
-    } as any;
+    const repo = makeRehostRepo({
+      originalUrl: "https://example.com/img.png",
+      needsTrim: true,
+    });
 
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
@@ -198,19 +202,34 @@ describe("rehostSingleImage", () => {
 
   it("swallows download errors silently", async () => {
     mockFetch.mockRejectedValue(new Error("timeout"));
-    const repo = {
-      getForRehost: vi.fn(async () => ({
-        originalUrl: "https://example.com/img.png",
-        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
-        rotation: 0,
-        needsTrim: false,
-      })),
-      updateRehostedUrl: vi.fn(async () => {}),
-    } as any;
+    const repo = makeRehostRepo({ originalUrl: "https://example.com/img.png" });
 
     // Should not throw
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+  });
+
+  it("rehosts an image file with no printing image behind it", async () => {
+    // Substitute art pinned from a URL has an image_files row and deliberately
+    // no printing_images row, so it can only be reached by file id.
+    const repo = makeRehostRepo({ originalUrl: "https://example.com/pinned.png" });
+
+    await rehostImageFile(mockIo, repo, "00594247-a18a-4efd-8998-105449a4cf40");
+
+    expect(repo.getForRehost).not.toHaveBeenCalled();
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith(
+      "00594247-a18a-4efd-8998-105449a4cf40",
+      "/media/cards/40/00594247-a18a-4efd-8998-105449a4cf40",
+    );
+  });
+
+  it("does nothing when the image file is gone", async () => {
+    const repo = makeRehostRepo(null);
+
+    await rehostImageFile(mockIo, repo, "00594247-a18a-4efd-8998-105449a4cf40");
+
+    expect(mockFetch).not.toHaveBeenCalled();
     expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
   });
 });

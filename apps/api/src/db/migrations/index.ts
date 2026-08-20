@@ -202,6 +202,7 @@ import * as m253 from "./253-schema-integrity-hardening.js";
 import * as m254 from "./254-org-owner-from-roles.js";
 import * as m255 from "./255-meta-multi-source.js";
 import * as m256 from "./256-meta-deck-sources.js";
+import * as m257 from "./257-printing-fallback-art.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -463,4 +464,5 @@ export const migrations: Record<string, Migration> = {
   "254-org-owner-from-roles": m254,
   "255-meta-multi-source": m255,
   "256-meta-deck-sources": m256,
+  "257-printing-fallback-art": m257,
 };

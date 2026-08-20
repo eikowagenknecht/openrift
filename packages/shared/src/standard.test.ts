@@ -128,7 +128,7 @@ describe("findStandardArtFallback", () => {
       images: frontImage("img-en"),
     });
     const result = findStandardArtFallback(target, [target, enStandard, scStandard]);
-    expect(result?.printing.id).toBe("p-sc");
+    expect(result?.printing?.id).toBe("p-sc");
     expect(result?.image.imageId).toBe("img-sc");
   });
 
@@ -137,7 +137,7 @@ describe("findStandardArtFallback", () => {
     const scStandardNoImage = makePrinting({ id: "p-sc", language: "SC", images: [] });
     const enStandard = makePrinting({ id: "p-en", language: "EN", images: frontImage("img-en") });
     const result = findStandardArtFallback(target, [target, scStandardNoImage, enStandard]);
-    expect(result?.printing.id).toBe("p-en");
+    expect(result?.printing?.id).toBe("p-en");
   });
 
   it("never returns the printing itself", () => {
@@ -182,7 +182,7 @@ describe("findStandardArtFallback", () => {
       images: frontImage("img-c"),
     });
     const result = findStandardArtFallback(target, [target, reprint, canonical]);
-    expect(result?.printing.id).toBe("p-canon");
+    expect(result?.printing?.id).toBe("p-canon");
   });
 
   it("does not fall back across cards", () => {
@@ -197,5 +197,78 @@ describe("findStandardArtFallback", () => {
 
   it("returns null when there are no candidates at all", () => {
     expect(findStandardArtFallback(makePrinting({ id: "p-target" }), [])).toBeNull();
+  });
+
+  describe("admin override", () => {
+    it("suppresses the substitute entirely in `none` mode", () => {
+      const target = makePrinting({ id: "p-target", fallbackArtMode: "none" });
+      const standard = makePrinting({ id: "p-std", images: frontImage("img-std") });
+      expect(findStandardArtFallback(target, [target, standard])).toBeNull();
+    });
+
+    it("shows the pinned image instead of the standard printing's", () => {
+      const target = makePrinting({
+        id: "p-target",
+        artVariant: "altart",
+        fallbackArtMode: "pinned",
+        fallbackImageId: "img-pinned",
+      });
+      const standard = makePrinting({ id: "p-std", images: frontImage("img-std") });
+      const result = findStandardArtFallback(target, [target, standard]);
+      expect(result?.image.imageId).toBe("img-pinned");
+    });
+
+    it("names the sibling printing a pinned image came from", () => {
+      const target = makePrinting({
+        id: "p-target",
+        fallbackArtMode: "pinned",
+        fallbackImageId: "img-alt",
+      });
+      // Non-standard, so the derived search would never have picked it.
+      const altArt = makePrinting({
+        id: "p-alt",
+        artVariant: "altart",
+        images: frontImage("img-alt"),
+      });
+      const result = findStandardArtFallback(target, [target, altArt]);
+      expect(result?.printing?.id).toBe("p-alt");
+      expect(result?.image.imageId).toBe("img-alt");
+    });
+
+    it("resolves a pin to a null printing when no sibling carries that image", () => {
+      const target = makePrinting({
+        id: "p-target",
+        fallbackArtMode: "pinned",
+        fallbackImageId: "img-uploaded",
+      });
+      const standard = makePrinting({ id: "p-std", images: frontImage("img-std") });
+      const result = findStandardArtFallback(target, [target, standard]);
+      expect(result?.printing).toBeNull();
+      expect(result?.image).toEqual({ face: "front", imageId: "img-uploaded" });
+    });
+
+    it("shows a pinned back-face scan in the front slot", () => {
+      const target = makePrinting({
+        id: "p-target",
+        fallbackArtMode: "pinned",
+        fallbackImageId: "img-back",
+      });
+      const backOnly = makePrinting({
+        id: "p-back",
+        images: [{ face: "back", imageId: "img-back" }],
+      });
+      const result = findStandardArtFallback(target, [target, backOnly]);
+      expect(result?.image.face).toBe("front");
+      expect(result?.printing?.id).toBe("p-back");
+    });
+
+    it("derives as usual when a pin arrives without a servable image", () => {
+      // The wire omits `fallbackImageId` for a pin whose file is not rehosted
+      // yet. Deriving beats showing nothing while the rehost is pending.
+      const target = makePrinting({ id: "p-target", fallbackArtMode: "pinned" });
+      const standard = makePrinting({ id: "p-std", images: frontImage("img-std") });
+      const result = findStandardArtFallback(target, [target, standard]);
+      expect(result?.printing?.id).toBe("p-std");
+    });
   });
 });

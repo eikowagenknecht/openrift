@@ -156,5 +156,15 @@ export interface Printing {
   comment: string | null;
   /** See {@link CatalogPrintingResponse.canonicalRank}. */
   canonicalRank: number;
+  /**
+   * Admin override for the substitute artwork shown when this printing has no
+   * image of its own. Absent means `auto` — the derived standard-art fallback,
+   * which is the state of nearly every printing, so the field is omitted from
+   * the wire rather than spelled out ~7k times. `"pinned"` always arrives with
+   * {@link fallbackImageId}. See {@link findStandardArtFallback}.
+   */
+  fallbackArtMode?: "pinned" | "none";
+  /** The pinned substitute's image id. Present exactly when the mode is `"pinned"`. */
+  fallbackImageId?: string;
   card: Card;
 }

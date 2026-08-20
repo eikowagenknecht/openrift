@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import { GlobeIcon } from "lucide-react";
+import { GlobeIcon, ImagesIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -16,6 +16,14 @@ const PILL_CLASS =
  * `SuggestImageNotice`; this row only enumerates the differences. Sized in
  * container-query units so it scales with the card.
  *
+ * Art pinned by an admin may come from outside the catalogue, leaving no
+ * printing to diff against (`artPrinting` null). That case takes a generic
+ * badge instead of the language one, because the row's job is first to say
+ * "this is not this printing's own scan" — silently showing borrowed art as if
+ * it were the real thing is the one outcome to avoid. The printing's own
+ * distinguishing properties still list out either way: they describe the card
+ * in hand, not the substitute.
+ *
  * @returns The badge row overlay, or null when nothing differs; the parent
  * must be `relative`.
  */
@@ -25,12 +33,19 @@ export function FallbackArtBadges({
 }: {
   /** The printing being displayed (the one without an image). */
   printing: Printing;
-  /** The standard printing whose artwork is shown instead. */
-  artPrinting: Printing;
+  /** The printing whose artwork is shown instead, or null when it came from outside the catalogue. */
+  artPrinting: Printing | null;
 }) {
   const { labels } = useEnumOrders();
   const badges: ReactNode[] = [];
-  if (printing.language !== artPrinting.language) {
+  if (artPrinting === null) {
+    badges.push(
+      <span key="substitute" className={PILL_CLASS}>
+        <ImagesIcon aria-hidden="true" className="size-[6cqi]" />
+        Substitute art
+      </span>,
+    );
+  } else if (printing.language !== artPrinting.language) {
     badges.push(
       <span key="language" className={PILL_CLASS}>
         <GlobeIcon aria-hidden="true" className="size-[6cqi]" />

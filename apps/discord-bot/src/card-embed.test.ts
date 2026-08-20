@@ -86,6 +86,13 @@ describe("fallbackArtDifferences", () => {
       [],
     );
   });
+
+  // Art pinned from outside the catalogue has no printing behind it, so there
+  // is no language to compare; the printing's own properties still list out.
+  it("drops the language tag when the art has no printing behind it", () => {
+    const printing = makePrinting({ images: [], language: "DE", isSigned: true });
+    expect(fallbackArtDifferences(printing, null, LABELS)).toEqual(["Signed"]);
+  });
 });
 
 describe("cardTextFields", () => {
@@ -514,6 +521,36 @@ describe("buildCardEmbed", () => {
     });
     expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
     expect(embed.description).toBe("*Standard-printing artwork shown*");
+  });
+
+  // A pin can be any art an admin chose, so the note must not claim it came
+  // from the standard printing.
+  it("words the note generically for pinned substitute art", () => {
+    const snapshot = buildSnapshot(
+      makeCatalogResponse(
+        [makeCard()],
+        [
+          makePrinting({ id: "p-standard", canonicalRank: 1 }),
+          makePrinting({
+            id: "p-noimg",
+            canonicalRank: 2,
+            images: [],
+            fallbackArtMode: "pinned",
+            fallbackImageId: "0197f00d00aa",
+          }),
+        ],
+      ),
+      makePricesResponse(),
+      makeInitResponse(),
+    );
+    const embed = buildCardEmbed({
+      card: snapshot.cards[0]!,
+      printing: snapshot.printingsByCardId.get("card-1")!.find((p) => p.id === "p-noimg"),
+      snapshot,
+      siteUrl: SITE,
+    });
+    expect(embed.image?.url).toBe(`${SITE}/media/cards/aa/0197f00d00aa-full.webp`);
+    expect(embed.description).toBe("*Substitute artwork shown*");
   });
 
   it("omits image and note when no standard printing has an image", () => {

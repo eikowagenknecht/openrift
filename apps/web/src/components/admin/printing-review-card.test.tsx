@@ -15,6 +15,7 @@ const captured = vi.hoisted(() => ({
   switcher: null as {
     images?: AdminPrintingImageResponse[];
     sourceImages?: DeduplicatedSourceImage[];
+    siblingImages?: { imageFileId: string; printingLabel: string }[];
   } | null,
   checkAll: vi.fn(),
   deletePrinting: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("@/components/admin/printing-image-switcher", () => ({
   PrintingImageSwitcher: (props: {
     images?: AdminPrintingImageResponse[];
     sourceImages?: DeduplicatedSourceImage[];
+    siblingImages?: { imageFileId: string; printingLabel: string }[];
   }) => {
     captured.switcher = props;
     return null;
@@ -202,6 +204,42 @@ describe("PrintingReviewCard", () => {
     });
 
     expect(captured.switcher?.sourceImages?.map((i) => i.url)).toEqual(["https://cdn.test/b.png"]);
+  });
+
+  // Substitute art is pinned by image file, so the picker offers the card's
+  // other printings' images — never this printing's own, which would pin a
+  // printing to itself.
+  it("offers the other printings' images as substitute art", () => {
+    const own = stubPrinting({ id: "p1" });
+    const sibling = stubPrinting({ id: "p2", expectedPrintingId: "OGN-001 · foil · EN" });
+    renderCard({
+      printing: own,
+      printings: [own, sibling],
+      printingImages: [
+        stubImage({ id: "img1", imageFileId: "file-1" }),
+        stubImage({ id: "img2", printingId: "p2", imageFileId: "file-2" }),
+      ],
+    });
+
+    expect(captured.switcher?.siblingImages).toEqual([
+      { imageFileId: "file-2", printingLabel: "OGN-001 · foil · EN" },
+    ]);
+  });
+
+  // Two printings often list the same scan. Offering it twice would suggest a
+  // choice that isn't one, since the pin stores the file either way.
+  it("offers a shared image file once", () => {
+    const own = stubPrinting({ id: "p1" });
+    renderCard({
+      printing: own,
+      printings: [own, stubPrinting({ id: "p2" }), stubPrinting({ id: "p3" })],
+      printingImages: [
+        stubImage({ id: "img2", printingId: "p2", imageFileId: "file-shared" }),
+        stubImage({ id: "img3", printingId: "p3", imageFileId: "file-shared" }),
+      ],
+    });
+
+    expect(captured.switcher?.siblingImages).toHaveLength(1);
   });
 
   it("renders the body only while expanded, and folds on a header click", () => {

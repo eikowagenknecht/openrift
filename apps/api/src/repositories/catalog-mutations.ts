@@ -428,12 +428,28 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
 
     /** @returns Whether any printing_images row still references the given image_file. */
     async isImageFileReferenced(imageFileId: string): Promise<boolean> {
+      // Both kinds of reference count. A file can be a printing's own scan, or
+      // the substitute art another printing pins (migration 257) — most often
+      // both at once, since the usual pin is a sibling's scan. Missing the pin
+      // here would let the orphan sweep delete a file that is still on screen,
+      // and the FK is ON DELETE RESTRICT, so it would fail loudly rather than
+      // silently. The pin lookup is a partial-index hit and only runs for a
+      // file no printing image claims, which is the rare case.
       const result = await db
         .selectFrom("printingImages")
         .select((eb) => eb.fn.countAll<number>().as("count"))
         .where("imageFileId", "=", imageFileId)
         .executeTakeFirstOrThrow();
-      return Number(result.count) > 0;
+      if (Number(result.count) > 0) {
+        return true;
+      }
+      const pin = await db
+        .selectFrom("printings")
+        .select("id")
+        .where("fallbackImageFileId", "=", imageFileId)
+        .limit(1)
+        .executeTakeFirst();
+      return pin !== undefined;
     },
 
     /** Delete an image_files row by ID. */

@@ -7,7 +7,11 @@ import type {
 import { isReleasedIn, todayUtc } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
-import { loadMarkerAndChannelMaps, resolveMarkers } from "../lib/printing-presenters.js";
+import {
+  loadMarkerAndChannelMaps,
+  resolveFallbackArt,
+  resolveMarkers,
+} from "../lib/printing-presenters.js";
 
 /**
  * Assembles the full catalog (cards + printings + sets) server-side. Extracted
@@ -77,9 +81,10 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
   const printings: Record<string, CatalogResponsePrintingValue> = {};
-  for (const { id, markerSlugs, ...rest } of printingRows) {
+  for (const { id, markerSlugs, fallbackArtMode, fallbackImageId, ...rest } of printingRows) {
     printings[id] = {
       ...rest,
+      ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
       markers: resolveMarkers(markerSlugs, markerBySlug),
       distributionChannels: channelsByPrinting.get(id) ?? [],
       images: (imagesByPrinting.get(id) ?? []).map((i) => ({

@@ -22,6 +22,7 @@ import type {
   DeckLink,
   DeckOddsConfig,
   DeckZone,
+  FallbackArtMode,
   Finish,
   FriendGroupInviteDirection,
   FriendGroupRole,
@@ -213,6 +214,14 @@ export interface PrintingsTable {
   printedName: string | null;
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
+  /**
+   * Substitute-art override for a printing with no scan of its own (migration
+   * 257). CHECK: one of 'auto' | 'pinned' | 'none', and 'pinned' iff
+   * `fallbackImageFileId` is set.
+   */
+  fallbackArtMode: Generated<FallbackArtMode>;
+  /** FK → image_files(id) ON DELETE RESTRICT. Set exactly when the mode is 'pinned'. */
+  fallbackImageFileId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -534,6 +543,7 @@ export type AdminEventAction =
   | "printing.accept-field"
   | "printing.create"
   | "printing.delete"
+  | "printing.fallback-art"
   | "candidate-printing.patch"
   | "candidate-printing.delete"
   | "candidate-printing.copy"

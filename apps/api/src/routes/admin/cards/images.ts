@@ -21,6 +21,7 @@ import {
   imageRehostedUrl,
   processAndSave,
   regenerateFromOrig,
+  rehostImageFile,
   rehostSingleImage,
 } from "../../../services/images/index.js";
 import { recordAdminEvent } from "../../../services/record-admin-event.js";
@@ -88,9 +89,14 @@ export const adminCardImagesRouter = {
 
     const imageFileId = await printingImages.getImageFileId(imageId);
 
-    // Check if another printing_image shares the same image_file before deleting files
+    // Check whether anything else still shows this file before deleting it from
+    // disk: another printing_image sharing the image_file, or a printing that
+    // pins it as substitute art (migration 257). A pin outlives the scan it was
+    // taken from, so skipping that check would leave the pinning printing
+    // pointing at files that are gone.
     const othersUsingFiles = imageFileId
-      ? await printingImages.countOthersByImageFileId(imageFileId, imageId)
+      ? (await printingImages.countOthersByImageFileId(imageFileId, imageId)) +
+        (await printingImages.countPinsByImageFileId(imageFileId))
       : 0;
 
     await printingImages.deleteById(imageId);
@@ -332,6 +338,118 @@ export const adminCardImagesRouter = {
       entityType: "image",
       entityId: imageId,
       newValues: { printingId: printing.id, mode, rehostedUrl },
+    });
+
+    return { rehostedUrl };
+  }),
+
+  setFallbackArt: os.setFallbackArt.handler(async ({ input, context }): Promise<void> => {
+    const { printingImages } = context.repos;
+    const { printingId, mode, imageFileId } = input;
+
+    const current = await printingImages.getFallbackArt(printingId);
+    assertFound(current, "Printing not found");
+
+    if (mode === "pinned" && !imageFileId) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "imageFileId is required to pin");
+    }
+    if (mode !== "pinned" && imageFileId) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `imageFileId is only valid with mode "pinned"`,
+      );
+    }
+    if (imageFileId) {
+      const file = await printingImages.getImageFileForRehost(imageFileId);
+      assertFound(file, "Image file not found");
+    }
+
+    await printingImages.setFallbackArt(printingId, mode, imageFileId ?? null);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.fallback-art",
+      entityType: "printing",
+      entityId: printingId,
+      entityLabel: current.shortCode,
+      oldValues: {
+        fallbackArtMode: current.fallbackArtMode,
+        fallbackImageFileId: current.fallbackImageFileId,
+      },
+      newValues: { fallbackArtMode: mode, fallbackImageFileId: imageFileId ?? null },
+    });
+  }),
+
+  addFallbackArtUrl: os.addFallbackArtUrl.handler(async ({ input, context }): Promise<void> => {
+    const { printingImages } = context.repos;
+    const { printingId, url: rawUrl } = input;
+
+    if (!rawUrl?.trim()) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "url is required");
+    }
+
+    const current = await printingImages.getFallbackArt(printingId);
+    assertFound(current, "Printing not found");
+
+    const url = rawUrl.trim();
+    const imageFileId = await printingImages.imageFileForUrl(url);
+    await printingImages.setFallbackArt(printingId, "pinned", imageFileId);
+
+    // Best-effort, like every other add-from-URL path: an un-rehosted pin is
+    // not servable, and the catalog reports it as `auto` until the retry lands,
+    // so the printing shows derived art rather than nothing.
+    await rehostImageFile(context.io, printingImages, imageFileId);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.fallback-art",
+      entityType: "printing",
+      entityId: printingId,
+      entityLabel: current.shortCode,
+      oldValues: {
+        fallbackArtMode: current.fallbackArtMode,
+        fallbackImageFileId: current.fallbackImageFileId,
+      },
+      newValues: { fallbackArtMode: "pinned", fallbackImageFileId: imageFileId, url },
+    });
+  }),
+
+  uploadFallbackArt: os.uploadFallbackArt.handler(async ({ input, context }) => {
+    const { printingImages } = context.repos;
+    const { printingId, file } = input;
+
+    const current = await printingImages.getFallbackArt(printingId);
+    assertFound(current, "Printing not found");
+
+    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "File exceeds 50 MB limit");
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
+
+    // Same pre-computed id/path pairing as uploadImage — regenerateFromOrig
+    // derives the on-disk path from the image_files id.
+    const imageFileId = uuidv7();
+    const rehostedUrl = imageRehostedUrl(imageFileId);
+    const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
+    await processAndSave(context.io, buffer, ext, outputDir, imageFileId, 0, false);
+
+    await context.transact(async (trxRepos) => {
+      await trxRepos.printingImages.insertUnattachedImageFile({ id: imageFileId, rehostedUrl });
+      await trxRepos.printingImages.setFallbackArt(printingId, "pinned", imageFileId);
+    });
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "printing.fallback-art",
+      entityType: "printing",
+      entityId: printingId,
+      entityLabel: current.shortCode,
+      oldValues: {
+        fallbackArtMode: current.fallbackArtMode,
+        fallbackImageFileId: current.fallbackImageFileId,
+      },
+      newValues: { fallbackArtMode: "pinned", fallbackImageFileId: imageFileId, rehostedUrl },
     });
 
     return { rehostedUrl };

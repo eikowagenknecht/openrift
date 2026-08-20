@@ -1,5 +1,5 @@
 import type { AdminPrintingImageResponse, ProviderSettingResponse } from "@openrift/shared";
-import { hostSlugFromUrl } from "@openrift/shared";
+import { hostSlugFromUrl, imageUrl } from "@openrift/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -21,22 +21,30 @@ import { sortByProviderOrder } from "@/components/admin/card-detail-shared";
 import { ImagePreview } from "@/components/admin/image-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import {
   useActivatePrintingImage,
+  useAddFallbackArtUrl,
   useAddImageFromUrl,
   useDeletePrintingImage,
   useRehostPrintingImage,
   useRotatePrintingImage,
   useSetCandidatePrintingImage,
+  useSetFallbackArt,
   useSetPrintingImageNeedsTrim,
   useUnrehostPrintingImage,
+  useUploadFallbackArt,
   useUploadPrintingImage,
 } from "@/hooks/use-admin-image-mutations";
 import { cn } from "@/lib/utils";
 
 type Rotation = 0 | 90 | 180 | 270;
+
+/** Shared look for the substitute-art mode toggles (same metrics as the image tabs). */
+const FALLBACK_TOGGLE_CLASS =
+  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground bg-muted/50 text-muted-foreground h-6 min-w-0 rounded px-1.5 font-normal";
 
 function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   if (!img.rehostedUrl) {
@@ -52,11 +60,21 @@ function imageLabel(img: AdminPrintingImageResponse): string {
   return (img.originalUrl && hostSlugFromUrl(img.originalUrl)) ?? "upload";
 }
 
+/** One of the card's other printings' images, offered as substitute art. */
+export interface SiblingImage {
+  imageFileId: string;
+  /** The owning printing's label, e.g. `OGN-202 · foil · EN`. */
+  printingLabel: string;
+}
+
 export function PrintingImageSwitcher({
   printingId,
   printingLabel,
   images,
   sourceImages,
+  siblingImages,
+  fallbackArtMode,
+  fallbackImageFileId,
   providerSettings,
   invalidates,
   isAdmin,
@@ -65,6 +83,10 @@ export function PrintingImageSwitcher({
   printingLabel: string;
   images: AdminPrintingImageResponse[];
   sourceImages: DeduplicatedSourceImage[];
+  /** Images on the card's *other* printings, offered as substitute art to pin. */
+  siblingImages: SiblingImage[];
+  fallbackArtMode: "auto" | "pinned" | "none";
+  fallbackImageFileId: string | null;
   providerSettings: ProviderSettingResponse[];
   invalidates?: readonly (readonly unknown[])[];
   /** Card-review grant holders keep image finishing (activate/rehost/rotate/trim, set from candidate); un-rehost, delete, URL/file add stay full-admin. */
@@ -79,6 +101,9 @@ export function PrintingImageSwitcher({
   const addImageFromUrl = useAddImageFromUrl(invalidates);
   const uploadPrintingImage = useUploadPrintingImage(invalidates);
   const setPrintingSourceImage = useSetCandidatePrintingImage(invalidates);
+  const setFallbackArt = useSetFallbackArt(invalidates);
+  const addFallbackArtUrl = useAddFallbackArtUrl(invalidates);
+  const uploadFallbackArt = useUploadFallbackArt(invalidates);
 
   const orderSort = sortByProviderOrder(providerSettings);
   // The active image leads the strip and so is what the preview opens on —
@@ -99,12 +124,19 @@ export function PrintingImageSwitcher({
   const [imgError, setImgError] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState("");
+  const [showFallbackUrlInput, setShowFallbackUrlInput] = useState(false);
+  const [fallbackUrlValue, setFallbackUrlValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fallbackFileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedImage = images.find((img) => img.id === selectedId);
   const selectedSource = sourceImages.find((si) => si.candidatePrintingId === selectedId);
 
   const activeImage = images.find((img) => img.isActive);
+  // Front specifically: substitute art fills the front slot, so a printing with
+  // only an active back scan still needs one.
+  const activeFrontImage = images.find((img) => img.isActive && img.face === "front");
+  const pinnedSibling = siblingImages.find((s) => s.imageFileId === fallbackImageFileId);
   const effectiveImage = selectedImage ?? (selectedId ? null : activeImage);
   const effectiveSource = selectedSource;
   const effectiveUrl = effectiveImage
@@ -455,6 +487,146 @@ export function PrintingImageSwitcher({
           </Button>
         </div>
       )}
+
+      {/*
+        Substitute art. Only shown while the printing has no active front image,
+        which is the only time it has any effect — an override on a scanned
+        printing changes nothing on screen and reads as a setting that does
+        nothing. It stays stored either way, so a pin made before a scan arrives
+        comes back into play if that scan is ever removed.
+      */}
+      {!activeFrontImage && (
+        <div className="space-y-1 border-t pt-2">
+          <div className="flex min-h-6 items-center gap-1">
+            <span className="text-muted-foreground">Substitute art</span>
+            {fallbackArtMode === "pinned" && fallbackImageFileId !== null && (
+              <ImgWithFallback
+                src={imageUrl(fallbackImageFileId, "120w")}
+                alt="Pinned substitute art"
+                className="h-8 w-auto rounded-sm"
+                fallback={
+                  <Badge variant="outline" className="text-orange-600">
+                    Not rehosted
+                  </Badge>
+                }
+              />
+            )}
+            {fallbackArtMode === "pinned" && pinnedSibling === undefined && (
+              <span className="text-muted-foreground">external</span>
+            )}
+            {fallbackArtMode === "pinned" && pinnedSibling !== undefined && (
+              <span className="text-muted-foreground truncate">{pinnedSibling.printingLabel}</span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <Toggle
+              pressed={fallbackArtMode === "auto"}
+              disabled={setFallbackArt.isPending}
+              onPressedChange={() => setFallbackArt.mutate({ printingId, mode: "auto" })}
+              className={FALLBACK_TOGGLE_CLASS}
+              title="Show the standard printing's art (same language, else EN)"
+            >
+              Derived
+            </Toggle>
+            <Toggle
+              pressed={fallbackArtMode === "none"}
+              disabled={setFallbackArt.isPending}
+              onPressedChange={() => setFallbackArt.mutate({ printingId, mode: "none" })}
+              className={FALLBACK_TOGGLE_CLASS}
+              title="Show no substitute — the drawn placeholder only"
+            >
+              None
+            </Toggle>
+            {siblingImages.map((sibling) => (
+              <Toggle
+                key={sibling.imageFileId}
+                pressed={
+                  fallbackArtMode === "pinned" && fallbackImageFileId === sibling.imageFileId
+                }
+                disabled={setFallbackArt.isPending}
+                onPressedChange={() =>
+                  setFallbackArt.mutate({
+                    printingId,
+                    mode: "pinned",
+                    imageFileId: sibling.imageFileId,
+                  })
+                }
+                className={FALLBACK_TOGGLE_CLASS}
+                title={`Pin the art from ${sibling.printingLabel}`}
+              >
+                {sibling.printingLabel}
+              </Toggle>
+            ))}
+          </div>
+          {isAdmin && (
+            <div className="flex gap-1">
+              <Button variant="outline" onClick={() => setShowFallbackUrlInput((v) => !v)}>
+                <ImagePlusIcon className="mr-1" />
+                Pin URL
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => fallbackFileInputRef.current?.click()}
+                disabled={uploadFallbackArt.isPending}
+              >
+                <UploadIcon className="mr-1" />
+                Pin upload
+              </Button>
+            </div>
+          )}
+          {showFallbackUrlInput && (
+            <div className="flex gap-1">
+              <Input
+                placeholder="Substitute art URL…"
+                value={fallbackUrlValue}
+                onChange={(e) => setFallbackUrlValue(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                disabled={!fallbackUrlValue.trim() || addFallbackArtUrl.isPending}
+                onClick={() => {
+                  addFallbackArtUrl.mutate(
+                    { printingId, url: fallbackUrlValue.trim() },
+                    {
+                      onSuccess: () => {
+                        setFallbackUrlValue("");
+                        setShowFallbackUrlInput(false);
+                      },
+                    },
+                  );
+                }}
+              >
+                Pin
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowFallbackUrlInput(false);
+                  setFallbackUrlValue("");
+                }}
+              >
+                <XIcon className="size-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <input
+        ref={fallbackFileInputRef}
+        type="file"
+        aria-label="Upload substitute art"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            uploadFallbackArt.mutate({ printingId, file });
+            e.target.value = "";
+          }
+        }}
+      />
     </div>
   );
 }

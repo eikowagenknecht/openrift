@@ -13,7 +13,7 @@ import type {
   PrintingsTable,
   SetsTable,
 } from "../db/index.js";
-import { imageId } from "./query-helpers.js";
+import { fallbackImageId, imageId } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
@@ -97,12 +97,22 @@ export interface ScanReferenceRow {
  * set-order, shortCode, non-promo-first, finish-sort-order semantics in one
  * compare. User language preference overrides the language axis post-query.
  */
-type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "createdAt" | "updatedAt"> & {
+type CatalogPrintingRow = Omit<
+  Selectable<PrintingsTable>,
+  "createdAt" | "updatedAt" | "fallbackImageFileId"
+> & {
   printedName: string | null;
   language: string;
   markerSlugs: string[];
   comment: string | null;
   canonicalRank: number;
+  /**
+   * The pinned substitute's *servable* image id: the raw
+   * `fallback_image_file_id` resolved through the same rehosted-or-nothing rule
+   * as every other image id (see {@link fallbackImageId}). Null both when
+   * nothing is pinned and when the pinned file has no rehosted copy yet.
+   */
+  fallbackImageId: string | null;
 };
 
 /** Selecting from `printings_ordered` (the view) so we get `canonical_rank` too. */
@@ -127,6 +137,8 @@ const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.markerSlugs",
   "printingsOrdered.comment",
   "printingsOrdered.canonicalRank",
+  "printingsOrdered.fallbackArtMode",
+  fallbackImageId("printingsOrdered"),
 ] as const;
 
 /**
@@ -620,6 +632,8 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.language",
           "p.markerSlugs",
           "p.comment",
+          "p.fallbackArtMode",
+          fallbackImageId("p"),
           sql<number>`(row_number() OVER (
             ORDER BY
               l.sort_order,

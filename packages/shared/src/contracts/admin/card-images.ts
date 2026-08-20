@@ -19,6 +19,14 @@ const rehostedUrlOutput = z.object({ rehostedUrl: z.string() });
  * uploaded `File`. Domain codes per route: most image verbs → NOT_FOUND;
  * `setImage` / `unrehostImage` / `rehostImage` / `addImageUrl` → BAD_REQUEST;
  * `uploadImage` → PAYLOAD_TOO_LARGE (file over 50 MB).
+ *
+ * The three `fallbackArt` verbs manage the substitute artwork shown for a
+ * printing that has no scan of its own (migration 257) — `setFallbackArt`
+ * switches the mode and pins an image file the catalogue already holds, while
+ * the `from-url` and `upload` pair ingest art from outside it and pin the
+ * result. They never touch `printing_images`: a substitute is not a scan of the
+ * printing showing it, and recording it as one would make the printing count as
+ * photographed everywhere we track coverage.
  */
 export const adminCardImagesContract = {
   setImage: authedRoute
@@ -120,6 +128,48 @@ export const adminCardImagesContract = {
       PAYLOAD_TOO_LARGE: { message: "File exceeds 50 MB limit" },
     })
     .input(printingIdParam.extend({ file: z.instanceof(File), mode: modeSchema.optional() }))
+    .output(rehostedUrlOutput),
+  setFallbackArt: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/admin/v1/cards/printing/{printingId}/fallback-art",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      BAD_REQUEST: { message: "Pinned fallback art needs an image file" },
+    })
+    .input(
+      printingIdParam.extend({
+        mode: z.enum(["auto", "pinned", "none"]),
+        /** Required for `pinned`, rejected otherwise. */
+        imageFileId: z.uuid().optional(),
+      }),
+    ),
+  addFallbackArtUrl: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/admin/v1/cards/printing/{printingId}/fallback-art/from-url",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      BAD_REQUEST: { message: "Image URL is required" },
+    })
+    .input(printingIdParam.extend({ url: z.string() })),
+  uploadFallbackArt: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/admin/v1/cards/printing/{printingId}/fallback-art/upload",
+      tags: [TAG],
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      PAYLOAD_TOO_LARGE: { message: "File exceeds 50 MB limit" },
+    })
+    .input(printingIdParam.extend({ file: z.instanceof(File) }))
     .output(rehostedUrlOutput),
 };
 

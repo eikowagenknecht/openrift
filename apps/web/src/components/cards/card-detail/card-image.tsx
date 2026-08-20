@@ -39,16 +39,27 @@ export function CardImage({
   const primarySrc = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
   const fallback = showImages ? getFallbackArt(printing) : null;
   const fallbackSrc = fallback === null ? null : imageUrl(fallback.image.imageId, "400w");
-  // The image actually shown: the printing's own, else the standard printing's
-  // artwork (marked by the FallbackArtBadges row), else null → drawn placeholder.
+  // The image actually shown: the printing's own, else substitute artwork
+  // (marked by the FallbackArtBadges row), else null → drawn placeholder.
   // A `const` so the narrowed type survives into the onLoad/onError closures
-  // below. `artSource` is the printing the art was borrowed from, non-null
-  // exactly when the art is a substitute.
+  // below. `isSubstitute` drives the badge row rather than `artSource`, which
+  // is null both for the printing's own art and for a pinned substitute whose
+  // source printing is unknown — two cases that must not render the same.
   const shown =
     frontImage && primarySrc !== null && !failedUrls.includes(primarySrc)
-      ? { imageId: frontImage.imageId, src: primarySrc, artSource: null }
+      ? {
+          imageId: frontImage.imageId,
+          src: primarySrc,
+          isSubstitute: false,
+          artSource: null,
+        }
       : fallback && fallbackSrc !== null && !failedUrls.includes(fallbackSrc)
-        ? { imageId: fallback.image.imageId, src: fallbackSrc, artSource: fallback.printing }
+        ? {
+            imageId: fallback.image.imageId,
+            src: fallbackSrc,
+            isSubstitute: true,
+            artSource: fallback.printing,
+          }
         : null;
   // The pane is SSR'd, so the browser can finish the fetch before hydration
   // attaches the load/error listeners. Cover both outcomes via ref: a broken
@@ -126,7 +137,7 @@ export function CardImage({
                   onError={() => markFailed(shown.src)}
                 />
               )}
-              {shown.artSource !== null && (
+              {shown.isSubstitute && (
                 <FallbackArtBadges printing={printing} artPrinting={shown.artSource} />
               )}
             </>

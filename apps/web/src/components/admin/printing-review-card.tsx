@@ -24,6 +24,7 @@ import {
   deduplicateSourceImages,
 } from "@/components/admin/card-detail-shared";
 import { PrintingIdLabel } from "@/components/admin/printing-id-label";
+import type { SiblingImage } from "@/components/admin/printing-image-switcher";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
 import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
@@ -185,6 +186,24 @@ export function PrintingReviewCard({
 
   const uncheckedSources = allSources.filter((ps) => !ps.checkedAt);
 
+  // Substitute art the admin can pin: every image on the card's *other*
+  // printings, one entry per underlying file. Two printings often list the same
+  // scan, and offering it twice would suggest a choice that isn't one — the pin
+  // stores the file, so both entries would do the same thing.
+  const siblingImages: SiblingImage[] = [];
+  const seenImageFiles = new Set<string>();
+  for (const image of printingImages) {
+    if (image.printingId === printingId || seenImageFiles.has(image.imageFileId)) {
+      continue;
+    }
+    seenImageFiles.add(image.imageFileId);
+    const owner = printings.find((p) => p.id === image.printingId);
+    siblingImages.push({
+      imageFileId: image.imageFileId,
+      printingLabel: owner?.expectedPrintingId ?? image.printingId,
+    });
+  }
+
   return (
     <div data-printing-id={printingId} className="overflow-hidden rounded-md border">
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
@@ -267,6 +286,9 @@ export function PrintingReviewCard({
             images={ownImages}
             providerSettings={providerSettings}
             sourceImages={sourceImagesForSwitcher}
+            siblingImages={siblingImages}
+            fallbackArtMode={printing.fallbackArtMode}
+            fallbackImageFileId={printing.fallbackImageFileId}
             invalidates={invalidates}
             isAdmin={isAdmin}
           />

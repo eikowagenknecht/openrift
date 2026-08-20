@@ -238,6 +238,16 @@ export const catalogPrintingResponseSchema = z.object({
   // the schema previously omitted it — so the typed client inferred a response
   // missing this required field.
   canonicalRank: z.number().int().openapi({ example: 1 }),
+  // Substitute-art override, omitted for the `auto` default that nearly every
+  // printing carries — spelling it out would cost the catalog a field per
+  // printing to say "nothing special". `pinned` is emitted only together with a
+  // servable `fallbackImageId`, so a client never has to handle one without the
+  // other (a pin whose file is not rehosted yet is emitted as if `auto`).
+  fallbackArtMode: z.enum(["pinned", "none"]).optional().openapi({ example: "pinned" }),
+  fallbackImageId: z
+    .string()
+    .optional()
+    .openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 

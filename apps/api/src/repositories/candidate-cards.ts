@@ -480,6 +480,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "language",
           "comment",
           "canonicalRank",
+          "fallbackArtMode",
+          "fallbackImageFileId",
         ])
         .where("cardId", "=", cardId)
         .orderBy("canonicalRank")
@@ -597,6 +599,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       {
         id: string;
         printingId: string;
+        imageFileId: string;
         face: CardFace;
         originalUrl: string | null;
         rehostedUrl: string | null;
@@ -614,6 +617,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .select([
           "printingImages.id",
           "printingImages.printingId",
+          "printingImages.imageFileId",
           "printingImages.face",
           "ci.originalUrl",
           "ci.rehostedUrl",

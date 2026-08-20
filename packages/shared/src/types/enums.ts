@@ -22,6 +22,15 @@ export type SuperType = string & Record<never, never>;
 
 export type CardFace = "front" | "back";
 
+/**
+ * How a printing without a scan of its own resolves substitute artwork.
+ * `auto` derives it (see `findStandardArtFallback`), `pinned` shows the
+ * admin-chosen `fallback_image_file_id`, `none` suppresses the substitute so
+ * only the drawn placeholder shows. A closed set backed by a CHECK constraint
+ * (migration 257), not a reference table.
+ */
+export type FallbackArtMode = "auto" | "pinned" | "none";
+
 /** Backed by `art_variants` reference table. */
 // oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
 export type ArtVariant = string & Record<never, never>;

@@ -1,3 +1,4 @@
+import type { FallbackArtMode } from "@openrift/shared";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
@@ -419,7 +420,110 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Delete orphaned image_files rows that no printing_images reference.
+     * @returns How many printings pin this image file as their substitute art.
+     * Deleting a printing image consults this before removing the files behind
+     * it: the `printing_images` row is going, but a pin on the same
+     * `image_files` row keeps the file on screen somewhere else.
+     */
+    async countPinsByImageFileId(imageFileId: string): Promise<number> {
+      const row = await db
+        .selectFrom("printings")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("fallbackImageFileId", "=", imageFileId)
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
+    },
+
+    /** @returns A printing's substitute-art override, or undefined if no such printing. */
+    getFallbackArt(printingId: string): Promise<
+      | {
+          id: string;
+          shortCode: string;
+          fallbackArtMode: FallbackArtMode;
+          fallbackImageFileId: string | null;
+        }
+      | undefined
+    > {
+      return db
+        .selectFrom("printings")
+        .select(["id", "shortCode", "fallbackArtMode", "fallbackImageFileId"])
+        .where("id", "=", printingId)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Point a printing's substitute art at `imageFileId`, or clear the override.
+     *
+     * Mode and file move together because `chk_printings_fallback_pinned_has_image`
+     * requires them to agree, so writing one without the other is a constraint
+     * violation rather than a half-applied state.
+     */
+    async setFallbackArt(
+      printingId: string,
+      mode: FallbackArtMode,
+      imageFileId: string | null,
+    ): Promise<void> {
+      await db
+        .updateTable("printings")
+        .set({
+          fallbackArtMode: mode,
+          fallbackImageFileId: mode === "pinned" ? imageFileId : null,
+        })
+        .where("id", "=", printingId)
+        .execute();
+    },
+
+    /**
+     * Resolve an `image_files` row for a URL, creating it when the URL is new.
+     * Shares {@link findOrCreateImageFile} with the printing-image path, so
+     * pinning art already stored under another printing reuses that row instead
+     * of duplicating the file.
+     * @returns The id of the existing or newly created `image_files` row.
+     */
+    imageFileForUrl(originalUrl: string): Promise<string> {
+      return findOrCreateImageFile(originalUrl);
+    },
+
+    /**
+     * Insert an `image_files` row for an uploaded file with a pre-computed
+     * rehosted URL, with no printing image attached to it.
+     *
+     * The unattached row is the point: a file pinned as substitute art is not a
+     * scan of the printing that shows it, and giving it a `printing_images` row
+     * would make the printing look scanned to the missing-images report, the
+     * contribute prompt and the catalog alike. Same id-equals-path-basename rule
+     * as {@link insertUploadedImage}, which `regenerateFromOrig` depends on.
+     */
+    async insertUnattachedImageFile(values: { id: string; rehostedUrl: string }): Promise<void> {
+      await db
+        .insertInto("imageFiles")
+        .values({ id: values.id, rehostedUrl: values.rehostedUrl })
+        .execute();
+    },
+
+    /** @returns An image_files row's rehost inputs, or undefined when it is gone. */
+    getImageFileForRehost(imageFileId: string): Promise<
+      | {
+          id: string;
+          originalUrl: string | null;
+          rehostedUrl: string | null;
+          rotation: number;
+          needsTrim: boolean;
+        }
+      | undefined
+    > {
+      return db
+        .selectFrom("imageFiles")
+        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim"])
+        .where("id", "=", imageFileId)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Delete orphaned image_files rows that nothing references — neither a
+     * printing_images row nor a printing's pinned fallback art (migration 257).
+     * A pinned file usually *is* some printing's image too, but one uploaded
+     * purely as a substitute is not, and it is exactly as live as any other.
      * @returns The number of deleted rows.
      */
     async deleteOrphanedImageFiles(): Promise<number> {
@@ -432,6 +536,16 @@ export function printingImagesRepo(db: Kysely<Database>) {
                 .selectFrom("printingImages")
                 .select("printingImages.id")
                 .whereRef("printingImages.imageFileId", "=", "imageFiles.id"),
+            ),
+          ),
+        )
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("printings")
+                .select("printings.id")
+                .whereRef("printings.fallbackImageFileId", "=", "imageFiles.id"),
             ),
           ),
         )

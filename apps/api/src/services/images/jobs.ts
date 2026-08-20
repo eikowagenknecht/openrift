@@ -32,28 +32,40 @@ export async function rehostSingleImage(
   imageId: string,
 ): Promise<void> {
   const image = await repo.getForRehost(imageId);
-  if (!image?.originalUrl) {
+  if (!image) {
+    return;
+  }
+  await rehostImageFile(io, repo, image.imageFileId);
+}
+
+/**
+ * Rehost by `image_files` ID rather than by printing image: download, process
+ * variants, and update the row. The file-level half of
+ * {@link rehostSingleImage}, split out because substitute art pinned from a URL
+ * (migration 257) has an image_files row and deliberately no printing image to
+ * reach it through. Also best-effort — a caller that pinned the file has
+ * already committed the pin, and a failed rehost leaves it un-servable, which
+ * the wire reports as "derive a substitute for now" rather than as an error.
+ */
+export async function rehostImageFile(
+  io: Io,
+  repo: PrintingImagesRepo,
+  imageFileId: string,
+): Promise<void> {
+  const file = await repo.getImageFileForRehost(imageFileId);
+  if (!file?.originalUrl) {
     return;
   }
 
   try {
-    const { buffer, ext } = await downloadImage(io, image.originalUrl);
-    const rehostedUrl = imageRehostedUrl(image.imageFileId);
-    const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
-    await processAndSave(
-      io,
-      buffer,
-      ext,
-      outputDir,
-      image.imageFileId,
-      image.rotation,
-      image.needsTrim,
-      true,
-    );
-    await repo.updateRehostedUrl(image.imageFileId, rehostedUrl);
+    const { buffer, ext } = await downloadImage(io, file.originalUrl);
+    const rehostedUrl = imageRehostedUrl(file.id);
+    const outputDir = join(CARD_MEDIA_DIR, file.id.slice(-2));
+    await processAndSave(io, buffer, ext, outputDir, file.id, file.rotation, file.needsTrim, true);
+    await repo.updateRehostedUrl(file.id, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[rehost] Auto-rehost failed for ${imageId}:`, message);
+    console.error(`[rehost] Auto-rehost failed for image file ${imageFileId}:`, message);
   }
 }
 

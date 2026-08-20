@@ -86,6 +86,32 @@ export async function loadMarkerAndChannelMaps(
 }
 
 /**
+ * Narrows a printing row's substitute-art override to what the wire carries.
+ *
+ * Two shapes never reach a client. `auto` is the default nearly every printing
+ * holds, so it is omitted rather than repeated across the whole catalog — an
+ * absent field already means "derive it". And a pin whose file has no rehosted
+ * copy has no servable id to send, so it is emitted as `auto` too: the client
+ * derives a substitute while the rehost is pending, instead of falling back to
+ * a placeholder for art we actually have. That leaves one invariant on the
+ * wire — `fallbackArtMode: "pinned"` always arrives with a `fallbackImageId`.
+ *
+ * @returns The override fields to spread onto the response, possibly none.
+ */
+export function resolveFallbackArt(row: {
+  fallbackArtMode: string;
+  fallbackImageId: string | null;
+}): Pick<CatalogPrintingResponse, "fallbackArtMode" | "fallbackImageId"> {
+  if (row.fallbackArtMode === "none") {
+    return { fallbackArtMode: "none" };
+  }
+  if (row.fallbackArtMode === "pinned" && row.fallbackImageId !== null) {
+    return { fallbackArtMode: "pinned", fallbackImageId: row.fallbackImageId };
+  }
+  return {};
+}
+
+/**
  * Resolves a printing's marker slug array against a slug→Marker map.
  * Skips slugs missing from the map (defensive for stale denormalized data).
  *
@@ -155,8 +181,9 @@ export function buildPrintingsResponse(
 ): CatalogPrintingResponse[] {
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-  return printingRows.map(({ markerSlugs, ...rest }) => ({
+  return printingRows.map(({ markerSlugs, fallbackArtMode, fallbackImageId, ...rest }) => ({
     ...rest,
+    ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
     markers: resolveMarkers(markerSlugs, markerBySlug),
     distributionChannels: channelsByPrinting.get(rest.id) ?? [],
     images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({

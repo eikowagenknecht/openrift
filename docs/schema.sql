@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict uFG5nf0aZ9DBIVVCNVxt8QKDa8Cggtwm56hNoQ2hKJ5QIIJKnXH7IKRlI3OPRal
+\restrict GdYsmGaryzi6Vwt8GFNAUEelbyki52M2CY0gWguVIP8fDaMIUg44f63BMPjOnc6
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2410,7 +2410,11 @@ CREATE TABLE public.printings (
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     printed_year smallint,
     size text DEFAULT 'standard'::text NOT NULL,
+    fallback_art_mode text DEFAULT 'auto'::text NOT NULL,
+    fallback_image_file_id uuid,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printings_fallback_art_mode CHECK ((fallback_art_mode = ANY (ARRAY['auto'::text, 'pinned'::text, 'none'::text]))),
+    CONSTRAINT chk_printings_fallback_pinned_has_image CHECK (((fallback_art_mode = 'pinned'::text) = (fallback_image_file_id IS NOT NULL))),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
@@ -2659,6 +2663,8 @@ CREATE VIEW public.printings_ordered AS
     p.marker_slugs,
     p.printed_year,
     p.size,
+    p.fallback_art_mode,
+    p.fallback_image_file_id,
     COALESCE(r.canonical_rank, 2147483647) AS canonical_rank
    FROM (public.printings p
      LEFT JOIN public.mv_printings_canonical_rank r ON ((r.printing_id = p.id)));
@@ -5144,6 +5150,13 @@ CREATE INDEX idx_printings_card_id ON public.printings USING btree (card_id);
 
 
 --
+-- Name: idx_printings_fallback_image_file; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printings_fallback_image_file ON public.printings USING btree (fallback_image_file_id) WHERE (fallback_image_file_id IS NOT NULL);
+
+
+--
 -- Name: idx_printings_marker_slugs; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6924,6 +6937,14 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: printings fk_printings_fallback_image_file; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT fk_printings_fallback_image_file FOREIGN KEY (fallback_image_file_id) REFERENCES public.image_files(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: printings fk_printings_finish; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7607,5 +7628,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict uFG5nf0aZ9DBIVVCNVxt8QKDa8Cggtwm56hNoQ2hKJ5QIIJKnXH7IKRlI3OPRal
+\unrestrict GdYsmGaryzi6Vwt8GFNAUEelbyki52M2CY0gWguVIP8fDaMIUg44f63BMPjOnc6
 

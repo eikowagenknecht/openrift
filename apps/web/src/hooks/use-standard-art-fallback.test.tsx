@@ -63,7 +63,7 @@ describe("useStandardArtFallback", () => {
     });
     const { result } = setup(makeCatalog([target, enStandard]));
     const fallback = result.current(target);
-    expect(fallback?.printing.id).toBe("p-en");
+    expect(fallback?.printing?.id).toBe("p-en");
     expect(fallback?.image.imageId).toBe("img-en");
   });
 

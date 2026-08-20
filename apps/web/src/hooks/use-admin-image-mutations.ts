@@ -95,6 +95,49 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
     });
   });
 
+const setFallbackArtFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { printingId: string; mode: "auto" | "pinned" | "none"; imageFileId?: string }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminCardImagesContract, context.cookie).setFallbackArt(data);
+  });
+
+const addFallbackArtUrlFn = createServerFn({ method: "POST" })
+  .validator((input: { printingId: string; url: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminCardImagesContract, context.cookie).addFallbackArtUrl(data);
+  });
+
+const uploadFallbackArtFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { printingId: string; fileName: string; fileType: string; fileBase64: string }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const fileBytes = Uint8Array.from(atob(data.fileBase64), (c) => c.codePointAt(0) ?? 0);
+    const blob = new Blob([fileBytes], { type: data.fileType });
+    const formData = new FormData();
+    formData.append("file", blob, data.fileName);
+    // FormData body — can't use fetchApi helper (it JSON.stringify's bodies).
+    const res = await fetch(
+      `${getApiUrl()}/api/admin/v1/cards/printing/${encodeURIComponent(data.printingId)}/fallback-art/upload`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie },
+        body: formData,
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Upload fallback art failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .validator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
@@ -213,6 +256,22 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     return res.json();
   });
 
+/**
+ * Base64-encodes a file for the server-fn boundary, which carries JSON rather
+ * than the `File` itself. Chunked because `String.fromCodePoint` is applied to
+ * the byte array as arguments, and a whole image at once overflows the stack.
+ * @returns The file's bytes as a base64 string.
+ */
+async function toBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  const CHUNK = 32_768;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCodePoint(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({
@@ -223,18 +282,16 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
       printingId: string;
       file: File;
       mode?: "main" | "additional";
-    }) => {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      let binary = "";
-      const CHUNK = 32_768;
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        binary += String.fromCodePoint(...bytes.subarray(i, i + CHUNK));
-      }
-      const fileBase64 = btoa(binary);
-      return uploadPrintingImageFn({
-        data: { printingId, fileName: file.name, fileType: file.type, fileBase64, mode },
-      });
-    },
+    }) =>
+      uploadPrintingImageFn({
+        data: {
+          printingId,
+          fileName: file.name,
+          fileType: file.type,
+          fileBase64: await toBase64(file),
+          mode,
+        },
+      }),
     invalidates,
   });
 }
@@ -250,6 +307,56 @@ export function useSetCandidatePrintingImage(invalidates: Scope = defaultScope) 
     }) => {
       await setCandidatePrintingImageFn({ data: { candidatePrintingId, mode } });
     },
+    invalidates,
+  });
+}
+
+/**
+ * Set a printing's substitute-art override: derive it (`auto`), pin an image
+ * file the catalogue already holds (`pinned`), or suppress it (`none`).
+ * @returns The mutation object.
+ */
+export function useSetFallbackArt(invalidates: Scope = defaultScope) {
+  return useMutationWithInvalidation({
+    mutationFn: async (input: {
+      printingId: string;
+      mode: "auto" | "pinned" | "none";
+      imageFileId?: string;
+    }) => {
+      await setFallbackArtFn({ data: input });
+    },
+    invalidates,
+  });
+}
+
+/**
+ * Pin substitute art from an external URL, ingesting the image first.
+ * @returns The mutation object.
+ */
+export function useAddFallbackArtUrl(invalidates: Scope = defaultScope) {
+  return useMutationWithInvalidation({
+    mutationFn: async (input: { printingId: string; url: string }) => {
+      await addFallbackArtUrlFn({ data: input });
+    },
+    invalidates,
+  });
+}
+
+/**
+ * Pin substitute art from a local file upload.
+ * @returns The mutation object.
+ */
+export function useUploadFallbackArt(invalidates: Scope = defaultScope) {
+  return useMutationWithInvalidation({
+    mutationFn: async ({ printingId, file }: { printingId: string; file: File }) =>
+      uploadFallbackArtFn({
+        data: {
+          printingId,
+          fileName: file.name,
+          fileType: file.type,
+          fileBase64: await toBase64(file),
+        },
+      }),
     invalidates,
   });
 }

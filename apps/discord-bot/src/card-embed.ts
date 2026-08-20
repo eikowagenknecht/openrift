@@ -178,15 +178,19 @@ function priceLink(
  * differs, each marker, a non-normal art variant, a signature, and a metal
  * finish.
  *
+ * Art an admin pinned from outside the catalogue has no printing behind it, so
+ * `artPrinting` is null and the language tag drops out. The rest still apply:
+ * they describe the printing that was asked for, not the art standing in.
+ *
  * @returns The difference tags, in the site's badge order.
  */
 export function fallbackArtDifferences(
   printing: CatalogPrinting,
-  artPrinting: CatalogPrinting,
+  artPrinting: CatalogPrinting | null,
   labels: EnumLabels,
 ): string[] {
   const tags: string[] = [];
-  if (printing.language !== artPrinting.language) {
+  if (artPrinting !== null && printing.language !== artPrinting.language) {
     tags.push(artPrinting.language);
   }
   for (const marker of printing.markers) {
@@ -230,12 +234,14 @@ function resolveEmbedArt(
     return {};
   }
   const tags = fallbackArtDifferences(printing, fallback.printing, snapshot.labels);
+  // A pinned substitute can be any artwork an admin chose, so only the derived
+  // case may claim the art comes from the standard printing.
+  const source =
+    printing.fallbackArtMode === "pinned" ? "Substitute artwork" : "Standard-printing artwork";
   return {
     imageId: fallback.image.imageId,
     fallbackNote:
-      tags.length > 0
-        ? `*Standard-printing artwork shown (differs: ${tags.join(", ")})*`
-        : "*Standard-printing artwork shown*",
+      tags.length > 0 ? `*${source} shown (differs: ${tags.join(", ")})*` : `*${source} shown*`,
   };
 }
 
