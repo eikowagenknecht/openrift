@@ -70,7 +70,7 @@ describe("renderTierListImage", () => {
   it("renders a row far wider than the canvas (overflow chip path)", async () => {
     const png = await renderTierListImage(defaultIo, { ...baseInput, rows: [row("S", 200)] });
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
-  });
+  }, 30_000); // 200 chips is the widest layout here; it ran 4.3s on CI before this.
 
   it("renders without a QR when no share URL is given", async () => {
     const png = await renderTierListImage(defaultIo, {
@@ -169,14 +169,14 @@ describe("renderTierListImage", () => {
       "vertical",
     );
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
-  });
+  }, 30_000); // Same 200 chips, wrapped onto the taller canvas.
 
   it("keeps the maximum row count inside the vertical canvas", async () => {
     const rows = Array.from({ length: 12 }, (_, index) => row(`T${index}`, 9));
     const png = await renderTierListImage(defaultIo, { ...baseInput, rows }, 1, "vertical");
     const meta = await defaultIo.sharp(png).metadata();
     expect(meta.height).toBe(1920);
-  });
+  }, 30_000); // 12 rows of 9 is the most chips any test lays out.
 });
 
 describe("measureBoard", () => {
