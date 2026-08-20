@@ -102,7 +102,12 @@ export function cardTokensRepo(db: Kysely<Database>) {
       .where("language", "=", WellKnown.language.EN)
       .execute();
 
-    const tokenCardIds = findTokenReferences(textsOf({ errata, printings }), tokens, typeSlugs);
+    const tokenCardIds = findTokenReferences(
+      textsOf({ errata, printings }),
+      tokens,
+      typeSlugs,
+      cardId,
+    );
 
     // No transaction of its own: this repo is also constructed from a
     // `Transaction` by the printing-accept flow, and nesting one there would
@@ -169,6 +174,7 @@ export function cardTokensRepo(db: Kysely<Database>) {
             }),
             tokens,
             typeSlugs,
+            card.id,
           ),
         }))
         .filter((row) => row.tokenCardIds.length > 0);

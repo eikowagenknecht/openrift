@@ -212,4 +212,23 @@ describe.skipIf(!ctx)("cardTokensRepo derivation", () => {
     await repo.recomputeForCard(plainId);
     expect(await tokensFor(plainId)).toEqual([]);
   });
+
+  it("never derives the owning card as its own token", async () => {
+    const repo = cardTokensRepo(ctx!.db);
+
+    // The Buff token's own reminder line trips the implicit Buff rule, and
+    // `chk_card_tokens_no_self` (migration 253) rejects the row that produced.
+    await seedPrinting(buffId, "CTK-004", {
+      printedRulesText: "A unit may have no more than one buff at a time.",
+    });
+
+    await repo.recomputeForCard(buffId);
+    expect(await tokensFor(buffId)).toEqual([]);
+
+    // The whole-catalog rebuild is one transaction, so a single self-row aborts
+    // every card's derivation, not just the offending one.
+    await repo.recomputeAll();
+    expect(await tokensFor(buffId)).toEqual([]);
+    expect(await tokensFor(summonerId)).toEqual([spriteId]);
+  });
 });

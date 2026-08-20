@@ -56,12 +56,20 @@ const IMPLICIT_TOKEN_RULES: { tokenName: string; pattern: RegExp }[] = [
  * the result: what gets stored is a card-id relation, which every language
  * then renders through its own printings.
  *
+ * A card is never its own token, so `ownerCardId` is dropped from the result.
+ * The token cards themselves are what make this necessary: the Buff token's own
+ * reminder line is "A unit may have no more than one buff at a time." and the
+ * XP Tracker's is "Track gained XP here.", each of which trips its own implicit
+ * rule. `card_tokens` refuses such a row (`chk_card_tokens_no_self`), so leaving
+ * it in fails the whole write.
+ *
  * @returns Ids of the matched token cards, in `tokens` order, deduped.
  */
 export function findTokenReferences(
   texts: (string | null | undefined)[],
   tokens: TokenCardName[],
   cardTypeSlugs: string[],
+  ownerCardId: string,
 ): string[] {
   const present = texts.filter((text): text is string => Boolean(text));
   if (present.length === 0 || tokens.length === 0) {
@@ -99,5 +107,7 @@ export function findTokenReferences(
     }
   }
 
-  return tokens.filter((token) => matched.has(token.cardId)).map((token) => token.cardId);
+  return tokens
+    .filter((token) => matched.has(token.cardId) && token.cardId !== ownerCardId)
+    .map((token) => token.cardId);
 }

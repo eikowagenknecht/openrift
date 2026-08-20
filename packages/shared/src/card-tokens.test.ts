@@ -21,8 +21,11 @@ const TOKENS = [
 
 const CARD_TYPES = ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"];
 
+/** The card the text belongs to, an ordinary one unless a test says otherwise. */
+const OWNER = "some-card";
+
 function find(...texts: (string | null | undefined)[]): string[] {
-  return findTokenReferences(texts, TOKENS, CARD_TYPES);
+  return findTokenReferences(texts, TOKENS, CARD_TYPES, OWNER);
 }
 
 describe("findTokenReferences", () => {
@@ -105,7 +108,53 @@ describe("findTokenReferences", () => {
 
     it("skips a rule whose token card is absent from the catalog", () => {
       const tokens = [{ cardId: "gold", name: "Gold" }];
-      expect(findTokenReferences(["Buff a friendly unit."], tokens, CARD_TYPES)).toEqual([]);
+      expect(findTokenReferences(["Buff a friendly unit."], tokens, CARD_TYPES, OWNER)).toEqual([]);
+    });
+  });
+
+  describe("the owning card", () => {
+    it("drops the Buff token's own reminder line", () => {
+      expect(
+        findTokenReferences(
+          ["A unit may have no more than one buff at a time."],
+          TOKENS,
+          CARD_TYPES,
+          "buff",
+        ),
+      ).toEqual([]);
+    });
+
+    it("drops the XP Tracker's own rules text", () => {
+      expect(
+        findTokenReferences(
+          ["Track gained XP here.\nSome cards get bonuses based on your [Level]."],
+          TOKENS,
+          CARD_TYPES,
+          "xp-tracker",
+        ),
+      ).toEqual([]);
+    });
+
+    it("drops a self-reference written with the usual anchor", () => {
+      expect(
+        findTokenReferences(
+          ["Play another Sand Soldier unit token."],
+          TOKENS,
+          CARD_TYPES,
+          "sand-soldier",
+        ),
+      ).toEqual([]);
+    });
+
+    it("keeps the other tokens the owning card references", () => {
+      expect(
+        findTokenReferences(
+          ["A unit may have no more than one buff at a time. Play a Gold gear token."],
+          TOKENS,
+          CARD_TYPES,
+          "buff",
+        ),
+      ).toEqual(["gold"]);
     });
   });
 
@@ -178,17 +227,23 @@ describe("findTokenReferences", () => {
     });
 
     it("returns nothing when there are no token cards", () => {
-      expect(findTokenReferences(["Play a Gold gear token."], [], CARD_TYPES)).toEqual([]);
+      expect(findTokenReferences(["Play a Gold gear token."], [], CARD_TYPES, OWNER)).toEqual([]);
     });
 
     it("still matches the bare form when no card types are supplied", () => {
-      expect(findTokenReferences(["Play a Recruit token."], TOKENS, [])).toEqual(["recruit"]);
+      expect(findTokenReferences(["Play a Recruit token."], TOKENS, [], OWNER)).toEqual([
+        "recruit",
+      ]);
     });
 
     it("treats regex metacharacters in a name as literal", () => {
       const tokens = [{ cardId: "odd", name: "A.B" }];
-      expect(findTokenReferences(["Play an AxB unit token."], tokens, CARD_TYPES)).toEqual([]);
-      expect(findTokenReferences(["Play an A.B unit token."], tokens, CARD_TYPES)).toEqual(["odd"]);
+      expect(findTokenReferences(["Play an AxB unit token."], tokens, CARD_TYPES, OWNER)).toEqual(
+        [],
+      );
+      expect(findTokenReferences(["Play an A.B unit token."], tokens, CARD_TYPES, OWNER)).toEqual([
+        "odd",
+      ]);
     });
 
     it("prefers the longer name when one is a prefix of another", () => {
@@ -196,9 +251,9 @@ describe("findTokenReferences", () => {
         { cardId: "bird", name: "Bird" },
         { cardId: "bird-of-prey", name: "Bird of Prey" },
       ];
-      expect(findTokenReferences(["Play a Bird of Prey unit token."], tokens, CARD_TYPES)).toEqual([
-        "bird-of-prey",
-      ]);
+      expect(
+        findTokenReferences(["Play a Bird of Prey unit token."], tokens, CARD_TYPES, OWNER),
+      ).toEqual(["bird-of-prey"]);
     });
   });
 });
