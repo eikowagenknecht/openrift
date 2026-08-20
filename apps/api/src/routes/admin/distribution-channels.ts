@@ -5,12 +5,32 @@ import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
 import { assertFound, assertSlugAvailable, assertValidReorder } from "../../lib/assertions.js";
+import { raisedExceptionMessage } from "../../lib/pg-errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminDistributionChannelsContract)
   .$context<ApiContext>()
   .use(requireAuthedUser);
+
+/**
+ * Turns a rejection from the hierarchy trigger (migration 094: cycles, a kind
+ * that disagrees with the parent's, the depth cap, a parent that already has
+ * printings) into a 409. Those rules live in the database, so without this
+ * every one of them surfaces as an uncaught 500 despite being the caller's
+ * mistake. The trigger's messages are written for a human, so they carry
+ * through as-is.
+ *
+ * @returns The error to throw — a 409 carrying the trigger's message,
+ *   otherwise the original error.
+ */
+function asHierarchyConflict(error: unknown): unknown {
+  const raised = raisedExceptionMessage(error);
+  if (raised === null) {
+    return error;
+  }
+  return new AppError(409, ERROR_CODES.CONFLICT, raised);
+}
 
 /**
  * Admin distribution-channels taxonomy CRUD. Channels are keyed by their UUID
@@ -59,15 +79,19 @@ export const adminDistributionChannelsRouter = {
     assertSlugAvailable(existing, slug, "Distribution channel");
     const resolvedParentId = parentId ?? null;
     const maxSortOrder = await repo.getMaxSortOrderForParent(resolvedParentId);
-    const created = await repo.create({
-      slug,
-      label,
-      description,
-      kind,
-      parentId: resolvedParentId,
-      childrenLabel: childrenLabel ?? null,
-      sortOrder: maxSortOrder + 1,
-    });
+    const created = await repo
+      .create({
+        slug,
+        label,
+        description,
+        kind,
+        parentId: resolvedParentId,
+        childrenLabel: childrenLabel ?? null,
+        sortOrder: maxSortOrder + 1,
+      })
+      .catch((error: unknown) => {
+        throw asHierarchyConflict(error);
+      });
     const distributionChannel: DistributionChannelResponse = {
       id: created.id,
       slug: created.slug,
@@ -95,16 +119,27 @@ export const adminDistributionChannelsRouter = {
         throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${body.slug}" already in use`);
       }
     }
+    // A PATCH carries only the fields it means to change, so an absent
+    // `parentId` leaves the row where it is. Coercing it to null here would
+    // reparent every channel to the root on any partial edit.
+    const updates = { ...body };
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
     // When the parent changes, append the row to the new sibling group's end
     // so sort orders don't collide with existing siblings under that parent.
     const parentChanged =
       body.parentId !== undefined && (body.parentId ?? null) !== existing.parentId;
-    const updates = { ...body, parentId: body.parentId ?? null };
-    if (parentChanged) {
-      const maxSortOrder = await repo.getMaxSortOrderForParent(updates.parentId);
-      await repo.update(id, { ...updates, sortOrder: maxSortOrder + 1 });
-    } else {
-      await repo.update(id, updates);
+    try {
+      if (parentChanged) {
+        const parentId = body.parentId ?? null;
+        const maxSortOrder = await repo.getMaxSortOrderForParent(parentId);
+        await repo.update(id, { ...updates, parentId, sortOrder: maxSortOrder + 1 });
+      } else {
+        await repo.update(id, updates);
+      }
+    } catch (error) {
+      throw asHierarchyConflict(error);
     }
   }),
 

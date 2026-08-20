@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isUniqueViolation, isUniqueViolationOn } from "./pg-errors.js";
+import { isUniqueViolation, isUniqueViolationOn, raisedExceptionMessage } from "./pg-errors.js";
 
 describe("isUniqueViolation", () => {
   it("is true for a Postgres 23505 error", () => {
@@ -48,5 +48,28 @@ describe("isUniqueViolationOn", () => {
 
   it("is false for a non-unique error", () => {
     expect(isUniqueViolationOn({ code: "23503", constraint_name: "x" }, "x")).toBe(false);
+  });
+});
+
+describe("raisedExceptionMessage", () => {
+  it("returns the message of a plpgsql RAISE EXCEPTION", () => {
+    const error = Object.assign(new Error("Cycle detected in distribution channel hierarchy"), {
+      code: "P0001",
+    });
+    expect(raisedExceptionMessage(error)).toBe("Cycle detected in distribution channel hierarchy");
+  });
+
+  it("returns null for a different SQLSTATE", () => {
+    expect(raisedExceptionMessage({ code: "23505", message: "duplicate key" })).toBeNull();
+  });
+
+  it("returns null when the raise carries no message", () => {
+    expect(raisedExceptionMessage({ code: "P0001" })).toBeNull();
+    expect(raisedExceptionMessage({ code: "P0001", message: "" })).toBeNull();
+  });
+
+  it("returns null for non-object errors", () => {
+    expect(raisedExceptionMessage(null)).toBeNull();
+    expect(raisedExceptionMessage("P0001")).toBeNull();
   });
 });

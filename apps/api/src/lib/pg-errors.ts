@@ -31,3 +31,22 @@ export function isUniqueViolationOn(error: unknown, constraintName: string): boo
     (error as { constraint_name?: unknown }).constraint_name === constraintName
   );
 }
+
+/**
+ * Reads the message off a `RAISE EXCEPTION` thrown by a plpgsql trigger or
+ * function (SQLSTATE P0001). Those messages are written for a human, so a
+ * caller can surface one directly rather than let a validation rule that lives
+ * in the database read as an uncaught 500.
+ *
+ * @returns The raised message, or `null` when the error is not a P0001.
+ */
+export function raisedExceptionMessage(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  if (code !== "P0001" || typeof message !== "string" || message === "") {
+    return null;
+  }
+  return message;
+}
