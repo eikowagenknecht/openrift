@@ -19,7 +19,7 @@ export const CARD_TABLE_HEADER_HEIGHT = 48;
 export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
 /** The static (non-actions) columns the row and header render, left to right. */
-export type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity" | "channel" | "notes";
+type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity" | "channel" | "notes";
 
 interface StaticColumn {
   key: StaticColumnKey;

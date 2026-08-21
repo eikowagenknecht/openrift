@@ -162,7 +162,7 @@ export function CatalogSearchCombobox<T>({
  * identical row minus the picture.
  * @returns The row's contents.
  */
-export function CardSearchRow({ result }: { result: CardSearchResult }) {
+function CardSearchRow({ result }: { result: CardSearchResult }) {
   return (
     <>
       {result.leading}

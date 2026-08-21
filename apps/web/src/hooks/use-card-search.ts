@@ -5,10 +5,10 @@ import { useMemo } from "react";
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 
 /** Shortest query a picker searches on; one letter matches most of any catalog. */
-export const CARD_SEARCH_MIN_QUERY_LENGTH = 2;
+const CARD_SEARCH_MIN_QUERY_LENGTH = 2;
 
 /** How many hits a picker dropdown shows. */
-export const CARD_SEARCH_RESULT_LIMIT = 20;
+const CARD_SEARCH_RESULT_LIMIT = 20;
 
 /** Shared empty map so a caller with no printing codes keeps a stable index dep. */
 const NO_PRINTING_CODES: ReadonlyMap<string, readonly SearchablePrintingCodes[]> = new Map();
