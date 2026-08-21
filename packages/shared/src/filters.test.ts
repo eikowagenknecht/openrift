@@ -5,6 +5,7 @@ import {
   filterCards,
   getAvailableFilters as getAvailableFiltersRaw,
   parseSearchTerms,
+  searchPrefixFields,
   sortCards,
 } from "./filters";
 import { ALL_SEARCH_FIELDS, EMPTY_CARD_FILTERS, NONE } from "./types";
@@ -225,6 +226,49 @@ describe("parseSearchTerms", () => {
       { field: "cardText", text: "fiery beast" },
       { field: "artist", text: "jane" },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// searchPrefixFields
+// ---------------------------------------------------------------------------
+
+describe("searchPrefixFields", () => {
+  it("reports no fields for a query without prefixes", () => {
+    expect(searchPrefixFields("fire dragon")).toEqual([]);
+  });
+
+  it("reports the field of a prefix that has no term yet", () => {
+    // The point of the helper: "n:" is not a term (parseSearchTerms drops it)
+    // but the search bar must already show the chip.
+    expect(searchPrefixFields("n:")).toEqual(["name"]);
+    expect(parseSearchTerms("n:")).toEqual([]);
+  });
+
+  it("reports the field of a two-letter prefix", () => {
+    expect(searchPrefixFields("ty:unit")).toEqual(["type"]);
+    expect(searchPrefixFields("id:ogn-269")).toEqual(["id"]);
+  });
+
+  it("collects every prefix in canonical order, ignoring loose terms", () => {
+    expect(searchPrefixFields("k:fury n:teemo fire")).toEqual(["name", "keywords"]);
+  });
+
+  it("deduplicates a prefix used twice", () => {
+    expect(searchPrefixFields("n:teemo n:tristana")).toEqual(["name"]);
+  });
+
+  it("reads the prefix of a quoted term", () => {
+    expect(searchPrefixFields('d:"deal damage"')).toEqual(["cardText"]);
+  });
+
+  it("ignores a colon inside a word", () => {
+    expect(searchPrefixFields("ogn:269")).toEqual([]);
+    expect(searchPrefixFields("https://example.test")).toEqual([]);
+  });
+
+  it("ignores an unknown prefix letter", () => {
+    expect(searchPrefixFields("z:teemo")).toEqual([]);
   });
 });
 

@@ -101,10 +101,44 @@ describe("SearchBar scope chip", () => {
     expect(screen.getByText("in: card text")).toBeInTheDocument();
   });
 
-  it("hides the chip when the query uses an explicit prefix", () => {
+  it("mirrors an explicit prefix instead of the picked scope", () => {
     setup({ search: "n:teemo", scope: ["cardText"] });
 
-    expect(screen.queryByText(/^in:/u)).not.toBeInTheDocument();
+    // The prefix wins over the scope for that term, so the chip has to report
+    // the prefix — showing "in: card text" would describe a scope this query
+    // is ignoring.
+    expect(screen.getByText("in: name")).toBeInTheDocument();
+  });
+
+  it("mirrors a prefix the moment the colon is typed", () => {
+    setup({ search: "n:" });
+
+    // "n:" carries no term yet, so nothing is filtered — the chip is the only
+    // confirmation that the prefix registered.
+    expect(screen.getByText("in: name")).toBeInTheDocument();
+  });
+
+  it("summarizes several prefixes in one query", () => {
+    setup({ search: "k:fury n:teemo" });
+
+    expect(screen.getByText("in: name, keywords")).toBeInTheDocument();
+  });
+
+  it("offers no menu or remove button on the prefix chip", () => {
+    setup({ search: "n:teemo" });
+
+    expect(screen.queryByRole("button", { name: /change search scope/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Search in all fields" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the scope chip once the prefix is removed", async () => {
+    const user = userEvent.setup();
+    setup({ search: "n:teemo", scope: ["cardText"] });
+
+    await user.clear(screen.getByRole("textbox"));
+    await user.type(screen.getByRole("textbox"), "teemo");
+
+    expect(screen.getByText("in: card text")).toBeInTheDocument();
   });
 
   it("resets the scope to all fields via the chip's remove button", async () => {

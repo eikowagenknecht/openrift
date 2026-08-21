@@ -1,8 +1,8 @@
-import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
+import { ALL_SEARCH_FIELDS, searchPrefixFields } from "@openrift/shared";
 import { useEffect, useRef, useState } from "react";
 
 import { SearchInput } from "@/components/filters/search-input";
-import { SearchScopeChip } from "@/components/filters/search-scope-menu";
+import { SearchPrefixChip, SearchScopeChip } from "@/components/filters/search-scope-menu";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { trackEvent } from "@/lib/analytics";
@@ -41,7 +41,10 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     onCommit: commitSearch,
   });
 
-  const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
+  // Counts a prefix the user is still typing ("n:"), so the chip below swaps
+  // over on the colon rather than waiting for the first letter of the term.
+  const prefixFields = searchPrefixFields(localSearch);
+  const hasPrefixes = prefixFields.length > 0;
 
   // The unit is already on the trailing count ("142 copies"), so the
   // placeholder doesn't repeat it — that just crowds the field on a phone.
@@ -51,7 +54,8 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   // "keywords only" scope reads as broken search. Keep it visible as an
   // in-field chip whenever it's narrowed, with its own remove X that resets
   // to all fields — the input's clear X only clears the typed text. Explicit
-  // n:/k: prefixes override the scope, so the chip hides then.
+  // n:/k: prefixes override the scope, so the read-only prefix chip stands in
+  // for it while one is typed.
   const scopeNarrowed = !allSelected && !hasPrefixes;
   // An un-narrowed scope still needs a way in, so the chip also appears on
   // focus while the field is empty — the moment the user is deciding what to
@@ -71,6 +75,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       inputRef={inputRef}
     />
   ) : undefined;
+  // A typed prefix beats the picked scope for that term, so the chip reports
+  // the prefix instead of a scope the query is ignoring.
+  const leadingChip = hasPrefixes ? <SearchPrefixChip fields={prefixFields} /> : scopeChip;
 
   const cardCountLabel =
     hasActiveFilters && filteredCount !== totalCards
@@ -88,7 +95,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
         setSearch("");
       }}
       placeholder={placeholder}
-      leading={scopeChip}
+      leading={leadingChip}
       trailing={`${cardCountLabel} ${unitLabel}`}
       onFocus={() => setSearchFocused(true)}
       onBlur={() => setSearchFocused(false)}

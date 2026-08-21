@@ -25,6 +25,7 @@ export {
   matchesDomains,
   noneExcluded,
   parseSearchTerms,
+  searchPrefixFields,
   sortCards,
 } from "./filters.js";
 export type { SortCardsOptions } from "./filters.js";

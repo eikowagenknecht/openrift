@@ -54,6 +54,15 @@ function toTerm(field: SearchField | null, text: string): ParsedSearchTerm | nul
 }
 
 /**
+ * One search token: a prefixed term (`n:Dragon`, `n:"Fire Dragon"`), a quoted
+ * phrase, or a bare word. Kept as a source string so each scan builds its own
+ * stateful `g` regex from it and the two readers can never drift apart.
+ */
+const SEARCH_TERM_PATTERN =
+  /(?:(?<prefix>id|ty|[ndktaf]):(?:"(?<quoted>[^"]*)"|(?<bare>[\S]*)))|(?:"(?<looseQuoted>[^"]*)")|(?<loose>\S+)/u
+    .source;
+
+/**
  * Tokenizes a raw search string into structured terms, supporting prefix syntax
  * like "n:Fireball" or "t:spell" so the UI can target specific card fields.
  * Terms are split on whitespace; use quotes to include spaces in a term.
@@ -71,8 +80,7 @@ function toTerm(field: SearchField | null, text: string): ParsedSearchTerm | nul
  */
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   const terms: ParsedSearchTerm[] = [];
-  const regex =
-    /(?:(?<prefix>id|ty|[ndktaf]):(?:"(?<quoted>[^"]*)"|(?<bare>[\S]*)))|(?:"(?<looseQuoted>[^"]*)")|(?<loose>\S+)/gu;
+  const regex = new RegExp(SEARCH_TERM_PATTERN, "gu");
   let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
     const groups = match.groups;
@@ -86,6 +94,34 @@ export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
     }
   }
   return terms;
+}
+
+/**
+ * The fields a query's typed prefixes target, in {@link ALL_SEARCH_FIELDS}
+ * order. Unlike {@link parseSearchTerms} this counts a prefix carrying no text
+ * yet, so a half-typed `n:` already reports the name field — the search bar
+ * mirrors it back as a chip the moment the colon lands.
+ *
+ * @returns The prefixed fields, deduplicated; empty when the query has no prefixes.
+ *
+ * @example
+ * ```ts
+ * searchPrefixFields("n:") // => ["name"]
+ * searchPrefixFields("k:fury n:teemo fire") // => ["name", "keywords"]
+ * ```
+ */
+export function searchPrefixFields(raw: string): SearchField[] {
+  const regex = new RegExp(SEARCH_TERM_PATTERN, "gu");
+  const found = new Set<SearchField>();
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(raw)) !== null) {
+    const prefix = match.groups?.prefix;
+    const field = prefix ? SEARCH_PREFIX_MAP[prefix] : undefined;
+    if (field) {
+      found.add(field);
+    }
+  }
+  return ALL_SEARCH_FIELDS.filter((field) => found.has(field));
 }
 
 /**

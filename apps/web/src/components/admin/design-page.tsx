@@ -49,7 +49,7 @@ import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { CoverBand } from "@/components/cover-band";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { SearchInput } from "@/components/filters/search-input";
-import { SearchScopeChip } from "@/components/filters/search-scope-menu";
+import { SearchPrefixChip, SearchScopeChip } from "@/components/filters/search-scope-menu";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
 import {
@@ -2076,6 +2076,7 @@ function toggleDemoScope(scope: SearchField[], field: SearchField): SearchField[
 function CompositesSection() {
   const [plainSearch, setPlainSearch] = useState("");
   const [scopedSearch, setScopedSearch] = useState("teemo");
+  const [prefixedSearch, setPrefixedSearch] = useState("n:teemo");
   const [demoScope, setDemoScope] = useState<SearchField[]>(["name", "keywords"]);
   const [demoScopeOpen, setDemoScopeOpen] = useState(false);
   const demoSearchRef = useRef<HTMLInputElement>(null);
@@ -2131,7 +2132,7 @@ function CompositesSection() {
         </Demo>
         <Demo
           name="SearchInput"
-          hint="Every search surface: magnifier, scope chip (click it for the field menu), result count, clear. On a real surface the chip only mounts while the scope is narrowed or the empty field is focused."
+          hint="Every search surface: magnifier, scope chip (click it for the field menu), result count, clear. On a real surface the chip only mounts while the scope is narrowed or the empty field is focused, and a typed n:/k: prefix swaps it for the muted, read-only prefix chip."
           className="xl:col-span-2"
         >
           <SearchInput
@@ -2157,6 +2158,14 @@ function CompositesSection() {
               />
             }
             trailing="12 / 40 cards"
+            className="w-80"
+          />
+          <SearchInput
+            value={prefixedSearch}
+            onValueChange={setPrefixedSearch}
+            placeholder="Search cards…"
+            leading={<SearchPrefixChip fields={["name"]} />}
+            trailing="3 / 40 cards"
             className="w-80"
           />
         </Demo>

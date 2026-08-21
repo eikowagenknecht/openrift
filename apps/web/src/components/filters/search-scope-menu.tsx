@@ -46,6 +46,33 @@ export function scopeSummary(scope: readonly SearchField[]): string {
     : labels.join(", ");
 }
 
+interface SearchPrefixChipProps {
+  /** Fields the typed prefixes target, from `searchPrefixFields`. */
+  fields: SearchField[];
+}
+
+/**
+ * Read-only echo of the `n:` / `k:` prefixes in the query, in the same slot the
+ * scope chip uses. It appears the moment the colon lands, so a typed prefix
+ * confirms itself the way picking a field from the menu does. It carries no
+ * menu and no ×: the query text is the control, and editing it is how the
+ * prefix goes away.
+ *
+ * @returns The prefix chip.
+ */
+export function SearchPrefixChip({ fields }: SearchPrefixChipProps) {
+  const summary = scopeSummary(fields);
+  return (
+    <Badge
+      variant="muted"
+      className="min-w-0 font-normal"
+      title={`Your query's prefix searches ${summary}. Remove it to search the fields you picked.`}
+    >
+      <span className="min-w-0 truncate">in: {summary}</span>
+    </Badge>
+  );
+}
+
 interface SearchScopeChipProps {
   scope: SearchField[];
   toggleField: (field: SearchField) => void;
