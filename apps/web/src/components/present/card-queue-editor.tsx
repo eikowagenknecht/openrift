@@ -11,7 +11,7 @@ import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import type { StageQueueRowData } from "@/components/present/stage-dnd-types";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { moveQueueEntry } from "@/lib/card-queue-search";
+import { moveQueueEntry } from "@/lib/card-queue";
 import { formatPublicCode } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

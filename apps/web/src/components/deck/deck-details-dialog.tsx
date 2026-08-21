@@ -23,7 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
 import type { DeckMetaPatch } from "@/hooks/use-decks";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
-import { searchCards } from "@/hooks/use-quick-add-search";
+import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import { cn } from "@/lib/utils";
 
 const DESCRIPTION_MAX = 8000;
@@ -96,10 +96,11 @@ export function DeckDetailsDialog({
   const { update } = useUpdateDeckMeta(deckId);
   const { printingsByCardId } = useCards();
 
-  const suggestions =
-    token !== null && token.length > 0
-      ? searchCards(token, printingsByCardId, { limit: AUTOCOMPLETE_LIMIT })
-      : [];
+  // Unconditional, unlike the caret check that gates it: an empty query returns
+  // no suggestions on its own, and a hook can't sit behind a ternary.
+  const suggestions = useQuickAddSearch(token ?? "", printingsByCardId, {
+    limit: AUTOCOMPLETE_LIMIT,
+  });
   const clampedSuggestion = Math.min(suggestionIndex, Math.max(0, suggestions.length - 1));
 
   const filledLinks = links.filter((link) => link.url.trim() !== "");

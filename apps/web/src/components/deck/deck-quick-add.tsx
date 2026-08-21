@@ -18,7 +18,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { useCards } from "@/hooks/use-cards";
 import { canAddRune, useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { searchCards } from "@/hooks/use-quick-add-search";
+import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   catalogCardToDeckBuilderCard,
@@ -198,7 +198,7 @@ function QuickAddInner({
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const results = searchCards(query, printingsByCardId);
+  const results = useQuickAddSearch(query, printingsByCardId);
   const clampedIndex = Math.min(selectedIndex, Math.max(0, results.length - 1));
   const selected = results[clampedIndex];
   const expanded =

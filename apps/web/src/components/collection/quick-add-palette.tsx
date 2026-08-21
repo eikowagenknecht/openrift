@@ -35,7 +35,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useQuickAddMoveMode } from "@/hooks/use-quick-add-move-mode";
-import { searchCards } from "@/hooks/use-quick-add-search";
+import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import { compactFormatterForMarketplace, formatCardId, priceColorClass } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
@@ -186,7 +186,7 @@ function PaletteInner({
   });
   const { inMoveMode, moveFrom, moveTo } = move;
 
-  const results = searchCards(query, printingsByCardId, {
+  const results = useQuickAddSearch(query, printingsByCardId, {
     // In move mode the ×N badges show what's movable in the current
     // From scope, not the global owned count.
     ownedCountByPrinting: inMoveMode ? (move.movableCounts ?? {}) : ownedCountByPrinting,

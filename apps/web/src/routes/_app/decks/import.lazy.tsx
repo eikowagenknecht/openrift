@@ -23,10 +23,10 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import type { RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { CardThumbnail } from "@/components/cards/printing-option-content";
 import { DeckImportSummary } from "@/components/deck/deck-import-summary";
 import {
@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { handleImportFileUpload } from "@/hooks/import-flow-shared";
+import { useCardSearch } from "@/hooks/use-card-search";
 import { useCards } from "@/hooks/use-cards";
 import {
   deckDetailQueryOptions,
@@ -94,7 +95,6 @@ import {
 import { resolveReplaceTarget } from "@/lib/deck-import-replace";
 import type { ImportBucket } from "@/lib/import-summary";
 import { classifyBucket } from "@/lib/import-summary";
-import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
@@ -1332,6 +1332,9 @@ function ZonePicker({
 
 const MAX_SEARCH_RESULTS = 20;
 
+/** One letter is a useful filter here, the way it is in the palettes. */
+const MIN_QUERY_LENGTH = 1;
+
 function CardSearch({
   allPrintings,
   onSelect,
@@ -1340,63 +1343,79 @@ function CardSearch({
   onSelect: (card: ResolvedCard) => void;
 }) {
   const [query, setQuery] = useState("");
-  const results = deduplicateToCards(allPrintings, query).slice(0, MAX_SEARCH_RESULTS);
+  const { rows, codesByCardId } = useResolvedCardIndex(allPrintings);
+  const matches = useCardSearch(rows, query, codesByCardId, MAX_SEARCH_RESULTS, MIN_QUERY_LENGTH);
+  const results = matches.map((row) => ({
+    id: row.id,
+    label: row.name,
+    sublabel: row.card.shortCode,
+    leading: <CardThumbnail cardId={row.id} className="h-8" />,
+    // The row's own resolved card, handed straight back on pick: the
+    // correction needs the whole record, not just the id.
+    card: row.card,
+  }));
 
   return (
-    <CatalogSearchCombobox<ResolvedCard>
+    <CardSearchDropdown
       ariaLabel="Search cards"
       placeholder="Search cards..."
       // Full width on phones: the cluster is already indented under the card
       // name, so the default 176px box leaves too little room to read a result.
       className="h-8 w-full sm:h-7 sm:w-44"
       results={results}
-      onQueryChange={setQuery}
-      getKey={(card) => card.cardId}
-      renderItem={(card) => (
-        <>
-          <CardThumbnail cardId={card.cardId} className="h-8" />
-          <span className="truncate font-medium">{card.cardName}</span>
-          <span className="text-muted-foreground shrink-0">{card.shortCode}</span>
-        </>
-      )}
-      onSelect={onSelect}
+      onSearch={setQuery}
+      onSelect={(_id, result) => onSelect(result.card)}
     />
   );
 }
 
 /**
- * Filters printings by query and deduplicates to unique cards.
- * @returns ResolvedCard array with one entry per unique card.
+ * Deduplicates the catalog to one {@link ResolvedCard} per card, keeping each
+ * card's first printing as its representative. The colloquial Legend name is
+ * the display name ("Azir, Emperor of the Sands") so the dropdown reads like
+ * the rest of the app, and it is what the matcher indexes.
+ *
+ * @returns One searchable row per unique card, and the codes to search them by.
  */
-function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCard[] {
-  const tokens = searchTokens(query);
-  if (tokens.length === 0) {
-    return [];
-  }
-  const seen = new Set<string>();
-  const results: ResolvedCard[] = [];
-
-  for (const printing of allPrintings) {
-    if (seen.has(printing.cardId)) {
-      continue;
-    }
-    // Match the colloquial Legend name too ("Azir, Emperor of the Sands"), and
-    // surface it as the display name so the dropdown reads like the rest of the app.
-    const displayName = legendDisplayName(printing.card);
-    if (matchesAllTokens(tokens, displayName, printing.shortCode)) {
+function useResolvedCardIndex(allPrintings: Printing[]) {
+  const rows = useMemo(() => {
+    const seen = new Set<string>();
+    const results: { id: string; slug: string; name: string; card: ResolvedCard }[] = [];
+    for (const printing of allPrintings) {
+      if (seen.has(printing.cardId)) {
+        continue;
+      }
       seen.add(printing.cardId);
+      const displayName = legendDisplayName(printing.card);
       results.push({
-        cardId: printing.cardId,
-        cardName: displayName,
-        cardType: printing.card.type,
-        cardTypes: printing.card.types,
-        superTypes: printing.card.superTypes,
-        domains: printing.card.domains,
-        shortCode: printing.shortCode,
-        preferredPrintingId: null,
+        id: printing.cardId,
+        slug: printing.cardId,
+        name: displayName,
+        card: {
+          cardId: printing.cardId,
+          cardName: displayName,
+          cardType: printing.card.type,
+          cardTypes: printing.card.types,
+          superTypes: printing.card.superTypes,
+          domains: printing.card.domains,
+          shortCode: printing.shortCode,
+          preferredPrintingId: null,
+        },
       });
     }
-  }
+    return results;
+  }, [allPrintings]);
 
-  return results;
+  const codesByCardId = useMemo(
+    () =>
+      new Map(
+        rows.map((row) => [
+          row.id,
+          [{ shortCode: row.card.shortCode, publicCode: row.card.shortCode }],
+        ]),
+      ),
+    [rows],
+  );
+
+  return { rows, codesByCardId };
 }

@@ -181,31 +181,38 @@ export function CardSearchRow({ result }: { result: CardSearchResult }) {
 /**
  * {@link CatalogSearchCombobox} specialized to the standard card row, which is
  * what most pickers want. Reach for the generic version only when a surface
- * needs a row shape this one can't express.
+ * needs a row shape this one can't express — the printing-scoped catalog search
+ * with its two-line row and hover preview is the one that genuinely does.
+ *
+ * Results may carry surface-specific fields alongside the row contract, and the
+ * picked row comes back as the second `onSelect` argument. That is how a
+ * surface that needs more than the id (the deck import's `ResolvedCard`) avoids
+ * both a hand-rolled `renderItem` and a lookup map at the call site. Most
+ * pickers only want the id, so it stays the first argument.
  *
  * @returns The card autocomplete.
  */
-export function CardSearchDropdown({
+export function CardSearchDropdown<T extends CardSearchResult = CardSearchResult>({
   results,
   onSearch,
   onSelect,
   ...rest
 }: Omit<
-  CatalogSearchComboboxProps<CardSearchResult>,
+  CatalogSearchComboboxProps<T>,
   "getKey" | "renderItem" | "onSelect" | "onQueryChange" | "itemToInputValue"
 > & {
   /** The debounced query; the combobox owns the debounce. */
   onSearch: (query: string) => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, result: T) => void;
 }) {
   return (
-    <CatalogSearchCombobox<CardSearchResult>
+    <CatalogSearchCombobox<T>
       results={results}
       getKey={(result) => result.id}
       renderItem={(result) => <CardSearchRow result={result} />}
       itemToInputValue={(result) => result.label}
       onQueryChange={onSearch}
-      onSelect={(result) => onSelect(result.id)}
+      onSelect={(result) => onSelect(result.id, result)}
       {...rest}
     />
   );

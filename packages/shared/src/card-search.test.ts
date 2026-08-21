@@ -9,6 +9,7 @@ const cards: SearchableCard[] = [
   { id: "c3", slug: "dorans-shield", name: "Doran’s Shield" },
   { id: "c4", slug: "mecha-jinx", name: "Mecha Jinx" },
   { id: "c5", slug: "viktor", name: "Viktor" },
+  { id: "c7", slug: "annie-dark-child", name: "Annie, Dark Child" },
 ];
 
 const printingsByCardId = new Map<string, SearchablePrintingCodes[]>([
@@ -70,6 +71,47 @@ describe("searchCards", () => {
 
   it("respects the limit", () => {
     expect(searchCards(index, "jinx", 2)).toHaveLength(2);
+  });
+
+  it("ranks a word-boundary hit above a mid-word one", () => {
+    const results = searchCards(
+      indexFor([
+        { id: "m1", slug: "unjinxed", name: "Unjinxed" },
+        { id: "m2", slug: "mecha-jinx", name: "Mecha Jinx" },
+      ]),
+      "jinx",
+      10,
+    );
+    expect(results.map((c) => c.slug)).toEqual(["mecha-jinx", "unjinxed"]);
+  });
+
+  it("matches every token regardless of the order they were typed in", () => {
+    expect(searchCards(index, "dark annie", 10).map((c) => c.slug)).toEqual(["annie-dark-child"]);
+    expect(searchCards(index, "child annie", 10).map((c) => c.slug)).toEqual(["annie-dark-child"]);
+  });
+
+  it("ranks a contiguous match above an out-of-order one", () => {
+    const results = searchCards(
+      indexFor([
+        { id: "t1", slug: "dark-annie", name: "Dark Annie" },
+        { id: "t2", slug: "annie-dark-child", name: "Annie, Dark Child" },
+      ]),
+      "dark annie",
+      10,
+    );
+    expect(results.map((c) => c.slug)).toEqual(["dark-annie", "annie-dark-child"]);
+  });
+
+  it("lets one token match a name and another a printing code", () => {
+    expect(searchCards(index, "rebel ogn202", 10).map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("still requires every token to match", () => {
+    expect(searchCards(index, "annie teemo", 10)).toEqual([]);
+  });
+
+  it("matches a printing code as a substring", () => {
+    expect(searchCards(index, "202", 10).map((c) => c.id)).toEqual(["c1"]);
   });
 
   it("keeps the caller's richer card type on the way out", () => {

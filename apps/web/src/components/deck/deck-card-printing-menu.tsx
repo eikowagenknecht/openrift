@@ -1,10 +1,11 @@
 import type { Printing } from "@openrift/shared";
 import type { MouseEvent, ReactNode } from "react";
-import { useRef } from "react";
 
-import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
-import { PrintingOptionContent } from "@/components/cards/printing-option-content";
-import { usePrintingHover } from "@/components/cards/use-printing-hover";
+import {
+  PrintingChoiceMenuSection,
+  PrintingChoicePreview,
+  usePrintingChoiceHover,
+} from "@/components/cards/printing-choice-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -12,20 +13,28 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePrintingChoices } from "@/hooks/use-printing-choices";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { buildMoveRows, getAllowedMoveTargets } from "@/lib/deck-builder-card";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
-import { cn } from "@/lib/utils";
-import { useDisplayStore } from "@/stores/display-store";
 
 interface DeckCardPrintingMenuProps {
   deckId: string;
   card: DeckBuilderCard;
   children: ReactNode;
+}
+
+/**
+ * The shift-click note beside a section label, shown only for a multi-copy row.
+ * @returns The note, hidden on phones where there is no shift key.
+ */
+function SplitHint({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">{children}</span>
+  );
 }
 
 /**
@@ -40,20 +49,8 @@ interface DeckCardPrintingMenuProps {
 export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintingMenuProps) {
   const { changePreferredPrinting, moveCard, moveOneCard } = useDeckBuilderActions(deckId);
   const isMobile = useIsMobile();
-  const { printingsByCardId } = useCards();
-  const languages = useDisplayStore((state) => state.languages);
-  const allPrintings = printingsByCardId.get(card.cardId) ?? [];
-  // Filter to the user's preferred languages, but always keep the currently
-  // pinned printing visible even if its language is outside the filter.
-  const printings =
-    languages && languages.length > 0
-      ? allPrintings.filter(
-          (printing) =>
-            languages.includes(printing.language) || printing.id === card.preferredPrintingId,
-        )
-      : allPrintings;
-  const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
-  const popupRef = useRef<HTMLDivElement>(null);
+  const printings = usePrintingChoices(card.cardId, card.preferredPrintingId);
+  const { hoveredId, popupRef, hoverProps, reset } = usePrintingChoiceHover();
 
   const { data: deckDetail } = useDeckDetail(deckId);
   const moveTargets = getAllowedMoveTargets(card, deckDetail.deck.format);
@@ -64,19 +61,30 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     return children;
   }
 
+  // Shift-click on a row with >1 copies splits off one copy to the target.
+  // Otherwise convert the whole row.
+  const countFor = (event: MouseEvent) => (event.shiftKey && card.quantity > 1 ? 1 : card.quantity);
+
   const handleSelect = (printing: Printing, event: MouseEvent) => {
-    const isShift = event.shiftKey;
-    // Shift-click on a row with >1 copies splits off one copy to the target.
-    // Otherwise convert the whole row.
-    const count = isShift && card.quantity > 1 ? 1 : card.quantity;
-    changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, printing.id, count);
+    changePreferredPrinting(
+      card.cardId,
+      card.zone,
+      card.preferredPrintingId,
+      printing.id,
+      countFor(event),
+    );
   };
 
   // Clears the pinned printing (toPrintingId: null) so the row falls back to the
   // language/set default. Shift-click splits off a single copy like handleSelect.
   const handleSelectDefault = (event: MouseEvent) => {
-    const count = event.shiftKey && card.quantity > 1 ? 1 : card.quantity;
-    changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, null, count);
+    changePreferredPrinting(
+      card.cardId,
+      card.zone,
+      card.preferredPrintingId,
+      null,
+      countFor(event),
+    );
   };
 
   const handleMove = (targetZone: (typeof moveTargets)[number], splitOne: boolean) => {
@@ -86,8 +94,6 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
       moveCard(card.cardId, card.zone, targetZone, card.preferredPrintingId);
     }
   };
-
-  const hoveredPrinting = hoveredId ? printings.find((p) => p.id === hoveredId) : null;
 
   return (
     <ContextMenu onOpenChange={(open) => !open && reset()}>
@@ -102,11 +108,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
           <>
             <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
               Move to
-              {card.quantity > 1 && (
-                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
-                  · shift-click to move 1
-                </span>
-              )}
+              {card.quantity > 1 && <SplitHint>· shift-click to move 1</SplitHint>}
             </div>
             <div className="flex flex-col gap-0.5">
               {moveRows.map((row) => (
@@ -129,81 +131,16 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
             {printings.length > 0 && <ContextMenuSeparator />}
           </>
         )}
-        {printings.length > 0 && (
-          <>
-            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
-              Change printing
-              {card.quantity > 1 && (
-                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
-                  · shift-click to split 1
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {card.preferredPrintingId && (
-                <ContextMenuItem
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleSelectDefault(event);
-                  }}
-                >
-                  Use default printing
-                </ContextMenuItem>
-              )}
-              {printings.map((printing) => (
-                <PrintingMenuItem
-                  key={printing.id}
-                  printing={printing}
-                  printings={printings}
-                  isActive={printing.id === card.preferredPrintingId}
-                  onSelect={handleSelect}
-                  onHoverEnter={onEnter}
-                  onHoverLeave={onLeave}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        <PrintingChoiceMenuSection
+          printings={printings}
+          activePrintingId={card.preferredPrintingId}
+          hoverProps={hoverProps}
+          hint={card.quantity > 1 && <SplitHint>· shift-click to split 1</SplitHint>}
+          onSelect={handleSelect}
+          onSelectDefault={handleSelectDefault}
+        />
       </ContextMenuContent>
-      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
+      <PrintingChoicePreview hoveredId={hoveredId} printings={printings} anchorRef={popupRef} />
     </ContextMenu>
-  );
-}
-
-function PrintingMenuItem({
-  printing,
-  printings,
-  isActive,
-  onSelect,
-  onHoverEnter,
-  onHoverLeave,
-}: {
-  printing: Printing;
-  printings: Printing[];
-  isActive: boolean;
-  onSelect: (printing: Printing, event: MouseEvent) => void;
-  onHoverEnter: (id: string) => void;
-  onHoverLeave: () => void;
-}) {
-  return (
-    <ContextMenuItem
-      className={cn(isActive && "bg-muted ring-border ring-1")}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect(printing, event);
-      }}
-      onPointerEnter={(event) => {
-        if (event.pointerType === "mouse") {
-          onHoverEnter(printing.id);
-        }
-      }}
-      onPointerLeave={(event) => {
-        if (event.pointerType === "mouse") {
-          onHoverLeave();
-        }
-      }}
-    >
-      <PrintingOptionContent printing={printing} siblings={printings} />
-    </ContextMenuItem>
   );
 }

@@ -1,7 +1,8 @@
-import type { Printing } from "@openrift/shared";
-import { foldForSearch, legendDisplayName, squashForSearch } from "@openrift/shared";
+import type { Printing, SearchablePrintingCodes } from "@openrift/shared";
+import { buildCardIndex, legendDisplayName, searchCards } from "@openrift/shared";
+import { useMemo } from "react";
 
-interface QuickAddCardResult {
+export interface QuickAddCardResult {
   /** The card ID shared by all printings in this group. */
   cardId: string;
   cardName: string;
@@ -13,7 +14,7 @@ interface QuickAddCardResult {
   ownedCount: number;
 }
 
-interface SearchCardsOptions {
+interface QuickAddSearchOptions {
   ownedCountByPrinting?: Record<string, number>;
   /**
    * Optional allowlist of language codes — when provided, each card's
@@ -25,95 +26,96 @@ interface SearchCardsOptions {
   limit?: number;
 }
 
+/** Default palette depth; a palette shows a short list, not the whole catalog. */
+const DEFAULT_LIMIT = 8;
+
 /**
- * Searches the catalog by card name and returns grouped, ranked results.
- * All filtering is client-side against the in-memory catalog.
- * @returns Up to `options.limit` card results ranked by match quality.
+ * One searchable row per card, carrying the card's printings so the palette can
+ * expand a row without a second lookup.
  */
-export function searchCards(
+interface QuickAddRow {
+  id: string;
+  slug: string;
+  name: string;
+  printings: Printing[];
+}
+
+/**
+ * Searches the catalog by card name or printing code and returns grouped,
+ * ranked results for the two command palettes (collection Quick Add, deck Quick
+ * Add).
+ *
+ * Ranking is the app-wide matcher (`@openrift/shared/card-search`), the same one
+ * behind every picker dropdown, so a query cannot order results one way here and
+ * another in the deck plan editor. What stays local is the grouping: one row per
+ * card with its printings and owned count attached, which is the shape a palette
+ * row expands into.
+ *
+ * The index is memoized on the catalog (and the language allowlist, which
+ * decides which cards exist at all), so typing re-ranks ready-made strings
+ * instead of re-folding every name in the catalog per keystroke.
+ *
+ * @param query What the user typed; an empty query returns nothing.
+ * @param printingsByCardId The catalog, identity-stable across keystrokes.
+ * @param options Owned counts, language allowlist, and result cap.
+ * @returns Up to `options.limit` card results, best match first.
+ */
+export function useQuickAddSearch(
   query: string,
   printingsByCardId: Map<string, Printing[]>,
-  options: SearchCardsOptions = {},
+  options: QuickAddSearchOptions = {},
 ): QuickAddCardResult[] {
-  const { ownedCountByPrinting, preferredLanguages, limit = 8 } = options;
-  const trimmed = query.trim();
-  if (trimmed.length === 0) {
-    return [];
-  }
+  const { ownedCountByPrinting, preferredLanguages, limit = DEFAULT_LIMIT } = options;
 
-  const normalizedQuery = squashForSearch(trimmed);
-  if (normalizedQuery.length === 0) {
-    return [];
-  }
-  const foldedQuery = foldForSearch(trimmed);
+  // Joined rather than passed as an array so a caller rebuilding the list each
+  // render doesn't invalidate the index on every keystroke.
+  const languageKey = preferredLanguages?.join(",") ?? "";
 
-  const languageAllowlist =
-    preferredLanguages && preferredLanguages.length > 0 ? new Set(preferredLanguages) : null;
-
-  const results: { result: QuickAddCardResult; rank: number }[] = [];
-
-  for (const [cardId, allPrintings] of printingsByCardId) {
-    const printings = languageAllowlist
-      ? allPrintings.filter((p) => languageAllowlist.has(p.language))
-      : allPrintings;
-    if (printings.length === 0) {
-      continue;
-    }
-    // Match and display by the colloquial Legend name ("Azir, Emperor of the
-    // Sands") so typing the champion finds it; non-Legends are unchanged.
-    const cardName = legendDisplayName(printings[0].card);
-    const normalizedName = squashForSearch(cardName);
-
-    let rank: number;
-    if (normalizedName === normalizedQuery) {
-      // Exact match
-      rank = 0;
-    } else if (normalizedName.startsWith(normalizedQuery)) {
-      // Prefix match
-      rank = 1;
-    } else {
-      // Word-boundary match: check if any word in the name starts with the query.
-      // Compared on the folded forms, so a typed "kai'sa" lines up with the
-      // stored "Kai’Sa" here the same way it does for the ranks above.
-      const words = foldForSearch(cardName).split(" ");
-      if (words.some((word) => word.startsWith(foldedQuery))) {
-        rank = 2;
-      } else if (normalizedName.includes(normalizedQuery)) {
-        // Substring match
-        rank = 3;
-      } else if (printings.some((p) => squashForSearch(p.shortCode).includes(normalizedQuery))) {
-        // Short code match (e.g. "OGN-042", "ogn042" or just "042")
-        rank = 4;
-      } else {
+  const index = useMemo(() => {
+    const allowlist = languageKey === "" ? null : new Set(languageKey.split(","));
+    const rows: QuickAddRow[] = [];
+    const codes = new Map<string, SearchablePrintingCodes[]>();
+    for (const [cardId, allPrintings] of printingsByCardId) {
+      const printings = allowlist
+        ? allPrintings.filter((printing) => allowlist.has(printing.language))
+        : allPrintings;
+      const first = printings[0];
+      if (!first) {
         continue;
       }
-    }
-
-    let ownedCount = 0;
-    if (ownedCountByPrinting) {
-      for (const printing of printings) {
-        ownedCount += ownedCountByPrinting[printing.id] ?? 0;
-      }
-    }
-
-    results.push({
-      result: {
+      // Match and display by the colloquial Legend name ("Azir, Emperor of the
+      // Sands") so typing the champion finds it; non-Legends are unchanged.
+      rows.push({ id: cardId, slug: cardId, name: legendDisplayName(first.card), printings });
+      codes.set(
         cardId,
-        cardName,
-        defaultPrinting: printings[0],
-        printings,
-        ownedCount,
-      },
-      rank,
-    });
-  }
-
-  results.sort((a, b) => {
-    if (a.rank !== b.rank) {
-      return a.rank - b.rank;
+        printings.map((printing) => ({
+          shortCode: printing.shortCode,
+          publicCode: printing.publicCode,
+        })),
+      );
     }
-    return a.result.cardName.localeCompare(b.result.cardName);
-  });
+    return buildCardIndex(rows, codes);
+  }, [printingsByCardId, languageKey]);
 
-  return results.slice(0, limit).map((entry) => entry.result);
+  return useMemo(() => {
+    if (query.trim() === "") {
+      return [];
+    }
+    return searchCards(index, query, limit).map((row) => {
+      let ownedCount = 0;
+      if (ownedCountByPrinting) {
+        for (const printing of row.printings) {
+          ownedCount += ownedCountByPrinting[printing.id] ?? 0;
+        }
+      }
+      return {
+        cardId: row.id,
+        cardName: row.name,
+        // A row only exists when it has at least one printing, so this is safe.
+        defaultPrinting: row.printings[0] as Printing,
+        printings: row.printings,
+        ownedCount,
+      };
+    });
+  }, [index, query, limit, ownedCountByPrinting]);
 }

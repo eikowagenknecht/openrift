@@ -1,11 +1,13 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, CheckCircle2Icon, SearchIcon, XCircleIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
-import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
+import {
+  PrintingChoicePreview,
+  usePrintingChoiceHover,
+} from "@/components/cards/printing-choice-menu";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
-import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import { PrintingSearch } from "@/components/printing-search";
 import { Button } from "@/components/ui/button";
@@ -160,9 +162,7 @@ function VariantPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const { labels } = useEnumOrders();
-  const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
-  const hoveredPrinting = hoveredId ? candidates.find((c) => c.id === hoveredId) : null;
-  const popupRef = useRef<HTMLDivElement>(null);
+  const { hoveredId, popupRef, hoverProps, reset } = usePrintingChoiceHover();
   return (
     <Select
       value={resolved?.id ?? ""}
@@ -186,30 +186,13 @@ function VariantPicker({
             key={printing.id}
             value={printing.id}
             className="py-1.5"
-            onPointerEnter={(event) => {
-              if (event.pointerType === "mouse") {
-                onEnter(printing.id);
-              }
-            }}
-            onPointerLeave={(event) => {
-              if (event.pointerType === "mouse") {
-                onLeave();
-              }
-            }}
+            {...hoverProps(printing.id)}
           >
             <PrintingOptionContent printing={printing} siblings={candidates} />
           </SelectItem>
         ))}
       </SelectContent>
-      {hoveredPrinting && (
-        // Keyed so the preview remounts per variant; otherwise the position
-        // effect won't re-run after an imageless variant unmounts the preview.
-        <PrintingHoverPreview
-          key={hoveredPrinting.id}
-          printing={hoveredPrinting}
-          anchorRef={popupRef}
-        />
-      )}
+      <PrintingChoicePreview hoveredId={hoveredId} printings={candidates} anchorRef={popupRef} />
     </Select>
   );
 }

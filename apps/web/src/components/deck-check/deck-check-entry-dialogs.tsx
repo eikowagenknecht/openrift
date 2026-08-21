@@ -4,9 +4,9 @@ import type {
   Printing,
 } from "@openrift/shared";
 import { WellKnown, legendDisplayName } from "@openrift/shared";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCardSearch } from "@/hooks/use-card-search";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
 import {
@@ -35,7 +36,6 @@ import {
   useFixTournamentDeckCheckCard,
   useUpdateTournamentDeckCheckEntry,
 } from "@/hooks/use-tournament-deck-check";
-import { matchesAllTokens, normalizedStartsWith, searchTokens } from "@/lib/search-match";
 
 export function EditPlayerDialog({
   tournamentId,
@@ -198,28 +198,22 @@ function CardNameSearchField({
   const { labels } = useEnumOrders();
   const [query, setQuery] = useState(initialName ?? "");
 
-  const results = matchingPrintings(printingsByCardId, query);
+  const results = useMatchingPrintings(printingsByCardId, query).map((printing) => ({
+    id: printing.cardId,
+    label: legendDisplayName(printing.card),
+    sublabel: printing.card.types.map((slug) => labels.cardTypes[slug]).join(" "),
+    leading: <PrintingThumbnail printing={printing} className="h-8" />,
+  }));
 
   return (
-    <CatalogSearchCombobox<Printing>
+    <CardSearchDropdown
       ariaLabel="Card name"
       placeholder="Search card name"
       initialQuery={initialName}
       className="w-full"
       results={results}
-      onQueryChange={setQuery}
-      getKey={(printing) => printing.cardId}
-      renderItem={(printing) => (
-        <>
-          <PrintingThumbnail printing={printing} className="h-8" />
-          <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
-          <span className="text-muted-foreground shrink-0">
-            {printing.card.types.map((slug) => labels.cardTypes[slug]).join(" ")}
-          </span>
-        </>
-      )}
-      onSelect={(printing) => onNameChange(legendDisplayName(printing.card))}
-      itemToInputValue={(printing) => legendDisplayName(printing.card)}
+      onSearch={setQuery}
+      onSelect={(_id, result) => onNameChange(result.label)}
       // Free text is itself valid here: an unknown name becomes a flagged
       // placeholder, so the field reports every keystroke, not just picks.
       onRawInputChange={onNameChange}
@@ -230,36 +224,43 @@ function CardNameSearchField({
 /** How many name matches the deck-check field offers. */
 const MAX_NAME_MATCHES = 8;
 
+/** One letter is a useful filter here, the way it is in the palettes. */
+const MIN_QUERY_LENGTH = 1;
+
 /**
- * Name matches for the deck-check field, best prefix first. Kept out of the
- * component so the search stays a plain function of its inputs.
+ * Name matches for the deck-check field: one representative printing per card,
+ * ranked by the app-wide matcher. Matches the colloquial Legend name too, so
+ * "Azir" finds "Emperor of the Sands" (displayed as "Azir, Emperor of the
+ * Sands").
+ *
  * @returns Up to {@link MAX_NAME_MATCHES} representative printings.
  */
-function matchingPrintings(
+function useMatchingPrintings(
   printingsByCardId: ReadonlyMap<string, Printing[]>,
   query: string,
 ): Printing[] {
-  const tokens = searchTokens(query);
-  if (tokens.length === 0) {
-    return [];
-  }
-  const matches: Printing[] = [];
-  for (const printings of printingsByCardId.values()) {
-    const printing = printings[0];
-    // Match the colloquial Legend name too, so "Azir" finds "Emperor of
-    // the Sands" (displayed as "Azir, Emperor of the Sands").
-    if (printing && matchesAllTokens(tokens, legendDisplayName(printing.card))) {
-      matches.push(printing);
-    }
-  }
-  return matches
-    .toSorted(
-      (first, second) =>
-        Number(normalizedStartsWith(legendDisplayName(second.card), query)) -
-          Number(normalizedStartsWith(legendDisplayName(first.card), query)) ||
-        legendDisplayName(first.card).localeCompare(legendDisplayName(second.card)),
-    )
-    .slice(0, MAX_NAME_MATCHES);
+  const searchable = useMemo(
+    () =>
+      [...printingsByCardId.values()].flatMap((printings) => {
+        const printing = printings[0];
+        return printing
+          ? [
+              {
+                id: printing.cardId,
+                slug: printing.cardId,
+                name: legendDisplayName(printing.card),
+                printing,
+              },
+            ]
+          : [];
+      }),
+    [printingsByCardId],
+  );
+
+  // Names only: the judge is reading a decklist, not a card in hand, so there
+  // is no code to type and the codes map would just cost an index rebuild.
+  const matches = useCardSearch(searchable, query, undefined, MAX_NAME_MATCHES, MIN_QUERY_LENGTH);
+  return matches.map((row) => row.printing);
 }
 
 export function FixCardDialog({

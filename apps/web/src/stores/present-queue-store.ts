@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { moveQueueEntry } from "@/lib/card-queue-search";
+import { moveQueueEntry } from "@/lib/card-queue";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 
 /**

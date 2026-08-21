@@ -1,19 +1,29 @@
 import type { Printing } from "@openrift/shared";
+import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
 
-import { searchCards } from "./use-quick-add-search";
+import type { QuickAddCardResult } from "./use-quick-add-search";
+import { useQuickAddSearch } from "./use-quick-add-search";
 
 function groupByCardId(printings: Printing[]): Map<string, Printing[]> {
   return Map.groupBy(printings, (p) => p.cardId);
 }
 
-describe("searchCards", () => {
+function search(
+  query: string,
+  map: Map<string, Printing[]>,
+  options?: Parameters<typeof useQuickAddSearch>[2],
+): QuickAddCardResult[] {
+  return renderHook(() => useQuickAddSearch(query, map, options)).result.current;
+}
+
+describe("useQuickAddSearch", () => {
   it("returns nothing for an empty query", () => {
     const map = groupByCardId([stubPrinting({ card: { name: "Ahri" } })]);
-    expect(searchCards("", map)).toEqual([]);
-    expect(searchCards("   ", map)).toEqual([]);
+    expect(search("", map)).toEqual([]);
+    expect(search("   ", map)).toEqual([]);
   });
 
   it("ranks exact matches above prefix and substring matches", () => {
@@ -22,9 +32,16 @@ describe("searchCards", () => {
     const substring = stubPrinting({ cardId: "card-substring", card: { name: "Vahri" } });
     const map = groupByCardId([prefix, substring, exact]);
 
-    const results = searchCards("ahri", map);
+    const results = search("ahri", map);
 
     expect(results.map((r) => r.cardId)).toEqual(["card-exact", "card-prefix", "card-substring"]);
+  });
+
+  it("matches every token regardless of the order they were typed in", () => {
+    const annie = stubPrinting({ cardId: "card-annie", card: { name: "Annie, Dark Child" } });
+    const map = groupByCardId([annie]);
+
+    expect(search("dark annie", map).map((r) => r.cardId)).toEqual(["card-annie"]);
   });
 
   it("filters out printings in non-preferred languages and drops empty groups", () => {
@@ -45,7 +62,7 @@ describe("searchCards", () => {
     });
     const map = groupByCardId([ahriEn, ahriJa, yasuoJaOnly]);
 
-    const results = searchCards("a", map, { preferredLanguages: ["EN"] });
+    const results = search("a", map, { preferredLanguages: ["EN"] });
 
     expect(results.map((r) => r.cardId)).toEqual(["card-ahri"]);
     expect(results[0].printings).toEqual([ahriEn]);
@@ -59,7 +76,7 @@ describe("searchCards", () => {
     });
     const map = groupByCardId([ahriJa]);
 
-    const results = searchCards("ahri", map, { preferredLanguages: [] });
+    const results = search("ahri", map, { preferredLanguages: [] });
 
     expect(results.map((r) => r.cardId)).toEqual(["card-ahri"]);
   });
@@ -79,12 +96,22 @@ describe("searchCards", () => {
     });
     const map = groupByCardId([ahriEn, ahriJa]);
 
-    const results = searchCards("ahri", map, {
+    const results = search("ahri", map, {
       ownedCountByPrinting: { "printing-en": 2, "printing-ja": 5 },
       preferredLanguages: ["EN"],
     });
 
     expect(results).toHaveLength(1);
     expect(results[0].ownedCount).toBe(2);
+  });
+
+  it("respects the limit", () => {
+    const map = groupByCardId([
+      stubPrinting({ cardId: "c1", card: { name: "Ahri One" } }),
+      stubPrinting({ cardId: "c2", card: { name: "Ahri Two" } }),
+      stubPrinting({ cardId: "c3", card: { name: "Ahri Three" } }),
+    ]);
+
+    expect(search("ahri", map, { limit: 2 })).toHaveLength(2);
   });
 });

@@ -1,10 +1,10 @@
-import type { Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
-import { useRef } from "react";
 
-import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
-import { PrintingOptionContent } from "@/components/cards/printing-option-content";
-import { usePrintingHover } from "@/components/cards/use-printing-hover";
+import {
+  PrintingChoiceMenuSection,
+  PrintingChoicePreview,
+  usePrintingChoiceHover,
+} from "@/components/cards/printing-choice-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -12,9 +12,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useCards } from "@/hooks/use-cards";
-import { cn } from "@/lib/utils";
-import { useDisplayStore } from "@/stores/display-store";
+import { usePrintingChoices } from "@/hooks/use-printing-choices";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 interface TierCardPrintingMenuProps {
@@ -38,24 +36,10 @@ export function TierCardPrintingMenu({
   pinnedPrintingId,
   children,
 }: TierCardPrintingMenuProps) {
-  const { printingsByCardId } = useCards();
-  const languages = useDisplayStore((state) => state.languages);
   const setPrinting = useTierListBuilderStore((state) => state.setPrinting);
   const unassign = useTierListBuilderStore((state) => state.unassign);
-  const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
-  const popupRef = useRef<HTMLDivElement>(null);
-
-  const allPrintings = printingsByCardId.get(cardId) ?? [];
-  // Filter to the user's preferred languages, but always keep the currently
-  // pinned printing visible even if its language is outside the filter.
-  const printings =
-    languages && languages.length > 0
-      ? allPrintings.filter(
-          (printing) => languages.includes(printing.language) || printing.id === pinnedPrintingId,
-        )
-      : allPrintings;
-
-  const hoveredPrinting = hoveredId ? printings.find((p) => p.id === hoveredId) : null;
+  const printings = usePrintingChoices(cardId, pinnedPrintingId);
+  const { hoveredId, popupRef, hoverProps, reset } = usePrintingChoiceHover();
 
   return (
     <ContextMenu onOpenChange={(open) => !open && reset()}>
@@ -67,72 +51,16 @@ export function TierCardPrintingMenu({
       </ContextMenuTrigger>
       <ContextMenuContent ref={popupRef} className="max-h-[70vh] w-72 overflow-y-auto">
         <ContextMenuItem onClick={() => unassign(cardId)}>Unrank this card</ContextMenuItem>
-        {printings.length > 0 && (
-          <>
-            <ContextMenuSeparator />
-            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
-              Change printing
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {pinnedPrintingId && (
-                <ContextMenuItem onClick={() => setPrinting(cardId, null)}>
-                  Use default printing
-                </ContextMenuItem>
-              )}
-              {printings.map((printing) => (
-                <PrintingMenuItem
-                  key={printing.id}
-                  printing={printing}
-                  printings={printings}
-                  isActive={printing.id === pinnedPrintingId}
-                  onSelect={() => setPrinting(cardId, printing.id)}
-                  onHoverEnter={onEnter}
-                  onHoverLeave={onLeave}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        {printings.length > 0 && <ContextMenuSeparator />}
+        <PrintingChoiceMenuSection
+          printings={printings}
+          activePrintingId={pinnedPrintingId}
+          hoverProps={hoverProps}
+          onSelect={(printing) => setPrinting(cardId, printing.id)}
+          onSelectDefault={() => setPrinting(cardId, null)}
+        />
       </ContextMenuContent>
-      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
+      <PrintingChoicePreview hoveredId={hoveredId} printings={printings} anchorRef={popupRef} />
     </ContextMenu>
-  );
-}
-
-function PrintingMenuItem({
-  printing,
-  printings,
-  isActive,
-  onSelect,
-  onHoverEnter,
-  onHoverLeave,
-}: {
-  printing: Printing;
-  printings: Printing[];
-  isActive: boolean;
-  onSelect: () => void;
-  onHoverEnter: (id: string) => void;
-  onHoverLeave: () => void;
-}) {
-  return (
-    <ContextMenuItem
-      className={cn(isActive && "bg-muted ring-border ring-1")}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
-      onPointerEnter={(event) => {
-        if (event.pointerType === "mouse") {
-          onHoverEnter(printing.id);
-        }
-      }}
-      onPointerLeave={(event) => {
-        if (event.pointerType === "mouse") {
-          onHoverLeave();
-        }
-      }}
-    >
-      <PrintingOptionContent printing={printing} siblings={printings} />
-    </ContextMenuItem>
   );
 }

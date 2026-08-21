@@ -49,7 +49,7 @@ export function PrintingOptionContent({
   siblings,
 }: {
   printing: Printing;
-  siblings?: Printing[];
+  siblings?: readonly Printing[];
 }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
