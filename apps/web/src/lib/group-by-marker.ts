@@ -1,10 +1,5 @@
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
-
-export interface CardMarkerGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+import type { CardGroup } from "@/components/cards/card-grid-types";
 
 export const UNMARKED_ID = "_unmarked";
 export const UNMARKED_LABEL = "Unmarked";
@@ -17,10 +12,7 @@ export const UNMARKED_LABEL = "Unmarked";
  *
  * @returns Marker sections plus an optional trailing unmarked section.
  */
-export function groupItemsByMarker(
-  items: CardViewerItem[],
-  dir: "asc" | "desc",
-): CardMarkerGroup[] {
+export function groupItemsByMarker(items: CardViewerItem[], dir: "asc" | "desc"): CardGroup[] {
   const buckets = new Map<string, { label: string; items: CardViewerItem[] }>();
   const unmarked: CardViewerItem[] = [];
   for (const item of items) {
@@ -40,7 +32,7 @@ export function groupItemsByMarker(
   }
   const sorted = [...buckets.entries()].toSorted(([, a], [, b]) => a.label.localeCompare(b.label));
   const ordered = dir === "desc" ? sorted.toReversed() : sorted;
-  const sections: CardMarkerGroup[] = ordered.map(([slug, bucket]) => ({
+  const sections: CardGroup[] = ordered.map(([slug, bucket]) => ({
     // id keeps the slug for scroll/scrub keys; slug is blank so the header shows
     // only the label (a marker's slug is just the lowercased echo of its label).
     group: { id: slug, slug: "", name: bucket.label },

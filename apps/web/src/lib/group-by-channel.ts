@@ -1,10 +1,5 @@
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
-
-export interface CardChannelGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+import type { CardGroup } from "@/components/cards/card-grid-types";
 
 export const NO_CHANNEL_ID = "_no-channel";
 export const NO_CHANNEL_LABEL = "(No distribution channel)";
@@ -19,10 +14,7 @@ const BREADCRUMB_SEPARATOR = " → ";
  *
  * @returns Ordered channel sections plus an optional trailing no-channel section.
  */
-export function groupItemsByChannel(
-  items: CardViewerItem[],
-  dir: "asc" | "desc",
-): CardChannelGroup[] {
+export function groupItemsByChannel(items: CardViewerItem[], dir: "asc" | "desc"): CardGroup[] {
   const buckets = new Map<string, { label: string; items: CardViewerItem[] }>();
   const noChannel: CardViewerItem[] = [];
   for (const item of items) {
@@ -43,7 +35,7 @@ export function groupItemsByChannel(
   }
   const sorted = [...buckets.entries()].toSorted(([, a], [, b]) => a.label.localeCompare(b.label));
   const ordered = dir === "desc" ? sorted.toReversed() : sorted;
-  const sections: CardChannelGroup[] = ordered.map(([id, bucket]) => ({
+  const sections: CardGroup[] = ordered.map(([id, bucket]) => ({
     // slug is blank so the header shows only the breadcrumb label; the channel's
     // own slug would just duplicate the label it already ends with.
     group: { id, slug: "", name: bucket.label },

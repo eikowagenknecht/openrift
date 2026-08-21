@@ -1,13 +1,7 @@
 import type { GroupByField } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
-
-/** A section of cards in a viewer, mirroring `CardGroup` from card-groups. */
-interface CollectionGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+import type { CardGroup, GroupInfo } from "@/components/cards/card-grid-types";
 
 /** Bucket for copies whose collection is missing from the order list. */
 const UNKNOWN_COLLECTION_KEY = "(Unknown collection)";
@@ -37,7 +31,7 @@ export function isCopiesOnlyGrouping(groupBy: GroupByField): boolean {
 export function groupItemsByCollection(
   items: CardViewerItem[],
   collectionOrder: GroupInfo[],
-): CollectionGroup[] {
+): CardGroup[] {
   const byCollection = Map.groupBy(items, (item) => item.collectionId ?? UNKNOWN_COLLECTION_KEY);
   const known = new Set(collectionOrder.map((info) => info.id));
   const groups = collectionOrder.flatMap((info) => {

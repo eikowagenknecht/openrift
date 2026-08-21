@@ -64,11 +64,13 @@ import {
 } from "@/hooks/use-responsive-columns";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
+import { buildGroups } from "@/lib/card-groups";
 import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
+import { groupByOptionsFor } from "@/lib/group-by-field";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
-import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/promo-groupings";
+import { asPromoGrouping, PROMO_GROUPINGS, toPromoSections } from "@/lib/promo-groupings";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -183,7 +185,8 @@ function collectChannelTocItems(
   }
 }
 
-type FlatSectionKind = "card" | "year" | "marker";
+/** Every grouping but the channel tree, which renders as nested sections. */
+type FlatSectionKind = Exclude<PromoGrouping, "channel">;
 
 function flatSectionAnchor(languagePrefix: string, kind: FlatSectionKind, id: string): string {
   return `${languagePrefix}-${kind}-${id}`;
@@ -201,12 +204,7 @@ function collectFlatSectionTocItems(
   }));
 }
 
-const GROUP_OPTIONS: { value: PromoGrouping; label: string }[] = [
-  { value: "channel", label: "Distribution Channel" },
-  { value: "card", label: "Card" },
-  { value: "year", label: "Year" },
-  { value: "marker", label: "Marker" },
-];
+const GROUP_OPTIONS = groupByOptionsFor(PROMO_GROUPINGS);
 
 function OwnedCountBridge({
   enabled,
@@ -328,7 +326,7 @@ function PromosPage() {
   const togglePromoOwned = () => {
     toggleCardsShowCounts();
   };
-  const { orders: enumOrders } = useEnumOrders();
+  const { orders: enumOrders, labels: enumLabels } = useEnumOrders();
   const { setSearch } = useFilterActions();
   const isMobile = useIsMobile();
 
@@ -396,25 +394,28 @@ function PromosPage() {
       : applyOwnedBucketFilter(initialMatches, filters.ownedFilter, ownedCountByPrinting);
   const grouping = asPromoGrouping(filterState.groupBy);
 
+  const selectionItems: CardViewerItem[] = matchedPrintings.map((printing) => ({
+    id: printing.id,
+    printing,
+  }));
+
   // Apply groupDir uniformly across all groupings — the channel tree reverses
-  // its top-level order; card, year, and marker reverse their section order
-  // via their helpers. Mirrors how /cards' card-grid handles groupDir so the
-  // toggle behaviour is consistent across pages.
+  // its top-level order; every other axis reverses inside buildGroups. Mirrors
+  // how /cards' card-grid handles groupDir so the toggle behaviour is
+  // consistent across pages.
   const channelTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
   const orderedChannelTree =
     grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
-  const cardSections = grouping === "card" ? groupByCard(matchedPrintings, groupDir) : undefined;
-  const yearSections = grouping === "year" ? groupByYear(matchedPrintings, groupDir) : undefined;
-  const markerSections =
-    grouping === "marker" ? groupByMarker(matchedPrintings, groupDir) : undefined;
-  const flatSections = cardSections ?? yearSections ?? markerSections;
-  const flatKind: FlatSectionKind | null = cardSections
-    ? "card"
-    : yearSections
-      ? "year"
-      : markerSections
-        ? "marker"
-        : null;
+  // Every axis but the channel tree goes through the shared grouping engine and
+  // is adapted to this page's flat sections. catalog.sets feeds the "set" axis;
+  // there is no collection order because /promos never offers that axis.
+  const flatKind: FlatSectionKind | null = grouping === "channel" ? null : grouping;
+  const flatSections =
+    flatKind === null
+      ? undefined
+      : toPromoSections(
+          buildGroups(selectionItems, flatKind, catalog.sets, groupDir, enumOrders, enumLabels),
+        );
 
   const activePrefix = `lang-${activeLanguage}`;
 
@@ -473,10 +474,6 @@ function PromosPage() {
     });
   }
 
-  const selectionItems: CardViewerItem[] = matchedPrintings.map((printing) => ({
-    id: printing.id,
-    printing,
-  }));
   const printingsByCardId = Map.groupBy(activePrintings, (printing) => printing.cardId);
 
   const handleCardClick = (printing: Printing) => {

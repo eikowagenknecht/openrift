@@ -140,12 +140,12 @@ describe("buildGroups", () => {
   });
 
   it("falls back to set grouping for an axis this surface doesn't know", () => {
-    // A foreign axis can reach buildGroups via a deep-linked URL (/promos'
-    // "card" pasted onto /cards). It must degrade to the default set
-    // grouping, never crash.
+    // An unknown axis can reach buildGroups via a deep-linked URL (a value from
+    // a since-renamed axis, say). It must degrade to the default set grouping,
+    // never crash.
     const groups = buildGroups(
       items,
-      "card" as Parameters<typeof buildGroups>[1],
+      "energy" as Parameters<typeof buildGroups>[1],
       setOrder,
       "asc",
       ORDERS,

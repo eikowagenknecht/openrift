@@ -41,6 +41,9 @@ export const GROUP_BY_FIELDS = [
   "superType",
   "domain",
   "rarity",
+  // Printings-only, like channel and marker: it buckets the printings of one
+  // card together, which in cards view is always a section of exactly one tile.
+  "card",
   "channel",
   "year",
   "marker",

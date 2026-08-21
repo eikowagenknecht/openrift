@@ -64,11 +64,11 @@ describe("view-prefs stores", () => {
     });
 
     it("clamp a value the surface does not offer", () => {
-      // "card" is a /promos axis, so it must not stick on the catalog surface.
-      useCookieViewPrefsStore.getState().setGroupBy("cards", "card");
-      expect(useCookieViewPrefsStore.getState().cards.groupBy).toBe("set");
-      useCookieViewPrefsStore.getState().setGroupBy("promos", "card");
-      expect(useCookieViewPrefsStore.getState().promos.groupBy).toBe("card");
+      // "none" is a catalog axis /promos leaves out, so it must not stick there.
+      useCookieViewPrefsStore.getState().setGroupBy("promos", "none");
+      expect(useCookieViewPrefsStore.getState().promos.groupBy).toBe("channel");
+      useCookieViewPrefsStore.getState().setGroupBy("cards", "none");
+      expect(useCookieViewPrefsStore.getState().cards.groupBy).toBe("none");
     });
 
     it("restore one surface without touching the others", () => {

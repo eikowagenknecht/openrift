@@ -37,7 +37,8 @@ function item(printing: ReturnType<typeof stubPrinting>): CardViewerItem {
 }
 
 describe("isPrintingsOnlyGrouping", () => {
-  it("is true for marker and distribution channel", () => {
+  it("is true for card, marker and distribution channel", () => {
+    expect(isPrintingsOnlyGrouping("card")).toBe(true);
     expect(isPrintingsOnlyGrouping("marker")).toBe(true);
     expect(isPrintingsOnlyGrouping("channel")).toBe(true);
   });

@@ -29,11 +29,19 @@ describe("sanitizeSurfacePrefs", () => {
   });
 
   it("rejects another surface's vocabulary", () => {
-    // "channel" is a promo axis; "updated" is a deck-list sort. Neither is a
+    // "legend" is a deck-list axis and "updated" a deck-list sort. Neither is a
     // valid catalog value, so both must fall back rather than reach the grid.
-    const result = sanitizeSurfacePrefs({ sort: "updated", groupBy: "card" }, "cards");
+    const result = sanitizeSurfacePrefs({ sort: "updated", groupBy: "legend" }, "cards");
     expect(result.sort).toBe("id");
     expect(result.groupBy).toBe("set");
+  });
+
+  it("rejects the shared axes /promos does not offer", () => {
+    // /promos shares the catalog's axes bar these two — see PromoGrouping.
+    expect(sanitizeSurfacePrefs({ groupBy: "none" }, "promos").groupBy).toBe("channel");
+    expect(sanitizeSurfacePrefs({ groupBy: "collection" }, "promos").groupBy).toBe("channel");
+    // ...and the catalog still takes "none" happily.
+    expect(sanitizeSurfacePrefs({ groupBy: "none" }, "cards").groupBy).toBe("none");
   });
 
   it("accepts each surface's own vocabulary", () => {

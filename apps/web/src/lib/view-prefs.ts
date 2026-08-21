@@ -1,6 +1,8 @@
 import type { SortDirection } from "@openrift/shared";
 import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared";
 
+import { PROMO_GROUPINGS } from "@/lib/promo-groupings";
+
 // Per-surface sort/group defaults ("view prefs"). Two things share this module:
 // the Zustand stores in `stores/view-prefs-store.ts` (which own the persisted
 // blobs) and the SSR resolver below (which reads the cookie server-side before
@@ -25,8 +27,12 @@ interface ViewSurfaceConfig {
   defaults: SurfaceViewPrefs;
 }
 
-/** Group axes /promos offers instead of the catalog's set/type/rarity list. */
-const PROMO_GROUPS = ["channel", "card", "year", "marker"] as const;
+/**
+ * Group axes /promos offers — the shared list minus "none" and "collection",
+ * led by its own channel tree. Owned by promo-groupings so the page's dropdown
+ * and this validation can't disagree about what a stored value may be.
+ */
+const PROMO_GROUPS = PROMO_GROUPINGS;
 
 /** Sort fields the deck list offers (deck metadata, not card attributes). */
 const DECK_LIST_SORTS = ["updated", "created", "name", "value"] as const;

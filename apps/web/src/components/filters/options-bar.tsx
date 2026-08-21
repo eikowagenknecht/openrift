@@ -1,4 +1,5 @@
 import type { AvailableFilters, FilterCounts, GroupByField, SortOption } from "@openrift/shared";
+import { GROUP_BY_FIELDS } from "@openrift/shared";
 import {
   CopyIcon,
   LayoutGridIcon,
@@ -29,7 +30,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSmUp } from "@/hooks/use-sm-up";
-import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
+import { isCopiesOnlyGrouping } from "@/lib/group-by-collection";
+import { groupByOptionsFor, isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useFilterDrawerStore } from "@/stores/filter-drawer-store";
@@ -47,20 +49,13 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
-// Exported so a surface that adds an axis of its own (/collections' copies-only
-// "Collection") appends to this list instead of restating the nine shared
-// labels, which would then drift.
-export const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "set", label: "Set" },
-  { value: "type", label: "Type" },
-  { value: "superType", label: "Supertype" },
-  { value: "domain", label: "Domain" },
-  { value: "rarity", label: "Rarity" },
-  { value: "channel", label: "Distribution Channel" },
-  { value: "year", label: "Year" },
-  { value: "marker", label: "Marker" },
-];
+// Every shared axis in GROUP_BY_FIELDS order, minus "collection": that one is
+// copies-only, so the single surface offering it (/collections) appends it
+// rather than every other surface having to filter it back out.
+// Exported so those surfaces extend this list instead of restating the labels.
+export const defaultGroupByOptions = groupByOptionsFor(
+  GROUP_BY_FIELDS.filter((field) => !isCopiesOnlyGrouping(field)),
+);
 
 // Persistent primary fill for the active toggle option, overriding the base
 // toggle's muted active state (including on hover) to match the prior
@@ -71,8 +66,9 @@ export const activeToggleClass =
 
 /**
  * The default group-by options available in the given view. Cards view drops
- * the printings-only axes (marker / distribution channel), which collapse every
- * card into one bucket there (see isPrintingsOnlyGrouping).
+ * the printings-only axes (card / marker / distribution channel), which collapse
+ * every card into one bucket there — or, for card, into a section apiece (see
+ * isPrintingsOnlyGrouping).
  * @returns The group-by options for `view`.
  */
 function groupByOptionsForView(view: "cards" | "printings" | "copies") {

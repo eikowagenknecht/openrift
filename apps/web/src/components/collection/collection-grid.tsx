@@ -67,6 +67,7 @@ import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { formatterForMarketplace } from "@/lib/format";
 import { isCopiesOnlyGrouping } from "@/lib/group-by-collection";
+import { GROUP_BY_LABELS } from "@/lib/group-by-field";
 import { getSiteUrl } from "@/lib/site-config";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
@@ -859,7 +860,7 @@ export function CollectionGrid({
       showCopies={!showLibrary}
       groupByOptions={
         collectionGroupingAvailable
-          ? [...defaultGroupByOptions, { value: "collection", label: "Collection" }]
+          ? [...defaultGroupByOptions, { value: "collection", label: GROUP_BY_LABELS.collection }]
           : undefined
       }
       // `groupBy` here is the normalized value, so the dropdown never shows

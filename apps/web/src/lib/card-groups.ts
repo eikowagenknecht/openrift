@@ -2,19 +2,18 @@ import type { EnumOrders, GroupByField } from "@openrift/shared";
 import { orderSetsMainFirst } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
+import type { CardGroup, GroupInfo } from "@/components/cards/card-grid-types";
 import type { EnumLabels } from "@/hooks/use-enums";
+import { groupItemsByCard } from "@/lib/group-by-card";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByCollection } from "@/lib/group-by-collection";
 import { groupItemsByField, isFieldGrouping } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 
-/** A section of cards in a viewer: its header info plus the items it contains. */
-export interface CardGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+// Re-exported from its home next to GroupInfo, where the group-by-* modules can
+// import it without cycling back through this dispatcher.
+export type { CardGroup } from "@/components/cards/card-grid-types";
 
 /**
  * Groups items by set: main sets first, then supplemental ones (matching the
@@ -33,9 +32,10 @@ export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]):
 }
 
 /**
- * Groups items for a card viewer by the chosen axis (set / field / channel /
- * year / marker / collection), applying the group direction. Shared by the grid
- * and table viewers; each then lays the groups out into its own virtual rows.
+ * Groups items for a card viewer by the chosen axis (set / field / card /
+ * channel / year / marker / collection), applying the group direction. Shared
+ * by the grid and table viewers (each then lays the groups out into its own
+ * virtual rows) and by /promos, which adapts the result to its own sections.
  * @returns The ordered card groups, or a single "_all" group when ungrouped.
  */
 export function buildGroups(
@@ -49,6 +49,9 @@ export function buildGroups(
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
+  }
+  if (groupBy === "card") {
+    return groupItemsByCard(items, groupDir);
   }
   if (groupBy === "channel") {
     return groupItemsByChannel(items, groupDir);
@@ -74,9 +77,9 @@ export function buildGroups(
   if (isFieldGrouping(groupBy)) {
     groups = groupItemsByField(items, groupBy, orders, labels);
   } else {
-    // "set" — and, defensively, any axis this surface doesn't group by (a
-    // foreign axis like /promos' "card" deep-linked onto /cards). Fall back
-    // to the default set grouping instead of crashing the grid.
+    // "set" — and, defensively, any axis this surface doesn't group by (an
+    // unknown value deep-linked in the URL). Fall back to the default set
+    // grouping instead of crashing the grid.
     groups = setOrder
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];

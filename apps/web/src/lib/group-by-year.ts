@@ -1,10 +1,5 @@
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
-
-export interface CardYearGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+import type { CardGroup } from "@/components/cards/card-grid-types";
 
 export const UNKNOWN_YEAR_ID = "_unknown-year";
 export const UNKNOWN_YEAR_LABEL = "Unknown year";
@@ -18,7 +13,7 @@ export const UNKNOWN_YEAR_LABEL = "Unknown year";
  *
  * @returns Year sections plus an optional trailing unknown-year section.
  */
-export function groupItemsByYear(items: CardViewerItem[], dir: "asc" | "desc"): CardYearGroup[] {
+export function groupItemsByYear(items: CardViewerItem[], dir: "asc" | "desc"): CardGroup[] {
   const byYear = new Map<number, CardViewerItem[]>();
   const unknown: CardViewerItem[] = [];
   for (const item of items) {
@@ -35,7 +30,7 @@ export function groupItemsByYear(items: CardViewerItem[], dir: "asc" | "desc"): 
     }
   }
   const compare = dir === "asc" ? (a: number, b: number) => a - b : (a: number, b: number) => b - a;
-  const sections: CardYearGroup[] = [...byYear.entries()]
+  const sections: CardGroup[] = [...byYear.entries()]
     .toSorted(([yearA], [yearB]) => compare(yearA, yearB))
     .map(([year, list]) => ({
       group: { id: String(year), slug: "", name: String(year) },

@@ -1,6 +1,39 @@
-import type { Printing, SortDirection } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 
-export type PromoGrouping = "channel" | "card" | "year" | "marker";
+import type { CardGroup } from "@/components/cards/card-grid-types";
+
+/**
+ * The axes /promos offers, in the order it lists them: the page's own channel
+ * tree first as the default, then the axes that separate promo printings from
+ * each other (which card, which year, what it was handed out for), then the
+ * card-level ones that mostly describe the underlying card.
+ *
+ * "channel" renders as this page's hierarchical tree (see promos-tree); every
+ * other value is a shared axis from `buildGroups`, adapted into flat sections
+ * by {@link toPromoSections}.
+ *
+ * Two shared axes are left out. "none" would render one unlabelled section, and
+ * the page is built around section headers and a table of contents.
+ * "collection" needs items that are physical copies, which promo printings are
+ * not.
+ *
+ * Single source for the page's vocabulary — the group-by dropdown, the
+ * persisted view prefs (see VIEW_SURFACE_CONFIGS) and asPromoGrouping all read
+ * it, so they can't drift apart.
+ */
+export const PROMO_GROUPINGS = [
+  "channel",
+  "card",
+  "year",
+  "marker",
+  "set",
+  "type",
+  "superType",
+  "domain",
+  "rarity",
+] as const satisfies readonly GroupByField[];
+
+export type PromoGrouping = (typeof PROMO_GROUPINGS)[number];
 
 export interface PromoSection {
   id: string;
@@ -8,116 +41,34 @@ export interface PromoSection {
   printings: Printing[];
 }
 
-const UNKNOWN_YEAR_ID = "unknown";
-const UNKNOWN_YEAR_LABEL = "Unknown year";
-const UNMARKED_ID = "unmarked";
-const UNMARKED_LABEL = "Unmarked";
-
-const PROMO_GROUPINGS: ReadonlySet<PromoGrouping> = new Set(["channel", "card", "year", "marker"]);
+const PROMO_GROUPING_SET: ReadonlySet<string> = new Set<string>(PROMO_GROUPINGS);
 
 /**
  * Coerce an arbitrary URL value into a known promo grouping. Defaults to
- * "channel" so navigation from /cards (which uses "set" / "type" / etc.) lands
- * on the page's hierarchical default rather than rendering empty.
+ * "channel" so a deep link carrying an axis the page doesn't offer ("none" or
+ * "collection") lands on the page's hierarchical default rather than rendering
+ * one unlabelled section.
  *
  * @returns A valid PromoGrouping.
  */
 export function asPromoGrouping(value: string | undefined): PromoGrouping {
-  return value !== undefined && PROMO_GROUPINGS.has(value as PromoGrouping)
+  return value !== undefined && PROMO_GROUPING_SET.has(value)
     ? (value as PromoGrouping)
     : "channel";
 }
 
 /**
- * Group printings by card. One section per distinct card. Sections sort
- * alphabetically by card name (asc) or reverse (desc). Within a section,
- * printings keep their input order — render layer applies the user's sort.
+ * Adapt the shared grouping engine's output to the page's own section shape.
+ * /promos renders its sections itself (non-virtualized, with a table of
+ * contents and anchors) rather than through CardViewer, so it takes the groups
+ * and drops the CardViewerItem wrapper the viewers need.
  *
- * @returns Sections keyed by card slug.
+ * @returns One PromoSection per group, in the same order.
  */
-export function groupByCard(printings: Printing[], dir: SortDirection = "asc"): PromoSection[] {
-  const byCard = new Map<string, PromoSection>();
-  for (const printing of printings) {
-    const id = printing.card.slug;
-    const existing = byCard.get(id);
-    if (existing) {
-      existing.printings.push(printing);
-    } else {
-      byCard.set(id, { id, label: printing.card.name, printings: [printing] });
-    }
-  }
-  const sorted = [...byCard.values()].toSorted((a, b) => a.label.localeCompare(b.label));
-  return dir === "desc" ? sorted.toReversed() : sorted;
-}
-
-/**
- * Group printings by `printedYear` (the year stamped on the physical card).
- * Sections sort by year (newest-first when desc, oldest-first when asc).
- * Printings with `printedYear === null` collect into an "Unknown year" bucket
- * that is always rendered last regardless of dir, since "unknown" doesn't
- * meaningfully order against numeric years.
- *
- * @returns Sections keyed by year string, with "unknown" last.
- */
-export function groupByYear(printings: Printing[], dir: SortDirection = "desc"): PromoSection[] {
-  const byYear = new Map<number, Printing[]>();
-  const unknown: Printing[] = [];
-  for (const printing of printings) {
-    if (printing.printedYear === null) {
-      unknown.push(printing);
-      continue;
-    }
-    const list = byYear.get(printing.printedYear);
-    if (list) {
-      list.push(printing);
-    } else {
-      byYear.set(printing.printedYear, [printing]);
-    }
-  }
-  const compare = dir === "asc" ? (a: number, b: number) => a - b : (a: number, b: number) => b - a;
-  const sections: PromoSection[] = [...byYear.entries()]
-    .toSorted(([yearA], [yearB]) => compare(yearA, yearB))
-    .map(([year, list]) => ({ id: String(year), label: String(year), printings: list }));
-  if (unknown.length > 0) {
-    sections.push({ id: UNKNOWN_YEAR_ID, label: UNKNOWN_YEAR_LABEL, printings: unknown });
-  }
-  return sections;
-}
-
-/**
- * Group printings by marker. A printing with N markers fans out into N
- * sections, mirroring how channel grouping handles multi-channel printings —
- * a foil-marked tournament-prize printing belongs to both buckets. Printings
- * with no markers collect into a trailing "Unmarked" section, always last
- * regardless of dir (same pattern as the unknown-year bucket).
- *
- * @returns Sections keyed by marker slug, with "unmarked" last.
- */
-export function groupByMarker(printings: Printing[], dir: SortDirection = "asc"): PromoSection[] {
-  const byMarker = new Map<string, PromoSection>();
-  const unmarked: Printing[] = [];
-  for (const printing of printings) {
-    if (printing.markers.length === 0) {
-      unmarked.push(printing);
-      continue;
-    }
-    for (const marker of printing.markers) {
-      const existing = byMarker.get(marker.slug);
-      if (existing) {
-        existing.printings.push(printing);
-      } else {
-        byMarker.set(marker.slug, {
-          id: marker.slug,
-          label: marker.label,
-          printings: [printing],
-        });
-      }
-    }
-  }
-  const sorted = [...byMarker.values()].toSorted((a, b) => a.label.localeCompare(b.label));
-  const sections = dir === "desc" ? sorted.toReversed() : sorted;
-  if (unmarked.length > 0) {
-    sections.push({ id: UNMARKED_ID, label: UNMARKED_LABEL, printings: unmarked });
-  }
-  return sections;
+export function toPromoSections(groups: CardGroup[]): PromoSection[] {
+  return groups.map((group) => ({
+    id: group.group.id,
+    label: group.group.name,
+    printings: group.items.map((item) => item.printing),
+  }));
 }
