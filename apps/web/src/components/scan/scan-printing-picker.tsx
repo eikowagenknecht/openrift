@@ -1,16 +1,12 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation, legendDisplayName } from "@openrift/shared";
 
-import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import { PrintingVariantLabel } from "@/components/cards/printing-label";
+import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";
+import { PrintingVariantLine } from "@/components/cards/printing-row";
+import { ScanCandidateRow } from "@/components/scan/scan-candidate-row";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
-import { Pressable } from "@/components/ui/pressable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLanguageLabels } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { formatCardId } from "@/lib/format";
-import { groupPrintingsByLanguage } from "@/lib/printing-languages";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 
 /** One unresolved lock waiting for the user to name its printing. */
@@ -47,7 +43,6 @@ export function ScanPrintingPicker({
   description,
 }: ScanPrintingPickerProps) {
   const isMobile = useIsMobile();
-  const languageLabels = useLanguageLabels();
   const cardLanguage = useScanPrefsStore((state) => state.cardLanguage);
   const open = request !== null;
 
@@ -58,10 +53,7 @@ export function ScanPrintingPicker({
   };
 
   const candidates = request?.candidates ?? [];
-  // Candidates arrive sorted language-first, so the shared grouping is left to
-  // keep that order rather than being handed the taxonomy's.
-  const languageGroups = groupPrintingsByLanguage(candidates);
-  const languages = languageGroups.map((group) => group.language);
+  const languages = candidates.map((candidate) => candidate.language);
   // The stated card language wins when the card was printed in it; English is
   // the fallback because it is the language most stacks are in.
   const statedLanguage =
@@ -69,72 +61,41 @@ export function ScanPrintingPicker({
   const defaultLanguage = statedLanguage ?? (languages.includes("EN") ? "EN" : languages[0]);
 
   const renderList = (items: Printing[]) => (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-h-0 flex-col gap-1 overflow-y-auto">
       {items.map((candidate) => (
-        <Pressable
+        <ScanCandidateRow
           key={candidate.id}
-          className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left"
+          imageId={candidate.images[0]?.imageId}
+          landscape={getOrientation(candidate.card.types) === "landscape"}
+          rarity={candidate.rarity}
+          domains={candidate.card.domains}
+          title={legendDisplayName(candidate.card)}
+          // The full candidate set, not the tab's: the variant label needs
+          // every sibling to know what distinguishes this printing.
+          detail={<PrintingVariantLine printing={candidate} siblings={candidates} />}
           onClick={() => onPick(candidate)}
-        >
-          <CardArtThumb
-            shape="strip"
-            imageId={candidate.images[0]?.imageId}
-            variant="120w"
-            className="h-9"
-            rarity={candidate.rarity}
-            domains={candidate.card.domains}
-            landscape={getOrientation(candidate.card.types) === "landscape"}
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium">{legendDisplayName(candidate.card)}</span>
-            <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <span className="font-mono">{formatCardId(candidate)}</span>
-              {/* The full candidate set, not the tab's: the variant label needs
-                  every sibling to know what distinguishes this printing. */}
-              <PrintingVariantLabel printing={candidate} siblings={candidates} />
-            </span>
-          </span>
-        </Pressable>
+        />
       ))}
     </div>
   );
 
   // Only the list scrolls, never the tab row above it, so the height cap sits
   // on the container the drawer and dialog each provide.
-  const renderBody = () => {
-    if (request === null) {
-      return null;
-    }
-    if (languageGroups.length < 2) {
-      return <div className="min-h-0 overflow-y-auto">{renderList(candidates)}</div>;
-    }
-    return (
-      // Keyed on the request so a new one re-derives its default tab.
-      <Tabs
+  const body =
+    request === null ? null : (
+      // Keyed on the request so a new one re-derives its default tab. Candidates
+      // arrive sorted language-first, so no language order is handed over and
+      // the grouping keeps that order rather than the taxonomy's.
+      <PrintingLanguageTabs
         key={`${request.label}:${candidates[0]?.id}`}
-        defaultValue={defaultLanguage}
+        printings={candidates}
+        defaultLanguage={defaultLanguage}
         className="min-h-0"
+        contentClassName="flex min-h-0 flex-col"
       >
-        {/* A card can be printed in more languages than fit one row, so the
-            tabs wrap rather than scroll out of reach. */}
-        <TabsList className="shrink-0 flex-wrap group-data-horizontal/tabs:h-auto">
-          {languageGroups.map(({ language, printings: items }) => (
-            <TabsTrigger key={language} value={language}>
-              {languageLabels[language]}
-              <span className="text-muted-foreground">{items.length}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {languageGroups.map(({ language, printings: items }) => (
-          <TabsContent key={language} value={language} className="min-h-0 overflow-y-auto">
-            {renderList(items)}
-          </TabsContent>
-        ))}
-      </Tabs>
+        {renderList}
+      </PrintingLanguageTabs>
     );
-  };
-
-  const body = renderBody();
 
   const resolvedDescription =
     description ??

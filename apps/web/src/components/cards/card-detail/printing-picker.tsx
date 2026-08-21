@@ -1,17 +1,13 @@
 import type { Printing } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { PrintingVariantLabel } from "@/components/cards/printing-label";
-import { PrintingThumbnail } from "@/components/cards/printing-option-content";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLanguageLabels, useLanguageList } from "@/hooks/use-enums";
+import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";
+import { PrintingRowContent } from "@/components/cards/printing-row";
+import { useLanguageList } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
-import { formatCardId, formatterForMarketplace, priceColorClass } from "@/lib/format";
-import { getFilterIconPath } from "@/lib/icons";
-import { groupPrintingsByLanguage } from "@/lib/printing-languages";
+import { formatterForMarketplace, priceColorClass } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -27,74 +23,28 @@ export function PrintingPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const languageOrder = useLanguageList();
-  const languageLabels = useLanguageLabels();
 
   // Which tab the user picked, and the printing it was picked against. Keying
   // on the printing means selecting a card in another language moves the tab
   // with it, without an effect to sync the two.
   const [picked, setPicked] = useState<{ language: string; forPrintingId: string } | null>(null);
 
-  const groups = groupPrintingsByLanguage(
-    printings,
-    languageOrder.map((entry) => entry.code),
-  );
-  const languages = groups.map((group) => group.language);
-
-  if (languages.length < 2) {
-    return (
-      <div className="space-y-2">
-        <PickerHeading />
-        <PrintingList printings={printings} current={current} onSelect={onSelect} />
-      </div>
-    );
-  }
-
   const pickedLanguage = picked?.forPrintingId === current.id ? picked.language : current.language;
-  // The shown card's language can be absent from its own sibling list (a
-  // surface that hands the picker a filtered set), so fall back to the first tab.
-  const activeLanguage = languages.includes(pickedLanguage) ? pickedLanguage : languages[0];
 
+  // The wrapper owns the gap in both modes: the shell renders the heading and
+  // the list bare when there is only one language.
   return (
-    <Tabs
-      value={activeLanguage}
-      onValueChange={(next) => setPicked({ language: String(next), forPrintingId: current.id })}
-    >
-      {/* The heading shares the language strip's row instead of taking one of
-          its own, which the bare language codes leave room for. */}
-      <div className="flex items-center gap-3">
-        <PickerHeading />
-        {/* Many languages overflow the 400px pane, so the strip scrolls on its
-            own rather than widening the detail. */}
-        <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">
-          <TabsList variant="line">
-            {languages.map((code) => (
-              <TabsTrigger
-                key={code}
-                value={code}
-                title={languageLabels[code] ?? code}
-                className="font-mono"
-              >
-                {code}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      </div>
-      {/* Only the open panel is rendered. Mounting one per language leaves
-          the closed ones in the accessibility tree, where a screen reader
-          reads every language's printings as if all were on screen.
-
-          The group is also the sibling set: labels disambiguate against
-          what's visible, which drops the language chip that would otherwise
-          repeat on every row of a single-language tab. */}
-      <TabsContent value={activeLanguage}>
-        <PrintingList
-          printings={groups.find((group) => group.language === activeLanguage)?.printings ?? []}
-          current={current}
-          onSelect={onSelect}
-        />
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-2">
+      <PrintingLanguageTabs
+        printings={printings}
+        languageOrder={languageOrder.map((entry) => entry.code)}
+        activeLanguage={pickedLanguage}
+        onLanguageChange={(next) => setPicked({ language: next, forPrintingId: current.id })}
+        header={<PickerHeading />}
+      >
+        {(shown) => <PrintingList printings={shown} current={current} onSelect={onSelect} />}
+      </PrintingLanguageTabs>
+    </div>
   );
 }
 
@@ -116,13 +66,10 @@ function PrintingList({
   current: Printing;
   onSelect: (printing: Printing) => void;
 }) {
-  const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
-
   return (
     <div className="space-y-1">
       {printings.map((p) => {
         const isActive = p.id === current.id;
-        const rarityIcon = getFilterIconPath("rarities", p.rarity);
         return (
           <div
             key={p.id}
@@ -142,45 +89,21 @@ function PrintingList({
               isActive ? "bg-muted ring-border ring-1" : "hover:bg-muted/50",
             )}
           >
-            {/* Each row shows its own printing's art, not a representative one:
-                telling near-identical variants apart is the whole point of this
-                list. h-8 matches the row's existing text height, so adding the
-                thumbnail doesn't lengthen a list that can run to many rows. */}
-            <PrintingThumbnail printing={p} className="h-8" />
-            <span className="min-w-0 flex-1 truncate">
-              <PrintingVariantLabel
-                printing={p}
-                siblings={printings}
-                code={
-                  <>
-                    {hasMixedRarities && rarityIcon && (
-                      <img
-                        src={rarityIcon}
-                        alt={p.rarity}
-                        title={p.rarity}
-                        width={28}
-                        height={28}
-                        className="mr-1 inline size-3.5 align-text-bottom"
-                      />
-                    )}
-                    <Link
-                      to="/sets/$setSlug"
-                      params={{ setSlug: p.setSlug }}
-                      className="text-muted-foreground hover:text-foreground font-mono text-xs"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {formatCardId(p)}
-                    </Link>
-                  </>
-                }
-              />
-            </span>
-            <OwnedCollectionsPopover
-              printingId={p.id}
-              cardName={p.card.name}
-              shortCode={p.shortCode}
+            <PrintingRowContent
+              printing={p}
+              siblings={printings}
+              codeLink
+              right={
+                <>
+                  <OwnedCollectionsPopover
+                    printingId={p.id}
+                    cardName={p.card.name}
+                    shortCode={p.shortCode}
+                  />
+                  <PrintingPrices printing={p} />
+                </>
+              }
             />
-            <PrintingPrices printing={p} />
           </div>
         );
       })}

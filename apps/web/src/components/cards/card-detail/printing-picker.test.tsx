@@ -128,7 +128,12 @@ describe("PrintingPicker", () => {
 
       render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
 
-      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["EN", "JA", "DE"]);
+      // Each trigger is the bare language code followed by that language's row count.
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+        "EN1",
+        "JA1",
+        "DE1",
+      ]);
     });
 
     it("opens on the shown card's language", () => {
@@ -167,7 +172,7 @@ describe("PrintingPicker", () => {
 
       render(<PrintingPicker current={printings[0]} printings={printings} onSelect={() => {}} />);
 
-      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["EN", "XX"]);
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["EN1", "XX1"]);
     });
 
     it("falls back to the first tab when the shown card's language has no rows", () => {

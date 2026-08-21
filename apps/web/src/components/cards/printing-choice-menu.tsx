@@ -3,7 +3,7 @@ import type { MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
-import { PrintingOptionContent } from "@/components/cards/printing-option-content";
+import { PrintingRowContent } from "@/components/cards/printing-row";
 import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
@@ -135,7 +135,7 @@ export function PrintingChoiceMenuSection({
             }}
             {...hoverProps(printing.id)}
           >
-            <PrintingOptionContent printing={printing} siblings={printings} />
+            <PrintingRowContent printing={printing} siblings={printings} />
           </ContextMenuItem>
         ))}
       </div>

@@ -20,7 +20,6 @@ export type HoverHandler = (cardId: string | null, preferredPrintingId?: string 
 interface CardCandidate {
   cardId: string;
   cardName: string;
-  cardType?: string;
 }
 
 /**
@@ -63,16 +62,24 @@ const PICKER_MIN_QUERY_LENGTH = 1;
 /**
  * Narrows a candidate list to a search query through the app-wide ranked
  * matcher, so this picker folds punctuation the same way every other one does.
- * An empty query lists the whole zone, which is what makes the dropdown usable
- * before the user types anything.
+ * An empty query lists the whole candidate set, which is what makes a
+ * zone-backed dropdown usable before the user types anything; a catalog-backed
+ * caller turns that off, since the first 50 cards in collector order help
+ * nobody.
+ *
+ * Every row comes out the same shape — thumbnail, name, stats, card type — with
+ * the type and the stats resolved here from the catalog rather than handed in
+ * per call site.
  *
  * @returns The matching candidates as dropdown results.
  */
 function usePickerResults(
   candidates: CardCandidate[],
   query: string,
-  showStats: boolean,
+  listAllWhenEmpty: boolean,
 ): CardSearchResult[] {
+  const { getPreferredPrinting } = usePreferredPrinting();
+  const { labels } = useEnumOrders();
   const searchable = useMemo(
     () =>
       candidates.map((card) => ({
@@ -81,7 +88,6 @@ function usePickerResults(
         // picker never does; the id keeps every entry distinct.
         slug: card.cardId,
         name: card.cardName,
-        cardType: card.cardType,
       })),
     [candidates],
   );
@@ -93,21 +99,30 @@ function usePickerResults(
     MAX_PICKER_RESULTS,
     PICKER_MIN_QUERY_LENGTH,
   );
-  const shown = query.trim() === "" ? searchable.slice(0, MAX_PICKER_RESULTS) : matches;
+  const emptyList = listAllWhenEmpty ? searchable.slice(0, MAX_PICKER_RESULTS) : [];
+  const shown = query.trim() === "" ? emptyList : matches;
 
-  return shown.map((card) => ({
-    id: card.id,
-    label: card.name,
-    detail: card.cardType,
-    // Taller than the chip's: the row is where the card gets recognized, and
-    // a name alone is thin evidence across near-identical battlefields.
-    leading: <CardThumbnail cardId={card.id} className="h-8" />,
-    ...(showStats && { adornment: <CardStats cardId={card.id} /> }),
-  }));
+  return shown.map((card) => {
+    // A picker over one card type (the battlefield slots) repeats the same
+    // word down every row. That's the accepted cost of one row shape: a knob
+    // to hide it is what let the three pickers drift apart to begin with.
+    const printing = getPreferredPrinting(card.id);
+    const detail = printing?.card.types.map((slug) => labels.cardTypes[slug]).join(" ");
+    return {
+      id: card.id,
+      label: card.name,
+      detail,
+      // Taller than the chip's: the row is where the card gets recognized, and
+      // a name alone is thin evidence across near-identical battlefields.
+      leading: <CardThumbnail cardId={card.id} className="h-8" />,
+      adornment: <CardStats cardId={card.id} />,
+    };
+  });
 }
 
 /**
- * A compact thumbnail + name chip for a picked card. Hovering shows the full
+ * A compact thumbnail + name chip for a picked card, carrying the same power
+ * pips and energy glyph as the picker rows it replaces. Hovering shows the full
  * card via the page's floating preview (the opponent card isn't in the deck, so
  * the name/image come from the catalog).
  * @returns The chip.
@@ -117,15 +132,12 @@ export function CardChip({
   onRemove,
   onHoverCard,
   variant = "pill",
-  showStats = false,
 }: {
   cardId: string;
   onRemove?: () => void;
   onHoverCard?: HoverHandler;
   /** "pill" is a compact inline chip; "field" fills the row like an input box. */
   variant?: "pill" | "field";
-  /** Adds the deck list's power pips and energy glyph next to the name. */
-  showStats?: boolean;
 }) {
   const { getPreferredPrinting } = usePreferredPrinting();
   const printing = getPreferredPrinting(cardId);
@@ -148,7 +160,7 @@ export function CardChip({
       <span className="min-w-0 truncate">
         {printing ? legendDisplayName(printing.card) : "Unknown card"}
       </span>
-      {showStats ? <CardStats cardId={cardId} /> : null}
+      <CardStats cardId={cardId} />
       {onRemove ? (
         <ChipRemoveButton
           onClick={onRemove}
@@ -172,17 +184,22 @@ export function CardPicker({
   candidates,
   onSelect,
   placeholder,
-  showStats = false,
+  listAllWhenEmpty = true,
 }: {
   candidates: CardCandidate[];
   onSelect: (cardId: string) => void;
   placeholder: string;
-  /** Adds each result's power pips and energy glyph, matching the chip. */
-  showStats?: boolean;
+  /**
+   * Whether an empty query lists the candidates. On for a bounded set the user
+   * owns (a deck zone, where browsing is the point); off for a catalog-wide
+   * picker, which shows nothing until a character is typed, like every other
+   * catalog search.
+   */
+  listAllWhenEmpty?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [resetKey, setResetKey] = useState(0);
-  const results = usePickerResults(candidates, query, showStats);
+  const results = usePickerResults(candidates, query, listAllWhenEmpty);
   // The combobox fires onInputValueChange with the picked label as it fills the
   // input on selection, which would leave `query` stuck on that card and filter
   // the next open down to just it. Clearing here, after the remount, wins over

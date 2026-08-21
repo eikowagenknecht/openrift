@@ -1,9 +1,8 @@
 import { Loader2Icon } from "lucide-react";
 
-import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { ScanCandidateRow } from "@/components/scan/scan-candidate-row";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
-import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 /** One artwork from the identified frame's embedding shortlist. */
@@ -63,25 +62,16 @@ export function ScanIdentifySheet({
         const name = candidate.label.split(" (")[0];
         const detail = candidate.label.slice(name.length).replaceAll(/^\s*\(|\)$/gu, "");
         return (
-          <Pressable
+          <ScanCandidateRow
             key={candidate.key}
-            className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left"
+            imageId={candidate.key}
+            landscape={candidate.landscape}
+            title={name}
+            // The bank's label already reads as a code, so it keeps the mono
+            // face the printing picker's variant line gets from its code slot.
+            detail={<span className="font-mono">{detail}</span>}
             onClick={() => onPick(candidate)}
-          >
-            <CardArtThumb
-              shape="strip"
-              imageId={candidate.key}
-              variant="120w"
-              className="h-9"
-              landscape={candidate.landscape}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{name}</span>
-              <span className="text-muted-foreground block truncate font-mono text-sm">
-                {detail}
-              </span>
-            </span>
-          </Pressable>
+          />
         );
       })}
     </div>

@@ -7,7 +7,7 @@ import {
   PrintingChoicePreview,
   usePrintingChoiceHover,
 } from "@/components/cards/printing-choice-menu";
-import { PrintingOptionContent } from "@/components/cards/printing-option-content";
+import { PrintingRowContent } from "@/components/cards/printing-row";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import { PrintingSearch } from "@/components/printing-search";
 import { Button } from "@/components/ui/button";
@@ -188,7 +188,7 @@ function VariantPicker({
             className="py-1.5"
             {...hoverProps(printing.id)}
           >
-            <PrintingOptionContent printing={printing} siblings={candidates} />
+            <PrintingRowContent printing={printing} siblings={candidates} />
           </SelectItem>
         ))}
       </SelectContent>

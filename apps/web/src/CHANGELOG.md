@@ -11,7 +11,11 @@
 ### Other
 
 - feat(Cards): **Search scope moved into the field** — a chip in the search box now shows which fields you are searching and opens the list to change it, with each field's typing shortcut.
+- feat(Cards): **One look for printing lists** — card details, deck and tier menus, imports, quick add and the scanner now describe a printing the same way: art, language, rarity, code, then what makes it special.
+- feat(Decks): **Matching deck plan pickers** — the key card, battlefield and swap dropdowns now share one row with art, cost and power, and the card's type.
 - fix(Decks): **Deck plan card search** — the plan picker now folds punctuation like the rest of the app, so typing "kaisa" finds "Kai'Sa".
+- fix(Decks): **Key card suggestions** — the deck plan's key card search no longer lists an arbitrary slice of the catalog before you type.
+- fix(App): **Readable menus on hover** — grey text in right-click menus (printing codes, move hints) turned illegible on the gold highlight.
 
 ## 2026-08-20
 

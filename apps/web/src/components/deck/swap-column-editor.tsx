@@ -6,7 +6,6 @@ import type { PlanSwapDraft, SwapDirection } from "@/lib/deck-plan";
 interface SwapCandidate {
   cardId: string;
   cardName: string;
-  cardType?: string;
   /** Copies in the source zone, shown as "of N" beside the quantity box. */
   quantity?: number;
 }
@@ -129,7 +128,6 @@ function SwapColumn({
               <CardChip
                 cardId={swap.cardId}
                 variant="field"
-                showStats
                 onRemove={() => onRemove(swapIndex)}
                 onHoverCard={onHoverCard}
               />
@@ -141,7 +139,6 @@ function SwapColumn({
         candidates={open}
         onSelect={(cardId) => onAdd(direction, cardId)}
         placeholder={direction === "out" ? "Add a card to cut…" : "Add a card to bring in…"}
-        showStats
       />
     </div>
   );

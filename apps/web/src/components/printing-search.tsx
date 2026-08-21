@@ -65,12 +65,17 @@ export function PrintingSearch({
       results={results}
       onQueryChange={setQuery}
       getKey={(row) => row.id}
+      // The layout of `PrintingRowContent`, but not the component: this is a
+      // flat catalog search with no sibling list, so the shared variant line
+      // would drop the language entirely and render a Chinese printing exactly
+      // like its English twin. `ImportPrintingLabel` names every non-English
+      // language instead; the remaining attributes are the same set.
       renderItem={(row) => (
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <PrintingThumbnail printing={row.printing} />
+          <PrintingThumbnail printing={row.printing} className="h-10" />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-medium">{row.name}</span>
-            <span className="text-muted-foreground min-w-0 text-xs">
+            <span className="text-muted-foreground min-w-0 truncate text-xs">
               <ImportPrintingLabel printing={row.printing} />
             </span>
           </span>

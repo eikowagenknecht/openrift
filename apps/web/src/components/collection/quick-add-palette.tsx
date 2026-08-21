@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { PrintingVariantLabel } from "@/components/cards/printing-label";
+import { PrintingRowContent } from "@/components/cards/printing-row";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -36,8 +36,7 @@ import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useQuickAddMoveMode } from "@/hooks/use-quick-add-move-mode";
 import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
-import { compactFormatterForMarketplace, formatCardId, priceColorClass } from "@/lib/format";
-import { getFilterIconPath } from "@/lib/icons";
+import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -624,7 +623,6 @@ function PaletteInner({
                     // "nothing to move" note.
                     const sources =
                       inMoveMode && isPrintingSelected ? move.sourcesFor(printing.id) : null;
-                    const rarityIcon = getFilterIconPath("rarities", printing.rarity);
                     const price = prices.get(printing.id, favoriteMarketplace);
                     const cardName = legendDisplayName(printing.card);
                     return (
@@ -638,23 +636,13 @@ function PaletteInner({
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
                         <div className="flex w-full items-center gap-1 text-xs">
-                          <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5">
-                            {rarityIcon && (
-                              <img
-                                src={rarityIcon}
-                                alt={printing.rarity}
-                                title={printing.rarity}
-                                width={28}
-                                height={28}
-                                className="size-3.5 shrink-0"
-                              />
-                            )}
-                            <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-2xs w-[3.5rem] shrink-0 font-mono">
-                              {formatCardId(printing)}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate">
-                              <PrintingVariantLabel printing={printing} siblings={card.printings} />
-                            </span>
+                          {/* The shared row mutes its short code, which is
+                              unreadable on the selected row's accent fill, so
+                              the selected state recolors it from out here
+                              rather than teaching the shared row about
+                              selection. */}
+                          <div className="group-data-[selected=true]:[&_.text-muted-foreground]:text-accent-foreground/80 flex min-w-0 flex-1 items-center px-2 py-1.5">
+                            <PrintingRowContent printing={printing} siblings={card.printings} />
                           </div>
                           {price !== undefined && (
                             <span

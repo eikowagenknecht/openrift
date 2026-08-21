@@ -20,7 +20,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckPlan, useSaveDeckPlan } from "@/hooks/use-deck-plan";
-import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
@@ -127,7 +126,7 @@ interface MatchupEditorProps {
   index: number;
   isFirst: boolean;
   isLast: boolean;
-  cardCandidates: { cardId: string; cardName: string; cardType?: string }[];
+  cardCandidates: { cardId: string; cardName: string }[];
   maindeckCandidates: { cardId: string; cardName: string; quantity: number }[];
   sideboardCandidates: { cardId: string; cardName: string; quantity: number }[];
   warnings: PlanWarning[];
@@ -270,6 +269,7 @@ function MatchupEditor({
                     candidates={cardCandidates}
                     onSelect={(cardId) => onChange({ opponentCardId: cardId })}
                     placeholder="Search a card (Diana, Aurora…)"
+                    listAllWhenEmpty={false}
                   />
                 )}
               </div>
@@ -333,7 +333,6 @@ export function DeckPlanEditor({
   const savePlan = useSaveDeckPlan();
   const { allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
-  const { labels } = useEnumOrders();
   const [draft, setDraft] = useState<PlanDraft>(() => planResponseToDraft(data.plan));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
@@ -352,14 +351,13 @@ export function DeckPlanEditor({
   // Candidate sets for the pickers. The opponent card can be any catalog card
   // (a Legend, Aurora, a domain signpost), deduped by card id.
   const cardSeen = new Set<string>();
-  const cardCandidates: { cardId: string; cardName: string; cardType?: string }[] = [];
+  const cardCandidates: { cardId: string; cardName: string }[] = [];
   for (const printing of allPrintings) {
     if (!cardSeen.has(printing.cardId)) {
       cardSeen.add(printing.cardId);
       cardCandidates.push({
         cardId: printing.cardId,
         cardName: legendDisplayName(printing.card),
-        cardType: printing.card.types.map((slug) => labels.cardTypes[slug]).join(" "),
       });
     }
   }
