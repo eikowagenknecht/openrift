@@ -46,6 +46,11 @@ function setup({
   return actions;
 }
 
+/** Opens the scope menu from the in-field chip. @returns Nothing. */
+async function openScopeMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /change search scope/iu }));
+}
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -63,10 +68,37 @@ describe("SearchBar scope chip", () => {
     expect(screen.getByText("in: name, card text +1")).toBeInTheDocument();
   });
 
-  it("hides the chip when all fields are selected", () => {
+  it("hides the chip when all fields are selected and the field is unfocused", () => {
     setup();
 
     expect(screen.queryByText(/^in:/u)).not.toBeInTheDocument();
+  });
+
+  it("shows an 'all' chip once the empty field is focused", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(screen.getByText("in: all")).toBeInTheDocument();
+  });
+
+  it("keeps the untouched-scope chip out of the way once text is typed", async () => {
+    const user = userEvent.setup();
+    setup({ search: "teemo" });
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(screen.queryByText(/^in:/u)).not.toBeInTheDocument();
+  });
+
+  it("keeps a narrowed chip visible while text is typed", async () => {
+    const user = userEvent.setup();
+    setup({ search: "teemo", scope: ["cardText"] });
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(screen.getByText("in: card text")).toBeInTheDocument();
   });
 
   it("hides the chip when the query uses an explicit prefix", () => {
@@ -83,6 +115,15 @@ describe("SearchBar scope chip", () => {
 
     expect(actions.selectAllSearchFields).toHaveBeenCalledTimes(1);
     expect(actions.setSearch).not.toHaveBeenCalled();
+  });
+
+  it("offers no remove button while every field is in scope", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(screen.queryByRole("button", { name: "Search in all fields" })).not.toBeInTheDocument();
   });
 
   it("drops the scope when Backspace is pressed in the empty field", async () => {
@@ -115,5 +156,75 @@ describe("SearchBar scope chip", () => {
     expect(actions.selectAllSearchFields).not.toHaveBeenCalled();
     // The chip must survive the clear — it reflects the persistent scope.
     expect(screen.getByText("in: card text")).toBeInTheDocument();
+  });
+});
+
+describe("SearchBar scope menu", () => {
+  it("lists every searchable field alongside its typed prefix", async () => {
+    const user = userEvent.setup();
+    setup({ scope: ["cardText"] });
+
+    await openScopeMenu(user);
+
+    // The menu is the only place the n:/k: syntax is documented, so every
+    // field must carry its prefix.
+    for (const label of ["Name", "Card Text", "Keywords", "Tags", "Artist"]) {
+      expect(screen.getByRole("checkbox", { name: new RegExp(label, "u") })).toBeInTheDocument();
+    }
+    for (const prefix of ["n:", "d:", "k:", "t:", "a:", "f:", "ty:", "id:"]) {
+      expect(screen.getByText(prefix)).toBeInTheDocument();
+    }
+  });
+
+  it("checks the fields that are in scope and leaves the rest unchecked", async () => {
+    const user = userEvent.setup();
+    setup({ scope: ["cardText"] });
+
+    await openScopeMenu(user);
+
+    expect(screen.getByRole("checkbox", { name: /Card Text/u })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Keywords/u })).not.toBeChecked();
+  });
+
+  it("toggles a single field from the menu", async () => {
+    const user = userEvent.setup();
+    const actions = setup({ scope: ["cardText"] });
+
+    await openScopeMenu(user);
+    await user.click(screen.getByRole("checkbox", { name: /Keywords/u }));
+
+    expect(actions.toggleSearchField).toHaveBeenCalledWith("keywords");
+    expect(actions.selectOnlySearchField).not.toHaveBeenCalled();
+  });
+
+  it("narrows to one field via the row's 'only' action", async () => {
+    const user = userEvent.setup();
+    const actions = setup();
+
+    await user.click(screen.getByRole("textbox"));
+    await openScopeMenu(user);
+    await user.click(screen.getByRole("button", { name: "Search only Keywords" }));
+
+    expect(actions.selectOnlySearchField).toHaveBeenCalledWith("keywords");
+  });
+
+  it("omits the 'only' action on the field that is already the whole scope", async () => {
+    const user = userEvent.setup();
+    setup({ scope: ["keywords"] });
+
+    await openScopeMenu(user);
+
+    expect(screen.queryByRole("button", { name: "Search only Keywords" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search only Tags" })).toBeInTheDocument();
+  });
+
+  it("widens back to every field from the 'All fields' row", async () => {
+    const user = userEvent.setup();
+    const actions = setup({ scope: ["cardText"] });
+
+    await openScopeMenu(user);
+    await user.click(screen.getByRole("checkbox", { name: "All fields" }));
+
+    expect(actions.selectAllSearchFields).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,10 @@
-import type { CardTradeLiveAnnotation, CardTradeLivePhase, CardTradeRole } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeLivePhase,
+  CardTradeRole,
+  SearchField,
+} from "@openrift/shared";
+import { ALL_SEARCH_FIELDS } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,
@@ -27,7 +33,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Area, AreaChart } from "recharts";
 import { siDiscord, siTwitch, siYoutube } from "simple-icons";
 import { toast } from "sonner";
@@ -43,6 +49,7 @@ import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { CoverBand } from "@/components/cover-band";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { SearchInput } from "@/components/filters/search-input";
+import { SearchScopeChip } from "@/components/filters/search-scope-menu";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
 import {
@@ -2053,10 +2060,25 @@ function TradeChipRow({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+/**
+ * Local stand-in for the search-scope store's toggle, so the demo chip behaves
+ * like the real one — including its refusal to leave the scope empty.
+ * @returns The next scope.
+ */
+function toggleDemoScope(scope: SearchField[], field: SearchField): SearchField[] {
+  if (!scope.includes(field)) {
+    return [...scope, field];
+  }
+  const next = scope.filter((entry) => entry !== field);
+  return next.length > 0 ? next : scope;
+}
+
 function CompositesSection() {
   const [plainSearch, setPlainSearch] = useState("");
   const [scopedSearch, setScopedSearch] = useState("teemo");
-  const [scopeNarrowed, setScopeNarrowed] = useState(true);
+  const [demoScope, setDemoScope] = useState<SearchField[]>(["name", "keywords"]);
+  const [demoScopeOpen, setDemoScopeOpen] = useState(false);
+  const demoSearchRef = useRef<HTMLInputElement>(null);
   const [regions, setRegions] = useState<string[]>(["piltover"]);
   const [excludedRegions, setExcludedRegions] = useState<string[]>(["zaun"]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -2109,7 +2131,7 @@ function CompositesSection() {
         </Demo>
         <Demo
           name="SearchInput"
-          hint="Every search surface: magnifier, optional scope chip, result count, clear."
+          hint="Every search surface: magnifier, scope chip (click it for the field menu), result count, clear. On a real surface the chip only mounts while the scope is narrowed or the empty field is focused."
           className="xl:col-span-2"
         >
           <SearchInput
@@ -2121,18 +2143,18 @@ function CompositesSection() {
           <SearchInput
             value={scopedSearch}
             onValueChange={setScopedSearch}
+            inputRef={demoSearchRef}
             placeholder="Search cards…"
             leading={
-              scopeNarrowed ? (
-                <Badge variant="secondary" className="min-w-0 text-xs font-normal">
-                  <span className="min-w-0 truncate">in: name, keywords</span>
-                  <ChipRemoveButton
-                    aria-label="Search in all fields"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setScopeNarrowed(false)}
-                  />
-                </Badge>
-              ) : undefined
+              <SearchScopeChip
+                scope={demoScope}
+                toggleField={(field) => setDemoScope((current) => toggleDemoScope(current, field))}
+                selectAll={() => setDemoScope([...ALL_SEARCH_FIELDS])}
+                selectOnly={(field) => setDemoScope([field])}
+                open={demoScopeOpen}
+                onOpenChange={setDemoScopeOpen}
+                inputRef={demoSearchRef}
+              />
             }
             trailing="12 / 40 cards"
             className="w-80"

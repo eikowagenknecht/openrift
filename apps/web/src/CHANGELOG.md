@@ -10,6 +10,7 @@
 
 ### Other
 
+- feat(Cards): **Search scope moved into the field** — a chip in the search box now shows which fields you are searching and opens the list to change it, with each field's typing shortcut.
 - fix(Decks): **Deck plan card search** — the plan picker now folds punctuation like the rest of the app, so typing "kaisa" finds "Kai'Sa".
 
 ## 2026-08-20
