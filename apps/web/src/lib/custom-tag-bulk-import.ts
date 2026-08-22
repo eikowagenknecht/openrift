@@ -1,4 +1,4 @@
-import { normalizeNameForMatching } from "@openrift/shared";
+import { normalizeNameForIdentity } from "@openrift/shared";
 
 import { parseDeckImportData } from "@/lib/deck-import-parsers";
 
@@ -23,7 +23,7 @@ export interface BulkImportPlan {
 /**
  * Parses a decklist-style block (`<n> <card name>` per line) and resolves
  * each line to a catalogue card id. Reuses the deck importer's text parser
- * and the same `normalizeNameForMatching` helper deck-import matching uses,
+ * and the same `normalizeNameForIdentity` helper deck-import matching uses,
  * so a card resolvable in the deck importer also resolves here.
  *
  * @param text     Raw input from the textarea.
@@ -37,7 +37,7 @@ export function planCustomTagBulkImport(text: string, allCards: MinimalCard[]): 
   // surface as ambiguous instead of last-write-wins silently picking one.
   const byNormalizedName = new Map<string, MinimalCard[]>();
   for (const card of allCards) {
-    const key = normalizeNameForMatching(card.name);
+    const key = normalizeNameForIdentity(card.name);
     const existing = byNormalizedName.get(key);
     if (existing) {
       existing.push(card);
@@ -56,7 +56,7 @@ export function planCustomTagBulkImport(text: string, allCards: MinimalCard[]): 
     if (!name) {
       continue;
     }
-    const hits = byNormalizedName.get(normalizeNameForMatching(name));
+    const hits = byNormalizedName.get(normalizeNameForIdentity(name));
     if (!hits || hits.length === 0) {
       unmatched.push(name);
       continue;

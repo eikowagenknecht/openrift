@@ -6,11 +6,12 @@ import { ImagePlusIcon, LinkIcon, LoaderIcon } from "lucide-react";
 import { AssignButton } from "@/components/admin/assign-button";
 import { Button } from "@/components/ui/button";
 import type { useAcceptFavoriteNewCard, useLinkCard } from "@/hooks/use-admin-card-mutations";
+import type { AdminSearchableCard } from "@/hooks/use-card-search";
 
 export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;
   acceptFavorite: ReturnType<typeof useAcceptFavoriteNewCard>;
-  allCards: { id: string; slug: string; name: string; types: string[] }[];
+  allCards: AdminSearchableCard[];
   /** Full admin — card-review grant holders only get the name link (their accept flow lives on the detail pages). */
   isAdmin: boolean;
 }

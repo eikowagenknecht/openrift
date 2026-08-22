@@ -42,7 +42,7 @@ describe("foldForSearch", () => {
   });
 
   it("keeps characters it does not recognize, so CJK stays searchable", () => {
-    // normalizeNameForMatching deletes these outright, which is why it could not
+    // normalizeNameForIdentity deletes these outright, which is why it could not
     // be reused here.
     expect(foldForSearch("莺之歌")).toBe("莺之歌");
     expect(foldForSearch("黯荧岛Dark Glow")).toBe("黯荧岛dark glow");
@@ -85,7 +85,7 @@ describe("squashForSearch", () => {
   });
 
   it("keeps letters and numbers from any script", () => {
-    // The [^a-z0-9] form used by normalizeNameForMatching emptied these.
+    // The [^a-z0-9] form used by normalizeNameForIdentity emptied these.
     expect(squashForSearch("莺之歌")).toBe("莺之歌");
     expect(squashForSearch("張漁 ·ZHANG YU")).toBe("張漁zhangyu");
     expect(squashForSearch("unité")).toBe("unite");

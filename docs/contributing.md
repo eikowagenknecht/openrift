@@ -17,6 +17,22 @@
 
 Row-to-response mapping is called a **presenter**, and it lives in `lib/<domain>-presenters.ts` — one module per domain (`collection`, `copy`, `deck`, `list`, `printing`, `product`, `deck-check`, `tournament`). Do not name these `mappers` or `*-response`, and do not park one in a service because that's where its first caller happened to be. Presenters are pure and get a sibling `*-presenters.test.ts`; the one exception is a presenter that needs a repo read to compose a detail response (`buildEntryDetail`), which stays in the domain's presenter module rather than moving to `services/`.
 
+## Matching card names
+
+There are exactly two ways to compare card names, and picking the wrong one is how the same query used to return different cards on different surfaces.
+
+**Search** answers "what did the user mean?" and lives in `packages/shared/src/search-fold.ts` plus `card-search.ts`. `foldForSearch` normalizes away everything that carries no meaning (accents, ligatures, dash variants, apostrophes and quotes); `squashForSearch` additionally removes every separator, and is for short identifier-like values only — never rules or flavor text, where squashing joins words across boundaries and invents matches.
+
+Three entry points sit on top of that fold, and nothing else should hand-roll a fourth:
+
+- `searchCards(index, query, limit)` — ranked, for pickers, palettes, the Discord bot and the chat lookup.
+- `resolveCard(index, name)` — one written name to one card, for importers and deck check. Returns `matched` only when exactly one card reaches the strongest tier any card reaches; a tie is `ambiguous` and belongs in front of the user. There is deliberately no approximate matching.
+- `matchesCardQuery(query, values)` — an unranked boolean, for a table's global filter or a plain `.filter()`. Never write `name.toLowerCase().includes(query)`: the catalogue stores `Doran’s Shield`, so a typed `Doran's` finds nothing.
+
+A card is indexed under its canonical name plus `SearchableCard.altNames`, which every surface builds with `cardSearchAltNames` — the colloquial Legend form (`"Azir, Emperor of the Sands"`), a printing's localized `printedName`, and the curated `card_name_aliases` keys where the server has them. Server-side, `services/card-lookup-index.ts` holds one memoized index for the whole API, so a name that resolves in chat resolves the same way in deck check.
+
+**Identity** answers the different question "are these two rows the same card?" and is `normalizeNameForIdentity` in `utils.ts`, mirrored in SQL as the `norm_name` columns. Use it for dedup, grouping and storage keys, never for matching user input. It deliberately does **not** fold accents, because NFKD merges letters that are distinct in some scripts (Cyrillic `й` decomposes to `и`) and a collision in a uniqueness key is a bug. Search wants the opposite. One function used to serve both, search inherited the no-folding compromise, and reaching for the identity key to match typed text brings that back.
+
 ## jsonb columns
 
 **Pass the value, never `JSON.stringify` it.** postgres.js picks a bound parameter's serializer from the type Postgres describes for it, and for a jsonb parameter that serializer is already `JSON.stringify`. Hand it the value (`{ a: 1 }`, `[1, 2]`, `null`) and the column gets the right structure; hand it JSON _text_ and the text is encoded a second time, landing as a jsonb **string scalar** (`"{\"a\":1}"` where the column should hold `{"a": 1}`). Reads follow the same rule, so a jsonb column returns a string only when a string is genuinely what it holds. There is no serialization helper to reach for, and no `parseJsonb` on the way back — both existed, both are gone, and reintroducing either would be reintroducing the bug.

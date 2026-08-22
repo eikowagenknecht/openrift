@@ -20,6 +20,12 @@ export type HoverHandler = (cardId: string | null, preferredPrintingId?: string 
 interface CardCandidate {
   cardId: string;
   cardName: string;
+  /**
+   * Other spellings this candidate answers to, from `cardSearchAltNames`. The
+   * catalog-wide opponent picker supplies them; a picker over one deck zone
+   * lists cards by the name the deck already stores, so it passes none.
+   */
+  altNames?: string[];
 }
 
 /**
@@ -88,6 +94,7 @@ function usePickerResults(
         // picker never does; the id keeps every entry distinct.
         slug: card.cardId,
         name: card.cardName,
+        altNames: card.altNames,
       })),
     [candidates],
   );

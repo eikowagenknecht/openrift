@@ -1,4 +1,5 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import { matchesCardQuery } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -198,7 +199,8 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
     onSortingChange: handleSortingChange,
     onGlobalFilterChange: handleGlobalFilterChange,
     getRowId: (r) => r.name,
-    globalFilterFn: "includesString",
+    globalFilterFn: (row, _columnId, filterValue) =>
+      matchesCardQuery(filterValue as string, [row.original.name]),
   });
 
   const rows = table.getRowModel().rows;

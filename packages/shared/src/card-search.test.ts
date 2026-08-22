@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { SearchableCard, SearchablePrintingCodes } from "./card-search.js";
-import { buildCardIndex, findCard, searchCards } from "./card-search.js";
+import {
+  buildCardIndex,
+  findCard,
+  matchesCardQuery,
+  resolveCard,
+  searchCards,
+} from "./card-search.js";
 
 const cards: SearchableCard[] = [
   { id: "c1", slug: "jinx-rebel", name: "Jinx, Rebel" },
@@ -134,5 +140,180 @@ describe("findCard", () => {
 
   it("returns undefined when nothing matches", () => {
     expect(findCard(index, "teemo")).toBeUndefined();
+  });
+});
+
+describe("altNames", () => {
+  // What `legendComboResolutions` in the deck-check repo, `lookupByTagAndName`
+  // in both import matchers and the display-name remap in the collection
+  // palette each used to do on their own.
+  const legendIndex = buildCardIndex(
+    [
+      {
+        id: "c-azir",
+        slug: "emperor-of-the-sands",
+        name: "Emperor of the Sands",
+        altNames: ["Azir, Emperor of the Sands"],
+      },
+      {
+        id: "c-kindred",
+        slug: "twin-souls",
+        name: "Twin Souls",
+        altNames: ["Kindred, Twin Souls", "Lamb, Twin Souls"],
+      },
+    ],
+    new Map(),
+  );
+
+  it("finds a Legend by its colloquial champion form", () => {
+    expect(searchCards(legendIndex, "Azir, Emperor of the Sands", 5).map((c) => c.id)).toEqual([
+      "c-azir",
+    ]);
+  });
+
+  it("still finds it by the stored name", () => {
+    expect(searchCards(legendIndex, "Emperor of the Sands", 5).map((c) => c.id)).toEqual([
+      "c-azir",
+    ]);
+  });
+
+  it("finds it by the champion alone", () => {
+    expect(searchCards(legendIndex, "azir", 5).map((c) => c.id)).toEqual(["c-azir"]);
+  });
+
+  it("matches any of a Legend's several champion forms", () => {
+    expect(searchCards(legendIndex, "Kindred, Twin Souls", 5).map((c) => c.id)).toEqual([
+      "c-kindred",
+    ]);
+    expect(searchCards(legendIndex, "Lamb, Twin Souls", 5).map((c) => c.id)).toEqual(["c-kindred"]);
+  });
+
+  it("scores an alt-name hit at the tier that name reaches", () => {
+    // The colloquial form is an exact name, so it outranks a card that merely
+    // contains the words.
+    const tierIndex = buildCardIndex(
+      [
+        { id: "c-1", slug: "a", name: "Emperor of the Sands", altNames: ["Azir, Emperor"] },
+        { id: "c-2", slug: "b", name: "Azir, Emperor of Shurima" },
+      ],
+      new Map(),
+    );
+    expect(searchCards(tierIndex, "Azir, Emperor", 5).map((c) => c.id)).toEqual(["c-1", "c-2"]);
+  });
+
+  it("matches an already-normalized alias key typed with punctuation", () => {
+    // `card_name_aliases` stores only the squashed key, never a spelling.
+    const aliasIndex = buildCardIndex(
+      [{ id: "c-1", slug: "a", name: "Blazing Scorcher", altNames: ["blazingscorcherpromo"] }],
+      new Map(),
+    );
+    expect(searchCards(aliasIndex, "Blazing Scorcher Promo", 5).map((c) => c.id)).toEqual(["c-1"]);
+  });
+});
+
+describe("resolveCard", () => {
+  const resolveIndex = buildCardIndex(
+    [
+      { id: "c-annie", slug: "annie", name: "Annie" },
+      { id: "c-annie-dark", slug: "annie-dark-child", name: "Annie, Dark Child" },
+      {
+        id: "c-azir",
+        slug: "emperor-of-the-sands",
+        name: "Emperor of the Sands",
+        altNames: ["Azir, Emperor of the Sands"],
+      },
+    ],
+    new Map(),
+  );
+
+  it("matches an exact name even when longer names also contain it", () => {
+    const result = resolveCard(resolveIndex, "Annie");
+    expect(result).toEqual({ status: "matched", card: expect.objectContaining({ id: "c-annie" }) });
+  });
+
+  it("matches through an alt name", () => {
+    const result = resolveCard(resolveIndex, "Azir, Emperor of the Sands");
+    expect(result).toEqual({ status: "matched", card: expect.objectContaining({ id: "c-azir" }) });
+  });
+
+  it("matches across typographic punctuation", () => {
+    const curly = buildCardIndex([{ id: "c-1", slug: "a", name: "Doran’s Shield" }], new Map());
+    expect(resolveCard(curly, "Doran's Shield").status).toBe("matched");
+  });
+
+  it("reports a tie as ambiguous instead of guessing", () => {
+    // "Anni" is a name prefix of both Annie cards. The old importers accepted
+    // this silently as a >70% overlap and imported whichever sorted first.
+    const result = resolveCard(resolveIndex, "Anni");
+    expect(result.status).toBe("ambiguous");
+    expect(result.status === "ambiguous" && result.candidates.map((c) => c.id)).toEqual([
+      "c-annie",
+      "c-annie-dark",
+    ]);
+  });
+
+  it("reports nothing found as unmatched", () => {
+    expect(resolveCard(resolveIndex, "Teemo")).toEqual({ status: "unmatched" });
+  });
+
+  it("treats an empty or punctuation-only name as unmatched", () => {
+    expect(resolveCard(resolveIndex, "").status).toBe("unmatched");
+    expect(resolveCard(resolveIndex, "  ").status).toBe("unmatched");
+    expect(resolveCard(resolveIndex, "'''").status).toBe("unmatched");
+  });
+});
+
+describe("matchesCardQuery", () => {
+  it("matches across typographic punctuation the user cannot type", () => {
+    expect(matchesCardQuery("doran's shield", ["Doran’s Shield"])).toBe(true);
+    expect(matchesCardQuery("dorans shield", ["Doran’s Shield"])).toBe(true);
+  });
+
+  it("is the case the raw toLowerCase().includes filters used to miss", () => {
+    // The regression this function exists for: the catalogue stores a curly
+    // apostrophe, so a straight one found nothing in the admin tables.
+    expect("Doran’s Shield".toLowerCase().includes("doran's")).toBe(false);
+    expect(matchesCardQuery("doran's", ["Doran’s Shield"])).toBe(true);
+  });
+
+  it("accepts tokens in any order", () => {
+    expect(matchesCardQuery("dark annie", ["Annie, Dark Child"])).toBe(true);
+    expect(matchesCardQuery("annie dark", ["Annie, Dark Child"])).toBe(true);
+  });
+
+  it("requires every token to land somewhere", () => {
+    expect(matchesCardQuery("annie teemo", ["Annie, Dark Child"])).toBe(false);
+  });
+
+  it("lets tokens land in different values", () => {
+    expect(matchesCardQuery("annie ogn202", ["Annie, Dark Child", "OGN-202"])).toBe(true);
+  });
+
+  it("matches a code typed without its separator", () => {
+    expect(matchesCardQuery("ogn202", ["Annie", "OGN-202"])).toBe(true);
+  });
+
+  it("folds accents and expands ligatures", () => {
+    expect(matchesCardQuery("epee", ["Épée Guard"])).toBe(true);
+    expect(matchesCardQuery("strasse", ["Straße"])).toBe(true);
+  });
+
+  it("keeps non-Latin values searchable", () => {
+    expect(matchesCardQuery("莺之歌", ["莺之歌"])).toBe(true);
+  });
+
+  it("matches everything on an empty or punctuation-only query", () => {
+    expect(matchesCardQuery("", ["Annie"])).toBe(true);
+    expect(matchesCardQuery("   ", ["Annie"])).toBe(true);
+    expect(matchesCardQuery("'''", ["Annie"])).toBe(true);
+  });
+
+  it("skips nullish values without matching them", () => {
+    expect(matchesCardQuery("annie", [null, undefined, ""])).toBe(false);
+    expect(matchesCardQuery("annie", [null, "Annie"])).toBe(true);
+  });
+
+  it("returns false against an empty value list", () => {
+    expect(matchesCardQuery("annie", [])).toBe(false);
   });
 });

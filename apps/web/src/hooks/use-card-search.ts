@@ -1,14 +1,13 @@
 import type { SearchableCard, SearchablePrintingCodes } from "@openrift/shared";
-import { buildCardIndex, searchCards } from "@openrift/shared";
+import {
+  buildCardIndex,
+  CARD_SEARCH_MIN_QUERY_LENGTH,
+  CARD_SEARCH_RESULT_LIMIT,
+  searchCards,
+} from "@openrift/shared";
 import { useMemo } from "react";
 
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
-
-/** Shortest query a picker searches on; one letter matches most of any catalog. */
-const CARD_SEARCH_MIN_QUERY_LENGTH = 2;
-
-/** How many hits a picker dropdown shows. */
-const CARD_SEARCH_RESULT_LIMIT = 20;
 
 /** Shared empty map so a caller with no printing codes keeps a stable index dep. */
 const NO_PRINTING_CODES: ReadonlyMap<string, readonly SearchablePrintingCodes[]> = new Map();
@@ -61,6 +60,7 @@ export function useCardSearch<TCard extends SearchableCard>(
 /** The lean card row the admin `allCards` endpoint returns. */
 export interface AdminSearchableCard extends SearchableCard {
   types: string[];
+  shortCodes: string[];
 }
 
 /**
@@ -71,8 +71,6 @@ export interface AdminSearchableCard extends SearchableCard {
  * otherwise identical to the catalog pickers' — same component, same layout,
  * just without the thumbnail.
  *
- * Printing codes are unavailable here too, so this matches on names alone.
- *
  * @param cards The admin card list; must be identity-stable (a query result).
  * @param query What the user typed.
  * @returns Ranked results in the shared dropdown's shape.
@@ -81,7 +79,20 @@ export function useAdminCardSearch(
   cards: readonly AdminSearchableCard[],
   query: string,
 ): CardSearchResult[] {
-  const matches = useCardSearch(cards, query);
+  const printingsByCardId = useMemo(
+    () =>
+      new Map(
+        cards.map((card) => [
+          card.id,
+          // `allCards` carries no public codes, so each short code stands in
+          // for both, the same shape `useAssignableCardSearch` builds.
+          card.shortCodes.map((code) => ({ shortCode: code, publicCode: code })),
+        ]),
+      ),
+    [cards],
+  );
+
+  const matches = useCardSearch(cards, query, printingsByCardId);
   return matches.map((card) => ({
     id: card.id,
     label: card.name,

@@ -11,6 +11,7 @@ const CARDS = [
     name: "Viktor, Herald of Change",
     superTypes: ["legend", "champion"],
     types: ["unit"],
+    tags: ["Viktor"],
     domains: ["fury"],
     energy: 3,
     might: 4,
@@ -22,6 +23,7 @@ const CARDS = [
     name: "Mecha Jinx",
     superTypes: [],
     types: ["unit"],
+    tags: [],
     domains: ["chaos"],
     energy: 5,
     might: 6,
@@ -49,6 +51,7 @@ const ENUMS = {
 const mockCatalogRepo = {
   cards: vi.fn(),
   printingCodes: vi.fn(),
+  nameAliases: vi.fn(),
   catalogContentVersion: vi.fn(),
 };
 const mockEnumsRepo = {
@@ -95,6 +98,7 @@ async function lookupText(
 beforeEach(() => {
   mockCatalogRepo.cards.mockReset().mockResolvedValue(CARDS);
   mockCatalogRepo.printingCodes.mockReset().mockResolvedValue(CODES);
+  mockCatalogRepo.nameAliases.mockReset().mockResolvedValue([]);
   mockCatalogRepo.catalogContentVersion.mockReset().mockResolvedValue("catalog-v1");
   mockEnumsRepo.all.mockReset().mockResolvedValue(ENUMS);
   mockEnumsRepo.contentVersion.mockReset().mockResolvedValue("enums-v1");
@@ -171,13 +175,17 @@ describe("GET /api/v1/chat/card", () => {
     expect(mockCatalogRepo.cards).toHaveBeenCalledTimes(2);
   });
 
-  it("rebuilds the index when only an enum label changes", async () => {
+  it("refreshes the labels but keeps the card index when only an enum label changes", async () => {
+    // The card index is shared with deck-check resolution and memoized on the
+    // catalog version alone, so a renamed type label reloads the labels without
+    // refolding every card name.
     const app = makeApp();
     await lookup("viktor", app);
     mockEnumsRepo.contentVersion.mockResolvedValue("enums-v2");
     await lookup("viktor", app);
 
-    expect(mockCatalogRepo.cards).toHaveBeenCalledTimes(2);
+    expect(mockEnumsRepo.all).toHaveBeenCalledTimes(2);
+    expect(mockCatalogRepo.cards).toHaveBeenCalledTimes(1);
   });
 
   it("bounds an absurdly long query before it reaches the ranking", async () => {

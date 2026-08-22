@@ -1,6 +1,6 @@
 import type { DeckCheckChangeSummary } from "./types/api/deck-check.js";
 import type { DeckZone } from "./types/enums.js";
-import { normalizeNameForMatching } from "./utils.js";
+import { normalizeNameForIdentity } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
 /** One card line of a deck-check entry after section→zone mapping. */
@@ -40,7 +40,7 @@ const SECTION_ZONE_MAP: Record<string, DeckZone> = {
  * @returns The zone slug, or `null` when the section is unknown (the caller rejects the push).
  */
 export function mapSectionToZone(section: string): DeckZone | null {
-  return SECTION_ZONE_MAP[normalizeNameForMatching(section)] ?? null;
+  return SECTION_ZONE_MAP[normalizeNameForIdentity(section)] ?? null;
 }
 
 /**
@@ -80,7 +80,7 @@ export function deckCheckEntrySource(externalId: string): DeckCheckEntrySource {
 }
 
 function lineKey(line: DeckCheckCardLine): string {
-  return [normalizeNameForMatching(line.name), line.zone].join("|");
+  return [normalizeNameForIdentity(line.name), line.zone].join("|");
 }
 
 /**

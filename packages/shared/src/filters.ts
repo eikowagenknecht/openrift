@@ -21,6 +21,7 @@ import {
   PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
 } from "./types/index.js";
+import { cardSearchAltNames } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
 interface ParsedSearchTerm {
@@ -169,7 +170,13 @@ function printingMatchesField(
 ): boolean {
   const { card } = printing;
   if (field === "name") {
-    return looselyContains(card.name, term) || looselyContains(printing.printedName, term);
+    // The same name set the ranked matcher indexes (`cardSearchAltNames`), so
+    // `n:azir` finds the Legend here exactly as it does in a picker.
+    return (
+      looselyContains(card.name, term) ||
+      looselyContains(printing.printedName, term) ||
+      cardSearchAltNames(card).some((name) => looselyContains(name, term))
+    );
   }
   if (field === "cardText") {
     return (
@@ -210,7 +217,9 @@ function printingMatchesField(
       card.superTypes.some((st) => looselyContains(st, term))
     );
   }
-  return looselyContains(printing.shortCode, term);
+  // The `id` field. Both codes, so a `OGN-202/298` printed on the card finds it
+  // here the way it already does in the pickers and the Discord bot.
+  return looselyContains(printing.shortCode, term) || looselyContains(printing.publicCode, term);
 }
 
 /**

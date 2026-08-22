@@ -103,8 +103,21 @@ export {
   tierRowColor,
 } from "./tier-colors.js";
 
-export type { CardSearchIndex, SearchableCard, SearchablePrintingCodes } from "./card-search.js";
-export { buildCardIndex, findCard, searchCards } from "./card-search.js";
+export type {
+  CardResolution,
+  CardSearchIndex,
+  SearchableCard,
+  SearchablePrintingCodes,
+} from "./card-search.js";
+export {
+  buildCardIndex,
+  CARD_SEARCH_MIN_QUERY_LENGTH,
+  CARD_SEARCH_RESULT_LIMIT,
+  findCard,
+  matchesCardQuery,
+  resolveCard,
+  searchCards,
+} from "./card-search.js";
 
 export { formatPrintingVariantLabel, formatPrintingVariantLabelParts } from "./printing-label.js";
 export type {
@@ -116,6 +129,7 @@ export type {
 export {
   extractCardIdFromShortCode,
   formatPrintingLabel,
+  cardSearchAltNames,
   centsToDollars,
   deckIdentityLabels,
   deduplicateByCard,
@@ -123,7 +137,7 @@ export {
   legendDisplayName,
   preferredPrinting,
   mostCommonValue,
-  normalizeNameForMatching,
+  normalizeNameForIdentity,
   slugifyName,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,

@@ -2,7 +2,7 @@ import type { AdminMarketplaceName } from "@openrift/shared";
 import {
   marketplaceCarriesLanguage,
   marketplaceFinish,
-  normalizeNameForMatching,
+  normalizeNameForIdentity,
   WellKnown,
 } from "@openrift/shared";
 
@@ -45,8 +45,8 @@ interface Suggestion {
  * @returns The slug suffix, or null if the card name can't be found.
  */
 function extractSuffix(productName: string, cardName: string): string | null {
-  const normProduct = normalizeNameForMatching(productName);
-  const normCard = normalizeNameForMatching(cardName);
+  const normProduct = normalizeNameForIdentity(productName);
+  const normCard = normalizeNameForIdentity(cardName);
 
   // Prefix match (strongest)
   if (normProduct.startsWith(normCard)) {
@@ -62,7 +62,7 @@ function extractSuffix(productName: string, cardName: string): string | null {
   // For cards with " - " suffix, try the base name before the dash
   const dashIdx = cardName.indexOf(" - ");
   if (dashIdx !== -1) {
-    const normBase = normalizeNameForMatching(cardName.slice(0, dashIdx));
+    const normBase = normalizeNameForIdentity(cardName.slice(0, dashIdx));
     const baseIdx = normProduct.indexOf(normBase);
     if (baseIdx !== -1) {
       return normProduct.slice(baseIdx + normBase.length);

@@ -171,7 +171,7 @@ function makeRepos() {
     replaceEntryCards: stub<any>(undefined),
     updateEntry: stub<any>(undefined),
     createEntry: stub<any>(undefined),
-    resolveCards: stub(new Map()),
+    canonicalPrintingByCard: stub(new Map()),
     getCardsByShortCodes: stub(new Map()),
     getCardDetails: stub(new Map()),
     getCardSetSlugs: stub(new Map()),
@@ -188,7 +188,16 @@ function makeRepos() {
     cardsWithDetails: stub([] as unknown[]),
   };
   const enums = { all: stub({ cardTypes: [] as unknown[], domains: [] as unknown[] }) };
-  const catalog = { championIdentifierTags: stub([] as string[]) };
+  // The card lookup index the resolution service builds; an empty catalogue
+  // means every written name resolves as unmatched, which is what these tests
+  // want unless they override it.
+  const catalog = {
+    championIdentifierTags: stub([] as string[]),
+    cards: stub([] as unknown[]),
+    printingCodes: stub([] as unknown[]),
+    nameAliases: stub([] as unknown[]),
+    catalogContentVersion: stub("catalog-v1"),
+  };
   const cardBans = { listActiveForCards: stub([] as unknown[]) };
   return { deckCheck, tournaments, decks, enums, catalog, cardBans };
 }

@@ -13,6 +13,7 @@ const cards = [
     type: "Unit",
     types: ["Unit"],
     setSlugs: [],
+    shortCodes: [],
   },
   {
     id: "card-2",
@@ -21,6 +22,7 @@ const cards = [
     type: "Unit",
     types: ["Unit"],
     setSlugs: [],
+    shortCodes: [],
   },
 ];
 

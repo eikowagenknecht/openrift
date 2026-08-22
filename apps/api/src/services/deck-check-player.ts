@@ -24,7 +24,7 @@ import type {
   DeckCheckEvent,
   NewDeckCheckEntryCard,
 } from "../repositories/deck-check.js";
-import { cardResolutionKey } from "../repositories/deck-check.js";
+import { cardResolutionKey, resolveDeckCheckCards } from "./deck-check-card-resolution.js";
 
 function sha256(input: string): string {
   return createHash("sha256").update(input).digest("hex");
@@ -181,7 +181,8 @@ async function linesFromCardList(
   if (mainLines.length === 0) {
     return lines;
   }
-  const resolutions = await repos.deckCheck.resolveCards(
+  const resolutions = await resolveDeckCheckCards(
+    repos,
     mainLines.map((line) => ({ name: line.name })),
   );
   const matchedIds = [
@@ -270,7 +271,8 @@ export async function resolvePlayerCardRows(
   repos: Repos,
   lines: DeckCheckCardLine[],
 ): Promise<NewDeckCheckEntryCard[]> {
-  const resolutions = await repos.deckCheck.resolveCards(
+  const resolutions = await resolveDeckCheckCards(
+    repos,
     lines.map((line) => ({ name: line.name })),
   );
   return lines.map((line, sortOrder) => {

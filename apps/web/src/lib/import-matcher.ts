@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared";
+import type { CardResolution, CardSearchIndex, Printing, SearchableCard } from "@openrift/shared";
+import { buildCardIndex, cardSearchAltNames, resolveCard } from "@openrift/shared";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 
@@ -26,13 +26,24 @@ function buildPrintingIndex(allPrintings: Printing[]): PrintingIndex {
   return new PrintingIndex(allPrintings);
 }
 
+/** One searchable row per card, carrying that card's printings back out. */
+interface SearchableCardGroup extends SearchableCard {
+  altNames: string[];
+  cardName: string;
+  printings: Printing[];
+}
+
 class PrintingIndex {
   /** shortCode (lowercase) → Printing[] */
   private byShortCode = new Map<string, Printing[]>();
-  /** normalized card name → { cardId, cardName, printings } */
-  private byNormalizedName = new Map<string, { cardName: string; printings: Printing[] }>();
-  /** "normalizedTag:normalizedName" → group (for "Champion, Title" lookups) */
-  private byTagAndName = new Map<string, { cardName: string; printings: Printing[] }>();
+  /**
+   * Name resolution, through the app-wide matcher. Replaced a normalized-name
+   * map, a "Champion, Title" map and a >70% prefix-overlap guess, all of which
+   * this file used to carry and the deck importer used to carry separately.
+   */
+  private nameIndex: CardSearchIndex<SearchableCardGroup>;
+  /** cardId → that card's group, for widening a code hit to the whole card. */
+  private byCardId = new Map<string, SearchableCardGroup>();
 
   constructor(allPrintings: Printing[]) {
     // Index by short code
@@ -46,45 +57,38 @@ class PrintingIndex {
       group.push(printing);
     }
 
-    // Index by normalized card name
+    // One searchable row per card, holding every printing of it.
+    const byCard = this.byCardId;
     for (const printing of allPrintings) {
-      const normalizedName = normalizeNameForMatching(printing.card.name);
-      let group = this.byNormalizedName.get(normalizedName);
-      if (!group) {
-        group = { cardName: printing.card.name, printings: [] };
-        this.byNormalizedName.set(normalizedName, group);
+      let row = byCard.get(printing.cardId);
+      if (!row) {
+        row = {
+          id: printing.cardId,
+          // No slug lookups here, and the id keeps every row distinct.
+          slug: printing.cardId,
+          name: printing.card.name,
+          // Covers the colloquial "Azir, Emperor of the Sands" spelling for a
+          // card the catalogue stores as "Emperor of the Sands" tagged "Azir".
+          altNames: cardSearchAltNames(printing.card),
+          cardName: printing.card.name,
+          printings: [],
+        };
+        byCard.set(printing.cardId, row);
       }
-      group.printings.push(printing);
-
-      // Also index each tag + name combo so "Azir, Emperor of the Sands"
-      // (the Legend's colloquial display name) resolves to the same card.
-      for (const tag of printing.card.tags) {
-        const normalizedTag = normalizeNameForMatching(tag);
-        if (normalizedTag.length > 0 && normalizedName.length > 0) {
-          this.byTagAndName.set(`${normalizedTag}:${normalizedName}`, group);
-        }
+      row.printings.push(printing);
+      if (printing.printedName && !row.altNames.includes(printing.printedName)) {
+        row.altNames.push(printing.printedName);
       }
     }
+    this.nameIndex = buildCardIndex([...byCard.values()], new Map());
   }
 
   /**
-   * Looks up a card by splitting "Tag, Name" and matching tag + card name.
-   * Handles colloquial Legend names like "Azir, Emperor of the Sands" where the
-   * DB stores name "Emperor of the Sands" with tag "Azir". The bare name still
-   * resolves via {@link fuzzyMatchByName}.
-   * @returns The matching card group, or null if not found.
+   * Resolves a written card name against the catalogue.
+   * @returns Matched with one card group, ambiguous with the tied groups, or unmatched.
    */
-  lookupByTagAndName(cardName: string): { cardName: string; printings: Printing[] } | null {
-    const commaIndex = cardName.indexOf(",");
-    if (commaIndex === -1) {
-      return null;
-    }
-    const tag = normalizeNameForMatching(cardName.slice(0, commaIndex));
-    const name = normalizeNameForMatching(cardName.slice(commaIndex + 1));
-    if (tag.length === 0 || name.length === 0) {
-      return null;
-    }
-    return this.byTagAndName.get(`${tag}:${name}`) ?? null;
+  resolveName(cardName: string): CardResolution<SearchableCardGroup> {
+    return resolveCard(this.nameIndex, cardName);
   }
 
   /**
@@ -112,42 +116,6 @@ class PrintingIndex {
   }
 
   /**
-   * Fuzzy search by card name. Returns the best match if the name is close enough.
-   * @returns The best matching card group, or null if no close match found.
-   */
-  fuzzyMatchByName(cardName: string): { cardName: string; printings: Printing[] } | null {
-    const normalized = normalizeNameForMatching(cardName);
-    if (normalized.length === 0) {
-      return null;
-    }
-
-    // Exact normalized name match
-    const exact = this.byNormalizedName.get(normalized);
-    if (exact) {
-      return exact;
-    }
-
-    // Prefix/substring match — find the best one
-    let bestMatch: { cardName: string; printings: Printing[] } | null = null;
-    let bestScore = 0;
-
-    for (const [key, group] of this.byNormalizedName) {
-      if (key.startsWith(normalized) || normalized.startsWith(key)) {
-        // Overlap ratio as a simple similarity score
-        const shorter = Math.min(key.length, normalized.length);
-        const longer = Math.max(key.length, normalized.length);
-        const score = shorter / longer;
-        if (score > bestScore && score > 0.7) {
-          bestScore = score;
-          bestMatch = group;
-        }
-      }
-    }
-
-    return bestMatch;
-  }
-
-  /**
    * Tries to extract a base code from a source code with extra suffixes
    * (e.g. "OGN-249-Release" → "OGN-249") and returns all printings for the
    * same card.
@@ -160,10 +128,10 @@ class PrintingIndex {
       const candidate = parts.slice(0, length).join("-").toLowerCase();
       const found = this.byShortCode.get(candidate);
       if (found && found.length > 0) {
-        // Found a printing — return all printings for the same card
-        const cardName = normalizeNameForMatching(found[0].card.name);
-        const cardGroup = this.byNormalizedName.get(cardName);
-        return cardGroup?.printings ?? found;
+        // Found a printing — return all printings for the same card. By card
+        // id, not by name: two cards could share a name, and the code already
+        // told us exactly which card this is.
+        return this.byCardId.get(found[0].cardId)?.printings ?? found;
       }
     }
     return [];
@@ -307,13 +275,19 @@ function matchSingleEntry(
     };
   }
 
-  // Step 2: Try name match — "Champion, Title" first (e.g. "Azir, Emperor of
-  // the Sands"), then exact/fuzzy on the bare name.
-  const fuzzy = index.lookupByTagAndName(entry.cardName) ?? index.fuzzyMatchByName(entry.cardName);
-  if (fuzzy) {
-    const langMatches = narrowByLanguage(fuzzy.printings, language);
+  // Step 2: Resolve the written card name. Both the stored name and the
+  // colloquial "Azir, Emperor of the Sands" form reach the same card. A tie
+  // between several cards lists all of their printings as candidates instead of
+  // silently picking one.
+  const resolution = index.resolveName(entry.cardName);
+  if (resolution.status !== "unmatched") {
+    const groups = resolution.status === "matched" ? [resolution.card] : resolution.candidates;
+    const langMatches = narrowByLanguage(
+      groups.flatMap((group) => group.printings),
+      language,
+    );
 
-    // Try to find the specific printing within the fuzzy match
+    // Try to find the specific printing within the matched card
     const finishMatches = langMatches.filter(
       (printing) => printing.finish === entry.finish && printing.artVariant === entry.artVariant,
     );
@@ -324,7 +298,7 @@ function matchSingleEntry(
         status: "needs-review",
         resolvedPrinting: finishMatches[0],
         candidates: langMatches,
-        suggestedName: fuzzy.cardName,
+        suggestedName: groups[0]?.cardName,
       };
     }
 
@@ -333,7 +307,7 @@ function matchSingleEntry(
       status: "needs-review",
       resolvedPrinting: null,
       candidates: langMatches,
-      suggestedName: fuzzy.cardName,
+      suggestedName: groups[0]?.cardName,
     };
   }
 

@@ -17,7 +17,7 @@
  * that runs twice (or a crash between the check and the resolve) settles the
  * same way.
  */
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { CardSubmissionStatus } from "../db/index.js";
 import type { Repos } from "../deps.js";
@@ -96,7 +96,7 @@ export async function resolveCheckedSubmissions(
     // submission time: a new-card submission had no card then and does now,
     // which is exactly the case that should read as accepted.
     const liveCard = await repos.cardSubmissions.liveCardByNormName(
-      normalizeNameForMatching(proposal.card.name),
+      normalizeNameForIdentity(proposal.card.name),
     );
     const { snapshot } = await repos.cardSubmissions.liveSnapshot(
       liveCard?.id ?? null,

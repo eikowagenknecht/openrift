@@ -12,7 +12,7 @@ import { sql } from "kysely";
  * admin candidates list rendered seven unrelated legends as a single row.
  *
  * `[[:alnum:]]` keeps letters and digits of any script, matching the TS
- * `normalizeNameForMatching` (`[^\p{L}\p{Nd}\p{Nl}]`) character for character;
+ * `normalizeNameForIdentity` (`[^\p{L}\p{Nd}\p{Nl}]`) character for character;
  * the parity is asserted by `norm-name-parity.integration.test.ts`. Note the
  * `lower()` moves *inside* `regexp_replace` — casing can introduce a combining
  * mark (`İ` → `i` + U+0307) that the strip has to remove afterwards, and TS
@@ -27,7 +27,7 @@ import { sql } from "kysely";
  */
 
 /**
- * The Postgres mirror of `normalizeNameForMatching`.
+ * The Postgres mirror of `normalizeNameForIdentity`.
  * @returns A SQL fragment normalizing `column` to its match key.
  */
 const NORM = (column: string) =>

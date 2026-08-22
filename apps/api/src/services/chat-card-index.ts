@@ -1,15 +1,11 @@
-import type { CardSearchIndex } from "@openrift/shared";
-import { buildCardIndex } from "@openrift/shared";
-
 import type { Repos } from "../deps.js";
-import type { ChatCard, ChatEnumLabels } from "../lib/chat-presenters.js";
+import type { ChatEnumLabels } from "../lib/chat-presenters.js";
+import type { CardLookupIndex } from "./card-lookup-index.js";
+import { createCardLookupIndexLoader } from "./card-lookup-index.js";
 import { createContentAddressedCache } from "./catalog-assembly.js";
 
-/** A card as the chat index holds it: the presenter's fields plus its id. */
-type ChatIndexCard = ChatCard & { id: string };
-
 export interface ChatCardIndex {
-  index: CardSearchIndex<ChatIndexCard>;
+  index: CardLookupIndex;
   labels: ChatEnumLabels;
 }
 
@@ -19,55 +15,32 @@ function labelMap(rows: readonly { slug: string; label: string }[]): Record<stri
 }
 
 /**
- * Reads the cards, their lookup codes and the enum labels the chat line needs,
- * and folds them into a ready-to-query index.
+ * The chat lookup: the shared server-side card index plus the enum labels the
+ * one-line answer renders.
  *
- * @returns The assembled chat lookup index.
- */
-async function assembleChatCardIndex(repos: Repos): Promise<ChatCardIndex> {
-  const [cards, codes, enums] = await Promise.all([
-    repos.catalog.cards(),
-    repos.catalog.printingCodes(),
-    repos.enums.all(),
-  ]);
-  return {
-    index: buildCardIndex(
-      cards,
-      Map.groupBy(codes, (row) => row.cardId),
-    ),
-    labels: {
-      cardTypes: labelMap(enums.cardTypes),
-      superTypes: labelMap(enums.superTypes),
-      domains: labelMap(enums.domains),
-    },
-  };
-}
-
-/**
- * A process-lived, content-addressed memo of the chat lookup index.
+ * The index itself is {@link createCardLookupIndexLoader}'s, so a name that
+ * resolves in deck-check resolves here too. Only the labels are chat's own,
+ * which is why this keeps its own memo: they turn over on a different probe
+ * (a renamed type label changes no card).
  *
- * The whole catalogue has to be in memory for a lookup to be a scan over
- * pre-folded strings, so rebuilding it per request is out of the question. The
- * Discord bot solves this with a TTL refresh because it only talks to the API
- * over HTTP; server-side we can do better with the same helper the rule
- * catalogue uses: the memo is keyed on cheap content-version probes rather than
- * a clock, so a card edit or a renamed enum label is visible on the next
- * lookup with no staleness window.
- *
- * Both probes matter — the catalogue token covers cards and printings, and the
- * enum token covers the type/domain labels the stat line renders.
- *
- * @returns A zero-arg loader serving the memoized index.
+ * @returns A zero-arg loader serving the memoized index and labels.
  */
 export function createChatCardIndexLoader(repos: Repos): () => Promise<ChatCardIndex> {
-  return createContentAddressedCache(
-    () => assembleChatCardIndex(repos),
+  const loadIndex = createCardLookupIndexLoader(repos);
+  const loadLabels = createContentAddressedCache(
     async () => {
-      const [catalogVersion, enumVersion] = await Promise.all([
-        repos.catalog.catalogContentVersion(),
-        repos.enums.contentVersion(),
-      ]);
-      return `${catalogVersion}|${enumVersion}`;
+      const enums = await repos.enums.all();
+      return {
+        cardTypes: labelMap(enums.cardTypes),
+        superTypes: labelMap(enums.superTypes),
+        domains: labelMap(enums.domains),
+      };
     },
+    () => repos.enums.contentVersion(),
   );
+
+  return async () => {
+    const [index, labels] = await Promise.all([loadIndex(), loadLabels()]);
+    return { index, labels };
+  };
 }

@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared";
 import { useMemo, useState } from "react";
 
 import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";
@@ -39,7 +39,10 @@ export function PrintingSearch({
       allPrintings.map((printing) => ({
         id: printing.id,
         slug: printing.shortCode,
+        // Shown as the colloquial Legend form, but findable under the stored
+        // name and the printing's localized one too.
         name: legendDisplayName(printing.card),
+        altNames: cardSearchAltNames(printing.card, [printing.printedName]),
         printing,
       })),
     [allPrintings],

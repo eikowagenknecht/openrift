@@ -16,7 +16,10 @@ import type {
 import { fallbackImageId, imageId } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
-type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
+export type CatalogCardRow = Omit<
+  Selectable<CardsTable>,
+  "normName" | "createdAt" | "updatedAt"
+> & {
   domains: Domain[];
   superTypes: SuperType[];
   types: CardType[];
@@ -370,6 +373,24 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select(["cardId", "shortCode", "publicCode"])
         .orderBy("shortCode")
+        .execute();
+    },
+
+    /**
+     * The curated name aliases, for the server-side lookup index.
+     *
+     * Only the normalized key is stored, never the original spelling, so these
+     * feed `SearchableCard.altNames` as already-squashed strings. Aliases are
+     * written alongside the card rows that own them, so `catalogContentVersion`
+     * moves whenever they do and no separate probe is needed.
+     *
+     * @returns Each alias's normalized key and the card it resolves to.
+     */
+    nameAliases(): Promise<{ cardId: string; normName: string }[]> {
+      return db
+        .selectFrom("cardNameAliases")
+        .select(["cardId", "normName"])
+        .orderBy("normName")
         .execute();
     },
 

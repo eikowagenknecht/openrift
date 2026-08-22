@@ -158,14 +158,16 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /**
      * @returns Lightweight card list ordered by slug, with distinct `setSlugs`
-     *   across the card's accepted printings (empty array if the card has no
-     *   printings yet). Admins use `setSlugs` to scope list and detail views
-     *   to a single set.
+     *   and `shortCodes` across the card's accepted printings (empty arrays if
+     *   the card has no printings yet). Admins use `setSlugs` to scope list and
+     *   detail views to a single set, and `shortCodes` so the admin card
+     *   pickers resolve a typed `OGN-202` the way every other picker does.
      */
     listAllCards(): Promise<
       (Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type"> & {
         types: string[];
         setSlugs: string[];
+        shortCodes: string[];
       })[]
     > {
       return db
@@ -190,6 +192,14 @@ export function candidateCardsRepo(db: Kysely<Database>) {
               sql<string[]>`'{}'::text[]`,
             )
             .as("setSlugs"),
+          eb.fn
+            .coalesce(
+              sql<
+                string[]
+              >`array_agg(distinct p.short_code) filter (where p.short_code is not null)`,
+              sql<string[]>`'{}'::text[]`,
+            )
+            .as("shortCodes"),
         ])
         .groupBy(["c.id", "c.slug", "c.name", "c.type"])
         .orderBy("c.slug")

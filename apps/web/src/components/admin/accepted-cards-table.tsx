@@ -1,4 +1,5 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import { matchesCardQuery } from "@openrift/shared";
 import { formatShortCodesArray } from "@openrift/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -573,15 +574,14 @@ export function AcceptedCardsTable({
     onGlobalFilterChange: handleGlobalFilterChange,
     getRowId: (r) => r.cardSlug ?? r.normalizedName,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const query = (filterValue as string).toLowerCase();
       const r = row.original;
-      return (
-        r.name.toLowerCase().includes(query) ||
-        r.shortCodes.some((code) => code.toLowerCase().includes(query)) ||
+      return matchesCardQuery(filterValue as string, [
+        r.name,
+        ...r.shortCodes,
         // Matches only what the Candidate Printings column shows, so a hit
         // never lands on a row with an apparently empty column.
-        r.favoriteStagingShortCodes.some((code) => code.toLowerCase().includes(query))
-      );
+        ...r.favoriteStagingShortCodes,
+      ]);
     },
   });
 

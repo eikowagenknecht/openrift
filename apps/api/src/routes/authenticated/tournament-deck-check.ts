@@ -12,9 +12,12 @@ import {
 } from "../../lib/deck-check-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { cardResolutionKey } from "../../repositories/deck-check.js";
 import type { DeckCheckEntry, DeckCheckEvent } from "../../repositories/deck-check.js";
 import { computeZoneSuggestions } from "../../services/deck-check-advisories.js";
+import {
+  cardResolutionKey,
+  resolveDeckCheckCards,
+} from "../../services/deck-check-card-resolution.js";
 import {
   createManualDeckCheckEntry,
   recomputeEntryHash,
@@ -264,7 +267,7 @@ export const tournamentDeckCheckRouter = {
       );
     }
     const existing = await repos.deckCheck.listCardsForEntry(entry.id);
-    const resolutions = await repos.deckCheck.resolveCards([{ name: input.name }]);
+    const resolutions = await resolveDeckCheckCards(repos, [{ name: input.name }]);
     const resolution = resolutions.get(cardResolutionKey(input.name)) ?? {
       resolvedCardId: null,
       resolvedPrintingId: null,
@@ -291,7 +294,7 @@ export const tournamentDeckCheckRouter = {
       requireListVisible(entry);
 
       const { name, section, copies } = input;
-      const resolutions = await repos.deckCheck.resolveCards([{ name }]);
+      const resolutions = await resolveDeckCheckCards(repos, [{ name }]);
       const resolution = resolutions.get(cardResolutionKey(name)) ?? {
         resolvedCardId: null,
         resolvedPrintingId: null,
@@ -421,7 +424,8 @@ export const tournamentDeckCheckRouter = {
     const event = await authorizeJudge(repos, input.tournamentId, context.userId);
 
     const unresolved = await repos.deckCheck.listUnresolvedCardsForEvent(event.id);
-    const resolutions = await repos.deckCheck.resolveCards(
+    const resolutions = await resolveDeckCheckCards(
+      repos,
       unresolved.map((card) => ({ name: card.rawName })),
     );
     let updatedLines = 0;

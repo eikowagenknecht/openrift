@@ -1,5 +1,20 @@
-import type { CardType, DeckZone, Domain, Printing, SuperType } from "@openrift/shared";
-import { WellKnown, inferZone, normalizeNameForMatching } from "@openrift/shared";
+import type {
+  CardResolution,
+  CardSearchIndex,
+  CardType,
+  DeckZone,
+  Domain,
+  Printing,
+  SearchableCard,
+  SuperType,
+} from "@openrift/shared";
+import {
+  buildCardIndex,
+  cardSearchAltNames,
+  inferZone,
+  resolveCard,
+  WellKnown,
+} from "@openrift/shared";
 
 import type { DeckImportEntry } from "@/lib/deck-import-parsers";
 
@@ -37,23 +52,32 @@ export interface DeckMatchedEntry {
   zone: DeckZone;
 }
 
+/** One searchable row per card, carrying the resolved card back out. */
+interface SearchableDeckCard extends SearchableCard {
+  altNames: string[];
+  resolved: ResolvedCard;
+}
+
 /**
  * Builds a lookup index from the catalog for fast card resolution.
  * Groups printings by card to deduplicate — decks care about cards, not specific printings.
+ *
+ * Name resolution is the app-wide matcher (`@openrift/shared/card-search`), the
+ * same one behind every picker. It used to be three hand-rolled lookups here (an
+ * exact normalized-name map, a "Tag, Name" map for colloquial Legend spellings,
+ * and a >70% prefix-overlap guess), which is how a decklist could import one
+ * card in this flow and a different one in the collection flow.
  */
 class CardIndex {
   /** shortCode (lowercase) → ResolvedCard. Multiple language printings share a
    * shortCode; we don't pin one because the deck-code formats carry no language
    * info — display falls back to the user's language preference. */
   private byShortCode = new Map<string, ResolvedCard>();
-  /** normalized card name → ResolvedCard */
-  private byNormalizedName = new Map<string, ResolvedCard>();
-  /** "normalizedTag:normalizedName" → ResolvedCard (for "Character, Title" lookups) */
-  private byTagAndName = new Map<string, ResolvedCard>();
+  private nameIndex: CardSearchIndex<SearchableDeckCard>;
 
   constructor(allPrintings: Printing[]) {
     // Deduplicate printings to cards: pick the first printing per card as representative
-    const cardMap = new Map<string, { resolved: ResolvedCard; tags: string[] }>();
+    const rows = new Map<string, SearchableDeckCard>();
 
     for (const printing of allPrintings) {
       const shortCodeKey = printing.shortCode.toLowerCase();
@@ -61,29 +85,22 @@ class CardIndex {
         this.byShortCode.set(shortCodeKey, cardFromPrinting(printing));
       }
 
-      if (cardMap.has(printing.cardId)) {
+      if (rows.has(printing.cardId)) {
         continue;
       }
-      cardMap.set(printing.cardId, {
+      rows.set(printing.cardId, {
+        id: printing.cardId,
+        // No slug lookups here, and the id keeps every row distinct.
+        slug: printing.cardId,
+        name: printing.card.name,
+        // Covers the colloquial "Sett, The Boss" spelling a source list may use
+        // for a card the catalogue stores as "The Boss" tagged "Sett".
+        altNames: cardSearchAltNames(printing.card, [printing.printedName]),
         resolved: cardFromPrinting(printing),
-        tags: printing.card.tags,
       });
     }
 
-    for (const { resolved, tags } of cardMap.values()) {
-      const normalized = normalizeNameForMatching(resolved.cardName);
-      if (normalized.length > 0) {
-        this.byNormalizedName.set(normalized, resolved);
-      }
-
-      // Index each tag + card name combination for "Character, Title" lookups
-      for (const tag of tags) {
-        const normalizedTag = normalizeNameForMatching(tag);
-        if (normalizedTag.length > 0 && normalized.length > 0) {
-          this.byTagAndName.set(`${normalizedTag}:${normalized}`, resolved);
-        }
-      }
-    }
+    this.nameIndex = buildCardIndex([...rows.values()], new Map());
   }
 
   /**
@@ -97,72 +114,11 @@ class CardIndex {
   }
 
   /**
-   * Looks up a card by exact normalized name.
-   * @returns The resolved card, or null if not found.
+   * Resolves a written card name against the catalogue.
+   * @returns Matched with one card, ambiguous with the tied candidates, or unmatched.
    */
-  lookupByName(cardName: string): ResolvedCard | null {
-    const normalized = normalizeNameForMatching(cardName);
-    if (normalized.length === 0) {
-      return null;
-    }
-    return this.byNormalizedName.get(normalized) ?? null;
-  }
-
-  /**
-   * Looks up a card by splitting "Tag, Name" and matching tag + card name.
-   * Handles import formats like "Sett, The Boss" where DB stores name "The Boss" with tag "Sett".
-   * @returns The resolved card, or null if not found.
-   */
-  lookupByTagAndName(cardName: string): ResolvedCard | null {
-    const commaIndex = cardName.indexOf(",");
-    if (commaIndex === -1) {
-      return null;
-    }
-    const tag = normalizeNameForMatching(cardName.slice(0, commaIndex));
-    const name = normalizeNameForMatching(cardName.slice(commaIndex + 1));
-    if (tag.length === 0 || name.length === 0) {
-      return null;
-    }
-    return this.byTagAndName.get(`${tag}:${name}`) ?? null;
-  }
-
-  /**
-   * Fuzzy search by card name. Returns the best match if close enough (>70% similarity).
-   * @returns The best matching card and its name, or null.
-   */
-  fuzzyMatchByName(cardName: string): { card: ResolvedCard; matchedName: string } | null {
-    const normalized = normalizeNameForMatching(cardName);
-    if (normalized.length === 0) {
-      return null;
-    }
-
-    // Exact normalized match
-    const exact = this.byNormalizedName.get(normalized);
-    if (exact) {
-      return { card: exact, matchedName: exact.cardName };
-    }
-
-    // Prefix/substring match with similarity threshold
-    let bestMatch: ResolvedCard | null = null;
-    let bestScore = 0;
-
-    for (const [key, card] of this.byNormalizedName) {
-      if (key.startsWith(normalized) || normalized.startsWith(key)) {
-        const shorter = Math.min(key.length, normalized.length);
-        const longer = Math.max(key.length, normalized.length);
-        const score = shorter / longer;
-        if (score > bestScore && score > 0.7) {
-          bestScore = score;
-          bestMatch = card;
-        }
-      }
-    }
-
-    if (bestMatch) {
-      return { card: bestMatch, matchedName: bestMatch.cardName };
-    }
-
-    return null;
+  resolveName(cardName: string): CardResolution<SearchableDeckCard> {
+    return resolveCard(this.nameIndex, cardName);
   }
 }
 
@@ -273,10 +229,13 @@ function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMat
     // (shouldn't happen for Piltover/TTS, but just in case)
   }
 
-  // Strategy 2: Look up by exact card name (text format)
+  // Strategy 2: Resolve the written card name (text format). One unambiguous
+  // best match imports directly; a tie goes to the user rather than being
+  // guessed at.
   if (entry.cardName) {
-    const card = index.lookupByName(entry.cardName);
-    if (card) {
+    const resolution = index.resolveName(entry.cardName);
+    if (resolution.status === "matched") {
+      const card = resolution.card.resolved;
       return {
         entry,
         status: "exact",
@@ -285,34 +244,23 @@ function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMat
         zone: inferEntryZone(entry, card),
       };
     }
-
-    // Strategy 3: Tag + name match (e.g. "Sett, The Boss" → tag "Sett" + name "The Boss")
-    const tagMatch = index.lookupByTagAndName(entry.cardName);
-    if (tagMatch) {
-      return {
-        entry,
-        status: "exact",
-        resolvedCard: tagMatch,
-        candidates: [tagMatch],
-        zone: inferEntryZone(entry, tagMatch),
-      };
-    }
-
-    // Strategy 4: Fuzzy name match
-    const fuzzy = index.fuzzyMatchByName(entry.cardName);
-    if (fuzzy) {
+    if (resolution.status === "ambiguous") {
+      const candidates = resolution.candidates.map((row) => row.resolved);
+      // The first candidate seeds the row's dropdown, but the status keeps the
+      // entry in the review list until the importer confirms or changes it.
+      const first = candidates[0] as ResolvedCard;
       return {
         entry,
         status: "needs-review",
-        resolvedCard: fuzzy.card,
-        candidates: [fuzzy.card],
-        suggestedName: fuzzy.matchedName,
-        zone: inferEntryZone(entry, fuzzy.card),
+        resolvedCard: first,
+        candidates,
+        suggestedName: first.cardName,
+        zone: inferEntryZone(entry, first),
       };
     }
   }
 
-  // Strategy 5: Unresolved
+  // Strategy 3: Unresolved
   return {
     entry,
     status: "unresolved",

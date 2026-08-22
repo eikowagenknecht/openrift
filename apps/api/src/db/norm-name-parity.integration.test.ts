@@ -1,4 +1,4 @@
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
@@ -7,7 +7,7 @@ import { createDbContext } from "../test/integration-context.js";
 const ctx = createDbContext("a0000000-0193-4000-a000-000000000002");
 
 /**
- * `normalizeNameForMatching` is implemented twice: once in TypeScript and once
+ * `normalizeNameForIdentity` is implemented twice: once in TypeScript and once
  * in SQL, by the `cards_set_norm_name()`, `candidate_cards_set_norm_name()`
  * and `marketplace_product_compute_norm_name()` trigger functions (migration
  * 214). Keys computed by the application and keys computed by the database are
@@ -73,7 +73,7 @@ describe.skipIf(!ctx)("norm_name TS/SQL parity (integration, migration 214)", ()
     );
 
     for (const row of rows) {
-      const expected = normalizeNameForMatching(row.name);
+      const expected = normalizeNameForIdentity(row.name);
       expect({ name: row.name, key: row.card }).toEqual({ name: row.name, key: expected });
       expect({ name: row.name, key: row.candidate }).toEqual({ name: row.name, key: expected });
       expect({ name: row.name, key: row.product }).toEqual({ name: row.name, key: expected });
@@ -90,8 +90,8 @@ describe.skipIf(!ctx)("norm_name TS/SQL parity (integration, migration 214)", ()
     `.execute(db);
 
     const mismatches = rows.rows
-      .filter((r) => r.key !== normalizeNameForMatching(r.name))
-      .map((r) => ({ name: r.name, db: r.key, ts: normalizeNameForMatching(r.name) }));
+      .filter((r) => r.key !== normalizeNameForIdentity(r.name))
+      .map((r) => ({ name: r.name, db: r.key, ts: normalizeNameForIdentity(r.name) }));
 
     expect(mismatches).toEqual([]);
   });
@@ -129,7 +129,7 @@ describe.skipIf(!ctx)("norm_name TS/SQL parity (integration, migration 214)", ()
       expect(inserted).toHaveLength(names.length);
       expect(new Set(inserted.map((r) => r.normName)).size).toBe(names.length);
       for (const row of inserted) {
-        expect(row.normName).toBe(normalizeNameForMatching(row.name));
+        expect(row.normName).toBe(normalizeNameForIdentity(row.name));
         expect(row.normName).not.toBe("");
       }
     } finally {

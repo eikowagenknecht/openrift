@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { legendDisplayName, WellKnown } from "@openrift/shared";
+import { cardSearchAltNames, legendDisplayName, WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { use, useState } from "react";
@@ -126,7 +126,7 @@ interface MatchupEditorProps {
   index: number;
   isFirst: boolean;
   isLast: boolean;
-  cardCandidates: { cardId: string; cardName: string }[];
+  cardCandidates: { cardId: string; cardName: string; altNames: string[] }[];
   maindeckCandidates: { cardId: string; cardName: string; quantity: number }[];
   sideboardCandidates: { cardId: string; cardName: string; quantity: number }[];
   warnings: PlanWarning[];
@@ -351,13 +351,14 @@ export function DeckPlanEditor({
   // Candidate sets for the pickers. The opponent card can be any catalog card
   // (a Legend, Aurora, a domain signpost), deduped by card id.
   const cardSeen = new Set<string>();
-  const cardCandidates: { cardId: string; cardName: string }[] = [];
+  const cardCandidates: { cardId: string; cardName: string; altNames: string[] }[] = [];
   for (const printing of allPrintings) {
     if (!cardSeen.has(printing.cardId)) {
       cardSeen.add(printing.cardId);
       cardCandidates.push({
         cardId: printing.cardId,
         cardName: legendDisplayName(printing.card),
+        altNames: cardSearchAltNames(printing.card, [printing.printedName]),
       });
     }
   }

@@ -3,7 +3,7 @@ import type {
   DeckCheckEntryDetailResponse,
   Printing,
 } from "@openrift/shared";
-import { WellKnown, legendDisplayName } from "@openrift/shared";
+import { WellKnown, cardSearchAltNames, legendDisplayName } from "@openrift/shared";
 import { useMemo, useState } from "react";
 
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
@@ -249,6 +249,9 @@ function useMatchingPrintings(
                 id: printing.cardId,
                 slug: printing.cardId,
                 name: legendDisplayName(printing.card),
+                // A decklist may spell the card either way, so both forms have
+                // to find it.
+                altNames: cardSearchAltNames(printing.card, [printing.printedName]),
                 printing,
               },
             ]

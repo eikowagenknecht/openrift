@@ -90,8 +90,17 @@ describe("GET /api/admin/v1/cards/all-cards", () => {
         type: "spell",
         types: ["spell"],
         setSlugs: ["ogn"],
+        shortCodes: ["OGN-101"],
       },
-      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell", types: ["spell"], setSlugs: [] },
+      {
+        id: "card-2",
+        slug: "bolt",
+        name: "Bolt",
+        type: "spell",
+        types: ["spell"],
+        setSlugs: [],
+        shortCodes: [],
+      },
     ];
     mockCandidateCards.listAllCards.mockResolvedValue(cards);
 

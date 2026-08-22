@@ -23,7 +23,7 @@ import type {
   DeckCheckHost,
   NewDeckCheckEntryCard,
 } from "../repositories/deck-check.js";
-import { cardResolutionKey } from "../repositories/deck-check.js";
+import { cardResolutionKey, resolveDeckCheckCards } from "./deck-check-card-resolution.js";
 import { storedCardLines } from "./deck-check-states.js";
 
 export type DeckCheckIngestPayload = z.infer<typeof deckCheckIngestSchema>;
@@ -130,7 +130,8 @@ export async function ingestDeckCheckPush(
 
   const mappedLines = mapAllSections(payload.entries);
 
-  const resolutions = await repos.deckCheck.resolveCards(
+  const resolutions = await resolveDeckCheckCards(
+    repos,
     mappedLines.flat().map((line) => ({ name: line.name })),
   );
 
@@ -324,7 +325,8 @@ export async function createManualDeckCheckEntry(
     return { name: card.name, zone, quantity: card.quantity };
   });
 
-  const resolutions = await repos.deckCheck.resolveCards(
+  const resolutions = await resolveDeckCheckCards(
+    repos,
     lines.map((line) => ({ name: line.name })),
   );
   const cardRows: NewDeckCheckEntryCard[] = payload.cards.map((card, sortOrder) => {

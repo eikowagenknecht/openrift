@@ -4,7 +4,7 @@ import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/car
 import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-rules";
 import { extractKeywords } from "@openrift/shared/keywords";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
@@ -152,7 +152,7 @@ export const adminCardMutationsRouter = {
     const card = await mut.getCardById(input.cardId);
     assertFound(card, "Card not found");
 
-    const cardNormName = normalizeNameForMatching(card.name);
+    const cardNormName = normalizeNameForIdentity(card.name);
     const aliasRows = await mut.getCardAliases(card.id);
     const uniqueVariants = [...new Set([cardNormName, ...aliasRows.map((a) => a.normName)])];
 
@@ -615,8 +615,8 @@ export const adminCardMutationsRouter = {
     if (field === "name" && typeof finalValue === "string" && cardBefore) {
       await mut.syncSelfAliasOnRename(
         cardId,
-        normalizeNameForMatching(cardBefore.name),
-        normalizeNameForMatching(finalValue),
+        normalizeNameForIdentity(cardBefore.name),
+        normalizeNameForIdentity(finalValue),
       );
     }
 
@@ -996,7 +996,7 @@ export const adminCardMutationsRouter = {
           domains: Domain[];
           superTypes?: SuperType[];
         },
-        normalizeNameForMatching(cardFields.name),
+        normalizeNameForIdentity(cardFields.name),
       );
     });
 

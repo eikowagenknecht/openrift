@@ -1,7 +1,7 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { MetaCandidateDeck } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
@@ -389,7 +389,7 @@ export const adminMetaCandidatesRouter = {
 
     // The matcher keys on the normalized form, so a name made only of
     // punctuation or spacing would store an alias no upload can ever hit.
-    const normName = normalizeNameForMatching(input.name);
+    const normName = normalizeNameForIdentity(input.name);
     if (normName === "") {
       throw new AppError(
         400,

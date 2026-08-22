@@ -7,7 +7,7 @@ import type {
   Printing,
   PublicDeckDetailResponse,
 } from "@openrift/shared";
-import { WellKnown, legendDisplayName, linkHostLabel } from "@openrift/shared";
+import { WellKnown, cardSearchAltNames, legendDisplayName, linkHostLabel } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -1380,7 +1380,13 @@ function CardSearch({
 function useResolvedCardIndex(allPrintings: Printing[]) {
   const rows = useMemo(() => {
     const seen = new Set<string>();
-    const results: { id: string; slug: string; name: string; card: ResolvedCard }[] = [];
+    const results: {
+      id: string;
+      slug: string;
+      name: string;
+      altNames: string[];
+      card: ResolvedCard;
+    }[] = [];
     for (const printing of allPrintings) {
       if (seen.has(printing.cardId)) {
         continue;
@@ -1391,6 +1397,8 @@ function useResolvedCardIndex(allPrintings: Printing[]) {
         id: printing.cardId,
         slug: printing.cardId,
         name: displayName,
+        // The source list being corrected may spell the card either way.
+        altNames: cardSearchAltNames(printing.card, [printing.printedName]),
         card: {
           cardId: printing.cardId,
           cardName: displayName,

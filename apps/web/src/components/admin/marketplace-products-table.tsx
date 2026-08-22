@@ -1,6 +1,6 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
 import { formatDayTime, marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
-import { formatPrintingLabel, normalizeNameForMatching } from "@openrift/shared/utils";
+import { formatPrintingLabel, normalizeNameForIdentity } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
   BanIcon,
@@ -138,8 +138,8 @@ function setPrefix(shortCode: string): string {
  * @returns true when the normalized product and card names are not equal.
  */
 export function isCardNameMismatch(productName: string, cardName: string): boolean {
-  const normProduct = normalizeNameForMatching(productName);
-  const normCard = normalizeNameForMatching(cardName);
+  const normProduct = normalizeNameForIdentity(productName);
+  const normCard = normalizeNameForIdentity(cardName);
   if (normCard.length === 0) {
     return false;
   }

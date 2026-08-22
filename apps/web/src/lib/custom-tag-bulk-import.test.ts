@@ -33,7 +33,7 @@ describe("planCustomTagBulkImport", () => {
     expect(plan.cardIds).toEqual(["card-1"]);
   });
 
-  it("ignores case and punctuation variation via normalizeNameForMatching", () => {
+  it("ignores case and punctuation variation via normalizeNameForIdentity", () => {
     const plan = planCustomTagBulkImport("1 miss fortune buccaneer", CARDS);
     expect(plan.cardIds).toEqual(["card-3"]);
   });

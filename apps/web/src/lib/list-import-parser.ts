@@ -1,4 +1,4 @@
-import { normalizeNameForMatching, WellKnown } from "@openrift/shared";
+import { normalizeNameForIdentity, WellKnown } from "@openrift/shared";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 import { detectImportFormat, parseImportData } from "@/lib/import-parsers";
@@ -34,7 +34,7 @@ export function parseListImport(text: string): ListImportParseResult {
  *
  * The matcher pipeline operates on `ImportEntry`, so we synthesize one per
  * card with placeholder source-code / variant fields — the matcher's name
- * fallback (`fuzzyMatchByName`) handles resolution from there.
+ * resolution handles it from there.
  * @returns Parsed entries, errors, and the count of non-blank rows seen.
  */
 export function parseCardListText(text: string): ListImportParseResult {
@@ -68,7 +68,7 @@ export function parseCardListText(text: string): ListImportParseResult {
       continue;
     }
 
-    const key = normalizeNameForMatching(cardName);
+    const key = normalizeNameForIdentity(cardName);
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += quantity;

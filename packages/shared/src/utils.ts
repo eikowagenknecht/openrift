@@ -34,6 +34,43 @@ export function legendDisplayName(card: Pick<Card, "name" | "types" | "tags">): 
 }
 
 /**
+ * The other names a card answers to in search, for `SearchableCard.altNames`.
+ *
+ * One definition so a surface cannot decide on its own that Legends are or are
+ * not findable by their champion. Three separate hand-rolled versions of this
+ * used to exist (a display-name remap in the collection palette, a
+ * `lookupByTagAndName` in each import matcher, and `legendComboResolutions` in
+ * deck-check), which is why the same query behaved differently depending on
+ * where it was typed.
+ *
+ * @param card The card whose colloquial Legend form should be included.
+ * @param extra Further names the caller can reach: a printing's localized
+ *   `printedName`, or curated `card_name_aliases` keys on the server. Nullish
+ *   and duplicate entries are dropped.
+ * @returns The alternate names, never including the canonical `card.name`.
+ *
+ * @example
+ * ```ts
+ * cardSearchAltNames({ name: "Emperor of the Sands", types: ["legend"], tags: ["Azir"] })
+ * // => ["Azir, Emperor of the Sands"]
+ * ```
+ */
+export function cardSearchAltNames(
+  card: Pick<Card, "name" | "types" | "tags">,
+  extra?: readonly (string | null | undefined)[],
+): string[] {
+  const seen = new Set<string>([card.name]);
+  const out: string[] = [];
+  for (const name of [legendDisplayName(card), ...(extra ?? [])]) {
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      out.push(name);
+    }
+  }
+  return out;
+}
+
+/**
  * Splits a deck's Legend/champion pair into the champion they share plus the
  * two epithets, so a deck's identity line can name the champion once.
  *
@@ -108,15 +145,23 @@ export function formatPrintingLabel(
  * than the broader `\p{N}`: PostgreSQL's `[[:alnum:]]` keeps decimal digits
  * (`٣`) and letter-numbers (`Ⅻ`) but drops other-numbers (`½`, `²`, `①`), and
  * the two definitions have to agree character for character — see
- * {@link normalizeNameForMatching}.
+ * {@link normalizeNameForIdentity}.
  */
 const NAME_MATCH_KEEP = /[^\p{L}\p{Nd}\p{Nl}]/gu;
 
 /**
- * Normalize a card/product name for matching.
+ * Normalize a card/product name into an **identity key**.
  * Strips whitespace, punctuation and symbols, producing a spaceless lowercase
  * key so that names like "Kai'Sa, Survivor" / "KaiSa Survivor" and "Mega-Mech"
  * / "Mega Mech" all compare equal.
+ *
+ * **This is not a search helper.** Identity keys answer "are these two rows the
+ * same card?" for dedup, grouping and the `norm_name` columns. Search answers
+ * "what did the user mean?" and lives in `search-fold.ts` / `card-search.ts`.
+ * The two want opposite things from accents, which is why they are separate
+ * functions: an identity key must not fold them (see below), and search must.
+ * This one used to serve both, and search inherited the no-folding compromise.
+ * Reaching for it to match user input reintroduces that bug.
  *
  * **Letters are kept whatever their script.** An earlier `[^a-z0-9]` form
  * deleted every non-Latin character, so a name written entirely in Chinese,
@@ -142,7 +187,7 @@ const NAME_MATCH_KEEP = /[^\p{L}\p{Nd}\p{Nl}]/gu;
  * @returns A lowercased letters-and-digits-only key (e.g. "kaisasurvivor"),
  * or `""` when the name contains no letters or digits.
  */
-export function normalizeNameForMatching(name: string): string {
+export function normalizeNameForIdentity(name: string): string {
   return name.toLowerCase().replaceAll(NAME_MATCH_KEEP, "");
 }
 

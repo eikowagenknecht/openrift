@@ -5,9 +5,21 @@ import type { AdminSearchableCard } from "./use-card-search";
 import { useAdminCardSearch, useAssignableCardSearch, useCardSearch } from "./use-card-search";
 
 const cards: AdminSearchableCard[] = [
-  { id: "c-1", slug: "yasuo-the-unforgiven", name: "Yasuo, the Unforgiven", types: ["unit"] },
-  { id: "c-2", slug: "kaisa", name: "Kai'Sa", types: ["unit", "champion"] },
-  { id: "c-3", slug: "howling-abyss", name: "Howling Abyss", types: ["battlefield"] },
+  {
+    id: "c-1",
+    slug: "yasuo-the-unforgiven",
+    name: "Yasuo, the Unforgiven",
+    types: ["unit"],
+    shortCodes: ["OGN-202"],
+  },
+  { id: "c-2", slug: "kaisa", name: "Kai'Sa", types: ["unit", "champion"], shortCodes: [] },
+  {
+    id: "c-3",
+    slug: "howling-abyss",
+    name: "Howling Abyss",
+    types: ["battlefield"],
+    shortCodes: [],
+  },
 ];
 
 const codes = new Map([["c-1", [{ shortCode: "OGN-202", publicCode: "OGN-202/298" }]]]);

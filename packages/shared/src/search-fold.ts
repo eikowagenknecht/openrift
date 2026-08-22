@@ -1,6 +1,13 @@
 /**
  * Search-time text folding.
  *
+ * This is the search side of a deliberate split. Folding here is generous
+ * because it answers "what did the user mean?": accents fold, ligatures expand,
+ * apostrophes vanish. `normalizeNameForIdentity` in `utils.ts` answers the
+ * different question "are these two rows the same card?" and must *not* fold
+ * accents, because a dedup key that merges distinct letters collides. Use this
+ * module for anything a user typed; use the identity key for storage and dedup.
+ *
  * Card data is stored with typographic punctuation: `fixTypography` turns `'`
  * into `’`, `...` into `…`, paired `"` into `“ ”`, and `-1` into `−1` with a
  * real U+2212 MINUS SIGN. None of those characters are reachable from a
@@ -26,7 +33,7 @@
  * queries precise dissolved. Brackets, colons, underscores and bullets are
  * meaningful in rules text; they are not noise. Unrecognized characters are
  * kept rather than stripped, which is what keeps CJK card names and artist
- * names searchable (contrast `normalizeNameForMatching`, which deletes them).
+ * names searchable (contrast `normalizeNameForIdentity`, which deletes them).
  */
 
 /** Every dash variant that should behave like a plain ASCII hyphen. */

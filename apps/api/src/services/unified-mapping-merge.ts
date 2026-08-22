@@ -8,7 +8,7 @@ import type {
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
 } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
@@ -364,7 +364,7 @@ export async function buildUnifiedMappingsCardResponse(
     if (row.isOverride) {
       return true;
     }
-    const normProduct = normalizeNameForMatching(row.productName);
+    const normProduct = normalizeNameForIdentity(row.productName);
     for (const { normName, cardId } of aliasesByLength) {
       if (
         normProduct.startsWith(normName) ||

@@ -18,7 +18,7 @@
  * {@link CardNameIndex} it loads instead of the full index.
  */
 import { WellKnown } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { ingestRepo } from "../repositories/ingest.js";
 
@@ -157,7 +157,7 @@ export function resolveCardIdByName(index: CardNameIndex, name: string): string 
   // An empty key means the name held no letters or digits at all, so it
   // identifies nothing — resolving on it would link this candidate to whichever
   // unrelated card normalized the same way.
-  const normName = normalizeNameForMatching(name);
+  const normName = normalizeNameForIdentity(name);
   if (normName === "") {
     return null;
   }

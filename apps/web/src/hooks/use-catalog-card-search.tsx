@@ -1,3 +1,4 @@
+import { cardSearchAltNames } from "@openrift/shared";
 import { useMemo } from "react";
 
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
@@ -28,6 +29,7 @@ export function useCatalogCardSearch(query: string): CardSearchResult[] {
         id,
         slug: card.slug,
         name: card.name,
+        altNames: cardSearchAltNames(card),
       })),
     [cardsById],
   );

@@ -12,11 +12,11 @@
  * The signals are the ADR's: for an event, the same format, a date within a
  * day, and a similar name; for a deck inside an already-linked event, the same
  * normalized pilot name, preferring an equal finish. Name comparison reuses
- * `normalizeNameForMatching`, the same normalization the card matcher and the
+ * `normalizeNameForIdentity`, the same normalization the card matcher and the
  * deck ingest run on, so "Summoner Skirmish #4" and "summoner skirmish 4" are
  * one name here exactly as they are there.
  */
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { AdminMetaDeckRow, MetaEventWithCount } from "../repositories/meta.js";
@@ -112,8 +112,8 @@ function dayDelta(a: string, b: string): number | null {
  * @returns Similarity from 0 (nothing shared) to 1 (identical).
  */
 export function nameSimilarity(a: string, b: string): number {
-  const left = normalizeNameForMatching(a);
-  const right = normalizeNameForMatching(b);
+  const left = normalizeNameForIdentity(a);
+  const right = normalizeNameForIdentity(b);
   if (left === "" || right === "") {
     return 0;
   }

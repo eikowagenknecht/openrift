@@ -1,5 +1,11 @@
 import type { CardSearchIndex, MarketplaceInfoResponse } from "@openrift/shared";
-import { buildCardIndex, findCard, parsePiltoverDeckCode, searchCards } from "@openrift/shared";
+import {
+  buildCardIndex,
+  cardSearchAltNames,
+  findCard,
+  parsePiltoverDeckCode,
+  searchCards,
+} from "@openrift/shared";
 import { isDefinedError, safe } from "@orpc/client";
 import type {
   AutocompleteInteraction,
@@ -150,7 +156,15 @@ function indexFor(cache: CatalogCache): CardSearchIndex<CatalogCard> | null {
     return null;
   }
   if (cachedIndex?.snapshot !== snapshot) {
-    cachedIndex = { snapshot, index: buildCardIndex(snapshot.cards, snapshot.printingsByCardId) };
+    cachedIndex = {
+      snapshot,
+      index: buildCardIndex(
+        // `[[Azir, Emperor of the Sands]]` is how players write a Legend in
+        // chat, so index the colloquial form beside the stored name.
+        snapshot.cards.map((card) => ({ ...card, altNames: cardSearchAltNames(card) })),
+        snapshot.printingsByCardId,
+      ),
+    };
   }
   return cachedIndex.index;
 }

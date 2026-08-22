@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-22
+
+### Highlights
+
+- feat(Cards): **Find a Legend by its champion** — typing "Azir" now finds "Azir, Emperor of the Sands" in search, in every card picker, in imports and in the Discord bot.
+
+### Other
+
+- feat(Cards): **Printed names and full codes in search** — pickers now match a printing's localized name, and the catalog search matches the full code printed on a card.
+- fix(Collection): **Imports no longer guess at close names** — a list entry that could mean several cards now asks you to pick, instead of importing whichever one it happened to find first.
+
 ## 2026-08-21
 
 ### Highlights

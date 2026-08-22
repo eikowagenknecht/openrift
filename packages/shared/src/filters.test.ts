@@ -1684,7 +1684,7 @@ describe("filterCards search folding", () => {
     });
 
     it("keeps a CJK artist name searchable", () => {
-      // normalizeNameForMatching reduced this to "darkglow", losing the CJK half.
+      // normalizeNameForIdentity reduced this to "darkglow", losing the CJK half.
       expect(names({ search: "a:黯荧岛" })).toEqual(["Doran’s Shield"]);
     });
 

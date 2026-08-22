@@ -1,5 +1,10 @@
 import type { Printing, SearchablePrintingCodes } from "@openrift/shared";
-import { buildCardIndex, legendDisplayName, searchCards } from "@openrift/shared";
+import {
+  buildCardIndex,
+  cardSearchAltNames,
+  legendDisplayName,
+  searchCards,
+} from "@openrift/shared";
 import { useMemo } from "react";
 
 export interface QuickAddCardResult {
@@ -37,6 +42,7 @@ interface QuickAddRow {
   id: string;
   slug: string;
   name: string;
+  altNames: string[];
   printings: Printing[];
 }
 
@@ -83,9 +89,18 @@ export function useQuickAddSearch(
       if (!first) {
         continue;
       }
-      // Match and display by the colloquial Legend name ("Azir, Emperor of the
-      // Sands") so typing the champion finds it; non-Legends are unchanged.
-      rows.push({ id: cardId, slug: cardId, name: legendDisplayName(first.card), printings });
+      // Display the colloquial Legend name ("Azir, Emperor of the Sands"), and
+      // let the index match the stored name and every printed name as well.
+      rows.push({
+        id: cardId,
+        slug: cardId,
+        name: legendDisplayName(first.card),
+        altNames: cardSearchAltNames(
+          first.card,
+          printings.map((printing) => printing.printedName),
+        ),
+        printings,
+      });
       codes.set(
         cardId,
         printings.map((printing) => ({

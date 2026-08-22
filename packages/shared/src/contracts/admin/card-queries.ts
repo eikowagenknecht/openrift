@@ -18,6 +18,9 @@ const allCardsItemSchema = z.object({
   type: z.string(),
   types: z.array(z.string()),
   setSlugs: z.array(z.string()),
+  // Lets the admin card pickers match a typed printing code, the same as the
+  // catalog-backed pickers. No images, so the rows stay text-only.
+  shortCodes: z.array(z.string()),
 });
 
 export const providerStatsItemSchema = z.object({

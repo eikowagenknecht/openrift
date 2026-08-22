@@ -4,7 +4,7 @@ import type {
   MarketplaceGroupKind,
   StagedProductResponse,
 } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared/utils";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos, Transact } from "../deps.js";
 import type {
@@ -144,10 +144,10 @@ export function buildCardIndex(
       continue;
     }
     seenCards.add(row.cardId);
-    const normName = normalizeNameForMatching(row.cardName);
+    const normName = normalizeNameForIdentity(row.cardName);
     const dashIdx = row.cardName.indexOf(" - ");
     const baseName =
-      dashIdx === -1 ? null : normalizeNameForMatching(row.cardName.slice(0, dashIdx));
+      dashIdx === -1 ? null : normalizeNameForIdentity(row.cardName.slice(0, dashIdx));
     cardNames.push({ normName, baseName, groupKey: row.cardId });
   }
   cardNames.sort((a, b) => b.normName.length - a.normName.length);
@@ -187,7 +187,7 @@ function matchStagedProducts(
     // winning card isn't in our scoped `cardGroups` we still mark the row as
     // matched so it won't surface as unmatched — the row belongs to another
     // card and simply doesn't appear in this response.
-    const normProduct = normalizeNameForMatching(row.productName);
+    const normProduct = normalizeNameForIdentity(row.productName);
     for (const { normName, groupKey } of cardNames) {
       if (normProduct.startsWith(normName)) {
         if (cardGroups.has(groupKey)) {
@@ -210,7 +210,7 @@ function matchStagedProducts(
     if (matchedStagingKeys.has(stagingKey)) {
       continue;
     }
-    const normProduct = normalizeNameForMatching(row.productName);
+    const normProduct = normalizeNameForIdentity(row.productName);
     for (const { normName, baseName, groupKey } of cardNames) {
       const nameToMatch = baseName ?? normName;
       if (nameToMatch.length >= 5 && normProduct.includes(nameToMatch)) {

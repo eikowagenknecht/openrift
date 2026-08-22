@@ -1,4 +1,4 @@
-import { WellKnown, normalizeNameForMatching } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import type {
   DeckCheckCardLine,
   DeckCheckChangeSummary,
@@ -134,47 +134,15 @@ export interface NewDeckCheckEntryCard {
   matchStatus: DeckCheckMatchStatus;
 }
 
-export interface CardResolutionInput {
-  name: string;
-}
-
+/**
+ * How one decklist line resolved. Row-shaped, so it lives with the repository
+ * that writes it; the resolving itself is
+ * `services/deck-check-card-resolution.ts`.
+ */
 export interface CardResolution {
   resolvedCardId: string | null;
   resolvedPrintingId: string | null;
   matchStatus: DeckCheckMatchStatus;
-}
-
-/**
- * The lookup key `resolveCards` results are keyed by.
- * @returns The normalized card name.
- */
-export function cardResolutionKey(name: string): string {
-  return normalizeNameForMatching(name);
-}
-
-/**
- * Maps each Legend's colloquial "Champion, Title" display name (e.g. "Azir,
- * Emperor of the Sands") back to its card id, keyed by the normalized form.
- * That combined name normalizes to `normalize(tag) + normName`, so the mapping
- * is derived at resolve time rather than stored as a name alias. Only norms in
- * `wanted` are emitted, keeping the result proportional to the input batch.
- *
- * @returns `[normalizedComboName, cardId]` pairs for the wanted norms.
- */
-export function legendComboResolutions(
-  legends: readonly { id: string; normName: string; tags: readonly string[] }[],
-  wanted: ReadonlySet<string>,
-): { norm: string; cardId: string }[] {
-  const out: { norm: string; cardId: string }[] = [];
-  for (const legend of legends) {
-    for (const tag of legend.tags) {
-      const norm = normalizeNameForMatching(tag) + legend.normName;
-      if (wanted.has(norm)) {
-        out.push({ norm, cardId: legend.id });
-      }
-    }
-  }
-  return out;
 }
 
 /**
@@ -1395,101 +1363,37 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .where("id", "=", cardId)
         .execute();
     },
-
     // ── Card resolution ─────────────────────────────────────────────────────
 
     /**
-     * Resolves raw card names against the catalog by normalized name (cards
-     * plus name aliases). Exactly one candidate is `matched`, several are
-     * `ambiguous`, none is `unmatched`. For a match, the canonical printing is
-     * picked purely to source a thumbnail.
+     * The canonical printing of each given card, purely to source a thumbnail
+     * for a resolved decklist line.
      *
-     * @param inputs Distinct or repeated raw names; resolved in one batch.
-     * @returns Resolutions keyed by {@link cardResolutionKey}.
+     * Name resolution itself is not here: it runs against the shared in-memory
+     * lookup index (`services/card-lookup-index.ts`), so a decklist name reaches
+     * the same card the pickers, the chat lookup and the Discord bot reach. All
+     * this read still owns is the picture.
+     *
+     * @param cardIds The resolved card ids.
+     * @returns Card id to its canonical printing id.
      */
-    async resolveCards(inputs: CardResolutionInput[]): Promise<Map<string, CardResolution>> {
-      const results = new Map<string, CardResolution>();
-      const normNames = [...new Set(inputs.map((input) => cardResolutionKey(input.name)))];
-      if (normNames.length === 0) {
-        return results;
-      }
-
-      const [cardRows, aliasRows, legendRows] = await Promise.all([
-        db
-          .selectFrom("cards")
-          .select(["id", "normName"])
-          .where("normName", "in", normNames)
-          .execute(),
-        db
-          .selectFrom("cardNameAliases")
-          .select(["cardId", "normName"])
-          .where("normName", "in", normNames)
-          .execute(),
-        // Legends also resolve by their colloquial "Azir, Emperor of the Sands"
-        // form. The combined name isn't stored, so match it from the tag + name
-        // at resolve time (see legendComboResolutions) without seeding aliases.
-        db
-          .selectFrom("cards")
-          .select(["id", "normName", "tags"])
-          .where("type", "=", WellKnown.cardType.LEGEND)
-          .execute(),
-      ]);
-
-      const candidatesByNorm = new Map<string, Set<string>>();
-      for (const row of cardRows) {
-        const set = candidatesByNorm.get(row.normName) ?? new Set();
-        set.add(row.id);
-        candidatesByNorm.set(row.normName, set);
-      }
-      for (const row of aliasRows) {
-        const set = candidatesByNorm.get(row.normName) ?? new Set();
-        set.add(row.cardId);
-        candidatesByNorm.set(row.normName, set);
-      }
-      for (const combo of legendComboResolutions(legendRows, new Set(normNames))) {
-        const set = candidatesByNorm.get(combo.norm) ?? new Set();
-        set.add(combo.cardId);
-        candidatesByNorm.set(combo.norm, set);
-      }
-
-      const allCandidateIds = [
-        ...new Set([...candidatesByNorm.values()].flatMap((ids) => [...ids])),
-      ];
+    async canonicalPrintingByCard(cardIds: string[]): Promise<Map<string, string>> {
       const thumbnailByCard = new Map<string, string>();
-      if (allCandidateIds.length > 0) {
-        const printingRows = await db
-          .selectFrom("printingsOrdered")
-          .select(["id", "cardId"])
-          .where("cardId", "in", allCandidateIds)
-          .orderBy("canonicalRank", "asc")
-          .execute();
-        for (const row of printingRows) {
-          if (!thumbnailByCard.has(row.cardId)) {
-            thumbnailByCard.set(row.cardId, row.id);
-          }
+      if (cardIds.length === 0) {
+        return thumbnailByCard;
+      }
+      const printingRows = await db
+        .selectFrom("printingsOrdered")
+        .select(["id", "cardId"])
+        .where("cardId", "in", cardIds)
+        .orderBy("canonicalRank", "asc")
+        .execute();
+      for (const row of printingRows) {
+        if (!thumbnailByCard.has(row.cardId)) {
+          thumbnailByCard.set(row.cardId, row.id);
         }
       }
-
-      for (const normName of normNames) {
-        const candidates = [...(candidatesByNorm.get(normName) ?? [])];
-        const cardId = candidates.length === 1 ? candidates[0] : undefined;
-        results.set(
-          normName,
-          cardId
-            ? {
-                resolvedCardId: cardId,
-                resolvedPrintingId: thumbnailByCard.get(cardId) ?? null,
-                matchStatus: "matched",
-              }
-            : {
-                resolvedCardId: null,
-                resolvedPrintingId: null,
-                matchStatus: candidates.length === 0 ? "unmatched" : "ambiguous",
-              },
-        );
-      }
-
-      return results;
+      return thumbnailByCard;
     },
 
     /**

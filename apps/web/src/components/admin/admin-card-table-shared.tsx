@@ -11,7 +11,6 @@ import {
   createFilteredRowModel,
   createSortedRowModel,
   FlexRender,
-  filterFn_includesString,
   globalFilteringFeature,
   rowSortingFeature,
   sortFn_basic,
@@ -48,8 +47,13 @@ import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
  *
  * `globalFilteringFeature` and the filtered row model both build on
  * `columnFilteringFeature`, hence its presence even though no column carries
- * its own filter. The registry keys are the only strings the `sortFn` /
- * `globalFilterFn` column and table options accept.
+ * its own filter. The registry keys are the only strings the `sortFn` column
+ * and table options accept.
+ *
+ * No `filterFns` registry: both tables pass a `globalFilterFn` function that
+ * calls `matchesCardQuery`, so a typed apostrophe still finds the catalogue's
+ * typographic one. The built-in `includesString` compares raw lowercased text
+ * and misses those, which is why nothing here registers it.
  */
 export const adminCardTableFeatures = tableFeatures({
   columnFilteringFeature,
@@ -57,7 +61,6 @@ export const adminCardTableFeatures = tableFeatures({
   rowSortingFeature,
   filteredRowModel: createFilteredRowModel(),
   sortedRowModel: createSortedRowModel(),
-  filterFns: { includesString: filterFn_includesString },
   sortFns: { basic: sortFn_basic },
 });
 
