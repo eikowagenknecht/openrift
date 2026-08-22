@@ -1,4 +1,6 @@
 import type {
+  AdminPrintingImageResponse,
+  AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
@@ -7,7 +9,11 @@ import { describe, expect, it } from "vitest";
 
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 
-import { buildPreseededActiveCard, buildPreseededActivePrinting } from "./card-detail-shared";
+import {
+  buildPreseededActiveCard,
+  buildPreseededActivePrinting,
+  findDerivedArtPrinting,
+} from "./card-detail-shared";
 
 // Minimal field set mirroring buildCandidateCardFields: a plain string field, two
 // dropdown array fields, a numeric field, a read-only field, and a rich-text field
@@ -272,5 +278,116 @@ describe("buildPreseededActivePrinting", () => {
       {},
     );
     expect(seed.printedYear).toBeUndefined();
+  });
+});
+
+function acceptedPrinting(overrides: Partial<AdminPrintingResponse> = {}): AdminPrintingResponse {
+  return {
+    id: "p1",
+    cardId: "card-1",
+    expectedPrintingId: "OGN-001 · normal · EN",
+    language: "EN",
+    rarity: "rare",
+    artVariant: "normal",
+    isSigned: false,
+    markerSlugs: [],
+    finish: "normal",
+    canonicalRank: 0,
+    fallbackArtMode: "auto",
+    fallbackImageFileId: null,
+    ...overrides,
+  } as AdminPrintingResponse;
+}
+
+function printingImage(
+  overrides: Partial<AdminPrintingImageResponse> = {},
+): AdminPrintingImageResponse {
+  return {
+    id: "img1",
+    printingId: "p1",
+    imageFileId: "file-1",
+    face: "front",
+    originalUrl: "https://cdn.test/a.png",
+    rehostedUrl: "https://cdn.test/rehosted/a",
+    isActive: true,
+    ...overrides,
+  } as AdminPrintingImageResponse;
+}
+
+describe("findDerivedArtPrinting", () => {
+  it("derives from the standard printing of the same language", () => {
+    const subject = acceptedPrinting({ id: "p1", finish: "metal", canonicalRank: 5 });
+    const standard = acceptedPrinting({ id: "p2" });
+
+    const derived = findDerivedArtPrinting(
+      subject,
+      [subject, standard],
+      [printingImage({ printingId: "p2" })],
+    );
+
+    expect(derived?.id).toBe("p2");
+  });
+
+  it("prefers the printing's own language over EN", () => {
+    const subject = acceptedPrinting({ id: "p1", language: "DE", finish: "metal" });
+    const german = acceptedPrinting({
+      id: "p2",
+      language: "DE",
+      expectedPrintingId: "OGN-001 · normal · DE",
+    });
+    const english = acceptedPrinting({ id: "p3", language: "EN" });
+
+    const derived = findDerivedArtPrinting(
+      subject,
+      [subject, german, english],
+      [printingImage({ printingId: "p2" }), printingImage({ id: "img2", printingId: "p3" })],
+    );
+
+    expect(derived?.id).toBe("p2");
+  });
+
+  // The catalog serves rehosted, active images only, so deriving from anything
+  // else would name a source the site never actually shows.
+  it("ignores images that are inactive or not rehosted", () => {
+    const subject = acceptedPrinting({ id: "p1", finish: "metal" });
+    const standard = acceptedPrinting({ id: "p2" });
+    const printings = [subject, standard];
+
+    expect(
+      findDerivedArtPrinting(subject, printings, [
+        printingImage({ printingId: "p2", isActive: false }),
+      ]),
+    ).toBeNull();
+    expect(
+      findDerivedArtPrinting(subject, printings, [
+        printingImage({ printingId: "p2", rehostedUrl: null }),
+      ]),
+    ).toBeNull();
+  });
+
+  it("returns null when no standard printing carries art", () => {
+    const subject = acceptedPrinting({ id: "p1", finish: "metal" });
+    const promo = acceptedPrinting({ id: "p2", markerSlugs: ["stamped"] });
+
+    expect(
+      findDerivedArtPrinting(subject, [subject, promo], [printingImage({ printingId: "p2" })]),
+    ).toBeNull();
+  });
+
+  // The label answers "what would Derived pick", so it stays the same while the
+  // printing is pinned elsewhere or has substitutes switched off.
+  it("ignores the subject's own override", () => {
+    const standard = acceptedPrinting({ id: "p2" });
+    const images = [printingImage({ printingId: "p2" })];
+
+    for (const mode of ["pinned", "none"] as const) {
+      const subject = acceptedPrinting({
+        id: "p1",
+        finish: "metal",
+        fallbackArtMode: mode,
+        fallbackImageFileId: mode === "pinned" ? "file-9" : null,
+      });
+      expect(findDerivedArtPrinting(subject, [subject, standard], images)?.id).toBe("p2");
+    }
   });
 });

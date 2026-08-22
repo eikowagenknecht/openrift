@@ -22,6 +22,7 @@ import type { CandidatePrintingFieldKey, FieldDef } from "@/components/admin/can
 import {
   buildPrintingNormalizer,
   deduplicateSourceImages,
+  findDerivedArtPrinting,
 } from "@/components/admin/card-detail-shared";
 import { PrintingCitationsEditor } from "@/components/admin/printing-citations-editor";
 import { PrintingIdLabel } from "@/components/admin/printing-id-label";
@@ -205,6 +206,10 @@ export function PrintingReviewCard({
     });
   }
 
+  // What the "Derived" mode resolves to today, so the toggle can name its
+  // source instead of leaving the admin to guess which printing it borrows.
+  const derivedArtPrinting = findDerivedArtPrinting(printing, printings, printingImages);
+
   return (
     <div data-printing-id={printingId} className="overflow-hidden rounded-md border">
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
@@ -219,7 +224,11 @@ export function PrintingReviewCard({
             ({allSources.length} source
             {allSources.length === 1 ? "" : "s"})
           </span>
-          {!activeImage && <Badge variant="destructive">no image</Badge>}
+          {!activeImage && (
+            <Badge variant="destructive">
+              {printing.fallbackArtMode === "pinned" ? "substitute image" : "no image"}
+            </Badge>
+          )}
           <PrintingMarketplaceBadges printingId={printingId} mappings={marketplaceMappings} />
         </span>
         {isAdmin && uncheckedSources.length > 0 && (
@@ -288,6 +297,7 @@ export function PrintingReviewCard({
             providerSettings={providerSettings}
             sourceImages={sourceImagesForSwitcher}
             siblingImages={siblingImages}
+            derivedArtLabel={derivedArtPrinting?.expectedPrintingId ?? null}
             fallbackArtMode={printing.fallbackArtMode}
             fallbackImageFileId={printing.fallbackImageFileId}
             invalidates={invalidates}

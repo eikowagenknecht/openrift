@@ -1,10 +1,12 @@
 import type {
+  AdminPrintingImageResponse,
+  AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
-import { appendSetTotal, fixTypography } from "@openrift/shared";
+import { appendSetTotal, findStandardArtFallback, fixTypography } from "@openrift/shared";
 import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
 
 import type {
@@ -194,6 +196,53 @@ export function deduplicateSourceImages(
       }, new Map<string, DeduplicatedSourceImage>())
       .values(),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Utility: resolve the printing the derived ("auto") substitute art comes from
+// ---------------------------------------------------------------------------
+
+/**
+ * The printing whose artwork the derived substitute mode would borrow for
+ * `printing`, resolved with the rules the public site uses
+ * ({@link findStandardArtFallback}): the standard printing of the same card in
+ * the same language, else the standard EN one.
+ *
+ * The admin shapes name the same data differently (marker slugs instead of
+ * markers, images in one flat per-card array), so candidates are mapped to the
+ * catalog shape first. Only active, rehosted images count, matching what the
+ * catalog serves: an external-only image is not servable, so deriving from it
+ * would name a source the site never shows. No candidate carries a substitute
+ * override into the search, so the answer stays "what Derived would pick" even
+ * while the printing is pinned or suppressed.
+ *
+ * @returns The source printing, or null when nothing derives.
+ */
+export function findDerivedArtPrinting(
+  printing: AdminPrintingResponse,
+  printings: readonly AdminPrintingResponse[],
+  printingImages: readonly AdminPrintingImageResponse[],
+): AdminPrintingResponse | null {
+  const candidates = printings.map((p) => ({
+    id: p.id,
+    cardId: p.cardId,
+    language: p.language,
+    canonicalRank: p.canonicalRank,
+    rarity: p.rarity,
+    artVariant: p.artVariant,
+    isSigned: p.isSigned,
+    finish: p.finish,
+    markers: p.markerSlugs.map((slug) => ({ id: slug, slug, label: slug, description: null })),
+    images: printingImages
+      .filter((img) => img.printingId === p.id && img.isActive && img.rehostedUrl !== null)
+      .map((img) => ({ face: img.face, imageId: img.imageFileId })),
+  }));
+  const subject = candidates.find((c) => c.id === printing.id);
+  if (!subject) {
+    return null;
+  }
+  const sourceId = findStandardArtFallback(subject, candidates)?.printing?.id;
+  return printings.find((p) => p.id === sourceId) ?? null;
 }
 
 // ---------------------------------------------------------------------------

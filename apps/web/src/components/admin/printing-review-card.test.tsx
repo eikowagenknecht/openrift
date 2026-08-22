@@ -16,6 +16,7 @@ const captured = vi.hoisted(() => ({
     images?: AdminPrintingImageResponse[];
     sourceImages?: DeduplicatedSourceImage[];
     siblingImages?: { imageFileId: string; printingLabel: string }[];
+    derivedArtLabel?: string | null;
   } | null,
   checkAll: vi.fn(),
   deletePrinting: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("@/components/admin/printing-image-switcher", () => ({
     images?: AdminPrintingImageResponse[];
     sourceImages?: DeduplicatedSourceImage[];
     siblingImages?: { imageFileId: string; printingLabel: string }[];
+    derivedArtLabel?: string | null;
   }) => {
     captured.switcher = props;
     return null;
@@ -81,10 +83,18 @@ const CARD_ID = "yasuo";
 function stubPrinting(overrides: Partial<AdminPrintingResponse> = {}): AdminPrintingResponse {
   return {
     id: "p1",
+    cardId: "card-1",
     expectedPrintingId: "OGN-001::foil",
     setSlug: "ogn",
     language: "EN",
     markerSlugs: [],
+    rarity: "rare",
+    artVariant: "normal",
+    isSigned: false,
+    finish: "foil",
+    canonicalRank: 0,
+    fallbackArtMode: "auto",
+    fallbackImageFileId: null,
     ...overrides,
   } as AdminPrintingResponse;
 }
@@ -108,7 +118,10 @@ function stubImage(
   return {
     id: "img1",
     printingId: "p1",
+    imageFileId: "file-1",
+    face: "front",
     originalUrl: "https://cdn.test/a.png",
+    rehostedUrl: null,
     isActive: true,
     ...overrides,
   } as AdminPrintingImageResponse;
@@ -196,6 +209,45 @@ describe("PrintingReviewCard", () => {
     const { queryByText } = renderCard({ printingImages: [stubImage()] });
 
     expect(queryByText("no image")).toBeNull();
+  });
+
+  // A pinned substitute is a decision, not a gap, so it reads as one.
+  it("marks a pinned substitute instead of warning", () => {
+    const printing = stubPrinting({ fallbackArtMode: "pinned", fallbackImageFileId: "file-2" });
+    const { getByText, queryByText } = renderCard({
+      printing,
+      printings: [printing],
+      printingImages: [stubImage({ isActive: false })],
+    });
+
+    expect(getByText("substitute image")).toBeTruthy();
+    expect(queryByText("no image")).toBeNull();
+  });
+
+  // The Derived toggle names its source, so the row resolves it the same way
+  // the catalog does: the standard printing of the card, art and all.
+  it("passes down the printing the derived substitute comes from", () => {
+    const own = stubPrinting({ id: "p1", finish: "metal", canonicalRank: 5 });
+    const standard = stubPrinting({
+      id: "p2",
+      expectedPrintingId: "OGN-001 · normal · EN",
+      finish: "normal",
+    });
+    renderCard({
+      printing: own,
+      printings: [own, standard],
+      printingImages: [
+        stubImage({ id: "img2", printingId: "p2", rehostedUrl: "https://cdn.test/rehosted/b" }),
+      ],
+    });
+
+    expect(captured.switcher?.derivedArtLabel).toBe("OGN-001 · normal · EN");
+  });
+
+  it("passes a null derived label when no standard printing carries art", () => {
+    renderCard({ printingImages: [] });
+
+    expect(captured.switcher?.derivedArtLabel).toBeNull();
   });
 
   // Offering an image the printing already accepted would let an admin re-add

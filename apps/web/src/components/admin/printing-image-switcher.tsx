@@ -73,6 +73,7 @@ export function PrintingImageSwitcher({
   images,
   sourceImages,
   siblingImages,
+  derivedArtLabel,
   fallbackArtMode,
   fallbackImageFileId,
   providerSettings,
@@ -85,6 +86,11 @@ export function PrintingImageSwitcher({
   sourceImages: DeduplicatedSourceImage[];
   /** Images on the card's *other* printings, offered as substitute art to pin. */
   siblingImages: SiblingImage[];
+  /**
+   * Label of the printing the derived mode borrows art from, or null when the
+   * card has no standard printing with art to derive from.
+   */
+  derivedArtLabel: string | null;
   fallbackArtMode: "auto" | "pinned" | "none";
   fallbackImageFileId: string | null;
   providerSettings: ProviderSettingResponse[];
@@ -524,9 +530,13 @@ export function PrintingImageSwitcher({
               disabled={setFallbackArt.isPending}
               onPressedChange={() => setFallbackArt.mutate({ printingId, mode: "auto" })}
               className={FALLBACK_TOGGLE_CLASS}
-              title="Show the standard printing's art (same language, else EN)"
+              title={
+                derivedArtLabel === null
+                  ? "Show the standard printing's art (same language, else EN). This card has none with art, so nothing is shown."
+                  : `Show the standard printing's art (same language, else EN): ${derivedArtLabel}`
+              }
             >
-              Derived
+              Derived ({derivedArtLabel ?? "no source"})
             </Toggle>
             <Toggle
               pressed={fallbackArtMode === "none"}
