@@ -2,7 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../../deps.js";
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
-import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
+import {
+  createTestContext,
+  refreshCardAggregates,
+  req,
+  syncCardCardTypes,
+} from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
 // Fresh ids, not in run-integration.ts's TEST_USERS registry: the suite seeds
@@ -154,6 +159,11 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
         .executeTakeFirstOrThrow();
       ambiguousCardIds.push(row.id);
     }
+    // Resolution ranks against the catalog index, which reads through
+    // `mv_card_aggregates`. A bare insert is invisible to it until the junction
+    // is mirrored and the view is refreshed, exactly as it is to the catalog.
+    await syncCardCardTypes(db);
+    await refreshCardAggregates(db);
   });
 
   afterAll(async () => {
@@ -404,6 +414,10 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
       })
       .returning("id")
       .executeTakeFirstOrThrow();
+    // The card enters the catalog (and so the resolver's index) only once the
+    // junction is mirrored and the aggregates view is refreshed.
+    await syncCardCardTypes(db);
+    await refreshCardAggregates(db);
 
     try {
       const res = await judgeApp.fetch(

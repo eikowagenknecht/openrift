@@ -404,7 +404,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[2].name).toBe("CSQ Test Card");
     });
 
-    it("returns correct shape (id, slug, name, type, types, setSlugs)", async () => {
+    it("returns correct shape (id, slug, name, type, types, setSlugs, shortCodes)", async () => {
       const res = await app.fetch(adminReq("GET", "/cards/all-cards"));
       const json = await readJson(res);
 
@@ -417,10 +417,13 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       // Full ordered type set alongside the primary `type` scalar (ADR-037)
       expect(csqCard.types).toEqual(["unit"]);
       expect(Array.isArray(csqCard.setSlugs)).toBe(true);
+      // The printing short codes the card picker ranks against.
+      expect(Array.isArray(csqCard.shortCodes)).toBe(true);
       expect(Object.keys(csqCard).sort()).toEqual([
         "id",
         "name",
         "setSlugs",
+        "shortCodes",
         "slug",
         "type",
         "types",
