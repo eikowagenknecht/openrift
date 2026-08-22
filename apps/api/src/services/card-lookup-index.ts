@@ -6,7 +6,7 @@ import type { CatalogCardRow } from "../repositories/catalog.js";
 import { createContentAddressedCache } from "./catalog-assembly.js";
 
 /** A catalog card as the lookup index holds it, with its search aliases attached. */
-export type LookupCard = CatalogCardRow & { altNames: string[] };
+type LookupCard = CatalogCardRow & { altNames: string[] };
 
 export type CardLookupIndex = CardSearchIndex<LookupCard>;
 
