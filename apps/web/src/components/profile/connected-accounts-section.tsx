@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { siDiscord, siGoogle } from "simple-icons";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth-client";
 
@@ -57,9 +57,6 @@ export function ConnectedAccountsSection() {
     <Card>
       <CardHeader>
         <CardTitle>Connected Accounts</CardTitle>
-        <CardDescription>
-          Sign in with Google or Discord instead of typing a password every time.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (

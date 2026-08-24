@@ -43,9 +43,7 @@ export function AccountInfoSection({
     <Card>
       <CardHeader>
         <CardTitle>Account Info</CardTitle>
-        <CardDescription>
-          Your display name, Riot ID, and email address. The name is what shows up on shared lists.
-        </CardDescription>
+        <CardDescription>Your name is what shows on shared lists.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <DisplayNameForm defaultName={defaultName} userId={userId} />
@@ -176,9 +174,7 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
                 placeholder="SummonerName#EUW"
                 aria-invalid={fieldState.invalid}
               />
-              <FieldDescription>
-                Filled in for you when you submit a deck to a tournament. Leave empty to remove it.
-              </FieldDescription>
+              <FieldDescription>Prefills your tournament deck submissions.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}

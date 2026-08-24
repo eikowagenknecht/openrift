@@ -136,7 +136,7 @@ export const metaCreditVisibilityLabels: Record<MetaCreditVisibility, string> = 
 /** One line under each credit option. */
 export const metaCreditVisibilityHints: Record<MetaCreditVisibility, string> = {
   hidden: "Your decks still count towards the archive, but nothing names you.",
-  name: "The name on your account appears on every event you have contributed to.",
+  name: "Your account name appears on events you contributed to.",
   riot_id: "Your Riot ID appears instead. Without one, your display name is used.",
 };
 

@@ -52,10 +52,7 @@ export function PasswordSection() {
     <Card>
       <CardHeader>
         <CardTitle>Password</CardTitle>
-        <CardDescription>
-          Change your password. Any other browsers or devices you&apos;re signed in on will be
-          kicked out.
-        </CardDescription>
+        <CardDescription>Other signed-in devices will be signed out.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate>

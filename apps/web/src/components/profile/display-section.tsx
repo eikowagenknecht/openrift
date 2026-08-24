@@ -1,7 +1,7 @@
 import { Radio } from "@base-ui/react/radio";
 import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -36,9 +36,6 @@ export function DisplaySection() {
     <Card>
       <CardHeader>
         <CardTitle>Display</CardTitle>
-        <CardDescription>
-          Light or dark, plus a few knobs for how cards are rendered.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-4">
@@ -142,8 +139,7 @@ export function DisplaySection() {
           <div className="min-w-0">
             <Label htmlFor="pref-frosted">Frosted bars</Label>
             <p className="text-muted-foreground mt-0.5 text-xs">
-              Blurs the page behind the header and toolbars. Costs roughly one frame in three while
-              scrolling, so it stays off unless you want it. This device only.
+              Blurs the page behind the header. Can slow scrolling. This device only.
             </p>
           </div>
           <Switch

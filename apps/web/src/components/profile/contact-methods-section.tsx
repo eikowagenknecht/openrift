@@ -151,9 +151,8 @@ export function ContactMethodsSection() {
       <CardHeader>
         <CardTitle>Trade contacts</CardTitle>
         <CardDescription>
-          Ways for people to reach you to arrange a trade. Add them once here, then choose which to
-          share inside each group from that group&apos;s settings. Nothing is shown to anyone until
-          you share it.
+          Choose which to share in each group&apos;s settings. Nothing is visible until you share
+          it.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

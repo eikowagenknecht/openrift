@@ -39,7 +39,7 @@ export function EmailNotificationsControls() {
       <div>
         <p className="font-medium">Email notifications</p>
         <p className="text-muted-foreground">
-          We only email about your trading activity, and every email has a one-click unsubscribe.
+          Only about your trading activity. Every email has one-click unsubscribe.
         </p>
       </div>
 
@@ -49,10 +49,7 @@ export function EmailNotificationsControls() {
             <Label htmlFor="pref-email-trade-requests" className="font-normal">
               Trade requests
             </Label>
-            <p className="text-muted-foreground">
-              Get notified when someone requests a trade, so you don&apos;t miss it before it
-              expires. Choose how often these emails arrive.
-            </p>
+            <p className="text-muted-foreground">When someone requests a trade with you.</p>
           </div>
           <Switch
             id="pref-email-trade-requests"
@@ -102,8 +99,7 @@ export function EmailNotificationsControls() {
             Trade updates
           </Label>
           <p className="text-muted-foreground">
-            Get notified when the other person accepts, declines, or cancels a trade you&apos;re
-            part of. Uses the same frequency as trade requests.
+            When your trade is accepted, declined, or cancelled. Same frequency as trade requests.
           </p>
         </div>
         <Switch

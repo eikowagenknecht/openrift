@@ -71,8 +71,8 @@ function ResetCollectionsAction() {
       <div>
         <p className="font-medium">Reset collections</p>
         <p className="text-muted-foreground text-sm">
-          Remove every card from all of your collections and delete all collections except your
-          Inbox. Lists that end up empty are removed too. Cards in shared group collections stay.
+          Removes every card and every collection except your Inbox, plus lists that end up empty.
+          Group collections are untouched.
         </p>
       </div>
       <AlertDialog
@@ -163,8 +163,7 @@ function DeleteAccountAction() {
       <div>
         <p className="font-medium">Delete account</p>
         <p className="text-muted-foreground text-sm">
-          Delete your account. Everything goes (cards, lists, decks), and there&apos;s no way to
-          bring it back.
+          Permanently deletes your account and everything in it.
         </p>
       </div>
       <AlertDialog
@@ -222,7 +221,7 @@ export function DangerZoneSection() {
     <Card className="border-destructive/50">
       <CardHeader>
         <CardTitle>Danger Zone</CardTitle>
-        <CardDescription>These actions are permanent and cannot be undone.</CardDescription>
+        <CardDescription>These actions cannot be undone.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <ResetCollectionsAction />

@@ -104,9 +104,8 @@ export function MetaCreditSection() {
       <CardHeader>
         <CardTitle>Meta archive credit</CardTitle>
         <CardDescription>
-          When a decklist you send in is added to the archive, the event&apos;s page can name you as
-          one of the people who put it there. That is off until you turn it on, and it covers
-          everything you have ever contributed, not just what comes next.
+          Whether archive event pages name you as a contributor. Covers everything you have
+          contributed, past and future.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

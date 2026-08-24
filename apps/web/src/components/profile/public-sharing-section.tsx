@@ -59,9 +59,8 @@ export function PublicSharingSection() {
       <CardHeader>
         <CardTitle>Public sharing</CardTitle>
         <CardDescription>
-          A single link that shows everything you&apos;re looking for and everything you&apos;re
-          offering. New wishlists and tradelists are included automatically as you create them.
-          Organize lists stay private.
+          One link to all your wishlists and tradelists, current and future. Organize lists stay
+          private.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -75,7 +74,7 @@ export function PublicSharingSection() {
               <div>
                 <h3 className="font-medium">Post to a chat</h3>
                 <p className="text-muted-foreground text-sm">
-                  Share a card image of all your lists in WhatsApp, Discord, or any group chat.
+                  A card image of your lists for WhatsApp, Discord, or any chat.
                 </p>
               </div>
               <Button variant="outline" className="self-start" onClick={openImageDialog}>
@@ -88,8 +87,7 @@ export function PublicSharingSection() {
               <div>
                 <h3 className="font-medium">Print for your binder</h3>
                 <p className="text-muted-foreground text-sm">
-                  A QR sheet at true card or binder-page size, so trade partners can scan your lists
-                  straight out of your binder.
+                  A card-sized QR sheet trade partners can scan from your binder.
                 </p>
               </div>
               <Button

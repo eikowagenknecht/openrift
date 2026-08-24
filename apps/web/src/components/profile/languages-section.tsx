@@ -61,8 +61,7 @@ export function LanguagesSection({
           <div>
             <CardTitle>Languages</CardTitle>
             <CardDescription>
-              Pick the printing languages you care about. When a card exists in several, the one at
-              the top wins.
+              When a card exists in several languages, the top one wins.
             </CardDescription>
           </div>
           {overrides.languages !== null && (
