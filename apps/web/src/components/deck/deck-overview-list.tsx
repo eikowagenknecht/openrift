@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";
 
 import { CardMiniRow } from "@/components/cards/card-mini-row";
+import { DeckCardGroupHeader } from "@/components/deck/deck-card-group-header";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import type {
   AnyDragData,
@@ -52,7 +53,6 @@ import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
 import { asDragData } from "@/lib/dnd-data";
 import { formatterForMarketplace } from "@/lib/format";
-import { getTypeIconPath } from "@/lib/icons";
 import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
@@ -620,21 +620,10 @@ function GroupedRows({
   return (
     <div className="flex flex-col gap-3">
       {groups.map((group) => {
-        const count = group.cards.reduce((sum, card) => sum + card.quantity, 0);
-        const iconPath = groupBy === "type" ? getTypeIconPath(group.key, []) : undefined;
         const sorted = sortDeckOverviewList(group.cards, sortBy, sortDir, sortContext);
         return (
           <div key={group.key} className="flex flex-col gap-0.5">
-            {group.label !== null && (
-              <div className="text-muted-foreground flex items-center gap-1.5 px-2 text-xs">
-                {iconPath && (
-                  <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
-                )}
-                <span className="whitespace-nowrap">
-                  {group.label} <span className="text-muted-foreground/60">· {count}</span>
-                </span>
-              </div>
-            )}
+            <DeckCardGroupHeader group={group} groupBy={groupBy} className="px-2" />
             {sorted.map((card) => (
               <ListRow
                 key={getDeckCardKey(card)}

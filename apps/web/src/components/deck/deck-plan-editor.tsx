@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import type { HoverHandler } from "@/components/deck/deck-card-picker";
 import { CardChip, CardPicker } from "@/components/deck/deck-card-picker";
-import { PlanTabActionsContext } from "@/components/deck/deck-overview";
+import { PlanTabActionsContext } from "@/components/deck/deck-overview-tabs";
 import { SwapColumns } from "@/components/deck/swap-column-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

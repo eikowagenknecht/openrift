@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { overviewHoverHandler } from "./deck-overview";
+import { overviewHoverHandler } from "@/lib/deck-overview-derive";
 
 describe("overviewHoverHandler", () => {
   it("passes the handler through outside stacks mode", () => {

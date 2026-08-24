@@ -1,4 +1,3 @@
-import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
 import { WellKnown, copyLimitFor } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon } from "lucide-react";
@@ -7,8 +6,6 @@ import { useState } from "react";
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckCardRow } from "@/components/deck/deck-card-row";
-import type { AnyDragData, DeckDropData } from "@/components/deck/deck-dnd-context";
-import { DECK_DRAG_TYPES, resolveDraggedCard } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,18 +13,14 @@ import { Pressable } from "@/components/ui/pressable";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { lockedReasonText } from "@/hooks/use-deck-ownership";
+import { useDeckZoneDrop } from "@/hooks/use-deck-zone-drop";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useBorrowedLenders } from "@/hooks/use-loans";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import {
-  getDeckCardKey,
-  isCardAllowedInZone,
-  isDeckZoneFullForDrag,
-} from "@/lib/deck-builder-card";
+import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
-import { asDragData } from "@/lib/dnd-data";
 import { getTypeIconPath, getTypeIconPaths } from "@/lib/icons";
 import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
@@ -89,12 +82,6 @@ export function DeckZoneSection({
   // allocated each borrowed copy to the zone that needs it.
   const { data: borrowedLenders } = useBorrowedLenders();
 
-  // Check if the currently dragged card is allowed in this zone
-  const { active } = useDndContext();
-  const dragData = asDragData<AnyDragData>(active?.data.current, DECK_DRAG_TYPES);
-  const draggedCard = resolveDraggedCard(dragData, allCards);
-  const isDragging = active !== null;
-
   // Cross-zone copy totals — champion counts toward the 3-copy limit too;
   // overflow is excluded since it is a free parking zone with no copy cap.
   const copyLimitZones = new Set<DeckZone>([
@@ -107,33 +94,14 @@ export function DeckZoneSection({
       .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))
       .reduce((sum, entry) => sum + entry.quantity, 0);
 
-  // Determine if this zone should reject the currently dragged card
-  const isZoneFull =
-    isDragging && draggedCard
-      ? isDeckZoneFullForDrag({
-          zone,
-          draggedCard,
-          fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
-          allCards,
-          format,
-        })
-      : false;
-
-  const dropDisabled =
-    isDragging &&
-    draggedCard !== undefined &&
-    (!isCardAllowedInZone(draggedCard, zone) || isZoneFull);
-
-  // Keep the zone registered as a droppable even when it can't accept the card,
-  // and carry that state in the drop data instead of via `disabled`. A disabled
-  // droppable drops out of collision detection, so a release over it would read
-  // as "dropped outside any zone" and remove a copy; registering it lets
-  // handleDragEnd treat the drop as a no-op. The visual state below is still
-  // gated on `dropDisabled`, so an invalid zone shows no drop highlight.
-  const dropData: DeckDropData = { type: "deck-zone", zone, disabled: dropDisabled };
-  const { setNodeRef: dropRef, isOver } = useDroppable({
+  // Drop-target wiring — the same hook the overview's zone tiles use, so the
+  // two reject the same drags. The visual state below is gated on
+  // `dropDisabled`, so an invalid zone shows no drop highlight.
+  const { dropRef, isOver, dropDisabled } = useDeckZoneDrop({
     id: `deck-zone-${zone}`,
-    data: dropData,
+    zone,
+    allCards,
+    format,
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {

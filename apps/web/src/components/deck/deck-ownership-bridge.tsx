@@ -7,7 +7,10 @@ import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { OwnershipBandSources } from "@/lib/deck-ownership-band";
+import { collectOwnershipBandSources, sameOwnershipBandSources } from "@/lib/deck-ownership-band";
 
 interface DeckOwnershipBridgeProps {
   builderCards: DeckBuilderCard[];
@@ -65,5 +68,47 @@ export function DeckOwnershipBridge({
     onResult(ownershipData);
   }, [ownershipData, onResult]);
 
+  return null;
+}
+
+/**
+ * Client-only sibling that gathers everything the ownership bands need — the
+ * viewer's deck-building copy counts plus the catalog's printings — and
+ * publishes them as one object. The counts come from a `useLiveQuery` (no
+ * server snapshot) and the catalog suspends, so this lives in a child the
+ * overview mounts only after hydration, inside a Suspense boundary; the shell
+ * itself stays SSR-safe. "Available" (not raw owned) is the right figure here:
+ * copies in collections excluded from deck building can't be sleeved tonight.
+ * @returns null — the lookups flow through `onResult`.
+ */
+export function OwnershipBandSourcesBridge({
+  cards,
+  homeCollectionId,
+  onResult,
+}: {
+  cards: DeckBuilderCard[];
+  homeCollectionId?: string | null;
+  onResult: React.Dispatch<React.SetStateAction<OwnershipBandSources | undefined>>;
+}) {
+  const { printingsByCardId } = useCards();
+  const { getPreferredPrinting } = usePreferredPrinting();
+  const { data } = useDeckBuildingCounts(true, homeCollectionId);
+  // Borrowed copies come from the loans feed, not the copies collection — they
+  // are never phantom copy rows (ADR-039). Undefined while it loads, which
+  // just means no borrowed segments yet.
+  const { data: borrowedCounts } = useBorrowedCounts(true);
+  const sources = data
+    ? collectOwnershipBandSources(
+        cards,
+        printingsByCardId,
+        getPreferredPrinting,
+        data.available,
+        data.locked,
+        borrowedCounts,
+      )
+    : undefined;
+  useEffect(() => {
+    onResult((previous) => (sameOwnershipBandSources(previous, sources) ? previous : sources));
+  }, [sources, onResult]);
   return null;
 }
