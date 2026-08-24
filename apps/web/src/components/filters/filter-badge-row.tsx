@@ -70,7 +70,7 @@ export function FilterSection({
  * both render identical badges.
  * @returns The badge row.
  */
-function FilterBadgeGrid({
+export function FilterBadgeGrid({
   options,
   selected,
   excluded,

@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
-import { FilterChipSections } from "@/components/filters/filter-chip-sections";
+import { FilterBadgeGrid } from "@/components/filters/filter-badge-row";
+import { FilterChipSections, OWNED_BUCKETS } from "@/components/filters/filter-chip-sections";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";
 import { FilterMoreMenu } from "@/components/filters/filter-more-menu";
@@ -419,6 +420,83 @@ export function FilterDropdownChip({
 }
 
 /**
+ * Shared row treatment for the slider/badge rows inside a dropdown chip's
+ * popover — each direct child div gets the same subtle hover the More menu's
+ * rows have. bg-accent resolves to the neutral muted set by the popover's
+ * NEUTRAL_HOVER_SCOPE.
+ */
+const CHIP_POPOVER_ROWS_CLASS =
+  "[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5";
+
+/**
+ * The Owned chip: both halves of the "owned" placement unit — the playset
+ * buckets as toggle badges and the Copies range slider — in one popover, the
+ * way the Stats chip spans its three sliders. One promoted unit, one chip.
+ * The slider row only renders when the user owns something on this surface
+ * (`ownedCountMax > 0`); the buckets always do (surfaces where ownership is
+ * meaningless hide the whole unit via `hiddenSections`).
+ * @returns The Owned dropdown chip.
+ */
+export function OwnedFilterChip({
+  availableFilters,
+  filterCounts,
+  hiddenSections,
+  ownedCountMax,
+}: Pick<
+  CompactFilterBarProps,
+  "availableFilters" | "filterCounts" | "hiddenSections" | "ownedCountMax"
+>) {
+  const { filterState } = useFilterValues();
+  const { toggleArrayFilter } = useFilterActions();
+  const showCopiesSlider = ownedCountMax !== undefined && ownedCountMax > 0;
+  const copiesActive = filterState.ownedCountMin !== null || filterState.ownedCountMax !== null;
+  const activeCount = filterState.owned.length + Number(copiesActive);
+  // Fixed 4-entry vocabulary; the fallback only guards a hand-edited URL value.
+  const bucketLabel = (value: string) =>
+    OWNED_BUCKETS.find((bucket) => bucket.value === value)?.label ?? value;
+  // Mirror the value dropdowns: a single active entry names itself on the
+  // trigger ("Full Playset", "Copies ≥1") instead of a bare "Owned (1)".
+  const summary =
+    activeCount === 1
+      ? copiesActive
+        ? `Copies ${rangeBadgeLabel(
+            filterState.ownedCountMin,
+            filterState.ownedCountMax,
+            0,
+            ownedCountMax ?? 0,
+          )}`
+        : bucketLabel(filterState.owned[0])
+      : undefined;
+  return (
+    <FilterDropdownChip
+      label="Owned"
+      activeCount={activeCount}
+      summary={summary}
+      contentClassName="w-80"
+    >
+      <div className={CHIP_POPOVER_ROWS_CLASS}>
+        <FilterBadgeGrid
+          options={OWNED_BUCKETS.map((bucket) => bucket.value)}
+          selected={filterState.owned}
+          onToggle={(value) => toggleArrayFilter("owned", value)}
+          displayLabel={bucketLabel}
+        />
+        {showCopiesSlider && (
+          <FilterRangeSections
+            scope="copies"
+            availableFilters={availableFilters}
+            filterCounts={filterCounts}
+            hiddenSections={hiddenSections}
+            ownedCountMax={ownedCountMax}
+            labelClassName="text-inherit text-sm font-normal"
+          />
+        )}
+      </div>
+    </FilterDropdownChip>
+  );
+}
+
+/**
  * The compact card-browser filter bar: an alternative to the expanded
  * filter panel that collapses each dimension into either an inline icon
  * cluster (Domain, Rarity) or a dropdown chip (everything else). Rendered
@@ -445,8 +523,11 @@ export function CompactFilterBar({
   const languageLabels = useLanguageLabels();
   const isTop = (unit: string) => topLevelUnits.has(unit);
   // Standard's promoted chip renders bar-level right after Variant (canonical
-  // order); keep it out of the trailing chip sections so it isn't drawn twice.
-  const chipSectionUnits = new Set([...topLevelUnits].filter((unit) => unit !== "standard"));
+  // order), and Owned renders bar-level as the merged buckets-plus-Copies chip;
+  // keep both out of the trailing chip sections so neither is drawn twice.
+  const chipSectionUnits = new Set(
+    [...topLevelUnits].filter((unit) => unit !== "standard" && unit !== "owned"),
+  );
   // The Domain/Rarity clusters expand to icon + label + count whenever that
   // still fits on one row; the same builders feed the visible bar and the
   // invisible measuring strip the fit check reads.
@@ -546,15 +627,12 @@ export function CompactFilterBar({
         )}`
       : undefined;
 
-  // Price and Copies get their own dropdown chips when promoted; otherwise
-  // they ride as slider rows in the "More" menu.
+  // Price gets its own dropdown chip when promoted; otherwise it rides as a
+  // slider row in the "More" menu. Owned's promoted chip (buckets + the Copies
+  // slider, one chip for the one unit) is OwnedFilterChip below.
   const showPriceChip =
     isTop("price") && !hiddenSections?.has("price") && availableFilters.price.max > 0;
-  const showCopiesChip =
-    isTop("owned") &&
-    !hiddenSections?.has("owned") &&
-    ownedCountMax !== undefined &&
-    ownedCountMax > 0;
+  const showOwnedChip = isTop("owned") && !hiddenSections?.has("owned");
   const priceActive = filterState.priceMin !== null || filterState.priceMax !== null;
   const priceSummary = priceActive
     ? `Price ${rangeBadgeLabel(
@@ -562,15 +640,6 @@ export function CompactFilterBar({
         filterState.priceMax,
         availableFilters.price.min,
         availableFilters.price.max,
-      )}`
-    : undefined;
-  const copiesActive = filterState.ownedCountMin !== null || filterState.ownedCountMax !== null;
-  const copiesSummary = copiesActive
-    ? `Copies ${rangeBadgeLabel(
-        filterState.ownedCountMin,
-        filterState.ownedCountMax,
-        0,
-        ownedCountMax ?? 0,
       )}`
     : undefined;
 
@@ -826,10 +895,7 @@ export function CompactFilterBar({
             summary={singleStatSummary}
             contentClassName="w-80"
           >
-            {/* Each stat slider row (a direct child div) gets the same subtle
-                hover the More menu's rows have. bg-accent resolves to the neutral
-                muted set by the popover's NEUTRAL_HOVER_SCOPE. */}
-            <div className="[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5">
+            <div className={CHIP_POPOVER_ROWS_CLASS}>
               <FilterRangeSections
                 scope="stats"
                 availableFilters={availableFilters}
@@ -843,9 +909,9 @@ export function CompactFilterBar({
             </div>
           </FilterDropdownChip>
         )}
-        {/* Promoted chip units (markers, flags, owned, …) render inline with the
-            same button language; Copies and Price get slider chips mirroring
-            the Stats chip. The More menu hosts everything demoted (and nulls
+        {/* Promoted chip units (markers, flags, …) render inline with the same
+            button language; Owned and Price get their own chips mirroring the
+            Stats chip. The More menu hosts everything demoted (and nulls
             itself out when nothing lives there). */}
         <FilterChipSections
           availableFilters={availableFilters}
@@ -855,24 +921,13 @@ export function CompactFilterBar({
           units={chipSectionUnits}
           variant="inline"
         />
-        {showCopiesChip && (
-          <FilterDropdownChip
-            label="Copies"
-            activeCount={copiesActive ? 1 : 0}
-            summary={copiesSummary}
-            contentClassName="w-80"
-          >
-            <div className="[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5">
-              <FilterRangeSections
-                scope="copies"
-                availableFilters={availableFilters}
-                filterCounts={filterCounts}
-                hiddenSections={hiddenSections}
-                ownedCountMax={ownedCountMax}
-                labelClassName="text-inherit text-sm font-normal"
-              />
-            </div>
-          </FilterDropdownChip>
+        {showOwnedChip && (
+          <OwnedFilterChip
+            availableFilters={availableFilters}
+            filterCounts={filterCounts}
+            hiddenSections={hiddenSections}
+            ownedCountMax={ownedCountMax}
+          />
         )}
         {showPriceChip && (
           <FilterDropdownChip
@@ -881,7 +936,7 @@ export function CompactFilterBar({
             summary={priceSummary}
             contentClassName="w-80"
           >
-            <div className="[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5">
+            <div className={CHIP_POPOVER_ROWS_CLASS}>
               <FilterRangeSections
                 scope="price"
                 availableFilters={availableFilters}

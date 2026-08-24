@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-24
+
+### Other
+
+- feat(Cards): **One Owned filter** — the playset buckets and the copies slider now share a single Owned dropdown, and the mobile filter panel lists them together too.
+
 ## 2026-08-22
 
 ### Highlights

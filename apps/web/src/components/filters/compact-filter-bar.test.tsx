@@ -1,10 +1,29 @@
+import type { AvailableFilters } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-import { FilterDropdownChip, FilterIconCluster } from "./compact-filter-bar";
+// OwnedFilterChip reads the filter URL state itself; the display store backs
+// the Copies slider's sibling price formatter inside FilterRangeSections.
+const { mockUseFilterValues, mockUseFilterActions, mockUseDisplayStore } = vi.hoisted(() => ({
+  mockUseFilterValues: vi.fn(),
+  mockUseFilterActions: vi.fn(),
+  mockUseDisplayStore: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-card-filters", () => ({
+  useFilterValues: mockUseFilterValues,
+  useFilterActions: mockUseFilterActions,
+}));
+
+vi.mock("@/stores/display-store", () => ({
+  useDisplayStore: mockUseDisplayStore,
+}));
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { FilterDropdownChip, FilterIconCluster, OwnedFilterChip } from "./compact-filter-bar";
 
 const DOMAINS = ["fury", "calm", "mind"];
 const DISPLAY_LABEL = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
@@ -199,5 +218,126 @@ describe("FilterDropdownChip", () => {
     expect(trigger).toHaveTextContent("Energy 1–3");
     // The bare count is suppressed in favour of the readable value.
     expect(trigger.textContent).not.toContain("(1)");
+  });
+});
+
+function makeAvailable(): AvailableFilters {
+  return {
+    sets: [],
+    supplementalSets: new Set(),
+    domains: [],
+    types: [],
+    superTypes: [],
+    rarities: [],
+    artVariants: [],
+    finishes: [],
+    cardSizes: [],
+    hasSigned: false,
+    hasNonStandard: false,
+    hasBanned: false,
+    hasErrata: false,
+    keywords: [],
+    tags: [],
+    hasNullEnergy: false,
+    hasNullMight: false,
+    hasNullPower: false,
+    markers: [],
+    distributionChannels: [],
+    energy: { min: 1, max: 7 },
+    might: { min: 1, max: 7 },
+    power: { min: 1, max: 7 },
+    price: { min: 0, max: 0 },
+  };
+}
+
+function setupOwnedHooks(
+  filterStateOverrides: Partial<{
+    owned: string[];
+    ownedCountMin: number | null;
+    ownedCountMax: number | null;
+  }> = {},
+) {
+  const toggleArrayFilter = vi.fn();
+  const setOwnedCountRange = vi.fn();
+  mockUseFilterValues.mockReturnValue({
+    ranges: {
+      energy: { min: null, max: null },
+      might: { min: null, max: null },
+      power: { min: null, max: null },
+      price: { min: null, max: null },
+    },
+    filterState: {
+      owned: [],
+      ownedCountMin: null,
+      ownedCountMax: null,
+      ...filterStateOverrides,
+    },
+  });
+  mockUseFilterActions.mockReturnValue({
+    toggleArrayFilter,
+    setOwnedCountRange,
+    setRange: vi.fn(),
+  });
+  mockUseDisplayStore.mockImplementation(
+    (selector: (state: { marketplaceOrder: string[] }) => unknown) =>
+      selector({ marketplaceOrder: ["cardtrader"] }),
+  );
+  return { toggleArrayFilter, setOwnedCountRange };
+}
+
+describe("OwnedFilterChip", () => {
+  afterEach(() => {
+    mockUseFilterValues.mockReset();
+    mockUseFilterActions.mockReset();
+    mockUseDisplayStore.mockReset();
+  });
+
+  it("offers the playset buckets and the Copies slider in one popover", async () => {
+    const user = userEvent.setup();
+    setupOwnedHooks();
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    await user.click(screen.getByRole("button", { name: "Owned" }));
+    expect(await screen.findByText("Full Playset")).toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByText("Partial Playset")).toBeInTheDocument();
+    expect(screen.getByText("More than Full")).toBeInTheDocument();
+    // The slider row is labelled by its gutter text.
+    expect(screen.getByText("Copies")).toBeInTheDocument();
+  });
+
+  it("toggles a bucket through the include-only handler", async () => {
+    const user = userEvent.setup();
+    const { toggleArrayFilter } = setupOwnedHooks();
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    await user.click(screen.getByRole("button", { name: "Owned" }));
+    await user.click(await screen.findByText("Full Playset"));
+    expect(toggleArrayFilter).toHaveBeenCalledExactlyOnceWith("owned", "full");
+  });
+
+  it("keeps the buckets but drops the slider when nothing is owned", async () => {
+    const user = userEvent.setup();
+    setupOwnedHooks();
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={0} />);
+    await user.click(screen.getByRole("button", { name: "Owned" }));
+    expect(await screen.findByText("Full Playset")).toBeInTheDocument();
+    expect(screen.queryByText("Copies")).not.toBeInTheDocument();
+  });
+
+  it("names a single active bucket on the trigger", () => {
+    setupOwnedHooks({ owned: ["full"] });
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    expect(screen.getByRole("button", { name: "Full Playset" })).toBeInTheDocument();
+  });
+
+  it("names a lone copies range on the trigger", () => {
+    setupOwnedHooks({ ownedCountMin: 2 });
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    expect(screen.getByRole("button", { name: "Copies ≥2" })).toBeInTheDocument();
+  });
+
+  it("falls back to the combined count when buckets and copies are both active", () => {
+    setupOwnedHooks({ owned: ["full"], ownedCountMin: 2 });
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    expect(screen.getByRole("button", { name: "Owned, 2 selected" })).toHaveTextContent("(2)");
   });
 });

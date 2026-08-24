@@ -78,13 +78,12 @@ export function FilterRangeSections({
   units?: ReadonlySet<string>;
   /**
    * Which range rows to render. "stats" = the printed gameplay numbers
-   * (Energy/Power/Might) only; "market" = the value/collection ranges (Price,
-   * Copies) together; "price" / "copies" = just that one row (the More menu
-   * places them in separate themed blocks); "all" (default) = every range, as
-   * the expanded panel shows them. The compact bar splits them so its "Stats"
-   * chip stays honest.
+   * (Energy/Power/Might) only; "price" / "copies" = just that one row (the
+   * compact bar's Owned and Price chips and the More menu's themed blocks each
+   * place their own); "all" (default) = every range, as the vertical panel
+   * shows them. The compact bar splits them so its "Stats" chip stays honest.
    */
-  scope?: "all" | "stats" | "market" | "price" | "copies";
+  scope?: "all" | "stats" | "price" | "copies";
   /**
    * Overrides the row label's typography. Defaults to the filter panel's
    * muted `text-xs` gutter style; the More menu passes a `text-sm` override so
@@ -111,7 +110,7 @@ export function FilterRangeSections({
   const sections: RangeSection[] =
     scope === "stats"
       ? STAT_RANGE_SECTIONS
-      : scope === "market" || scope === "price"
+      : scope === "price"
         ? [priceSection]
         : scope === "copies"
           ? []
@@ -119,11 +118,11 @@ export function FilterRangeSections({
               ...(showRangeUnit("stats") ? STAT_RANGE_SECTIONS : []),
               ...(showRangeUnit("price") ? [priceSection] : []),
             ];
-  // Copies is a collection range, so it rides with the market/copies scope (and
-  // the full panel), never with the gameplay stats or the price-only scope. It
-  // belongs to the "owned" placement unit alongside the Owned bucket dropdown.
-  const showCopies =
-    (scope === "all" || scope === "market" || scope === "copies") && showRangeUnit("owned");
+  // Copies belongs to the "owned" placement unit alongside the Owned bucket
+  // row, never to the gameplay stats or the price-only scope. In the full
+  // panel it renders FIRST — the Owned row is the last chip section above
+  // these sliders, so leading with Copies keeps the unit's two halves adjacent.
+  const showCopies = (scope === "all" || scope === "copies") && showRangeUnit("owned");
 
   // Stat values (Energy/Power/Might) never exceed two digits, so the compact
   // Stats menu narrows the value columns to a single-digit-ish gutter; the
@@ -132,6 +131,23 @@ export function FilterRangeSections({
 
   return (
     <>
+      {/* Copies owned — a web-app-only range gated the same as the Owned bucket
+          row. The bound is the user's actual maximum, so it only renders for
+          logged-in users who own something on this surface. */}
+      {showCopies &&
+        !hiddenSections?.has("owned") &&
+        ownedCountMax !== undefined &&
+        ownedCountMax > 0 && (
+          <RangeFilterSection
+            label="Copies"
+            availableMin={0}
+            availableMax={ownedCountMax}
+            selectedMin={filterState.ownedCountMin}
+            selectedMax={filterState.ownedCountMax}
+            onChange={(min, max) => setOwnedCountRange(min, max)}
+            labelClassName={labelClassName}
+          />
+        )}
       {sections.map(({ key, label, ...rest }) => {
         if (hiddenSections?.has(key)) {
           return null;
@@ -174,23 +190,6 @@ export function FilterRangeSections({
           />
         );
       })}
-      {/* Copies owned — a web-app-only range gated the same as the Owned bucket
-          dropdown. The bound is the user's actual maximum, so it only renders
-          for logged-in users who own something on this surface. */}
-      {showCopies &&
-        !hiddenSections?.has("owned") &&
-        ownedCountMax !== undefined &&
-        ownedCountMax > 0 && (
-          <RangeFilterSection
-            label="Copies"
-            availableMin={0}
-            availableMax={ownedCountMax}
-            selectedMin={filterState.ownedCountMin}
-            selectedMax={filterState.ownedCountMax}
-            onChange={(min, max) => setOwnedCountRange(min, max)}
-            labelClassName={labelClassName}
-          />
-        )}
     </>
   );
 }
