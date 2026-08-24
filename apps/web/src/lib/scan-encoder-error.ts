@@ -1,13 +1,17 @@
+import { errorText } from "./error-text";
+
 /**
  * Error text of a thrown value, for matching against known ort failures.
  *
  * The ort proxy worker serializes worker-side failures back over postMessage,
- * so the thrown value is not always an Error instance.
+ * so the thrown value is not always an Error instance. Unlike the plain
+ * `errorText`, a non-Error is stringified rather than dropped: the patterns
+ * below have to match on whatever the worker sent back.
  *
  * @returns The message of an Error, or the stringified value.
  */
-function errorText(thrown: unknown): string {
-  return thrown instanceof Error ? thrown.message : String(thrown);
+function matchableText(thrown: unknown): string {
+  return errorText(thrown, String(thrown));
 }
 
 const OUT_OF_MEMORY_PATTERN = /out of memory|cannot enlarge memory|\boom\b/iu;
@@ -25,7 +29,7 @@ const OUT_OF_MEMORY_PATTERN = /out of memory|cannot enlarge memory|\boom\b/iu;
  * @returns True when the backend is still alive, so a retry can help.
  */
 export function encoderCreateRetryable(thrown: unknown): boolean {
-  return !errorText(thrown).includes("no available backend found");
+  return !matchableText(thrown).includes("no available backend found");
 }
 
 /**
@@ -40,7 +44,7 @@ export function encoderCreateRetryable(thrown: unknown): boolean {
  * @returns A user-facing message for the failure.
  */
 export function encoderStartErrorMessage(thrown: unknown, fallback: string): string {
-  if (OUT_OF_MEMORY_PATTERN.test(errorText(thrown))) {
+  if (OUT_OF_MEMORY_PATTERN.test(matchableText(thrown))) {
     return "The browser ran out of memory while starting the scanner. Close unused tabs, then open this page again in a new tab.";
   }
   if (thrown instanceof Error && thrown.message) {

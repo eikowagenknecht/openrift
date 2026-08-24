@@ -58,6 +58,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ReorderMoves } from "@/lib/admin-reorder";
+import { errorText } from "@/lib/error-text";
 import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
 
@@ -228,15 +229,6 @@ interface AdminTableProps<TData, TDraft = TData> {
 // ---------------------------------------------------------------------------
 
 const ALIGN_CLASSES: Record<string, string> = { right: "text-right", center: "text-center" };
-
-/**
- * Lives outside the handlers below because React Compiler cannot lower a
- * conditional (ternary, `??`, `?.`) that sits inside a try/catch.
- * @returns The thrown value's message, or `fallback` when it isn't an Error.
- */
-function errorText(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
 
 function alignClass(align?: "left" | "center" | "right") {
   if (align) {

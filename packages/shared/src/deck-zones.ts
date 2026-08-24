@@ -62,6 +62,18 @@ export function zoneExpected(zone: DeckZone, format: DeckFormat): number | undef
   return ZONE_EXPECTED[zone];
 }
 
+/**
+ * Whether a zone's cards are part of the deck proper.
+ *
+ * Overflow is a free parking zone (see `COPY_LIMIT_ZONES` in
+ * `use-deck-builder`) — cards stashed there are not part of the deck, so they
+ * are left out of every ownership, value and deck-box total.
+ * @returns True when the zone counts toward the deck's totals.
+ */
+export function isCountedZone(zone: string): boolean {
+  return zone !== WellKnown.deckZone.OVERFLOW;
+}
+
 /** Zones that count toward the deck's "X / Y" completion figure. */
 export const REQUIRED_ZONES: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,

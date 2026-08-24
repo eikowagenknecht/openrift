@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useResetCollections } from "@/hooks/use-collections";
 import { authClient } from "@/lib/auth-client";
 import { sessionQueryOptions } from "@/lib/auth-session";
+import { errorText } from "@/lib/error-text";
 
 const RESET_CONFIRM_WORD = "reset";
 
@@ -36,13 +37,6 @@ function resetSummaryMessage(summary: {
   const copies = summary.removedCopies === 1 ? "card" : "cards";
   const collections = summary.removedCollections === 1 ? "collection" : "collections";
   return `Collections reset: removed ${summary.removedCopies} ${copies} and ${summary.removedCollections} ${collections}.`;
-}
-
-/**
- * @returns The thrown value's message, or `fallback` when it isn't an Error.
- */
-function errorMessage(thrown: unknown, fallback: string): string {
-  return thrown instanceof Error ? thrown.message : fallback;
 }
 
 function ResetCollectionsAction() {
@@ -62,7 +56,7 @@ function ResetCollectionsAction() {
       setOpen(false);
       toast.success(resetSummaryMessage(summary));
     } catch (resetError) {
-      setError(errorMessage(resetError, "Failed to reset collections."));
+      setError(errorText(resetError, "Failed to reset collections."));
     }
   }
 

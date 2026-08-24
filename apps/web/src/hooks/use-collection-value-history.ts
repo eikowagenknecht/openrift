@@ -4,6 +4,7 @@ import type {
   Marketplace,
   TimeRange,
 } from "@openrift/shared";
+import { COMPLETION_SCOPE_ARRAY_KEYS, COMPLETION_SCOPE_SCALAR_KEYS } from "@openrift/shared";
 import { collectionValueHistoryContract } from "@openrift/shared/contracts/collection-value-history";
 import type { ContractRouterClient } from "@orpc/contract";
 import { useQuery } from "@tanstack/react-query";
@@ -25,44 +26,6 @@ interface ValueHistoryInput {
   scope: string;
 }
 
-// Scope axes carried as comma-separated lists. The query param and the scope
-// field share a name, so this one list drives both ends of the mapping.
-const CSV_SCOPE_KEYS = [
-  "sets",
-  "languages",
-  "domains",
-  "types",
-  "rarities",
-  "finishes",
-  "artVariants",
-  "keywords",
-  "tags",
-  "customTags",
-  "cardSizes",
-  "setsExclude",
-  "languagesExclude",
-  "domainsExclude",
-  "typesExclude",
-  "raritiesExclude",
-  "finishesExclude",
-  "artVariantsExclude",
-  "keywordsExclude",
-  "tagsExclude",
-  "customTagsExclude",
-] as const satisfies readonly (keyof CompletionScopePreference)[];
-
-// Scope axes carried as a single value (tri-state flags and presence states).
-const SCALAR_SCOPE_KEYS = [
-  "promos",
-  "signed",
-  "banned",
-  "errata",
-  "standard",
-  "keywordsPresence",
-  "tagsPresence",
-  "customTagsPresence",
-] as const satisfies readonly (keyof CompletionScopePreference)[];
-
 const fetchCollectionValueHistory = createServerFn({ method: "GET" })
   .validator((input: ValueHistoryInput) => input)
   .middleware([withCookies])
@@ -75,16 +38,17 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       query.collectionIds = data.collectionIds;
     }
 
-    // Every scope axis travels under its own field name, so one list per
-    // shape drives the whole mapping instead of an if per dimension.
+    // Every scope axis travels under its own field name (array axes as
+    // comma-separated lists), so the shared key tuples drive the whole mapping
+    // instead of an if per dimension.
     const scope = JSON.parse(data.scope) as CompletionScopePreference;
-    for (const key of CSV_SCOPE_KEYS) {
+    for (const key of COMPLETION_SCOPE_ARRAY_KEYS) {
       const values = scope[key] as string[] | undefined;
       if (values?.length) {
         query[key] = values.join(",");
       }
     }
-    for (const key of SCALAR_SCOPE_KEYS) {
+    for (const key of COMPLETION_SCOPE_SCALAR_KEYS) {
       const value = scope[key];
       if (value !== undefined) {
         query[key] = String(value);

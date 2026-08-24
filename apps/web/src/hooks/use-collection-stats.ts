@@ -7,7 +7,14 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
-import { WellKnown, getPlaysetSize, imageUrl, isStandardPrinting } from "@openrift/shared";
+import {
+  COMPLETION_SCOPE_ARRAY_KEYS,
+  COMPLETION_SCOPE_SCALAR_KEYS,
+  WellKnown,
+  getPlaysetSize,
+  imageUrl,
+  isStandardPrinting,
+} from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -650,52 +657,16 @@ export function excludeUnreleasedSets(input: {
  * Whether `scope` has any active filter dimension. When false, every printing
  * matches, so the filter functions return their input unchanged — preserving
  * the stable array reference that downstream memoization relies on.
+ *
+ * The dimensions come from `@openrift/shared`, where an exhaustiveness check
+ * ties them to the schema. An axis missing from them would short-circuit
+ * filtering to "nothing is set" and silently return the unfiltered input.
  * @returns True if at least one scope dimension is set.
  */
-// Every array-valued scope dimension, include and exclude alike. Listed once
-// so `scopeHasFilters` can't fall behind `matchesScope` as dimensions are
-// added — an axis missing here short-circuits filtering to "nothing is set"
-// and silently returns the unfiltered input.
-const SCOPE_ARRAY_KEYS = [
-  "sets",
-  "languages",
-  "domains",
-  "types",
-  "rarities",
-  "finishes",
-  "artVariants",
-  "keywords",
-  "tags",
-  "customTags",
-  "cardSizes",
-  "setsExclude",
-  "languagesExclude",
-  "domainsExclude",
-  "typesExclude",
-  "raritiesExclude",
-  "finishesExclude",
-  "artVariantsExclude",
-  "keywordsExclude",
-  "tagsExclude",
-  "customTagsExclude",
-] as const satisfies readonly (keyof CompletionScopePreference)[];
-
-// The scalar dimensions: tri-state flags and presence states.
-const SCOPE_SCALAR_KEYS = [
-  "promos",
-  "signed",
-  "banned",
-  "errata",
-  "standard",
-  "keywordsPresence",
-  "tagsPresence",
-  "customTagsPresence",
-] as const satisfies readonly (keyof CompletionScopePreference)[];
-
 function scopeHasFilters(scope: CompletionScopePreference): boolean {
   return (
-    SCOPE_ARRAY_KEYS.some((key) => (scope[key] as string[] | undefined)?.length) ||
-    SCOPE_SCALAR_KEYS.some((key) => scope[key] !== undefined)
+    COMPLETION_SCOPE_ARRAY_KEYS.some((key) => (scope[key] as string[] | undefined)?.length) ||
+    COMPLETION_SCOPE_SCALAR_KEYS.some((key) => scope[key] !== undefined)
   );
 }
 

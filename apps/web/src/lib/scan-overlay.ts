@@ -16,6 +16,8 @@
 
 import type { Point } from "@openrift/shared/scan";
 
+import { clamp } from "@/lib/math";
+
 /**
  * The almost-there band of a frame's best inlier count: verification ran but
  * finished just under the 11-inlier accept floor, which on a phone almost
@@ -600,13 +602,4 @@ export function mapQuad(quad: readonly Point[], mapping: CoverMapping, out: Poin
     slot.x = display.x * mapping.scale + mapping.offsetX;
     slot.y = display.y * mapping.scale + mapping.offsetY;
   }
-}
-
-/**
- * Keep a value inside a range.
- *
- * @returns The value, bounded by `low` and `high`.
- */
-function clamp(value: number, low: number, high: number): number {
-  return Math.min(high, Math.max(low, value));
 }

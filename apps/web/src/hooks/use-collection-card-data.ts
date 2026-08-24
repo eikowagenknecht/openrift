@@ -5,7 +5,6 @@ import type {
   Marketplace,
   PriceLookup,
   Printing,
-  SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
 import {
@@ -24,6 +23,7 @@ import { EMPTY_FILTER_COUNTS } from "@/hooks/use-card-data";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import { buildSortCardsOptions, computePriceRanges } from "@/lib/card-price-sort";
 import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter, maxOwnedCount } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
@@ -276,20 +276,14 @@ export function useCollectionCardData({
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, prices, favoriteMarketplace) : null;
 
-  const sortOptions: SortCardsOptions = { sortDir, sets };
-  if (sortBy === "price" && priceRangeByCardId) {
-    sortOptions.getPrice = (printing) => {
-      const range = priceRangeByCardId.get(printing.cardId);
-      if (!range) {
-        return getPrice(printing) ?? null;
-      }
-      return sortDir === "desc" ? range.max : range.min;
-    };
-  } else if (sortBy === "price") {
-    sortOptions.getPrice = getPrice;
-  } else if (sortBy === "rarity") {
-    sortOptions.rarityOrder = orders.rarities;
-  }
+  const sortOptions = buildSortCardsOptions({
+    sortBy,
+    sortDir,
+    sets,
+    getPrice,
+    rarityOrder: orders.rarities,
+    priceRangeByCardId,
+  });
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   // Build stack lookup for renderCard to find copyIds/counts
@@ -330,27 +324,4 @@ export function useCollectionCardData({
     setDisplayLabel,
     isReady,
   };
-}
-
-function computePriceRanges(
-  printingsByCardId: Map<string, Printing[]>,
-  prices: PriceLookup,
-  marketplace: Marketplace,
-): Map<string, { min: number; max: number }> {
-  const map = new Map<string, { min: number; max: number }>();
-  for (const [cardId, printings] of printingsByCardId) {
-    let min = Infinity;
-    let max = -Infinity;
-    for (const printing of printings) {
-      const price = prices.get(printing.id, marketplace);
-      if (price !== undefined) {
-        min = Math.min(min, price);
-        max = Math.max(max, price);
-      }
-    }
-    if (min !== Infinity) {
-      map.set(cardId, { min, max });
-    }
-  }
-  return map;
 }

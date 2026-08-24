@@ -6,7 +6,6 @@ import type {
   Marketplace,
   PriceLookup,
   Printing,
-  SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
 import {
@@ -21,6 +20,7 @@ import { useDeferredValue } from "react";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { buildSortCardsOptions, computePriceRanges } from "@/lib/card-price-sort";
 import { cardsViewTileKey, dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
@@ -100,34 +100,6 @@ interface UseCatalogFilterMetaParams {
   keywordReverseMap?: Map<string, string>;
   channels?: readonly DistributionChannel[];
   customTagAssignments?: Record<string, readonly string[]>;
-}
-
-/**
- * Compute min/max market price per cardId from grouped printings, looking up
- * each printing's price on the user's favorite marketplace.
- * @returns A map from cardId to price range.
- */
-function computePriceRanges(
-  printingsByCardId: Map<string, Printing[]>,
-  prices: PriceLookup,
-  marketplace: Marketplace,
-): Map<string, { min: number; max: number }> {
-  const map = new Map<string, { min: number; max: number }>();
-  for (const [cardId, printings] of printingsByCardId) {
-    let min = Infinity;
-    let max = -Infinity;
-    for (const p of printings) {
-      const price = prices.get(p.id, marketplace);
-      if (price !== undefined) {
-        min = Math.min(min, price);
-        max = Math.max(max, price);
-      }
-    }
-    if (min !== Infinity) {
-      map.set(cardId, { min, max });
-    }
-  }
-  return map;
 }
 
 /**
@@ -425,20 +397,14 @@ export function useCardData({
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
 
-  const sortOptions: SortCardsOptions = { sortDir, sets };
-  if (sortBy === "price" && priceRangeByCardId) {
-    sortOptions.getPrice = (p) => {
-      const range = priceRangeByCardId.get(p.cardId);
-      if (!range) {
-        return getPrice(p) ?? null;
-      }
-      return sortDir === "desc" ? range.max : range.min;
-    };
-  } else if (sortBy === "price") {
-    sortOptions.getPrice = getPrice;
-  } else if (sortBy === "rarity") {
-    sortOptions.rarityOrder = orders.rarities;
-  }
+  const sortOptions = buildSortCardsOptions({
+    sortBy,
+    sortDir,
+    sets,
+    getPrice,
+    rarityOrder: orders.rarities,
+    priceRangeByCardId,
+  });
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting

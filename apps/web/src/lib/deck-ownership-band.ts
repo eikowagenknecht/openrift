@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { isCountedZone } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
@@ -182,15 +182,6 @@ export function sameOwnershipBandSources(
     sameRecord(left.borrowedByCardId, right.borrowedByCardId) &&
     sameRecord(left.displayedPrintingIdByCardKey, right.displayedPrintingIdByCardKey)
   );
-}
-
-/**
- * Overflow is a parking zone, not part of the deck, so it claims copies only
- * after every real zone has taken its share — mirroring `computeDeckOwnership`.
- * @returns True when the zone belongs to the deck proper.
- */
-function isCountedZone(zone: string): boolean {
-  return zone !== WellKnown.deckZone.OVERFLOW;
 }
 
 /**

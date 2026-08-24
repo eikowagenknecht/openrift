@@ -1,5 +1,5 @@
 import type { UnifiedMappingGroupResponse } from "@openrift/shared";
-import { marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
+import { marketplaceCarriesLanguage, marketplaceLabel, WellKnown } from "@openrift/shared";
 
 /** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
 type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
@@ -168,12 +168,6 @@ export function bucketScopeKey(
   return bucket.language === null ? bucket.marketplace : `${bucket.marketplace}:${bucket.language}`;
 }
 
-const MARKETPLACE_LABELS: Record<Marketplace, string> = {
-  tcgplayer: "TCGplayer",
-  cardmarket: "Cardmarket",
-  cardtrader: "CardTrader",
-};
-
 /** The umbrella scope key — every assignable bucket, across all sources. */
 export const ALL_ASSIGNABLE_SCOPE = "all";
 
@@ -187,7 +181,7 @@ export function scopeLabel(scope: string): string {
     return "All assignable";
   }
   const [marketplace, language] = scope.split(":") as [Marketplace, string?];
-  const base = MARKETPLACE_LABELS[marketplace] ?? marketplace;
+  const base = marketplaceLabel(marketplace);
   return language ? `${base} · ${language}` : base;
 }
 

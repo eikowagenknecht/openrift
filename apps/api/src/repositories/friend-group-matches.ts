@@ -306,16 +306,6 @@ interface DemandEntry extends BoxWantDemand {
   buyPref: EffectiveTradePreference;
 }
 
-/**
- * Re-hydrate the persisted `rules` jsonb into normalized {@link ListRules} via
- * the shared {@link hydrateListRules}, so a rule saved before a newer filter
- * dimension existed still matches (the backfill mirrors `filterCards`). ADR-034.
- * @returns The parsed, normalized rules (empty array when the column is empty).
- */
-function parseRules(value: ListRules | null | undefined): ListRules {
-  return hydrateListRules(value);
-}
-
 function listDefaultPref(list: SharedListRow): TradePreference {
   return {
     pricePref: list.defaultPricePref,
@@ -358,7 +348,7 @@ async function loadSharedLists(
     defaultPriceAbsoluteCents: row.defaultPriceAbsoluteCents,
     defaultTradeType: row.defaultTradeType as TradePreference["tradeType"],
     currency: row.currency as Currency | null,
-    rules: parseRules(row.rules),
+    rules: hydrateListRules(row.rules),
     ruleCombine: row.ruleCombine,
   }));
 }
@@ -402,7 +392,7 @@ async function loadOwnedLists(
     defaultPriceAbsoluteCents: row.defaultPriceAbsoluteCents,
     defaultTradeType: row.defaultTradeType as TradePreference["tradeType"],
     currency: row.currency as Currency | null,
-    rules: parseRules(row.rules),
+    rules: hydrateListRules(row.rules),
     ruleCombine: row.ruleCombine,
   }));
 }

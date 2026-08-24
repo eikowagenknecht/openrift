@@ -67,6 +67,8 @@ interface MarketplaceLinks {
   label: string;
   searchUrl: (query: string) => string;
   productUrl: (productId: number, language?: string | null) => string;
+  /** Whether the URLs above carry our affiliate id, so the UI can disclose it. */
+  isAffiliate: boolean;
 }
 
 export const MARKETPLACE_LINKS: Record<Marketplace, MarketplaceLinks> = {
@@ -77,6 +79,7 @@ export const MARKETPLACE_LINKS: Record<Marketplace, MarketplaceLinks> = {
         `https://www.tcgplayer.com/search/riftbound/product?q=${encodeURIComponent(query)}`,
       ),
     productUrl: (id) => affiliateUrl(`https://www.tcgplayer.com/product/${id}`),
+    isAffiliate: true,
   },
   cardmarket: {
     label: "Cardmarket",
@@ -84,12 +87,14 @@ export const MARKETPLACE_LINKS: Record<Marketplace, MarketplaceLinks> = {
       `https://www.cardmarket.com/en/Riftbound/Products/Search?searchString=${encodeURIComponent(query)}`,
     productUrl: (id, language) =>
       `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}${cardmarketLangParam(language)}`,
+    isAffiliate: false,
   },
   cardtrader: {
     label: "CardTrader",
     searchUrl: (query) =>
       cardtraderAffiliateUrl(`https://www.cardtrader.com/en/search?q=${encodeURIComponent(query)}`),
     productUrl: (id) => cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${id}`),
+    isAffiliate: true,
   },
 };
 

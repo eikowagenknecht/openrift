@@ -1,6 +1,7 @@
 import type { CardEmbedder, OpenCvLike, OrbCvLike } from "@openrift/shared/scan";
 import { useEffect, useRef, useState } from "react";
 
+import { errorText } from "@/lib/error-text";
 import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
 import { loadOpenCv } from "@/lib/scan-opencv";
 import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
@@ -30,22 +31,6 @@ function workerRequested(): boolean {
   }
   const params = new URLSearchParams(globalThis.location?.search ?? "");
   return params.get(WORKER_PARAM) === "1";
-}
-
-/**
- * Message for a thrown value.
- *
- * Kept out of the catch blocks themselves: the React Compiler cannot lower a
- * conditional inside a try/catch and bails out of the whole hook when it finds
- * one.
- *
- * @returns The error's message, or the fallback for a non-Error throw.
- */
-export function errorMessage(thrown: unknown, fallback: string): string {
-  if (thrown instanceof Error) {
-    return thrown.message;
-  }
-  return fallback;
 }
 
 /** Download state of one big engine resource, for the loading screen. */
@@ -181,7 +166,7 @@ export function useScanEngine(assets: ScanEngineAssets | null, onError: (message
         // the main thread; saying so plainly beats a silent half-speed page.
         workerRef.current = null;
         started.terminate();
-        onErrorRef.current(errorMessage(initError, "The scanning engine failed to start"));
+        onErrorRef.current(errorText(initError, "The scanning engine failed to start"));
       }
     }
     void init();
@@ -211,7 +196,7 @@ export function useScanEngine(assets: ScanEngineAssets | null, onError: (message
           }
         });
       } catch (loadError) {
-        message = errorMessage(loadError, "Could not load OpenCV");
+        message = errorText(loadError, "Could not load OpenCV");
       }
       if (cancelled) {
         return;
@@ -255,7 +240,7 @@ export function useScanEngine(assets: ScanEngineAssets | null, onError: (message
           }
         });
       } catch (loadError) {
-        message = errorMessage(loadError, "Could not load the encoder model");
+        message = errorText(loadError, "Could not load the encoder model");
       }
       if (cancelled) {
         return;

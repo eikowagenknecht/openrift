@@ -172,6 +172,7 @@ export {
   REQUIRED_ZONES,
   ZONE_EXPECTED,
   ZONE_LABELS,
+  isCountedZone,
   requiredZoneProgress,
   zoneExpected,
   zoneLabel,

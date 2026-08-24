@@ -253,24 +253,33 @@ const BADGE_VARIANTS = [
   "count",
 ] as const;
 
+/**
+ * The page's sections, in the order they render. The nav below is built from
+ * this same list, so a section can never be on the page without a link to it
+ * (Tiles was, for a while) and the two orders can never disagree.
+ *
+ * `title` repeats each section's own `DemoSection` title, which is what the nav
+ * link reads.
+ */
 const SECTIONS = [
-  { id: "tokens", title: "Tokens" },
-  { id: "buttons", title: "Buttons" },
-  { id: "top-bar-buttons", title: "Top-bar buttons" },
-  { id: "toggles", title: "Toggles" },
-  { id: "badges-chips", title: "Badges & chips" },
-  { id: "pressable", title: "Pressable & disclosure" },
-  { id: "section-heading", title: "Section heading" },
-  { id: "icon-chip", title: "Icon chip" },
-  { id: "brand-glyph", title: "Brand glyph" },
-  { id: "qr-codes", title: "Copy rows & QR codes" },
-  { id: "card-thumbnails", title: "Card thumbnails" },
-  { id: "form-controls", title: "Form controls" },
-  { id: "pickers", title: "Pickers & commands" },
-  { id: "overlays", title: "Overlays" },
-  { id: "feedback", title: "Feedback & status" },
-  { id: "layout", title: "Layout & data" },
-  { id: "composites", title: "Composites" },
+  { id: "tokens", title: "Tokens", Component: TokensSection },
+  { id: "buttons", title: "Buttons", Component: ButtonsSection },
+  { id: "top-bar-buttons", title: "Top-bar buttons", Component: TopBarButtonsSection },
+  { id: "toggles", title: "Toggles", Component: TogglesSection },
+  { id: "badges-chips", title: "Badges & chips", Component: BadgesChipsSection },
+  { id: "pressable", title: "Pressable & disclosure", Component: PressableSection },
+  { id: "section-heading", title: "Section heading", Component: SectionHeadingSection },
+  { id: "icon-chip", title: "Icon chip", Component: IconChipSection },
+  { id: "brand-glyph", title: "Brand glyph", Component: BrandGlyphSection },
+  { id: "qr-codes", title: "Copy rows & QR codes", Component: QrCodesSection },
+  { id: "tiles", title: "Tiles", Component: TilesSection },
+  { id: "card-thumbnails", title: "Card thumbnails", Component: CardThumbnailsSection },
+  { id: "form-controls", title: "Form controls", Component: FormControlsSection },
+  { id: "pickers", title: "Pickers & commands", Component: PickersSection },
+  { id: "overlays", title: "Overlays", Component: OverlaysSection },
+  { id: "feedback", title: "Feedback & status", Component: FeedbackSection },
+  { id: "layout", title: "Layout & data", Component: LayoutSection },
+  { id: "composites", title: "Composites", Component: CompositesSection },
 ] as const;
 
 /**
@@ -306,24 +315,9 @@ export function DesignPage() {
         </nav>
       </div>
 
-      <TokensSection />
-      <ButtonsSection />
-      <TopBarButtonsSection />
-      <TogglesSection />
-      <BadgesChipsSection />
-      <PressableSection />
-      <SectionHeadingSection />
-      <IconChipSection />
-      <BrandGlyphSection />
-      <QrCodesSection />
-      <TilesSection />
-      <CardThumbnailsSection />
-      <FormControlsSection />
-      <PickersSection />
-      <OverlaysSection />
-      <FeedbackSection />
-      <LayoutSection />
-      <CompositesSection />
+      {SECTIONS.map((section) => (
+        <section.Component key={section.id} />
+      ))}
     </div>
   );
 }

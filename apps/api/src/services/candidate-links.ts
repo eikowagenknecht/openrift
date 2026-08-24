@@ -17,9 +17,9 @@
  * to every pipeline. That consumer needs no printing lookups, hence the narrower
  * {@link CardNameIndex} it loads instead of the full index.
  */
-import { WellKnown } from "@openrift/shared";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
+import { buildPrintingLinkKey } from "../lib/printing-link-key.js";
 import type { ingestRepo } from "../repositories/ingest.js";
 
 /** The live-catalog lookups that resolve a card *name* to a card id. */
@@ -74,24 +74,6 @@ export type CardNameRepo = Pick<
 /** The subset of the ingest repo {@link loadCandidateLinkIndex} reads. */
 export type CandidateLinkRepo = CardNameRepo &
   Pick<ReturnType<typeof ingestRepo>, "allPrintingKeys" | "allPrintingLinkOverrides">;
-
-/**
- * Composite key identifying one live printing. Short codes are uppercased on
- * both sides so source-side casing drift ("VEN-sp3" vs "VEN-SP3") still links,
- * and marker slugs are sorted so payload order never blocks a match.
- * @param printing The printing (live or candidate) to key.
- * @returns The `SHORTCODE:finish:markers:language` key.
- */
-export function buildPrintingLinkKey(printing: {
-  shortCode: string;
-  finish: string;
-  markerSlugs: readonly string[];
-  language: string | null;
-}): string {
-  const slugKey = [...printing.markerSlugs].toSorted().join(",");
-  const language = printing.language ?? WellKnown.language.EN;
-  return `${printing.shortCode.toUpperCase()}:${printing.finish}:${slugKey}:${language}`;
-}
 
 /**
  * Index the live cards and aliases a name lookup reads.

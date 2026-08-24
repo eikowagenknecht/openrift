@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";
 
+import { SlugCell } from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
@@ -12,13 +13,6 @@ import { PageDescription, PageTopBarPrimaryButton } from "@/components/layout/pa
 import { Button } from "@/components/ui/button";
 import { useAdminMetaEvents, useDeleteMetaEvent } from "@/hooks/use-admin-meta";
 import { useDeckFormatList } from "@/hooks/use-enums";
-
-function SlugCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono text-sm">{row.slug}</span>;
-}
 
 function NameCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   if (!row) {
@@ -66,7 +60,7 @@ function DeckCountCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
 }
 
 const columns: AdminColumnDef<AdminMetaEvent>[] = [
-  { header: "Slug", sortValue: (event) => event.slug, cell: <SlugCell /> },
+  { header: "Slug", sortValue: (event) => event.slug, cell: <SlugCell<AdminMetaEvent> /> },
   { header: "Name", sortValue: (event) => event.name, cell: <NameCell /> },
   { header: "Date", sortValue: (event) => event.eventDate, cell: <DateCell /> },
   { header: "Format", sortValue: (event) => event.format, cell: <FormatCell /> },

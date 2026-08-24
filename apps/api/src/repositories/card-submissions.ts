@@ -9,7 +9,7 @@ import type {
   Database,
 } from "../db/index.js";
 import type { LivePrintingSnapshot, LiveSnapshot } from "../lib/card-submission-diff.js";
-import { buildPrintingLinkKey } from "../services/candidate-links.js";
+import { buildPrintingLinkKey } from "../lib/printing-link-key.js";
 import { joinFrontImage, keysetCursorPredicate } from "./query-helpers.js";
 
 /** A ledger row with its jsonb column parsed. */

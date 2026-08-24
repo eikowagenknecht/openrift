@@ -33,15 +33,7 @@ import {
   metaEventToDraft,
   validateMetaEventDraft,
 } from "@/lib/admin-meta-draft";
-
-/**
- * Outside the submit handler because the React Compiler cannot lower a
- * conditional that sits inside a try/catch.
- * @returns The thrown value's message, or `fallback` when it isn't an Error.
- */
-function errorText(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+import { errorText } from "@/lib/error-text";
 
 interface MetaEventDialogProps {
   /** The event being edited. Omitted when the dialog creates a new one. */

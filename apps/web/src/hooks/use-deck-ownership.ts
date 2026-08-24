@@ -1,5 +1,11 @@
 import type { DeckZone, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { WellKnown, getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared";
+import {
+  WellKnown,
+  getOrientation,
+  isCountedZone,
+  legendDisplayName,
+  preferredPrinting,
+} from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { REQUIRED_ZONES } from "@/lib/deck-zone-labels";
@@ -126,16 +132,6 @@ export function lockedReasonText(entry: CardOwnership): string {
   return entry.locked === 1
     ? `1 more copy is locked: ${why}`
     : `${entry.locked} more copies are locked: ${why}`;
-}
-
-/**
- * Zones whose cards make up the deck proper. Overflow is a free parking zone
- * (see `COPY_LIMIT_ZONES` in `use-deck-builder`) — cards stashed there aren't
- * part of the deck, so they're left out of every ownership and cost total.
- * @returns True when the zone counts toward ownership and value.
- */
-function isCountedZone(zone: string): boolean {
-  return zone !== WellKnown.deckZone.OVERFLOW;
 }
 
 /** The deck proper — the zones behind the "X / 56" completion figure. */

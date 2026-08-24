@@ -6,6 +6,7 @@ interface MarketplaceMeta {
   icon: string;
   searchUrl: (query: string) => string;
   productUrl: (productId: number, language?: string | null) => string;
+  isAffiliate: boolean;
 }
 
 const MARKETPLACE_ICONS: Record<Marketplace, string> = {

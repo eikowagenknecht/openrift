@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
+import { SlugCell } from "@/components/admin/admin-crud-shared";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { PageDescription, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
@@ -82,10 +83,6 @@ function NameCell({ row }: AdminCellSlotProps<ProductSummary>) {
       {row.name}
     </Link>
   );
-}
-
-function SlugCell({ row }: AdminCellSlotProps<ProductSummary>) {
-  return <span className="text-muted-foreground font-mono text-xs">{row?.slug}</span>;
 }
 
 function DescriptionCell({ row }: AdminCellSlotProps<ProductSummary>) {
@@ -206,7 +203,12 @@ function SetInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
 
 const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
   { header: "Name", sortValue: (p) => p.name, cell: <NameCell />, editCell: <NameInput /> },
-  { header: "Slug", sortValue: (p) => p.slug, cell: <SlugCell />, editCell: <SlugInput /> },
+  {
+    header: "Slug",
+    sortValue: (p) => p.slug,
+    cell: <SlugCell<ProductSummary> />,
+    editCell: <SlugInput />,
+  },
   { header: "Set", sortValue: (p) => p.set?.name ?? "", cell: <SetCell />, editCell: <SetInput /> },
   { header: "Description", cell: <DescriptionCell />, editCell: <DescriptionInput /> },
   { header: "Cards", align: "right", sortValue: (p) => p.cardTotal, cell: <CardTotalCell /> },

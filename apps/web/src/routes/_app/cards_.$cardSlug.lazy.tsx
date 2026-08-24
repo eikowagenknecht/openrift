@@ -1,13 +1,13 @@
 import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
-  EUR_MARKETPLACES,
   formatMonth,
   findStandardArtFallback,
   getOrientation,
   imageUrl,
   isBaseBanFormat,
   legendDisplayName,
+  MARKETPLACE_CURRENCY,
   marketplaceLabel,
   preferredPrinting,
   snapshotHeadline,
@@ -851,12 +851,6 @@ function PrintingCard({
   );
 }
 
-const MARKETPLACE_LABELS_FULL: Record<Marketplace, string> = {
-  tcgplayer: "TCGplayer",
-  cardmarket: "Cardmarket",
-  cardtrader: "Cardtrader",
-};
-
 function PriceHistorySection({ printing }: { printing: Printing }) {
   const { data } = usePriceHistory(printing.id, "all");
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
@@ -1048,7 +1042,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
                     </th>
                     {availableMarketplaces.map((mp) => (
                       <th key={mp} scope="col" className="px-3 py-2 text-right font-medium">
-                        {MARKETPLACE_LABELS_FULL[mp]} ({EUR_MARKETPLACES.has(mp) ? "EUR" : "USD"})
+                        {marketplaceLabel(mp)} ({MARKETPLACE_CURRENCY[mp]})
                       </th>
                     ))}
                   </tr>

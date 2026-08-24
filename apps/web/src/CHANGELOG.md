@@ -5,6 +5,7 @@
 ### Other
 
 - feat(Cards): **One Owned filter** — the playset buckets and the copies slider now share a single Owned dropdown, and the mobile filter panel lists them together too.
+- fix(Cards): **Consistent marketplace naming** — the price history table on card pages said "Cardtrader" while the rest of the app says "CardTrader".
 
 ## 2026-08-22
 

@@ -7,7 +7,7 @@ import type {
   Printing,
   Rarity,
 } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { isCountedZone } from "@openrift/shared";
 
 import { frontImageId } from "@/lib/card-meta";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -160,15 +160,6 @@ export interface DeckBoxInput {
    * moved, was lent out, or is already in the box) is ignored.
    */
   overrides?: ReadonlyMap<string, string>;
-}
-
-/**
- * Overflow is a parking zone rather than part of the deck, so its cards never
- * belong in the box — the same rule the ownership figures use.
- * @returns True when copies of this zone travel with the deck.
- */
-function isCountedZone(zone: string): boolean {
-  return zone !== WellKnown.deckZone.OVERFLOW;
 }
 
 /**

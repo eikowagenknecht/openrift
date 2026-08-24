@@ -1,5 +1,7 @@
 import { CARD_ASPECT } from "@openrift/shared/scan";
 
+import { clamp } from "@/lib/math";
+
 /** An axis-aligned rectangle. Coordinate space depends on the caller. */
 export interface FlightRect {
   x: number;
@@ -45,15 +47,6 @@ const SNAPSHOT_QUALITY = 0.7;
  */
 function finite(value: number): number {
   return Number.isFinite(value) ? value : 0;
-}
-
-/**
- * Clamps a value into a closed range.
- *
- * @returns The value bounded by `min` and `max`.
- */
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 /**

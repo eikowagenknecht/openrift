@@ -1,5 +1,5 @@
 import type { Marketplace } from "@openrift/shared";
-import { ALL_MARKETPLACES } from "@openrift/shared";
+import { ALL_MARKETPLACES, MARKETPLACE_CURRENCY, MARKETPLACE_LINKS } from "@openrift/shared";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { ResetButton } from "./reset-button";
-
-const MARKETPLACE_LABELS: Record<Marketplace, string> = {
-  tcgplayer: "TCGplayer",
-  cardmarket: "Cardmarket",
-  cardtrader: "CardTrader",
-};
-
-const MARKETPLACE_CURRENCY: Record<Marketplace, string> = {
-  tcgplayer: "USD",
-  cardmarket: "EUR",
-  cardtrader: "EUR",
-};
 
 export function MarketplacesSection() {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
@@ -80,6 +68,7 @@ export function MarketplacesSection() {
             (marketplace) => {
               const enabled = enabledSet.has(marketplace);
               const index = marketplaceOrder.indexOf(marketplace);
+              const label = MARKETPLACE_LINKS[marketplace].label;
               return (
                 <div
                   key={marketplace}
@@ -92,7 +81,7 @@ export function MarketplacesSection() {
                       onCheckedChange={() => toggleMarketplace(marketplace)}
                     />
                     <Label htmlFor={`pref-mp-${marketplace}`} className="font-normal">
-                      {MARKETPLACE_LABELS[marketplace]}
+                      {label}
                     </Label>
                     <span className="text-muted-foreground text-xs">
                       {MARKETPLACE_CURRENCY[marketplace]}
@@ -110,7 +99,7 @@ export function MarketplacesSection() {
                         size="icon-sm"
                         disabled={index === 0}
                         onClick={() => moveMarketplace(marketplace, -1)}
-                        aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} up`}
+                        aria-label={`Move ${label} up`}
                       >
                         <ArrowUpIcon className="size-3" />
                       </Button>
@@ -119,7 +108,7 @@ export function MarketplacesSection() {
                         size="icon-sm"
                         disabled={index === marketplaceOrder.length - 1}
                         onClick={() => moveMarketplace(marketplace, 1)}
-                        aria-label={`Move ${MARKETPLACE_LABELS[marketplace]} down`}
+                        aria-label={`Move ${label} down`}
                       >
                         <ArrowDownIcon className="size-3" />
                       </Button>

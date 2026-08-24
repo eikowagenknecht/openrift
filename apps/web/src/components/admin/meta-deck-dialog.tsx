@@ -45,16 +45,8 @@ import { dedupeMatchedEntries } from "@/lib/deck-import-cards";
 import type { DeckMatchedEntry } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import { parseDeckImportAuto } from "@/lib/deck-import-parsers";
+import { errorText } from "@/lib/error-text";
 import { META_LIST_STATUS_LABELS, formatFinishTier } from "@/lib/meta-format";
-
-/**
- * Outside the submit handler because the React Compiler cannot lower a
- * conditional that sits inside a try/catch.
- * @returns The thrown value's message, or `fallback` when it isn't an Error.
- */
-function errorText(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
 
 /**
  * How a pasted line named its card, for the unmatched and review lists.

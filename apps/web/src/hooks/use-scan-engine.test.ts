@@ -7,7 +7,7 @@ import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
 import { loadOpenCv } from "@/lib/scan-opencv";
 
 import type { ScanEngineAssets } from "./use-scan-engine";
-import { errorMessage, useScanEngine } from "./use-scan-engine";
+import { useScanEngine } from "./use-scan-engine";
 
 vi.mock("@/lib/scan-opencv", () => ({
   loadOpenCv: vi.fn(),
@@ -29,16 +29,6 @@ const ASSETS: ScanEngineAssets = {
   encoderUrl: "https://assets.invalid/encoder.onnx",
   opencvUrl: "https://assets.invalid/opencv.js",
 };
-
-describe("errorMessage", () => {
-  it("returns the message of a thrown Error", () => {
-    expect(errorMessage(new Error("boom"), "fallback")).toBe("boom");
-  });
-
-  it("returns the fallback for a non-Error throw", () => {
-    expect(errorMessage("a string", "fallback")).toBe("fallback");
-  });
-});
 
 describe("useScanEngine", () => {
   beforeEach(() => {

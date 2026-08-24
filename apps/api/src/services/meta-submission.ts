@@ -30,6 +30,7 @@ import type { MetaListStatus } from "@openrift/shared/types";
 import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { isValidIsoDate } from "../lib/iso-date.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { formatSubmissionDateStamp } from "./ingest-user-submission.js";
 
@@ -101,18 +102,6 @@ export type MetaSubmissionResult =
   | { status: "invalid"; errors: string[] };
 
 const DECK_ZONES = new Set<string>(Object.values(WellKnown.deckZone));
-
-/** ISO `YYYY-MM-DD`, the shape a `date` column round-trips. */
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/u;
-
-/** @returns Whether the string is a real calendar date in `YYYY-MM-DD` form. */
-function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE.test(value)) {
-    return false;
-  }
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
-}
 
 /**
  * Every reason this submission cannot be staged, checked against the same

@@ -98,17 +98,6 @@ interface ListEntryRowBase {
   tradeOverride: TradePreference;
 }
 
-/**
- * Re-hydrate the persisted `rules` jsonb into normalized {@link ListRules}.
- * Delegates to the shared {@link hydrateListRules} so a rule saved before a
- * newer filter dimension existed still evaluates (the backfill mirrors
- * `filterCards`). ADR-034.
- * @returns The parsed, normalized rules (empty array when the column is empty).
- */
-function parseRules(value: ListRules | null | undefined): ListRules {
-  return hydrateListRules(value);
-}
-
 interface ListEntryRowPrintingFields {
   setId: string;
   rarity: Rarity;
@@ -570,7 +559,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .where("id", "in", [...listIds])
         .execute();
       const ruleLists = listRows
-        .map((row) => ({ ...row, rules: parseRules(row.rules) }))
+        .map((row) => ({ ...row, rules: hydrateListRules(row.rules) }))
         .filter((row) => row.rules.length > 0);
       if (ruleLists.length === 0) {
         return counts;
@@ -1167,7 +1156,7 @@ async function expandAndEnrich(
     ruleQuery = ruleQuery.where("userId", "=", scope.userId);
   }
   const listRow = await ruleQuery.executeTakeFirst();
-  const rules = listRow ? parseRules(listRow.rules) : [];
+  const rules = listRow ? hydrateListRules(listRow.rules) : [];
   // Manual-only (the overwhelmingly common case): nothing to expand.
   if (!listRow || rules.length === 0 || !providers) {
     return manual;

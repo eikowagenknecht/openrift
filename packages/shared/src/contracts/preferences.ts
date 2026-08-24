@@ -34,6 +34,9 @@ export const emailNotificationPreferenceSchema = z
 // object feeds both the write-side schema and the read-side (OpenAPI-named)
 // schema below, so the two directions cannot drift — a prior separate write
 // copy was once absent entirely, silently stripping the completionScope PATCH.
+// Adding a field here also means adding it to COMPLETION_SCOPE_ARRAY_KEYS or
+// COMPLETION_SCOPE_SCALAR_KEYS (types/api/preferences.ts), which clients walk
+// to fold a scope; the exhaustiveness check there fails the build until you do.
 const presenceStateEnum = z.enum(["any", "none"]);
 
 const completionScopeFields = {

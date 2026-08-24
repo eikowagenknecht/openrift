@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
+import { errorText } from "@/lib/error-text";
 import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
@@ -45,7 +46,7 @@ import {
 import type { ScanWorkerOutcome, SessionKind } from "@/workers/scan-worker";
 
 import type { ScanEngineAssets } from "./use-scan-engine";
-import { errorMessage, useScanEngine } from "./use-scan-engine";
+import { useScanEngine } from "./use-scan-engine";
 
 export interface ScannerSettings {
   mode: ScannerMode;
@@ -968,7 +969,7 @@ export function useCardScanner(
     } catch (catchUpError) {
       // A failed second look is not worth surfacing: the card is already
       // counted as a miss, and the live pass must not be interrupted.
-      console.log(`[scan] catch-up failed: ${errorMessage(catchUpError, "unknown")}`);
+      console.log(`[scan] catch-up failed: ${errorText(catchUpError, "unknown")}`);
     }
     const outcome = result === null ? null : result.outcome;
     catchUpBusyRef.current = false;
@@ -1067,7 +1068,7 @@ export function useCardScanner(
         (performance.now() - sessionStartRef.current) / 1000,
       );
     } catch (identifyError) {
-      console.log(`[scan] identify-now failed: ${errorMessage(identifyError, "unknown")}`);
+      console.log(`[scan] identify-now failed: ${errorText(identifyError, "unknown")}`);
     }
     catchUpBusyRef.current = false;
     const outcome = result === null ? null : result.outcome;
@@ -1329,7 +1330,7 @@ export function useCardScanner(
       try {
         await video.play();
       } catch (playError) {
-        playFailure = errorMessage(playError, "Could not start the camera preview");
+        playFailure = errorText(playError, "Could not start the camera preview");
       }
     }
     if (playFailure !== null) {
@@ -1460,7 +1461,7 @@ export function useCardScanner(
       };
       /* oxlint-disable promise/prefer-await-to-then, promise/prefer-catch -- the rAF loop is callback-shaped; a rejected frame must not kill it */
       inFlight.then(scheduleNext, (frameError: unknown) => {
-        setError(errorMessage(frameError, "Frame processing failed"));
+        setError(errorText(frameError, "Frame processing failed"));
         scheduleNext();
       });
       /* oxlint-enable promise/prefer-await-to-then, promise/prefer-catch */
@@ -1496,7 +1497,7 @@ export function useCardScanner(
     try {
       await inFlight;
     } catch (captureError) {
-      setError(errorMessage(captureError, "Frame processing failed"));
+      setError(errorText(captureError, "Frame processing failed"));
     }
     capturingRef.current = false;
   }

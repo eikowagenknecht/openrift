@@ -20,7 +20,7 @@
  * already drifted apart; this is the fourth caller and it goes through the same
  * function rather than rolling its own.
  */
-import { buildPrintingLinkKey } from "../services/candidate-links.js";
+import { buildPrintingLinkKey } from "./printing-link-key.js";
 
 /** Live `cards` values a submission can be compared against. */
 interface LiveCardSnapshot {

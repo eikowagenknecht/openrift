@@ -7,36 +7,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
-import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
+import { formatPrice, formatterForMarketplace, priceColorClass } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
-
-interface MarketplaceConfig {
-  label: string;
-  formatValue: (v: number) => string;
-  getUrl: (productId: number, language?: string | null) => string;
-  isAffiliate?: boolean;
-}
-
-const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
-  tcgplayer: {
-    label: "TCGplayer",
-    formatValue: formatPrice,
-    getUrl: MARKETPLACE_LINKS.tcgplayer.productUrl,
-    isAffiliate: true,
-  },
-  cardmarket: {
-    label: "Cardmarket",
-    formatValue: formatPriceEur,
-    getUrl: MARKETPLACE_LINKS.cardmarket.productUrl,
-  },
-  cardtrader: {
-    label: "CardTrader",
-    formatValue: formatPriceEur,
-    getUrl: MARKETPLACE_LINKS.cardtrader.productUrl,
-    isAffiliate: true,
-  },
-};
 
 export function PricingSection({
   printing,
@@ -69,10 +42,10 @@ export function PricingSection({
     url: string | null;
   }[] = [];
   for (const marketplace of marketplaceOrder) {
-    const config = MARKETPLACE_CONFIG[marketplace];
+    const links = MARKETPLACE_LINKS[marketplace];
     const slice = history?.[marketplace];
     const productId = slice?.productId ?? null;
-    const url = productId ? config.getUrl(productId, printing.language) : null;
+    const url = productId ? links.productUrl(productId, printing.language) : null;
 
     const value = prices.get(printing.id, marketplace) ?? latestPrice(marketplace);
 
@@ -89,16 +62,16 @@ export function PricingSection({
     <div className="flex items-center justify-end gap-1.5">
       <span className="text-muted-foreground text-sm">Buy on</span>
       {chips.map(({ marketplace, value, url }) => {
-        const config = MARKETPLACE_CONFIG[marketplace];
+        const links = MARKETPLACE_LINKS[marketplace];
         return (
           <PriceChip
             key={marketplace}
             marketplace={marketplace}
-            label={config.label}
+            label={links.label}
             value={value}
             url={url}
-            formatValue={config.formatValue}
-            isAffiliate={config.isAffiliate}
+            formatValue={formatterForMarketplace(marketplace)}
+            isAffiliate={links.isAffiliate}
           />
         );
       })}

@@ -31,6 +31,70 @@ export type DefaultCardView = "cards" | "printings";
 /** Scope filters for collection completion tracking. */
 export type CompletionScopePreference = z.infer<typeof completionScopePreferenceSchema>;
 
+type CompletionScopeKey = keyof CompletionScopePreference;
+
+/** How a scope axis travels: `array` carries a list of values, `scalar` one. */
+type ScopeKeyKind = "array" | "scalar";
+
+/**
+ * How each scope axis travels. Callers fold a whole scope by walking the two
+ * lists below — into query params, or into a "is anything set?" test — so an
+ * axis missing from them silently drops out of every one of those at once. The
+ * `satisfies` is the guard: a field added to `completionScopeFields` fails the
+ * build here until it is classified. Classified once, in this one place; two
+ * hooks used to keep private copies and both claimed to be the source.
+ */
+const COMPLETION_SCOPE_KEY_KINDS = {
+  sets: "array",
+  languages: "array",
+  domains: "array",
+  types: "array",
+  rarities: "array",
+  finishes: "array",
+  artVariants: "array",
+  keywords: "array",
+  tags: "array",
+  customTags: "array",
+  cardSizes: "array",
+  setsExclude: "array",
+  languagesExclude: "array",
+  domainsExclude: "array",
+  typesExclude: "array",
+  raritiesExclude: "array",
+  finishesExclude: "array",
+  artVariantsExclude: "array",
+  keywordsExclude: "array",
+  tagsExclude: "array",
+  customTagsExclude: "array",
+  promos: "scalar",
+  signed: "scalar",
+  banned: "scalar",
+  errata: "scalar",
+  standard: "scalar",
+  keywordsPresence: "scalar",
+  tagsPresence: "scalar",
+  customTagsPresence: "scalar",
+} as const satisfies Record<CompletionScopeKey, ScopeKeyKind>;
+
+type ScopeKeysOfKind<K extends ScopeKeyKind> = {
+  [P in CompletionScopeKey]: (typeof COMPLETION_SCOPE_KEY_KINDS)[P] extends K ? P : never;
+}[CompletionScopeKey];
+
+/**
+ * Narrows {@link COMPLETION_SCOPE_KEY_KINDS} to the axes of one transport kind.
+ * @returns Those keys, in declaration order.
+ */
+function scopeKeysOfKind<K extends ScopeKeyKind>(kind: K): readonly ScopeKeysOfKind<K>[] {
+  const keys = Object.keys(COMPLETION_SCOPE_KEY_KINDS) as CompletionScopeKey[];
+  return keys.filter((key) => COMPLETION_SCOPE_KEY_KINDS[key] === kind) as ScopeKeysOfKind<K>[];
+}
+
+/** Every array-valued scope axis, include and exclude alike. */
+export const COMPLETION_SCOPE_ARRAY_KEYS = scopeKeysOfKind("array");
+
+/** The single-valued scope axes: tri-state flags and presence states. */
+export const COMPLETION_SCOPE_SCALAR_KEYS = scopeKeysOfKind("scalar");
+
 /**
  * Stored preferences — every field optional; missing fields resolve to
  * `PREFERENCE_DEFAULTS`. `emailNotifications` carries the ADR-030 opt-ins whose

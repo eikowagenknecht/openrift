@@ -6,6 +6,7 @@ import {
   LabelAddInput,
   LabelInput,
   SlugAddInput,
+  SlugCell,
   validateSlugAndLabel,
 } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
@@ -70,13 +71,6 @@ function LabelCell({ row, nodeById }: LabelCellProps) {
       <span className={node?.hasChildren ? "font-semibold" : undefined}>{row.label}</span>
     </div>
   );
-}
-
-function SlugCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
-  if (!row) {
-    return null;
-  }
-  return <span className="font-mono">{row.slug}</span>;
 }
 
 interface ParentCellProps extends AdminCellSlotProps<DistributionChannelResponse> {
@@ -273,7 +267,7 @@ export function DistributionChannelsPage() {
     },
     {
       header: "Slug",
-      cell: <SlugCell />,
+      cell: <SlugCell<DistributionChannelResponse> />,
       editCell: <SlugAddInput<ChannelDraft> placeholder="nexus-night-2025" width="w-56" />,
       addCell: <SlugAddInput<ChannelDraft> placeholder="nexus-night-2025" width="w-56" />,
     },
