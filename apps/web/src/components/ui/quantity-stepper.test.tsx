@@ -4,13 +4,32 @@ import { describe, expect, it, vi } from "vitest";
 
 import { QuantityStepper, QuantityStepperField } from "./quantity-stepper";
 
-function Controlled({ initial, max, min }: { initial: number; max: number; min?: number }) {
+function Controlled({
+  initial,
+  max,
+  min,
+  editable,
+}: {
+  initial: number;
+  max: number;
+  min?: number;
+  editable?: boolean;
+}) {
   const [value, setValue] = useState(initial);
-  return <QuantityStepper value={value} onValueChange={setValue} max={max} min={min} />;
+  return (
+    <QuantityStepper
+      value={value}
+      onValueChange={setValue}
+      max={max}
+      min={min}
+      editable={editable}
+    />
+  );
 }
 
 const fewer = () => screen.getByRole("button", { name: "One fewer" });
 const more = () => screen.getByRole("button", { name: "One more" });
+const field = () => screen.getByRole("spinbutton", { name: "Quantity" });
 
 describe("QuantityStepper", () => {
   it("steps up and down within the bounds", () => {
@@ -55,6 +74,43 @@ describe("QuantityStepper", () => {
 
     expect(fewer()).toBeDisabled();
     expect(more()).toBeDisabled();
+  });
+
+  it("shows a static value unless asked for an editable one", () => {
+    render(<Controlled initial={2} max={4} />);
+
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("accepts a typed value in editable mode", () => {
+    render(<Controlled initial={1} max={20} editable />);
+
+    fireEvent.change(field(), { target: { value: "12" } });
+    expect(field()).toHaveValue(12);
+  });
+
+  it("clamps a typed value to the bounds", () => {
+    render(<Controlled initial={1} max={4} editable />);
+
+    fireEvent.change(field(), { target: { value: "99" } });
+    expect(field()).toHaveValue(4);
+  });
+
+  it("snaps an emptied field back to the minimum", () => {
+    render(<Controlled initial={3} max={4} editable />);
+
+    fireEvent.change(field(), { target: { value: "" } });
+    expect(field()).toHaveValue(1);
+  });
+
+  it("keeps the buttons driving the editable value", () => {
+    render(<Controlled initial={2} max={4} editable />);
+
+    fireEvent.click(more());
+    expect(field()).toHaveValue(3);
+    fireEvent.click(fewer());
+    expect(field()).toHaveValue(2);
   });
 
   it("renders the labeled field form", () => {

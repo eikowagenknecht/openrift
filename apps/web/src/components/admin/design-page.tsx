@@ -1623,11 +1623,12 @@ function FormControlsSection() {
         </Demo>
         <Demo
           name="QuantityStepper"
-          hint="How many copies an action touches. The Field form adds the boxed label row the dialogs use."
-          spec="icon buttons size-8 · value w-8 tabular-nums · clamped to min/max"
+          hint="How many copies an action touches. `editable` swaps the value for a typable field, for bounds too large to click to. The Field form adds the boxed label row the dialogs use."
+          spec="icon buttons size-8 · value w-8 tabular-nums (or w-16 input) · clamped to min/max"
         >
           <div className="w-full space-y-3">
             <QuantityStepper value={copies} onValueChange={setCopies} max={4} />
+            <QuantityStepper value={copies} onValueChange={setCopies} max={4} editable />
             <QuantityStepperField
               label="Copies to move"
               value={copies}

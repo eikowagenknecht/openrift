@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import { MinusIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserAvatar } from "@/components/user-avatar";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -68,8 +68,6 @@ export function LendCardDialog({
   const freeText = borrower === FREE_TEXT;
   const trimmedName = name.trim();
   const canConfirm = maxQuantity > 0 && (freeText ? trimmedName.length > 0 : true);
-
-  const clamp = (value: number) => Math.min(Math.max(1, value), Math.max(1, maxQuantity));
 
   function confirm(): void {
     createLoan.mutate(
@@ -159,38 +157,12 @@ export function LendCardDialog({
 
           <div className="flex items-center justify-between gap-4">
             <span>How many?</span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                aria-label="Decrease quantity"
-                disabled={quantity <= 1}
-                onClick={() => setQuantity((current) => clamp(current - 1))}
-              >
-                <MinusIcon />
-              </Button>
-              <Input
-                type="number"
-                min={1}
-                max={maxQuantity}
-                value={quantity}
-                aria-label="Quantity"
-                // Hide the native number spinners — the +/- buttons drive the value.
-                className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                aria-label="Increase quantity"
-                disabled={quantity >= maxQuantity}
-                onClick={() => setQuantity((current) => clamp(current + 1))}
-              >
-                <PlusIcon />
-              </Button>
-            </div>
+            <QuantityStepper
+              value={quantity}
+              onValueChange={setQuantity}
+              max={Math.max(1, maxQuantity)}
+              editable
+            />
           </div>
 
           <DialogFooter>

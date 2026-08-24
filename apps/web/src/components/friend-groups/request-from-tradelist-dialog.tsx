@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { MinusIcon, PlusIcon, PlusSquareIcon } from "lucide-react";
+import { PlusSquareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCreateTrade } from "@/hooks/use-card-trades";
 import {
@@ -132,7 +133,6 @@ function RequestBody({
     existingMatch ? Math.min(existingMatch.buyQuantity, availableHint) : availableHint,
   );
   const [quantity, setQuantity] = useState(1);
-  const clampQuantity = (value: number) => Math.min(Math.max(1, value), maxQuantity);
 
   const [phase, setPhase] = useState<"pick" | "confirm-share">("pick");
   const [selectedId, setSelectedId] = useState<string>(() => preferredListId(options) ?? NEW_LIST);
@@ -201,37 +201,7 @@ function RequestBody({
   const stepper = (
     <div className="flex items-center justify-between gap-4 py-2">
       <span>How many?</span>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Decrease quantity"
-          disabled={quantity <= 1}
-          onClick={() => setQuantity((current) => clampQuantity(current - 1))}
-        >
-          <MinusIcon />
-        </Button>
-        <Input
-          type="number"
-          min={1}
-          max={maxQuantity}
-          value={quantity}
-          aria-label="Quantity"
-          className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Increase quantity"
-          disabled={quantity >= maxQuantity}
-          onClick={() => setQuantity((current) => clampQuantity(current + 1))}
-        >
-          <PlusIcon />
-        </Button>
-      </div>
+      <QuantityStepper value={quantity} onValueChange={setQuantity} max={maxQuantity} editable />
     </div>
   );
 
