@@ -120,10 +120,7 @@ export function BinderSheetDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Print for your binder</DialogTitle>
-          <DialogDescription>
-            A QR sheet for the front of your binder. Cut it out along the marks and slide it into a
-            sleeve.
-          </DialogDescription>
+          <DialogDescription>A QR sheet for the front of your binder.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">

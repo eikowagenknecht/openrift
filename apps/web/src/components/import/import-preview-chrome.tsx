@@ -119,27 +119,18 @@ export function ImportExactMatchesDisclosure({
 }
 
 /**
- * Explains that best-guess rows import as-is. `target` names what the user
- * would be confirming: the collection importer resolves a printing, the deck
- * importer only a card.
+ * Explains that best-guess rows import as-is.
  * @returns The note, or null when nothing needs verifying.
  */
-export function ImportToVerifyNote({
-  count,
-  target,
-}: {
-  count: number;
-  target: "printing" | "card";
-}) {
+export function ImportToVerifyNote({ count }: { count: number }) {
   if (count === 0) {
     return null;
   }
 
   return (
     <p className="text-muted-foreground text-sm">
-      We picked a best guess for {count} {count === 1 ? "card" : "cards"} (marked{" "}
-      <span className="text-amber-600 dark:text-amber-400">to verify</span>). They will import
-      as-is, so open each one to confirm the {target} if it matters.
+      Best guess picked for {count} {count === 1 ? "card" : "cards"} (marked{" "}
+      <span className="text-amber-600 dark:text-amber-400">to verify</span>). Open each to confirm.
     </p>
   );
 }

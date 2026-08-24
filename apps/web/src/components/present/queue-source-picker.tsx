@@ -215,9 +215,7 @@ export function QueueSourcePicker({ onAdd }: { onAdd: (source: QueueSource) => v
         onOpenChange={(open) => setOpenSource(open ? "list" : null)}
         searchPlaceholder="Search your lists…"
       >
-        <CommandEmpty>
-          {lists.isPending ? "Loading lists…" : "No lists yet. Organize lists work best here."}
-        </CommandEmpty>
+        <CommandEmpty>{lists.isPending ? "Loading lists…" : "No lists yet."}</CommandEmpty>
         {(lists.data ?? []).map((list) => (
           <SourceRow
             key={list.id}

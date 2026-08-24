@@ -46,7 +46,6 @@ export function ListShareDialog({
   entries,
   open,
   onOpenChange,
-  onManageGroups,
 }: ListShareDialogProps) {
   const shareList = useShareList();
   const unshareList = useUnshareList();
@@ -125,18 +124,10 @@ export function ListShareDialog({
         </div>
       </div>
 
-      <div className="text-muted-foreground flex flex-col gap-1 border-t pt-4 text-sm">
-        <p>
-          Prefer to keep it inside your circle? Set which of your groups can see it in{" "}
-          <Button variant="link" className="h-auto p-0" onClick={onManageGroups}>
-            Group visibility
-          </Button>
-          .
-        </p>
-        {intent === "organize" ? null : (
+      {intent === "organize" ? null : (
+        <div className="text-muted-foreground flex flex-col gap-1 border-t pt-4 text-sm">
           <p>
-            Sharing more than this one list? One link covers every wishlist and tradelist you have,
-            under{" "}
+            One link covers every wishlist and tradelist you have, under{" "}
             <Button
               variant="link"
               className="h-auto p-0"
@@ -147,8 +138,8 @@ export function ListShareDialog({
             </Button>
             .
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </ShareDialog>
   );
 }

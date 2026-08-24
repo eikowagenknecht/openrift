@@ -559,9 +559,8 @@ export function SetsPage() {
         title="Sets"
         toolbar={
           <PageDescription>
-            Set order controls which printing a card defaults to wherever no specific printing is
-            pinned (general display, and name-based deck imports). The default is the first printing
-            by language, then by set order, so moving a set higher makes its printings win.
+            Set order picks the default printing where none is pinned: first by language, then by
+            set order.
           </PageDescription>
         }
         reorder={{

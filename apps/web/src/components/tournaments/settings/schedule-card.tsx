@@ -60,8 +60,8 @@ export function ScheduleCard({
       <CardHeader>
         <CardTitle>Schedule</CardTitle>
         <CardDescription>
-          Times are in {tzLabel}. A tournament with no end auto-completes 24 hours after it starts.
-          Set an end for a multi-day event.
+          Times are in {tzLabel}. Without an end, the tournament auto-completes 24 hours after it
+          starts.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

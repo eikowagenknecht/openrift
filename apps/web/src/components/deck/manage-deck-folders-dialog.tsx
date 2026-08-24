@@ -279,10 +279,7 @@ export function ManageDeckFoldersDialog({
           {folderList.length === 0 ? (
             <Empty className="py-6">
               <EmptyHeader>
-                <EmptyDescription>
-                  Folders group your decks however you like, and a deck can sit in more than one.
-                  Create your first one below.
-                </EmptyDescription>
+                <EmptyDescription>A deck can sit in more than one folder.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (

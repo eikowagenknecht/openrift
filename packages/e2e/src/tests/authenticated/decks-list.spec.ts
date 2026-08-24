@@ -439,9 +439,7 @@ test.describe("decks list", () => {
 
       const alert = page.getByRole("alertdialog");
       await expect(alert.getByRole("heading", { name: "Delete deck" })).toBeVisible();
-      await expect(
-        alert.getByText(new RegExp(`Are you sure you want to delete .${deckName}.\\?`, "u")),
-      ).toBeVisible();
+      await expect(alert.getByText(new RegExp(`Delete .${deckName}.\\?`, "u"))).toBeVisible();
       await expect(alert.getByText(/cannot be undone/iu)).toBeVisible();
     });
 

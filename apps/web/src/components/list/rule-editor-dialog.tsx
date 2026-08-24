@@ -632,7 +632,7 @@ function RuleFields({
       {!isCopy && kind === "card" && rule.netOwned && rule.filter.isStandard === true && (
         <FilterRow
           label="Count special versions"
-          hint="Alt arts, foils, signed and promo copies you own also fill the missing count. The list still only asks for standard printings."
+          hint="Alt arts, foils, and promos you own also count toward missing."
         >
           <Switch
             aria-label="Count special versions"

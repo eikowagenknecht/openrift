@@ -57,7 +57,6 @@ import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-ex
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { partitionMatchedEntries } from "@/lib/import-summary";
-import { SOCIAL_LINKS } from "@/lib/social-links";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/import")({
@@ -306,54 +305,8 @@ function InputStep({
       <div>
         <Heading level={2}>Import Cards</Heading>
         <p className="text-muted-foreground text-sm">
-          Paste or upload a CSV export from{" "}
-          <a
-            href="https://piltoverarchive.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            Piltover Archive
-          </a>
-          ,{" "}
-          <a
-            href="https://riftcore.app"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            RiftCore
-          </a>
-          ,{" "}
-          <a
-            href="https://riftmana.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            RiftMana
-          </a>
-          , or OpenRift itself. You can also paste a plain text list with one{" "}
-          <code className="text-foreground">quantity cardname</code> per line. Having trouble or
-          need support for another source? Let us know on{" "}
-          <a
-            href={SOCIAL_LINKS.discordInvite}
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            Discord
-          </a>{" "}
-          or{" "}
-          <a
-            href={SOCIAL_LINKS.githubIssues}
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            GitHub
-          </a>
-          .
+          Paste or upload a CSV export, or a plain list with one{" "}
+          <code className="text-foreground">quantity cardname</code> per line.
         </p>
       </div>
 
@@ -545,7 +498,7 @@ function PreviewStep({
           skippedCount={skippedCount}
         />
 
-        <ImportToVerifyNote count={toVerifyCount} target="printing" />
+        <ImportToVerifyNote count={toVerifyCount} />
 
         <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
 
@@ -632,8 +585,8 @@ function PreviewStep({
 
         <p className="text-muted-foreground text-sm">
           {isListTarget
-            ? "Importing into a list just adds the cards to that list. It does not mark them as owned in your collection."
-            : "Importing into a collection marks these cards as owned. To add them to a list without owning them, pick a list instead."}
+            ? "Importing into a list just adds the cards to that list."
+            : "Importing into a collection marks these cards as owned."}
         </p>
       </div>
 

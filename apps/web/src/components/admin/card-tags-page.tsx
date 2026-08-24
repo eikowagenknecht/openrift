@@ -159,8 +159,8 @@ function CategoriesSection({ categories }: { categories: TagCategoryResponse[] }
       emptyText="No categories yet — create one before classifying tags."
       toolbar={
         <PageDescription>
-          Categories group the printed card tags into filter sections (Region, Champion, Species,
-          …). Delete is blocked while tags are still classified under the category.
+          Groups printed tags into filter sections. Delete is blocked while tags are classified
+          under a category.
         </PageDescription>
       }
       add={{
@@ -323,9 +323,8 @@ function ClassificationSection({
       toolbar={
         <div className="space-y-3">
           <PageDescription>
-            Every distinct tag printed on a card, with the category it belongs to. New sets add tags
-            as unclassified; they show under &ldquo;Other tags&rdquo; in the filters until
-            classified here.
+            New sets add tags as unclassified. They show under &ldquo;Other tags&rdquo; in the
+            filters until classified here.
           </PageDescription>
           <div className="flex flex-wrap items-center gap-2">
             <Input

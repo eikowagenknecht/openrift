@@ -222,8 +222,7 @@ export function MetaCandidateUploadDialog({ onClose }: { onClose: () => void }) 
         <DialogHeader>
           <DialogTitle>Upload candidates</DialogTitle>
           <DialogDescription>
-            Stage events and decks from a source file. Nothing reaches the archive until you accept
-            it in the queue.
+            Nothing reaches the archive until you accept it in the queue.
           </DialogDescription>
         </DialogHeader>
 

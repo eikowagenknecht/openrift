@@ -160,10 +160,7 @@ export function TeamsSection({
         </div>
       ) : null}
       {manage && unteamed.length === 1 ? (
-        <p className="text-muted-foreground text-sm">
-          One player is waiting for a partner. Add another player to pair them, sit them out when
-          generating the round, or drop them.
-        </p>
+        <p className="text-muted-foreground text-sm">One player is waiting for a partner.</p>
       ) : null}
     </section>
   );

@@ -191,9 +191,7 @@ describe("MetaSubmitPage", () => {
 
     expect(screen.getByText(/couldn't place one of your cards/u)).toBeInTheDocument();
     expect(screen.getByText("Blade of Exyle")).toBeInTheDocument();
-    expect(
-      screen.getByText(/can't go on the archive until these read as real cards/u),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Send the list again with the spelling fixed/u)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fix the list and send again" })).toBeInTheDocument();
   });
 

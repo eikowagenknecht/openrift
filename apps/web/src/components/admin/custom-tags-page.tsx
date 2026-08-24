@@ -225,8 +225,8 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
       emptyText="No categories yet — create one before adding tags."
       toolbar={
         <PageDescription>
-          Categories namespace custom tags so each deck-builder format only sees its own vocabulary.
-          Delete is blocked while tags still reference the category.
+          Namespaces custom tags per deck-builder format. Delete is blocked while tags reference the
+          category.
         </PageDescription>
       }
       add={{

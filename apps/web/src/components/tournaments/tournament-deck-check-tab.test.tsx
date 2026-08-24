@@ -4,8 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TournamentDeckCheckTab } from "./tournament-deck-check-tab";
 
-const NOTICE =
-  "Deck check is for tournament judges. Ask an organizer to add you as a judge to see submitted lists.";
+const NOTICE = "Deck check is for judges. Ask an organizer to add you.";
 
 // The real entries list runs a suspense query and the ingest guide pulls in
 // server wiring; stub both so we can assert which branch the tab renders.

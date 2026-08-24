@@ -122,8 +122,7 @@ export function ErrataUploadPage() {
             Upload Errata
           </CardTitle>
           <CardDescription>
-            Upload a JSON file with bulk card errata. Each entry replaces the corrected text for one
-            card keyed by slug. Preview to see the classification before applying.
+            Each entry replaces the corrected text for one card, keyed by slug.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

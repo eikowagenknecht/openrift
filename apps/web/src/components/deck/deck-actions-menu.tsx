@@ -337,7 +337,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete deck</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{deck.name}&rdquo;? This cannot be undone.
+                Delete &ldquo;{deck.name}&rdquo;? This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

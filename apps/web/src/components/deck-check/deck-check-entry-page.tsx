@@ -190,8 +190,7 @@ export function TournamentDeckCheckEntry({
         />
         {listHidden ? (
           <p className="text-muted-foreground bg-muted/50 rounded-md border p-3 text-sm">
-            The player is editing this list. To respect the tournament rules, it stays hidden from
-            judges until they submit it, or until submissions close, when it is sent in as-is.
+            Hidden from judges until the player submits, or submissions close.
           </p>
         ) : null}
       </div>

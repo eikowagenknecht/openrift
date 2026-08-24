@@ -97,8 +97,8 @@ export function LendCardDialog({
           <DialogHeader>
             <DialogTitle>Lend to a friend</DialogTitle>
             <DialogDescription>
-              Note down who has {cardName}. It stays in your collection, marked as on loan, and
-              stops counting for deck building and trades until it&apos;s back.
+              It stays in your collection, marked as on loan, and stops counting for deck building
+              and trades until it&apos;s back.
             </DialogDescription>
           </DialogHeader>
 

@@ -343,7 +343,7 @@ export function GenerateRoundControls({
         <p className="text-muted-foreground text-sm">
           {teamMode
             ? "With an odd number of teams, the lowest-ranked team with the fewest byes sits out automatically. Pick byes above to override."
-            : "With an odd number of players, the lowest-ranked player with the fewest byes sits out automatically. Pick byes above to override."}
+            : "The lowest-ranked player with the fewest byes sits out. Pick byes above to override."}
         </p>
       ) : null}
       {reachedSuggestion ? (

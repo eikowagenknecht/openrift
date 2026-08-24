@@ -103,10 +103,7 @@ export function MySubmissionsPage() {
       </PageTopBarSticky>
 
       <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
-        <PageDescription>
-          Every card and correction you&apos;ve sent in. We check each one by hand, so a status can
-          take a while to appear.
-        </PageDescription>
+        <PageDescription>Every card and correction you&apos;ve sent in.</PageDescription>
 
         {isPending ? (
           <div className="space-y-3">

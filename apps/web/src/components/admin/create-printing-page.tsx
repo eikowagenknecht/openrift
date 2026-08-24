@@ -190,19 +190,12 @@ export function CreatePrintingPage({
       <Card>
         <CardHeader>
           <CardTitle>{source ? "Duplicate printing" : "Create new printing"}</CardTitle>
-          <CardDescription>
-            {source ? (
-              <>
-                Duplicating <span className="font-medium">{source.expectedPrintingId}</span> for{" "}
-                <span className="font-medium">{card.name}</span>. Update fields as needed.
-              </>
-            ) : (
-              <>
-                Manual entry for <span className="font-medium">{card.name}</span>. No source
-                candidates will be linked.
-              </>
-            )}
-          </CardDescription>
+          {source && (
+            <CardDescription>
+              Duplicating <span className="font-medium">{source.expectedPrintingId}</span> for{" "}
+              <span className="font-medium">{card.name}</span>. Update fields as needed.
+            </CardDescription>
+          )}
         </CardHeader>
 
         <CardContent>

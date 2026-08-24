@@ -154,10 +154,7 @@ export function CandidateUploadPage() {
             <UploadIcon className="size-5 shrink-0" />
             Upload Candidates
           </CardTitle>
-          <CardDescription>
-            Upload a JSON file with candidate data from an external provider. Each card will be
-            staged for review and comparison against existing data.
-          </CardDescription>
+          <CardDescription>Candidates are staged for review against existing data.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <FormatHelp />
@@ -545,10 +542,8 @@ function RelinkCandidatesCard() {
           Relink Candidates
         </CardTitle>
         <CardDescription>
-          Re-match all unlinked candidate printings against the current catalogue. Uploads only link
-          at upload time, so printings accepted since a provider&apos;s last upload leave matching
-          candidates stranded as &quot;new&quot; until this runs (it also runs automatically after
-          each accepted printing).
+          Candidates only link at upload time. Run this to match candidates stranded by printings
+          accepted since.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -620,10 +615,7 @@ function ExportCardsCard() {
           <DownloadIcon className="size-5 shrink-0" />
           Export Cards
         </CardTitle>
-        <CardDescription>
-          Download all active cards and printings as a JSON file in the same format used for
-          uploads.
-        </CardDescription>
+        <CardDescription>Same JSON format as uploads.</CardDescription>
       </CardHeader>
       <CardContent>
         <Button disabled={exporting} onClick={handleExport}>

@@ -76,9 +76,7 @@ export function CreatorsPage() {
       >
         <div className="flex flex-col gap-5">
           <PageDescription>
-            A few things on OpenRift are built for people making Riftbound videos and streams: card
-            art on screen without showing your browser, tier lists you can share, and a card lookup
-            your chat bot can answer. All of it is free, and nothing needs to be installed.
+            Tools for people making Riftbound videos and streams. Free, nothing to install.
           </PageDescription>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -95,11 +93,6 @@ export function CreatorsPage() {
             Drag cards from a set onto a board and rank them from S down to D. When the board looks
             right, share it as a link, or download it as an image for a thumbnail or video.
           </p>
-          <p>
-            The link works for anyone, signed in or not, and unfurls in chats with the board as its
-            preview image. On a phone you pick a tier from a menu instead of dragging, so you can
-            build a list there too.
-          </p>
           <div>
             <Button variant="outline" render={<Link to="/tier-lists" />}>
               Open the tier list maker
@@ -111,9 +104,7 @@ export function CreatorsPage() {
 
         <CreatorSection id="catalogue" title="About the card data">
           <p>
-            I maintain the card catalogue myself, so a brand new set can take a few days to fill in,
-            and now and then a printing is missing. If a lookup comes back empty for a card you know
-            exists,{" "}
+            If a lookup comes back empty for a card you know exists,{" "}
             <Link to="/contribute" className="text-primary underline underline-offset-2">
               tell me about it
             </Link>{" "}

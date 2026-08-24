@@ -1056,8 +1056,7 @@ export function DeckOverview({
           <InfoHint label="Curve-out" side="bottom">
             How often you can play at least one card on each of turns 1&ndash;3 &mdash; first number
             going first, second going second. A card needs energy plus power runes, and you channel
-            two runes a turn (one extra on your first turn going second). No mulligan, and abilities
-            that add resources aren&rsquo;t counted, so real games run a little better.
+            two runes a turn (one extra on your first turn going second).
           </InfoHint>
         </span>
       )}
@@ -3173,7 +3172,7 @@ function introSteps(format: DeckFormat): readonly { title: string; description: 
 }
 
 const INTRO_TIPS: readonly string[] = [
-  "Once you're inside a zone, each card in the browser has a small + button on its row. Click it to add a copy, or drag the card onto a zone in the sidebar. Hold Shift to add the maximum allowed copies at once.",
+  "Click + on a card to add a copy, or drag it onto a zone. Shift adds the maximum.",
   "Edits save automatically as you go.",
 ];
 
@@ -3186,10 +3185,10 @@ function DeckBuilderIntroBanner({
 }) {
   const formatTip =
     format === WellKnown.deckFormat.CONSTRUCTED
-      ? "This deck uses the Constructed format, so it's checked against the rules as you build and violations show up right away. Switch to Freeform if you want to experiment without those restrictions."
+      ? "The deck is checked against the rules as you build, and violations show up right away."
       : format === WellKnown.deckFormat.CUSTOM_REGION
-        ? "This deck uses the Custom-Region format: every card must belong to your chosen regions, one battlefield is played, there is no sideboard, and signature cards need their champion in the deck. Violations show up as you build."
-        : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
+        ? "Every card must belong to your chosen regions, one battlefield is played, there is no sideboard, and signature cards need their champion in the deck. Violations show up as you build."
+        : "You can build without rule restrictions.";
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">
       <Button

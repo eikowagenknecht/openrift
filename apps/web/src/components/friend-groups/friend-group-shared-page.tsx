@@ -263,10 +263,7 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
     <section className="flex flex-col gap-3">
       <SectionHeading>Member collections</SectionHeading>
       {owners.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No members have shared a collection with this group yet. Wishlists and tradelists live on
-          the Trades page.
-        </p>
+        <p className="text-muted-foreground text-sm">No shared collections yet.</p>
       ) : (
         <div className="flex flex-col gap-5">
           {owners.map(({ member, collections }) => (

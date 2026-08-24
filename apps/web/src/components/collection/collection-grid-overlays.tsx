@@ -30,7 +30,6 @@ interface CollectionGridOverlaysProps {
   disposeIsPending: boolean;
   performTake: (quantity: number) => void;
   moveIsPending: boolean;
-  inboxName?: string;
 }
 
 /**
@@ -66,7 +65,6 @@ export function CollectionGridOverlays({
   disposeIsPending,
   performTake,
   moveIsPending,
-  inboxName,
 }: CollectionGridOverlaysProps) {
   const quickAddOpen = useCollectionOverlayStore((state) => state.quickAddOpen);
   const deleteOpen = useCollectionOverlayStore((state) => state.deleteOpen);
@@ -157,7 +155,6 @@ export function CollectionGridOverlays({
         printing={takeConfirm?.printing ?? null}
         maxQuantity={takeConfirm?.availableCopyIds.length ?? 1}
         initialQuantity={takeConfirm?.initialQuantity ?? 1}
-        inboxName={inboxName ?? "Inbox"}
         isPending={moveIsPending}
         onConfirm={performTake}
         onOpenChange={(open) => {

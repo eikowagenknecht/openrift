@@ -162,10 +162,8 @@ export function PlayerDeckSourceForm({
           >
             Piltover Archive
           </a>
-          , or the text list either one exports. In a text list, a zone header like
-          &quot;Champion:&quot;, &quot;MainDeck:&quot;, or &quot;Sideboard:&quot; applies to every
-          card below it, until the next header. Lines with no header above them count as main deck,
-          so exporting from a deck builder is best, since it already groups your cards.
+          , or an exported text list. Zone headers like &quot;Champion:&quot; apply until the next
+          header, and lines without one count as main deck.
         </p>
       </div>
 

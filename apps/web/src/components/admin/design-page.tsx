@@ -295,12 +295,8 @@ export function DesignPage() {
       <AdminPageTopBar title="Design" />
       <div className="space-y-3">
         <PageDescription>
-          Every UI primitive in one place. Check both themes with the header toggle. Raw{" "}
-          <code className="font-mono text-sm">&lt;button&gt;</code> elements are banned by lint
-          outside <code className="font-mono text-sm">components/ui/</code>, so everything
-          interactive below is the canonical way to build it. Spec captions (size, radius, text
-          size, colors) are measured from the rendered DOM, so they update live with the theme and
-          can never drift from the source.
+          Check both themes with the header toggle. Spec captions are measured live from the
+          rendered DOM.
         </PageDescription>
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
           {SECTIONS.map((section) => (

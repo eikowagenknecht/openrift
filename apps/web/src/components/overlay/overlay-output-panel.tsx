@@ -277,12 +277,11 @@ export function OverlayOutputPanel() {
           preview above shows whatever the stage sent — so this is a pointer
           rather than a second set of controls. */}
       <p className="text-muted-foreground text-sm">
-        To put a ranking on stream, open one of your{" "}
+        Open a{" "}
         <Link to="/tier-lists" className="underline underline-offset-2">
-          tier lists
-        </Link>{" "}
-        and press Present. Turn on &ldquo;Board on OBS&rdquo; in the show&apos;s settings and the
-        board goes out here as you reveal it.
+          tier list
+        </Link>
+        , press Present, and turn on &ldquo;Board on OBS&rdquo;.
       </p>
       <OverlaySettingsPanel
         channel={channel}

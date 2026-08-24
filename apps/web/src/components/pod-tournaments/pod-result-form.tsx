@@ -130,8 +130,7 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
         </div>
       ))}
       <p className="text-muted-foreground">
-        Enter the game points for each player (8 wins; more is possible). Places and points are
-        worked out automatically.
+        Game points per player (8 wins, more is possible). Places are worked out automatically.
       </p>
       {changedRemotely ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-amber-600 dark:text-amber-500">

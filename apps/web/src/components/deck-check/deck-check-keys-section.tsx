@@ -141,9 +141,8 @@ function DeckCheckKeysCard(actions: KeyActions) {
           </Button>
         </div>
         <CardDescription>
-          An API key acts on your behalf and is allowed to do anything that you can do, limited to
-          whatever the API exposes. For now the only available endpoint sends entrant decklists to
-          your hosted tournaments.
+          A key acts on your behalf. The only endpoint today sends entrant decklists to your hosted
+          tournaments.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -210,10 +209,7 @@ function CreateKeyDialog({
         <DialogForm onSubmit={() => void handleCreate()}>
           <DialogHeader>
             <DialogTitle>Create API key</DialogTitle>
-            <DialogDescription>
-              Give the key a name that tells you where it is used, so you can later recognize which
-              one to revoke.
-            </DialogDescription>
+            <DialogDescription>Name it after where it is used.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="deck-check-key-label">Name</Label>

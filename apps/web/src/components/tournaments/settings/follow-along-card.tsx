@@ -49,9 +49,8 @@ export function FollowAlongCard({
         <CardHeader>
           <CardTitle>Participant follow-along</CardTitle>
           <CardDescription>
-            Share a link so players can follow rounds and standings on their own device. The
-            reporting link also lets anyone holding it enter their pod result; nothing counts until
-            you finalize the round.
+            The reporting link also lets anyone holding it enter their pod result. Nothing counts
+            until you finalize the round.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -142,8 +141,7 @@ export function FollowAlongCard({
             <DialogHeader>
               <DialogTitle>Disable the result reporting link?</DialogTitle>
               <DialogDescription>
-                The link stops working for everyone. You can enable a new one later, but it will be
-                a different link.
+                The link stops working for everyone. Re-enabling creates a different link.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -171,8 +169,7 @@ export function FollowAlongCard({
             <DialogHeader>
               <DialogTitle>Disable the follow-only link?</DialogTitle>
               <DialogDescription>
-                The link stops working for everyone. You can enable a new one later, but it will be
-                a different link.
+                The link stops working for everyone. Re-enabling creates a different link.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

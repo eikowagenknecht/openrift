@@ -783,7 +783,7 @@ export function DeckTestBench({
                     nowhere to save a new group, so point at the copy. */}
                     {!canCustomize && (
                       <p className="text-muted-foreground mt-2 text-xs">
-                        Want your own card groups? Copy this deck to your decks and add them there.
+                        Copy this deck to your decks to make your own groups.
                       </p>
                     )}
                     {/* Hidden when there is nothing deck-specific to show: no

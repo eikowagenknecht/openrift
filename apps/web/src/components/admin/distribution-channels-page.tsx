@@ -319,9 +319,8 @@ export function DistributionChannelsPage() {
       title="Distribution Channels"
       toolbar={
         <PageDescription>
-          Distribution channels describe where a printing was distributed: tournament events
-          (Worlds, prereleases) or retail products (starter decks, bundles). Channels can nest (e.g.
-          Regional Event › Houston › Top 1). Printings can only attach to leaf channels.
+          Where a printing was distributed. Channels can nest, and printings attach only to leaf
+          channels.
         </PageDescription>
       }
       addChild={{

@@ -116,19 +116,18 @@ export function CollectionIntroBanner({
           </ul>
           <p className="text-muted-foreground">
             <span className="hidden sm:inline">
-              Prefer typing? Press <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> to quick-add cards by name.{" "}
+              <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> quick-add ·{" "}
             </span>
-            Coming from another tool?{" "}
             <Link to="/collections/import" className="text-primary hover:underline">
               Import your collection
-            </Link>
-            .{" "}
+            </Link>{" "}
+            ·{" "}
             <Link
               to="/help/$slug"
               params={{ slug: "cards-printings-copies" }}
               className="text-primary hover:underline"
             >
-              Learn how cards, printings &amp; copies work →
+              How cards, printings &amp; copies work
             </Link>
           </p>
         </div>

@@ -295,9 +295,7 @@ function OfferBody({
             Share {chosenListName} with {groupName}?
           </DialogTitle>
           <DialogDescription>
-            To offer this card, {groupName} needs to see that you have it. Members will be able to
-            view every card on {chosenListName}. You can unshare it anytime from the group&apos;s
-            manage page.
+            Members of {groupName} will be able to view every card on {chosenListName}.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

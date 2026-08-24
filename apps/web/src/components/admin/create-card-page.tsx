@@ -115,9 +115,7 @@ export function CreateCardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Create new card</CardTitle>
-          <CardDescription>
-            Manual entry. Slug is auto-generated from the name until you edit it.
-          </CardDescription>
+          <CardDescription>Slug is auto-generated from the name until you edit it.</CardDescription>
         </CardHeader>
 
         <CardContent>

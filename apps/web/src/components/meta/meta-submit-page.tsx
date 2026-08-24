@@ -183,9 +183,7 @@ function SubmissionSent({
               ))}
             </ul>
             <p>
-              The deck can&apos;t go on the archive until these read as real cards, and you&apos;re
-              the only one who knows what was meant. Send the list again with the spelling fixed, or
-              say in the note what the card was.
+              Send the list again with the spelling fixed, or say in the note what the card was.
             </p>
           </AlertDescription>
         </Alert>
@@ -323,7 +321,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
       <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
         <PageDescription>
           Know what someone played at a tournament? Send the list and we&apos;ll add it to the
-          archive. Everything is read by hand first, so nothing you send goes public on its own.
+          archive.
         </PageDescription>
 
         {result ? (
@@ -469,8 +467,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
                           onChange={(event) => set("eventSourceUrl", event.target.value)}
                         />
                         <FieldDescription>
-                          A link makes it much quicker to check, and gets the tournament a credit on
-                          its page.
+                          A link is quickest to check and gets the tournament credited.
                         </FieldDescription>
                       </Field>
                       <Field>
@@ -545,10 +542,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
             <Card>
               <CardHeader>
                 <CardTitle>The deck</CardTitle>
-                <CardDescription>
-                  Paste a deck code or a plain list. We read both, and check every card against the
-                  catalogue before you send it.
-                </CardDescription>
+                <CardDescription>Paste a deck code or a plain list.</CardDescription>
               </CardHeader>
               <CardContent>
                 <FieldGroup>

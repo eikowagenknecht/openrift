@@ -21,8 +21,7 @@ export function TournamentDeckCheckTab({ detail }: { detail: TournamentDetailRes
   if (!canCheckDecks(detail.myRoles)) {
     return (
       <p className="text-muted-foreground p-6 text-center">
-        Deck check is for tournament judges. Ask an organizer to add you as a judge to see submitted
-        lists.
+        Deck check is for judges. Ask an organizer to add you.
       </p>
     );
   }

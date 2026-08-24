@@ -68,7 +68,6 @@ describe("MoveDialog quantity stepper", () => {
     renderDialog({ count: 4, singleCard: true });
 
     expect(screen.getByText("Copies to move")).toBeInTheDocument();
-    expect(screen.getByText("Choose a collection to move these 4 copies to.")).toBeInTheDocument();
 
     pickFirstCollection();
     submit();
@@ -116,7 +115,6 @@ describe("MoveDialog quantity stepper", () => {
     renderDialog({ count: 1, singleCard: true });
 
     expect(screen.queryByRole("button", { name: "One more" })).not.toBeInTheDocument();
-    expect(screen.getByText("Choose a collection to move this copy to.")).toBeInTheDocument();
   });
 
   it("keeps the move disabled until a collection is picked", () => {

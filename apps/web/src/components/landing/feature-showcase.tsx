@@ -283,7 +283,7 @@ export function FeatureShowcase({
     {
       title: "Private groups",
       description:
-        "Trade matching with friends or your store crew: see who has what you need. Matches stay inside your group, and the trade happens in person.",
+        "Trade matching with your group: see who has what you need. Trades happen in person.",
       to: "/groups",
       vignette: <GroupsVignette />,
     },

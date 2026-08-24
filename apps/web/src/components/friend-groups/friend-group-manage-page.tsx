@@ -158,10 +158,9 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
       <CardHeader>
         <CardTitle>Your contacts in this group</CardTitle>
         <CardDescription>
-          Choose which of your contact methods this group&apos;s members can see. They show up next
-          to your name on the Members and Trades pages.{" "}
+          Shown next to your name on the Members and Trades pages.{" "}
           <Link to="/profile" hash="contacts" className="underline">
-            Add or edit them in your profile
+            Edit them in your profile
           </Link>
           .
         </CardDescription>
@@ -343,8 +342,7 @@ function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
                   <DialogHeader>
                     <DialogTitle>Rotate the join code?</DialogTitle>
                     <DialogDescription>
-                      The current code stops working immediately. Anyone holding an old invite link
-                      will need a new one.
+                      The current code stops working immediately.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
@@ -370,8 +368,7 @@ function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
                   <DialogHeader>
                     <DialogTitle>Disable code-based joining?</DialogTitle>
                     <DialogDescription>
-                      The code stops working immediately. New members will only be able to join via
-                      direct email invites until you re-enable code-based joining.
+                      The current code stops working immediately.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
@@ -428,9 +425,8 @@ function DiscordPanel({ slug }: { slug: string }) {
           Discord bot
         </CardTitle>
         <CardDescription>
-          Link a Discord server so the OpenRift bot can answer card mentions there with who has the
-          card on a tradelist shared with this group. Anyone who can read the linked server will see
-          those names and counts.
+          The OpenRift bot answers card mentions in the linked server with who has the card on a
+          shared tradelist. Anyone who can read that server sees those names and counts.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -506,18 +502,11 @@ function ShareableListsPanel({ slug }: { slug: string }) {
         <CardHeader>
           <CardTitle>Share your lists</CardTitle>
           <CardDescription>
-            You don&apos;t have any lists yet.{" "}
+            No lists yet.{" "}
             <Link to="/collections" className="text-primary hover:underline">
-              Create a wishlist, tradelist, or organize list
+              Create a wishlist or tradelist
             </Link>{" "}
-            to share it with this group.{" "}
-            <Link
-              to="/help/$slug"
-              params={{ slug: "lists" }}
-              className="text-primary hover:underline"
-            >
-              Learn how lists work.
-            </Link>
+            to share it here.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -529,8 +518,7 @@ function ShareableListsPanel({ slug }: { slug: string }) {
       <CardHeader>
         <CardTitle>Share your lists</CardTitle>
         <CardDescription>
-          Shared lists are visible to everyone in this group. Changes here don&apos;t affect other
-          groups you are in.
+          Visible to everyone in this group. Changes here don&apos;t affect other groups.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -623,10 +611,7 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
     <Card>
       <CardHeader>
         <CardTitle>Share your collections</CardTitle>
-        <CardDescription>
-          Shared collections are visible (read-only) to everyone in this group. Changes here
-          don&apos;t affect other groups you are in.
-        </CardDescription>
+        <CardDescription>Visible (read-only) to everyone in this group.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {data.items.map((row) => {

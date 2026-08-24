@@ -117,8 +117,7 @@ function LocalDeckShareDialog({
       description="Save an image of this deck to post in WhatsApp, Discord, or anywhere else."
       noLinkNote={
         <p className="text-muted-foreground text-sm">
-          This deck only exists in this browser, so it has no share link. Save it to your account
-          and you can share it with a link as well.
+          Save this deck to your account to get a share link.
         </p>
       }
       image={{

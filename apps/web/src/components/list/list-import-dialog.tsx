@@ -53,14 +53,14 @@ export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListI
         <DialogHeader>
           <DialogTitle>Import list</DialogTitle>
           <DialogDescription>
-            Paste a plain-text list with one card per line in the format{" "}
+            Paste a CSV export or a plain list (
             <code className="bg-muted rounded px-1 py-0.5 text-xs">
               &lt;quantity&gt; &lt;card name&gt;
-            </code>
-            , or a CSV export from OpenRift, Piltover Archive, RiftCore, or RiftMana.{" "}
+            </code>{" "}
+            per line).{" "}
             {listKind === "printing"
-              ? "CSV exports resolve to a specific printing (finish, art variant). Rows without enough detail to pin one down are flagged for review."
-              : "Matching cards are added to this list, and quantities stack with what's already there."}
+              ? "Rows without enough detail to pin a printing are flagged for review."
+              : "Quantities stack with what's already there."}
           </DialogDescription>
         </DialogHeader>
 

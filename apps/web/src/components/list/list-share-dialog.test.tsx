@@ -124,14 +124,6 @@ describe("ListShareDialog", () => {
     expect(screen.getByText(/create a share link first/iu)).toBeInTheDocument();
   });
 
-  it("calls onManageGroups from the Group visibility cross-link", async () => {
-    const user = userEvent.setup();
-    const onManageGroups = vi.fn();
-    render(<Harness shareToken={null} onManageGroups={onManageGroups} />);
-    await user.click(screen.getByRole("button", { name: /group visibility/iu }));
-    expect(onManageGroups).toHaveBeenCalledOnce();
-  });
-
   it("points wish and trade lists at the profile's Public sharing section", () => {
     const { rerender } = render(<Harness shareToken={null} intent="wish" />);
     expect(screen.getByRole("link", { name: /public sharing/iu })).toHaveAttribute(

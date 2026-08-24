@@ -86,8 +86,7 @@ export function OverlaySettingsPanel({
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">Browser source</h2>
         <p className="text-muted-foreground text-sm">
-          Add a Browser source in OBS, paste this URL, and size it to your canvas. Anyone with the
-          link sees what you push, so keep it out of shot.
+          Add a Browser source in OBS and paste this URL. Anyone with the link sees what you push.
         </p>
         <ShareLinkRow
           url={sourceUrl}
@@ -231,10 +230,7 @@ export function OverlaySettingsPanel({
             }
           }}
         />
-        <p className="text-muted-foreground text-sm">
-          Any link works: a deck share page, your channel, whatever you want viewers to scan. It
-          shows next to the card even with the plate off. Leave it empty to hide the code.
-        </p>
+        <p className="text-muted-foreground text-sm">Any link. Leave empty to hide the code.</p>
       </section>
 
       <OverlayPresetsSection channel={channel} />

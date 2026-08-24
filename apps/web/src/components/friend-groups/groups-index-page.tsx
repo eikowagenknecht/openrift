@@ -140,8 +140,7 @@ function CreateGroupDialog({
               <div className="flex flex-col gap-0.5">
                 <Label htmlFor="fg-code">Join code</Label>
                 <span className="text-muted-foreground text-xs">
-                  Generate a code so admins can share an invite link. You can rotate or disable it
-                  later.
+                  Admins can share an invite link.
                 </span>
               </div>
               <Switch id="fg-code" checked={generateCode} onCheckedChange={setGenerateCode} />

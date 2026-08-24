@@ -83,9 +83,8 @@ export function TradeCardmarketExportDialog({
         <DialogHeader>
           <DialogTitle>Export for Cardmarket</DialogTitle>
           <DialogDescription>
-            Your agreed trades with {counterpartyName ?? "this member"} as plain card lists. Paste
-            one into Cardmarket&apos;s shopping wizard to price that side with your own filters
-            (seller country, condition, language).
+            Your agreed trades with {counterpartyName ?? "this member"} as plain card lists, ready
+            for Cardmarket&apos;s shopping wizard.
           </DialogDescription>
         </DialogHeader>
 

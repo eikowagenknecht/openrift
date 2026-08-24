@@ -47,10 +47,10 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       {hasOpenRound && canSubmit ? (
         <p className="text-muted-foreground text-sm">
           {data.playMode === "2v2"
-            ? "Find your match in the current round and add your team's games won (either teammate can enter it), or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
+            ? "Enter your team's games won. Points are worked out automatically."
             : swiss
-              ? "Find your match in the current round and add your own games won next to your name, or pick the whole scoreline at once. Points are worked out automatically, and new scores appear for everyone without reloading."
-              : "Find your pod in the current round and add your own game points next to your name, or enter the whole pod's scores at once. Places and points are worked out automatically, and new scores appear for everyone without reloading."}
+              ? "Enter your games won next to your name. Points are worked out automatically."
+              : "Enter your game points next to your name. Places are worked out automatically."}
         </p>
       ) : null}
       <PairingsView

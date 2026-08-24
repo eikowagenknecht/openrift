@@ -102,9 +102,7 @@ export function ScanIdentifySheet({
   );
 
   const title = "Which card is this?";
-  const description = pending
-    ? "Working out what the camera just saw."
-    : "The closest matches for the frame on the left. Pick the card in hand, or dismiss if none of them is it.";
+  const description = pending ? "Working out what the camera just saw." : null;
 
   if (isMobile) {
     return (
@@ -112,7 +110,7 @@ export function ScanIdentifySheet({
         <DrawerContent>
           <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
             <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription>{description}</DrawerDescription>
+            {description && <DrawerDescription>{description}</DrawerDescription>}
             <div className="min-h-0 overflow-y-auto">{body}</div>
           </div>
         </DrawerContent>
@@ -124,7 +122,7 @@ export function ScanIdentifySheet({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        {description && <DialogDescription>{description}</DialogDescription>}
         <div className="max-h-96 overflow-y-auto">{body}</div>
       </DialogContent>
     </Dialog>

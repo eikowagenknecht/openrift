@@ -44,8 +44,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
       <div className="flex flex-col gap-2">
         <Heading level={1}>Join a group</Heading>
         <p className="text-muted-foreground text-sm">
-          Paste the invite code an admin shared with you. Your join request goes to the group&apos;s
-          admins for approval.
+          Join requests go to the group&apos;s admins for approval.
         </p>
       </div>
 
@@ -65,10 +64,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
         <Card>
           <CardHeader>
             <CardTitle>No group found</CardTitle>
-            <CardDescription>
-              That code doesn&apos;t match any group. Double-check with the admin who sent it to
-              you.
-            </CardDescription>
+            <CardDescription>That code doesn&apos;t match any group.</CardDescription>
           </CardHeader>
         </Card>
       ) : preview.data ? (

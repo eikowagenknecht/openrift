@@ -104,8 +104,7 @@ function ProductsEmptyState() {
       </div>
       <Heading className="mt-2">No products catalogued yet</Heading>
       <p className="text-muted-foreground max-w-[44ch] text-sm">
-        The catalogue is maintained by one person. Know what’s inside a box we’re missing? Help us
-        fill in the gaps.
+        Know what’s inside a box we’re missing? Help us fill in the gaps.
       </p>
       <Button className="mt-3" render={<Link to="/contribute" />}>
         Contribute a card list

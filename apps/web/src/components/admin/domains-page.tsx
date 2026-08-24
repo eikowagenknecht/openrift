@@ -13,7 +13,6 @@ import {
 } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
-import { PageDescription } from "@/components/layout/page-top-bar";
 import {
   useCreateDomain,
   useDeleteDomain,
@@ -87,12 +86,6 @@ export function DomainsPage() {
       getRowKey={(domain) => domain.slug}
       emptyText="No domains yet."
       title="Domains"
-      toolbar={
-        <PageDescription>
-          Domains are the color identities for cards (e.g. Fury, Calm, Mind). Colors are shown
-          throughout the UI wherever domains appear.
-        </PageDescription>
-      }
       add={{
         emptyDraft: { slug: "", label: "", color: "#737373" },
         onSave: (draft) =>

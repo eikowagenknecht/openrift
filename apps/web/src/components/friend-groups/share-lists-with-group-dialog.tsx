@@ -52,9 +52,7 @@ export function ShareListsWithGroupDialog({
         <DialogHeader>
           <DialogTitle>Share lists with {groupName}?</DialogTitle>
           <DialogDescription>
-            Pick the wishlists and tradelists this group can see, so members can find trades with
-            you. Nothing is shared until you confirm, and you can change this anytime from the
-            group&apos;s manage page.
+            Members can see every card on the lists you pick. You can change this anytime.
           </DialogDescription>
         </DialogHeader>
         <Suspense

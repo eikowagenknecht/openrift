@@ -569,9 +569,8 @@ function CardLayoutHelp({
         </div>
         <div className="text-sm">
           <p className="text-muted-foreground">
-            Empty fields show placeholder values so you can see the layout; as you fill in the form,
-            your real values replace them. Pure-metadata fields (slug, set, language, finish, art
-            variant, markers, image URL, etc.) don&apos;t appear on the card.
+            Pure-metadata fields (slug, set, language, finish, art variant, markers, image URL)
+            don&apos;t appear on the card.
           </p>
           <dl className="mt-3 flex flex-col gap-y-1.5">
             {LAYOUT_LEGEND.map((entry) => (
@@ -631,11 +630,7 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
       <Alert variant="info">
         <InfoIcon />
         <AlertTitle>Change only what&apos;s wrong</AlertTitle>
-        <AlertDescription>
-          You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>.
-          Edit the fields that are off and leave everything else alone. I&apos;ll review the change
-          before it goes live.
-        </AlertDescription>
+        <AlertDescription>Edit the fields that are off and leave the rest alone.</AlertDescription>
       </Alert>
     );
   }
@@ -645,17 +640,12 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
       <AlertTitle>It&apos;s okay to not fill in everything</AlertTitle>
       <AlertDescription>
         <p>
-          Only the card name and code are mandatory. If it&apos;s a new version of a card OpenRift
-          already knows, just select it first and then copy a printing, so that you only have to
-          make small changes.
-        </p>
-        <p>
-          Even a half-filled entry or a small correction is still a big help. If you need help,
-          visit the{" "}
+          Only the name and code are mandatory. For a new version of a known card, select it first
+          and copy a printing. Need help? Visit the{" "}
           <a href={SOCIAL_LINKS.discordInvite} target="_blank" rel="noreferrer">
             Discord
-          </a>{" "}
-          and we&apos;ll get the new card in together.
+          </a>
+          .
         </p>
       </AlertDescription>
     </Alert>
@@ -906,7 +896,7 @@ function PrintingCard({
           />
           <FieldRow
             label="Image URL"
-            hint="Direct link to the best quality image (.png, .jpg, .webp, etc.) you can find. Official images preferred, but a clear scan works too."
+            hint="Direct link to the best image you can find. A clear scan works too."
             error={errorAt(`printings[${index.toString()}].imageUrl`)}
           >
             <InputGroup>

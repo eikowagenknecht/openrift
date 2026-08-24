@@ -340,10 +340,7 @@ function CardTypesSection({
           <h4 className="mt-6 text-base font-semibold">Supertypes</h4>
           <p className="text-muted-foreground mt-1">
             Supertypes apply on top of a card&apos;s type and are listed before it on the card face.
-            They mostly affect deckbuilding: Champions are Units eligible to be your Chosen
-            Champion, Signature cards are tied to a Champion&apos;s tag and capped at three per
-            deck, and Tokens are temporary game objects created by effects rather than included in a
-            deck.
+            They mostly affect deckbuilding.
           </p>
           <ul className="mt-3 space-y-2">
             {visibleSupertypes.map((supertype) => {
@@ -395,8 +392,8 @@ function RaritiesSection({
       <p className="text-muted-foreground mt-2">
         Every printing has a rarity, shown by the coloured glyph in the middle of the card face.
         Rarity reflects how often a card appears in booster packs and the visual treatment of its
-        frame, not its strength in play. The five tiers run from Common up through Uncommon, Rare,
-        and Epic to Showcase, which is reserved for premium full-art and alternative-art printings.
+        frame, not its strength in play. The Showcase tier is reserved for premium full-art and
+        alternative-art printings.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((rarity) => {
@@ -436,10 +433,7 @@ function BoosterPacksSection({ query }: { query: string }) {
     <section>
       <SectionHeading id="booster-packs" title="Booster pack contents" />
       <p className="text-muted-foreground mt-2">
-        A standard Riftbound booster contains 14 cards across five slot types. Three slots are fixed
-        by rarity (7 Commons, 3 Uncommons, and 2 Rare-or-better flex slots), and the other two (the
-        foil slot and the Rune-or-Token slot) can cascade into rarer pulls like Showcase alt-arts or
-        an Ultimate. The{" "}
+        A standard Riftbound booster contains 14 cards across five slot types. The{" "}
         <Link to="/pack-opener" className="text-primary hover:underline">
           Pack opener
         </Link>{" "}
@@ -457,10 +451,8 @@ function BoosterPacksSection({ query }: { query: string }) {
         ))}
       </ul>
       <p className="text-muted-foreground mt-3">
-        Headline rates (slot counts, the Epic frequency, Showcase pulls, and the Ultimate rate) come
-        from Riot&apos;s Origins announcement on collectability. Foil-slot upgrade percentages and
-        the Rune-or-Token cascade rates are community estimates that match Riot&apos;s qualitative
-        descriptions (&quot;usually&quot;, &quot;occasionally&quot;, &quot;very rarely&quot;).
+        Headline rates come from Riot&apos;s Origins announcement. Foil-slot and cascade rates are
+        community estimates.
       </p>
     </section>
   );
@@ -484,10 +476,8 @@ function ArtVariantsSection({
     <section>
       <SectionHeading id="art-variants" title="Art variants" />
       <p className="text-muted-foreground mt-2">
-        An art variant describes which illustration appears on a printing, and it&apos;s a separate
-        axis from rarity. The same card can be a Showcase rarity and have an Ultimate art variant at
-        the same time, because the rarity glyph and the artwork are tracked independently. Alt-art
-        printings are usually marked by a lowercase letter suffix on the card number, like OGN-120a.
+        An art variant describes which illustration appears on a printing. Alt-art printings are
+        usually marked by a lowercase letter suffix on the card number, like OGN-120a.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((variant) => (
@@ -565,9 +555,7 @@ function MarkersSection({
       <p className="text-muted-foreground mt-2">
         Markers describe how a printing was distributed rather than what&apos;s on the card. They
         cover promotional channels like prereleases, tournaments, judge programs, and store-level
-        events, and a single printing can carry more than one. Markers sit alongside rarity and
-        finish, so the same artwork can ship as both a regular Common and a Tournament-marked
-        Common.
+        events, and a single printing can carry more than one.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((marker) => (
@@ -735,8 +723,8 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
       <SectionHeading id="keywords" title="Keywords" />
       <p className="text-muted-foreground mt-2">
         Keywords are short words or phrases that stand in for a longer rule. They appear in card
-        text in square brackets, like [Equip] or [Deathknell], and each one expands to a paragraph
-        in the comprehensive rules. Tap a rule reference to jump to the full definition.
+        text in square brackets, like [Equip] or [Deathknell]. Tap a rule reference to jump to the
+        full definition.
       </p>
       <ul className="mt-4 grid gap-3 lg:grid-cols-2">
         {visible.map((kw) => (
@@ -824,9 +812,7 @@ function SymbolsSection({ query }: { query: string }) {
       <SectionHeading id="symbols" title="In-text symbols" />
       <p className="text-muted-foreground mt-2">
         Riftbound uses a small set of inline symbols on cards to express costs and core game
-        concepts compactly. Energy costs can be paid with any rune, Power costs require a rune of a
-        specific domain, and the rainbow [A] symbol stands in for Power of any domain. Other symbols
-        describe game actions like Exhaust and Recycle, or stats like Might.
+        concepts compactly.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {visible.map((sym) => (
@@ -888,10 +874,7 @@ function NumberingSection({ query }: { query: string }) {
       <SectionHeading id="numbering" title="Card numbering" />
       <p className="text-muted-foreground mt-2">
         Every printing has a short code combining the three-letter set code with a card number, like
-        OGN-007. Letter suffixes mark variants of the same base card (usually an alternative
-        artwork), and a number above the set&apos;s printed total marks an Overnumbered variant.
-        Starting with Spiritforged, T and R prefixes mark tokens and runes printed alongside the
-        set; earlier sets used plain numbers for those.
+        OGN-007.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((item) => (
@@ -951,9 +934,8 @@ export function GlossaryPage() {
     <div className={cn("mx-auto w-full max-w-6xl", PAGE_PADDING)}>
       <Heading level={1}>Glossary</Heading>
       <p className="text-muted-foreground mt-1">
-        A reference for the terms, symbols, and printing details you&apos;ll see on Riftbound cards
-        and across OpenRift. Entries link to the comprehensive rules where there&apos;s more to
-        read.
+        The terms, symbols, and printing details on Riftbound cards and across OpenRift. Entries
+        link to the comprehensive rules.
       </p>
 
       <div className="relative mt-4 mb-4 max-w-md">

@@ -1,5 +1,4 @@
 import type { Currency, ListIntent, ListKind, TradePreference } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
 import { ChevronDownIcon, CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
@@ -60,9 +59,8 @@ const KIND_OPTIONS: Record<ListKind, KindOption> = {
 
 const KIND_HINTS: Record<ListIntent, Record<ListKind, string>> = {
   wish: {
-    card: "Any printing works. Use for the missing cards of a deck you want to play.",
-    printing:
-      "A specific version (set, art, finish). Use when you want a particular printing, like a foil alt-art from a specific set.",
+    card: "Any printing works.",
+    printing: "A specific version (set, art, finish).",
     copy: "specific physical cards from your collection",
   },
   trade: {
@@ -71,10 +69,9 @@ const KIND_HINTS: Record<ListIntent, Record<ListKind, string>> = {
     copy: "specific physical cards from your collection",
   },
   organize: {
-    card: "Any printing works. Use to group cards however you like, such as a brew pool for a deck idea or a custom-format card list.",
-    printing:
-      "A specific version (set, art, finish). Use for showcases or themed groupings, like your favorite alt-arts.",
-    copy: "Specific physical cards from your collection. Use for a playset earmarked for a specific event, or copies you're undecided about selling and want to keep tabs on.",
+    card: "Any printing works.",
+    printing: "A specific version (set, art, finish).",
+    copy: "Specific physical cards from your collection.",
   },
 };
 
@@ -235,22 +232,11 @@ export function CreateListDialog({
         <DialogHeader>
           <DialogTitle>{title ?? INTENT_TITLE[intent]}</DialogTitle>
           <DialogDescription>
-            {description === undefined ? (
-              <>
-                {availableKinds.length === 1
-                  ? "List specific copies you want to sell or trade away. For example all the bulk after opening one too many Booster Display."
-                  : "Pick what this list tracks. You can't change it later, but you can always create a new list."}{" "}
-                <Link
-                  to="/help/$slug"
-                  params={{ slug: "cards-printings-copies" }}
-                  className="text-primary hover:underline"
-                >
-                  Learn the difference between cards, printings, and copies.
-                </Link>
-              </>
-            ) : (
-              description
-            )}
+            {description === undefined
+              ? availableKinds.length === 1
+                ? "List specific copies you want to sell or trade away."
+                : "You can't change it later, but you can always create a new list."
+              : description}
           </DialogDescription>
         </DialogHeader>
 
@@ -303,8 +289,9 @@ export function CreateListDialog({
               </div>
               <div className="text-muted-foreground text-xs">
                 {intent === "organize"
-                  ? "Members of the selected groups can view this list. You can change this later."
-                  : "Members of the selected groups can view this list and find trades with you. You can change this later."}
+                  ? "Members of the selected groups can view this list."
+                  : "Members of the selected groups can view this list and find trades with you."}{" "}
+                You can change this later.
               </div>
               <ul className="flex flex-col gap-2">
                 {groups.map((group) => {

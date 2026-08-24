@@ -475,9 +475,8 @@ export function ScanTestPage() {
       <AdminPageTopBar title="Scan Test" />
       <div className="px-safe mx-auto w-full max-w-5xl px-4 pt-3 pb-12">
         <PageDescription>
-          Point the camera at a card and hold steady. Each frame is detected, rectified, ranked
-          against the whole catalogue by embedding and verified by features, entirely on-device. A
-          card locks once several frames agree; the lock time is the number the phone is judged on.
+          Point the camera at a card and hold steady. A card locks once several frames agree, and
+          the lock time is the number the phone is judged on.
         </PageDescription>
 
         {deviceTooSlow && (

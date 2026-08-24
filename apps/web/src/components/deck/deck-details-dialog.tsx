@@ -216,9 +216,9 @@ export function DeckDetailsDialog({
           <DialogHeader>
             <DialogTitle>Deck details</DialogTitle>
             <DialogDescription>
-              Name your deck, then write its guide in Markdown: headings, lists, links. Type
+              The guide is Markdown. Type
               <code className="bg-muted mx-1 rounded px-1">[[</code>
-              to link a card by name.
+              to link a card.
             </DialogDescription>
           </DialogHeader>
 

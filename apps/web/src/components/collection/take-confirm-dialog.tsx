@@ -1,13 +1,7 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
 import { useEffect, useState } from "react";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
@@ -19,8 +13,6 @@ interface TakeConfirmDialogProps {
   maxQuantity: number;
   /** Quantity the stepper opens on (1 from the Take button, N from "Take N"). */
   initialQuantity: number;
-  /** Where the copies land, for the description. */
-  inboxName: string;
   isPending: boolean;
   onConfirm: (quantity: number) => void;
   onOpenChange: (open: boolean) => void;
@@ -36,7 +28,6 @@ export function TakeConfirmDialog({
   printing,
   maxQuantity,
   initialQuantity,
-  inboxName,
   isPending,
   onConfirm,
   onOpenChange,
@@ -49,7 +40,6 @@ export function TakeConfirmDialog({
     setQuantity(initialQuantity);
   }, [initialQuantity, printing]);
 
-  const cardName = printing ? legendDisplayName(printing.card) : "";
   const canStep = maxQuantity > 1;
 
   return (
@@ -57,10 +47,6 @@ export function TakeConfirmDialog({
       <AlertDialogContent>
         <DialogForm onSubmit={() => onConfirm(quantity)}>
           <AlertDialogTitle>Take from the group collection</AlertDialogTitle>
-          <AlertDialogDescription>
-            {quantity === 1 ? "Move one copy" : `Move ${quantity} copies`} of {cardName} from the
-            group collection into your {inboxName}.
-          </AlertDialogDescription>
           {canStep && (
             <div className="flex flex-col items-center gap-1 py-1">
               <QuantityStepper

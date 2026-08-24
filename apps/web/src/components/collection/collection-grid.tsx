@@ -913,7 +913,6 @@ export function CollectionGrid({
       disposeIsPending={disposeIsPending}
       performTake={performTake}
       moveIsPending={moveCopies.isPending}
-      inboxName={inboxName}
     />
   );
 

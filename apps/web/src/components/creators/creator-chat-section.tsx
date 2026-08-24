@@ -46,21 +46,12 @@ function ChatBotSetups() {
 export function CreatorChatSection() {
   return (
     <CreatorSection id="chat-command" title="Card lookups in chat">
-      <p>
-        Add one command to your chat bot and viewers can look up any Riftbound card without leaving
-        the stream. Someone types <code className="font-mono text-sm">!card viktor</code> and the
-        bot answers with the card&apos;s type, domains and stats, plus a link to the full card page.
-        A printing code works too, with or without the dash.
-      </p>
+      <p>Add one command to your chat bot and viewers can look up any Riftbound card.</p>
       <p>
         If nothing matches, the bot links to a card search for what they typed, so even a typo lands
         somewhere useful.
       </p>
       <ChatBotSetups />
-      <p>
-        The lookup is free, with no account or API key needed. It reads the same catalogue as the
-        rest of the site, so fixes to card data show up on the next lookup.
-      </p>
     </CreatorSection>
   );
 }

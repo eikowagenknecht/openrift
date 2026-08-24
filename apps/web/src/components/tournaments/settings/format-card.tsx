@@ -54,7 +54,7 @@ export function FormatCard({
         <CardDescription>
           {detail.hasRounds
             ? `${detail.playMode === "2v2" ? "2v2 teams · " : ""}${PAIRING_STYLE_LABEL[detail.pairingStyle]}. The pairing engine is fixed once a round has been generated.`
-            : "The play mode applies to the whole tournament: 1v1 and 2v2 have different ban lists, and deck check uses the matching one. Can only change before the first round."}
+            : "Can only change before the first round."}
         </CardDescription>
       </CardHeader>
       {detail.hasRounds ? null : (

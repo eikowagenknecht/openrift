@@ -165,18 +165,13 @@ export function JobRunsPage() {
 
   const { runs, total, limit, kinds } = data;
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1;
-  const rangeEnd = (page - 1) * limit + runs.length;
 
   return (
     <div className="space-y-4">
       {topBar}
       <PageDescription>
         Auto-refreshes every 15 seconds on the first page.
-        {lastUpdated && ` Last updated ${lastUpdated}.`}{" "}
-        {total === 0
-          ? "No runs match the current filters."
-          : `Showing ${rangeStart}–${rangeEnd} of ${total} runs.`}
+        {lastUpdated && ` Last updated ${lastUpdated}.`}
       </PageDescription>
       <div className="flex flex-wrap items-center gap-2">
         <FilterSelect

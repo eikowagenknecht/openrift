@@ -101,8 +101,7 @@ export function ClaimLocalDecksPrompt() {
           <DialogHeader>
             <DialogTitle>Keep your local decks?</DialogTitle>
             <DialogDescription>
-              You built {list.length === 1 ? "a deck" : "these decks"} on this device while signed
-              out. Pick which to save to your account. Unpicked decks stay on this device.
+              Built on this device while signed out. Unpicked decks stay on this device.
             </DialogDescription>
           </DialogHeader>
 

@@ -120,10 +120,7 @@ export function MetaSubmissionsPage() {
       </PageTopBarSticky>
 
       <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
-        <PageDescription>
-          Every decklist you&apos;ve sent to the archive. Each one is read by hand before it goes
-          up, so an answer can take a while.
-        </PageDescription>
+        <PageDescription>Every decklist you&apos;ve sent to the archive.</PageDescription>
 
         {isPending ? (
           <div className="space-y-3">

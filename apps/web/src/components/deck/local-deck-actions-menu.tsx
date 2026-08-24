@@ -173,8 +173,8 @@ export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete deck</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{deck.name}&rdquo;? It only exists on this
-                device, so this cannot be undone.
+                Delete &ldquo;{deck.name}&rdquo;? It only exists on this device, so this cannot be
+                undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

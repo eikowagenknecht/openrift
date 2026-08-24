@@ -546,8 +546,8 @@ function VariantsDialogBody({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete version</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? The deck and its
-                cards are deleted. This cannot be undone, but the other versions stay.
+                Delete &ldquo;{deleteTarget?.name}&rdquo;? This cannot be undone. The other versions
+                stay.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

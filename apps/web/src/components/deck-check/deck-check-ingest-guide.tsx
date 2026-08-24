@@ -86,9 +86,8 @@ export function DeckCheckIngestGuide({
       <div className="mt-3 flex flex-col gap-4 text-sm">
         <div className="flex flex-col gap-1">
           <p>
-            An API key lets another website or tool send entrant decklists straight into this
-            tournament, for example the site where players submit their lists. Manage the keys for
-            this tournament on {keysLink}.
+            An API key lets another site or tool send entrant decklists into this tournament. Manage
+            keys on {keysLink}.
           </p>
           <p className="text-muted-foreground">
             A push must use a key that belongs to the tournament&apos;s host:{" "}
@@ -155,7 +154,7 @@ export function DeckCheckIngestGuide({
               <code>withdrawn</code>{" "}
               <span className="text-muted-foreground">
                 Set <code>true</code> to withdraw a player. Sending the entry again without it
-                restores them. Leaving an entry out of a push never withdraws it.
+                restores them.
               </span>
             </li>
             <li>

@@ -44,8 +44,7 @@ export function PresentQueuePanel({ onAdd }: { onAdd: (source: QueueSource) => v
       >
         {ids.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Nothing queued yet. Drag cards here from the browser, pick them with the plus button, or
-            pull in a deck or an organize list and trim it down.
+            Nothing queued yet. Drag cards here or add them with +.
           </p>
         ) : (
           <QueueList

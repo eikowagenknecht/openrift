@@ -409,8 +409,7 @@ function AddStaffDialog({
           <DialogHeader>
             <DialogTitle>Add staff</DialogTitle>
             <DialogDescription>
-              Pick someone from the linked group or the roster, then choose a role. To add someone
-              who isn&apos;t listed, share a staff invite link instead.
+              To add someone who isn&apos;t listed, share a staff invite link instead.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -441,10 +440,7 @@ function AddStaffDialog({
               {isLoading ? (
                 <p className="text-muted-foreground text-sm">Loading…</p>
               ) : items.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  No one to add yet. Group members and account-linked participants show up here, or
-                  share a staff invite link below.
-                </p>
+                <p className="text-muted-foreground text-sm">No one to add yet.</p>
               ) : (
                 <Select
                   items={items}

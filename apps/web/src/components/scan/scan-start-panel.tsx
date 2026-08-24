@@ -107,10 +107,7 @@ export function ScanStartPanel({
         {showPhoneHint && (
           <div className="flex w-full flex-col items-center gap-2 border-t border-white/15 pt-4">
             <p className="font-medium">Better on a phone</p>
-            <p className="text-xs text-white/60">
-              Its rear camera reads cards more reliably. Point it at the code to open this page
-              there.
-            </p>
+            <p className="text-xs text-white/60">Point it at the code to open this page there.</p>
             <QrCode
               value={`${getSiteUrl()}/scan`}
               size={96}

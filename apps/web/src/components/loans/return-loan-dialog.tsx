@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 interface ReturnLoanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  cardName: string;
   /** Copies still out on this loan; the stepper is bounded to `1..outstanding`. */
   outstanding: number;
   /** Whether the return mutation is in flight. */
@@ -33,7 +32,6 @@ interface ReturnLoanDialogProps {
 export function ReturnLoanDialog({
   open,
   onOpenChange,
-  cardName,
   outstanding,
   pending,
   onConfirm,
@@ -48,10 +46,7 @@ export function ReturnLoanDialog({
         <DialogForm onSubmit={() => onConfirm(quantity)}>
           <DialogHeader>
             <DialogTitle>Mark returned</DialogTitle>
-            <DialogDescription>
-              How many copies of {cardName} did you get back? The loan closes once everything is
-              returned.
-            </DialogDescription>
+            <DialogDescription>The loan closes once everything is returned.</DialogDescription>
           </DialogHeader>
 
           <div className="flex items-center justify-between gap-4 py-2">

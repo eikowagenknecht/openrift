@@ -350,9 +350,8 @@ export function TournamentParticipantsTab({
             <DialogHeader>
               <DialogTitle>Set fixed table for {fixedTableTarget?.name}</DialogTitle>
               <DialogDescription>
-                The physical table this player is normally seated at. Pairings are unaffected: when
-                two fixed-table players meet, the match goes to the lower table and the other player
-                moves for that round.
+                Pairings are unaffected. When two fixed-table players meet, the match goes to the
+                lower table for that round.
               </DialogDescription>
             </DialogHeader>
             <Input
@@ -400,10 +399,8 @@ export function TournamentParticipantsTab({
             <DialogHeader>
               <DialogTitle>Remove {removeTarget?.name}?</DialogTitle>
               <DialogDescription>
-                This permanently removes them from the tournament, including any decklist they
-                submitted, and cannot be undone. If they have already been paired into a round,
-                removal is blocked, so drop them instead, which keeps their results but sits them
-                out of later rounds.
+                Removes them from the tournament, including any submitted decklist. Cannot be
+                undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -502,8 +499,7 @@ export function AddParticipantButton({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle>Add player</DialogTitle>
             <DialogDescription>
-              Add a player by name. They are not linked to an account. Share their claim link later
-              so they can attach this spot to their OpenRift account.
+              Not linked to an account. Share their claim link later so they can attach it.
             </DialogDescription>
           </DialogHeader>
           <form

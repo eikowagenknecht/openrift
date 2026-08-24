@@ -1,14 +1,8 @@
 import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogForm } from "@/components/ui/dialog-form";
@@ -22,8 +16,6 @@ interface TakeWishlistFollowUpDialogProps {
   entries: WishEntryFlat[];
   /** How many copies were just taken — the amount to subtract from the wish. */
   takenQuantity: number;
-  /** How the copies arrived, for the description ("took" a box card, "added" a scan). */
-  verb?: "took" | "added";
   onOpenChange: (open: boolean) => void;
 }
 
@@ -41,7 +33,6 @@ export function TakeWishlistFollowUpDialog({
   printing,
   entries,
   takenQuantity,
-  verb = "took",
   onOpenChange,
 }: TakeWishlistFollowUpDialogProps) {
   const open = printing !== null;
@@ -57,7 +48,6 @@ export function TakeWishlistFollowUpDialog({
 
   const isPending = removeEntry.isPending || updateEntry.isPending;
   const single = entries.length === 1;
-  const cardName = printing ? legendDisplayName(printing.card) : "";
 
   const applyRemoval = async () => {
     const chosen = entries.filter((entry) => selectedIds.has(entry.entryId));
@@ -87,18 +77,6 @@ export function TakeWishlistFollowUpDialog({
       <AlertDialogContent>
         <DialogForm onSubmit={applyRemoval}>
           <AlertDialogTitle>Remove from your wishlist?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {single ? (
-              <>
-                You {verb} {cardName}, which is on your wishlist &ldquo;{entries[0]?.listName}
-                &rdquo;.
-              </>
-            ) : (
-              <>
-                You {verb} {cardName}, which is on several of your wishlists.
-              </>
-            )}
-          </AlertDialogDescription>
           {!single && (
             <div className="flex flex-col gap-2 py-1">
               {entries.map((entry) => (

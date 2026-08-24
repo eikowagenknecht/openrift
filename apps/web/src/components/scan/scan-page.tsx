@@ -1046,7 +1046,6 @@ export function ScanPage() {
         onChangePrinting={setSwapRow}
         onRemoveAll={() => void handleRemoveAll()}
         onAddAll={identifyOnly ? () => setAddAllOpen(true) : undefined}
-        collecting={!identifyOnly}
         unidentified={unidentified}
         onIdentifyMissed={handleIdentifyMissed}
         onDismissMissed={dismissUnidentified}
@@ -1137,7 +1136,6 @@ export function ScanPage() {
         printing={wishFollowUps[0]?.printing ?? null}
         entries={wishFollowUps[0]?.entries ?? []}
         takenQuantity={wishFollowUps[0]?.taken ?? 0}
-        verb="added"
         onOpenChange={(open) => {
           // Answering or dismissing one follow-up surfaces the next wished
           // card from the same commit.

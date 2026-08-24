@@ -206,9 +206,9 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
             <CardHeader>
               <CardTitle>Host</CardTitle>
               <CardDescription>
-                An organization host brings in its owners, managers, and judges automatically.
-                Linking a group lets members find and follow the tournament, and lets you add them
-                as staff without an email invite.
+                An organization host brings in its owners, managers, and judges. A linked
+                group&apos;s members can find the tournament and be added as staff without an email
+                invite.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -257,8 +257,8 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
             <CardHeader>
               <CardTitle>Schedule</CardTitle>
               <CardDescription>
-                Times are in {tzLabel}. A tournament with no end auto-completes 24 hours after it
-                starts.
+                Times are in {tzLabel}. Without an end, the tournament auto-completes 24 hours after
+                it starts.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -321,8 +321,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
             <CardHeader>
               <CardTitle>Format</CardTitle>
               <CardDescription>
-                The play mode applies to the whole tournament: 1v1 and 2v2 have different ban lists,
-                and deck check uses the matching one.
+                1v1 and 2v2 have different ban lists, and deck check uses the matching one.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -353,10 +352,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           <Card>
             <CardHeader>
               <CardTitle>Pairings</CardTitle>
-              <CardDescription>
-                Use OpenRift to generate each round&apos;s matchups and track standings. Points can
-                be changed later, standings recalculate.
-              </CardDescription>
+              <CardDescription>Points can be changed later, standings recalculate.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center gap-3">

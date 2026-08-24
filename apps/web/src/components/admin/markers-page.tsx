@@ -69,8 +69,8 @@ export function MarkersPage() {
       title="Markers"
       toolbar={
         <PageDescription>
-          Markers describe what is physically printed on a card (e.g. promo stamp, Top 8 placement).
-          Two printings with different markers are visually distinct and have separate prices.
+          What is physically printed on a card. Printings with different markers are distinct and
+          priced separately.
         </PageDescription>
       }
       add={{

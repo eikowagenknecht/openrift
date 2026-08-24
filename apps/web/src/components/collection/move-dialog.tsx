@@ -2,12 +2,7 @@ import type { CollectionResponse } from "@openrift/shared";
 import { InboxIcon, BookOpenIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CommandEmpty } from "@/components/ui/command";
 import { DialogForm } from "@/components/ui/dialog-form";
@@ -64,11 +59,6 @@ export function MoveDialog({
       <AlertDialogContent>
         <DialogForm onSubmit={() => selectedId && onMove(selectedId, effectiveQuantity)}>
           <AlertDialogTitle>Move to collection</AlertDialogTitle>
-          <AlertDialogDescription>
-            {effectiveQuantity === 1
-              ? "Choose a collection to move this copy to."
-              : `Choose a collection to move these ${effectiveQuantity} copies to.`}
-          </AlertDialogDescription>
           {canChooseQuantity && (
             <QuantityStepperField
               label="Copies to move"

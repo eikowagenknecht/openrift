@@ -115,9 +115,7 @@ export function PrintingEventsPage() {
     <div className="space-y-4">
       {topBar}
       <PageDescription>
-        The Discord webhook queue. Pending events are flushed every 15 minutes; events that fail 5
-        retries are marked failed and stop being retried automatically. Auto-refreshes every 30
-        seconds.
+        Pending events flush every 15 minutes. After 5 failed retries an event stops being retried.
       </PageDescription>
 
       <div className="text-muted-foreground flex gap-4 text-sm">

@@ -55,9 +55,7 @@ export function CreateTierListDialog({ open, onOpenChange }: CreateTierListDialo
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New tier list</DialogTitle>
-          <DialogDescription>
-            Starts on S / A / B / C / D. Rename or add tiers once you are in.
-          </DialogDescription>
+          <DialogDescription>Starts with tiers S to D.</DialogDescription>
         </DialogHeader>
 
         <Field>

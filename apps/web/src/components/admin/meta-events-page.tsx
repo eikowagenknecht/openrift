@@ -136,8 +136,7 @@ export function MetaEventsPage() {
         emptyText="No events archived yet."
         toolbar={
           <PageDescription>
-            Curated tournament results. Each event holds the decklists entered for it; both are
-            shown publicly on the Meta pages.
+            Curated tournament results, shown publicly on the Meta pages.
           </PageDescription>
         }
         actions={<EventRowActions onEdit={(event) => setDialog({ mode: "edit", event })} />}

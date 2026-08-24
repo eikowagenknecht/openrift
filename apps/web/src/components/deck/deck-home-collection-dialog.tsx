@@ -116,9 +116,8 @@ export function DeckHomeCollectionDialog({
           <DialogHeader>
             <DialogTitle>Stored in</DialogTitle>
             <DialogDescription>
-              Pick the collection this deck physically lives in. Its cards stay available for this
-              deck even when the collection is turned off for deck building, so a sleeved deck
-              doesn&apos;t look like it is missing its own cards.
+              Its cards stay available to this deck even when the collection is off for deck
+              building.
             </DialogDescription>
           </DialogHeader>
 

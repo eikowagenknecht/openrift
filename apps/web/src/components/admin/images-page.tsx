@@ -434,8 +434,7 @@ function MissingImagesSection() {
         <CardDescription>
           {shown.length} {shown.length === 1 ? "card has" : "cards have"} printings without an
           active front-face image
-          {language === null ? "" : ` in ${language}`}. The badge on each card counts its missing
-          printings per language.
+          {language === null ? "" : ` in ${language}`}.
         </CardDescription>
         <div className="flex flex-wrap gap-1.5 pt-2">
           <Badge

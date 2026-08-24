@@ -46,8 +46,7 @@ export function DeckZonesPage() {
       title="Deck Zones"
       toolbar={
         <PageDescription>
-          Deck zones define the sections of a deck (Legend, Main Deck, etc.). Reorder to control
-          display order in the deck builder and import views.
+          Order here is the display order in the deck builder and imports.
         </PageDescription>
       }
       edit={{

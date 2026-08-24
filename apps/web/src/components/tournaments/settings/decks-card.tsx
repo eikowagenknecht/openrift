@@ -71,8 +71,7 @@ export function DecksCard({
       <CardHeader>
         <CardTitle>Decks</CardTitle>
         <CardDescription>
-          Collect decklists in OpenRift, or leave it off if you track lists elsewhere. When lists
-          are collected, judges can verify them on the Deck check tab. Current phase:{" "}
+          When lists are collected, judges can verify them on the Deck check tab. Current phase:{" "}
           {DECK_PHASE_LABEL[detail.deckPhase]}.
         </CardDescription>
       </CardHeader>

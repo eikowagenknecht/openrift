@@ -184,8 +184,7 @@ function FixZonesDialog({
           <DialogHeader>
             <DialogTitle>Fix card zones</DialogTitle>
             <DialogDescription>
-              Based on their type, these cards belong in a different zone than the import put them
-              in. Untick any that are intentional, then apply the rest.
+              Based on card type, these belong in a different zone than the import put them.
             </DialogDescription>
           </DialogHeader>
           <ul className="flex flex-col gap-2">

@@ -196,7 +196,6 @@ function LoanRow({ loan }: { loan: LoanResponse }) {
         <ReturnLoanDialog
           open={returnOpen}
           onOpenChange={setReturnOpen}
-          cardName={cardName}
           outstanding={outstanding}
           pending={returnCopies.isPending}
           onConfirm={(quantity) =>
@@ -324,8 +323,7 @@ export function LoansPage() {
 
       <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pt-3 pb-12">
         <PageDescription>
-          Cards you&apos;ve lent to friends and cards you&apos;re borrowing. Lent copies stay in
-          your collection but stop counting for deck building and trades until they&apos;re back.
+          Cards you&apos;ve lent to friends and cards you&apos;re borrowing.
         </PageDescription>
 
         {empty ? (

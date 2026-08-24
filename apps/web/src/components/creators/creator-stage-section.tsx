@@ -8,23 +8,20 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 const STEPS: { title: string; detail: string }[] = [
   {
     title: "Open the Stage, switch the output to OBS, and copy the browser source URL",
-    detail:
-      "You need to be signed in for this. The link is created for you on your first visit, and you can replace it with a fresh one at any time.",
+    detail: "You need to be signed in for this.",
   },
   {
     title: "Add a Browser source in OBS and paste the link",
-    detail:
-      "Set its width and height to your canvas size, usually 1920 by 1080. The source is transparent, so it sits over your scene with no background of its own.",
+    detail: "Set its width and height to your canvas size, usually 1920 by 1080.",
   },
   {
     title: "Pick the corner and the card size",
-    detail:
-      "Both are in the OBS tab, with a live preview of exactly what your audience sees. You can also turn on a name and stats plate, or a QR code pointing at a deck.",
+    detail: "Both are in the OBS tab, with a live preview of exactly what your audience sees.",
   },
   {
     title: "Keep the Stage open on your phone during the stream",
     detail:
-      "Step through your queue with the arrows beside the preview, and clear the screen when the segment is over. A ranking goes up from the show itself: open a tier list on the Stage and switch on Board on OBS.",
+      "Step through your queue with the arrows beside the preview, and clear the screen when the segment is over.",
   },
 ];
 
@@ -54,13 +51,6 @@ export function CreatorStageSection() {
         The Stage puts Riftbound cards in front of your audience. It has two outputs: a full-screen
         show you run on this screen, and a transparent overlay for OBS.
       </p>
-      <p>
-        You can build the card queue on the Stage itself, or start it from somewhere else. Every
-        deck menu has a <strong>Present</strong> entry that walks the deck zone by zone, and a tier
-        list can go up as a board you reveal live. The queue is part of the URL, so a set you use
-        every week can simply be a bookmark. If you are signed in, you can also save your settings
-        as presets.
-      </p>
       <div>
         <Button variant="outline" render={<Link to="/stage" />}>
           Open the Stage
@@ -68,11 +58,7 @@ export function CreatorStageSection() {
       </div>
 
       <h3 className="font-medium">The full-screen show</h3>
-      <p>
-        The show fills the screen with nothing but the cards, so you can capture or record it
-        directly. You pick the background in the show&apos;s settings: black, or green or magenta if
-        you record now and key it out in your editor later. Everything is driven from the keyboard:
-      </p>
+      <p>The show fills the screen with nothing but the cards, driven from the keyboard:</p>
       <dl className="divide-border grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-6 divide-y">
         {KEYS.map((row) => (
           <div key={row.does} className="col-span-2 grid grid-cols-subgrid items-center py-1.5">
@@ -87,11 +73,6 @@ export function CreatorStageSection() {
           </div>
         ))}
       </dl>
-      <p>
-        Modifier presses are left alone, so your browser and window shortcuts keep working while the
-        show is up.
-      </p>
-
       <h3 className="font-medium">The OBS overlay</h3>
       <p>
         The overlay sends single cards, or a ranking that fills in as you talk through it, to a

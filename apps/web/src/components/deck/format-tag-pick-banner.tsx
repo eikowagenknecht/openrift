@@ -64,9 +64,8 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
       <div>
         <Heading level={2}>Pick one or more {config.nounPlural}</Heading>
         <p className="text-muted-foreground text-sm">
-          Every card in this deck must carry one of the chosen {config.nounPlural}. Picking multiple
-          widens the legal pool (any card tagged with one of them is legal). You can change them
-          later from the deck menu, but cards that don&apos;t match will be flagged.
+          Every card must carry one of the chosen {config.nounPlural}. You can change them later
+          from the deck menu.
         </p>
       </div>
       <div className="space-y-2">

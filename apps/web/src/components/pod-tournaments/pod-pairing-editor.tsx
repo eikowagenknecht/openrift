@@ -239,7 +239,7 @@ export function PodPairingEditor({
             ? "Drag teams between matches, onto New match, or into Byes. Every match must have exactly 2 teams to save. Warnings are advisory."
             : mode === "swiss"
               ? "Drag players between matches, onto New match, or into Byes. Every match must have exactly 2 players to save. Warnings are advisory."
-              : "Drag players between pods, onto New pod, or into Byes. Every pod must have 3 or 4 players to save. Warnings are advisory."}
+              : "Every pod needs 3 or 4 players. Warnings are advisory."}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {state.pods.map((pod, index) => (

@@ -91,8 +91,7 @@ export function OverlayPresetsSection({ channel }: { channel: OverlayChannelResp
         </Button>
       </div>
       <p className="text-muted-foreground text-sm">
-        A saved scene: the corner, the size, the plate and the QR link. Apply one to change what is
-        on stream now, or point a second browser source at a preset&apos;s own link to pin it.
+        A saved scene. Apply one, or point a second browser source at its own link.
       </p>
 
       {items.length === 0 ? (

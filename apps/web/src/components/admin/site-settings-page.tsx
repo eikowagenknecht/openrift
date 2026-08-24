@@ -9,7 +9,6 @@ import type {
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
 import { Eyebrow } from "@/components/heading";
-import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -263,12 +262,6 @@ export function SiteSettingsPage() {
         getRowKey={(setting) => setting.key}
         emptyText="No site settings yet."
         title="Site Settings"
-        toolbar={
-          <PageDescription>
-            Site settings are key-value pairs loaded at runtime. Web-scoped settings are available
-            to the frontend. API-scoped settings are server-only.
-          </PageDescription>
-        }
         add={{
           emptyDraft: { key: "", value: "", scope: "web" },
           onSave: (draft) =>
@@ -369,8 +362,7 @@ function AnalyticsExclusionPanel() {
           Exclude this browser from Umami analytics
         </FieldLabel>
         <FieldDescription>
-          Sets <span className="font-mono">localStorage[&quot;umami.disabled&quot;]</span> so Umami
-          skips tracking on this device. Applies to this browser only, clear site data to reset.
+          Disables Umami tracking in this browser. Clear site data to reset.
         </FieldDescription>
       </FieldContent>
       <Switch

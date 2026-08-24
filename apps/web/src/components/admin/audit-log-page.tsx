@@ -146,8 +146,7 @@ export function AuditLogPage() {
         }
       />
       <PageDescription>
-        Who changed what in the card catalog: accepts, field edits, deletions, images, errata, and
-        bans, from full admins and card-review helpers alike. Check/uncheck bookkeeping isn&apos;t
+        Catalog changes by admins and card-review helpers. Check/uncheck bookkeeping isn&apos;t
         logged. Times are UTC.
       </PageDescription>
 

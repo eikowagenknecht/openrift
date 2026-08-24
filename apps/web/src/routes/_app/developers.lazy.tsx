@@ -47,22 +47,17 @@ function DevelopersPage() {
     <ProsePage>
       <h1>Developers</h1>
       <p>
-        OpenRift has a free, public, read-only API for Riftbound card data. It is the same API this
-        site runs on: plain JSON over HTTPS, no API key and no authentication required. The one
-        thing required of every client is an identifying <code>User-Agent</code> header (see below).
-        All paths on this page are relative to this site&apos;s origin.
+        A free, public, read-only API for Riftbound card data: the same API this site runs on, plain
+        JSON over HTTPS, no key or authentication. All paths are relative to this site&apos;s
+        origin.
       </p>
 
       <h2>Identify your client</h2>
       <p>
-        Send a descriptive <code>User-Agent</code> header that names your project and includes a way
-        to reach you, an email address or project URL: for example{" "}
-        <code>MyDeckTool/1.0 (you@example.com)</code>. This is a requirement, not a courtesy: it is
-        the only way I can warn you before a breaking change instead of after, and clients that
-        identify themselves get the benefit of the doubt if traffic ever has to be limited.
-        Browser-based apps are the exception, since browsers don&apos;t allow overriding{" "}
-        <code>User-Agent</code>: they are identified by their <code>Origin</code> header
-        automatically, so nothing extra is needed there.
+        Send a descriptive <code>User-Agent</code> naming your project and a way to reach you, for
+        example <code>MyDeckTool/1.0 (you@example.com)</code>. It is how I can warn you before a
+        breaking change. Browser apps can&apos;t override <code>User-Agent</code> and are identified
+        by their <code>Origin</code> header instead.
       </p>
 
       <h2>Interactive documentation</h2>
@@ -111,19 +106,14 @@ function DevelopersPage() {
         Responses are cacheable. Catalog-style endpoints (catalog, cards, prices, sets, rules) are
         served with <code>Cache-Control: public, max-age=3600, stale-while-revalidate=86400</code>;
         promos use <code>max-age=300</code> and products <code>max-age=60</code>. Every read
-        endpoint also returns an <code>ETag</code> header. Please respect these headers in your
-        client: cache responses for at least the <code>max-age</code>, and revalidate with{" "}
-        <code>If-None-Match</code> so unchanged data comes back as a tiny{" "}
-        <code>304 Not Modified</code> instead of the full payload (the catalog in particular is
-        large).
+        endpoint also returns an <code>ETag</code> header. Cache for at least <code>max-age</code>{" "}
+        and revalidate with <code>If-None-Match</code> (the catalog is large).
       </p>
 
       <h2>Attribution</h2>
       <p>
-        If you display data from this API, I&apos;d appreciate it if you link card names back to
-        their OpenRift card pages at <code>/cards/{"{card-slug}"}</code> on this site. It is not
-        required, but OpenRift is maintained by one person, and those links help people find the
-        full card details and keep the project visible.
+        If you display this data, please link card names to their OpenRift card pages (
+        <code>/cards/{"{card-slug}"}</code>).
       </p>
     </ProsePage>
   );

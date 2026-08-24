@@ -131,17 +131,17 @@ function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) 
       {entry.state === "submitted" && entry.windowOpen ? (
         <p className="text-muted-foreground text-sm">
           {entry.canUnlock
-            ? `Your deck is locked for review. You can unlock it to make changes${closesAt ? ` until ${closesAt}` : ""}; a judge then reviews the new list.`
+            ? `Locked for review. Unlock to make changes${closesAt ? ` until ${closesAt}` : ""}.`
             : entry.unlockRequested
-              ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-              : "Your deck is submitted and locked. To change it, request an unlock, which a judge has to grant."}
+              ? "Waiting for a judge to grant your unlock."
+              : "Submitted and locked. Request an unlock to make changes."}
         </p>
       ) : null}
       {entry.state === "approved" && entry.windowOpen ? (
         <p className="text-muted-foreground text-sm">
           {entry.unlockRequested
-            ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
-            : "A judge approved your deck. To change it, request an unlock, which a judge has to grant."}
+            ? "Waiting for a judge to grant your unlock."
+            : "Approved by a judge. Request an unlock to make changes."}
         </p>
       ) : null}
       {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (
@@ -493,7 +493,7 @@ function ReplaceDeckButton({
           <DialogHeader>
             <DialogTitle>Replace your deck</DialogTitle>
             <DialogDescription>
-              The new list replaces the current one. It counts only once you submit it for review.
+              The new list counts only once you submit it for review.
             </DialogDescription>
           </DialogHeader>
           <PlayerDeckSourceForm

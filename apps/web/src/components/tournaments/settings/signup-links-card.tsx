@@ -50,8 +50,7 @@ export function SignupLinksCard({
         <CardHeader>
           <CardTitle>Sign-up &amp; deck links</CardTitle>
           <CardDescription>
-            When on, anyone with the link below can request a spot; requests appear on the Overview
-            tab for approval.
+            Anyone with the link can request a spot. Requests appear on the Overview tab.
             {deckExpected ? " Players also submit their decks through this link." : ""}
           </CardDescription>
         </CardHeader>
@@ -107,8 +106,7 @@ export function SignupLinksCard({
             <DialogHeader>
               <DialogTitle>Rotate the link?</DialogTitle>
               <DialogDescription>
-                This makes a new link and immediately stops the old one working. Anyone you already
-                shared it with will need the new link.
+                The link stops working for everyone. Re-enabling creates a different link.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

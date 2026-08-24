@@ -147,10 +147,7 @@ export function DeckComparePasteDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Paste a deck</DialogTitle>
-          <DialogDescription>
-            A deck code, a share link, or a plain card list. It is compared as it is; saving it as a
-            deck is a separate step afterwards.
-          </DialogDescription>
+          <DialogDescription>A deck code, share link, or plain card list.</DialogDescription>
         </DialogHeader>
         <Textarea
           value={text}

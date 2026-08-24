@@ -140,10 +140,7 @@ export function LanguagesPage() {
       emptyText="No languages yet."
       title="Languages"
       toolbar={
-        <PageDescription>
-          Languages classify the printing language of each card (e.g. English, Japanese). The color
-          appears on the language chip shown for each printing.
-        </PageDescription>
+        <PageDescription>The color appears on each printing&apos;s language chip.</PageDescription>
       }
       add={{
         emptyDraft: { code: "", name: "", color: "#1D4ED8" },

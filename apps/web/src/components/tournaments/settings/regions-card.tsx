@@ -33,8 +33,7 @@ export function RegionsCard({
       <CardHeader>
         <CardTitle>Regions</CardTitle>
         <CardDescription>
-          Track a region per player. Pairings avoid same-region matchups, and standings add a
-          per-region leaderboard. Judges assign regions on the Participants tab.
+          Pairings avoid same-region matchups, and standings add a per-region leaderboard.
         </CardDescription>
       </CardHeader>
       <CardContent>

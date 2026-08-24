@@ -123,7 +123,7 @@ export function TournamentDeckCheckEntries({
       {visible.length === 0 ? (
         <p className="text-muted-foreground">
           {entries.length === 0
-            ? "No decks yet. Add one by hand with “Add deck”, or they appear as soon as players submit or your organizer system pushes lists."
+            ? "No decks yet. They appear as players submit or your organizer system pushes lists."
             : "No players match the search."}
         </p>
       ) : (
@@ -461,9 +461,7 @@ function AddDeckDialog({
         <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>Add a deck</DialogTitle>
-            <DialogDescription>
-              Attach a decklist to someone on the roster. Add people on the Participants tab first.
-            </DialogDescription>
+            <DialogDescription>Attach a decklist to someone on the roster.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -505,9 +503,8 @@ function AddDeckDialog({
                 }
               />
               <p className="text-muted-foreground text-sm">
-                One card per line as <code>2 Card Name</code>, with optional zone headers
-                (Champion:, Main:, Sideboard:, …). Lines without a header go to the main deck. Card
-                matches are checked after you save.
+                One card per line as <code>2 Card Name</code>, with optional zone headers. Matches
+                are checked after you save.
               </p>
               {parsed.cards.length > 0 ? (
                 <p className="text-muted-foreground text-sm">

@@ -13,7 +13,6 @@ import {
 } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
-import { PageDescription } from "@/components/layout/page-top-bar";
 import {
   useCreateRarity,
   useDeleteRarity,
@@ -87,12 +86,6 @@ export function RaritiesPage() {
       getRowKey={(rarity) => rarity.slug}
       emptyText="No rarities yet."
       title="Rarities"
-      toolbar={
-        <PageDescription>
-          Rarities describe the scarcity tier of a printing (e.g. Common, Uncommon, Rare). Colors
-          are shown throughout the UI wherever rarities appear.
-        </PageDescription>
-      }
       add={{
         emptyDraft: { slug: "", label: "", color: "#A6A6A6" },
         onSave: (draft) =>

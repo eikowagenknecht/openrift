@@ -425,7 +425,7 @@ function ActivityEmptyState() {
       className="py-20"
       icon={HistoryIcon}
       title="No activity yet"
-      description="Activity is recorded when you add, move, or remove cards. Browse the catalog to start building your collection."
+      description="Browse the catalog to start building your collection."
     >
       <Button variant="default" render={<Link to="/cards" />}>
         <SearchIcon />

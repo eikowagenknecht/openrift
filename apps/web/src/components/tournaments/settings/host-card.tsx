@@ -50,9 +50,8 @@ export function HostCard({
       <CardHeader>
         <CardTitle>Host</CardTitle>
         <CardDescription>
-          Who can run this tournament. An organization brings in its owners, managers, and judges
-          automatically. As a personal host, that is just you. You can invite extra staff either
-          way.
+          An organization brings in its owners, managers, and judges. You can invite extra staff
+          either way.
         </CardDescription>
       </CardHeader>
       <CardContent>

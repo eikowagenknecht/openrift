@@ -372,6 +372,6 @@ describe("OverlayOutputPanel board on stream", () => {
     channelShowing(null);
     const { getByText } = render(<OverlayOutputPanel />);
 
-    expect(getByText("tier lists")).toBeTruthy();
+    expect(getByText("tier list")).toBeTruthy();
   });
 });

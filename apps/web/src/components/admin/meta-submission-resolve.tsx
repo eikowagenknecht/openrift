@@ -230,10 +230,7 @@ export function MetaSubmissionResolve({ submission, candidateDeckId }: MetaSubmi
           <DialogForm onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Resolve {submission.playerName}&apos;s submission</DialogTitle>
-              <DialogDescription>
-                This is the only thing the contributor ever hears back, so say something they can
-                read. Accepting the list is a separate action and writes their credit with it.
-              </DialogDescription>
+              <DialogDescription>This is the only reply the contributor sees.</DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-4 py-2">

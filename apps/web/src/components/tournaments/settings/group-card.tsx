@@ -54,8 +54,7 @@ export function GroupCard({
       <CardHeader>
         <CardTitle>Group</CardTitle>
         <CardDescription>
-          Link the tournament to one of your groups so its members can find and follow it, or unlink
-          it to keep it standalone. You can only pick groups you belong to.
+          Members of a linked group can find and follow the tournament.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -266,9 +266,7 @@ function RequestBody({
             Share {chosenName} with {groupName}?
           </DialogTitle>
           <DialogDescription>
-            To request this card, {groupName} needs to see that you want it. Members will be able to
-            view every card on {chosenName}. You can unshare it anytime from the group&apos;s manage
-            page.
+            Members of {groupName} will be able to view every card on {chosenName}.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

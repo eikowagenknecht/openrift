@@ -3,13 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { QuantityStepperField } from "@/components/ui/quantity-stepper";
@@ -139,11 +133,6 @@ export function AddToListDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add to list</DialogTitle>
-          <DialogDescription>
-            {effectiveQuantity === 1
-              ? "Choose a list to add this copy to."
-              : `Choose a list to add these ${effectiveQuantity} copies to.`}
-          </DialogDescription>
         </DialogHeader>
         {canChooseQuantity && (
           <QuantityStepperField

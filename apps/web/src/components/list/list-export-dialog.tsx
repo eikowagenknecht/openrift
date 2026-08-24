@@ -7,13 +7,7 @@ import { toast } from "sonner";
 import { CopyTextButton } from "@/components/share/copy-text-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import {
   Select,
@@ -135,9 +129,6 @@ function TextExport({
     <>
       <DialogHeader>
         <DialogTitle>Export list</DialogTitle>
-        <DialogDescription>
-          A plain-text list with one card per line, ready to paste into deck-building tools.
-        </DialogDescription>
       </DialogHeader>
 
       <div className="flex min-w-0 flex-col gap-3">
@@ -187,9 +178,6 @@ function CsvExport({
     <DialogForm onSubmit={handleDownload}>
       <DialogHeader>
         <DialogTitle>Export list</DialogTitle>
-        <DialogDescription>
-          Download this list as a CSV file, in OpenRift&apos;s own format or another tool&apos;s.
-        </DialogDescription>
       </DialogHeader>
 
       <div className="flex min-w-0 flex-col gap-3">

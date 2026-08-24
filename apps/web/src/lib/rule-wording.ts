@@ -71,8 +71,7 @@ const ORGANIZE_COPY_COMBINE_LABELS = [
  * @returns The wish wording.
  */
 const wishWording = (noun: string): Omit<RuleWording, "isCopy"> => ({
-  description:
-    "Automatically want every card that matches these filters. Add more than one rule to combine them.",
+  description: "Automatically want every card that matches these filters.",
   emptyMessage: "No rules yet. Add one to automatically want every card that matches a filter.",
   quantityLabel: () => "Want quantity",
   quantityHint: () => `How many of each matched ${noun} you want.`,
@@ -87,8 +86,7 @@ const wishWording = (noun: string): Omit<RuleWording, "isCopy"> => ({
 
 /** Wording for trade lists (kind copy): the rule says what you offer. */
 const TRADE_WORDING: Omit<RuleWording, "isCopy"> = {
-  description:
-    "Automatically offer copies in your collection that match these filters. Add more than one rule to combine them.",
+  description: "Automatically offer copies in your collection that match these filters.",
   emptyMessage:
     "No rule yet. Add one to automatically offer copies in your collection that match a filter.",
   quantityLabel: (keepPer) => (keepPer === "printing" ? "Keep per printing" : "Keep per card"),
@@ -113,8 +111,7 @@ const TRADE_WORDING: Omit<RuleWording, "isCopy"> = {
  * @returns The organize card/printing wording.
  */
 const organizeCardWording = (noun: string): Omit<RuleWording, "isCopy"> => ({
-  description:
-    "Automatically include every card that matches these filters. Add more than one rule to combine them.",
+  description: "Automatically include every card that matches these filters.",
   emptyMessage: "No rules yet. Add one to automatically include every card that matches a filter.",
   quantityLabel: () => "Quantity",
   quantityHint: () => `How many of each matched ${noun} the list tracks.`,
@@ -133,8 +130,7 @@ const organizeCardWording = (noun: string): Omit<RuleWording, "isCopy"> => ({
  * here, so the held-back copies read as "left out" of the list instead.
  */
 const ORGANIZE_COPY_WORDING: Omit<RuleWording, "isCopy"> = {
-  description:
-    "Automatically include copies in your collection that match these filters. Add more than one rule to combine them.",
+  description: "Automatically include copies in your collection that match these filters.",
   emptyMessage:
     "No rule yet. Add one to automatically include copies in your collection that match a filter.",
   quantityLabel: (keepPer) =>
@@ -183,8 +179,7 @@ export function matchLabel(count: number, kind: ListKind): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-const NET_OWNED_HINT =
-  "Subtract the copies you already own, so the list shows only the shortfall toward the quantity above. Anything you already have enough of drops off.";
+const NET_OWNED_HINT = "Shows only the shortfall toward the quantity above.";
 
 /**
  * Hint for the "only what I'm missing" switch. A price range narrows what the

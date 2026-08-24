@@ -98,8 +98,7 @@ export function MetaIgnoredCandidatesDialog({ onClose }: { onClose: () => void }
         <DialogHeader>
           <DialogTitle>Ignored candidates</DialogTitle>
           <DialogDescription>
-            These keys are skipped on every upload. Unignore one to let a future push stage it
-            again. A deck key covers only the event it is listed under.
+            These keys are skipped on every upload. A deck key covers only its listed event.
           </DialogDescription>
         </DialogHeader>
 

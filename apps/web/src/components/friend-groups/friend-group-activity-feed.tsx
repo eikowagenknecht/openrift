@@ -42,9 +42,7 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
     <section className="flex flex-col gap-4">
       <SectionHeading>Recent activity</SectionHeading>
       {rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          Nothing yet. Trades, shared lists, and new members will show up here.
-        </p>
+        <p className="text-muted-foreground text-sm">Nothing yet.</p>
       ) : (
         <ul className="flex flex-col gap-2.5">
           {days.map((day) => {

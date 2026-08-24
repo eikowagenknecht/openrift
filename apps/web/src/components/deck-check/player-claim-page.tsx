@@ -124,9 +124,8 @@ export function PlayerClaimPage({ token }: { token: string }) {
           ) : outcome === "duplicate" ? (
             <div className="flex flex-col gap-3">
               <p className="text-muted-foreground">
-                Your account is already entered in this tournament under a different spot, so this
-                one can&apos;t also be linked to it. If that&apos;s a mistake, contact the
-                organizer.
+                Your account already holds a different spot in this tournament. If that&apos;s a
+                mistake, contact the organizer.
               </p>
               {claim.data?.tournamentId ? (
                 <div>

@@ -52,6 +52,11 @@ export function CreateCollectionDialog({
   const [name, setName] = useState("");
   const createCollection = useCreateCollection();
   const isShared = Boolean(groupSlug);
+  const effectiveDescription =
+    description ??
+    (isShared
+      ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards. Admins can rename or delete it.`
+      : undefined);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -87,12 +92,9 @@ export function CreateCollectionDialog({
           <DialogTitle>
             {title ?? (isShared ? "New shared collection" : "New collection")}
           </DialogTitle>
-          <DialogDescription>
-            {description ??
-              (isShared
-                ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards. Group admins can rename or delete it.`
-                : "A collection holds physical copies you own. You can rename or delete it later.")}
-          </DialogDescription>
+          {effectiveDescription !== undefined && (
+            <DialogDescription>{effectiveDescription}</DialogDescription>
+          )}
         </DialogHeader>
         <form
           className="flex flex-col gap-2"

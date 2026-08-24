@@ -58,11 +58,6 @@ interface ScanSessionTrayProps {
    */
   onAddAll?: () => void;
   /**
-   * The session is adding scans to a collection. False while the target is
-   * "just identify", where a row names a card and stands for nothing else.
-   */
-  collecting: boolean;
-  /**
    * Cards the scanner watched land and could not name, after the second look.
    * Each carries the picture of how it lay, which is usually enough for the
    * user to recognise it at a glance.
@@ -95,7 +90,6 @@ export function ScanSessionTray({
   onChangePrinting,
   onRemoveAll,
   onAddAll,
-  collecting,
   unidentified = [],
   onIdentifyMissed,
   onDismissMissed,
@@ -145,11 +139,7 @@ export function ScanSessionTray({
   if (rows.size === 0) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground">
-          {collecting
-            ? "Nothing scanned yet. Cards land in your collection the moment they are recognised, and show up here so you can undo or mark a foil."
-            : "Nothing scanned yet. Cards you hold up are named and counted here. Add them to a collection whenever you like."}
-        </p>
+        <p className="text-muted-foreground">Nothing scanned yet.</p>
         <UnidentifiedList
           cards={unidentified}
           onIdentify={onIdentifyMissed}
