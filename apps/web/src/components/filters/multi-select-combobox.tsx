@@ -51,7 +51,7 @@ interface MultiSelectGroup {
   counts?: Map<string, number>;
 }
 
-interface MultiSelectComboboxProps {
+export interface MultiSelectComboboxProps {
   /** Trigger label (e.g. "Channels", "Markers"). */
   label: string;
   options: readonly MultiSelectOption[];

@@ -1,5 +1,7 @@
-import type { AvailableFilters } from "@openrift/shared";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+
+import type { FilterDimensionAvailability } from "@/lib/filter-dimensions";
+import { sectionHasContent } from "@/lib/filter-dimensions";
 
 export interface FilterPlacementUnit {
   /** Unit key stored in the `topLevelFilters` preference. */
@@ -72,55 +74,20 @@ export function resolveTopLevelUnits(topLevelFilters: Iterable<string>): Readonl
   return new Set(keepPlacementUnits(topLevelFilters));
 }
 
-interface ApplicabilityInput {
-  availableFilters: AvailableFilters;
-  availableLanguages?: string[];
+interface ApplicabilityInput extends FilterDimensionAvailability {
   /** The surface's own contextual hides (section keys, NOT unit keys). */
   surfaceHiddenSections?: ReadonlySet<string>;
-  /** Number of custom-tag categories visible on this surface (after any category filter). */
-  customTagCategoryCount: number;
 }
 
 /**
- * Per-section "has content to show" predicates, mirroring the render guards in
- * `filter-panel-content.tsx`. Each ignores placement — it only asks whether
- * the section would render at all on this surface. Stat sliders and the owned
- * bucket always render (`() => true`); the rest gate on the matching
- * `availableFilters` field.
- */
-const HAS_CONTENT: Record<string, (input: ApplicabilityInput) => boolean> = {
-  languages: ({ availableLanguages }) => (availableLanguages?.length ?? 0) > 1,
-  sets: ({ availableFilters }) => availableFilters.sets.length > 0,
-  domains: ({ availableFilters }) => availableFilters.domains.length > 0,
-  rarities: ({ availableFilters }) => availableFilters.rarities.length > 0,
-  types: ({ availableFilters }) => availableFilters.types.length > 0,
-  superTypes: ({ availableFilters }) => availableFilters.superTypes.length > 0,
-  artVariants: ({ availableFilters }) => availableFilters.artVariants.length > 1,
-  finishes: ({ availableFilters }) => availableFilters.finishes.length > 1,
-  signed: ({ availableFilters }) => availableFilters.hasSigned,
-  energy: () => true,
-  power: () => true,
-  might: () => true,
-  markers: ({ availableFilters }) => availableFilters.markers.length > 0,
-  channels: ({ availableFilters }) => availableFilters.distributionChannels.length > 0,
-  customTags: ({ customTagCategoryCount }) => customTagCategoryCount > 0,
-  tags: ({ availableFilters }) => availableFilters.tags.length > 0,
-  keywords: ({ availableFilters }) => availableFilters.keywords.length > 0,
-  cardSizes: ({ availableFilters }) => availableFilters.cardSizes.length > 1,
-  owned: () => true,
-  price: ({ availableFilters }) => availableFilters.price.max > 0,
-  banned: ({ availableFilters }) => availableFilters.hasBanned,
-  errata: ({ availableFilters }) => availableFilters.hasErrata,
-  standard: ({ availableFilters }) => availableFilters.hasNonStandard,
-};
-
-/**
  * Whether one section of a unit would render on this surface (has content and
- * isn't surface-hidden).
+ * isn't surface-hidden). The "has content" half lives in `FILTER_DIMENSIONS`,
+ * so it is the same predicate the compact bar, the More menu and the chip
+ * sections gate on.
  * @returns True when the section applies here.
  */
 function sectionApplies(section: string, input: ApplicabilityInput): boolean {
-  return !input.surfaceHiddenSections?.has(section) && (HAS_CONTENT[section]?.(input) ?? false);
+  return !input.surfaceHiddenSections?.has(section) && sectionHasContent(section, input);
 }
 
 /**

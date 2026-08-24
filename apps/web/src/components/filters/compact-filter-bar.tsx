@@ -4,15 +4,18 @@ import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
-import { FilterChipSections, OWNED_BUCKETS } from "@/components/filters/filter-chip-sections";
+import { FilterChipSections } from "@/components/filters/filter-chip-sections";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";
 import { FilterMoreMenu } from "@/components/filters/filter-more-menu";
 import { FilterRangeSections } from "@/components/filters/filter-range-sections";
 import {
+  FilterValueDropdown,
+  FilterVariantDropdown,
+} from "@/components/filters/filter-value-dropdown";
+import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,
-  MultiSelectCombobox,
   NEUTRAL_HOVER_SCOPE,
 } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
@@ -21,9 +24,11 @@ import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
+import { useMoreActiveCount, useVisibleFilterDimensions } from "@/hooks/use-filter-dimensions";
 import { clusterLabelsFit } from "@/lib/cluster-label-fit";
 import { formatDomainFilterLabel } from "@/lib/domain";
+import { filterDimension, OWNED_BUCKETS } from "@/lib/filter-dimensions";
 import { getFilterIconPath } from "@/lib/icons";
 import { rangeBadgeLabel } from "@/lib/range-label";
 import { cn } from "@/lib/utils";
@@ -534,9 +539,20 @@ export function CompactFilterBar({
 }: CompactFilterBarProps) {
   const { labels } = useEnumOrders();
   const { filterState, hasActiveFilters } = useFilterValues();
-  const { cycleArrayFilter, toggleSigned, toggleStandard, clearAllFilters } = useFilterActions();
-  const languageLabels = useLanguageLabels();
-  const isTop = (unit: string) => topLevelUnits.has(unit);
+  const { cycleArrayFilter, toggleStandard, clearAllFilters } = useFilterActions();
+  const visibleDimensions = useVisibleFilterDimensions({
+    availableFilters,
+    availableLanguages,
+    hiddenSections,
+    visibleCustomTagCategories,
+    ownedCountMax,
+  });
+  // One predicate per dimension, from the registry: the axis has content the
+  // surface hasn't hidden, and its placement unit is promoted to the bar. The
+  // Variant and Stats units resolve through their own axes, so a per-axis hide
+  // (artVariants, energy, …) still works.
+  const shows = (key: string) =>
+    visibleDimensions.has(key) && topLevelUnits.has(filterDimension(key).unit);
   // Standard's promoted chip renders bar-level right after Variant (canonical
   // order), and Owned renders bar-level as the merged buckets-plus-Copies chip;
   // keep both out of the trailing chip sections so neither is drawn twice.
@@ -548,7 +564,7 @@ export function CompactFilterBar({
   // invisible measuring strip the fit check reads.
   const { barRef, measureRef, labelsFit } = useClusterLabelsFit();
   const domainCluster = (showLabels: boolean) =>
-    isTop("domains") && !hiddenSections?.has("domains") ? (
+    shows("domains") ? (
       <FilterIconCluster
         label="Domain"
         options={availableFilters.domains}
@@ -562,7 +578,7 @@ export function CompactFilterBar({
       />
     ) : null;
   const rarityCluster = (showLabels: boolean) =>
-    isTop("rarities") && !hiddenSections?.has("rarities") ? (
+    shows("rarities") ? (
       <FilterIconCluster
         label="Rarity"
         options={availableFilters.rarities}
@@ -579,29 +595,19 @@ export function CompactFilterBar({
   // Art Variant, Finish, and Signed are all printing-variant axes, so they share
   // one "Variant" dropdown to keep the bar from crowding. Each section only
   // appears when it has content; the menu shows whenever any of them does.
-  const showArtVariantSection =
-    !hiddenSections?.has("artVariants") && availableFilters.artVariants.length > 1;
-  const showFinishSection =
-    !hiddenSections?.has("finishes") && availableFilters.finishes.length > 1;
-  const showVariantMenu = isTop("variant") && (showArtVariantSection || showFinishSection);
+  const showArtVariantSection = shows("artVariants");
+  const showFinishSection = shows("finishes");
+  const showVariantMenu = showArtVariantSection || showFinishSection;
 
   // Signed rides in the Variant dropdown when the Art Variant section is present
   // (mirroring the expanded panel); otherwise it renders as a flag chip / More
   // row wherever the Variant unit lives (see FilterChipSections).
-  const signedInVariantMenu =
-    availableFilters.hasSigned &&
-    !hiddenSections?.has("signed") &&
-    showVariantMenu &&
-    showArtVariantSection;
+  const signedInVariantMenu = shows("signed") && showArtVariantSection;
 
   // Stats: the printed gameplay sliders only (Energy/Might/Power, always shown
   // unless hidden). Price and Copies are value/collection ranges under their
   // own placement units, each with its own chip when promoted.
-  const showStats =
-    isTop("stats") &&
-    (!hiddenSections?.has("energy") ||
-      !hiddenSections?.has("might") ||
-      !hiddenSections?.has("power"));
+  const showStats = shows("energy") || shows("might") || shows("power");
 
   // The three printed-stat ranges, paired with their available bounds so a
   // single active one can resolve open-ended sides into a readable label.
@@ -645,9 +651,8 @@ export function CompactFilterBar({
   // Price gets its own dropdown chip when promoted; otherwise it rides as a
   // slider row in the "More" menu. Owned's promoted chip (buckets + the Copies
   // slider, one chip for the one unit) is OwnedFilterChip below.
-  const showPriceChip =
-    isTop("price") && !hiddenSections?.has("price") && availableFilters.price.max > 0;
-  const showOwnedChip = isTop("owned") && !hiddenSections?.has("owned");
+  const showPriceChip = shows("price");
+  const showOwnedChip = shows("owned");
   const priceActive = filterState.priceMin !== null || filterState.priceMax !== null;
   const priceSummary = priceActive
     ? `Price ${rangeBadgeLabel(
@@ -661,82 +666,13 @@ export function CompactFilterBar({
   // The "More" trigger's count: every active selection whose unit lives in the
   // menu (including exclude companions and folded presence flags, ADR-034).
   // Promoted units surface their counts on their own chips instead.
-  const inMore = (unit: string) => !topLevelUnits.has(unit);
-  const moreActiveCount =
-    (inMore("languages") ? filterState.languages.length + filterState.languagesEx.length : 0) +
-    (inMore("sets") ? filterState.sets.length + filterState.setsEx.length : 0) +
-    (inMore("domains") ? filterState.domains.length + filterState.domainsEx.length : 0) +
-    (inMore("rarities") ? filterState.rarities.length + filterState.raritiesEx.length : 0) +
-    (inMore("types") ? filterState.types.length + filterState.typesEx.length : 0) +
-    (inMore("superTypes")
-      ? filterState.superTypes.length +
-        filterState.superTypesEx.length +
-        Number(filterState.superTypesPresence !== null)
-      : 0) +
-    (inMore("variant")
-      ? filterState.artVariants.length +
-        filterState.artVariantsEx.length +
-        filterState.finishes.length +
-        filterState.finishesEx.length +
-        Number(filterState.signed !== null)
-      : 0) +
-    (inMore("stats") ? statsActiveCount : 0) +
-    (inMore("markers")
-      ? filterState.markers.length +
-        filterState.markersEx.length +
-        Number(filterState.markersPresence !== null)
-      : 0) +
-    (inMore("channels")
-      ? filterState.channels.length +
-        filterState.channelsEx.length +
-        Number(filterState.channelsPresence !== null)
-      : 0) +
-    (inMore("customTags")
-      ? filterState.customTags.length +
-        filterState.customTagsEx.length +
-        Number(filterState.customTagsPresence !== null)
-      : 0) +
-    (inMore("keywords")
-      ? filterState.keywords.length +
-        filterState.keywordsEx.length +
-        Number(filterState.keywordsPresence !== null)
-      : 0) +
-    (inMore("tags")
-      ? filterState.tags.length +
-        filterState.tagsEx.length +
-        Number(filterState.tagsPresence !== null)
-      : 0) +
-    (inMore("cardSizes") ? filterState.cardSizes.length : 0) +
-    (inMore("owned")
-      ? filterState.owned.length +
-        Number(filterState.ownedCountMin !== null || filterState.ownedCountMax !== null)
-      : 0) +
-    (inMore("price") ? Number(priceActive) : 0) +
-    (inMore("banned") ? Number(filterState.banned !== null) : 0) +
-    (inMore("errata") ? Number(filterState.errata !== null) : 0) +
-    (inMore("standard") ? Number(filterState.standard !== null) : 0);
+  const moreActiveCount = useMoreActiveCount(topLevelUnits);
 
-  // Option lists for each cycling dropdown; a single row per value carries both
-  // the include and exclude state (ADR-034).
-  const languageOptions = (availableLanguages ?? []).map((value) => ({
-    value,
-    label: languageLabels[value] ?? value,
-  }));
-  const setOptions = availableFilters.sets.map((value) => {
-    // `value` is the set code (e.g. "OGN"). Show it in a fixed-width gutter (via
-    // `prefix`) ahead of the name so codes/names line up down the list; the
-    // combobox folds it back into the trigger and search text as "OGN — Origins".
-    const name = setDisplayLabel?.(value) ?? value;
-    return name === value ? { value, label: value } : { value, label: name, prefix: value };
-  });
-  const typeOptions = availableFilters.types.map((value) => ({
-    value,
-    label: labels.cardTypes[value],
-  }));
-  const superTypeOptions = availableFilters.superTypes.map((value) => ({
-    value,
-    label: labels.superTypes[value],
-  }));
+  // Each cycling dropdown's options, state and counts live in the shared
+  // dimension registry, so the bar's chips and the More menu's rows come from
+  // one definition per axis (a single row per value carries both the include
+  // and exclude state, ADR-034).
+  const dropdownProps = { availableFilters, availableLanguages, setDisplayLabel, filterCounts };
 
   return (
     <TooltipProvider>
@@ -746,35 +682,11 @@ export function CompactFilterBar({
         ref={barRef}
         className={cn("relative mb-3 hidden flex-wrap items-center gap-1.5 sm:flex", className)}
       >
-        {isTop("languages") &&
-          availableLanguages &&
-          availableLanguages.length > 1 &&
-          !hiddenSections?.has("languages") && (
-            <MultiSelectCombobox
-              triggerStyle="button"
-              label="Language"
-              searchPlaceholder="Search languages…"
-              emptyText="No languages match."
-              options={languageOptions}
-              selected={filterState.languages}
-              excluded={filterState.languagesEx}
-              onCycle={(value) => cycleArrayFilter("languages", "languagesEx", value)}
-              counts={filterCounts?.languages}
-            />
-          )}
-        {isTop("sets") && !hiddenSections?.has("sets") && availableFilters.sets.length > 0 && (
-          <MultiSelectCombobox
-            triggerStyle="button"
-            label="Sets"
-            searchPlaceholder="Search sets…"
-            emptyText="No sets match."
-            options={setOptions}
-            selected={filterState.sets}
-            excluded={filterState.setsEx}
-            onCycle={(value) => cycleArrayFilter("sets", "setsEx", value)}
-            counts={filterCounts?.sets}
-            mutedOptions={availableFilters.supplementalSets}
-          />
+        {shows("languages") && (
+          <FilterValueDropdown dimension="languages" triggerStyle="button" {...dropdownProps} />
+        )}
+        {shows("sets") && (
+          <FilterValueDropdown dimension="sets" triggerStyle="button" {...dropdownProps} />
         )}
         {domainCluster(labelsFit)}
         {rarityCluster(labelsFit)}
@@ -793,116 +705,37 @@ export function CompactFilterBar({
           {domainCluster(true)}
           {rarityCluster(true)}
         </div>
-        {isTop("types") && !hiddenSections?.has("types") && availableFilters.types.length > 0 && (
-          <MultiSelectCombobox
+        {shows("types") && (
+          <FilterValueDropdown dimension="types" triggerStyle="button" {...dropdownProps} />
+        )}
+        {shows("superTypes") && (
+          <FilterValueDropdown dimension="superTypes" triggerStyle="button" {...dropdownProps} />
+        )}
+        {showVariantMenu && (
+          <FilterVariantDropdown
             triggerStyle="button"
-            label="Type"
-            searchPlaceholder="Search types…"
-            emptyText="No types match."
-            options={typeOptions}
-            selected={filterState.types}
-            excluded={filterState.typesEx}
-            onCycle={(value) => cycleArrayFilter("types", "typesEx", value)}
-            icon={(value) => getFilterIconPath("types", value)}
-            iconAfterLabel
-            counts={filterCounts?.types}
+            availableFilters={availableFilters}
+            filterCounts={filterCounts}
+            showArtVariant={showArtVariantSection}
+            showFinish={showFinishSection}
+            showSignedFlag={signedInVariantMenu}
+            // Grouped Variant dropdown is short; size it to its content and
+            // only scroll when the viewport is tight, like a menu.
+            fitContent
           />
         )}
-        {isTop("superTypes") &&
-          availableFilters.superTypes.length > 0 &&
-          !hiddenSections?.has("superTypes") && (
-            <MultiSelectCombobox
-              triggerStyle="button"
-              label="Supertype"
-              searchPlaceholder="Search supertypes…"
-              emptyText="No supertypes match."
-              options={superTypeOptions}
-              selected={filterState.superTypes}
-              excluded={filterState.superTypesEx}
-              onCycle={(value) => cycleArrayFilter("superTypes", "superTypesEx", value)}
-              icon={(value) => getFilterIconPath("superTypes", value)}
-              iconAfterLabel
-              counts={filterCounts?.superTypes}
-            />
-          )}
-        {showVariantMenu &&
-          (() => {
-            // Art Variant is the primary axis (and hosts the Signed flag); Finish
-            // follows as a labeled axis. Each axis's rows cycle off → include →
-            // exclude → off (ADR-034). When only one of the two applies, the menu
-            // collapses to that single axis.
-            const artVariantOptions = availableFilters.artVariants.map((value) => ({
-              value,
-              label: labels.artVariants[value],
-            }));
-            const finishOptions = availableFilters.finishes.map((value) => ({
-              value,
-              label: labels.finishes[value],
-            }));
-            const both = showArtVariantSection && showFinishSection;
-            const primaryIsArt = showArtVariantSection;
-            const primaryOptions = primaryIsArt ? artVariantOptions : finishOptions;
-            const primaryIncludeKey = primaryIsArt ? "artVariants" : "finishes";
-            const primaryExcludeKey = primaryIsArt ? "artVariantsEx" : "finishesEx";
-            const primaryIncluded = primaryIsArt ? filterState.artVariants : filterState.finishes;
-            const primaryExcluded = primaryIsArt
-              ? filterState.artVariantsEx
-              : filterState.finishesEx;
-            const groups = both
-              ? [
-                  {
-                    label: "Finish",
-                    options: finishOptions,
-                    included: filterState.finishes,
-                    excluded: filterState.finishesEx,
-                    onCycle: (value: string) => cycleArrayFilter("finishes", "finishesEx", value),
-                    counts: filterCounts?.finishes,
-                  },
-                ]
-              : [];
-            return (
-              <MultiSelectCombobox
-                triggerStyle="button"
-                label={both ? "Variant" : showArtVariantSection ? "Art Variant" : "Finish"}
-                searchPlaceholder={both ? "Search variants…" : "Search…"}
-                emptyText={both ? "No variants match." : "No matches."}
-                primaryLabel={both ? "Art Variant" : undefined}
-                options={primaryOptions}
-                selected={primaryIncluded}
-                excluded={primaryExcluded}
-                onCycle={(value) => cycleArrayFilter(primaryIncludeKey, primaryExcludeKey, value)}
-                counts={primaryIsArt ? filterCounts?.artVariants : filterCounts?.finishes}
-                groups={groups}
-                flag={
-                  signedInVariantMenu
-                    ? {
-                        label: "Signed",
-                        state: filterState.signed,
-                        count: filterCounts?.flags.signed,
-                        onToggle: toggleSigned,
-                      }
-                    : undefined
-                }
-                // Grouped Variant dropdown is short; size it to its content and
-                // only scroll when the viewport is tight, like a menu.
-                fitContent
-              />
-            );
-          })()}
         {/* Standard sits right after Variant in the canonical order, so its
             promoted chip renders here rather than with the trailing chip
             sections (which are excluded from rendering it below). */}
-        {isTop("standard") &&
-          availableFilters.hasNonStandard &&
-          !hiddenSections?.has("standard") && (
-            <FlagBadge
-              label="Standard"
-              state={filterState.standard}
-              count={filterCounts?.flags.standard}
-              onClick={toggleStandard}
-              triggerStyle="button"
-            />
-          )}
+        {shows("standard") && (
+          <FlagBadge
+            label="Standard"
+            state={filterState.standard}
+            count={filterCounts?.flags.standard}
+            onClick={toggleStandard}
+            triggerStyle="button"
+          />
+        )}
         {showStats && (
           <FilterDropdownChip
             label="Stats"
