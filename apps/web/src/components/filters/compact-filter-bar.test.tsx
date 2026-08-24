@@ -297,12 +297,26 @@ describe("OwnedFilterChip", () => {
     setupOwnedHooks();
     render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
     await user.click(screen.getByRole("button", { name: "Owned" }));
-    expect(await screen.findByText("Full Playset")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
-    expect(screen.getByText("Partial Playset")).toBeInTheDocument();
-    expect(screen.getByText("More than Full")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Full Playset" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "None" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Partial Playset" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More than Full" })).toBeInTheDocument();
     // The slider row is labelled by its gutter text.
     expect(screen.getByText("Copies")).toBeInTheDocument();
+  });
+
+  it("marks a selected bucket row as pressed", async () => {
+    const user = userEvent.setup();
+    setupOwnedHooks({ owned: ["full"] });
+    render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
+    await user.click(screen.getByRole("button", { name: "Full Playset" }));
+    const row = await screen.findAllByRole("button", { name: "Full Playset" });
+    // The trigger (also named "Full Playset" via the summary) is not pressed;
+    // the popover row is.
+    expect(row.some((el) => el.getAttribute("aria-pressed") === "true")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Partial Playset" }).getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 
   it("toggles a bucket through the include-only handler", async () => {
@@ -310,7 +324,7 @@ describe("OwnedFilterChip", () => {
     const { toggleArrayFilter } = setupOwnedHooks();
     render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
     await user.click(screen.getByRole("button", { name: "Owned" }));
-    await user.click(await screen.findByText("Full Playset"));
+    await user.click(await screen.findByRole("button", { name: "Full Playset" }));
     expect(toggleArrayFilter).toHaveBeenCalledExactlyOnceWith("owned", "full");
   });
 
@@ -319,7 +333,7 @@ describe("OwnedFilterChip", () => {
     setupOwnedHooks();
     render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={0} />);
     await user.click(screen.getByRole("button", { name: "Owned" }));
-    expect(await screen.findByText("Full Playset")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Full Playset" })).toBeInTheDocument();
     expect(screen.queryByText("Copies")).not.toBeInTheDocument();
   });
 

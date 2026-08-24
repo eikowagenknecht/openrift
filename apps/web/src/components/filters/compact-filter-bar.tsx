@@ -1,10 +1,9 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
-import { ChevronDownIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
-import { FilterBadgeGrid } from "@/components/filters/filter-badge-row";
 import { FilterChipSections, OWNED_BUCKETS } from "@/components/filters/filter-chip-sections";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";
@@ -18,6 +17,7 @@ import {
 } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -475,12 +475,27 @@ export function OwnedFilterChip({
       contentClassName="w-80"
     >
       <div className={CHIP_POPOVER_ROWS_CLASS}>
-        <FilterBadgeGrid
-          options={OWNED_BUCKETS.map((bucket) => bucket.value)}
-          selected={filterState.owned}
-          onToggle={(value) => toggleArrayFilter("owned", value)}
-          displayLabel={bucketLabel}
-        />
+        {/* Bucket rows styled like the value dropdowns' option rows (label
+            left, check right) — the bar's popovers speak list rows, not the
+            expanded panel's badge pills. */}
+        {OWNED_BUCKETS.map((bucket) => {
+          const isSelected = filterState.owned.includes(bucket.value);
+          return (
+            <Pressable
+              key={bucket.value}
+              aria-pressed={isSelected}
+              onClick={() => toggleArrayFilter("owned", bucket.value)}
+              className="hover:bg-accent hover:text-accent-foreground relative flex w-full items-center rounded-md py-1 pr-8 pl-1.5 text-sm"
+            >
+              <span className="min-w-0 flex-1">{bucket.label}</span>
+              {isSelected && (
+                <span className="absolute right-2 flex size-4 items-center justify-center">
+                  <CheckIcon className="size-4" />
+                </span>
+              )}
+            </Pressable>
+          );
+        })}
         {showCopiesSlider && (
           <FilterRangeSections
             scope="copies"
