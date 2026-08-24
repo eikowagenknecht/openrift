@@ -14,6 +14,7 @@ import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
 import { createsCycle } from "../lib/deck-lineage.js";
+import { findByShareToken, selectShareState, updateShareRow } from "./query-helpers.js";
 
 /**
  * Locks every deck of the given families in id order (`FOR UPDATE`), so the
@@ -939,31 +940,20 @@ export function decksRepo(db: Kysely<Database>) {
       id: string,
       userId: string,
     ): Promise<Pick<Selectable<DecksTable>, "shareToken" | "isPublic"> | undefined> {
-      return db
-        .selectFrom("decks")
-        .select(["shareToken", "isPublic"])
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .executeTakeFirst();
+      return selectShareState(db, "decks", id, userId);
     },
 
     /**
      * Sets (or nulls) the share_token and is_public on a deck, scoped to the owning user.
      * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
      */
-    async setShareToken(
+    setShareToken(
       id: string,
       userId: string,
       shareToken: string | null,
       isPublic: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      return await db
-        .updateTable("decks")
-        .set({ shareToken, isPublic })
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      return updateShareRow(db, "decks", id, userId, shareToken, isPublic);
     },
 
     /**
@@ -976,21 +966,11 @@ export function decksRepo(db: Kysely<Database>) {
     ): Promise<
       { deck: Selectable<DecksTable>; ownerName: string | null; ownerEmail: string } | undefined
     > {
-      const row = await db
-        .selectFrom("decks as d")
-        .innerJoin("users as u", "u.id", "d.userId")
-        .selectAll("d")
-        .select(["u.name as ownerName", "u.email as ownerEmail"])
-        .where("d.shareToken", "=", shareToken)
-        .where("d.isPublic", "=", true)
-        .executeTakeFirst();
-
-      if (!row) {
+      const found = await findByShareToken(db, "decks", shareToken);
+      if (!found) {
         return undefined;
       }
-
-      const { ownerName, ownerEmail, ...deck } = row;
-      return { deck, ownerName, ownerEmail };
+      return { deck: found.row, ownerName: found.ownerName, ownerEmail: found.ownerEmail };
     },
 
     /**

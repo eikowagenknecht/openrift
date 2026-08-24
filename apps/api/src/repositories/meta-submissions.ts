@@ -2,7 +2,7 @@ import type { MetaSubmissionReason, MetaSubmissionStatus } from "@openrift/share
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, MetaDeckSubmissionsTable } from "../db/index.js";
-import { keysetCursorPredicate } from "./query-helpers.js";
+import { listOwnedByUser } from "./query-helpers.js";
 
 /** One ledger row exactly as stored. */
 export type MetaDeckSubmissionRow = Selectable<MetaDeckSubmissionsTable>;
@@ -58,28 +58,11 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      * @param options The cursor from the previous page and the page size.
      * @returns Up to `limit + 1` rows, so the caller can detect a next page.
      */
-    async listByUser(
+    listByUser(
       userId: string,
       options: { cursor?: string | null; limit: number },
     ): Promise<MetaDeckSubmissionRow[]> {
-      let query = db
-        .selectFrom("metaDeckSubmissions")
-        .selectAll()
-        .where("userId", "=", userId)
-        .orderBy("createdAt", "desc")
-        .orderBy("id", "desc")
-        .limit(options.limit + 1);
-      if (options.cursor) {
-        query = query.where(
-          keysetCursorPredicate(options.cursor, {
-            timeColumn: "createdAt",
-            idColumn: "id",
-            idDirection: "desc",
-          }),
-        );
-      }
-      const rows = await query.execute();
-      return rows;
+      return listOwnedByUser<MetaDeckSubmissionRow>(db, "metaDeckSubmissions", userId, options);
     },
 
     /** @returns The submission with that id, or null. */

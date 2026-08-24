@@ -4,6 +4,7 @@ import { sql } from "kysely";
 
 import type { Database, LoansTable } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
+import { notPinnedToLoan, notReservedByTrade } from "./query-helpers.js";
 
 /** Raw loan row, for the service layer's authorization / state checks. */
 export type Loan = Selectable<LoansTable>;
@@ -239,24 +240,8 @@ export function loansRepo(db: Kysely<Database>) {
         .select("cp.id")
         .where("col.userId", "=", lenderUserId)
         .where("cp.printingId", "=", printingId)
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("cardTradeCopies as ctc")
-                .select("ctc.copyId")
-                .whereRef("ctc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("loanCopies as lc")
-                .select("lc.copyId")
-                .whereRef("lc.copyId", "=", "cp.id"),
-            ),
-          ),
-        );
+        .where(notReservedByTrade)
+        .where(notPinnedToLoan);
       if (contextCollectionId !== undefined) {
         query = query.orderBy(sql`(cp.collection_id = ${contextCollectionId})`, "desc");
       }

@@ -10,7 +10,7 @@ import { toCopy } from "../../lib/copy-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(copiesContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -31,13 +31,7 @@ export const copiesRouter = {
       effectiveLimit,
       input.cursor,
     );
-    const hasMore = rows.length > effectiveLimit;
-    const items = rows.slice(0, effectiveLimit);
-    const lastItem = items.at(-1);
-    return {
-      items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
-    };
+    return keysetPage(rows, effectiveLimit, toCopy);
   }),
 
   // Batch add copies (acquisition).

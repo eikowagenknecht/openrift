@@ -8,7 +8,7 @@ import { toCardSubmissionStatus } from "../../lib/card-submission-presenters.js"
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 import {
   buildUserSubmissionCard,
   formatSubmissionDateStamp,
@@ -73,13 +73,7 @@ export const cardSubmissionsRouter = {
       limit,
     });
 
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
-    const last = items.at(-1);
-    return {
-      items: items.map((row) => toCardSubmissionStatus(row)),
-      nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
-    };
+    return keysetPage(rows, limit, toCardSubmissionStatus);
   }),
 };
 

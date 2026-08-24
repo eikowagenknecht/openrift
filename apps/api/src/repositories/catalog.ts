@@ -118,6 +118,30 @@ type CatalogPrintingRow = Omit<
   fallbackImageId: string | null;
 };
 
+/**
+ * The card fields the catalog exposes, joined with the aggregate view's slug
+ * arrays. Shared by every read that returns a {@link CatalogCardRow}, so a
+ * column added to the contract reaches all of them at once.
+ */
+const CARD_COLUMNS = [
+  "cards.id",
+  "cards.slug",
+  "cards.name",
+  "cards.type",
+  "cards.might",
+  "cards.energy",
+  "cards.power",
+  "cards.mightBonus",
+  "cards.keywords",
+  "cards.tags",
+  "cards.maxCopiesOverride",
+  "cards.comment",
+  "mca.domains",
+  "mca.superTypes",
+  "mca.tokenCardIds",
+  "mca.types",
+] as const;
+
 /** Selecting from `printings_ordered` (the view) so we get `canonical_rank` too. */
 const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.id",
@@ -158,6 +182,70 @@ function releasesJson() {
     FROM set_releases r
     WHERE r.set_id = sets.id
   ), '{}'::jsonb)`.as("releases");
+}
+
+/**
+ * Active bans (nothing unbanned) with the format's display name. Callers append
+ * their own card scope — none for the whole catalog, an `in` or an `=` for a
+ * card set or a single card — and execute.
+ *
+ * @param db The Kysely instance to query.
+ * @returns A select query yielding {@link CatalogCardBanRow}s.
+ */
+function selectCardBans(db: Kysely<Database>) {
+  return db
+    .selectFrom("cardBans")
+    .innerJoin("formats", "formats.id", "cardBans.formatId")
+    .select([
+      "cardBans.cardId",
+      "cardBans.formatId",
+      "cardBans.bannedAt",
+      "cardBans.reason",
+      "formats.name as formatName",
+    ])
+    .where("unbannedAt", "is", null);
+}
+
+/**
+ * The errata columns the catalog exposes. Callers append their own card scope
+ * and execute.
+ *
+ * @param db The Kysely instance to query.
+ * @returns A select query yielding {@link CatalogCardErrataRow}s.
+ */
+function selectCardErrata(db: Kysely<Database>) {
+  return db
+    .selectFrom("cardErrata")
+    .select([
+      "cardId",
+      "correctedRulesText",
+      "correctedEffectText",
+      "source",
+      "sourceUrl",
+      "effectiveDate",
+    ]);
+}
+
+/**
+ * Active printing images with their resolved `image_files.id`, ordered by
+ * printing then face. External-only rows are excluded here rather than at the
+ * call sites, so a page can never be handed an image it has no URL for.
+ * Callers append their own scope — a printing id list, or a `printings` join
+ * for a card's or a set's images — and execute.
+ *
+ * @param db The Kysely instance to query.
+ * @returns A select query yielding {@link CatalogPrintingImageRow}s.
+ */
+function selectPrintingImages(db: Kysely<Database>) {
+  return db
+    .selectFrom("printingImages")
+    .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+    .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
+    .where("printingImages.isActive", "=", true)
+    .where(sql`${imageId("ci")}`, "is not", null)
+    .orderBy("printingImages.printingId")
+    .orderBy("printingImages.face")
+    .$narrowType<{ imageId: NotNull }>();
 }
 
 /**
@@ -258,24 +346,7 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("cards")
         .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
-        .select([
-          "cards.id",
-          "cards.slug",
-          "cards.name",
-          "cards.type",
-          "cards.might",
-          "cards.energy",
-          "cards.power",
-          "cards.mightBonus",
-          "cards.keywords",
-          "cards.tags",
-          "cards.maxCopiesOverride",
-          "cards.comment",
-          "mca.domains",
-          "mca.superTypes",
-          "mca.tokenCardIds",
-          "mca.types",
-        ])
+        .select(CARD_COLUMNS)
         .orderBy("cards.name")
         .$narrowType<CardAggregateNarrowing>()
         .execute();
@@ -283,33 +354,12 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /** @returns All active card bans (not yet unbanned), with format display name. */
     cardBans(): Promise<CatalogCardBanRow[]> {
-      return db
-        .selectFrom("cardBans")
-        .innerJoin("formats", "formats.id", "cardBans.formatId")
-        .select([
-          "cardBans.cardId",
-          "cardBans.formatId",
-          "cardBans.bannedAt",
-          "cardBans.reason",
-          "formats.name as formatName",
-        ])
-        .where("unbannedAt", "is", null)
-        .execute();
+      return selectCardBans(db).execute();
     },
 
     /** @returns All card errata (one per card at most). */
     cardErrata(): Promise<CatalogCardErrataRow[]> {
-      return db
-        .selectFrom("cardErrata")
-        .select([
-          "cardId",
-          "correctedRulesText",
-          "correctedEffectText",
-          "source",
-          "sourceUrl",
-          "effectiveDate",
-        ])
-        .execute();
+      return selectCardErrata(db).execute();
     },
 
     /** @returns Active bans for a set of cards. */
@@ -317,19 +367,7 @@ export function catalogRepo(db: Kysely<Database>) {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
       }
-      return db
-        .selectFrom("cardBans")
-        .innerJoin("formats", "formats.id", "cardBans.formatId")
-        .select([
-          "cardBans.cardId",
-          "cardBans.formatId",
-          "cardBans.bannedAt",
-          "cardBans.reason",
-          "formats.name as formatName",
-        ])
-        .where("cardBans.cardId", "in", cardIds)
-        .where("unbannedAt", "is", null)
-        .execute();
+      return selectCardBans(db).where("cardBans.cardId", "in", cardIds).execute();
     },
 
     /** @returns Errata for a set of cards. */
@@ -337,18 +375,7 @@ export function catalogRepo(db: Kysely<Database>) {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
       }
-      return db
-        .selectFrom("cardErrata")
-        .select([
-          "cardId",
-          "correctedRulesText",
-          "correctedEffectText",
-          "source",
-          "sourceUrl",
-          "effectiveDate",
-        ])
-        .where("cardId", "in", cardIds)
-        .execute();
+      return selectCardErrata(db).where("cardId", "in", cardIds).execute();
     },
 
     /** @returns All printings in canonical order (see `printings_ordered` view). */
@@ -396,16 +423,7 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /** @returns All active printing images (front and back), ordered by printing then face. */
     printingImages(): Promise<CatalogPrintingImageRow[]> {
-      return db
-        .selectFrom("printingImages")
-        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select(["printingId", "face", imageId("ci").as("imageId")])
-        .where("isActive", "=", true)
-        .where(sql`${imageId("ci")}`, "is not", null)
-        .orderBy("printingId")
-        .orderBy("face")
-        .$narrowType<{ imageId: NotNull }>()
-        .execute();
+      return selectPrintingImages(db).execute();
     },
 
     /** @returns The total number of copies across all users. */
@@ -599,24 +617,7 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("cards")
         .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
-        .select([
-          "cards.id",
-          "cards.slug",
-          "cards.name",
-          "cards.type",
-          "cards.might",
-          "cards.energy",
-          "cards.power",
-          "cards.mightBonus",
-          "cards.keywords",
-          "cards.tags",
-          "cards.maxCopiesOverride",
-          "cards.comment",
-          "mca.domains",
-          "mca.superTypes",
-          "mca.tokenCardIds",
-          "mca.types",
-        ])
+        .select(CARD_COLUMNS)
         .where("cards.slug", "=", slug)
         .$narrowType<CardAggregateNarrowing>()
         .executeTakeFirst();
@@ -684,51 +685,20 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /** @returns Printing images for a given card's printings. */
     printingImagesByCardId(cardId: string): Promise<CatalogPrintingImageRow[]> {
-      return db
-        .selectFrom("printingImages")
-        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      return selectPrintingImages(db)
         .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
         .where("printings.cardId", "=", cardId)
-        .where("printingImages.isActive", "=", true)
-        .where(sql`${imageId("ci")}`, "is not", null)
-        .orderBy("printingImages.printingId")
-        .orderBy("printingImages.face")
-        .$narrowType<{ imageId: NotNull }>()
         .execute();
     },
 
     /** @returns Active bans for a single card. */
     cardBansByCardId(cardId: string): Promise<CatalogCardBanRow[]> {
-      return db
-        .selectFrom("cardBans")
-        .innerJoin("formats", "formats.id", "cardBans.formatId")
-        .select([
-          "cardBans.cardId",
-          "cardBans.formatId",
-          "cardBans.bannedAt",
-          "cardBans.reason",
-          "formats.name as formatName",
-        ])
-        .where("cardBans.cardId", "=", cardId)
-        .where("unbannedAt", "is", null)
-        .execute();
+      return selectCardBans(db).where("cardBans.cardId", "=", cardId).execute();
     },
 
     /** @returns Errata for a single card, or `undefined`. */
     cardErrataByCardId(cardId: string): Promise<CatalogCardErrataRow | undefined> {
-      return db
-        .selectFrom("cardErrata")
-        .select([
-          "cardId",
-          "correctedRulesText",
-          "correctedEffectText",
-          "source",
-          "sourceUrl",
-          "effectiveDate",
-        ])
-        .where("cardId", "=", cardId)
-        .executeTakeFirst();
+      return selectCardErrata(db).where("cardId", "=", cardId).executeTakeFirst();
     },
 
     /** @returns Sets matching the given IDs. */
@@ -785,24 +755,7 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("cards")
         .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
-        .select([
-          "cards.id",
-          "cards.slug",
-          "cards.name",
-          "cards.type",
-          "cards.might",
-          "cards.energy",
-          "cards.power",
-          "cards.mightBonus",
-          "cards.keywords",
-          "cards.tags",
-          "cards.maxCopiesOverride",
-          "cards.comment",
-          "mca.domains",
-          "mca.superTypes",
-          "mca.tokenCardIds",
-          "mca.types",
-        ])
+        .select(CARD_COLUMNS)
         .where("cards.id", "in", ids)
         .orderBy("cards.name")
         .$narrowType<CardAggregateNarrowing>()
@@ -811,17 +764,9 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /** @returns Printing images for a given set's printings. */
     printingImagesBySetId(setId: string): Promise<CatalogPrintingImageRow[]> {
-      return db
-        .selectFrom("printingImages")
-        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      return selectPrintingImages(db)
         .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
         .where("printings.setId", "=", setId)
-        .where("printingImages.isActive", "=", true)
-        .where(sql`${imageId("ci")}`, "is not", null)
-        .orderBy("printingImages.printingId")
-        .orderBy("printingImages.face")
-        .$narrowType<{ imageId: NotNull }>()
         .execute();
     },
 
@@ -933,16 +878,8 @@ export function catalogRepo(db: Kysely<Database>) {
       if (printingIds.length === 0) {
         return Promise.resolve([]);
       }
-      return db
-        .selectFrom("printingImages")
-        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
+      return selectPrintingImages(db)
         .where("printingImages.printingId", "in", printingIds)
-        .where("printingImages.isActive", "=", true)
-        .where(sql`${imageId("ci")}`, "is not", null)
-        .orderBy("printingImages.printingId")
-        .orderBy("printingImages.face")
-        .$narrowType<{ imageId: NotNull }>()
         .execute();
     },
 

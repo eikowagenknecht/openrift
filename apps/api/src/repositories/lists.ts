@@ -26,10 +26,13 @@ import { DeleteResult, sql } from "kysely";
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
 import type { PrintingDetail } from "./query-helpers.js";
 import {
+  findByShareToken,
   imageId,
   joinFrontImage,
   printingDetailsByIds,
   selectCopyWithCard,
+  selectShareState,
+  updateShareRow,
 } from "./query-helpers.js";
 
 /**
@@ -445,18 +448,11 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       id: string,
       userId: string,
     ): Promise<{ shareToken: string | null; isPublic: boolean } | undefined> {
-      return db
-        .selectFrom("lists")
-        .select(["shareToken", "isPublic"])
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .executeTakeFirst();
+      return selectShareState(db, "lists", id, userId);
     },
 
     /**
-     * Sets (or nulls) the share_token and is_public flag. Mirrors the deck
-     * pattern: `is_public=true` with a token means "shareable by link"; both
-     * null + false means private.
+     * Sets (or nulls) the share_token and is_public flag.
      * @returns The updated list row, or `undefined` if not owned by the user.
      */
     setShareToken(
@@ -465,13 +461,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       shareToken: string | null,
       isPublic: boolean,
     ): Promise<Selectable<ListsTable> | undefined> {
-      return db
-        .updateTable("lists")
-        .set({ shareToken, isPublic })
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      return updateShareRow(db, "lists", id, userId, shareToken, isPublic);
     },
 
     /**
@@ -484,21 +474,11 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     ): Promise<
       { list: Selectable<ListsTable>; ownerName: string | null; ownerEmail: string } | undefined
     > {
-      const row = await db
-        .selectFrom("lists as l")
-        .innerJoin("users as u", "u.id", "l.userId")
-        .selectAll("l")
-        .select(["u.name as ownerName", "u.email as ownerEmail"])
-        .where("l.shareToken", "=", shareToken)
-        .where("l.isPublic", "=", true)
-        .executeTakeFirst();
-
-      if (!row) {
+      const found = await findByShareToken(db, "lists", shareToken);
+      if (!found) {
         return undefined;
       }
-
-      const { ownerName, ownerEmail, ...list } = row;
-      return { list, ownerName, ownerEmail };
+      return { list: found.row, ownerName: found.ownerName, ownerEmail: found.ownerEmail };
     },
 
     /**
@@ -1524,8 +1504,11 @@ async function copyEntryQuery(
       .innerJoin("printings as p", "p.id", "cp.printingId")
       .innerJoin("cards as card", "card.id", "p.cardId"),
   )
-    // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
-    // join can't multiply rows. Its presence means the copy is reserved.
+    // Deliberately a join rather than the `notReservedByTrade` /
+    // `notPinnedToLoan` predicates in query-helpers: this query *reports* both
+    // states as flags on the entry instead of filtering the copies out. A copy
+    // is pinned to at most one live trade (UNIQUE copy_id), so the join can't
+    // multiply rows; its presence means the copy is reserved.
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
     // Same shape for loans (ADR-039): at most one live loan per copy.
     .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")

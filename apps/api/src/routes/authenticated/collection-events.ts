@@ -5,7 +5,7 @@ import { implement } from "@orpc/server";
 import { toCollectionEvent } from "../../lib/collection-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(collectionEventsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -17,12 +17,6 @@ export const collectionEventsRouter = {
 
     const rows = await collectionEvents.listForUser(userId, limit, input.cursor);
 
-    const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit);
-    const lastItem = items.at(-1);
-    return {
-      items: items.map((r) => toCollectionEvent(r)),
-      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
-    };
+    return keysetPage(rows, limit, toCollectionEvent);
   }),
 };

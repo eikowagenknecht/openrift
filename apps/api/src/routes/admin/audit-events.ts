@@ -1,9 +1,10 @@
 import { adminAuditEventsContract } from "@openrift/shared/contracts/admin/audit-events";
 import { implement } from "@orpc/server";
 
+import { toAuditEvent } from "../../lib/audit-event-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(adminAuditEventsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -25,17 +26,7 @@ export const adminAuditEventsRouter = {
     );
 
     // The repo fetches limit + 1 rows to probe for another page.
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
-    const last = page.at(-1);
-
-    return {
-      items: page.map((row) => ({
-        ...row,
-        createdAt: row.createdAt.toISOString(),
-      })),
-      nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
-    };
+    return keysetPage(rows, limit, toAuditEvent);
   }),
 
   actors: os.actors.handler(async ({ context }) => {

@@ -2,8 +2,10 @@ import { ERROR_CODES } from "@openrift/shared";
 import type { Finish, Rarity } from "@openrift/shared/types";
 import type {
   Expression,
+  ExpressionBuilder,
   Kysely,
   RawBuilder,
+  Selectable,
   SelectQueryBuilder,
   SqlBool,
   StringReference,
@@ -11,7 +13,12 @@ import type {
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import type { ImageFilesTable, PrintingImagesTable, PrintingsTable } from "../db/tables.js";
+import type {
+  CopiesTable,
+  ImageFilesTable,
+  PrintingImagesTable,
+  PrintingsTable,
+} from "../db/tables.js";
 import { AppError } from "../errors.js";
 
 /**
@@ -83,6 +90,96 @@ const CURSOR_SEPARATOR = "_";
  */
 export function buildKeysetCursor(createdAt: Date, id: string): string {
   return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
+}
+
+/** One page of a keyset-paginated list, as every list handler returns it. */
+export interface KeysetPage<TItem> {
+  items: TItem[];
+  nextCursor: string | null;
+}
+
+/**
+ * Turns an over-fetched row set into a response page. The repositories fetch
+ * `limit + 1` rows so the extra row proves another page exists; this drops it,
+ * maps what remains, and builds the next cursor from the last kept row.
+ *
+ * @param rows Up to `limit + 1` rows, in the query's own order.
+ * @param limit The page size the caller asked for.
+ * @param toItem Maps one row to its response item.
+ * @returns The mapped items and the cursor for the next page (null on the last).
+ */
+export function keysetPage<TRow extends { createdAt: Date; id: string }, TItem>(
+  rows: TRow[],
+  limit: number,
+  toItem: (row: TRow) => TItem,
+): KeysetPage<TItem> {
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  return {
+    items: page.map((row) => toItem(row)),
+    nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
+  };
+}
+
+/** The row shape {@link listOwnedByUser} needs: an owner, and the keyset pair. */
+interface OwnedKeysetRow {
+  userId: string;
+  createdAt: Date;
+  id: string;
+}
+
+/** Tables that carry {@link OwnedKeysetRow}'s three columns, so they can be paged by owner. */
+type OwnedKeysetTable = {
+  [K in keyof Database]: Database[K] extends {
+    userId: unknown;
+    createdAt: unknown;
+    id: unknown;
+  }
+    ? K
+    : never;
+}[keyof Database];
+
+/**
+ * One user's rows from an owner-scoped ledger, newest first and keyset
+ * paginated on `(created_at desc, id desc)`. The submission ledgers differ only
+ * in their table, so they delegate here and keep their own row types.
+ *
+ * The internal casts are what let one helper serve every such table: the table
+ * name is a runtime value, so the column references cannot be resolved against
+ * a specific table at compile time. `OwnedKeysetTable` still keeps the argument
+ * from naming a table that lacks the columns.
+ *
+ * @param db The Kysely instance to query.
+ * @param table The ledger to read.
+ * @param userId The owner whose rows to return.
+ * @param options The cursor from the previous page and the page size.
+ * @returns Up to `limit + 1` rows, so the caller can detect a next page.
+ */
+export async function listOwnedByUser<TRow>(
+  db: Kysely<Database>,
+  table: OwnedKeysetTable,
+  userId: string,
+  options: { cursor?: string | null; limit: number },
+): Promise<TRow[]> {
+  let query = (db as unknown as Kysely<{ owned: OwnedKeysetRow }>)
+    .selectFrom(table as "owned")
+    .selectAll()
+    .where("userId", "=", userId)
+    .orderBy("createdAt", "desc")
+    .orderBy("id", "desc")
+    .limit(options.limit + 1);
+  if (options.cursor) {
+    query = query.where(
+      keysetCursorPredicate(options.cursor, {
+        timeColumn: "createdAt",
+        idColumn: "id",
+        idDirection: "desc",
+      }),
+    );
+  }
+  const rows = await query.execute();
+  return rows as TRow[];
 }
 
 /**
@@ -297,5 +394,207 @@ export async function printingDetailsByIds(
         imageId: row.imageId,
       },
     ]),
+  );
+}
+
+/**
+ * The tables whose sharing follows the deck pattern: a `share_token` column
+ * armed by an `is_public` flag, owned through a non-null `user_id`, and
+ * revoked by nulling both. `collections` deliberately isn't one of them — it
+ * touches `updated_at` on every share write, scopes its setter by id alone
+ * (group admins share collections they don't own), and its public lookup can
+ * take the owner label from a friend group instead of a user.
+ */
+type ShareableTable = "lists" | "decks" | "tierLists";
+
+/** A shareable row's sharing fields: the token, and the flag that arms it. */
+export interface ShareState {
+  shareToken: string | null;
+  isPublic: boolean;
+}
+
+/*
+ * The four helpers below pin their query builder to one concrete table
+ * (`table as "lists"`) while the runtime value of `table` supplies the real
+ * name in the emitted SQL. Every ShareableTable carries the same four columns
+ * with the same types, so the pinned shape describes all of them; the two
+ * row-returning helpers cast the result back to the caller's own table.
+ */
+
+/**
+ * Reads the share state of a row the caller owns. A row that exists but has
+ * never been shared reports `{ shareToken: null, isPublic: false }`, which is
+ * what lets a route tell "not yours" (undefined, so 404) apart from "yours,
+ * not shared yet".
+ *
+ * @param db The Kysely instance to query.
+ * @param table Which shareable table to read from.
+ * @param id The row id.
+ * @param userId The user the row must belong to.
+ * @returns The share state, or `undefined` when the row isn't the user's.
+ */
+export function selectShareState(
+  db: Kysely<Database>,
+  table: ShareableTable,
+  id: string,
+  userId: string,
+): Promise<ShareState | undefined> {
+  return db
+    .selectFrom(table as "lists")
+    .select(["shareToken", "isPublic"])
+    .where("id", "=", id)
+    .where("userId", "=", userId)
+    .executeTakeFirst();
+}
+
+/**
+ * The owner-scoped share update both {@link updateShareRow} and
+ * {@link updateShareState} run; they differ only in what they return.
+ * @returns The update builder, without a RETURNING clause.
+ */
+function shareUpdate(
+  db: Kysely<Database>,
+  table: ShareableTable,
+  id: string,
+  userId: string,
+  shareToken: string | null,
+  isPublic: boolean,
+) {
+  return db
+    .updateTable(table as "lists")
+    .set({ shareToken, isPublic })
+    .where("id", "=", id)
+    .where("userId", "=", userId);
+}
+
+/**
+ * Sets (or nulls) the share token and public flag on a row the caller owns.
+ * `is_public=true` with a token means "shareable by link"; null + false means
+ * private, and clearing the token as well is what stops a revoked link from
+ * ever coming back to life.
+ *
+ * @param db The Kysely instance to query.
+ * @param table Which shareable table to update.
+ * @param id The row id.
+ * @param userId The user the row must belong to.
+ * @param shareToken The new token, or `null` to revoke.
+ * @param isPublic Whether the link is live.
+ * @returns The whole updated row, or `undefined` when it isn't the user's.
+ */
+export async function updateShareRow<T extends ShareableTable>(
+  db: Kysely<Database>,
+  table: T,
+  id: string,
+  userId: string,
+  shareToken: string | null,
+  isPublic: boolean,
+): Promise<Selectable<Database[T]> | undefined> {
+  const row = await shareUpdate(db, table, id, userId, shareToken, isPublic)
+    .returningAll()
+    .executeTakeFirst();
+  return row as Selectable<Database[T]> | undefined;
+}
+
+/**
+ * {@link updateShareRow} for a caller that only needs to know the write landed:
+ * returns the two share columns instead of the whole row, so a big jsonb
+ * payload never rides back on an unshare.
+ *
+ * @param db The Kysely instance to query.
+ * @param table Which shareable table to update.
+ * @param id The row id.
+ * @param userId The user the row must belong to.
+ * @param shareToken The new token, or `null` to revoke.
+ * @param isPublic Whether the link is live.
+ * @returns The new share state, or `undefined` when the row isn't the user's.
+ */
+export function updateShareState(
+  db: Kysely<Database>,
+  table: ShareableTable,
+  id: string,
+  userId: string,
+  shareToken: string | null,
+  isPublic: boolean,
+): Promise<ShareState | undefined> {
+  return shareUpdate(db, table, id, userId, shareToken, isPublic)
+    .returning(["shareToken", "isPublic"])
+    .executeTakeFirst();
+}
+
+/**
+ * Resolves a public share token to its row plus the owner's identity.
+ * Anonymous, with no user scoping, but `is_public` is required as well as the
+ * token, so revoking sharing kills the link even while the token is still on
+ * the row. The owner's email is carried for gravatar derivation and never
+ * reaches a response on its own.
+ *
+ * @param db The Kysely instance to query.
+ * @param table Which shareable table to look the token up in.
+ * @param shareToken The token from the share link.
+ * @returns The row and its owner's name/email, or `undefined` when the token
+ * doesn't match a public row.
+ */
+export async function findByShareToken<T extends ShareableTable>(
+  db: Kysely<Database>,
+  table: T,
+  shareToken: string,
+): Promise<
+  { row: Selectable<Database[T]>; ownerName: string | null; ownerEmail: string } | undefined
+> {
+  const found = await db
+    .selectFrom(`${table} as s` as "lists as s")
+    .innerJoin("users as u", "u.id", "s.userId")
+    .selectAll("s")
+    .select(["u.name as ownerName", "u.email as ownerEmail"])
+    .where("s.shareToken", "=", shareToken)
+    .where("s.isPublic", "=", true)
+    .executeTakeFirst();
+
+  if (!found) {
+    return undefined;
+  }
+
+  const { ownerName, ownerEmail, ...row } = found;
+  return { row: row as Selectable<Database[T]>, ownerName, ownerEmail };
+}
+
+/**
+ * WHERE predicate excluding copies pinned to a live outgoing trade (ADR-019):
+ * still owned, but committed elsewhere. Correlates on the `cp`-aliased copy, so
+ * the query must already have `copies` aliased to `cp`.
+ *
+ * @param eb The expression builder Kysely hands the `where` callback.
+ * @returns A `NOT EXISTS` predicate over `card_trade_copies`.
+ */
+export function notReservedByTrade<DB extends { cp: { id: unknown } }, TB extends keyof DB>(
+  eb: ExpressionBuilder<DB, TB>,
+): Expression<SqlBool> {
+  const scoped = eb as unknown as ExpressionBuilder<Database & { cp: CopiesTable }, "cp">;
+  return scoped.not(
+    scoped.exists(
+      scoped
+        .selectFrom("cardTradeCopies as ctc")
+        .select("ctc.copyId")
+        .whereRef("ctc.copyId", "=", "cp.id"),
+    ),
+  );
+}
+
+/**
+ * The {@link notReservedByTrade} twin for loans (ADR-039): a copy out on a live
+ * loan is physically absent, so it counts for nothing whatever its collection
+ * says. Correlates on the same `cp` alias.
+ *
+ * @param eb The expression builder Kysely hands the `where` callback.
+ * @returns A `NOT EXISTS` predicate over `loan_copies`.
+ */
+export function notPinnedToLoan<DB extends { cp: { id: unknown } }, TB extends keyof DB>(
+  eb: ExpressionBuilder<DB, TB>,
+): Expression<SqlBool> {
+  const scoped = eb as unknown as ExpressionBuilder<Database & { cp: CopiesTable }, "cp">;
+  return scoped.not(
+    scoped.exists(
+      scoped.selectFrom("loanCopies as lc").select("lc.copyId").whereRef("lc.copyId", "=", "cp.id"),
+    ),
   );
 }

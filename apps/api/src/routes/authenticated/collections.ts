@@ -25,7 +25,7 @@ import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 
 const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
   name: "name",
@@ -256,14 +256,8 @@ export const collectionsRouter = {
 
     const effectiveLimit = clampCopiesLimit(input.limit);
     const rows = await copies.listForCollection(input.id, effectiveLimit, input.cursor);
-    const hasMore = rows.length > effectiveLimit;
-    const items = rows.slice(0, effectiveLimit);
-    const lastItem = items.at(-1);
 
-    return {
-      items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
-    };
+    return keysetPage(rows, effectiveLimit, toCopy);
   }),
 
   // ── POST /collections/:id/share ───────────────────────────────────────────

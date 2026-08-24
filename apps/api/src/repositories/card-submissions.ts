@@ -10,7 +10,7 @@ import type {
 } from "../db/index.js";
 import type { LivePrintingSnapshot, LiveSnapshot } from "../lib/card-submission-diff.js";
 import { buildPrintingLinkKey } from "../lib/printing-link-key.js";
-import { joinFrontImage, keysetCursorPredicate } from "./query-helpers.js";
+import { joinFrontImage, listOwnedByUser } from "./query-helpers.js";
 
 /** A ledger row with its jsonb column parsed. */
 export type CardSubmissionRow = Selectable<CardSubmissionsTable>;
@@ -53,28 +53,11 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
      * scoped by `userId` here rather than at the call site.
      * @returns Up to `limit + 1` rows, so the caller can detect a next page.
      */
-    async listByUser(
+    listByUser(
       userId: string,
       options: { cursor?: string | null; limit: number },
     ): Promise<CardSubmissionRow[]> {
-      let query = db
-        .selectFrom("cardSubmissions")
-        .selectAll()
-        .where("userId", "=", userId)
-        .orderBy("createdAt", "desc")
-        .orderBy("id", "desc")
-        .limit(options.limit + 1);
-      if (options.cursor) {
-        query = query.where(
-          keysetCursorPredicate(options.cursor, {
-            timeColumn: "createdAt",
-            idColumn: "id",
-            idDirection: "desc",
-          }),
-        );
-      }
-      const rows = await query.execute();
-      return rows;
+      return listOwnedByUser<CardSubmissionRow>(db, "cardSubmissions", userId, options);
     },
 
     /**

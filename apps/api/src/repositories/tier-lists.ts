@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, TierListRow, TierListsTable } from "../db/index.js";
+import { findByShareToken, selectShareState, updateShareState } from "./query-helpers.js";
 
 /** A tier list row with its `tiers` jsonb parsed. */
 export type TierList = Selectable<TierListsTable>;
@@ -163,18 +164,12 @@ export function tierListsRepo(db: Kysely<Database>) {
       id: string,
       userId: string,
     ): Promise<Pick<TierList, "shareToken" | "isPublic"> | undefined> {
-      return db
-        .selectFrom("tierLists")
-        .select(["shareToken", "isPublic"])
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .executeTakeFirst();
+      return selectShareState(db, "tierLists", id, userId);
     },
 
     /**
-     * Sets (or clears) the share token and public flag. Mirrors the deck and
-     * list repos, including the unique-violation surface that
-     * `withUniqueShareToken` retries on.
+     * Sets (or clears) the share token and public flag, including the
+     * unique-violation surface that `withUniqueShareToken` retries on.
      * @returns The new share state, or `undefined` when the list isn't the caller's.
      */
     setShare(
@@ -183,13 +178,7 @@ export function tierListsRepo(db: Kysely<Database>) {
       shareToken: string | null,
       isPublic: boolean,
     ): Promise<Pick<TierList, "shareToken" | "isPublic"> | undefined> {
-      return db
-        .updateTable("tierLists")
-        .set({ shareToken, isPublic })
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .returning(["shareToken", "isPublic"])
-        .executeTakeFirst();
+      return updateShareState(db, "tierLists", id, userId, shareToken, isPublic);
     },
 
     /**
@@ -198,19 +187,15 @@ export function tierListsRepo(db: Kysely<Database>) {
      * @returns The list and its owner's name, or `undefined`.
      */
     async findByShareToken(shareToken: string): Promise<SharedTierList | undefined> {
-      const row = await db
-        .selectFrom("tierLists as t")
-        .innerJoin("users as u", "u.id", "t.userId")
-        .selectAll("t")
-        .select(["u.name as ownerName", "u.email as ownerEmail"])
-        .where("t.shareToken", "=", shareToken)
-        .where("t.isPublic", "=", true)
-        .executeTakeFirst();
-      if (!row) {
+      const found = await findByShareToken(db, "tierLists", shareToken);
+      if (!found) {
         return undefined;
       }
-      const { ownerName, ownerEmail, ...tierList } = row;
-      return { tierList: withParsedTiers(tierList), ownerName, ownerEmail };
+      return {
+        tierList: withParsedTiers(found.row),
+        ownerName: found.ownerName,
+        ownerEmail: found.ownerEmail,
+      };
     },
   };
 }

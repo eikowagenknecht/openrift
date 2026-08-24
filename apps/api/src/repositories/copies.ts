@@ -3,7 +3,13 @@ import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
-import { keysetCursorPredicate, requireFrontImage, selectCopyWithCard } from "./query-helpers.js";
+import {
+  keysetCursorPredicate,
+  notPinnedToLoan,
+  notReservedByTrade,
+  requireFrontImage,
+  selectCopyWithCard,
+} from "./query-helpers.js";
 
 /**
  * Slim copy row — printing details are resolved client-side from the catalog.
@@ -407,24 +413,8 @@ export function copiesRepo(db: Kysely<Database>) {
         ])
         .where("cp.printingId", "=", printingId)
         .where("col.userId", "=", userId)
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("loanCopies as lc")
-                .select("lc.copyId")
-                .whereRef("lc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("cardTradeCopies as ctc")
-                .select("ctc.copyId")
-                .whereRef("ctc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
+        .where(notPinnedToLoan)
+        .where(notReservedByTrade)
         .execute();
     },
 
@@ -518,15 +508,7 @@ export function copiesRepo(db: Kysely<Database>) {
           .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
           // ADR-039: a copy out on a loan is physically absent, so it never
           // counts toward deck-building inventory, whatever its collection says.
-          .where(({ not, exists, selectFrom }) =>
-            not(
-              exists(
-                selectFrom("loanCopies as lc")
-                  .select("lc.copyId")
-                  .whereRef("lc.copyId", "=", "cp.id"),
-              ),
-            ),
-          )
+          .where(notPinnedToLoan)
           .groupBy(["p.cardId", "cp.printingId"])
           .execute()
       );
@@ -569,25 +551,9 @@ export function copiesRepo(db: Kysely<Database>) {
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
         // A copy out on a live loan is physically absent (ADR-039).
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("loanCopies as lc")
-                .select("lc.copyId")
-                .whereRef("lc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
+        .where(notPinnedToLoan)
         // A copy reserved for a live outgoing trade is committed elsewhere (ADR-019).
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("cardTradeCopies as ctc")
-                .select("ctc.copyId")
-                .whereRef("ctc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
+        .where(notReservedByTrade)
         .groupBy("p.cardId")
         .execute();
       return new Map(rows.map((row) => [row.cardId, row.count]));
@@ -630,24 +596,8 @@ export function copiesRepo(db: Kysely<Database>) {
         // Only the copies the general availability rule leaves out: everything
         // else is already in `buildableCountByCard`.
         .where(deckbuildingAvailableSql(), "=", false)
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("loanCopies as lc")
-                .select("lc.copyId")
-                .whereRef("lc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
-        .where(({ not, exists, selectFrom }) =>
-          not(
-            exists(
-              selectFrom("cardTradeCopies as ctc")
-                .select("ctc.copyId")
-                .whereRef("ctc.copyId", "=", "cp.id"),
-            ),
-          ),
-        )
+        .where(notPinnedToLoan)
+        .where(notReservedByTrade)
         .groupBy(["cp.collectionId", "p.cardId"])
         .execute();
       const byCollection = new Map<string, Map<string, number>>();

@@ -9,7 +9,7 @@ import { getFavoriteMarketplace } from "../../lib/preferences.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { clampCopiesLimit } from "../../repositories/copies.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(publicCollectionsContract).$context<ApiContext>().use(requireUser);
 
@@ -37,14 +37,12 @@ export const publicCollectionsRouter = {
         effectiveLimit,
         input.cursor,
       );
-      const hasMore = rows.length > effectiveLimit;
-      const items = rows.slice(0, effectiveLimit);
-      const lastItem = items.at(-1);
+      const { items, nextCursor } = keysetPage(rows, effectiveLimit, toPublicCopy);
 
       return {
         collection: toPublicCollection(found.collection, value),
-        items: items.map((row) => toPublicCopy(row)),
-        nextCursor: hasMore && lastItem ? buildKeysetCursor(lastItem.createdAt, lastItem.id) : null,
+        items,
+        nextCursor,
         owner: {
           displayName: found.ownerName ?? "Anonymous",
           // null for group-owned collections (a group has no email/gravatar).

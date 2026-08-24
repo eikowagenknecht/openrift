@@ -8,7 +8,7 @@ import { toMetaDeckSubmission } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { keysetPage } from "../../repositories/query-helpers.js";
 import type { Variables } from "../../types.js";
 
 /** A decklist is a few hundred short text lines, never a binary upload. */
@@ -68,13 +68,7 @@ export const metaSubmissionsRouter = {
       limit,
     });
 
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
-    const last = items.at(-1);
-    return {
-      items: items.map((row) => toMetaDeckSubmission(row)),
-      nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
-    };
+    return keysetPage(rows, limit, toMetaDeckSubmission);
   }),
 
   creditVisibility: os.creditVisibility.handler(async ({ context }) => {
