@@ -23,9 +23,9 @@ import { getDeckCardKey } from "@/lib/deck-builder-card";
  */
 
 /**
- * The card-level marks a box row renders, the same ones the deck list shows:
- * name, domains, and the two costs. Carried per row rather than looked up at
- * render time, because the sweep names cards the deck doesn't run.
+ * The card-level marks a box row renders: name, types and domains. Carried per
+ * row rather than looked up at render time, because the sweep names cards the
+ * deck doesn't run.
  */
 export interface DeckBoxCard {
   cardId: string;
@@ -34,8 +34,6 @@ export interface DeckBoxCard {
   types: CardType[];
   tags: string[];
   domains: Domain[];
-  energy: number | null;
-  power: number | null;
 }
 
 /**
@@ -295,8 +293,6 @@ export function toBoxCardFromDeck(card: DeckBuilderCard): DeckBoxCard {
     types: card.cardTypes,
     tags: card.tags,
     domains: card.domains,
-    energy: card.energy,
-    power: card.power,
   };
 }
 
@@ -311,8 +307,6 @@ function toBoxCardFromCatalog(cardId: string, card: Card): DeckBoxCard {
     types: card.types,
     tags: card.tags,
     domains: card.domains,
-    energy: card.energy,
-    power: card.power,
   };
 }
 

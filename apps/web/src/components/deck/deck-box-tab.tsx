@@ -12,7 +12,6 @@ import { toast } from "sonner";
 
 import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { MoveDialog } from "@/components/collection/move-dialog";
-import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
 import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,6 @@ const BOX_ZONE_ORDER: readonly DeckZone[] = [
  */
 interface BoxRowLabels extends VariantLabelEnumLabels {
   rarities: Record<string, string>;
-  domains: Record<string, string>;
   conditions: Record<string, string>;
   domainColors: Record<string, string>;
 }
@@ -126,7 +124,6 @@ export function DeckBoxTab({
   const domainColors = useDomainColors();
   const labels: BoxRowLabels = {
     rarities: enumLabels.rarities,
-    domains: enumLabels.domains,
     finishes: enumLabels.finishes,
     artVariants: enumLabels.artVariants,
     cardSizes: enumLabels.cardSizes,
@@ -581,7 +578,7 @@ function SlotRow({
       onOpen={onOpen}
       muted
       leading={<span className="size-4 shrink-0" />}
-      trailing={<span className="text-muted-foreground shrink-0 text-xs">don&apos;t own it</span>}
+      trailing={<span className="text-muted-foreground shrink-0 text-xs">not owned</span>}
     />
   );
 }
@@ -647,7 +644,9 @@ function SourcePicker({
   );
   if (slot.alternatives.length === 0) {
     return (
-      <span className="text-muted-foreground max-w-24 shrink-0 truncate text-xs">{source}</span>
+      <span className="text-muted-foreground max-w-1/2 min-w-0 shrink truncate text-xs">
+        {source}
+      </span>
     );
   }
 
@@ -663,11 +662,11 @@ function SourcePicker({
           <Button
             variant="ghost"
             size="xs"
-            className="max-w-32 shrink-0 text-xs"
+            className="max-w-1/2 min-w-0 shrink text-xs"
             aria-label={`Take a different copy of ${card.name}`}
             onClick={rowControlClick()}
           >
-            <span className="truncate">{source}</span>
+            <span className="min-w-0 truncate">{source}</span>
             <span className="text-muted-foreground">+{slot.alternatives.length}</span>
           </Button>
         }
@@ -709,10 +708,9 @@ function SourcePicker({
 }
 
 /**
- * One row of the box, in the deck list's shape: art, domain pip, printing code,
- * name, then the two costs. No count and no price — a row is one physical copy,
- * and what it needs instead is enough about the printing to tell two copies of
- * the same card apart.
+ * One row of the box: art, domain pip, printing code, name, then the marks that
+ * tell two copies of the same card apart. No costs, count or price — a row is
+ * one physical copy, and the space goes to naming that copy instead.
  * @returns The row.
  */
 function BoxRow({
@@ -755,13 +753,6 @@ function BoxRow({
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
         {legendDisplayName({ name: card.name, types: card.types, tags: card.tags })}
       </span>
-      <PowerPips
-        power={card.power}
-        domains={card.domains}
-        colors={labels.domainColors}
-        domainLabels={labels.domains}
-      />
-      {card.energy !== null && <EnergyGlyph value={card.energy} />}
       {copy && <CopyDetails copy={copy} labels={labels} siblings={siblings} />}
       {trailing}
     </div>
