@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Decks): **Card previews in the Test tab** — hovering a sample hand card or a draw-odds row now shows the card, clicking an odds row opens its details, and the buttons no longer shift around between draws.
 - feat(Decks): **Box and Plan tabs say what they do** — each tab now opens with a line explaining it, including what happens when you tick a card into the box.
 - feat(Decks): **Card art in the box copy picker** — picking a different copy now shows each one's art and code, grouped under the collection it sits in, and the list takes the arrow keys.
 - feat(Decks): **Card details from the Box tab** — clicking a row in a deck's Box tab now opens the card, showing the exact printing you're about to pull off the shelf.

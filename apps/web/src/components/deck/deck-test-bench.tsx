@@ -18,6 +18,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
+import { cardHoverProps, rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
 import {
@@ -265,6 +267,8 @@ export function DeckTestBench({
   oddsConfig,
   onSaveOddsConfig,
   getThumbnail,
+  onHoverCard,
+  onCardClick,
 }: {
   cards: DeckBuilderCard[];
   /** Keys the device-local odds-group state (viewer overrides, local decks). */
@@ -278,6 +282,9 @@ export function DeckTestBench({
   /** Owner save path. Absent on read-only views — viewer toggles stay local. */
   onSaveOddsConfig?: (config: DeckOddsConfig) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  onHoverCard?: HoverHandler;
+  /** Opens a card's detail from an odds-table row. */
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const [bench, setBench] = useState<BenchState | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -314,6 +321,8 @@ export function DeckTestBench({
         };
       }),
     );
+
+  const printingByCardId = new Map(pool.map((copy) => [copy.cardId, copy.preferredPrintingId]));
 
   const oddsRows = buildDrawOddsRows(testCards);
   const hasRunes = cards.some((card) => card.zone === WellKnown.deckZone.RUNES);
@@ -507,7 +516,7 @@ export function DeckTestBench({
   };
 
   const mulliganSelected = () => {
-    // hasDrawn matters on the keyboard path: the button is hidden after a
+    // hasDrawn matters on the keyboard path: the button is disabled after a
     // draw, but the shortcut would still fire.
     if (!bench || bench.mulliganUsed || bench.hasDrawn || selected.size === 0) {
       return;
@@ -586,10 +595,58 @@ export function DeckTestBench({
   return (
     <div className="flex flex-col gap-8 @3xl:flex-row @3xl:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <p className="text-muted-foreground text-sm">
-          Opening hand is {OPENING_HAND_SIZE} cards. You may exchange up to {MULLIGAN_LIMIT} once
-          (exchanged cards go to the bottom of the deck).
-        </p>
+        {/* The row keeps a fixed shape across states — every button stays
+            mounted with a constant label, so nothing moves under the cursor
+            between draws. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={bench ? "outline" : "default"}
+            onClick={drawHand}
+            disabled={pool.length === 0}
+            aria-keyshortcuts="N"
+          >
+            {bench ? <RotateCcwIcon className="size-4" /> : <HandIcon className="size-4" />}
+            Draw a hand
+            <Kbd
+              className={cn(
+                "max-sm:hidden",
+                // The filled variant needs the chip re-inked or it floats as a
+                // light-gray island on the primary fill.
+                !bench && "bg-primary-foreground/20 text-primary-foreground",
+              )}
+            >
+              N
+            </Kbd>
+          </Button>
+          {/* The exchange happens before any extra draw, so drawing a card
+              locks the button. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={mulliganSelected}
+            disabled={!bench || bench.mulliganUsed || bench.hasDrawn || selected.size === 0}
+            aria-keyshortcuts="E"
+          >
+            Exchange
+            <Kbd className="max-sm:hidden">E</Kbd>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={drawNext}
+            disabled={!bench || bench.library.length === 0}
+            aria-keyshortcuts="D"
+          >
+            Draw a card
+            <Kbd className="max-sm:hidden">D</Kbd>
+          </Button>
+          {bench && (
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {bench.library.length} left in deck
+            </span>
+          )}
+        </div>
         {bench ? (
           <div className="flex flex-wrap items-start gap-2">
             {bench.hand.map((card) => {
@@ -599,6 +656,7 @@ export function DeckTestBench({
               return (
                 <Pressable
                   key={card.key}
+                  {...cardHoverProps(onHoverCard, card.cardId, card.preferredPrintingId)}
                   onClick={() => toggleSelected(card.key)}
                   aria-pressed={isSelected}
                   aria-label={canExchange ? `${card.cardName} — select to exchange` : card.cardName}
@@ -634,62 +692,6 @@ export function DeckTestBench({
             Draw a sample hand to see how the deck opens.
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={bench ? "outline" : "default"}
-            onClick={drawHand}
-            disabled={pool.length === 0}
-            aria-keyshortcuts="N"
-          >
-            {bench ? <RotateCcwIcon className="size-4" /> : <HandIcon className="size-4" />}
-            {bench ? "New hand" : "Draw a hand"}
-            <Kbd
-              className={cn(
-                "max-sm:hidden",
-                // The filled variant needs the chip re-inked or it floats as a
-                // light-gray island on the primary fill.
-                !bench && "bg-primary-foreground/20 text-primary-foreground",
-              )}
-            >
-              N
-            </Kbd>
-          </Button>
-          {bench && (
-            <>
-              {/* The exchange happens before any extra draw, so the button
-                  disappears once a card has been drawn. */}
-              {!bench.hasDrawn && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={mulliganSelected}
-                  disabled={bench.mulliganUsed || selected.size === 0}
-                  aria-keyshortcuts="E"
-                >
-                  {bench.mulliganUsed
-                    ? "Mulligan used"
-                    : `Exchange ${selected.size > 0 ? selected.size : ""}`.trimEnd()}
-                  {!bench.mulliganUsed && <Kbd className="max-sm:hidden">E</Kbd>}
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={drawNext}
-                disabled={bench.library.length === 0}
-                aria-keyshortcuts="D"
-              >
-                Draw a card
-                <Kbd className="max-sm:hidden">D</Kbd>
-              </Button>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {bench.library.length} left in deck
-              </span>
-            </>
-          )}
-        </div>
-
         {sideboardRows.length > 0 && (
           <div>
             <div className="mb-1.5 flex items-center gap-2">
@@ -915,20 +917,38 @@ export function DeckTestBench({
                         </td>
                       </tr>
                     ))}
-                    {oddsRows.map((row) => (
-                      <tr key={row.cardId} className="border-t">
-                        <td className="max-w-0 truncate px-2 py-1" title={row.cardName}>
-                          <span className="text-muted-foreground tabular-nums">{row.copies}×</span>{" "}
-                          {row.cardName}
-                        </td>
-                        <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
-                          {pct(row.openingChance)}
-                        </td>
-                        <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
-                          {pct(row.earlyChance)}
-                        </td>
-                      </tr>
-                    ))}
+                    {oddsRows.map((row) => {
+                      const preferredPrintingId = printingByCardId.get(row.cardId) ?? null;
+                      const openCard = onCardClick
+                        ? () =>
+                            onCardClick({
+                              cardId: row.cardId,
+                              preferredPrintingId,
+                              zone: WellKnown.deckZone.MAIN,
+                            })
+                        : undefined;
+                      return (
+                        <tr
+                          key={row.cardId}
+                          className={cn("border-t", openCard && "hover:bg-muted/50 cursor-pointer")}
+                          {...cardHoverProps(onHoverCard, row.cardId, preferredPrintingId)}
+                          {...rowActivateProps(openCard)}
+                        >
+                          <td className="max-w-0 truncate px-2 py-1" title={row.cardName}>
+                            <span className="text-muted-foreground tabular-nums">
+                              {row.copies}×
+                            </span>{" "}
+                            {row.cardName}
+                          </td>
+                          <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
+                            {pct(row.openingChance)}
+                          </td>
+                          <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
+                            {pct(row.earlyChance)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

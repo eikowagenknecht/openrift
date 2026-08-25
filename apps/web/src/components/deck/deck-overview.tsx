@@ -378,6 +378,15 @@ export function DeckOverview({
     return preferredPrintingId;
   };
 
+  // The test bench reports plain (card, printing) hovers; resolve the owned
+  // printing here so its previews match the thumbnails it renders.
+  const hoverBenchCard: HoverHandler | undefined = onHoverCard
+    ? (cardId, preferredPrintingId) =>
+        cardId
+          ? onHoverCard(cardId, resolveHoverPrintingId(cardId, preferredPrintingId ?? null))
+          : onHoverCard(null)
+    : undefined;
+
   // One ordering pipeline for the grid and stacks modes, mirroring what the
   // list mode resolves per row: prices and rarities follow the printing on
   // screen (the owned one while "show my printings" is on).
@@ -700,6 +709,8 @@ export function DeckOverview({
           oddsConfig={oddsConfig}
           onSaveOddsConfig={onSaveOddsConfig}
           getThumbnail={resolveThumbnail}
+          onHoverCard={hoverBenchCard}
+          onCardClick={onCardClick}
         />
       )}
 
