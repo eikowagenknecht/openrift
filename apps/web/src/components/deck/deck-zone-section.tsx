@@ -17,6 +17,7 @@ import { useDeckZoneDrop } from "@/hooks/use-deck-zone-drop";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useBorrowedLenders } from "@/hooks/use-loans";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
@@ -51,7 +52,7 @@ interface DeckZoneSectionProps {
   isActive: boolean;
   shiftHeld?: boolean;
   onActivate: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   /** Full deck-items list (across all zones), used to seed the detail pane's
    * prev/next navigation when a row is clicked. */
   deckItems: CardViewerItem[];

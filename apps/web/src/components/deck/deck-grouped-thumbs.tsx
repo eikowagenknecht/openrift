@@ -3,6 +3,7 @@ import type { DeckZone } from "@openrift/shared";
 import { DeckCardGroupHeader } from "@/components/deck/deck-card-group-header";
 import { StackPile } from "@/components/deck/deck-stack-pile";
 import { ZoneThumb } from "@/components/deck/deck-zone-thumbs";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
@@ -57,10 +58,10 @@ export function GroupedThumbs({
   /** Stacks mode: piles of name strips with the last card fully visible. */
   stacked: boolean;
   isLandscape: boolean;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   if (stacked) {
     return (

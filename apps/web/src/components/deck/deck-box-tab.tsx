@@ -25,6 +25,8 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useDeckBox } from "@/hooks/use-deck-box";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
+import { cardHoverProps, rowActivateProps, rowControlClick } from "@/lib/card-row-interactions";
 import type { DeckBoxCard, DeckBoxCopy, DeckBoxSlot } from "@/lib/deck-box";
 import { toBoxCardFromDeck } from "@/lib/deck-box";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -77,6 +79,14 @@ interface DeckBoxTabProps {
   groupCards: (zoneCards: DeckBuilderCard[]) => DeckCardGroup[];
   /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
+  /**
+   * Opens the card's detail, as every other card list on the page does. Both
+   * this and `onHoverCard` are told the row's own copy, so the detail and the
+   * floating preview show the printing about to be pulled rather than the
+   * deck's preferred one.
+   */
+  onCardClick?: (card: CardOpenTarget) => void;
+  onHoverCard?: HoverHandler;
 }
 
 /**
@@ -98,6 +108,8 @@ export function DeckBoxTab({
   sortCards,
   groupCards,
   groupBy,
+  onCardClick,
+  onHoverCard,
 }: DeckBoxTabProps) {
   // Per-slot copy choices, kept for as long as the tab is open. They are a
   // preference for this pull run, not something worth persisting.
@@ -202,6 +214,17 @@ export function DeckBoxTab({
         onTick={() => move([slot], false)}
         onTakeOut={() => slot.copy && takeOut(slot.copy.copyId)}
         onSwap={swap}
+        onHoverCard={onHoverCard}
+        onOpen={
+          onCardClick
+            ? () =>
+                onCardClick({
+                  cardId: card.cardId,
+                  preferredPrintingId: slot.copy?.printingId ?? card.preferredPrintingId,
+                  zone: card.zone,
+                })
+            : undefined
+        }
       />
     ));
   };
@@ -287,6 +310,18 @@ export function DeckBoxTab({
                     copy={copy}
                     labels={labels}
                     siblings={plan.siblingPrintingsByCardId.get(entry.card.cardId) ?? []}
+                    onHoverCard={onHoverCard}
+                    // No zone: these copies aren't deck entries, so the detail
+                    // opens on the card without anchoring in the deck's list.
+                    onOpen={
+                      onCardClick
+                        ? () =>
+                            onCardClick({
+                              cardId: entry.card.cardId,
+                              preferredPrintingId: copy.printingId,
+                            })
+                        : undefined
+                    }
                     leading={<span className="size-4 shrink-0" />}
                     trailing={
                       <Button
@@ -426,6 +461,8 @@ function SlotRow({
   onTick,
   onTakeOut,
   onSwap,
+  onHoverCard,
+  onOpen,
 }: {
   card: DeckBoxCard;
   slot: DeckBoxSlot;
@@ -435,6 +472,8 @@ function SlotRow({
   onTick: () => void;
   onTakeOut: () => void;
   onSwap: (slotKey: string, copyId: string) => void;
+  onHoverCard?: HoverHandler;
+  onOpen?: () => void;
 }) {
   if (slot.state === "in-box") {
     return (
@@ -443,11 +482,14 @@ function SlotRow({
         copy={slot.copy}
         labels={labels}
         siblings={siblings}
+        onHoverCard={onHoverCard}
+        onOpen={onOpen}
         leading={
           <Checkbox
             checked
             disabled={disabled}
             aria-label={`Take ${card.name} back out of the box`}
+            onClick={rowControlClick()}
             onCheckedChange={onTakeOut}
           />
         }
@@ -462,11 +504,14 @@ function SlotRow({
         copy={slot.copy}
         labels={labels}
         siblings={siblings}
+        onHoverCard={onHoverCard}
+        onOpen={onOpen}
         leading={
           <Checkbox
             checked={false}
             disabled={disabled}
             aria-label={`Put ${card.name} in the box`}
+            onClick={rowControlClick()}
             onCheckedChange={onTick}
           />
         }
@@ -490,6 +535,8 @@ function SlotRow({
         copy={slot.copy}
         labels={labels}
         siblings={siblings}
+        onHoverCard={onHoverCard}
+        onOpen={onOpen}
         muted
         leading={
           // Same glyphs the rest of the app uses for these two states: the loan
@@ -510,6 +557,7 @@ function SlotRow({
             <Link
               to="/loans"
               className="text-muted-foreground shrink-0 text-xs underline-offset-2 hover:underline"
+              onClick={rowControlClick()}
             >
               out on loan
             </Link>
@@ -526,6 +574,8 @@ function SlotRow({
       card={card}
       labels={labels}
       siblings={siblings}
+      onHoverCard={onHoverCard}
+      onOpen={onOpen}
       muted
       leading={<span className="size-4 shrink-0" />}
       trailing={<span className="text-muted-foreground shrink-0 text-xs">don&apos;t own it</span>}
@@ -599,6 +649,7 @@ function SourcePicker({
             size="xs"
             className="max-w-32 shrink-0 text-xs"
             aria-label={`Take a different copy of ${card.name}`}
+            onClick={rowControlClick()}
           >
             <span className="truncate">{source}</span>
             <span className="text-muted-foreground">+{slot.alternatives.length}</span>
@@ -606,7 +657,7 @@ function SourcePicker({
         }
       />
       {/* p-0 because PickerList's own CommandList supplies the list inset. */}
-      <PopoverContent align="end" className="w-80 p-0">
+      <PopoverContent align="end" className="w-80 p-0" onClick={rowControlClick()}>
         <PickerList
           highlightedId={highlightedId}
           onHighlightChange={setHighlightedId}
@@ -657,6 +708,8 @@ function BoxRow({
   muted,
   leading,
   trailing,
+  onHoverCard,
+  onOpen,
 }: {
   card: DeckBoxCard;
   /** The copy the row stands for. A slot nobody owns has none. */
@@ -669,9 +722,19 @@ function BoxRow({
   leading: React.ReactNode;
   /** Trailing action or note: where to take it from, or why it can't come. */
   trailing?: React.ReactNode;
+  onHoverCard?: HoverHandler;
+  /** Opens the card's detail. Controls inside the row guard their own clicks. */
+  onOpen?: () => void;
 }) {
   return (
-    <div className="hover:bg-muted/40 flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
+    <div
+      className={cn(
+        "flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2",
+        onOpen ? "hover:bg-muted/50 cursor-pointer" : "hover:bg-muted/40",
+      )}
+      {...cardHoverProps(onHoverCard, card.cardId, copy?.printingId)}
+      {...rowActivateProps(onOpen)}
+    >
       {leading}
       <BoxCardThumb card={card} copy={copy} labels={labels} />
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>

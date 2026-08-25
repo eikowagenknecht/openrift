@@ -16,6 +16,7 @@ import { useDeckDetail } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { requiredZoneProgress } from "@/lib/deck-zone-labels";
 import { deckGlowStyle } from "@/lib/domain";
@@ -156,7 +157,7 @@ interface DeckZonePanelProps {
   deckId: string;
   onZoneClick?: (zone: DeckZone) => void;
   onOverviewClick?: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   ownershipData?: DeckOwnershipData;
   /**
    * Hides the Stats panel. Set while the overview is showing, which draws its

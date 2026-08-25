@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Pressable } from "@/components/ui/pressable";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { deckGlowStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
@@ -49,7 +50,7 @@ interface DeckHeroProps {
   signInHref?: string;
   onViewMissing?: () => void;
   /** When set, the legend/champion names in the subtitle open the card detail. */
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
   /**
    * The collection this deck is physically stored in, and the way into the Box
    * tab that fills it. Owner-only — the public share page never resolves one,
@@ -95,7 +96,7 @@ function SubtitlePivot({
   roleLabel: string;
   fullName: string;
   card: DeckBuilderCard;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const spokenName = `${roleLabel}: ${fullName}`;
   if (!onCardClick) {

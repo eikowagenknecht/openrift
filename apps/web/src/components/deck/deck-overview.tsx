@@ -58,6 +58,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { pricesQueryOptions } from "@/hooks/use-prices";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toRuleEngineCard } from "@/lib/deck-builder-card";
 import type { DeckOverviewGroup } from "@/lib/deck-card-group";
@@ -124,7 +125,7 @@ interface DeckOverviewProps {
   /** Omit on read-only views — zone tiles become non-clickable and edit affordances hide. */
   onZoneClick?: (zone: DeckZone) => void;
   onViewMissing?: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   /** Disables DnD wiring, printing-menu popovers, and edit buttons. */
   readOnly?: boolean;
   /**
@@ -143,7 +144,7 @@ interface DeckOverviewProps {
    */
   onEditDescription?: () => void;
   /** Fired when a card thumbnail is clicked. Opens the detail pane. */
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
   /**
    * Whether a plan exists. Read-only views only: drives the section nav's Plan
    * entry (linked when present, absent when not; the host renders the plan
@@ -687,6 +688,8 @@ export function DeckOverview({
           sortCards={sortZoneCards}
           groupCards={groupZoneCards}
           groupBy={groupBy}
+          onCardClick={onCardClick}
+          onHoverCard={onHoverCard}
         />
       )}
 

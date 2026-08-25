@@ -17,6 +17,7 @@ import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { useDeckZoneDrop } from "@/hooks/use-deck-zone-drop";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
@@ -66,10 +67,10 @@ export interface ZoneTileProps {
   /** Grid placement from the caller (the small-zone row's spans). */
   style?: React.CSSProperties;
   onClick?: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }
 
 /**

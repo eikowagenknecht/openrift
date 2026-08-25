@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
 import { useCards } from "@/hooks/use-cards";
 import { useHydrated } from "@/hooks/use-hydrated";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
 import { cn } from "@/lib/utils";
@@ -14,9 +15,9 @@ import { cn } from "@/lib/utils";
 interface DeckDescriptionProps {
   text: string;
   className?: string;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   /** Opens the card detail; card links fall back to plain text without it. */
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }
 
 /** The inline look of a resolved card reference inside the description. */

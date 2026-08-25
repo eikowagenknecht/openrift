@@ -11,11 +11,10 @@ import { useCardSearch } from "@/hooks/use-card-search";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import { cn } from "@/lib/utils";
 
 /** Shows a card in the page's floating preview; null clears it. */
-export type HoverHandler = (cardId: string | null, preferredPrintingId?: string | null) => void;
-
 /** One selectable card in a {@link CardPicker}. */
 interface CardCandidate {
   cardId: string;

@@ -3,6 +3,7 @@ import { WellKnown, copyLimitFor } from "@openrift/shared";
 
 import { canAddRune } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { COPY_LIMIT_ZONES, getDeckCardKey, RUNE_TARGET } from "@/lib/deck-builder-card";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
@@ -144,7 +145,7 @@ export function expandCopies(
  */
 export function overviewHoverHandler(
   stacked: boolean,
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void,
-): ((cardId: string | null, preferredPrintingId?: string | null) => void) | undefined {
+  onHoverCard?: HoverHandler,
+): HoverHandler | undefined {
   return stacked ? undefined : onHoverCard;
 }

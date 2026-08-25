@@ -15,6 +15,7 @@ import {
 } from "@/components/deck/deck-overview-geometry";
 import { ZoneThumb } from "@/components/deck/deck-zone-thumbs";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { cardInteractiveProps, deckCardDragData } from "@/lib/deck-card-interaction";
@@ -66,7 +67,7 @@ function StackStrip({
   /** Absent when the shown printing has no image — renders the text strip. */
   thumbnail?: string;
   readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
@@ -219,7 +220,7 @@ export function StackPile({
   statsFocus: StatsFocus | null;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   // The selected card holds its expansion; the pile needs it for the layout

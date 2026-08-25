@@ -36,6 +36,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import { splitsCardIntoTiles } from "@/lib/card-tiles";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -167,11 +168,11 @@ interface DeckCardBrowserProps {
   marketplace: Marketplace;
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   /** Overview-only — opens the editor's detail pane for the clicked card. The
    * editor builds the handler because it owns the deck-items list used for the
    * pane's prev/next navigation. */
-  onOverviewCardClick: (card: DeckBuilderCard) => void;
+  onOverviewCardClick: (card: CardOpenTarget) => void;
   /** Overview-only — opens the deck-details dialog from the description's
    * Edit affordance. Omitted for local decks, which have no description. */
   onEditDescription?: () => void;
@@ -252,7 +253,7 @@ function DeckOverviewForEditor({
   variantRailSlot,
 }: Omit<DeckCardBrowserProps, "deckId" | "onOverviewCardClick"> & {
   deck: DeckResponse;
-  onCardClick: (card: DeckBuilderCard) => void;
+  onCardClick: (card: CardOpenTarget) => void;
 }) {
   const cards = useDeckCards(deck.id);
   const customTagAssignments = useCustomTagAssignments();

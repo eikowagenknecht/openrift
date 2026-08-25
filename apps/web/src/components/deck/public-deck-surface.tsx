@@ -17,6 +17,7 @@ import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -164,7 +165,7 @@ function PublicDeckContent({
   const [missingOpen, setMissingOpen] = useState(false);
   // When the catalog hasn't hydrated yet, capture the click so the bridge can
   // resolve it once printings are available.
-  const [pendingClick, setPendingClick] = useState<DeckBuilderCard | null>(null);
+  const [pendingClick, setPendingClick] = useState<CardOpenTarget | null>(null);
 
   // The whole page is the deck overview, so every hover docks the preview at
   // the right edge ("main-right") instead of chasing the cursor.
@@ -190,7 +191,7 @@ function PublicDeckContent({
     };
   })();
 
-  const handleCardClick = (card: DeckBuilderCard) => setPendingClick(card);
+  const handleCardClick = (card: CardOpenTarget) => setPendingClick(card);
 
   return (
     <div
@@ -348,7 +349,7 @@ function PublicDeckOverlayBridge({
   showImages,
 }: {
   cards: DeckBuilderCard[];
-  pendingClick: DeckBuilderCard | null;
+  pendingClick: CardOpenTarget | null;
   onResolved: () => void;
   showImages: boolean;
 }) {

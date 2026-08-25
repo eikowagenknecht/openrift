@@ -6,7 +6,6 @@ import { use, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
-import type { HoverHandler } from "@/components/deck/deck-card-picker";
 import { CardChip, CardPicker } from "@/components/deck/deck-card-picker";
 import { PlanTabActionsContext } from "@/components/deck/deck-overview-tabs";
 import { SwapColumns } from "@/components/deck/swap-column-editor";
@@ -21,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckPlan, useSaveDeckPlan } from "@/hooks/use-deck-plan";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
 import {

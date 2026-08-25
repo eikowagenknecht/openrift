@@ -19,6 +19,7 @@ import type { DeckTokenEntry } from "@/hooks/use-deck-tokens";
 import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -84,7 +85,7 @@ function TokenThumb({
 }: {
   entry: DeckTokenEntry;
   onSelect: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
 }) {
   const thumbnail = tokenImageUrl(entry, "400w");
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -160,7 +161,7 @@ function TokenRow({
   domainColors: Record<string, string>;
   rarityLabels: Record<string, string>;
   onSelect: () => void;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
 }) {
   return (
     <div
@@ -229,7 +230,7 @@ export function DeckTokensSection({
   cards: DeckBuilderCard[];
   /** Which overview mode is showing — the band matches its surroundings. */
   variant: "grid" | "list";
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
 }) {
   const tokens = useDeckTokens(cards);
   // The same list the host hands its detail pane, so the index a click sets

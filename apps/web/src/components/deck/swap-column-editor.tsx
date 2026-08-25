@@ -1,5 +1,5 @@
-import type { HoverHandler } from "@/components/deck/deck-card-picker";
 import { CardChip, CardPicker } from "@/components/deck/deck-card-picker";
+import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { PlanSwapDraft, SwapDirection } from "@/lib/deck-plan";
 
 /** A card offered by a column's picker. */

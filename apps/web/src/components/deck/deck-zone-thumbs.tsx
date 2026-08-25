@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { cardInteractiveProps, deckCardDragData } from "@/lib/deck-card-interaction";
 import { STEPPER_ZONES } from "@/lib/deck-overview-derive";
@@ -207,9 +208,9 @@ export function ZoneThumb({
   /** Absent when the shown printing has no image — renders the name card. */
   thumbnail?: string;
   isLandscape: boolean;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHoverCard?: HoverHandler;
   readOnly?: boolean;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);

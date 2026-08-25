@@ -37,6 +37,8 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useBorrowedLenders } from "@/hooks/use-loans";
 import { pricesQueryOptions } from "@/hooks/use-prices";
+import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
+import { cardHoverProps, rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   getDeckCardKey,
@@ -126,8 +128,8 @@ interface DeckOverviewListProps {
   groupDir: "asc" | "desc";
   /** Active stats-chart focus: non-matching rows render dimmed. */
   statsFocus?: StatsFocus | null;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onHoverCard?: HoverHandler;
+  onCardClick?: (card: CardOpenTarget) => void;
   /**
    * The printing the viewer owns for a card, while "show my printings" is on —
    * `undefined` when the toggle is off or they own none. Built by
@@ -613,8 +615,8 @@ function GroupedRows({
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
   cardViolations: ReadonlyMap<string, string>;
   isDimmed: (card: DeckBuilderCard) => boolean;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onHoverCard?: HoverHandler;
+  onCardClick?: (card: CardOpenTarget) => void;
   draggable: boolean;
 }) {
   return (
@@ -674,8 +676,8 @@ interface DeckListRowProps {
   violationMessage?: string;
   /** Stats-chart focus active and this card isn't in it — render faded. */
   dimmed?: boolean;
-  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
-  onCardClick?: (card: DeckBuilderCard) => void;
+  onHoverCard?: HoverHandler;
+  onCardClick?: (card: CardOpenTarget) => void;
 }
 
 /**
@@ -765,20 +767,6 @@ export function DeckListRow({
   const rarity = printing?.rarity;
   const missing = (entry?.shortfall ?? 0) > 0;
 
-  const interactiveProps: React.HTMLAttributes<HTMLDivElement> = onCardClick
-    ? {
-        role: "button",
-        tabIndex: 0,
-        onClick: () => onCardClick(card),
-        onKeyDown: (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onCardClick(card);
-          }
-        },
-      }
-    : {};
-
   return (
     <div
       ref={dragRef}
@@ -796,9 +784,8 @@ export function DeckListRow({
         isDragging && card.quantity === 1 && "opacity-40",
         dimmed && "opacity-30 transition-opacity",
       )}
-      onMouseEnter={() => onHoverCard?.(card.cardId, hoverPrintingId)}
-      onMouseLeave={() => onHoverCard?.(null)}
-      {...interactiveProps}
+      {...cardHoverProps(onHoverCard, card.cardId, hoverPrintingId)}
+      {...rowActivateProps(onCardClick ? () => onCardClick(card) : undefined)}
       {...dragProps}
     >
       <CardMiniRow

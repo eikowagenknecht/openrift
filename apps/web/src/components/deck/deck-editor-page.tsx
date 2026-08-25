@@ -114,6 +114,7 @@ import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession, useUserId } from "@/lib/auth-session";
+import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
@@ -392,7 +393,7 @@ function DeckEditorContent({
     }
   }, [activeZone, sideboardHidden, setActiveZone]);
 
-  const handleOverviewCardClick = (card: DeckBuilderCard) => {
+  const handleOverviewCardClick = (card: CardOpenTarget) => {
     const printing = getPreferredPrinting(card.cardId, card.preferredPrintingId);
     if (!printing) {
       return;

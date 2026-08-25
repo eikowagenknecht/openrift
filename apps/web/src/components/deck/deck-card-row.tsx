@@ -16,6 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { HoverHandler } from "@/lib/card-row-interactions";
+import { cardHoverProps, rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
@@ -63,7 +65,7 @@ interface DeckCardRowProps {
   onDecrement?: (event: React.MouseEvent) => void;
   onRemove?: () => void;
   onClick?: () => void;
-  onHover?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onHover?: HoverHandler;
   onContextMenu?: (event: React.MouseEvent) => void;
 }
 
@@ -392,12 +394,7 @@ export function DeckCardRow({
   );
 
   const dragProps = enableDrag ? { ...listeners, ...attributes } : {};
-  const hoverProps = onHover
-    ? {
-        onMouseEnter: () => onHover(card.cardId, card.preferredPrintingId),
-        onMouseLeave: () => onHover(null),
-      }
-    : {};
+  const hoverProps = cardHoverProps(onHover, card.cardId, card.preferredPrintingId);
 
   if (onClick) {
     return (
@@ -407,24 +404,14 @@ export function DeckCardRow({
         {...dragProps}
         {...hoverProps}
       >
-        {/* oxlint-disable jsx-a11y/prefer-tag-over-role -- children contain <button> elements; a native button would create invalid nested buttons */}
         <div
-          role="button"
-          tabIndex={0}
           className={cn(baseClass, "hover:bg-muted/50 w-full cursor-pointer")}
           style={domainTint}
-          onClick={onClick}
           onContextMenu={onContextMenu}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onClick();
-            }
-          }}
+          {...rowActivateProps(onClick)}
         >
           {content}
         </div>
-        {/* oxlint-enable jsx-a11y/prefer-tag-over-role */}
       </div>
     );
   }
