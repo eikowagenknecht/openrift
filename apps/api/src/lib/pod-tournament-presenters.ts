@@ -65,13 +65,13 @@ export interface PodMemberRow {
   gamePoints: number | null;
 }
 
-export interface PodByeRow {
+interface PodByeRow {
   roundId: string;
   playerId: string;
   displayName: string;
 }
 
-export interface PodWithMembers {
+interface PodWithMembers {
   pod: Pod;
   members: PodMemberRow[];
 }
