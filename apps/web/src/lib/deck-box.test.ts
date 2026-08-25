@@ -1,7 +1,8 @@
 import type { CopyResponse, Printing } from "@openrift/shared";
+import { formatPrintingVariantLabelParts } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { DeckBoxInput } from "@/lib/deck-box";
+import type { DeckBoxCopy, DeckBoxInput, DeckBoxPlan } from "@/lib/deck-box";
 import { computeDeckBoxPlan } from "@/lib/deck-box";
 import { resetIdCounter, stubCopy, stubDeckBuilderCard, stubPrinting } from "@/test/factories";
 
@@ -440,6 +441,7 @@ describe("computeDeckBoxPlan", () => {
       missingCount: 0,
       extras: [],
       extraCount: 0,
+      siblingPrintingsByCardId: new Map(),
     });
   });
 });
@@ -509,5 +511,140 @@ describe("computeDeckBoxPlan extras", () => {
     });
     expect(plan.extras).toEqual([]);
     expect(plan.extraCount).toBe(0);
+  });
+});
+
+describe("computeDeckBoxPlan sibling printings", () => {
+  const VARIANT_LABELS = { artVariants: {}, finishes: { foil: "Foil" }, cardSizes: {} };
+
+  /**
+   * What the variant-label rule makes of a card's first slot, which is what the
+   * box row prints.
+   * @returns The label parts for that slot's copy.
+   */
+  function labelFor(plan: DeckBoxPlan, cardId: string) {
+    const copy = plan.slots.find((slot) => slot.cardId === cardId)?.copy;
+    const siblings = plan.siblingPrintingsByCardId.get(cardId) ?? [];
+    return formatPrintingVariantLabelParts(copy as DeckBoxCopy, siblings, VARIANT_LABELS);
+  }
+
+  it("gathers one printing when every copy of a card is that printing", () => {
+    const printing = stubPrinting({ cardId: "card-1", language: "EN" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        quantity: 2,
+        printings: [printing],
+        copies: [
+          stubCopy({ printingId: printing.id, collectionId: BOX }),
+          stubCopy({ printingId: printing.id, collectionId: BINDER }),
+        ],
+      }),
+    );
+    expect(plan.siblingPrintingsByCardId.get("card-1")).toEqual([printing]);
+    // Nothing on screen contradicts English, so the row says nothing at all.
+    expect(labelFor(plan, "card-1")).toEqual({ language: null, rest: [] });
+  });
+
+  it("gathers both printings when a card's copies span two languages", () => {
+    const english = stubPrinting({ cardId: "card-1", language: "EN" });
+    const german = stubPrinting({ cardId: "card-1", language: "DE" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [english, german],
+        copies: [
+          stubCopy({ printingId: english.id, collectionId: BINDER }),
+          stubCopy({ printingId: german.id, collectionId: SHOEBOX }),
+        ],
+      }),
+    );
+    expect(plan.siblingPrintingsByCardId.get("card-1")).toEqual([english, german]);
+    expect(labelFor(plan, "card-1").language).toBe("EN");
+  });
+
+  it("counts a blocked copy's printing, since the box lists it too", () => {
+    const english = stubPrinting({ cardId: "card-1", language: "EN" });
+    const german = stubPrinting({ cardId: "card-1", language: "DE" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [english, german],
+        copies: [
+          stubCopy({ printingId: english.id, collectionId: BOX }),
+          stubCopy({ printingId: german.id, collectionId: BINDER, onLoan: true }),
+        ],
+      }),
+    );
+    expect(plan.siblingPrintingsByCardId.get("card-1")).toEqual([english, german]);
+  });
+
+  it("keeps a foil unnamed where it is the only copy, and named beside a plain one", () => {
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const alone = computeDeckBoxPlan(
+      inputFor({
+        printings: [foil, plain],
+        copies: [stubCopy({ printingId: foil.id, collectionId: BINDER })],
+      }),
+    );
+    expect(labelFor(alone, "card-1").rest).toEqual([]);
+
+    const beside = computeDeckBoxPlan(
+      inputFor({
+        quantity: 2,
+        printings: [foil, plain],
+        copies: [
+          stubCopy({ printingId: foil.id, collectionId: BINDER }),
+          stubCopy({ printingId: plain.id, collectionId: BINDER }),
+        ],
+      }),
+    );
+    expect(beside.siblingPrintingsByCardId.get("card-1")).toEqual([foil, plain]);
+  });
+
+  it("scopes siblings to each card", () => {
+    const english = stubPrinting({ cardId: "card-1", language: "EN" });
+    const german = stubPrinting({ cardId: "card-1", language: "DE" });
+    const plain = stubPrinting({ cardId: "card-2", language: "EN" });
+    const plan = computeDeckBoxPlan({
+      ...inputFor({ printings: [english, german], copies: [] }),
+      cards: [
+        stubDeckBuilderCard({ cardId: "card-1", cardName: "Fire Dragon" }),
+        stubDeckBuilderCard({ cardId: "card-2", cardName: "Ice Golem" }),
+      ],
+      printingsByCardId: new Map([
+        ["card-1", [english, german]],
+        ["card-2", [plain]],
+      ]),
+      printingsById: Object.fromEntries(
+        [english, german, plain].map((printing) => [printing.id, printing]),
+      ),
+      copies: [
+        stubCopy({ printingId: english.id, collectionId: BINDER }),
+        stubCopy({ printingId: german.id, collectionId: BINDER }),
+        stubCopy({ printingId: plain.id, collectionId: BINDER }),
+      ],
+    });
+    expect(plan.siblingPrintingsByCardId.get("card-2")).toEqual([plain]);
+    expect(labelFor(plan, "card-1").language).toBe("EN");
+    expect(labelFor(plan, "card-2").language).toBeNull();
+  });
+
+  it("gathers the printings of a card the deck doesn't run", () => {
+    const deckPrinting = stubPrinting({ cardId: "card-1", language: "EN" });
+    const strayEnglish = stubPrinting({ cardId: "card-2", language: "EN" });
+    const strayGerman = stubPrinting({ cardId: "card-2", language: "DE" });
+    const plan = computeDeckBoxPlan({
+      ...inputFor({
+        printings: [deckPrinting],
+        copies: [
+          stubCopy({ printingId: strayEnglish.id, collectionId: BOX }),
+          stubCopy({ printingId: strayGerman.id, collectionId: BOX }),
+        ],
+      }),
+      printingsById: Object.fromEntries(
+        [deckPrinting, strayEnglish, strayGerman].map((printing) => [printing.id, printing]),
+      ),
+    });
+    expect(plan.extraCount).toBe(2);
+    expect(plan.siblingPrintingsByCardId.get("card-2")).toEqual([strayEnglish, strayGerman]);
   });
 });

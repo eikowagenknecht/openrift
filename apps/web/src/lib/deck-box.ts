@@ -3,9 +3,9 @@ import type {
   CardType,
   CopyResponse,
   Domain,
-  Finish,
   Printing,
   Rarity,
+  VariantLabelPrinting,
 } from "@openrift/shared";
 import { isCountedZone } from "@openrift/shared";
 
@@ -38,16 +38,18 @@ export interface DeckBoxCard {
   power: number | null;
 }
 
-/** One physical copy that could go in the box. */
-export interface DeckBoxCopy {
+/**
+ * One physical copy that could go in the box. It carries its printing's
+ * variant attributes so a row can be labelled by the shared
+ * {@link formatPrintingVariantLabelParts} rule rather than a rule of its own.
+ */
+export interface DeckBoxCopy extends VariantLabelPrinting {
   copyId: string;
   printingId: string;
   shortCode: string;
   rarity: Rarity;
   /** Front-face art of this printing, or null when it has none on file. */
   imageId: string | null;
-  language: string;
-  finish: Finish;
   condition: string | null;
   grade: number | null;
   collectionId: string;
@@ -131,6 +133,14 @@ export interface DeckBoxPlan {
   extras: DeckBoxExtra[];
   /** How many copies the extras add up to, for the section's heading. */
   extraCount: number;
+  /**
+   * The distinct printings behind each card's copies here, for
+   * {@link formatPrintingVariantLabelParts} to label a row against. Scoping
+   * siblings to the copies actually listed is what keeps a row from naming an
+   * attribute nothing on screen contradicts — an all-English collection reads
+   * no "EN", the way a single-printing tile reads no variant.
+   */
+  siblingPrintingsByCardId: ReadonlyMap<string, VariantLabelPrinting[]>;
 }
 
 export interface DeckBoxInput {
@@ -265,7 +275,11 @@ function toBoxCopy(
     rarity: printing.rarity,
     imageId: frontImageId(printing),
     language: printing.language,
+    artVariant: printing.artVariant,
     finish: printing.finish,
+    size: printing.size,
+    isSigned: printing.isSigned,
+    markers: printing.markers,
     condition: copy.condition,
     grade: copy.grade,
     collectionId: copy.collectionId,
@@ -358,6 +372,21 @@ export function computeDeckBoxPlan({
   const inBoxByCard = new Map<string, CopyResponse[]>();
   const blockedByCard = new Map<string, { loan: CopyResponse[]; trade: CopyResponse[] }>();
   const candidatesByCard = new Map<string, CopyResponse[]>();
+  // The printings behind each card's copies, deduped as they are bucketed, so a
+  // row is labelled against exactly what the box lists beside it.
+  const siblingsByCard = new Map<string, Map<string, Printing>>();
+  const noteSibling = (cardId: string, copy: CopyResponse) => {
+    const printing = printingById.get(copy.printingId) ?? printingsById[copy.printingId];
+    if (printing === undefined) {
+      return;
+    }
+    const seen = siblingsByCard.get(cardId);
+    if (seen) {
+      seen.set(printing.id, printing);
+    } else {
+      siblingsByCard.set(cardId, new Map([[printing.id, printing]]));
+    }
+  };
   for (const copy of copies) {
     const deckPrinting = printingById.get(copy.printingId);
     const isDeckCard = deckPrinting !== undefined && needsByCard.has(deckPrinting.cardId);
@@ -369,6 +398,7 @@ export function computeDeckBoxPlan({
         bucket.trade.push(copy);
       }
       blockedByCard.set(deckPrinting.cardId, bucket);
+      noteSibling(deckPrinting.cardId, copy);
       continue;
     }
     if (copy.collectionId === homeCollectionId) {
@@ -388,6 +418,7 @@ export function computeDeckBoxPlan({
       } else {
         inBoxByCard.set(cardId, [copy]);
       }
+      noteSibling(cardId, copy);
       continue;
     }
     if (!isDeckCard) {
@@ -404,6 +435,7 @@ export function computeDeckBoxPlan({
     } else {
       candidatesByCard.set(deckPrinting.cardId, [copy]);
     }
+    noteSibling(deckPrinting.cardId, copy);
   }
 
   // What fills each card's slots, best first: the copies already in the box,
@@ -589,5 +621,8 @@ export function computeDeckBoxPlan({
     missingCount,
     extras: extras.toSorted((a, b) => a.card.name.localeCompare(b.card.name)),
     extraCount,
+    siblingPrintingsByCardId: new Map(
+      [...siblingsByCard].map(([cardId, seen]) => [cardId, [...seen.values()]]),
+    ),
   };
 }

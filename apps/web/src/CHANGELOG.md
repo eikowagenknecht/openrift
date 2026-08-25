@@ -4,6 +4,8 @@
 
 ### Other
 
+- feat(Decks): **Card art in the box copy picker** — picking a different copy now shows each one's art, rarity and code, and the list takes the arrow keys.
+- fix(Decks): **Quieter deck box rows** — the box names a copy's language, finish or art variant only where it tells two of your copies apart.
 - fix(Cards): **Printing rows select on any click** — clicking a printing's code in the card detail list no longer jumps to the set page, so the whole row picks that printing.
 
 ## 2026-08-24

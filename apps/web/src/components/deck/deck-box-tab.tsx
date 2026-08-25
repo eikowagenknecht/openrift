@@ -1,5 +1,10 @@
-import type { DeckZone } from "@openrift/shared";
-import { WellKnown, getOrientation, legendDisplayName } from "@openrift/shared";
+import type { DeckZone, VariantLabelEnumLabels, VariantLabelPrinting } from "@openrift/shared";
+import {
+  WellKnown,
+  formatPrintingVariantLabelParts,
+  getOrientation,
+  legendDisplayName,
+} from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRightIcon, BoxIcon, HandHeartIcon, PackageSearchIcon } from "lucide-react";
 import { useState } from "react";
@@ -12,6 +17,7 @@ import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollections } from "@/hooks/use-collections";
@@ -47,10 +53,9 @@ const BOX_ZONE_ORDER: readonly DeckZone[] = [
  * threaded down: both hooks behind them rebuild their maps on every call, so a
  * row reading them itself would hand each row a fresh object.
  */
-interface BoxRowLabels {
+interface BoxRowLabels extends VariantLabelEnumLabels {
   rarities: Record<string, string>;
   domains: Record<string, string>;
-  finishes: Record<string, string>;
   conditions: Record<string, string>;
   domainColors: Record<string, string>;
 }
@@ -111,6 +116,8 @@ export function DeckBoxTab({
     rarities: enumLabels.rarities,
     domains: enumLabels.domains,
     finishes: enumLabels.finishes,
+    artVariants: enumLabels.artVariants,
+    cardSizes: enumLabels.cardSizes,
     conditions: enumLabels.conditions,
     domainColors,
   };
@@ -183,12 +190,14 @@ export function DeckBoxTab({
 
   const rowsFor = (card: DeckBuilderCard) => {
     const boxCard = toBoxCardFromDeck(card);
+    const siblings = plan.siblingPrintingsByCardId.get(card.cardId) ?? [];
     return (slotsByCardKey.get(getDeckCardKey(card)) ?? []).map((slot) => (
       <SlotRow
         key={slot.key}
         card={boxCard}
         slot={slot}
         labels={labels}
+        siblings={siblings}
         disabled={moveCopies.isPending}
         onTick={() => move([slot], false)}
         onTakeOut={() => slot.copy && takeOut(slot.copy.copyId)}
@@ -277,6 +286,7 @@ export function DeckBoxTab({
                     card={entry.card}
                     copy={copy}
                     labels={labels}
+                    siblings={plan.siblingPrintingsByCardId.get(entry.card.cardId) ?? []}
                     leading={<span className="size-4 shrink-0" />}
                     trailing={
                       <Button
@@ -411,6 +421,7 @@ function SlotRow({
   card,
   slot,
   labels,
+  siblings,
   disabled,
   onTick,
   onTakeOut,
@@ -419,6 +430,7 @@ function SlotRow({
   card: DeckBoxCard;
   slot: DeckBoxSlot;
   labels: BoxRowLabels;
+  siblings: readonly VariantLabelPrinting[];
   disabled: boolean;
   onTick: () => void;
   onTakeOut: () => void;
@@ -430,6 +442,7 @@ function SlotRow({
         card={card}
         copy={slot.copy}
         labels={labels}
+        siblings={siblings}
         leading={
           <Checkbox
             checked
@@ -448,6 +461,7 @@ function SlotRow({
         card={card}
         copy={slot.copy}
         labels={labels}
+        siblings={siblings}
         leading={
           <Checkbox
             checked={false}
@@ -458,9 +472,10 @@ function SlotRow({
         }
         trailing={
           <SourcePicker
-            cardName={card.name}
+            card={card}
             slot={slot}
             labels={labels}
+            siblings={siblings}
             onSwap={(copyId) => slot.slotKey && onSwap(slot.slotKey, copyId)}
           />
         }
@@ -474,6 +489,7 @@ function SlotRow({
         card={card}
         copy={slot.copy}
         labels={labels}
+        siblings={siblings}
         muted
         leading={
           // Same glyphs the rest of the app uses for these two states: the loan
@@ -509,9 +525,40 @@ function SlotRow({
     <BoxRow
       card={card}
       labels={labels}
+      siblings={siblings}
       muted
       leading={<span className="size-4 shrink-0" />}
       trailing={<span className="text-muted-foreground shrink-0 text-xs">don&apos;t own it</span>}
+    />
+  );
+}
+
+/**
+ * The art, domain bar and rarity/code column that lead a box row, wired once so
+ * the list and the copy picker read alike. The code stays on phones, unlike the
+ * deck list's: finding this exact printing in a binder is what a box row is for.
+ * @returns The row-lead cluster.
+ */
+function BoxCardThumb({
+  card,
+  copy,
+  labels,
+}: {
+  card: DeckBoxCard;
+  copy?: DeckBoxCopy;
+  labels: BoxRowLabels;
+}) {
+  return (
+    <CardMiniRow
+      className="self-stretch"
+      imageId={copy?.imageId}
+      landscape={getOrientation(card.types) === "landscape"}
+      domains={card.domains}
+      domainColors={labels.domainColors}
+      rarity={copy?.rarity}
+      rarityLabels={labels.rarities}
+      shortCode={copy?.shortCode}
+      loading="lazy"
     />
   );
 }
@@ -524,16 +571,19 @@ function SlotRow({
  * @returns The source control.
  */
 function SourcePicker({
-  cardName,
+  card,
   slot,
   labels,
+  siblings,
   onSwap,
 }: {
-  cardName: string;
+  card: DeckBoxCard;
   slot: DeckBoxSlot;
   labels: BoxRowLabels;
+  siblings: readonly VariantLabelPrinting[];
   onSwap: (copyId: string) => void;
 }) {
+  const [highlightedId, setHighlightedId] = useState("");
   const source = slot.copy?.collectionName ?? "";
   if (slot.alternatives.length === 0) {
     return (
@@ -548,37 +598,45 @@ function SourcePicker({
             variant="ghost"
             size="xs"
             className="max-w-32 shrink-0 text-xs"
-            aria-label={`Take a different copy of ${cardName}`}
+            aria-label={`Take a different copy of ${card.name}`}
           >
             <span className="truncate">{source}</span>
             <span className="text-muted-foreground">+{slot.alternatives.length}</span>
           </Button>
         }
       />
-      <PopoverContent align="end" className="w-72 p-1">
-        <p className="text-muted-foreground px-2 py-1 text-xs">Take this copy instead</p>
-        {slot.alternatives.map((alternative) => (
-          <Button
-            key={alternative.key}
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 font-normal"
-            onClick={() => onSwap(alternative.copy.copyId)}
-          >
-            <span className="text-muted-foreground font-mono text-xs">
-              {alternative.copy.shortCode}
-            </span>
-            <CopyDetails copy={alternative.copy} labels={labels} />
-            {alternative.count > 1 && (
-              <span className="text-muted-foreground text-xs tabular-nums">
-                ×{alternative.count}
+      {/* p-0 because PickerList's own CommandList supplies the list inset. */}
+      <PopoverContent align="end" className="w-80 p-0">
+        <PickerList
+          highlightedId={highlightedId}
+          onHighlightChange={setHighlightedId}
+          header={
+            <div className="px-2.5 pt-2 pb-0.5">
+              <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+                Take this copy instead
+              </p>
+            </div>
+          }
+        >
+          {slot.alternatives.map((alternative) => (
+            <PickerRow
+              key={alternative.key}
+              value={alternative.key}
+              onSelect={() => onSwap(alternative.copy.copyId)}
+            >
+              <BoxCardThumb card={card} copy={alternative.copy} labels={labels} />
+              <CopyDetails copy={alternative.copy} labels={labels} siblings={siblings} />
+              {alternative.count > 1 && (
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  ×{alternative.count}
+                </span>
+              )}
+              <span className="text-muted-foreground ml-auto truncate text-xs">
+                {alternative.copy.collectionName}
               </span>
-            )}
-            <span className="text-muted-foreground ml-auto truncate text-xs">
-              {alternative.copy.collectionName}
-            </span>
-          </Button>
-        ))}
+            </PickerRow>
+          ))}
+        </PickerList>
       </PopoverContent>
     </Popover>
   );
@@ -595,6 +653,7 @@ function BoxRow({
   card,
   copy,
   labels,
+  siblings,
   muted,
   leading,
   trailing,
@@ -603,6 +662,7 @@ function BoxRow({
   /** The copy the row stands for. A slot nobody owns has none. */
   copy?: DeckBoxCopy;
   labels: BoxRowLabels;
+  siblings: readonly VariantLabelPrinting[];
   /** Grey the card out: the row is a gap rather than something to pack. */
   muted?: boolean;
   /** Control at the row's head — the tick that moves a copy in or out. */
@@ -613,19 +673,7 @@ function BoxRow({
   return (
     <div className="hover:bg-muted/40 flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
       {leading}
-      {/* The code stays on phones, unlike the deck list's: finding this exact
-          printing in a binder is what the row is for. */}
-      <CardMiniRow
-        className="self-stretch"
-        imageId={copy?.imageId}
-        landscape={getOrientation(card.types) === "landscape"}
-        domains={card.domains}
-        domainColors={labels.domainColors}
-        rarity={copy?.rarity}
-        rarityLabels={labels.rarities}
-        shortCode={copy?.shortCode}
-        loading="lazy"
-      />
+      <BoxCardThumb card={card} copy={copy} labels={labels} />
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
         {legendDisplayName({ name: card.name, types: card.types, tags: card.tags })}
       </span>
@@ -636,26 +684,39 @@ function BoxRow({
         domainLabels={labels.domains}
       />
       {card.energy !== null && <EnergyGlyph value={card.energy} />}
-      {copy && <CopyDetails copy={copy} labels={labels} />}
+      {copy && <CopyDetails copy={copy} labels={labels} siblings={siblings} />}
       {trailing}
     </div>
   );
 }
 
 /**
- * The marks that tell two copies of the same card apart: language, finish, and
- * whether it is graded or in a recorded condition.
- * @returns The detail chips.
+ * The marks that tell two copies of the same card apart: the printing's
+ * distinguishing attributes under the app-wide variant-label rule, then whether
+ * the copy is graded or in a recorded condition. Rendered as the row's own plain
+ * run rather than through `PrintingVariantLabel`, whose language chip and
+ * "Standard" fallback both work against a dense list.
+ * @returns The detail run, or null when the copy has no mark worth naming.
  */
-function CopyDetails({ copy, labels }: { copy: DeckBoxCopy; labels: BoxRowLabels }) {
-  const parts: string[] = [copy.language];
-  if (copy.finish !== "normal") {
-    parts.push(labels.finishes[copy.finish]);
-  }
+function CopyDetails({
+  copy,
+  labels,
+  siblings,
+}: {
+  copy: DeckBoxCopy;
+  labels: BoxRowLabels;
+  /** The printings this card's copies span here, for the variant label rule. */
+  siblings: readonly VariantLabelPrinting[];
+}) {
+  const { language, rest } = formatPrintingVariantLabelParts(copy, siblings, labels);
+  const parts: string[] = language === null ? [...rest] : [language, ...rest];
   if (copy.grade !== null) {
     parts.push(`graded ${copy.grade}`);
   } else if (copy.condition !== null) {
     parts.push(labels.conditions[copy.condition]);
+  }
+  if (parts.length === 0) {
+    return null;
   }
   return (
     <Tooltip>
