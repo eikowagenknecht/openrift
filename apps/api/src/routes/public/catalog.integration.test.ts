@@ -68,8 +68,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       .values({ printingId: imagePrintingId, face: "front", imageFileId, isActive: true })
       .execute();
 
-    // Seed data has a tcgplayer variant for this printing; look up its
-    // parent product so we can attach our price row to it.
     const existing = await db
       .selectFrom("marketplaceProductVariants as mpv")
       .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -224,8 +222,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await readJson(res);
 
-      // Assert against the dedicated printing seeded in beforeAll (isolated from
-      // sibling tests that toggle the seed printings' images mid-run).
       const printing = json.printings[imagePrintingId];
       expect(printing).toBeDefined();
       expect(Array.isArray(printing.images)).toBe(true);
@@ -355,7 +351,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(await head.text()).not.toBe(await tail.text());
     });
 
-    // Sharing the tag must not break conditional GETs on the variant URLs.
     it("still serves 304 for a matching If-None-Match on a variant URL", async () => {
       const first = await app.fetch(req("GET", "/catalog?langs=EN"));
       const etag = first.headers.get("ETag") as string;

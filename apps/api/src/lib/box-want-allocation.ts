@@ -26,9 +26,9 @@ export interface BoxWantDemand {
   printingId: string | null;
   buyQuantity: number;
   /**
-   * Card demand produced purely by a rule only accepts the printings the rule's
-   * filters matched (ADR-034 amendment 3). `null` means any printing of the
-   * card satisfies the want.
+   * Card demand produced purely by a rule only accepts the printings the
+   * rule's filters matched. `null` means any printing of the card satisfies
+   * the want.
    */
   acceptablePrintingIds: ReadonlySet<string> | null;
 }
@@ -54,10 +54,6 @@ export interface BoxWantRow {
   fulfillableQuantity: number;
 }
 
-/**
- * Whether a demand entry accepts a given printing.
- * @returns True when the entry's want can be filled from that printing.
- */
 function accepts(entry: BoxWantDemand, printingId: string, cardId: string): boolean {
   // A rule-produced want only accepts the printings its filters matched, which
   // is the same gate the match view applies to a supply copy.
@@ -75,9 +71,6 @@ function accepts(entry: BoxWantDemand, printingId: string, cardId: string): bool
  * stable sequence. A card-kind entry draws on any accepted printing of its card
  * in the order the box lists them; that only decides how one total is split
  * across printings of the same card, never how much is fulfillable in total.
- * @param demand The viewer's expanded, netted wish entries.
- * @param availableByCollection Each box's takeable copies, per printing.
- * @returns One row per (box, printing) with a positive fulfillable quantity.
  */
 export function allocateBoxWants(
   demand: readonly BoxWantDemand[],

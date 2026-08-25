@@ -1,16 +1,14 @@
 import { emailButton, escapeHtml, MUTED_TEXT, renderEmailLayout } from "./layout.js";
 
 /*
- * Builder for the admin card-submission alert (ADR-036). Pure, like the trade
- * builders: it takes already-resolved data plus a pre-computed review URL and
- * returns `{ subject, html }`. Recipient selection, the opt-in gate and the send
- * live in the `card-submission-notifications` service.
+ * Builder for the admin card-submission alert. Pure, like the trade builders:
+ * it takes already-resolved data plus a pre-computed review URL and returns
+ * `{ subject, html }`. Recipient selection, the opt-in gate and the send live
+ * in the `card-submission-notifications` service.
  */
 
-/** Why the recipient is getting this — it is not trading activity. */
 const FOOTER_NOTE = "You're receiving this because you're an OpenRift admin.";
 
-/** One submitted printing, as much of it as the contribution form captured. */
 export interface CardSubmissionPrintingLine {
   publicCode: string | null;
   setName: string | null;
@@ -19,25 +17,19 @@ export interface CardSubmissionPrintingLine {
 }
 
 export interface CardSubmissionAlertEmailInput {
-  /** Display name of the admin receiving the alert; may be null. */
   recipientName: string | null;
-  /** Display name of the submitter; may be null (falls back to their email). */
   submitterName: string | null;
   submitterEmail: string;
   cardName: string;
   printings: CardSubmissionPrintingLine[];
-  /** The submitter's free-text note, or null when they left it empty. */
   note: string | null;
-  /** Deep link to the admin candidates tab, filtered to user submissions. */
   reviewUrl: string;
-  /** One-click unsubscribe link for the `cardSubmissions` channel. */
   unsubscribeUrl: string;
 }
 
 /**
  * Renders one printing as "OGN-123 · Origins · foil · EN", dropping whichever
  * parts the submission left blank.
- * @returns The escaped HTML for a single list item.
  */
 function printingLine(printing: CardSubmissionPrintingLine): string {
   const parts = [printing.publicCode, printing.setName, printing.finish, printing.language].filter(
@@ -51,7 +43,6 @@ function printingLine(printing: CardSubmissionPrintingLine): string {
 
 /**
  * Builds the "someone submitted a card" alert sent to opted-in admins.
- * @returns The subject line and full HTML body.
  */
 export function buildCardSubmissionAlertEmail(input: CardSubmissionAlertEmailInput): {
   subject: string;

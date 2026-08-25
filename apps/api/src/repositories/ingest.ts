@@ -5,21 +5,14 @@ import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../
 
 type Db = Kysely<Database>;
 
-/**
- * Bulk-read and write queries for the card source ingestion pipeline.
- * Designed to be instantiated with a transaction for all-or-nothing ingestion.
- *
- * @returns An object with ingest query methods bound to the given `db`.
- */
+// Designed to be instantiated with a transaction for all-or-nothing ingestion.
 export function ingestRepo(db: Db) {
   return {
-    // ── Bulk reads ────────────────────────────────────────────────────────────
-
     /**
-     * @returns All candidate cards for a given provider name. `extraData` comes
-     *   back as the parsed object the ingest diff compares against — jsonb
-     *   params are passed as plain values and postgres.js does the serializing,
-     *   so nothing writes JSON text into the column for a read to undo.
+     * `extraData` comes back as the parsed object the ingest diff compares
+     * against — jsonb params are passed as plain values and postgres.js does
+     * the serializing, so nothing writes JSON text into the column for a read
+     * to undo.
      */
     async allCandidateCardsForProvider(
       provider: string,
@@ -31,17 +24,14 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All cards (id + normName) for name resolution. */
     allCardNorms(): Promise<{ id: string; normName: string }[]> {
       return db.selectFrom("cards").select(["id", "normName"]).execute();
     },
 
-    /** @returns All card name aliases for fallback name resolution. */
     allCardNameAliases(): Promise<{ normName: string; cardId: string }[]> {
       return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
     },
 
-    /** @returns All printings (id + shortCode + finish + markerSlugs + language) for composite-key resolution. */
     allPrintingKeys(): Promise<
       {
         id: string;
@@ -57,7 +47,6 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All candidate printings for the given candidate card IDs. */
     async candidatePrintingsByCandidateCardIds(
       candidateCardIds: string[],
     ): Promise<Selectable<CandidatePrintingsTable>[]> {
@@ -69,12 +58,8 @@ export function ingestRepo(db: Db) {
       return rows;
     },
 
-    /**
-     * All candidate printings not yet linked to an accepted printing, joined
-     * with their candidate card's name so the relink pass can resolve the card
-     * by normalized name the same way ingest does.
-     * @returns Unlinked candidate printing rows with the owning card name.
-     */
+    // Joined with the candidate card's name so the relink pass can resolve
+    // the card by normalized name the same way ingest does.
     allUnlinkedCandidatePrintings(): Promise<
       {
         id: string;
@@ -104,7 +89,6 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /** @returns Ignored candidate card external IDs for a provider. */
     ignoredCandidateCards(provider: string): Promise<{ externalId: string }[]> {
       return db
         .selectFrom("ignoredCandidateCards")
@@ -113,11 +97,8 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /**
-     * @returns All printing link overrides (manual links that survive
-     * re-uploads). `provider` scopes a pin to one source; '' is the legacy
-     * wildcard that applies to every provider.
-     */
+    // `provider` scopes a pin to one source; '' is the legacy wildcard that
+    // applies to every provider.
     allPrintingLinkOverrides(): Promise<
       { externalId: string; finish: string; provider: string; printingId: string }[]
     > {
@@ -127,7 +108,6 @@ export function ingestRepo(db: Db) {
         .execute();
     },
 
-    /** @returns Ignored candidate printing entries for a provider. */
     ignoredCandidatePrintings(
       provider: string,
     ): Promise<{ externalId: string; finish: string | null }[]> {
@@ -139,12 +119,10 @@ export function ingestRepo(db: Db) {
     },
 
     /**
-     * Count a user's in-app submission candidates created since a cutoff.
-     * Backs the ADR-036 per-user daily cap. Counts only rows still present in
-     * `candidate_cards` (pending review) — accepted/rejected submissions have
-     * left the table, a deliberate leniency toward contributors whose earlier
-     * submissions were already processed.
-     * @returns The number of candidate cards submitted by the user since `since`.
+     * Backs the per-user daily submission cap. Counts only rows still present
+     * in `candidate_cards` (pending review) — accepted/rejected submissions
+     * have left the table, a deliberate leniency toward contributors whose
+     * earlier submissions were already processed.
      */
     async countRecentSubmissionsByUser(userId: string, since: Date): Promise<number> {
       const row = await db
@@ -168,17 +146,10 @@ export function ingestRepo(db: Db) {
       await sql`select pg_advisory_xact_lock(hashtext(${userId}))`.execute(db);
     },
 
-    // ── Writes ──────────────────────────────────────────────────────────────
-
-    /** Update a candidate card by ID. */
     async updateCandidateCard(id: string, updates: Updateable<CandidateCardsTable>): Promise<void> {
       await db.updateTable("candidateCards").set(updates).where("id", "=", id).execute();
     },
 
-    /**
-     * Insert a new candidate card.
-     * @returns The inserted candidate card ID.
-     */
     async insertCandidateCard(values: Insertable<CandidateCardsTable>): Promise<string> {
       const [inserted] = await db
         .insertInto("candidateCards")
@@ -188,7 +159,6 @@ export function ingestRepo(db: Db) {
       return inserted.id;
     },
 
-    /** Update a candidate printing by ID. */
     async updateCandidatePrinting(
       id: string,
       updates: Updateable<CandidatePrintingsTable>,
@@ -196,12 +166,10 @@ export function ingestRepo(db: Db) {
       await db.updateTable("candidatePrintings").set(updates).where("id", "=", id).execute();
     },
 
-    /** Insert a new candidate printing. */
     async insertCandidatePrinting(values: Insertable<CandidatePrintingsTable>): Promise<void> {
       await db.insertInto("candidatePrintings").values(values).execute();
     },
 
-    /** Delete candidate cards by IDs. */
     async deleteCandidateCards(ids: string[]): Promise<void> {
       if (ids.length === 0) {
         return;
@@ -209,7 +177,6 @@ export function ingestRepo(db: Db) {
       await db.deleteFrom("candidateCards").where("id", "in", ids).execute();
     },
 
-    /** Delete candidate printings by IDs. */
     async deleteCandidatePrintings(ids: string[]): Promise<void> {
       if (ids.length === 0) {
         return;

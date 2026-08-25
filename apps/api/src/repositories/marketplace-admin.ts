@@ -4,7 +4,6 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/** Listing row for a level-2 ignored product. */
 interface IgnoredProductRow {
   level: "product";
   marketplace: Marketplace;
@@ -13,7 +12,6 @@ interface IgnoredProductRow {
   createdAt: Date;
 }
 
-/** Listing row for a level-3 ignored variant. */
 interface IgnoredVariantRow {
   level: "variant";
   marketplace: Marketplace;
@@ -27,17 +25,8 @@ interface IgnoredVariantRow {
 
 type IgnoredEntry = IgnoredProductRow | IgnoredVariantRow;
 
-/**
- * Admin queries for marketplace groups, ignored products, staging overrides,
- * and price data management.
- *
- * @returns An object with marketplace admin query methods bound to the given `db`.
- */
 export function marketplaceAdminRepo(db: Kysely<Database>) {
   return {
-    // ── Marketplace groups ──────────────────────────────────────────────────
-
-    /** @returns All groups across all marketplaces. */
     listAllGroups() {
       return db
         .selectFrom("marketplaceGroups")
@@ -47,12 +36,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * @returns Count of unbound (still-unmatched) products per
-     *          marketplace+groupId. Mirrors the old staging-row count, but
-     *          reads from `marketplace_products` filtered to products with no
-     *          variant binding.
-     */
     stagingCountsByMarketplaceGroup(marketplace?: Marketplace) {
       let query = db
         .selectFrom("marketplaceProducts as mp")
@@ -81,11 +64,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /**
-     * @returns Count of mapped variants per marketplace+groupId. One row per
-     *          (marketplace, groupId) with the count of variants whose parent
-     *          product belongs to that group.
-     */
     assignedCountsByMarketplaceGroup(marketplace?: Marketplace) {
       let query = db
         .selectFrom("marketplaceProductVariants as mpv")
@@ -105,10 +83,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /**
-     * Update editable fields on a marketplace group. Pass only the fields to change.
-     * @returns `true` if a row was updated.
-     */
     async updateGroup(
       marketplace: Marketplace,
       groupId: number,
@@ -140,12 +114,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return (result?.numUpdatedRows ?? 0n) > 0n;
     },
 
-    // ── Ignored products (L2 whole-product + L3 per-variant) ───────────────
-
-    /**
-     * @returns Both level-2 (whole-product) and level-3 (per-variant) ignores
-     *          merged into a single discriminated list, newest first.
-     */
     async listIgnoredProducts(): Promise<IgnoredEntry[]> {
       const products = await db
         .selectFrom("marketplaceIgnoredProducts")
@@ -173,7 +141,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return merged.toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     },
 
-    /** @returns Product names from `marketplace_products` for the given external IDs. */
     getStagingProductNames(marketplace: Marketplace, externalIds: number[]) {
       return db
         .selectFrom("marketplaceProducts")
@@ -183,7 +150,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Insert level-2 ignored products (whole upstream listings). Skips conflicts. */
     async insertIgnoredProducts(
       values: {
         marketplace: Marketplace;
@@ -202,10 +168,9 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Insert level-3 ignored variants. Each row targets a specific marketplace
-     * SKU `(marketplace, externalId, finish, language)` — in the per-SKU
-     * product model that tuple uniquely identifies one product row. If the
-     * product row doesn't exist yet, create it so the FK is satisfied.
+     * Each row targets a marketplace SKU `(marketplace, externalId, finish,
+     * language)`, which uniquely identifies one product row in the per-SKU
+     * product model. Creates the product row first if missing, so the FK is satisfied.
      */
     async insertIgnoredVariants(
       values: {
@@ -228,7 +193,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         language: string | null;
       }): string => `${v.marketplace}::${v.externalId}::${v.finish}::${v.language ?? ""}`;
 
-      // Ensure a per-SKU product row exists for each input tuple.
       const productSeed = values.map((v) => ({
         marketplace: v.marketplace,
         externalId: v.externalId,
@@ -280,10 +244,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Delete level-2 ignored products.
-     * @returns Count of deleted rows.
-     */
     async deleteIgnoredProducts(marketplace: Marketplace, externalIds: number[]): Promise<number> {
       if (externalIds.length === 0) {
         return 0;
@@ -298,10 +258,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return Number(result[0].numDeletedRows);
     },
 
-    /**
-     * Delete level-3 ignored variants.
-     * @returns Count of deleted rows.
-     */
     async deleteIgnoredVariants(
       marketplace: Marketplace,
       variants: { externalId: number; finish: string; language: string | null }[],
@@ -311,7 +267,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       }
 
       // `is not distinct from` on language, not `=`: CM/TCG store NULL there
-      // and an `=` comparison would never match those rows.
+      // and `=` would never match those rows.
       const result = await db
         .deleteFrom("marketplaceIgnoredVariants as iv")
         .using("marketplaceProducts as mp")
@@ -333,14 +289,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return Number(result?.numDeletedRows ?? 0n);
     },
 
-    // ── Staging card overrides ──────────────────────────────────────────────
-
-    /**
-     * Upsert a card override pinned to a specific marketplace SKU. Resolves
-     * the (marketplace, externalId, finish, language) tuple to its
-     * `marketplace_products.id` and writes against the per-product overrides
-     * table (one card per SKU). Throws if the SKU has no product row yet.
-     */
+    /** Throws if the SKU has no `marketplace_products` row yet. */
     async upsertStagingCardOverride(values: {
       marketplace: Marketplace;
       externalId: number;
@@ -372,7 +321,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       }
     },
 
-    /** Delete a card override for the given marketplace SKU (no-op if missing). */
+    /** No-op if the SKU has no override. */
     async deleteStagingCardOverride(
       marketplace: Marketplace,
       externalId: number,
@@ -391,14 +340,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── Clear price data ────────────────────────────────────────────────────
-
-    /**
-     * Delete all price data (prices, variants, products) for a marketplace.
-     * `marketplace_product_prices` is FK-cascaded from products, so the
-     * counts are deleted in dependency order.
-     * @returns Counts of deleted rows per table.
-     */
+    /** `marketplace_product_prices` is FK-cascaded from products, so deletes must run in dependency order. */
     async clearPriceData(marketplace: Marketplace): Promise<{
       prices: number;
       variants: number;

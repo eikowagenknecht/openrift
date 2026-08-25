@@ -42,7 +42,6 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
   };
 }
 
-/** @returns Slimmed-down deck fields for the list view. */
 export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse {
   return {
     id: row.id,
@@ -67,7 +66,7 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
   };
 }
 
-/** @returns Public-facing deck fields — excludes shareToken, isPublic, and userId. */
+// Excludes shareToken, isPublic, and userId — see toDeck for the full set.
 export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
   return {
     id: row.id,
@@ -88,8 +87,6 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
 /**
  * Maps a deck's stored plan data to the wire shape; deck-level fields default
  * to empty when no row exists.
- *
- * @returns The plan response.
  */
 export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
   const { plan, matchups } = data;
@@ -121,8 +118,6 @@ export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
 /**
  * True when a plan has no deck-level content and no matchups — the public page
  * renders nothing for it.
- *
- * @returns Whether the plan is empty.
  */
 export function isEmptyDeckPlan(plan: DeckPlanResponse): boolean {
   return (
@@ -138,10 +133,6 @@ export function isEmptyDeckPlan(plan: DeckPlanResponse): boolean {
   );
 }
 
-/**
- * Maps a denormalized deck card row to DeckCardResponse.
- * @returns The serialized deck card response.
- */
 export function toDeckCard(row: {
   cardId: string;
   zone: string;
@@ -157,17 +148,11 @@ export function toDeckCard(row: {
 }
 
 /**
- * Composes an enriched public-deck card from the raw deck-card row, the
- * card's catalog row, and the resolved printing meta. The public share-deck
- * endpoint denormalizes this so the share page can SSR without pulling the
- * global catalog.
- *
- * @param deckCard The raw deck-card row.
- * @param cardMeta The card's catalog row.
- * @param printingMeta The resolved printing meta.
- * @param banned Whether the card is on the base banlist. The share page feeds
- *   this into the rule engine, which otherwise can't see bans.
- * @returns The serialized public deck card response.
+ * Composes an enriched public-deck card from the deck-card row, the card's
+ * catalog row, and the resolved printing meta. The public share-deck endpoint
+ * denormalizes this so the share page can SSR without pulling the global
+ * catalog. `banned` feeds the share page's rule engine, which otherwise can't
+ * see bans.
  */
 export function toPublicDeckCard(
   deckCard: { cardId: string; zone: string; quantity: number; preferredPrintingId: string | null },

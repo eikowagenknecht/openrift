@@ -18,14 +18,13 @@ import type { Variables } from "../../types.js";
 /** A card submission is small text + image URLs, never a binary upload. */
 const MAX_BODY_BYTES = 256 * 1024;
 
-/** Page size when the client doesn't ask for one. */
 const DEFAULT_LIST_LIMIT = 25;
 
 const os = implement(cardSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * oRPC implementation of the in-app card-submission endpoint (ADR-036). Requires
- * a signed-in user. Maps the submission to the candidate `IngestCard` shape with
+ * oRPC implementation of the in-app card-submission endpoint. Requires a
+ * signed-in user. Maps the submission to the candidate `IngestCard` shape with
  * server-generated external_ids, then ingests it under the `usersubmission`
  * provider. The per-user daily cap and DB-constraint validation happen inside
  * the service; this handler translates their outcomes into typed oRPC errors.
@@ -52,10 +51,10 @@ export const cardSubmissionsRouter = {
       throw errors.BAD_REQUEST({ message: result.errors.join("; ") });
     }
 
-    // ADR-036: tell the admins who opted in that something is waiting for
-    // review. After the candidate row has committed, outside any transaction,
-    // and best-effort (the service swallows its own errors) so a mail failure
-    // can never fail a submission the contributor already made.
+    // Tells the admins who opted in that something is waiting for review,
+    // after the candidate row has committed, outside any transaction, and
+    // best-effort (the service swallows its own errors) so a mail failure can
+    // never fail a submission the contributor already made.
     await context.services.notifyAdminsOfCardSubmission(context.repos, {
       submitterUserId: context.userId,
       card,
@@ -82,8 +81,6 @@ export const cardSubmissionsRouter = {
  * mirroring the deck-check ingest guard. Runs before the oRPC catch-all so an
  * oversized payload is rejected early. The per-user rate limit is enforced in
  * the service (a DB-backed daily cap), not here.
- * @param app The Hono app to register middleware on.
- * @returns Nothing; registers middleware on the passed app.
  */
 export function mountCardSubmissionsMiddleware(app: Hono<{ Variables: Variables }>): void {
   app.use(

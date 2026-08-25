@@ -132,11 +132,8 @@ describe("rehostImages", () => {
 });
 
 describe("rehostSingleImage", () => {
-  /**
-   * The repo pair the two-step lookup needs: a printing image resolves to its
-   * `image_files` id, and the rehost inputs are read from that row.
-   * @returns A repo stub whose two reads agree on one image file.
-   */
+  // The repo pair the two-step lookup needs: a printing image resolves to its
+  // `image_files` id, and the rehost inputs are read from that row.
   function makeRehostRepo(
     file: { originalUrl: string | null; rotation?: number; needsTrim?: boolean } | null,
     imageFileId = "00594247-a18a-4efd-8998-105449a4cf40",
@@ -204,7 +201,6 @@ describe("rehostSingleImage", () => {
     mockFetch.mockRejectedValue(new Error("timeout"));
     const repo = makeRehostRepo({ originalUrl: "https://example.com/img.png" });
 
-    // Should not throw
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
     expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
@@ -332,11 +328,8 @@ describe("unrehostImages", () => {
   });
 });
 
-/**
- * Build a {imageId, rehostedUrl} entry shaped like `listAllRehosted` rows for
- * the per-batch helper.
- * @returns Snapshot entry.
- */
+// Build a {imageId, rehostedUrl} entry shaped like `listAllRehosted` rows for
+// the per-batch helper.
 function snap(imageId: string, rehostedUrl?: string) {
   return { imageId, rehostedUrl: rehostedUrl ?? `/media/cards/${imageId.slice(-2)}/${imageId}` };
 }
@@ -385,9 +378,9 @@ describe("regenerateImagesBatch", () => {
   });
 
   it("does not clear rehostedUrl for uploaded images (no originalUrl) when -orig is missing", async () => {
-    // Regression: previously called `updateRehostedUrl(id, null)` regardless of
-    // originalUrl, which violated `chk_image_files_has_url` for uploaded images
-    // (no originalUrl set) and surfaced as a Postgres error in admin UI.
+    // Calling `updateRehostedUrl(id, null)` regardless of originalUrl would
+    // violate the `chk_image_files_has_url` CHECK for uploaded images (no
+    // originalUrl set).
     const repo = makeMockRepo({
       imageFile: { id: "card-001", originalUrl: null, rehostedUrl: "/some/url" },
     });
@@ -476,7 +469,6 @@ describe("regenerateImagesBatch", () => {
     mockReaddir.mockImplementation(async () => ["card-trim-orig.png"]);
     await regenerateImagesBatch(mockIo, repo, [snap("card-trim")]);
 
-    // The greyscale analysis pass only runs for scans (needsTrim=true).
     expect(mockSharpInstance.greyscale).toHaveBeenCalled();
   });
 
@@ -492,9 +484,9 @@ describe("regenerateImagesBatch", () => {
   });
 
   it("defaults to needsTrim=false when the settings map lacks an entry", async () => {
-    // Defensive: a row missing from the rotations/needsTrim map (e.g. raced
-    // delete) must not retroactively start trimming. Defaulting to false
-    // matches the digital-image-default invariant.
+    // A row missing from the rotations/needsTrim map (e.g. raced delete) must
+    // not retroactively start trimming; defaulting to false matches the
+    // digital-image-default invariant.
     const repo = makeMockRepo({});
     repo.getRotationsAndTrimByIds = vi.fn(() => Promise.resolve(new Map()));
     mockReaddir.mockImplementation(async () => ["card-orphan-orig.png"]);
@@ -504,15 +496,10 @@ describe("regenerateImagesBatch", () => {
   });
 });
 
-// ─── runRegenerateImagesJob ──────────────────────────────────────────────
-
-/**
- * Minimal in-memory job_runs repo good enough for runRegenerateImagesJob:
- * tracks the current `result` JSONB. Tests can mutate the stored value
- * directly via `setCancel` to simulate the cancel endpoint racing with the
- * job loop.
- * @returns A handle exposing the mock repo plus helpers to read/mutate the row.
- */
+// Minimal in-memory job_runs repo good enough for runRegenerateImagesJob:
+// tracks the current `result` JSONB. Tests can mutate the stored value
+// directly via `setCancel` to simulate the cancel endpoint racing with the
+// job loop.
 function makeFakeJobRunsRepo(initial: unknown = null) {
   const state: { stored: unknown } = { stored: initial };
   const repo = {
@@ -530,9 +517,7 @@ function makeFakeJobRunsRepo(initial: unknown = null) {
     purgeOlderThan: vi.fn(),
     findLatestForResume: vi.fn(),
   };
-  /** @returns The current stored checkpoint, or null. */
   const current = () => state.stored;
-  /** Simulate the cancel endpoint flipping the flag in the row. */
   const setCancel = () => {
     if (state.stored && typeof state.stored === "object") {
       state.stored = { ...(state.stored as Record<string, unknown>), cancelRequested: true };

@@ -12,14 +12,9 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: meta archive routes (ADR-014).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix mtr- / MTR for everything it creates. The user starts as a
 // non-admin so the 403 cases run before promotion — the isAdmin cache only
 // caches positive results, so a never-admin user always re-checks the DB.
-// ---------------------------------------------------------------------------
 
 const USER_ID = crypto.randomUUID();
 
@@ -33,7 +28,6 @@ let mainCardId: string;
 const createdEventIds: string[] = [];
 const createdDeckIds: string[] = [];
 
-/** @returns The inserted card's id. */
 async function seedCard(name: string, normName: string, type: string): Promise<string> {
   const [card] = await ctx!.db
     .insertInto("cards")
@@ -43,7 +37,6 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
   return card.id;
 }
 
-/** @returns A create-event body with the given slug. */
 function eventBody(slug: string, overrides: Record<string, unknown> = {}) {
   return {
     slug,
@@ -52,13 +45,12 @@ function eventBody(slug: string, overrides: Record<string, unknown> = {}) {
     format: FORMAT,
     playerCount: 32,
     organizer: "MTR Organizer",
-    // No `sourceUrl` since migration 255: attribution is the citation list.
+    // No `sourceUrl` field: attribution is the citation list.
     notes: "MTR notes",
     ...overrides,
   };
 }
 
-/** @returns A create-deck body attached to `eventId`. */
 function deckBody(eventId: string, overrides: Record<string, unknown> = {}) {
   return {
     eventId,
@@ -75,10 +67,6 @@ function deckBody(eventId: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-/**
- * Creates an event through the admin API and remembers it for teardown.
- * @returns The new event's id.
- */
 async function createEvent(slug: string, overrides: Record<string, unknown> = {}): Promise<string> {
   const res = await ctx!.app.fetch(adminReq("POST", "/meta/events", eventBody(slug, overrides)));
   expect(res.status).toBe(201);
@@ -87,10 +75,6 @@ async function createEvent(slug: string, overrides: Record<string, unknown> = {}
   return json.id;
 }
 
-/**
- * Creates an archived deck through the admin API and remembers it for teardown.
- * @returns The new deck's id and share token.
- */
 async function createDeck(
   eventId: string,
   overrides: Record<string, unknown> = {},
@@ -128,8 +112,6 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // ── Admin gating, before the user is promoted ─────────────────────────────
-
   describe("admin-only access control (non-admin)", () => {
     it("refuses the event list", async () => {
       const res = await app.fetch(adminReq("GET", "/meta/events"));
@@ -152,8 +134,6 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       await db.insertInto("admins").values({ userId: USER_ID }).execute();
     });
   });
-
-  // ── Event curation ────────────────────────────────────────────────────────
 
   describe("POST /admin/meta/events", () => {
     it("creates an event and reports a zero deck count", async () => {
@@ -321,8 +301,6 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── Deck curation ─────────────────────────────────────────────────────────
 
   describe("POST /admin/meta/decks", () => {
     it("mints the deck under the synthetic owner, public, with a token", async () => {
@@ -576,8 +554,6 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
     });
   });
 
-  // ── Share-token rotation guard ────────────────────────────────────────────
-
   describe("POST /decks/{id}/share/rotate", () => {
     it("refuses to rotate an archived deck's permalink", async () => {
       const eventId = await createEvent("mtr-rotate");
@@ -644,10 +620,7 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Public reads, from a request with no session at all.
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const anonApp = anonCtx!.app;
@@ -697,7 +670,7 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     expect(json.event.sources).toHaveLength(1);
     expect(json.event.sources[0].label).toBe("uvsgames");
     expect(json.event.sources[0].sourceUrl).toBe("https://example.invalid/uvs");
-    // Nobody contributed by hand, and the single `sourceUrl` column is gone.
+    // Nobody contributed by hand, and there is no top-level sourceUrl field.
     expect(json.event.contributors).toEqual([]);
     expect(json.event.sourceUrl).toBeUndefined();
   });

@@ -21,18 +21,12 @@ import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
-// ── Upsert config ─────────────────────────────────────────────────────────
-
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
 };
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
 const CARDMARKET_BASE = "https://downloads.s3.cardmarket.com/productCatalog";
 const CARDMARKET_GAME = 22; // Riftbound
-
-// ── External API types ─────────────────────────────────────────────────────
 
 interface CmProduct {
   idProduct: number;
@@ -55,8 +49,6 @@ interface CmPriceGuide {
   "avg7-foil": number;
   "avg30-foil": number;
 }
-
-// ── Fetch ──────────────────────────────────────────────────────────────────
 
 interface CardmarketFetchResult {
   singles: CmProduct[];
@@ -86,8 +78,6 @@ async function fetchCardmarketData(fetchFn: Fetch): Promise<CardmarketFetchResul
     recordedAt,
   };
 }
-
-// ── Transform ──────────────────────────────────────────────────────────────
 
 function buildCardmarketStaging(
   { singles, priceGuides, recordedAt }: CardmarketFetchResult,
@@ -167,13 +157,10 @@ function buildCardmarketGroups(singles: CmProduct[]): GroupRow[] {
   }));
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
-
 /**
  * Fetch the latest Cardmarket price guides and singles for Riftbound, upsert
  * expansion metadata, and write snapshots for already-mapped sources. Unmatched
  * products are staged for manual admin mapping.
- * @returns Fetch totals and per-table upsert counts.
  */
 export async function refreshCardmarketPrices(
   fetchFn: Fetch,
@@ -182,11 +169,9 @@ export async function refreshCardmarketPrices(
 ): Promise<PriceRefreshResponse> {
   const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "cardmarket");
 
-  // Phase 1: Fetch
   const fetchResult = await fetchCardmarketData(fetchFn);
   const { singles } = fetchResult;
 
-  // Phase 2: Transform
   const allStaging = buildCardmarketStaging(fetchResult, ignoredKeys);
   const groupRows = buildCardmarketGroups(singles);
 
@@ -202,7 +187,6 @@ export async function refreshCardmarketPrices(
     ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
   );
 
-  // Phase 3: Persist
   await upsertMarketplaceGroups(repos.priceRefresh, "cardmarket", groupRows);
 
   const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);

@@ -3,9 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: the guard rails around jsonb writes.
-//
 // postgres.js serializes a bound parameter according to the type Postgres
 // describes for it, and for a jsonb parameter that means JSON.stringify. Pass
 // the value and the column gets the right structure; pass JSON *text* and it is
@@ -18,7 +15,6 @@ import { createDbContext } from "../test/integration-context.js";
 // other is a `jsonb_typeof` CHECK constraint per column, which it can: the
 // first test fails when a new jsonb column ships without one, so the guard
 // arrives with the column rather than after the next incident.
-// ---------------------------------------------------------------------------
 
 const ctx = createDbContext("jsonb-columns");
 
@@ -33,7 +29,6 @@ const SHAPE_EXEMPT = new Set(["job_runs.result"]);
 describe.skipIf(!ctx)("jsonb columns", () => {
   const db = ctx!.db;
 
-  /** @returns Every jsonb column in the public schema as `table.column`. */
   async function jsonbColumns(): Promise<string[]> {
     const rows = await sql<{ name: string }>`
       SELECT c.table_name || '.' || c.column_name AS name

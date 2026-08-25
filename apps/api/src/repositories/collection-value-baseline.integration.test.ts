@@ -41,7 +41,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   let lateCollectionId = "";
   let midCollectionId = "";
 
-  /** @returns The UTC date `daysAgo` days before today, at midnight. */
   function dayOffset(daysAgo: number): Date {
     const d = new Date();
     d.setUTCHours(0, 0, 0, 0);
@@ -229,7 +228,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     await repo.refreshLatestPrices();
   });
 
-  /** @returns The value series for one collection over the given cutoff. */
   function seriesFor(collectionId: string, cutoff: Date | null = null) {
     return repo.collectionValueTimeSeries({
       userId,

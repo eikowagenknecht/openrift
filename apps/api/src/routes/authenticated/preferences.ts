@@ -27,7 +27,6 @@ const preferenceFields = Object.entries(userPreferencesResponseSchema.shape);
  * an enum narrowed, say) bricks the app for that user. Dropping
  * the key instead falls back to `PREFERENCE_DEFAULTS` on the client, and the
  * warn log names the field so the stored data can be corrected.
- * @returns The user preferences in the {@link UserPreferencesResponse} shape.
  */
 function toUserPreferences(data: UserPreferencesResponse, userId: string): UserPreferencesResponse {
   // `data` is always a JSON object: chk_user_preferences_data_shape enforces

@@ -3,30 +3,19 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Feature flags routes
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix ffl- for flag keys to avoid collisions.
-// This user is NOT pre-promoted to admin — tests non-admin access first.
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0016-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // ── Admin-only access control (tested FIRST, before user is admin) ─────
-  // The isAdmin cache only caches positive results, so a user who has never
-  // been admin will always miss the cache and hit the DB.
-
+  // Access control is tested first, before the user is admin: the isAdmin
+  // cache only caches positive results, so a user who has never been admin
+  // always misses the cache and hits the DB.
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/feature-flags returns 403 for non-admin", async () => {
       const res = await app.fetch(adminReq("GET", "/feature-flags"));
@@ -34,15 +23,11 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
   });
 
-  // ── Promote user to admin ────────────────────────────────────────────────
-
   describe("promote user to admin", () => {
     it("inserts user into admins table", async () => {
       await db.insertInto("admins").values({ userId: USER_ID }).execute();
     });
   });
-
-  // ── Public GET /feature-flags ────────────────────────────────────────────
 
   describe("GET /feature-flags (public)", () => {
     it("returns a map (may have flags from other tests)", async () => {
@@ -50,12 +35,9 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      // No ffl- flags should exist yet
       expect(json.flags["ffl-deck-builder"]).toBeUndefined();
     });
   });
-
-  // ── Admin POST /admin/feature-flags ──────────────────────────────────────
 
   describe("POST /admin/feature-flags", () => {
     it("creates a flag with defaults", async () => {
@@ -90,8 +72,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
   });
 
-  // ── Public GET /feature-flags (after creation) ───────────────────────────
-
   describe("GET /feature-flags (after creation)", () => {
     it("returns created flags as key-enabled map", async () => {
       const res = await app.fetch(req("GET", "/feature-flags"));
@@ -102,8 +82,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       expect(json.flags["ffl-dark-mode"]).toBe(true);
     });
   });
-
-  // ── Admin GET /admin/feature-flags ───────────────────────────────────────
 
   describe("GET /admin/feature-flags", () => {
     it("returns ffl- flags with full shape", async () => {
@@ -116,7 +94,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       const fflFlags = json.flags.filter((f: { key: string }) => f.key.startsWith("ffl-"));
       expect(fflFlags).toHaveLength(2);
 
-      // Ordered by key: ffl-dark-mode comes before ffl-deck-builder
       const darkMode = fflFlags.find((f: { key: string }) => f.key === "ffl-dark-mode");
       expect(darkMode).toBeDefined();
       expect(darkMode.enabled).toBe(true);
@@ -131,8 +108,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
   });
 
-  // ── Admin PATCH /admin/feature-flags/:key ────────────────────────────────
-
   describe("PATCH /admin/feature-flags/:key", () => {
     it("updates enabled status", async () => {
       const res = await app.fetch(
@@ -140,7 +115,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify via public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await readJson(check);
       expect(flags.flags["ffl-deck-builder"]).toBe(true);
@@ -152,7 +126,6 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify via admin endpoint
       const check = await app.fetch(adminReq("GET", "/feature-flags"));
       const json = await readJson(check);
       const flag = json.flags.find((f: { key: string }) => f.key === "ffl-deck-builder");
@@ -167,14 +140,11 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
   });
 
-  // ── Admin DELETE /admin/feature-flags/:key ───────────────────────────────
-
   describe("DELETE /admin/feature-flags/:key", () => {
     it("deletes a flag", async () => {
       const res = await app.fetch(adminReq("DELETE", "/feature-flags/ffl-dark-mode"));
       expect(res.status).toBe(204);
 
-      // Verify it's gone from public endpoint
       const check = await app.fetch(req("GET", "/feature-flags"));
       const flags = await readJson(check);
       expect(flags.flags["ffl-dark-mode"]).toBeUndefined();

@@ -40,10 +40,6 @@ function getSharedDb() {
   return sharedDb;
 }
 
-// ---------------------------------------------------------------------------
-// Mock config — identical across all integration tests
-// ---------------------------------------------------------------------------
-
 const mockConfig = {
   port: 3000,
   databaseUrl: "",
@@ -53,10 +49,6 @@ const mockConfig = {
   smtp: { configured: false },
   cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
 } as any;
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 export interface TestContext {
   app: ReturnType<typeof createApp>;
@@ -126,9 +118,6 @@ export interface DbContext {
   userId: string;
 }
 
-/** Lightweight context for repo-level integration tests (no app/auth).
- * @returns A `DbContext` with the shared DB, or `null` if `INTEGRATION_DB_URL` is not set.
- */
 export function createDbContext(userId: string): DbContext | null {
   const db = getSharedDb();
   if (!db) {
@@ -140,8 +129,6 @@ export function createDbContext(userId: string): DbContext | null {
 export { adminReq, req } from "./integration-helper.js";
 
 /**
- * Seed a unique throwaway user owned by the calling test file.
- *
  * Integration test files share one database, so fixed user IDs create hidden
  * cross-file coupling: a plain insert collides with a pre-seeded row, and a
  * teardown `DELETE FROM users` breaks any later file that still needs the
@@ -150,7 +137,6 @@ export { adminReq, req } from "./integration-helper.js";
  *
  * Pass `id` when the value must exist at module scope (e.g. for
  * `createTestContext`) — generate it there with `crypto.randomUUID()`.
- * @returns The inserted user's `id` and `email`.
  */
 export async function seedTestUser(
   db: Db,
@@ -175,34 +161,30 @@ export async function seedTestUser(
 }
 
 /**
- * Refresh `mv_card_aggregates`. The integration harness refreshes it once at
- * startup, but test files that insert their own cards + card_domains need to
- * refresh again so INNER JOINs on the MV (e.g. in unified-mappings queries)
- * see the new rows.
- * @returns A promise that resolves when the refresh completes.
+ * The integration harness refreshes `mv_card_aggregates` once at startup, but
+ * test files that insert their own cards + card_domains need to refresh again
+ * so INNER JOINs on the MV (e.g. in unified-mappings queries) see the new rows.
  */
 export async function refreshCardAggregates(db: Db): Promise<void> {
   await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
 }
 
 /**
- * Refresh `mv_printings_canonical_rank` (migration 215). Test files that insert
- * their own printings must call this before asserting on `printings_ordered`
- * order — an unranked printing coalesces to the sentinel and sorts last.
- * @returns A promise that resolves when the refresh completes.
+ * Test files that insert their own printings must call this before asserting
+ * on `printings_ordered` order — an unranked printing coalesces to the
+ * sentinel and sorts last.
  */
 export async function refreshCanonicalRank(db: Db): Promise<void> {
   await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
 }
 
 /**
- * Mirror `cards.type` into the `card_card_types` junction (ADR-037) for any
- * card missing junction rows. Test files that insert cards directly (instead
- * of going through the repos, which write both) must call this before anything
+ * Mirrors `cards.type` into the `card_card_types` junction for any card
+ * missing junction rows. Test files that insert cards directly (instead of
+ * going through the repos, which write both) must call this before anything
  * refreshes the MV — a card with an empty type set violates the catalog
  * response contract, and because the parallel files share one database, one
  * file's bare insert can 500 another file's catalog test.
- * @returns A promise that resolves when the backfill completes.
  */
 export async function syncCardCardTypes(db: Db): Promise<void> {
   await sql`

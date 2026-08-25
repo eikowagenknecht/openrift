@@ -8,10 +8,6 @@ import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { addCopies, disposeCopies, moveCopies } from "./copies.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function mockTransact(trxRepos: Repos): Transact {
   return (fn) => fn(trxRepos) as any;
 }
@@ -92,8 +88,8 @@ function createMockRepos(overrides: {
         ),
       listReservationsForCopies: (copyIds: readonly string[]) =>
         Promise.resolve(pins.filter((pin) => copyIds.includes(pin.copyId))),
-      // The unfillable sweep (ADR-019) runs after every move/dispose. These
-      // fixtures leave the actor with no pending trades, so it stops here.
+      // The unfillable sweep runs after every move/dispose. These fixtures
+      // leave the actor with no pending trades, so it stops here.
       listPendingForGiverPrinting: () => Promise.resolve([]),
     },
     loans: {
@@ -113,10 +109,6 @@ function createMockRepos(overrides: {
   return repos;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("addCopies", () => {
   it("creates copies in the inbox when no collectionId specified", async () => {
     const repos = createMockRepos({
@@ -130,7 +122,6 @@ describe("addCopies", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("copy-1");
     expect(result[0].collectionId).toBe("inbox-id");
-    // Personal collection (inbox) → groupId null
     expect(result[0].groupId).toBeNull();
   });
 
@@ -416,7 +407,6 @@ describe("copy mutations sweep unfillable pending trades", () => {
   /**
    * Repos for the sweep wiring: one copy of `p-1`, one pending request for it,
    * and a supply read that reports the stack empty once the mutation ran.
-   * @returns The stub repos plus the auto-cancel spy.
    */
   function sweepRepos() {
     const markAutoCancelled = vi.fn(() => Promise.resolve(1));

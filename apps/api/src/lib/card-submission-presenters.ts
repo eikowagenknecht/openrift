@@ -3,15 +3,10 @@ import type { CardSubmissionStatusResponse } from "@openrift/shared/contracts/ca
 import type { CardSubmissionRow } from "../repositories/card-submissions.js";
 
 /**
- * Maps a submission ledger row to the contributor-facing response.
- *
  * `proposedDiff`, `candidateCardId` and `acceptedCardId` are deliberately not
  * exposed: they are review-side bookkeeping, and the first would tell a
  * contributor which of their fields the catalog disagreed with before anyone
  * had looked at it.
- *
- * @param row A ledger row for the requesting user.
- * @returns The submission as a `CardSubmissionStatusResponse`.
  */
 export function toCardSubmissionStatus(row: CardSubmissionRow): CardSubmissionStatusResponse {
   return {

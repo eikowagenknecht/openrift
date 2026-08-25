@@ -36,8 +36,6 @@ function toMarketplaceName(marketplace: string): AdminMarketplaceName | null {
   return null;
 }
 
-// ── Shared response-shaping helpers ─────────────────────────────────────────
-
 function formatCandidateCard(
   s: Pick<
     Selectable<CandidateCardsTable>,
@@ -104,13 +102,6 @@ function formatCandidatePrinting(
   };
 }
 
-// ── Shared helpers ───────────────────────────────────────────────────────────
-
-/**
- * Derive the expected card slug from the display name.
- * Falls back to current slug if no name is available.
- * @returns The expected name-based card slug.
- */
 function deriveExpectedCardId(displayName: string, currentSlug?: string): string {
   if (displayName) {
     return slugifyName(displayName);
@@ -118,8 +109,6 @@ function deriveExpectedCardId(displayName: string, currentSlug?: string): string
   return currentSlug ?? "";
 }
 
-/** Resolve null finish based on rarity: Common/Uncommon default to "normal", others to "foil".
- * @returns The resolved finish string. */
 function resolveFinish(finish: string | null, rarity: string | null): string {
   if (finish) {
     return finish;
@@ -153,11 +142,7 @@ export async function buildCandidateCardList(
       ? allCandidateCards
       : allCandidateCards.filter((cc) => allowedProviders.has(cc.provider));
 
-  // Accepted printings live on cards — e.g. { cardUUID → ["OGN-001a", "OGN-001b"] }
-  // Non-EN printings get a " [FR]" suffix so the list page can distinguish languages
   const shortCodesByCardId = new Map<string, string[]>();
-  // Set slugs of a card's accepted printings — { cardUUID → {"OGN", "VEN"} }.
-  // Used to build the row's `setSlugs` so the admin set filter can scope the list.
   const setSlugsByCardId = new Map<string, Set<string>>();
   for (const p of printings) {
     let arr = shortCodesByCardId.get(p.cardId);
@@ -178,16 +163,11 @@ export async function buildCandidateCardList(
     }
   }
 
-  // Candidate cards from different imports share a normName —
-  // e.g. { "fireball" → [cc from gallery, cc from ocr] }
-  // cc is an object in the shape: { id, name, normName, provider, checkedAt, ... }
-  //
   // A name made only of punctuation or symbols normalizes to `""`, which as a
-  // grouping key would merge every such candidate into one row (that is how a
-  // single row once held seven unrelated legends). Those rows are unmatchable
-  // — there is no key to look a card up by — so they are grouped by raw name
-  // instead and surfaced individually. The `\u0000` prefix cannot collide with
-  // a real normName, which only ever holds letters and digits.
+  // grouping key would merge every such candidate into one row. Those rows are
+  // unmatchable — there is no key to look a card up by — so they are grouped
+  // by raw name instead and surfaced individually. The `\u0000` prefix
+  // cannot collide with a real normName, which only ever holds letters and digits.
   const ccGroupsByNormName = new Map<string, typeof candidateCards>();
   for (const cc of candidateCards) {
     const groupKey = cc.normName === "" ? `\u0000name:${cc.name}` : cc.normName;
@@ -199,7 +179,6 @@ export async function buildCandidateCardList(
     arr.push(cc);
   }
 
-  // Candidate printings not yet accepted — e.g. { candidateCardUUID → [{shortCode: "OGN-001a*", checkedAt: null}, ...] }
   // orderIndex is the row's position in the repo result (canonical printing
   // order), so codes merged across a group's candidate cards can be re-sorted
   // globally instead of coming out grouped by provider.
@@ -216,10 +195,9 @@ export async function buildCandidateCardList(
     arr.push({ ...cp, orderIndex });
   }
 
-  // Collects all staging short codes across a normName group in canonical
-  // printing order — duplicates are kept so the frontend can show counts
-  // (e.g. "OGN-001a* ×2").
-  // Skip linked candidate printings — they're already resolved to an accepted printing
+  // Duplicates are kept so the frontend can show counts (e.g. "OGN-001a* ×2").
+  // Linked candidate printings are skipped — they're already resolved to an
+  // accepted printing.
   function stagingIdsForGroup(group: typeof candidateCards, onlyFavorites?: boolean): string[] {
     const entries: { label: string; orderIndex: number }[] = [];
     for (const cc of group) {
@@ -255,8 +233,6 @@ export async function buildCandidateCardList(
     return [...slugs];
   }
 
-  // Count candidate printings without checkedAt across a normName group,
-  // optionally filtering to only favorite providers.
   // Includes linked printings (printingId set) — they still need review.
   function uncheckedPrintingCountForGroup(
     group: typeof candidateCards,
@@ -276,10 +252,9 @@ export async function buildCandidateCardList(
     return count;
   }
 
-  // Count candidate printings that have no accepted printing yet, across a
-  // normName group. No provider or checkedAt narrowing: these are the rows the
-  // detail page renders as "New:" groups, and it groups every unlinked
-  // candidate printing the same way.
+  // No provider or checkedAt narrowing: these are the rows the detail page
+  // renders as "New:" groups, and it groups every unlinked candidate printing
+  // the same way.
   function unlinkedPrintingCountForGroup(group: typeof candidateCards): number {
     let count = 0;
     for (const cc of group) {
@@ -292,8 +267,6 @@ export async function buildCandidateCardList(
     return count;
   }
 
-  // Aliases let a card match candidate cards under a different name —
-  // e.g. card "Fireball" (normName "fireball") has alias "firbal" so it also claims that group
   const aliasNormNamesByCardId = new Map<string, string[]>();
   for (const a of aliases) {
     let arr = aliasNormNamesByCardId.get(a.cardId);
@@ -307,7 +280,6 @@ export async function buildCandidateCardList(
   // Match candidate card groups to cards by normName (+ aliases) and delete matched entries —
   // whatever's left in ccGroupsByNormName afterwards has no card yet (candidates)
   const results: CandidateCardSummaryResponse[] = cards.map((card) => {
-    // Collect all candidate card groups that match this card's name or aliases
     const allGroups: typeof candidateCards = [];
     const directGroup = ccGroupsByNormName.get(card.normName);
     if (directGroup) {
@@ -346,8 +318,6 @@ export async function buildCandidateCardList(
     };
   });
 
-  // For unmatched rows, suggest a card whose normName is the longest prefix —
-  // e.g. "yoneblademaster" is a prefix of "yoneblademasterovernumbered"
   function findSuggestedCard(normName: string): string | null {
     let bestSlug: string | null = null;
     let bestLen = 0;
@@ -360,7 +330,6 @@ export async function buildCandidateCardList(
     return bestSlug;
   }
 
-  // Candidate cards that didn't match any card — these need a card to be created or linked
   for (const group of ccGroupsByNormName.values()) {
     // Not the map key — punctuation-only names are keyed by raw name so they
     // stay separate rows, but the response still carries their real (empty)
@@ -393,12 +362,6 @@ export async function buildCandidateCardList(
   return allowedProviders === null ? results : results.filter((row) => row.candidateCount > 0);
 }
 
-// ── GET /export ─────────────────────────────────────────────────────────────
-
-/**
- * Orchestrates the GET /export endpoint: loads all cards + printings, shapes response.
- * @returns Export-format card + printing objects.
- */
 export async function buildExport(repo: Repo) {
   const [cards, printings, errataRows] = await Promise.all([
     repo.exportCards(),
@@ -453,7 +416,7 @@ export async function buildExport(repo: Repo) {
         external_id: p.id,
         extra_data: p.imageId ? { image_id: p.imageId } : null,
         // Round-trip fidelity: these are candidate data (not admin-curated), so
-        // they must survive an export → re-import cycle. Previously omitted.
+        // they must survive an export → re-import cycle.
         language: p.language,
         printed_name: p.printedName,
         printed_year: p.printedYear,
@@ -469,14 +432,8 @@ export async function buildExport(repo: Repo) {
   });
 }
 
-// ── Card detail (shared logic) ─────────────────────────────────────────────
-
 type CardForDetail = Awaited<ReturnType<Repo["cardForDetailBySlug"]>>;
 
-/**
- * Shared logic for building candidate/printing detail once the card and normNames are known.
- * @returns Full detail response with candidates, printings, groups, and images.
- */
 async function buildDetailResponse(
   repo: Repo,
   marketplaceRepo: MarketplaceMappingRepo | null,
@@ -499,23 +456,19 @@ async function buildDetailResponse(
   const candidatePrintings =
     candidateIds.length > 0 ? await repo.candidatePrintingsForDetail(candidateIds) : [];
 
-  // Accepted printings only exist for matched cards
   const printings = card ? await repo.printingsForDetail(card.id) : [];
 
-  // Printings store set as UUID; resolve to slugs for display
   const setIds = [...new Set(printings.map((p) => p.setId))];
   const setRows = setIds.length > 0 ? await repo.setInfoByIds(setIds) : [];
   const setSlugMap = new Map(setRows.map((s) => [s.id, s.slug]));
   const setNameMap = new Map(setRows.map((s) => [s.id, s.name]));
 
-  // Build set slug → printedTotal map (used by the UI to append set totals to public codes)
   const setTotals: Record<string, number> = {};
   for (const row of setRows) {
     if (row.printedTotal) {
       setTotals[row.slug] = row.printedTotal;
     }
   }
-  // Also fetch totals for sets referenced by unlinked candidate printings (may differ from accepted sets)
   const candidateSetSlugs = [
     ...new Set(
       candidatePrintings.filter((cp) => !cp.printingId && cp.setId).map((cp) => cp.setId as string),
@@ -556,14 +509,10 @@ async function buildDetailResponse(
     ),
   }));
 
-  // Images for accepted printings — used to show thumbnails and manage rehosting
   const printingIds = printings.map((p) => p.id);
   const printingImages =
     printingIds.length > 0 ? await repo.printingImagesForDetail(printingIds) : [];
 
-  // Marketplace mappings (TCGplayer / Cardmarket / CardTrader) — fetched for
-  // matched cards only, so the admin can assign/unmap products from the card
-  // detail view instead of navigating out to a separate mappings page.
   // Marketplace data is admin-only, so provider-scoped callers (card-review
   // grant holders) get an empty list.
   const marketplaceMappings: AdminPrintingMarketplaceMappingResponse[] = [];
@@ -587,7 +536,7 @@ async function buildDetailResponse(
     }
   }
 
-  // Only group unlinked candidate printings — linked ones are already shown under their accepted printing
+  // Linked candidate printings are already shown under their accepted printing.
   const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
   const cpGroupMap = new Map<string, typeof unlinkedCP>();
   for (const cp of unlinkedCP) {
@@ -642,8 +591,6 @@ async function buildDetailResponse(
     return best?.id ?? null;
   }
 
-  // Build one group per distinct printing variant — the UI shows these as rows
-  // the admin can accept as new printings or match to existing ones
   const filteredGroups: CandidatePrintingGroupResponse[] = [];
   for (const [, groupCandidates] of cpGroupMap) {
     const first = groupCandidates[0];
@@ -670,7 +617,6 @@ async function buildDetailResponse(
     });
   }
 
-  // Card name if matched, shortest candidate name if unmatched
   const displayName = card
     ? card.name
     : candidates.length > 0
@@ -730,12 +676,6 @@ async function buildDetailResponse(
   };
 }
 
-// ── GET /:cardId — matched card detail ─────────────────────────────────────
-
-/**
- * Detail view for a matched card (looked up by UUID).
- * @returns Card detail with candidates, printings, candidate printings, groups, and images.
- */
 export async function buildCardDetail(
   repo: Repo,
   marketplaceRepo: MarketplaceMappingRepo,
@@ -775,12 +715,6 @@ export async function buildCardDetail(
   );
 }
 
-// ── GET /new/:name — unmatched candidate detail ────────────────────────────
-
-/**
- * Detail view for unmatched candidates (no card exists yet, looked up by normName).
- * @returns Candidate detail with sources, candidate printings, groups, and set totals.
- */
 export async function buildUnmatchedDetail(
   repo: Repo,
   normName: string,

@@ -19,9 +19,6 @@
  * the claimed copies so a member never sees a card they cannot request.
  * Counting offers globally instead would refuse a second offer whenever the
  * first one lives in another group, even when the two draw on different copies.
- * @param offers The giver's live offers for one printing, oldest first.
- * @param supplyByGroup Group id to the copy ids that group's shares can see.
- * @returns The copy ids claimed by a surviving offer, and the offers that no longer fit.
  */
 export function claimCopiesForOffers<
   TOffer extends { id: string; groupId: string; quantity: number },

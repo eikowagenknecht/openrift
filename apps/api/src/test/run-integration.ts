@@ -12,10 +12,6 @@ import { resolve } from "node:path";
 
 import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./integration-setup.js";
 
-// ---------------------------------------------------------------------------
-// Test file groups
-// ---------------------------------------------------------------------------
-
 const repoRoot = resolve(import.meta.dirname!, "../..");
 
 /** Migrations test — always gets its own temp DB, so it is excluded from the shared batch. */
@@ -98,7 +94,7 @@ process.on("SIGINT", () => void cleanupAndExit(130));
 process.on("SIGTERM", () => void cleanupAndExit(143));
 
 try {
-  // 0. Reclaim leftovers from earlier interrupted runs (killed processes never
+  // Reclaim leftovers from earlier interrupted runs (killed processes never
   // reach teardown). Age cutoff keeps a concurrently-running run's fresh DBs.
   const STALE_TEST_DB_AGE_MS = 30 * 60 * 1000;
   const swept = await sweepStaleTestDatabases(DATABASE_URL, STALE_TEST_DB_AGE_MS);
@@ -106,7 +102,6 @@ try {
     console.log(`Swept ${swept.length} stale test database(s): ${swept.join(", ")}`);
   }
 
-  // 1. Create shared temp database, migrate, seed, insert test users
   console.log("Creating shared integration database...");
   const bootstrap = await bootstrapSeededTestDb(DATABASE_URL, "shared", {
     refreshMaterializedViews: true,
@@ -114,11 +109,9 @@ try {
   tempDbName = bootstrap.tempDbName;
   const testUrl = bootstrap.testUrl;
 
-  // 2. Run tests
   const env = { ...process.env, INTEGRATION_DB_URL: testUrl };
   let failed = false;
 
-  // Batch 1: parallel tests
   console.log(`\nRunning ${PARALLEL_FILES.length} test files in parallel...`);
   const parallelCoverageDir =
     coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-parallel"] : [];
@@ -135,7 +128,7 @@ try {
     failed = true;
   }
 
-  // Batch 2: migrations test (own temp DB, uses DATABASE_URL directly).
+  // Migrations test gets its own temp DB and uses DATABASE_URL directly.
   // Needs a longer timeout than bun's 5s default: setupTestDb applies all ~100
   // migrations in beforeAll, and the up/down cycle rolls every one back and
   // re-applies — comfortably over 5s under DB contention from the parallel batch.
@@ -170,7 +163,6 @@ try {
 
   console.log("\nAll integration tests passed!");
 } finally {
-  // 3. Drop temp database
   if (tempDbName) {
     console.log(`\nDropping ${tempDbName}...`);
     await dropTempDb(DATABASE_URL, tempDbName);

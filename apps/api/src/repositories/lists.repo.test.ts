@@ -284,13 +284,10 @@ describe("listsRepo", () => {
   });
 });
 
-// ── expandedCounts (ADR-034 batched count-only expansion) ────────────────────
-
 /**
  * Fake `db` that answers by table, so the two queries `expandedCounts` makes
  * (`lists`, then `listEntries`) get their own canned rows. WHERE clauses are
  * ignored — the canned rows already stand for the filtered result.
- * @returns A Kysely-shaped stub serving `rowsByTable`.
  */
 function tableDb(rowsByTable: Record<string, Record<string, unknown>[]>): Kysely<Database> {
   function chain(table: string): unknown {
@@ -318,7 +315,6 @@ function tableDb(rowsByTable: Record<string, Record<string, unknown>[]>): Kysely
 /**
  * Minimal catalog {@link Printing} for `filterCards`; the empty filter matches
  * every one of these.
- * @returns A printing on a normal `unit` card.
  */
 function catalogPrinting(id: string, cardId: string): Printing {
   return {

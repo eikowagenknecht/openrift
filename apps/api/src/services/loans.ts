@@ -12,7 +12,7 @@ export interface CreateLoanInput {
   quantity: number;
   borrowerUserId?: string;
   borrowerName?: string;
-  /** Biases automatic copy selection toward this collection (ADR-039). */
+  /** Biases automatic copy selection toward this collection. */
   contextCollectionId?: string;
 }
 
@@ -21,11 +21,6 @@ function tooFewAvailable(count: number): AppError {
   return new AppError(409, ERROR_CODES.CONFLICT, `Only ${count} ${noun} still available`);
 }
 
-/**
- * Re-reads a loan as a viewer-oriented DTO from inside a transaction. Used to
- * return the updated state right after a mutation.
- * @returns The DTO (must exist; the loan was just read/mutated in this txn).
- */
 async function reloadDto(repos: Repos, loanId: string, userId: string): Promise<LoanResponse> {
   const dto = await repos.loans.getDtoByIdForUser(loanId, userId);
   if (dto === undefined) {
@@ -37,7 +32,6 @@ async function reloadDto(repos: Repos, loanId: string, userId: string): Promise<
 /**
  * Loads a loan and verifies the caller is its lender. Non-parties and
  * borrowers get the same 404 (a loan's management surface is lender-only).
- * @returns The raw loan row.
  */
 async function requireLenderLoan(repos: Repos, loanId: string, userId: string) {
   const loan = await repos.loans.getById(loanId);
@@ -48,12 +42,11 @@ async function requireLenderLoan(repos: Repos, loanId: string, userId: string) {
 }
 
 /**
- * Records a loan (ADR-039): active immediately, copies pinned in place. The
- * borrower is a friend-group co-member (who may later acknowledge/reject) or a
- * free-text name. Copies are auto-selected from the lender's personal
- * collections, context collection first, skipping every copy already claimed
- * by a trade reservation or another loan.
- * @returns The created loan as a viewer-oriented DTO.
+ * Records a loan: active immediately, copies pinned in place. The borrower is
+ * a friend-group co-member (who may later acknowledge/reject) or a free-text
+ * name. Copies are auto-selected from the lender's personal collections,
+ * context collection first, skipping every copy already claimed by a trade
+ * reservation or another loan.
  */
 export function createLoan(transact: Transact, input: CreateLoanInput): Promise<LoanResponse> {
   const { lenderUserId, printingId, quantity, borrowerUserId, borrowerName, contextCollectionId } =
@@ -94,9 +87,9 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       throw tooFewAvailable(unclaimed.length);
     }
 
-    // Lock the candidate copies before pinning so a concurrent dispose of one of
-    // them serializes against this loan (audit #7); the survivors are the ids
-    // that still exist under the lock.
+    // Lock the candidate copies before pinning so a concurrent dispose of one
+    // of them serializes against this loan; the survivors are the ids that
+    // still exist under the lock.
     const surviving = new Set(await trxRepos.copies.lockByIds(unclaimed));
     const lockedCopyIds = unclaimed.filter((id) => surviving.has(id));
     if (lockedCopyIds.length < quantity) {
@@ -143,9 +136,8 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
 
 /**
  * Marks `count` copies as physically returned (lender only, partial returns
- * allowed — ADR-039). Releases that many pins; the loan closes as `returned`
- * once everything is back.
- * @returns The updated loan as a viewer-oriented DTO.
+ * allowed). Releases that many pins; the loan closes as `returned` once
+ * everything is back.
  */
 export function returnLoanCopies(
   transact: Transact,
@@ -179,11 +171,10 @@ export function returnLoanCopies(
 /**
  * Closes an active loan whose outstanding copies are never coming back
  * (lender only — covers both "keeping it by agreement" and a vanished
- * borrower, ADR-039). Releases the pins; with `removeCopies` the outstanding
- * copies are disposed from the lender's collection in the same transaction
- * (the apply side of the write-off proposal), without it they reappear as
+ * borrower). Releases the pins; with `removeCopies` the outstanding copies
+ * are disposed from the lender's collection in the same transaction (the
+ * apply side of the write-off proposal), without it they reappear as
  * available until fixed manually (the skip side). The borrower gets nothing.
- * @returns The updated loan as a viewer-oriented DTO.
  */
 export function writeOffLoan(
   transact: Transact,
@@ -214,7 +205,6 @@ export function writeOffLoan(
 /**
  * The borrower confirms they hold the copies. Unlocks their borrowed surfaces
  * (Borrowed view, deck-builder counts).
- * @returns The updated loan as a viewer-oriented DTO.
  */
 export function acknowledgeLoan(
   transact: Transact,
@@ -238,7 +228,6 @@ export function acknowledgeLoan(
  * The borrower disputes the loan ("I don't have this"). The loan stays active
  * on the lender's side — rejection flags it back to them and hides it from the
  * borrower's surfaces.
- * @returns The updated loan as a viewer-oriented DTO.
  */
 export function rejectLoan(
   transact: Transact,
@@ -261,7 +250,6 @@ export function rejectLoan(
 /**
  * Deletes a loan outright (lender only, any status): mis-entries and unwanted
  * history. Pins cascade, so an active loan's copies become available again.
- * @returns Nothing; throws 404 when the loan is not the caller's.
  */
 export async function deleteLoan(
   transact: Transact,

@@ -61,7 +61,6 @@ export const adminCardImagesRouter = {
       trxRepos.printingImages.insertImage(ps.printingId as string, ps.imageUrl, mode),
     );
 
-    // Auto-rehost the accepted image (best-effort, non-blocking)
     if (imageId) {
       await rehostSingleImage(context.io, printingImages, imageId);
     }
@@ -91,9 +90,9 @@ export const adminCardImagesRouter = {
 
     // Check whether anything else still shows this file before deleting it from
     // disk: another printing_image sharing the image_file, or a printing that
-    // pins it as substitute art (migration 257). A pin outlives the scan it was
-    // taken from, so skipping that check would leave the pinning printing
-    // pointing at files that are gone.
+    // pins it as substitute art. A pin outlives the scan it was taken from, so
+    // skipping that check would leave the pinning printing pointing at files
+    // that are gone.
     const othersUsingFiles = imageFileId
       ? (await printingImages.countOthersByImageFileId(imageFileId, imageId)) +
         (await printingImages.countPinsByImageFileId(imageFileId))
@@ -103,7 +102,6 @@ export const adminCardImagesRouter = {
 
     if (image.rehostedUrl && othersUsingFiles === 0) {
       await deleteRehostFiles(context.io, image.rehostedUrl);
-      // Clean up the orphaned image_files row
       await printingImages.deleteOrphanedImageFiles();
     }
 
@@ -125,7 +123,6 @@ export const adminCardImagesRouter = {
 
     await transact(async (trxRepos) => {
       if (active) {
-        // Deactivate the current active image (if any)
         await trxRepos.printingImages.deactivateActiveFront(image.printingId);
       }
 
@@ -164,7 +161,6 @@ export const adminCardImagesRouter = {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no associated image file");
     }
 
-    // Only delete files if no other printing_image shares the same image_file
     const othersUsingFiles = await printingImages.countOthersByImageFileId(imageFileId, imageId);
     if (othersUsingFiles === 0) {
       await deleteRehostFiles(context.io, image.rehostedUrl);
@@ -307,7 +303,7 @@ export const adminCardImagesRouter = {
 
     const mode = rawMode === "additional" ? ("additional" as const) : ("main" as const);
 
-    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "File exceeds 50 MB limit");
     }
@@ -420,7 +416,7 @@ export const adminCardImagesRouter = {
     const current = await printingImages.getFallbackArt(printingId);
     assertFound(current, "Printing not found");
 
-    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+    const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new AppError(413, ERROR_CODES.PAYLOAD_TOO_LARGE, "File exceeds 50 MB limit");
     }

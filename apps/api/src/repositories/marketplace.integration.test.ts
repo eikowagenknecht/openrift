@@ -11,8 +11,8 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const { db, userId } = ctx!;
   const repo = marketplaceRepo(db);
 
-  // Real marketplace names — the CHECK constraint (migration 247) rejects
-  // made-up ones. The seed carries products AND prices for these same cards
+  // Real marketplace names — the CHECK constraint rejects made-up ones.
+  // The seed carries products AND prices for these same cards
   // under every real marketplace, so isolation comes from two levers:
   //   - this file's own 913_xxx externalId range keys every scoped assertion
   //     and the cleanup;
@@ -270,10 +270,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
   });
 
-  // ---------------------------------------------------------------------------
-  // sourcesForPrinting
-  // ---------------------------------------------------------------------------
-
   it("returns marketplace sources for a known printing", async () => {
     const sources = await repo.sourcesForPrinting(anniePrintingId);
 
@@ -290,10 +286,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
     expect(sources).toEqual([]);
   });
-
-  // ---------------------------------------------------------------------------
-  // snapshots
-  // ---------------------------------------------------------------------------
 
   it("returns snapshots ordered by recordedAt ascending", async () => {
     // Insert two price rows for our TCG product. `snapshots()` reads per-product
@@ -319,14 +311,13 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .execute();
 
     // Refresh the MVs so latestPrices() sees the new rows. Daily first — the
-    // latest view is defined over it (migration 219).
+    // latest view is defined over it.
     await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
     await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 
     const snaps = await repo.snapshots(tcgVariantId, null);
 
     expect(snaps.length).toBeGreaterThanOrEqual(2);
-    // Verify ascending order
     for (let i = 1; i < snaps.length; i++) {
       expect(new Date(snaps[i].recordedAt).getTime()).toBeGreaterThanOrEqual(
         new Date(snaps[i - 1].recordedAt).getTime(),
@@ -349,10 +340,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
     expect(snaps).toEqual([]);
   });
-
-  // ---------------------------------------------------------------------------
-  // latestPrices
-  // ---------------------------------------------------------------------------
 
   it("returns latest prices with printingId and marketCents", async () => {
     const prices = await repo.latestPrices();
@@ -379,10 +366,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       expect(typeof p.marketCents).toBe("number");
     }
   });
-
-  // ---------------------------------------------------------------------------
-  // deckValues
-  // ---------------------------------------------------------------------------
 
   it("prices a card at its cheapest printing in the requested languages", async () => {
     const values = await repo.deckValues(userId, mpLang, ["EN"]);

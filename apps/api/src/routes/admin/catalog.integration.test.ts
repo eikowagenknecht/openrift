@@ -3,22 +3,15 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext, syncCardCardTypes } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin catalog routes (sets + marketplace groups)
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix CAT- for set slugs/names, group_id range 10000-10099.
-// ---------------------------------------------------------------------------
+// Requires INTEGRATION_DB_URL. Uses prefix CAT- for set slugs/names, group_id range 10000-10099.
 
 const USER_ID = "a0000000-0011-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Seed admin-specific test data
 if (ctx) {
   const { db } = ctx;
 
-  // Seed a marketplace group for the cardmarket/tcgplayer tests
   await db
     .insertInto("marketplaceGroups")
     .values({
@@ -40,22 +33,14 @@ if (ctx) {
     .execute();
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-// Store UUIDs returned by POST so subsequent tests can use them
 const setIds: Record<string, string> = {};
 
 describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
 
-  // ── GET /admin/sets ─────────────────────────────────────────────────────
-  // Note: The shared DB has seed data (OGS set). We test creating new sets
-  // with a CAT- prefix and verify our sets are included in the response.
-
-  // ── POST /admin/sets ──────────────────────────────────────────────────────
+  // The shared DB has seed data (OGS set); tests create new sets with a
+  // CAT- prefix and verify only their own sets are in the response.
 
   describe("POST /admin/sets", () => {
     it("creates a set", async () => {
@@ -79,8 +64,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           id: "CAT-expansion-one",
           name: "CAT Expansion One",
           printedTotal: 150,
-          // Not the column default: the GET below asserts it survived the
-          // insert, which is what the create path used to drop.
+          // Not the column default, so the GET below can assert it survived the insert.
           setType: "supplemental",
         }),
       );
@@ -131,8 +115,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/sets (after creation) ──────────────────────────────────────
-
   describe("GET /admin/sets (after creation)", () => {
     it("returns created sets with correct shape", async () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
@@ -153,8 +135,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(coreSet.cardCount).toBe(0);
       expect(coreSet.printingCount).toBe(0);
 
-      // Regression: createSet's contract had no setType, so the POST's value
-      // was dropped and every new set came back as the column default.
       const expansion = json.sets.find((s: { slug: string }) => s.slug === "CAT-expansion-one");
       expect(expansion.setType).toBe("supplemental");
     });
@@ -163,15 +143,12 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const res = await app.fetch(adminReq("GET", "/sets"));
       const json = await readJson(res);
 
-      // Find our CAT- sets and verify they are in order relative to each other
       const catSets = json.sets.filter((s: { slug: string }) => s.slug.startsWith("CAT-"));
       expect(catSets).toHaveLength(2);
       expect(catSets[0].slug).toBe("CAT-core-set");
       expect(catSets[1].slug).toBe("CAT-expansion-one");
     });
   });
-
-  // ── PATCH /admin/sets/:id ─────────────────────────────────────────────────
 
   describe("PATCH /admin/sets/:id", () => {
     it("returns 404 when updating a non-existent set", async () => {
@@ -219,16 +196,13 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
     });
   });
 
-  // ── PUT /admin/sets/reorder ───────────────────────────────────────────────
-
   describe("PUT /admin/sets/reorder", () => {
     it("reorders sets", async () => {
-      // Get all sets to include in the reorder (must include all UUIDs)
+      // The reorder endpoint requires all UUIDs to be present.
       const getRes = await app.fetch(adminReq("GET", "/sets"));
       const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
 
-      // Move CAT-expansion-one before CAT-core-set by reversing the order
       const coreId = setIds["CAT-core-set"];
       const expId = setIds["CAT-expansion-one"];
       const reordered = allIds.filter((id) => id !== coreId && id !== expId);
@@ -288,8 +262,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(json.message).toContain("Unknown");
     });
   });
-
-  // ── DELETE /admin/sets/:id ──────────────────────────────────────────────
 
   describe("DELETE /admin/sets/:id", () => {
     it("returns 400 for non-UUID id", async () => {
@@ -360,7 +332,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(delJson.code).toBe("CONFLICT");
       expect(delJson.message).toContain("printing");
 
-      // Clean up
       await testDb.deleteFrom("printings").where("shortCode", "=", "CAT-PRINT-001").execute();
       await testDb.deleteFrom("cardDomains").where("cardId", "=", tempCard.id).execute();
       await testDb.deleteFrom("cards").where("slug", "=", "CAT-PRINT-001").execute();

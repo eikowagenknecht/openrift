@@ -5,25 +5,14 @@ import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Collections routes
-//
-// Uses the shared integration database. Only auth is mocked.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0002-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe.skipIf(!ctx)("Collections routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // Track IDs created during tests
   let collectionId: string;
   let secondCollectionId: string;
   let inboxId: string;
@@ -39,8 +28,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       .onConflict((oc) => oc.doNothing())
       .execute();
   });
-
-  // ── POST /collections ─────────────────────────────────────────────────────
 
   describe("POST /collections", () => {
     it("creates a collection and returns full DTO shape", async () => {
@@ -99,8 +86,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
   });
 
-  // ── GET /collections ──────────────────────────────────────────────────────
-
   describe("GET /collections", () => {
     it("includes the user's inbox collection", async () => {
       const res = await app.fetch(req("GET", "/collections"));
@@ -109,7 +94,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const json = (await readJson(res)) as { items: CollectionResponse[] };
       const inbox = json.items.find((c) => c.isInbox);
       expect(inbox).toBeDefined();
-      // The expect above guarantees inbox is defined
       inboxId = (inbox as NonNullable<typeof inbox>).id;
     });
 
@@ -126,7 +110,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     it("returns inbox first, then remaining collections sorted", async () => {
       const res = await app.fetch(req("GET", "/collections"));
       const json = (await readJson(res)) as { items: CollectionResponse[] };
-      // Inbox should always come first
       expect(json.items[0].isInbox).toBe(true);
       // Personal collections are ordered by sortOrder (then name as a tiebreak),
       // not by name alone — verify the rest are in ascending sortOrder.
@@ -135,8 +118,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(rest).toEqual(bySortOrder);
     });
   });
-
-  // ── GET /collections/:id ──────────────────────────────────────────────────
 
   describe("GET /collections/:id", () => {
     it("returns a single collection by ID", async () => {
@@ -154,8 +135,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── PATCH /collections/:id ────────────────────────────────────────────────
 
   describe("PATCH /collections/:id", () => {
     it("updates the collection name", async () => {
@@ -226,8 +205,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
   });
 
-  // ── GET /collections/:id/copies ───────────────────────────────────────────
-
   describe("GET /collections/:id/copies", () => {
     it("returns empty array for a collection with no copies", async () => {
       const res = await app.fetch(req("GET", `/collections/${collectionId}/copies`));
@@ -245,22 +222,18 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
   });
 
-  // ── DELETE /collections/:id ───────────────────────────────────────────────
-
   describe("DELETE /collections/:id", () => {
     it("rejects deleting the inbox collection", async () => {
       const res = await app.fetch(req("DELETE", `/collections/${inboxId}`));
-      // The route guards the inbox with 409 Conflict ("Cannot delete inbox").
       expect(res.status).toBe(409);
     });
 
-    // Regression (REST-2): a non-empty SHARED (group-owned) collection has no
-    // inbox to drain into, so deletion is a resource-state conflict (409), not a
-    // malformed request (400). The unit suite covers this with a mocked repo;
-    // this exercises the real listCopiesInCollection query + group-admin access
-    // path end-to-end. Set up directly (no API exists to mint a group
-    // collection here): a group, USER_ID as its owner, a group-owned collection,
-    // and one copy.
+    // A non-empty SHARED (group-owned) collection has no inbox to drain into,
+    // so deletion is a resource-state conflict (409), not a malformed request
+    // (400). The unit suite covers this with a mocked repo; this exercises the
+    // real listCopiesInCollection query + group-admin access path end-to-end.
+    // Set up directly (no API exists to mint a group collection here): a
+    // group, USER_ID as its owner, a group-owned collection, and one copy.
     it("returns 409 when deleting a non-empty shared (group) collection", async () => {
       const groupId = "a0000000-0002-4000-a000-0000000000a0";
       const groupCollectionId = "a0000000-0002-4000-a000-0000000000a1";

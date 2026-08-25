@@ -3,11 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the ADR-033 unified tournaments umbrella:
-// create (with CHECK-invariant 422s + host authorization), list/detail/settings/
-// cancel/delete, staff grants (by candidate id, with eligibility + invite links),
-// and the participant roster (walk-in, approve/deny, drop, unlink, remove guard).
-
 const HOST_ID = crypto.randomUUID();
 const OTHER_ID = crypto.randomUUID();
 const JUDGE_ID = crypto.randomUUID();
@@ -36,7 +31,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     const judge = judgeCtx!;
     let id = "";
 
-    // Fetches the roster and returns the participant matching a display name.
     async function findParticipant(displayName: string): Promise<Participant | undefined> {
       const res = await host.app.fetch(req("GET", `/tournaments/${id}/participants`));
       const body = (await readJson(res)) as { items: Participant[] };
@@ -87,8 +81,8 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("allows an empty tournament (no pairings, no decks) on create", async () => {
-      // Since the format collapse, a roster/schedule-only event is valid: no
-      // pairing engine and no decklist is no longer a CHECK violation.
+      // A roster/schedule-only event is valid: no pairing engine and no
+      // decklist is not a CHECK violation.
       const empty = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Just a meetup",
@@ -102,7 +96,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("rejects an out-of-order schedule with 422 on create", async () => {
-      // endsAt cannot precede startsAt.
       const badEnd = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Backwards",
@@ -115,7 +108,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(badEnd.status).toBe(422);
 
-      // Submissions cannot close after the tournament ends.
       const badClose = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Late Close",
@@ -198,8 +190,8 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(hidden.status).toBe(404);
     });
 
-    // Regression: the detail response must never hand the staff-invite tokens to a
-    // viewer who is merely a participant (or a `requested` one). Without the gate,
+    // The detail response must never hand the staff-invite tokens to a viewer
+    // who is merely a participant (or a `requested` one). Without the gate,
     // anyone who self-registered could harvest `judgeInviteToken`, claim it, and
     // escalate to judge/organizer.
     it("hides staff/share tokens from non-staff viewers in detail", async () => {
@@ -249,7 +241,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(participantBody.myRoles).toContain("participant");
       expect(participantBody.myRoles).not.toContain("organizer");
       expect(participantBody.myRoles).not.toContain("judge");
-      // Every token field is withheld from a plain participant.
       expect(participantBody.organizerInviteToken).toBeNull();
       expect(participantBody.judgeInviteToken).toBeNull();
       expect(participantBody.submissionToken).toBeNull();
@@ -278,14 +269,12 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       // The roster stays organizer-gated even for a judge (mirrors `listStaff`).
       expect(judgeBody.staff).toEqual([]);
 
-      // The host (organizer) sees every token.
       const asHost = await host.app.fetch(req("GET", `/tournaments/${gateId}`));
       const hostBody = (await readJson(asHost)) as DetailTokens;
       expect(hostBody.organizerInviteToken).toBe("gate-organizer-invite");
       expect(hostBody.judgeInviteToken).toBe("gate-judge-invite");
       expect(hostBody.submissionToken).toBe("gate-submission");
       expect(hostBody.reportToken).toBe("gate-report");
-      // And the host (organizer) sees the populated roster.
       expect(hostBody.staff.some((member) => member.userId === HOST_ID)).toBe(true);
     });
 
@@ -326,7 +315,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       const earlierIndex = body.items.findIndex((item) => item.id === earlierId);
       expect(laterIndex).toBeGreaterThanOrEqual(0);
       expect(earlierIndex).toBeGreaterThanOrEqual(0);
-      // Later startsAt sorts ahead of earlier startsAt, regardless of creation order.
       expect(laterIndex).toBeLessThan(earlierIndex);
     });
 
@@ -340,9 +328,9 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(body.byePoints).toBe(2);
     });
 
-    // Regression: leaving the pod engine must revoke both follow-along tokens.
-    // Otherwise a now-meaningless link keeps resolving and renders a pod shell for
-    // a tournament that no longer has pairings or standings.
+    // Leaving the pod engine must revoke both follow-along tokens. Otherwise a
+    // now-meaningless link keeps resolving and renders a pod shell for a
+    // tournament that no longer has pairings or standings.
     it("revokes the report and follow tokens when the pairing engine leaves pod", async () => {
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
@@ -538,7 +526,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(created.status).toBe(201);
       const orgTid = ((await readJson(created)) as { id: string }).id;
 
-      // The judge sees a judge role, not host/organizer.
       const detail = await judge.app.fetch(req("GET", `/tournaments/${orgTid}`));
       expect(detail.status).toBe(200);
       const myRoles = ((await readJson(detail)) as { myRoles: string[] }).myRoles;
@@ -546,7 +533,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(myRoles).not.toContain("host");
       expect(myRoles).not.toContain("organizer");
 
-      // The implicit staff row reflects the org judge.
       interface StaffRow {
         userId: string;
         role: string;
@@ -559,13 +545,11 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(judgeRow).toMatchObject({ role: "judge", source: "organization", orgRole: "judge" });
 
-      // The judge cannot manage the tournament.
       const manage = await judge.app.fetch(
         req("PATCH", `/tournaments/${orgTid}`, { name: "Renamed by judge" }),
       );
       expect(manage.status).toBe(403);
 
-      // The judge cannot host a new tournament under the org.
       const hostAttempt = await judge.app.fetch(
         req("POST", "/tournaments", {
           name: "Judge Hosted",
@@ -630,7 +614,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(items.some((candidate) => candidate.userId === OTHER_ID)).toBe(true);
       expect(items.some((candidate) => candidate.userId === HOST_ID)).toBe(false);
 
-      // Non-managers cannot read the candidate list.
       const denied = await other.app.fetch(req("GET", `/tournaments/${id}/staff/candidates`));
       expect(denied.status).toBe(403);
     });
@@ -643,7 +626,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       const first = (await readJson(enable)) as { judgeInviteToken: string | null };
       expect(first.judgeInviteToken).toBeTruthy();
 
-      // Rotating mints a fresh token and retires the old one.
       const rotate = await host.app.fetch(
         req("POST", `/tournaments/${id}/staff-invite`, { role: "judge" }),
       );
@@ -651,7 +633,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(second.judgeInviteToken).toBeTruthy();
       expect(second.judgeInviteToken).not.toBe(first.judgeInviteToken);
 
-      // A non-manager cannot mint links.
       const denied = await other.app.fetch(
         req("POST", `/tournaments/${id}/staff-invite`, { role: "judge" }),
       );
@@ -711,7 +692,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(onCompleted.status).toBe(409);
 
-      // Same for a cancelled tournament.
       await host.db
         .updateTable("tournaments")
         .set({ status: "cancelled" })
@@ -853,7 +833,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(blocked.claimBlocked).toBe(true);
       expect(blocked.claimToken).toBeNull();
 
-      // Re-issue clears the block and rotates the token.
       const reissue = await host.app.fetch(
         req("POST", `/tournaments/${reissueTid}/participants/${seeded.id}/reissue-claim`),
       );
@@ -862,7 +841,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(reopened.claimBlocked).toBe(false);
       expect(reopened.claimToken).toBeTruthy();
 
-      // The correct player can now claim the spot through the fresh link.
       const claim = await other.app.fetch(req("POST", `/deck-check/claim/${reopened.claimToken}`));
       expect(claim.status).toBe(200);
       expect(((await readJson(claim)) as { status: string }).status).toBe("claimed");
@@ -893,7 +871,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       // Every participant gets a claim token, with or without deck check.
       expect(claimable?.claimToken).toBeTruthy();
 
-      // A different account claims the spot through its link.
       const claim = await other.app.fetch(
         req("POST", `/deck-check/claim/${claimable?.claimToken}`),
       );
@@ -972,20 +949,17 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       const lifecycleId = ((await readJson(created)) as { id: string }).id;
 
-      // setup → running is allowed.
       const run = await host.app.fetch(
         req("PATCH", `/tournaments/${lifecycleId}`, { status: "running" }),
       );
       expect(run.status).toBe(200);
       expect(((await readJson(run)) as { status: string }).status).toBe("running");
 
-      // running → setup is a backwards move and is rejected.
       const back = await host.app.fetch(
         req("PATCH", `/tournaments/${lifecycleId}`, { status: "setup" }),
       );
       expect(back.status).toBe(409);
 
-      // running → completed is allowed; completed → running is then rejected.
       const done = await host.app.fetch(
         req("PATCH", `/tournaments/${lifecycleId}`, { status: "completed" }),
       );

@@ -71,7 +71,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     }
     await db.deleteFrom("lists").where("userId", "in", ALL_USER_IDS).execute();
     // Copies must go before their collections — a trigger blocks deleting a
-    // collection that still has copies. Ownership is by collection now (no userId).
+    // collection that still has copies.
     await db
       .deleteFrom("copies")
       .where(
@@ -81,7 +81,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       )
       .execute();
     await db.deleteFrom("collections").where("userId", "in", ALL_USER_IDS).execute();
-    // Users are file-owned; delete them last, once nothing references them.
     await db.deleteFrom("users").where("id", "in", ALL_USER_IDS).execute();
   });
 
@@ -112,12 +111,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return created.id;
   }
 
-  /**
-   * Builds a live match: GIVER owns `copyCount` shared copies of PRINTING_1 on a
-   * trade list; RECEIVER wishes `wishQuantity` of that printing (defaults to
-   * `copyCount`); both shared with a fresh group.
-   * @returns The group, the receiver's wish entry, and the giver's copy ids.
-   */
   async function setupMatch(copyCount: number, wishQuantity: number = copyCount) {
     const slug = await uniqueSlug();
     const group = await groupsRepo.createWithOwner(
@@ -177,11 +170,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   /**
    * Like {@link setupMatch}, but the giver offers the copies via a *dynamic
-   * trade rule* (ADR-034, keep 0 per card) instead of manual `copy` entries —
-   * the regression case where the reservable-supply count must still see them.
-   * The copies live in a fresh collection scoped by the rule, so this suite's
-   * shared-DB accumulation can't leak extra copies into the match.
-   * @returns The group and the giver's copy ids.
+   * trade rule* (keep 0 per card) instead of manual `copy` entries — the
+   * reservable-supply count must still see them. The copies live in a fresh
+   * collection scoped by the rule, so this suite's shared-DB accumulation
+   * can't leak extra copies into the match.
    */
   async function setupRuleMatch(copyCount: number, wishQuantity: number = copyCount) {
     const slug = await uniqueSlug();
@@ -227,7 +219,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     }
 
     // No manual `copy` entries — a keep-0 trade rule offers every owned copy in
-    // the collection. This is exactly the shape that used to read as 0 supply.
+    // the collection.
     const tradeRule: ListRule = {
       kind: "trade",
       filter: EMPTY_CARD_FILTERS,
@@ -266,7 +258,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .execute();
   }
 
-  /** @returns The id of a giver-owned PRINTING_1 copy that is on no shared list. */
+  /** A giver-owned PRINTING_1 copy that is on no shared list. */
   async function unlistedGiverCopy(): Promise<string> {
     const collectionId = await collectionFor(GIVER_ID);
     const row = await db
@@ -277,7 +269,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return row.id;
   }
 
-  /** @returns The trade's current status, read straight from the row. */
   async function statusOf(tradeId: string): Promise<string | undefined> {
     const row = await repos.cardTrades.getById(tradeId);
     return row?.status;
@@ -294,10 +285,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   }
 
-  /**
-   * The giver's "I have this, want it?" offer, so the initiator is the giver.
-   * @returns The created trade DTO.
-   */
+  /** The giver's "I have this, want it?" offer, so the initiator is the giver. */
   function offer(group: { slug: string }, toUserId: string, quantity: number) {
     return createTrade(repos, {
       callerUserId: GIVER_ID,
@@ -309,7 +297,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   }
 
-  /** Gives an existing member of `groupId` a shared wish for PRINTING_1. */
   async function shareWish(groupId: string, userId: string, quantity: number): Promise<void> {
     const wish = await db
       .insertInto("lists")
@@ -324,10 +311,9 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   }
 
   /**
-   * Counts PRINTING_1 copies the receiver owns (ownership is by collection now).
-   * The suite shares one DB with afterAll-only cleanup, so copies accumulate
-   * across tests — assert deltas around an apply rather than absolute totals.
-   * @returns The number of receiver-owned PRINTING_1 copies.
+   * Counts PRINTING_1 copies the receiver owns. The suite shares one DB with
+   * afterAll-only cleanup, so copies accumulate across tests — assert deltas
+   * around an apply rather than absolute totals.
    */
   async function countReceiverCopiesOfP1(): Promise<number> {
     const rows = await db
@@ -393,7 +379,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     // Giver has 2 shared copies but the receiver only wishes 1.
     const { group } = await setupMatch(2, 1);
     await expect(request(group, 2)).rejects.toMatchObject({ status: 400 });
-    // Requesting up to the wished amount is fine.
     const trade = await request(group, 1);
     expect(trade.status).toBe("pending");
   });
@@ -417,9 +402,8 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     // Sanity: the rule-derived copy shows as available supply in the match view.
     expect(await availableForReceiver(group.id)).toBe(1);
 
-    // Regression: the giver offers their single rule-offered copy. This used to
-    // 409 with "Only 0 copies are still available" because the supply count only
-    // looked at manual `copy` list entries and never evaluated the rule.
+    // The giver offers their single rule-offered copy: the supply count must
+    // evaluate the rule, not just manual `copy` list entries.
     const trade = await createTrade(repos, {
       callerUserId: GIVER_ID,
       groupSlug: group.slug,
@@ -431,11 +415,9 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(trade.status).toBe("pending");
     expect(trade.initiator).toBe("giver");
 
-    // The recipient accepts; the rule-offered copy is pinnable and reserves.
     const reserved = await acceptTrade(transact, trade.id, RECEIVER_ID);
     expect(reserved.status).toBe("reserved");
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
-    // Reserved copy drops out of the rule-derived supply too.
     expect(await availableForReceiver(group.id)).toBe(0);
   });
 
@@ -509,12 +491,11 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       quantity: 1,
     });
 
-    // The giver accepts the first; the only copy is now pinned to it.
     await acceptTrade(transact, tradeForReceiver.id, GIVER_ID);
 
     // The second request can no longer be filled, so the accept closes it in
-    // the same transaction (system actor). It used to sit pending for the whole
-    // seven-day TTL, silently 409-ing every time the giver pressed accept.
+    // the same transaction (system actor). Otherwise it would sit pending for
+    // the whole seven-day TTL, silently 409-ing every giver accept.
     const outsiderRow = await repos.cardTrades.getById(tradeForOutsider.id);
     expect(outsiderRow?.status).toBe("cancelled");
     expect(outsiderRow?.lastActorUserId).toBeNull();
@@ -536,14 +517,13 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await expect(applyTradeSync(transact, trade.id, RECEIVER_ID)).rejects.toMatchObject({
       status: 409,
     });
-    // Exactly one copy was added, not two (the rejected retry adds nothing).
     expect((await countReceiverCopiesOfP1()) - receiverCopiesBefore).toBe(1);
   });
 
   it("a trade one side has settled can no longer be cancelled", async () => {
     // The giver's settle hard-deletes the copies, so a later cancel could not
-    // put them back and would only record a lie (ADR-019, amendment
-    // 2026-08-10). The trade stays reserved until the receiver settles too.
+    // put them back and would only record a lie. The trade stays reserved
+    // until the receiver settles too.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -588,7 +568,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const first = await request(group, 1);
     await expect(request(group, 1)).rejects.toMatchObject({ status: 409 });
     await declineTrade(transact, first.id, GIVER_ID);
-    // Now a fresh request is allowed.
     const second = await request(group, 1);
     expect(second.status).toBe("pending");
   });
@@ -628,15 +607,12 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("setTradeQuantity is initiator-only and pending-only", async () => {
     const { group } = await setupMatch(2);
     const trade = await request(group, 1);
-    // The giver (non-initiator) cannot resize the request.
     await expect(setTradeQuantity(transact, trade.id, GIVER_ID, 2)).rejects.toMatchObject({
       status: 403,
     });
-    // An outsider cannot either.
     await expect(setTradeQuantity(transact, trade.id, OUTSIDER_ID, 2)).rejects.toMatchObject({
       status: 403,
     });
-    // Once reserved it can no longer be resized.
     await acceptTrade(transact, trade.id, GIVER_ID);
     await expect(setTradeQuantity(transact, trade.id, RECEIVER_ID, 2)).rejects.toMatchObject({
       status: 409,
@@ -646,17 +622,13 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("only the non-initiator can accept/decline; only the initiator can cancel a pending", async () => {
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
-    // Initiator (receiver) cannot accept their own request.
     await expect(acceptTrade(transact, trade.id, RECEIVER_ID)).rejects.toMatchObject({
       status: 403,
     });
-    // Outsider cannot act.
     await expect(acceptTrade(transact, trade.id, OUTSIDER_ID)).rejects.toMatchObject({
       status: 403,
     });
-    // Non-initiator (giver) cannot cancel a pending request.
     await expect(cancelTrade(transact, trade.id, GIVER_ID)).rejects.toMatchObject({ status: 403 });
-    // Initiator can cancel.
     const cancelled = await cancelTrade(transact, trade.id, RECEIVER_ID);
     expect(cancelled.status).toBe("cancelled");
   });
@@ -699,7 +671,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     // every swap whose second side never confirms.
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
-    // The second settle doesn't double it.
     await applyTradeSync(transact, trade.id, GIVER_ID);
     expect(await repos.cardTrades.countCompletedCardsInGroup(group.id)).toBe(2);
   });
@@ -871,7 +842,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
     ).rejects.toMatchObject({ status: 409 });
 
-    // The copy stayed put, so every other member still sees their own supply.
     const stayed = await db
       .selectFrom("copies")
       .select("collectionId")
@@ -879,7 +849,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     expect(stayed.collectionId).not.toBe(pooled.id);
 
-    // The same move is fine once the copy is no longer pinned.
     await cancelTrade(transact, trade.id, GIVER_ID);
     await expect(
       moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
@@ -983,7 +952,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("action-needed counts an unsettled reservation from the moment it is accepted", async () => {
     // No grace period on purpose: two people who swap in person and never touch
     // the app would otherwise be reminded by nothing, leaving the giver's copies
-    // pinned out of every match view (ADR-019, amendment 2026-08-10).
+    // pinned out of every match view.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -1038,7 +1007,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
-  // ── Pending offers consume supply ────────────────────────────────────────
   // An offer is a commitment, so it holds its copies from the moment it is made
   // (a request stays a bid). The committed sum is global, so these tests cancel
   // the offers they leave behind: this suite shares one DB and one giver, and a
@@ -1138,11 +1106,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.listReservedCopyIds(offered.id)).toHaveLength(1);
   });
 
-  // ── Unfillable pending trades are closed, not left to rot ────────────────
   // Whenever the giver's supply drops below a pending trade's quantity, that
   // trade is auto-cancelled in the same transaction as the drop. Without this
-  // it sat pending for the whole seven-day TTL, telling the giver it needed
-  // action and 409-ing every time they pressed accept.
+  // it would sit pending for the whole seven-day TTL, telling the giver it
+  // needed action and 409-ing every time they pressed accept.
 
   it("disposing the copies behind a pending request closes it", async () => {
     const { group, copyIds } = await setupMatch(1);
@@ -1161,11 +1128,9 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, copyIds } = await setupMatch(2);
     const trade = await request(group, 1);
 
-    // One of two copies destroyed still covers a request for one.
     await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
     expect(await statusOf(trade.id)).toBe("pending");
 
-    // The last copy going takes the request with it.
     await disposeCopies(transact, GIVER_ID, [copyIds[1]]);
     expect(await statusOf(trade.id)).toBe("cancelled");
   });
@@ -1238,9 +1203,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     expect(await statusOf(trade.id)).toBe("cancelled");
   });
-  // -------------------------------------------------------------------------
-  // Choosing which physical copy gets promised (C4)
-  // -------------------------------------------------------------------------
 
   it("promises the plainest copy when the giver makes no choice", async () => {
     const { group, copyIds } = await setupMatch(2);
@@ -1354,12 +1316,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
-  // ── Settle-time copy choice ────────────────────────────────────────────────
   // The candidate set here is every free copy the giver owns of the printing,
   // and this suite's copies accumulate across tests, so these assert membership
   // and per-copy outcomes rather than candidate counts.
 
-  /** @returns Whether the copy row still exists. */
   async function copyExists(copyId: string): Promise<boolean> {
     const row = await db
       .selectFrom("copies")
@@ -1455,12 +1415,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
-  // ── liveAnnotationsForUser ─────────────────────────────────────────────────
   // Every test in this file trades PRINTING_1 and cleanup only runs in afterAll,
   // so the annotation buckets accumulate. Each case therefore reads one bucket
   // before and after the action and asserts the delta, never an absolute count.
 
-  /** @returns The viewer's PRINTING_1 bucket for one role and phase, zeroed when absent. */
   async function bucket(
     userId: string,
     role: "giver" | "receiver",
@@ -1473,7 +1431,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return { tradeCount: row?.tradeCount ?? 0, quantity: row?.quantity ?? 0 };
   }
 
-  /** @returns The delta of one bucket across `action`. */
   async function bucketDelta(
     userId: string,
     role: "giver" | "receiver",
@@ -1538,7 +1495,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("drops a settled side's reserved annotation and leaves the other side's", async () => {
     // There is no rung above reserved: once a side settles, the giver's copies
     // are gone and the receiver's are ordinary owned copies, so there is nothing
-    // left to annotate (ADR-019, amendment 2026-08-10).
+    // left to annotate.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -1584,11 +1541,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await repos.cardTrades.liveAnnotationsForUser(BYSTANDER_ID)).toEqual([]);
   });
 
-  // ADR-019, amendment 2026-08-10: settling part of a swap splits the row and
-  // settles the split half, leaving the remainder in flight. Two of the three
-  // cards changed hands and the third is coming next time.
+  // Settling part of a swap splits the row and settles the split half, leaving
+  // the remainder in flight. Two of the three cards changed hands and the
+  // third is coming next time.
   describe("partial settle", () => {
-    /** @returns The trades of this printing between the pair, newest last. */
     async function tradesBetweenParties() {
       return db
         .selectFrom("cardTrades")

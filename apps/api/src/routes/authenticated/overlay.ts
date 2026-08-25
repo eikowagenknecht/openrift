@@ -15,7 +15,6 @@ const os = implement(overlayContract).$context<ApiContext>().use(requireAuthedUs
  * Returns the user's channel, creating it on first ask. Auto-create keeps the
  * dashboard from needing a "set up your overlay" step with nothing in it beyond
  * a button.
- * @returns The user's channel.
  */
 async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChannel> {
   const existing = await repos.overlayChannels.findByUserId(userId);
@@ -43,8 +42,6 @@ async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChann
  * Past the last card the count would say "revealed more than there is", which
  * the source reads as a finished reveal anyway — but storing it would make a
  * later Prev press start counting down from a position the board never had.
- *
- * @returns The count, inside the board's bounds.
  */
 function clampReveal(board: OverlayBoard, revealCount: number): number {
   const total = board.tiers.reduce((sum, row) => sum + row.cards.length, 0);

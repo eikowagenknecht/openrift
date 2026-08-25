@@ -22,10 +22,6 @@ import { findByShareToken, selectShareState, updateShareRow } from "./query-help
  * survivors from stale reads — two concurrent repairs could otherwise leave a
  * one-deck "family" with no primary. Id order keeps two lockers from meeting
  * in opposite order and deadlocking.
- * @param trx The surrounding transaction.
- * @param userId The family owner.
- * @param familyIds The families to lock; empty is a no-op.
- * @returns Resolves once every member row is locked.
  */
 async function lockFamilies(
   trx: Kysely<Database>,
@@ -46,9 +42,9 @@ async function lockFamilies(
 }
 
 /**
- * Input for {@link decksRepo}.`update`: every editable deck column, with the
- * jsonb ones required rather than optional-by-absence, so `"links" in updates`
- * distinguishes "clear it" from "leave it alone".
+ * Every editable deck column, with the jsonb ones required rather than
+ * optional-by-absence, so `"links" in updates` distinguishes "clear it" from
+ * "leave it alone".
  */
 export type DeckUpdateInput = Omit<
   Updateable<DecksTable>,
@@ -65,7 +61,6 @@ type DeckCardRow = Pick<
   "cardId" | "zone" | "quantity" | "preferredPrintingId"
 >;
 
-/** Full deck card row with card details, used for list-page aggregation (type counts, domains, validation). */
 type DeckCardDetailRow = Pick<
   Selectable<DeckCardsTable>,
   "id" | "deckId" | "cardId" | "zone" | "quantity" | "preferredPrintingId"
@@ -81,17 +76,8 @@ type DeckCardDetailRow = Pick<
     imageUrl: string | null;
   };
 
-/**
- * Queries for user decks and deck cards.
- *
- * @returns An object with deck query methods bound to the given `db`.
- */
 export function decksRepo(db: Kysely<Database>) {
   return {
-    /**
-     * @returns Decks for a user, ordered by name. Archived decks are excluded
-     * unless `options.includeArchived` is true.
-     */
     async listForUser(
       userId: string,
       options?: { includeArchived?: boolean },
@@ -108,10 +94,8 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The user's decks that name a home collection, so the collections list can
-     * mark which of them are deck boxes. Archived decks are included — an
-     * archived deck still physically sits in its box.
-     * @returns Deck id, name, and the collection it is stored in, ordered by name.
+     * Archived decks are included on purpose — an archived deck still
+     * physically sits in its box.
      */
     listHomeCollectionDecks(
       userId: string,
@@ -126,7 +110,6 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns A single deck by ID scoped to a user, or `undefined`. */
     async getByIdForUser(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
       return await db
         .selectFrom("decks")
@@ -136,7 +119,6 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The deck's `id` and `format`, or `undefined` if not found. */
     getIdAndFormat(
       id: string,
       userId: string,
@@ -149,7 +131,6 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Whether the deck exists for the given user. */
     exists(id: string, userId: string): Promise<Pick<Selectable<DecksTable>, "id"> | undefined> {
       return db
         .selectFrom("decks")
@@ -159,7 +140,6 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The newly created deck row. */
     async create(values: {
       userId: string;
       name: string;
@@ -177,7 +157,6 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns The updated deck row, or `undefined` if not found. */
     async update(
       id: string,
       userId: string,
@@ -204,12 +183,10 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Deletes a deck. When the deck belonged to a variant family (ADR-042) the
-     * family is repaired in the same transaction: a sole survivor reverts to a
-     * standalone deck, and a deleted primary hands the flag to the most
-     * recently updated survivor. Predecessor pointers detach via the FK.
-     *
-     * @returns Delete result -- check `numDeletedRows` to verify the row existed.
+     * Deletes a deck. When the deck belonged to a variant family the family is
+     * repaired in the same transaction: a sole survivor reverts to a standalone
+     * deck, and a deleted primary hands the flag to the most recently updated
+     * survivor. Predecessor pointers detach via the FK.
      */
     deleteByIdForUser(id: string, userId: string): Promise<{ numDeletedRows: bigint }> {
       return db.transaction().execute(async (trx) => {
@@ -277,7 +254,6 @@ export function decksRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns Deck cards for a deck, scoped to the owning user for defense-in-depth. */
     cardsForDeck(deckId: string, userId: string): Promise<DeckCardRow[]> {
       return db
         .selectFrom("deckCards as dc")
@@ -288,7 +264,6 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Deck cards with full card details for a single deck (used by export). */
     cardsWithDetails(deckId: string, userId: string): Promise<DeckCardDetailRow[]> {
       return db
         .selectFrom("deckCards as dc")
@@ -338,7 +313,6 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All deck cards with card details for every deck owned by a user. */
     allCardsForUser(userId: string): Promise<DeckCardDetailRow[]> {
       return db
         .selectFrom("deckCards as dc")
@@ -372,7 +346,6 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Replaces all cards in a deck within a transaction. Deletes existing cards, inserts new ones, and touches updatedAt. */
     async replaceCards(
       deckId: string,
       cards: {
@@ -392,7 +365,6 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        // Touch the parent deck so its updated_at advances via trigger
         await trx
           .updateTable("decks")
           .set({ updatedAt: sql`now()` })
@@ -401,7 +373,6 @@ export function decksRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns The new deck row, or `undefined` if the source deck was not found. */
     async cloneDeck(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
       const source = await db
         .selectFrom("decks")
@@ -452,14 +423,12 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Copies a deck into its variant family (ADR-042), creating the family on
-     * first use (the source becomes primary). Unlike `cloneDeck` this also
-     * copies the odds config, cover, home collection, and the full deck plan.
+     * Copies a deck into its variant family, creating the family on first use
+     * (the source becomes primary). Unlike `cloneDeck` this also copies the
+     * odds config, cover, home collection, and the full deck plan.
      * `checkpoint` inserts the copy behind the live deck in the predecessor
      * chain (the live deck keeps its id); `variant` makes the copy an editable
      * sibling descending from the source.
-     *
-     * @returns The new deck row, or `undefined` if the source was not found.
      */
     createVariantCopy(
       id: string,
@@ -593,15 +562,13 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Links two existing decks into one variant family (ADR-042). Both decks
+     * Links two existing decks into one variant family. Both decks
      * must be owned by `userId`. Each side brings its whole family along, so
      * linking a member of family A to a member of family B merges A and B. The
      * merged family keeps the surviving family's primary, falling back to the
      * absorbed family's and finally to the deck being linked from.
      * `markAsPreviousVersion` also records the other deck as this deck's
      * predecessor, and is ignored when this deck already has one.
-     *
-     * @returns The updated deck row, or a literal describing why nothing changed.
      */
     linkAsVariant(
       id: string,
@@ -628,7 +595,6 @@ export function decksRepo(db: Kysely<Database>) {
           return "invalid" as const;
         }
 
-        // This deck's family survives the merge; two standalones start a fresh one.
         const familyId = current.familyId ?? other.familyId ?? crypto.randomUUID();
         const absorbedFamilyIds = [current.familyId, other.familyId].filter(
           (candidate): candidate is string => candidate !== null && candidate !== familyId,
@@ -697,14 +663,12 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Removes a deck from its variant family (ADR-042), turning it back into a
+     * Removes a deck from its variant family, turning it back into a
      * standalone deck. Members that descended from it inherit its own
      * predecessor, so the chain closes over the gap. The family is then
      * repaired exactly as a deletion repairs it: a sole survivor reverts to
      * standalone, and a departing primary hands the flag to the most recently
      * updated survivor.
-     *
-     * @returns The updated deck row, or a literal describing why nothing changed.
      */
     unlinkVariant(
       id: string,
@@ -785,15 +749,6 @@ export function decksRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Repoints a deck at another member of its own variant family as its
-     * predecessor, or clears the pointer with `null` (ADR-042). Both decks must
-     * belong to the same family and the same user. A predecessor that already
-     * descends from this deck would close the ancestry into a loop, so the walk
-     * up from the proposed parent rejects that case.
-     *
-     * @returns The updated row, or a literal describing why nothing changed.
-     */
     setPredecessor(
       id: string,
       userId: string,
@@ -850,11 +805,8 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Makes a deck the primary of its variant family, demoting the current
-     * primary in the same transaction. The partial unique index
-     * `uq_decks_family_primary` backstops the one-primary invariant.
-     *
-     * @returns The updated row, or a literal describing why nothing changed.
+     * Demotes the current primary in the same transaction. The partial unique
+     * index `uq_decks_family_primary` backstops the one-primary invariant.
      */
     promoteToPrimary(
       id: string,
@@ -892,10 +844,6 @@ export function decksRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Toggles a deck's pinned status, scoped to the owning user.
-     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
-     */
     async setPinned(
       id: string,
       userId: string,
@@ -910,11 +858,6 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Archives or unarchives a deck. When archived, sets archived_at to now;
-     * when unarchived, nulls it. Scoped to the owning user.
-     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
-     */
     async setArchived(
       id: string,
       userId: string,
@@ -930,11 +873,9 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Reads the current share state of a deck, scoped to the owning user.
-     * Non-mutating — used by GET /decks/:id/share so an owned-but-unshared
-     * deck reports `{ shareToken: null, isPublic: false }` instead of 404ing.
-     * @returns `{ shareToken, isPublic }`, or `undefined` if the deck is not
-     * owned by the user (lets the route 404 only for missing/foreign decks).
+     * Lets GET /decks/:id/share report `{ shareToken: null, isPublic: false }`
+     * for an owned-but-unshared deck instead of 404ing; `undefined` (deck
+     * missing or foreign) is what the route 404s on.
      */
     getShareState(
       id: string,
@@ -943,10 +884,6 @@ export function decksRepo(db: Kysely<Database>) {
       return selectShareState(db, "decks", id, userId);
     },
 
-    /**
-     * Sets (or nulls) the share_token and is_public on a deck, scoped to the owning user.
-     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
-     */
     setShareToken(
       id: string,
       userId: string,
@@ -956,11 +893,6 @@ export function decksRepo(db: Kysely<Database>) {
       return updateShareRow(db, "decks", id, userId, shareToken, isPublic);
     },
 
-    /**
-     * Looks up a public deck by its share token. Anonymous — no user scoping.
-     * @returns The deck row and owner display name, or `undefined` if the token
-     * doesn't match a public deck.
-     */
     async findByShareToken(
       shareToken: string,
     ): Promise<
@@ -973,11 +905,6 @@ export function decksRepo(db: Kysely<Database>) {
       return { deck: found.row, ownerName: found.ownerName, ownerEmail: found.ownerEmail };
     },
 
-    /**
-     * Clones a publicly shared deck into `userId`'s account. The new deck is
-     * private (isPublic=false) and named `Copy of <source name>`.
-     * @returns The new deck row, or `undefined` if the token is not a public deck.
-     */
     async cloneFromShareToken(
       shareToken: string,
       userId: string,

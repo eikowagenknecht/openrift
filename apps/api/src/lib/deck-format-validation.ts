@@ -8,8 +8,6 @@ import { AppError } from "../errors.js";
  * Rejects a deck format that isn't in the `deck_formats` reference table. The
  * column FKs to that table, so without this a bad slug surfaces as a raw
  * constraint violation instead of a 400.
- *
- * @returns void — throws AppError(400) for an unknown slug.
  */
 export async function assertKnownFormat(
   deckFormats: Repos["deckFormats"],
@@ -30,9 +28,6 @@ export async function assertKnownFormat(
  * `{ tagSlugs: <slug>[] }` where each slug references an existing
  * custom_tags row with category='region'. At least one slug is required;
  * duplicates are deduped to keep the persisted payload tidy.
- *
- * @returns The normalized config to persist, or null when the caller hasn't
- *   provided one. Throws AppError(400) for malformed values.
  */
 export async function validateFormatConfig(
   customTagsRepo: Repos["customTags"],

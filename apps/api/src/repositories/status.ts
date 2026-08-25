@@ -36,19 +36,10 @@ interface PricingStats {
   sources: PricingSourceStats[];
 }
 
-/**
- * Queries for the admin status dashboard.
- * @returns Status repository with database, app stat, and pricing methods.
- */
 export function statusRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Gathers database-level status information.
-     * @returns Database status including size, connections, and migration info.
-     */
     async getDatabaseStatus(): Promise<DbStatus> {
       try {
-        // Database size
         // ::float8 because the numeric division would come back as a string.
         const [sizeRow] = await sql<{ sizeMb: number }>`
           SELECT (pg_database_size(current_database()) / (1024 * 1024.0))::float8 AS size_mb
@@ -56,7 +47,6 @@ export function statusRepo(db: Kysely<Database>) {
           .execute(db)
           .then((r) => r.rows);
 
-        // Active connections
         const [connRow] = await sql<{ count: number }>`
           SELECT count(*)::int AS count FROM pg_stat_activity
           WHERE datname = current_database()
@@ -64,7 +54,6 @@ export function statusRepo(db: Kysely<Database>) {
           .execute(db)
           .then((r) => r.rows);
 
-        // Latest migration from Kysely's internal table
         const migrationRows = await sql<{ name: string }>`
           SELECT name FROM kysely_migration ORDER BY name DESC
         `
@@ -92,10 +81,6 @@ export function statusRepo(db: Kysely<Database>) {
       }
     },
 
-    /**
-     * Gathers application-level statistics.
-     * @returns App stats including user, card, and collection counts.
-     */
     async getAppStats(): Promise<AppStats> {
       const [users] = await sql<{ total: number; recent: number }>`
         SELECT
@@ -138,16 +123,10 @@ export function statusRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Gathers pricing/marketplace statistics per source. Counts come from
-     * `marketplace_product_prices` (one row per SKU per recorded_at).
-     *
      * The price aggregate runs as its own query rather than a third join in
      * the product query. Variants and prices both hang off a product, so
      * joining them together multiplies each product's price rows by its
-     * variant count — the dev database reported 519354 cardmarket price rows
-     * against 270817 real ones.
-     *
-     * @returns Product counts, price-row counts, and latest recorded_at per marketplace.
+     * variant count.
      */
     async getPricingStats(): Promise<PricingStats> {
       const [productRows, priceRows] = await Promise.all([

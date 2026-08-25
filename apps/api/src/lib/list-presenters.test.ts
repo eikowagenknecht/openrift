@@ -13,10 +13,6 @@ import {
 const NOW = new Date("2025-06-15T12:00:00.000Z");
 const LATER = new Date("2025-06-16T08:30:00.000Z");
 
-// ---------------------------------------------------------------------------
-// toList
-// ---------------------------------------------------------------------------
-
 describe("toList", () => {
   it("maps a list row including intent, kind, and entry count", () => {
     const result = toList({
@@ -105,7 +101,7 @@ describe("toList", () => {
     expect(result.kind).toBe("printing");
   });
 
-  it("carries through trade defaults and currency (ADR-017)", () => {
+  it("carries through trade defaults and currency", () => {
     const result = toList({
       id: "lst-1",
       userId: "user-1",
@@ -134,17 +130,12 @@ describe("toList", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toListDetail — persisted-rule backfill (ADR-034)
-// ---------------------------------------------------------------------------
-
 describe("toListDetail", () => {
   it("re-hydrates a rule saved before a newer filter dimension without failing output validation", () => {
-    // Regression: the list detail endpoint 500'd ("Output validation failed")
-    // when a trade rule's persisted filter predated the `presence` / `keywords`
-    // / `keywordsExclude` dimensions. The stored rule is missing those keys and
-    // still carries the superseded `hasAnyMarker`; toListDetail must backfill
-    // so the response validates.
+    // A trade rule's persisted filter can predate the `presence` / `keywords`
+    // / `keywordsExclude` dimensions and still carry the superseded
+    // `hasAnyMarker`; toListDetail must backfill the missing keys so the
+    // response validates.
     const staleFilter = { ...EMPTY_CARD_FILTERS, hasAnyMarker: null } as Record<string, unknown>;
     delete staleFilter.presence;
     delete staleFilter.keywords;
@@ -179,21 +170,15 @@ describe("toListDetail", () => {
       ruleCombine: null,
     });
 
-    // The mapper backfilled the missing dimensions.
     expect(detail.rules[0].filter.presence).toEqual({});
     expect(detail.rules[0].filter.keywords).toEqual([]);
     expect(detail.rules[0].filter.keywordsExclude).toEqual([]);
     expect(detail.hasRule).toBe(true);
 
-    // And the full detail response now passes the oRPC output contract.
     const result = listDetailResponseSchema.safeParse({ list: detail, entries: [] });
     expect(result.success).toBe(true);
   });
 });
-
-// ---------------------------------------------------------------------------
-// toPublicList
-// ---------------------------------------------------------------------------
 
 describe("toPublicList", () => {
   it("excludes shareToken and isPublic but keeps intent + kind", () => {
@@ -230,10 +215,6 @@ describe("toPublicList", () => {
     expect((result as Record<string, unknown>).isPublic).toBeUndefined();
   });
 });
-
-// ---------------------------------------------------------------------------
-// toListEntry
-// ---------------------------------------------------------------------------
 
 describe("toListEntry", () => {
   it("maps a card-kind entry to the card variant", () => {
@@ -288,10 +269,6 @@ describe("toListEntry", () => {
     });
   });
 });
-
-// ---------------------------------------------------------------------------
-// toListEntryDetail
-// ---------------------------------------------------------------------------
 
 const NO_TRADE_OVERRIDE = { pricePref: null, priceAbsoluteCents: null, tradeType: null };
 
@@ -359,9 +336,6 @@ describe("toListEntryDetail", () => {
   });
 
   it("maps a copy-kind entry with the underlying printing for rendering", () => {
-    // Regression: copy-targeted entries used to leave the underlying printing
-    // off the response, so the list-page couldn't look up a printing and
-    // rendered an empty list even though entries existed.
     const result = toListEntryDetail({
       kind: "copy",
       id: "le-3",

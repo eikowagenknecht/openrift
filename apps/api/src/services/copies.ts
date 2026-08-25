@@ -11,7 +11,6 @@ import { ensureInbox } from "./inbox.js";
 interface AddCopyInput {
   printingId: string;
   collectionId?: string;
-  /** Per-copy metadata (ADR-038), optional at insert time. */
   condition?: string | null;
   grader?: string | null;
   grade?: number | null;
@@ -25,10 +24,7 @@ interface AddCopyResult {
   id: string;
   printingId: string;
   collectionId: string;
-  /**
-   * Owning group of the copy's collection, or null for personal collections.
-   * Derived from the collection so the client no longer has to synthesize it.
-   */
+  /** Owning group of the copy's collection; null for personal collections. */
   groupId: string | null;
   condition: string | null;
   grader: string | null;
@@ -37,20 +33,12 @@ interface AddCopyResult {
   notesPrivate: string | null;
   isAltered: boolean;
   links: CopyLink[];
-  /** Always false for a copy that was just created (ADR-039). */
+  /** Always false for a just-created copy. */
   onLoan: boolean;
-  /** Always false for a copy that was just created (ADR-019): not yet reserved. */
+  /** Always false for a just-created copy: not yet reserved. */
   reserved: boolean;
 }
 
-/**
- * Batch-add copies. Inserts copies into the given collections (or the user's
- * inbox) and logs collection events. Collection write access is checked via
- * `filterWritableByViewer` — for personal collections the user must own them,
- * for shared collections they must be a group member.
- *
- * @returns The created copies with their IDs
- */
 export async function addCopies(
   repos: Repos,
   transact: Transact,
@@ -59,7 +47,6 @@ export async function addCopies(
 ): Promise<AddCopyResult[]> {
   const inboxId = await ensureInbox(repos, userId);
 
-  // Verify every explicit collectionId is writable by this user
   const explicitIds = [...new Set(copies.map((c) => c.collectionId).filter(Boolean))] as string[];
   if (explicitIds.length > 0) {
     const writable = await repos.collections.filterWritableByViewer(explicitIds, userId);
@@ -73,8 +60,8 @@ export async function addCopies(
   }
 
   const created = await transact(async (trxRepos) => {
-    // Copies no longer carry an owner column — ownership derives from the
-    // collection. The acting `userId` is still recorded as the event actor below.
+    // Copies carry no owner column — ownership derives from the collection.
+    // The acting `userId` is recorded only as the event actor below.
     const copyValues = copies.map((item) => ({
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
@@ -89,8 +76,6 @@ export async function addCopies(
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
 
-    // Look up collection name + owning group for event logging and to populate
-    // each created copy's `groupId` (derived from the collection).
     const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
     const collectionRows = await trxRepos.collections.listIdNameGroupByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
@@ -118,10 +103,8 @@ export async function addCopies(
 }
 
 /**
- * Applies one metadata patch (ADR-038) to a batch of copies. The viewer must
- * have write access to every collection the copies live in — the same rule as
- * {@link moveCopies}. Metadata edits are not logged to `collection_events`
- * (the ledger stays a movement history).
+ * Applies one metadata patch to a batch of copies. Metadata edits are not
+ * logged to `collection_events` (the ledger stays a movement history).
  *
  * Cross-field state is normalized via {@link normalizeCopyMetadataPatch}
  * (shared with the client's optimistic update) so a patch only has to be
@@ -157,14 +140,13 @@ export async function updateCopies(
 
 /**
  * Re-checks the actor's live pending trades for every printing whose copies just
- * moved or vanished, closing the ones their supply can no longer fill (ADR-019).
+ * moved or vanished, closing the ones their supply can no longer fill.
  *
  * Only the actor's own supply can change here. Trade supply is built from
  * personally-owned copies, and a personal collection only passes
  * `filterWritableByViewer` for its owner, so a group-owned source belongs to
  * nobody's supply and the sweep simply finds nothing to cancel. Runs inside the
  * caller's transaction so the copy change and the cancellations commit together.
- * @returns Nothing; cancelled trades are recorded by the sweep itself.
  */
 async function sweepUnfillableTrades(
   trxRepos: Repos,
@@ -178,19 +160,10 @@ async function sweepUnfillableTrades(
 }
 
 /**
- * Move copies between collections.
- *
- * The viewer must have write access to:
- *   - every source collection the copies are currently in
- *   - the target collection
- *
- * Source access means the copy lives in one of the viewer's writable collections
- * (personal owner OR group member of a shared collection that contains it).
- *
- * A copy reserved by a trade (ADR-019) may still move between the owner's own
- * personal collections, but not into a group collection. Reservations pin
- * personal copies only, and the whole group would otherwise see `reserved` on a
- * copy that is not theirs.
+ * A copy reserved by a trade may still move between the owner's own personal
+ * collections, but not into a group collection. Reservations pin personal
+ * copies only, and the whole group would otherwise see `reserved` on a copy
+ * that is not theirs.
  */
 export async function moveCopies(
   repos: Repos,
@@ -274,12 +247,8 @@ export async function moveCopies(
 }
 
 /**
- * Dispose copies — hard-deletes from the collection.
- * Logs removal events before deleting. The viewer must have write access to
- * every source collection (personal owner or group member of a shared one).
- *
- * Rejects copies still pinned by a trade reservation (ADR-019), live or held by
- * a completed trade whose giver has not resolved their sync. Trade-sync's giver
+ * Rejects copies still pinned by a trade reservation, live or held by a
+ * completed trade whose giver has not resolved their sync. Trade-sync's giver
  * path releases its reservation rows first and then disposes within the same
  * transaction via {@link disposeCopiesInTransaction} with the guard skipped.
  */
@@ -293,10 +262,8 @@ export async function disposeCopies(
 
 /**
  * The body of {@link disposeCopies}, runnable inside an existing transaction.
- * Lets trade-sync (ADR-019) combine reservation-release + dispose atomically
- * while keeping a single copy-deletion choke point that emits `removed` events.
- *
- * @returns Nothing; throws `AppError` on missing/unwritable/reserved copies.
+ * Lets trade-sync combine reservation-release + dispose atomically while
+ * keeping a single copy-deletion choke point that emits `removed` events.
  */
 export async function disposeCopiesInTransaction(
   trxRepos: Repos,
@@ -305,9 +272,9 @@ export async function disposeCopiesInTransaction(
   options?: { skipReservationGuard?: boolean },
 ): Promise<void> {
   // Lock the copy rows first so a concurrent trade-accept or loan reserving one
-  // of them serializes against this dispose (audit #7). Without the lock the
-  // reservation guard below could pass, the reserve pin lands in the gap, and
-  // the delete would cascade the just-created reservation away.
+  // of them serializes against this dispose. Without the lock the reservation
+  // guard below could pass, the reserve pin lands in the gap, and the delete
+  // would cascade the just-created reservation away.
   await trxRepos.copies.lockByIds(copyIds);
 
   const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
@@ -323,8 +290,8 @@ export async function disposeCopiesInTransaction(
   }
 
   // A reserved copy is physically promised to a trade — refuse to destroy it.
-  // Same for a copy out on a loan (ADR-039): write-off releases its pins first
-  // and then disposes in the same transaction, so the guard passes there.
+  // Same for a copy out on a loan: write-off releases its pins first and then
+  // disposes in the same transaction, so the guard passes there.
   if (options?.skipReservationGuard !== true) {
     const pins = await trxRepos.cardTrades.listReservationsForCopies(copyIds);
     if (pins.length > 0) {
@@ -351,7 +318,7 @@ export async function disposeCopiesInTransaction(
     }
   }
 
-  // Log disposal events before deleting (so copy FK is still valid)
+  // Log before deleting, while the copy FK is still valid.
   await logEvents(
     trxRepos,
     copies.map((copy) => ({

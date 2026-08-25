@@ -41,7 +41,6 @@ export interface TradeCopyRow {
  * palette (`apps/web/src/lib/move-sources.ts`) so a default pin and a default
  * move reach for the same copy. That function's loan term is absent here: a
  * loaned copy never enters the trade supply in the first place.
- * @returns The weight; lower means plainer.
  */
 export function copyPinWeight(copy: TradeCopyRow): number {
   let weight = 0;
@@ -78,7 +77,6 @@ export function copyPinWeight(copy: TradeCopyRow): number {
  * the alphabetically first collection. That is arbitrary but stable, and a
  * stable answer is the point: the accept picker does not even open for copies
  * that differ only by collection, so nobody is being asked to ratify it.
- * @returns A new array in default pin order.
  */
 export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopyRow[] {
   return copies.toSorted(
@@ -90,8 +88,7 @@ export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopy
 }
 
 /**
- * Which of a trade's pins move onto the half a partial settle splits off
- * (ADR-019, amendment 2026-08-10).
+ * Which of a trade's pins move onto the half a partial settle splits off.
  *
  * `disposingCopyIds` is the giver's settle set, and any pin covering one of
  * those has to be in the answer: the copy is about to be hard-deleted, and
@@ -101,7 +98,6 @@ export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopy
  * has already put plainest-first. That ordering is the whole rule on the
  * receiver's side, where nothing is being disposed and the receiver has no say
  * over which of the giver's copies left.
- * @returns Up to `quantity` of `pinnedPlainestFirst`.
  */
 export function selectSplitPins(
   pinnedPlainestFirst: readonly string[],
@@ -120,7 +116,6 @@ export function selectSplitPins(
  * `apps/web/src/components/collection/copy-indicators.ts` so the server and the
  * client agree on what "unrecorded" means. The loan term is dropped for the
  * same reason as in {@link copyPinWeight}.
- * @returns `true` when the copy has any recorded detail.
  */
 export function copyHasRecordedDetails(copy: TradeCopyRow): boolean {
   return (
@@ -146,7 +141,6 @@ export function copyHasRecordedDetails(copy: TradeCopyRow): boolean {
  *
  * Printing-level traits (finish, art variant, language) are out of the key for
  * a stronger reason: a trade names one printing, so every candidate shares them.
- * @returns A stable string key for the copy's user-visible traits.
  */
 function distinguishingKey(copy: TradeCopyRow, byCollection: boolean): string {
   return JSON.stringify([
@@ -167,7 +161,6 @@ function distinguishingKey(copy: TradeCopyRow, byCollection: boolean): string {
  * about. A stack of identical unrecorded copies from one binder is not a
  * decision. `byCollection` is the settle picker's stricter reading of
  * "differ" (see {@link distinguishingKey}).
- * @returns `true` when the client should prompt for a pick.
  */
 export function cardTradeChoiceMatters(
   copies: readonly TradeCopyRow[],
@@ -181,10 +174,6 @@ export function cardTradeChoiceMatters(
   return keys.size > 1;
 }
 
-/**
- * Maps one candidate copy row to its response shape.
- * @returns The serialized copy option.
- */
 export function toCardTradeCopyOption(copy: TradeCopyRow, pinned: boolean): CardTradeCopyOption {
   return {
     id: copy.id,
@@ -214,7 +203,6 @@ export function toCardTradeCopyOption(copy: TradeCopyRow, pinned: boolean): Card
  * Passing `pinnedCopyIds` is also what marks this as the settle side, which
  * judges "these copies are alike" per collection (see
  * {@link distinguishingKey}).
- * @returns The serialized copy-options response.
  */
 export function toCardTradeCopyOptions(input: {
   tradeId: string;
@@ -244,9 +232,9 @@ export function toCardTradeCopyOptions(input: {
  * collapse along this ladder, so the order is part of the contract, not a
  * presentation detail.
  *
- * The ladder stops at `reserved`. Settling is per side now, and a side that has
- * settled has nothing left to annotate (ADR-019, amendment 2026-08-10), so the
- * former `traded` rung has no rows to carry.
+ * The ladder stops at `reserved`. Settling is per side, and a side that has
+ * settled has nothing left to annotate, so a `traded` rung would have no rows
+ * to carry.
  */
 const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 
@@ -257,7 +245,6 @@ const LIVE_ROLE_ORDER: readonly CardTradeRole[] = ["giver", "receiver"];
  * Maps one aggregated bucket to its response shape. The counts arrive as
  * integers from the grouped query, but a `count(*)` that reached the driver as
  * a bigint string would silently serialize as one, so both go through `Number`.
- * @returns The serialized annotation.
  */
 export function toCardTradeLiveAnnotation(row: LiveTradeAnnotationRow): CardTradeLiveAnnotation {
   return {
@@ -276,7 +263,6 @@ export function toCardTradeLiveAnnotation(row: LiveTradeAnnotationRow): CardTrad
  * then most committed first. A client that renders the list as-is gets a stable
  * result, and one that takes the first entry per (printing, role) gets the
  * phase that matters most.
- * @returns The serialized live-by-printing response.
  */
 export function toCardTradeLiveByPrinting(
   rows: readonly LiveTradeAnnotationRow[],
@@ -290,10 +276,6 @@ export function toCardTradeLiveByPrinting(
   return { annotations: ordered.map((row) => toCardTradeLiveAnnotation(row)) };
 }
 
-/**
- * The counterparty's profile as the roster reads it, from any group they are
- * in — `friendGroups.listMembers` joined with the user row.
- */
 export interface TradeSheetMemberRow {
   userId: string;
   userName: string | null;
@@ -317,7 +299,6 @@ export interface TradeSheetGroupRows {
  * of them. Ids repeat when the same method is revealed twice, so the union
  * dedupes on id and keeps each method's first appearance, which preserves the
  * owner's sort order within a group.
- * @returns The serialized counterparty.
  */
 export function toCardTradeCounterparty(
   member: TradeSheetMemberRow,
@@ -350,9 +331,8 @@ export function toCardTradeCounterparty(
  * The buy side is in the key because the same copy can answer two different
  * wants (a card-level entry and a printing-level one, or two wishlists), and
  * those really are separate rows. `buyEntryId` is null for demand a dynamic
- * rule produced (ADR-034), which is a value of its own here: a rule-derived row
- * and a manual row on the same list are not the same row.
- * @returns A stable key over copy + buy side.
+ * rule produced, which is a value of its own here: a rule-derived row and a
+ * manual row on the same list are not the same row.
  */
 function sheetRowKey(row: MatchRow): string {
   return JSON.stringify([row.copyId, row.buyListId, row.buyEntryId]);
@@ -368,7 +348,6 @@ function sheetRowKey(row: MatchRow): string {
  * response's group order, by name), so a row present in several shared groups
  * is attributed to the first of them — a stable answer that does not move when
  * an unrelated group's shares change.
- * @returns The pooled rows, grouped by source group in the given order.
  */
 export function toCardTradeSheetRows(
   perGroup: readonly TradeSheetGroupRows[],

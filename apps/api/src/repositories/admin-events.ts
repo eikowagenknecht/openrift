@@ -3,7 +3,6 @@ import type { Kysely } from "kysely";
 import type { AdminEventAction, AdminEventEntityType, Database } from "../db/index.js";
 import { keysetCursorPredicate } from "./query-helpers.js";
 
-/** Input for one audit event write. */
 export interface AdminEventInsert {
   actorUserId: string;
   action: AdminEventAction;
@@ -15,7 +14,7 @@ export interface AdminEventInsert {
   newValues?: Record<string, unknown> | null;
 }
 
-/** Audit event row joined with the actor's user record (null if deleted). */
+/** Joined with the actor's user record; actor fields are null if the user was deleted. */
 export interface AdminEventRow {
   id: string;
   actorUserId: string;
@@ -31,7 +30,6 @@ export interface AdminEventRow {
   createdAt: Date;
 }
 
-/** Filters for the audit event list. */
 export interface AdminEventFilters {
   actorUserId?: string;
   /**
@@ -46,15 +44,12 @@ export interface AdminEventFilters {
 }
 
 /**
- * Admin audit log (migration 201): one row per card-catalog admin mutation.
- * Writes happen best-effort via `recordAdminEvent`; the actor column has no
- * FK so rows survive user deletion (reads LEFT JOIN users for display).
- *
- * @returns An object with admin-event query methods bound to the given `db`.
+ * One row per card-catalog admin mutation. Writes happen best-effort via
+ * `recordAdminEvent`; the actor column has no FK so rows survive user
+ * deletion (reads LEFT JOIN users for display).
  */
 export function adminEventsRepo(db: Kysely<Database>) {
   return {
-    /** Inserts one audit event. */
     async insert(event: AdminEventInsert): Promise<void> {
       await db
         .insertInto("adminEvents")
@@ -72,10 +67,9 @@ export function adminEventsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Cursor-paginated audit event list (newest first), joined with the
-     * actor's user row. Fetches `limit + 1` rows to detect `hasMore`.
-     * `search` matches entity label/id/card slug case-insensitively.
-     * @returns Audit rows with actor name/email (null for deleted users).
+     * Cursor-paginated audit event list (newest first). Fetches `limit + 1`
+     * rows to detect `hasMore`. `search` matches entity label/id/card slug
+     * case-insensitively.
      */
     async list(
       filters: AdminEventFilters,
@@ -111,8 +105,7 @@ export function adminEventsRepo(db: Kysely<Database>) {
         // Compared as text, not through the `AdminEventAction` union: the
         // filter is free-text (see AdminEventFilters). `action` is a plain
         // `text` column with no index, so the cast costs nothing and keeps the
-        // column reference type-checked, where the old `as never` on the value
-        // let any string past the union unchecked.
+        // column reference type-checked.
         query = query.where((eb) => eb(eb.cast<string>(eb.ref("ae.action"), "text"), "=", action));
       }
       if (filters.search) {
@@ -138,10 +131,7 @@ export function adminEventsRepo(db: Kysely<Database>) {
       return await query.execute();
     },
 
-    /**
-     * Distinct actors that appear in the log, joined with users for display.
-     * @returns Actors ordered by email (deleted users sort last with nulls).
-     */
+    /** Ordered by email; deleted users (null email) sort last. */
     async listActors(): Promise<{ userId: string; name: string | null; email: string | null }[]> {
       return await db
         .selectFrom("adminEvents as ae")
@@ -152,11 +142,7 @@ export function adminEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Distinct actions that appear in the log. Only actions actually recorded
-     * are listed, so the filter dropdown never offers an empty result.
-     * @returns Action identifiers ordered alphabetically.
-     */
+    /** Only actions actually recorded, so the filter dropdown never offers an empty result. */
     async listActions(): Promise<string[]> {
       const rows = await db
         .selectFrom("adminEvents")

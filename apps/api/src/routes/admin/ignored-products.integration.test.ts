@@ -4,24 +4,17 @@ import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Ignored products & staging card overrides
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix IGP- for entities it creates, group_id range 10_400-10499.
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0015-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Use a seed card for FK references
 const cardId = CARD_FURY_UNIT.id;
 
 if (ctx) {
   const { db } = ctx;
 
-  // Seed a marketplace group for the staging row
   await db
     .insertInto("marketplaceGroups")
     .values({

@@ -21,17 +21,11 @@ import type {
 import { buildEntryAdvisories } from "../services/deck-check-advisories.js";
 
 /*
- * Shared response mappers for the deck-check subsystem (ADR-025/033). The same
- * shapes back both the group-scoped surface and the tournament-scoped judge API,
- * so the mapping lives here rather than being re-derived per router.
+ * The same shapes back both the group-scoped surface and the tournament-scoped
+ * judge API, so the mapping lives here rather than being re-derived per router.
  */
 
-/**
- * Trim a date-ish value to the calendar day the deck-check responses expose.
- * Exported because the player router presents the same `eventDate` field.
- * @param value A `Date`, a date string, or null.
- * @returns The value trimmed to a `YYYY-MM-DD` string, or null.
- */
+/** Exported because the player router presents the same `eventDate` field. */
 export function isoDate(value: Date | string | null): string | null {
   if (value === null) {
     return null;
@@ -39,11 +33,6 @@ export function isoDate(value: Date | string | null): string | null {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value);
 }
 
-/**
- * Maps a stored entry-card row onto the response shape both the checker and
- * the player view render.
- * @returns The card-line response.
- */
 export function toDeckCheckEntryCardResponse(row: DeckCheckEntryCard): DeckCheckEntryCardResponse {
   return {
     id: row.id,
@@ -61,7 +50,6 @@ export function toDeckCheckEntryCardResponse(row: DeckCheckEntryCard): DeckCheck
   };
 }
 
-/** @returns The event projection mapped to its API summary response. */
 export function toEventSummary(
   row: DeckCheckEvent &
     Partial<Pick<DeckCheckEventWithCounts, "entryCount" | "approvedCount" | "checkedCount">>,
@@ -85,10 +73,9 @@ export function toEventSummary(
   };
 }
 
-/** @returns An entry summary row mapped to its API response. */
 export function toEntrySummary(row: DeckCheckEntrySummary): DeckCheckEntrySummaryResponse {
-  // An editable list is not yet delivered to an official (TR 401.3, ADR-027);
-  // even its copy and progress counts stay hidden from the judge view.
+  // An editable list is not yet delivered to an official (TR 401.3); even its
+  // copy and progress counts stay hidden from the judge view.
   const listVisible = row.state !== "editable";
   return {
     id: row.id,
@@ -113,7 +100,6 @@ export function toEntrySummary(row: DeckCheckEntrySummary): DeckCheckEntrySummar
   };
 }
 
-/** @returns A full entry row mapped to its API response. */
 function toEntry(
   row: DeckCheckEntry,
   checkedByName: string | null,
@@ -153,7 +139,6 @@ function toEntry(
   };
 }
 
-/** @returns A push-key row mapped to its API response. */
 export function toKey(row: DeckCheckKey & { createdByName?: string | null }): DeckCheckKeyResponse {
   return {
     id: row.id,
@@ -171,19 +156,15 @@ export function toKey(row: DeckCheckKey & { createdByName?: string | null }): De
  * deck-stat aggregates, reusing the shared deck-rules and the same counting the
  * deck list uses (main+champion zones, legend/rune/battlefield types excluded
  * from type counts).
- * @param repos The repository bundle.
- * @param event The deck-check event the entry belongs to.
- * @param entry The entry to project.
- * @returns The full entry-detail response.
  */
 export async function buildEntryDetail(
   repos: Repos,
   event: DeckCheckEvent,
   entry: DeckCheckEntry,
 ): Promise<DeckCheckEntryDetailResponse> {
-  // An editable list has not been delivered to an official yet (TR 401.3,
-  // ADR-027): the judge payload carries the entry's identity and state, but no
-  // cards, advisories, or stats until the player submits.
+  // An editable list has not been delivered to an official yet (TR 401.3): the
+  // judge payload carries the entry's identity and state, but no cards,
+  // advisories, or stats until the player submits.
   const listVisible = entry.state !== "editable";
   const [cards, checkedByName, approvedByName, claimedUserName] = await Promise.all([
     listVisible ? repos.deckCheck.listCardsForEntry(entry.id) : Promise.resolve([]),

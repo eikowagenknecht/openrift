@@ -10,7 +10,6 @@ import { computeScanCropBox, computeScanLevels } from "./scan-analysis.js";
 /**
  * Build a synthetic greyscale scan: white background with an optional darker
  * rectangle (the "card") of the given luminance value.
- * @returns Raw single-channel buffer of `width * height` pixels.
  */
 function greyScan(
   width: number,
@@ -41,8 +40,8 @@ describe("computeScanCropBox", () => {
   });
 
   it("ignores isolated dust specks outside the card", () => {
-    // Regression: a single dark pixel far left of the card used to pin
-    // sharp's trim and leave a ~400px white margin on real scans.
+    // A single dark pixel far left of the card used to pin sharp's trim and
+    // leave a ~400px white margin on real scans.
     const grey = greyScan(200, 300, { left: 40, top: 30, width: 100, height: 200 });
     grey[150 * 200 + 5] = 0; // dust at (5, 150)
     grey[295 * 200 + 90] = 0; // dust below the card at (90, 295)

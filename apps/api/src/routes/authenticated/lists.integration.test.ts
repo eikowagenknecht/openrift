@@ -5,14 +5,6 @@ import { CARD_FURY_UNIT, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Lists routes (kind-aware)
-//
-// Uses the shared integration database (INTEGRATION_DB_URL). Verifies the
-// full request → repo → DB path, the intent×kind constraints, kind-matched
-// entry inputs, the share flow, and intent filtering.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0041-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
@@ -70,8 +62,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       .executeTakeFirstOrThrow();
     return copy.id;
   }
-
-  // ── POST /lists ────────────────────────────────────────────────────────────
 
   describe("POST /lists", () => {
     it("creates a list for each allowed intent × kind combo", async () => {
@@ -147,8 +137,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── GET /lists ─────────────────────────────────────────────────────────────
-
   describe("GET /lists", () => {
     it("returns all lists for the user", async () => {
       const res = await app.fetch(req("GET", "/lists"));
@@ -170,8 +158,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── PATCH /lists/:id ───────────────────────────────────────────────────────
-
   describe("PATCH /lists/:id", () => {
     it("renames a list", async () => {
       const id = await createList("Before", "wish", "card");
@@ -189,8 +175,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── DELETE /lists/:id ──────────────────────────────────────────────────────
-
   describe("DELETE /lists/:id", () => {
     it("deletes a list", async () => {
       const id = await createList("Doomed", "organize", "card");
@@ -203,8 +187,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── POST /lists/:id/entries ────────────────────────────────────────────────
 
   describe("POST /lists/:id/entries", () => {
     it("adds a card-kind entry to a card-kind list", async () => {
@@ -259,8 +241,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── POST /lists/:id/entries/bulk ───────────────────────────────────────────
-
   describe("POST /lists/:id/entries/bulk", () => {
     it("reports added/skipped for a copy-kind list", async () => {
       const copyId = await createCopy();
@@ -287,8 +267,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── POST /lists/:id/entries/from-copies (drag-from-collections) ────────────
-
   describe("POST /lists/:id/entries/from-copies", () => {
     it("inserts copy entries on a copy-kind list", async () => {
       const copyId = await createCopy();
@@ -312,7 +290,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const json = (await readJson(res)) as { added: number; skipped: number };
       expect(json.added).toBe(1);
 
-      // Verify the entry landed as a card entry (not a copy entry).
       const detailRes = await app.fetch(req("GET", `/lists/${id}`));
       const detail = (await readJson(detailRes)) as { entries: { kind: string }[] };
       expect(detail.entries[0]?.kind).toBe("card");
@@ -331,8 +308,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(json.skipped).toBe(1);
     });
   });
-
-  // ── POST /lists/:id/entries/move (drag-list-to-list) ──────────────────────
 
   describe("POST /lists/:id/entries/move", () => {
     it("moves a card entry between two same-kind same-intent lists", async () => {
@@ -446,8 +421,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
-  // ── GET /lists/:id (with enriched entries) ─────────────────────────────────
-
   describe("GET /lists/:id", () => {
     it("returns the list (with kind) and enriched entries", async () => {
       const id = await createList("Detail", "wish", "card");
@@ -465,8 +438,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(json.entries[0]?.cardName.length).toBeGreaterThan(0);
     });
   });
-
-  // ── PATCH/DELETE entry ─────────────────────────────────────────────────────
 
   describe("PATCH/DELETE /lists/:id/entries/:itemId", () => {
     it("updates the quantity and then deletes the entry", async () => {
@@ -487,8 +458,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(deleteRes.status).toBe(204);
     });
   });
-
-  // ── Sharing ────────────────────────────────────────────────────────────────
 
   describe("Share flow", () => {
     it("share generates a token and flips isPublic; unshare clears both", async () => {
@@ -524,11 +493,10 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const second = await app.fetch(req("POST", `/lists/${id}/share`));
       expect(second.status).toBe(200);
       const secondBody = (await readJson(second)) as { shareToken: string; isPublic: boolean };
-      // Same token returned — POST /share must not rotate.
+      // POST /share must not rotate an existing token.
       expect(secondBody.shareToken).toBe(firstBody.shareToken);
       expect(secondBody.isPublic).toBe(true);
 
-      // The original token still resolves after the second share call.
       const publicRes = await app.fetch(req("GET", `/lists/share/${firstBody.shareToken}`));
       expect(publicRes.status).toBe(200);
     });
@@ -536,7 +504,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     it("GET /share reflects unshared then shared state for an owned list", async () => {
       const id = await createList("Share state", "organize", "card");
 
-      // Owned but unshared → token null, not a 404.
+      // Owned but unshared: token null, not a 404.
       const unshared = await app.fetch(req("GET", `/lists/${id}/share`));
       expect(unshared.status).toBe(200);
       const unsharedBody = (await readJson(unshared)) as {
@@ -569,7 +537,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const shareBody = (await readJson(shareRes)) as { shareToken: string };
       const oldToken = shareBody.shareToken;
 
-      // The old token resolves before rotation.
       const before = await app.fetch(req("GET", `/lists/share/${oldToken}`));
       expect(before.status).toBe(200);
 
@@ -580,13 +547,11 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(rotateBody.shareToken).not.toBe(oldToken);
       expect(rotateBody.isPublic).toBe(true);
 
-      // Old token stops resolving; the new token resolves.
       const oldAfter = await app.fetch(req("GET", `/lists/share/${oldToken}`));
       expect(oldAfter.status).toBe(404);
       const newAfter = await app.fetch(req("GET", `/lists/share/${rotateBody.shareToken}`));
       expect(newAfter.status).toBe(200);
 
-      // GET /share now reflects the rotated token.
       const state = await app.fetch(req("GET", `/lists/${id}/share`));
       const stateBody = (await readJson(state)) as { shareToken: string };
       expect(stateBody.shareToken).toBe(rotateBody.shareToken);
@@ -605,8 +570,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(publicRes.status).toBe(200);
     });
   });
-
-  // ── Reliability hardening (F6/F7) ──────────────────────────────────────────
 
   describe("reliability hardening", () => {
     it("strips trade prefs from a PATCH on an organize list instead of 500ing (F6)", async () => {

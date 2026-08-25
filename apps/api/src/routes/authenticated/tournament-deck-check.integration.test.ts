@@ -5,8 +5,8 @@ import { CARD_FURY_RUNE, CARD_FURY_UNIT } from "../../test/fixtures/constants.js
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the ADR-033 additive deck-check surfaces:
-// the tournament-scoped judge API (host + staff authorization, with a 403 for an
+// Route-level integration tests for the additive deck-check surfaces: the
+// tournament-scoped judge API (host + staff authorization, with a 403 for an
 // unrelated user), the host-scoped integration keys (a user host and an org
 // host), and the group "Events" tournament lens.
 
@@ -436,7 +436,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       });
       expect(created.displayName).toBe("Fresh Walkin");
       expect(created.userId).toBeNull();
-      // Walk-ins are not de-duped (ADR-033 matches by linked account only, never
+      // Walk-ins are not de-duped (matching is by linked account only, never
       // by name or email): a second account-less call is a distinct person.
       const again = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
@@ -486,7 +486,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // ── applyJudgeTransition guard matrix (ADR-027/033) ───────────────────────
   // The happy transitions live in "tournament-scoped judge API" above; these
   // pin the rejections, the negative half of the state machine.
   describe("lifecycle transition guards", () => {
@@ -548,7 +547,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // ── Manual createEntry validation ─────────────────────────────────────────
   describe("manual entry validation", () => {
     it("rejects an unknown deck section with 422", async () => {
       const participant = await repos.tournaments.createParticipant({
@@ -597,7 +595,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // ── On-site repair: the card-array mutation logic ─────────────────────────
   // moveCardCopies (split + merge), removeCardCopy (tick splice), and the
   // server-re-derived zone-fix apply — the trickiest array logic in the repo.
   describe("on-site repair", () => {
@@ -695,7 +692,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // ── Claim-token exposure gating ───────────────────────────────────────────
   describe("claim token exposure", () => {
     it("hides an entry's claim token once the spot is claimed", async () => {
       const participant = await repos.tournaments.createParticipant({

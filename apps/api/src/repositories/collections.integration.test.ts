@@ -13,16 +13,11 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   const createdCollectionIds: string[] = [];
 
   afterAll(async () => {
-    // Clean up copies that may reference our collections
     if (createdCollectionIds.length > 0) {
       await db.deleteFrom("copies").where("collectionId", "in", createdCollectionIds).execute();
       await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
     }
   });
-
-  // ---------------------------------------------------------------------------
-  // create + getByIdForUser
-  // ---------------------------------------------------------------------------
 
   it("creates a collection and retrieves it", async () => {
     const col = await repo.create({
@@ -46,10 +41,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(fetched!.name).toBe("Test Binder");
   });
 
-  // ---------------------------------------------------------------------------
-  // getByIdForUser — wrong user
-  // ---------------------------------------------------------------------------
-
   it("returns undefined when queried with a different userId", async () => {
     const col = await repo.create({
       userId,
@@ -65,12 +56,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // listForUser
-  // ---------------------------------------------------------------------------
-
   it("lists collections ordered by inbox first, then sort order, then name", async () => {
-    // Create an inbox
     const inbox = await repo.create({
       userId,
       groupId: null,
@@ -94,7 +80,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     const list = await repo.listForUser(userId);
     expect(list.length).toBeGreaterThanOrEqual(2);
 
-    // Inbox should come first
     const inboxIdx = list.findIndex((c) => c.id === inbox.id);
     const binderIdx = list.findIndex((c) => c.id === binder.id);
     expect(inboxIdx).toBeLessThan(binderIdx);
@@ -104,10 +89,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     const result = await repo.listForUser("a0000000-9999-4000-a000-000000000001");
     expect(result).toEqual([]);
   });
-
-  // ---------------------------------------------------------------------------
-  // update
-  // ---------------------------------------------------------------------------
 
   it("updates a collection name", async () => {
     const col = await repo.create({
@@ -150,10 +131,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // getIdAndName
-  // ---------------------------------------------------------------------------
-
   it("returns id and name for existing collection", async () => {
     const col = await repo.create({
       userId,
@@ -175,10 +152,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // exists
-  // ---------------------------------------------------------------------------
-
   it("returns id when collection exists", async () => {
     const col = createdCollectionIds[0];
     const result = await repo.exists(col, userId);
@@ -189,10 +162,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     const result = await repo.exists("00000000-0000-0000-0000-000000000000", userId);
     expect(result).toBeUndefined();
   });
-
-  // ---------------------------------------------------------------------------
-  // listIdsByIdsForUser
-  // ---------------------------------------------------------------------------
 
   it("returns only ids belonging to the user", async () => {
     const ids = createdCollectionIds.slice(0, 2);
@@ -209,26 +178,15 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ---------------------------------------------------------------------------
-  // ensureInbox
-  // ---------------------------------------------------------------------------
-
   it("creates an inbox if none exists and returns its id", async () => {
-    // Use a separate user to avoid conflict with inbox created above
-    // We'll clean it up manually
     const inboxUserId = userId; // Already has an inbox from earlier test
     const inboxId = await repo.ensureInbox(inboxUserId);
     expect(inboxId).toBeDefined();
     expect(typeof inboxId).toBe("string");
 
-    // Calling again should return the same id
     const inboxId2 = await repo.ensureInbox(inboxUserId);
     expect(inboxId2).toBe(inboxId);
   });
-
-  // ---------------------------------------------------------------------------
-  // deleteByIdForUser
-  // ---------------------------------------------------------------------------
 
   it("deletes a collection by id for the owning user", async () => {
     const col = await repo.create({
@@ -239,17 +197,13 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       isInbox: false,
       sortOrder: 99,
     });
-    // Don't track — we'll delete it ourselves
+    // Not added to createdCollectionIds — deleted directly by this test instead
 
     await repo.deleteByIdForUser(col.id, userId);
 
     const fetched = await repo.getByIdForUser(col.id, userId);
     expect(fetched).toBeUndefined();
   });
-
-  // ---------------------------------------------------------------------------
-  // listIdAndNameByIds
-  // ---------------------------------------------------------------------------
 
   it("returns id and name for given collection IDs", async () => {
     const ids = createdCollectionIds.slice(0, 2);
@@ -261,12 +215,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // listCopiesInCollection + moveCopiesBetweenCollections
-  // ---------------------------------------------------------------------------
-
   it("lists copies in a collection and moves them", async () => {
-    // Create two collections
     const colA = await repo.create({
       userId,
       groupId: null,
@@ -287,26 +236,21 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     });
     createdCollectionIds.push(colB.id);
 
-    // Insert a copy into colA using a seed printing
     const printingId = PRINTING_1.id;
     await db.insertInto("copies").values({ printingId, collectionId: colA.id }).execute();
 
-    // List copies in colA
     const copies = await repo.listCopiesInCollection(colA.id);
     expect(copies.length).toBe(1);
     expect(copies[0].printingId).toBe(printingId);
 
-    // Move copies to colB
     await repo.moveCopiesBetweenCollections(colA.id, colB.id);
 
-    // Verify move
     const afterA = await repo.listCopiesInCollection(colA.id);
     expect(afterA.length).toBe(0);
 
     const afterB = await repo.listCopiesInCollection(colB.id);
     expect(afterB.length).toBe(1);
 
-    // Clean up the copy
     await db.deleteFrom("copies").where("collectionId", "=", colB.id).execute();
   });
 });

@@ -3,7 +3,6 @@ import { sql } from "kysely";
 
 import type { Database, DeckFoldersTable } from "../db/index.js";
 
-/** A folder plus the number of decks filed in it. */
 export type DeckFolderWithCount = Selectable<DeckFoldersTable> & { deckCount: number };
 
 /**
@@ -20,15 +19,11 @@ const deckCountExpr = sql<number>`(select count(*)::int from deck_folder_entries
  * Every method is user-scoped: an id that isn't the caller's simply matches
  * nothing rather than erroring, which keeps the routes free of ownership
  * pre-checks.
- * @returns An object with deck-folder query methods bound to the given `db`.
  */
 export function deckFoldersRepo(db: Kysely<Database>) {
   return {
-    /**
-     * @returns The user's folders in their manual order, each with its deck
-     * count. Name is the tiebreaker so a fresh set (all sort_order 0) still
-     * reads sensibly.
-     */
+    // Name is the tiebreaker so a fresh set (all sort_order 0) still reads
+    // sensibly.
     listForUser(userId: string): Promise<DeckFolderWithCount[]> {
       return db
         .selectFrom("deckFolders")
@@ -46,7 +41,6 @@ export function deckFoldersRepo(db: Kysely<Database>) {
      *
      * Throws a 23505 unique violation on `uq_deck_folders_user_name` when the
      * user already has a folder by that name; the route maps it to a 409.
-     * @returns The newly created folder row.
      */
     create(userId: string, name: string): Promise<DeckFolderWithCount> {
       return db
@@ -61,11 +55,7 @@ export function deckFoldersRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /**
-     * Renames a folder. Raises the same unique violation as `create` on a name
-     * collision.
-     * @returns The renamed folder row, or `undefined` if the user has no such folder.
-     */
+    // Raises the same unique violation as `create` on a name collision.
     rename(id: string, userId: string, name: string): Promise<DeckFolderWithCount | undefined> {
       return db
         .updateTable("deckFolders")
@@ -77,11 +67,8 @@ export function deckFoldersRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Deletes a folder. Membership rows cascade, so the decks themselves are
-     * untouched — they just stop being filed here.
-     * @returns True if a folder was deleted.
-     */
+    // Membership rows cascade, so the decks themselves are untouched — they
+    // just stop being filed here.
     async remove(id: string, userId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("deckFolders")
@@ -91,12 +78,9 @@ export function deckFoldersRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    /**
-     * Re-numbers `sort_order` to match `orderedIds` in a single statement, so
-     * the set is never seen partially re-numbered. IDs the user doesn't own are
-     * silently ignored — the caller sends its current view of the list.
-     * @returns Nothing.
-     */
+    // Re-numbers `sort_order` to match `orderedIds` in a single statement, so
+    // the set is never seen partially re-numbered. IDs the user doesn't own
+    // are silently ignored — the caller sends its current view of the list.
     async reorder(userId: string, orderedIds: readonly string[]): Promise<void> {
       if (orderedIds.length === 0) {
         return;
@@ -114,12 +98,9 @@ export function deckFoldersRepo(db: Kysely<Database>) {
       `.execute(db);
     },
 
-    /**
-     * Replaces a deck's folder membership with exactly `folderIds`. Unknown or
-     * unowned ids are dropped by the insert's ownership filter rather than
-     * rejected, matching the silently-ignore stance of `reorder`.
-     * @returns Nothing.
-     */
+    // Replaces a deck's folder membership with exactly `folderIds`. Unknown or
+    // unowned ids are dropped by the insert's ownership filter rather than
+    // rejected, matching the silently-ignore stance of `reorder`.
     async setForDeck(deckId: string, userId: string, folderIds: readonly string[]): Promise<void> {
       await db.transaction().execute(async (trx) => {
         await trx
@@ -150,10 +131,8 @@ export function deckFoldersRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * @returns Folder ids per deck for the given decks, as a map. Decks with no
-     * folders are absent from the map rather than present with an empty array.
-     */
+    // Decks with no folders are absent from the map rather than present with
+    // an empty array.
     async folderIdsByDeckIds(
       deckIds: readonly string[],
       userId: string,

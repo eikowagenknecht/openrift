@@ -8,21 +8,15 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { preferencesRouter } from "./preferences";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   getByUserId: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   upsert: vi.fn(() => Promise.resolve({})),
 };
 
-// ---------------------------------------------------------------------------
-// Test app — mounts the router the way production does (catch-all). A pre-set
-// `user` satisfies the `requireAuthedUser` gate (resolveSession is
-// idempotent). The local onError is a belt-and-suspenders for the unexercised
-// 401 path; AppErrors are mapped to the envelope by the handler's interceptor.
-// ---------------------------------------------------------------------------
+// Mounts the router the way production does (catch-all). A pre-set `user`
+// satisfies the `requireAuthedUser` gate (resolveSession is idempotent). The
+// local onError is a belt-and-suspenders for the unexercised 401 path;
+// AppErrors are mapped to the envelope by the handler's interceptor.
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -41,10 +35,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/preferences", () => {
   beforeEach(() => {
@@ -82,8 +72,8 @@ describe("GET /api/v1/preferences", () => {
     expect(json).toEqual({});
   });
 
-  // Regression: languages + completionScope used to be dropped by the response
-  // projection, silently breaking the web's cross-device preference sync.
+  // Guards against languages and completionScope being dropped by the
+  // response projection, which breaks the web's cross-device preference sync.
   it("returns languages and completionScope when stored", async () => {
     const storedPrefs = {
       languages: ["en", "de"],
@@ -97,10 +87,10 @@ describe("GET /api/v1/preferences", () => {
     expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
   });
 
-  // Regression: a stored value the response schema rejects
-  // (written before an enum narrowed, say) used to reach oRPC's output
-  // validation and 500 the whole response. The web loads preferences on every
-  // page, so that bricked the app for the affected user. Drop the key instead.
+  // A stored value the response schema rejects (written before an enum
+  // narrowed, say) must be dropped rather than reaching oRPC's output
+  // validation, which would 500 the whole response; the web loads preferences
+  // on every page, so that would brick the app for the affected user.
   it("drops a stored value the response schema rejects and keeps the rest", async () => {
     mockRepo.getByUserId.mockResolvedValue({
       userId: USER_ID,
@@ -236,9 +226,9 @@ describe("PATCH /api/v1/preferences", () => {
     expect(res.status).toBe(200);
   });
 
-  // Regression: completionScope was absent from updatePreferencesSchema, so the
-  // web's PATCH of it was silently stripped (z.object drops unknown keys) and
-  // never persisted. languages was accepted but never read back.
+  // Guards against completionScope being absent from updatePreferencesSchema
+  // (z.object silently drops unknown keys, so the web's PATCH would never
+  // persist) and against languages being accepted but never read back.
   it("persists languages and completionScope instead of stripping them", async () => {
     const completionScope = {
       sets: ["set-a"],
@@ -268,13 +258,12 @@ describe("PATCH /api/v1/preferences", () => {
   });
 });
 
-// Regression guard (#44 / a3360460): a preference accepted on PATCH but missing
-// from the read DTO round-trips on write yet is silently dropped on read — the
-// response schema is not runtime-validated and every read field is optional, so
-// neither zod nor tsc flags the gap. That is exactly how `languages` regressed
-// and broke cross-device sync. The example-based tests above only cover the
-// fields they name; this invariant catches a NEW write field added without
-// wiring the read side, for any field, automatically.
+// A preference accepted on PATCH but missing from the read DTO round-trips on
+// write yet is silently dropped on read: the response schema is not
+// runtime-validated and every read field is optional, so neither zod nor tsc
+// flags the gap. The example-based tests above only cover the fields they
+// name; this invariant catches a new write field added without wiring the
+// read side, for any field, automatically.
 describe("preferences read/write schema parity", () => {
   it("declares every PATCH (write) field in the GET response (read) schema", async () => {
     // Imported dynamically: the preferences contract calls `.openapi()` at

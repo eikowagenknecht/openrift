@@ -8,7 +8,7 @@ import type { Variables } from "../../types.js";
  * links. WordPress and other oEmbed consumers turn a pasted share URL into an
  * inline preview by calling this endpoint; we answer with a `photo` response
  * pointing at the same 1200×630 share image already used as the page's
- * og:image (ADR-024 / ADR-031).
+ * og:image.
  *
  * Only the token-based share surfaces are supported — deck, collection, list,
  * tier-list, and user-bundle shares — because those are the only public pages
@@ -19,7 +19,7 @@ import type { Variables } from "../../types.js";
  * tag on each page lets other consumers find it without registration.
  */
 
-/** The fixed render size of every share image (ADR-024). */
+/** The fixed render size of every share image. */
 const IMAGE_WIDTH = 1200;
 const IMAGE_HEIGHT = 630;
 
@@ -48,7 +48,6 @@ interface ResolvedShare {
   version: string;
 }
 
-/** @returns The timestamp's epoch milliseconds, or 0 when missing/invalid. */
 function versionFromDate(value: Date | string | null | undefined): number {
   if (!value) {
     return 0;
@@ -58,10 +57,9 @@ function versionFromDate(value: Date | string | null | undefined): number {
 }
 
 /**
- * Parses the comma-separated `CORS_ORIGIN` allow-list into a set of origins.
- * A share URL must belong to one of these to be resolved — this keeps the
- * endpoint from acting as an open redirector / SSRF surface for arbitrary URLs.
- * @returns The set of allowed origins (e.g. `https://openrift.app`).
+ * A share URL must belong to the `CORS_ORIGIN` allow-list to be resolved —
+ * this keeps the endpoint from acting as an open redirector / SSRF surface
+ * for arbitrary URLs.
  */
 function allowedOrigins(corsOrigin: string | undefined): Set<string> {
   if (!corsOrigin) {
@@ -75,12 +73,6 @@ function allowedOrigins(corsOrigin: string | undefined): Set<string> {
   );
 }
 
-/**
- * Matches a share page URL against the supported `/{kind}/share/{token}`
- * surfaces, after verifying the origin is one of ours.
- * @returns The kind and token, or `undefined` when the URL is not a supported
- *   same-origin share link.
- */
 function parseShareUrl(
   rawUrl: string,
   origins: Set<string>,
@@ -108,10 +100,8 @@ function parseShareUrl(
 }
 
 /**
- * Looks up the share resource for `token` and derives the embed title and the
- * image cache-bust version. Mirrors the per-surface title/version logic the web
- * route `head()` functions use so the oEmbed image matches the page's og:image.
- * @returns The resolved share, or `undefined` when the token is unknown/private.
+ * Mirrors the per-surface title/version logic the web route `head()`
+ * functions use so the oEmbed image matches the page's og:image.
  */
 async function resolveShare(
   repos: Variables["repos"],
@@ -193,10 +183,9 @@ async function resolveShare(
 }
 
 /**
- * Scales the fixed image size down so it fits within the consumer-requested
- * `maxwidth`/`maxheight` while preserving aspect (the share image is always
- * rendered at full size; only the reported dimensions shrink).
- * @returns The reported width and height.
+ * Scales the fixed image size down to fit within the consumer-requested
+ * `maxwidth`/`maxheight` while preserving aspect. The share image is always
+ * rendered at full size; only the reported dimensions shrink.
  */
 function scaledDimensions(maxWidth: number, maxHeight: number): { width: number; height: number } {
   const scale = Math.min(
@@ -210,7 +199,6 @@ function scaledDimensions(maxWidth: number, maxHeight: number): { width: number;
   };
 }
 
-/** @returns The query value as a positive number, or 0 when absent/invalid. */
 function positiveQuery(value: string | undefined): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;

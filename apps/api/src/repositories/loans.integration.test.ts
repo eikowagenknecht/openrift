@@ -74,7 +74,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     return `ln-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
   }
 
-  /** @returns A fresh personal collection for the user (never the inbox). */
   async function freshCollection(userId: string): Promise<string> {
     collectionCounter += 1;
     const created = await db
@@ -85,7 +84,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     return created.id;
   }
 
-  /** @returns `count` fresh copies of the printing in the collection. */
   async function addCopies(
     collectionId: string,
     count: number,
@@ -103,7 +101,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     return ids;
   }
 
-  /** @returns A fresh group with LENDER as owner and BORROWER as member. */
   async function groupWithBorrower() {
     const slug = await uniqueSlug();
     const group = await groupsRepo.createWithOwner(
@@ -141,7 +138,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       expect(copyIds).toContain(copyId);
     }
 
-    // Pinned copies leave the lendable pool; the third copy stays.
     const unclaimed = await repos.loans.listUnclaimedCopyIds(LENDER_ID, PRINTING_1.id);
     for (const copyId of pinned) {
       expect(unclaimed).not.toContain(copyId);
@@ -247,14 +243,12 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       contextCollectionId: collectionId,
     });
 
-    // Borrower orientation: counterparty is the lender, acknowledge pending.
     const borrowerView = await repos.loans.getDtoByIdForUser(loan.id, BORROWER_ID);
     expect(borrowerView?.role).toBe("borrower");
     expect(borrowerView?.counterparty?.userId).toBe(LENDER_ID);
     expect(borrowerView?.actionNeeded).toBe("acknowledge");
     expect(await repos.loans.acknowledgeNeededCountForUser(BORROWER_ID)).toBe(1);
 
-    // Only the borrower can acknowledge; strangers get a 404.
     await expect(acknowledgeLoan(transact, loan.id, OUTSIDER_ID)).rejects.toMatchObject({
       status: 404,
     });
@@ -264,12 +258,10 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(acknowledged.actionNeeded).toBeNull();
     expect(await repos.loans.acknowledgeNeededCountForUser(BORROWER_ID)).toBe(0);
 
-    // Reject flips the state back and clears the acknowledgment.
     const rejected = await rejectLoan(transact, loan.id, BORROWER_ID);
     expect(rejected.rejectedAt).not.toBeNull();
     expect(rejected.acknowledgedAt).toBeNull();
 
-    // The lender sees the rejection; the loan stays active on their side.
     const lenderView = await repos.loans.getDtoByIdForUser(loan.id, LENDER_ID);
     expect(lenderView?.status).toBe("active");
     expect(lenderView?.rejectedAt).not.toBeNull();
@@ -291,7 +283,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(partial.returnedQuantity).toBe(2);
     expect(await repos.loans.listPinnedCopyIds(loan.id)).toHaveLength(1);
 
-    // More than outstanding is a 400.
     await expect(returnLoanCopies(transact, loan.id, LENDER_ID, 2)).rejects.toMatchObject({
       status: 400,
     });
@@ -301,7 +292,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(closed.closedAt).not.toBeNull();
     expect(await repos.loans.listPinnedCopyIds(loan.id)).toHaveLength(0);
 
-    // A closed loan can't take more returns.
     await expect(returnLoanCopies(transact, loan.id, LENDER_ID, 1)).rejects.toMatchObject({
       status: 400,
     });
@@ -354,7 +344,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(closed.status).toBe("written_off");
     expect(await repos.loans.listPinnedCopyIds(loan.id)).toHaveLength(0);
 
-    // The stale copy survives and is claimable again — the cost of skipping.
     const unclaimed = await repos.loans.listUnclaimedCopyIds(LENDER_ID, PRINTING_1.id);
     expect(unclaimed).toContain(copyIds[0]);
   });
@@ -386,7 +375,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       contextCollectionId: collectionId,
     });
 
-    // Only the lender may delete.
     await expect(deleteLoan(transact, loan.id, BORROWER_ID)).rejects.toMatchObject({
       status: 404,
     });
@@ -421,8 +409,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
   });
 
   it("keeps loaned copies out of trade supply and reservation", async () => {
-    // Full ADR-019 match shape: borrower wishes 2, lender offers 2 shared
-    // tradelist copies — then one of them goes out on a loan.
+    // Match shape: borrower wishes 2, lender offers 2 shared tradelist copies,
+    // then one of them goes out on a loan.
     const group = await groupWithBorrower();
 
     const wish = await db
@@ -457,9 +445,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     }
     await groupsRepo.share(group.id, tradeList.id, LENDER_ID);
 
-    // Both copies are buildable stock right now — deck-available collection,
-    // neither lent out nor reserved. We assert the count drops by exactly two
-    // once one is loaned and the other reserved below.
+    // Both copies are buildable stock right now: deck-available collection,
+    // neither lent out nor reserved.
     const buildableCountsBefore = await repos.copies.buildableCountByCard(LENDER_ID);
     const buildableBefore = buildableCountsBefore.get(CARD_FURY_UNIT.id) ?? 0;
 
@@ -507,8 +494,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(buildableAfter).toBe(buildableBefore - 2);
   });
 
-  // ADR-039: a borrowed-in copy is in hand and buildable, so it reduces the
-  // borrower's deck shortfall — but only once the loan is acknowledged.
+  // A borrowed-in copy is in hand and buildable, so it reduces the borrower's
+  // deck shortfall, but only once the loan is acknowledged.
   it("counts acknowledged borrower loans in borrowedCountByCard, not pending ones", async () => {
     await groupWithBorrower();
     const collectionId = await freshCollection(LENDER_ID);
@@ -529,7 +516,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       contextCollectionId: collectionId,
     });
 
-    // Unacknowledged: not yet counted as borrowed-in.
     expect(await borrowedFury()).toBe(before);
 
     await acknowledgeLoan(transact, loan.id, BORROWER_ID);

@@ -100,8 +100,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     return copy;
   }
 
-  // ── List CRUD ──────────────────────────────────────────────────────────────
-
   it("creates a list for each allowed intent × kind combo", async () => {
     const combos: { intent: "wish" | "trade" | "organize"; kind: "card" | "printing" | "copy" }[] =
       [
@@ -220,8 +218,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(await repo.getByIdForUser(list.id, userId)).toBeUndefined();
   });
 
-  // ── Sharing ────────────────────────────────────────────────────────────────
-
   it("setShareToken sets and clears the public share state", async () => {
     const list = await repo.create({
       userId,
@@ -259,8 +255,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
       .execute();
     expect(await repo.findByShareToken("dangling-tok")).toBeUndefined();
   });
-
-  // ── Entries — single-kind shape ────────────────────────────────────────────
 
   it("creates a card-kind entry on a card-kind list", async () => {
     const list = await repo.create({
@@ -381,8 +375,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     ).rejects.toThrow();
   });
 
-  // ── Partial unique indexes — duplicates ────────────────────────────────────
-
   it("rejects a duplicate card-kind entry on the same list", async () => {
     const list = await repo.create({
       userId,
@@ -449,8 +441,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     ).resolves.toBeDefined();
   });
 
-  // ── Bulk-create entries ────────────────────────────────────────────────────
-
   it("bulkCreateEntries inserts and merges dupes within one kind", async () => {
     const list = await repo.create({ userId, name: "Bulk", intent: "wish", kind: "card" });
     createdListIds.push(list.id);
@@ -486,10 +476,9 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(rows[0]?.quantity).toBe(2);
   });
 
-  // Regression: separate calls used to drop the second invocation as "skipped"
-  // because ON CONFLICT DO NOTHING returned no row. Now each call bumps the
-  // existing entry's quantity instead — the user can drag the same card onto
-  // a list multiple times to build up the desired count.
+  // A later call against an existing entry must bump its quantity rather than
+  // report it skipped — the user can drag the same card onto a list multiple
+  // times to build up the desired count.
   it("bulkCreateEntries bumps quantity on a later call against an existing entry", async () => {
     const list = await repo.create({ userId, name: "Bulk repeat", intent: "wish", kind: "card" });
     createdListIds.push(list.id);
@@ -516,10 +505,10 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(rows[0]?.quantity).toBe(5);
   });
 
-  // Regression: ON CONFLICT (list_id, copy_id) used to omit the partial-index
-  // predicate (`WHERE copy_id IS NOT NULL`), so Postgres raised "no unique or
-  // exclusion constraint matching the ON CONFLICT specification" the moment
-  // a copy-kind bulk insert ran in production.
+  // ON CONFLICT (list_id, copy_id) must carry the partial-index predicate
+  // (`WHERE copy_id IS NOT NULL`), or Postgres raises "no unique or exclusion
+  // constraint matching the ON CONFLICT specification" on copy-kind bulk
+  // inserts.
   it("bulkCreateEntries works with copy-kind entries (partial-index ON CONFLICT)", async () => {
     const copyA = await createTestCopy();
     const copyB = await createTestCopy();
@@ -575,8 +564,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const result = await repo.bulkCreateEntries("card", []);
     expect(result).toEqual({ inserted: 0, updated: 0 });
   });
-
-  // ── bulkCreateEntriesFromCopies (drag-from-collections) ────────────────────
 
   it("bulkCreateEntriesFromCopies inserts one copy entry per owned copy on a copy-kind list", async () => {
     const copyA = await createTestCopy();
@@ -734,10 +721,9 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
   });
 
-  // Regression for the mixed-ownership accounting bug: with one owned copy and
-  // one bogus ID, the non-owned ID used to drop silently from `skipped` so the
-  // toast under-reported. Now both an inserted entry and the dropped ID are
-  // surfaced.
+  // Mixed-ownership accounting: with one owned copy and one bogus ID, the
+  // non-owned ID must surface in `skipped` rather than drop silently, or the
+  // toast under-reports.
   it("bulkCreateEntriesFromCopies counts non-owned in skipped on mixed input", async () => {
     const copy = await createTestCopy();
     const list = await repo.create({
@@ -759,9 +745,9 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(result).toEqual({ added: 1, updated: 0, skipped: 1 });
   });
 
-  // Regression: a copy in a shared group collection is visible to the member
-  // but isn't theirs to trade away. With personalOnly it must be skipped on a
-  // trade list, never added.
+  // A copy in a shared group collection is visible to the member but isn't
+  // theirs to trade away. With personalOnly it must be skipped on a trade
+  // list, never added.
   it("bulkCreateEntriesFromCopies skips group-collection copies on a trade list (personalOnly)", async () => {
     const groupCopy = await createGroupCopy();
     const list = await repo.create({
@@ -804,8 +790,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
     expect(await repo.entriesWithDetails(list.id, "copy", userId)).toHaveLength(1);
   });
-
-  // ── Enriched read ──────────────────────────────────────────────────────────
 
   it("entriesWithDetails returns enriched rows for card-kind lists", async () => {
     const list = await repo.create({
@@ -887,8 +871,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const wrongUser = "a0000000-9999-4000-a000-000000000099";
     expect(await repo.entriesWithDetails(list.id, "card", wrongUser)).toEqual([]);
   });
-
-  // ── updateEntry / deleteEntry / cascade ────────────────────────────────────
 
   it("updates an entry's quantity", async () => {
     const list = await repo.create({
@@ -996,8 +978,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(surviving).toBeUndefined();
   });
 
-  // ── Atomic quantity decrement (trade-sync, audit #2) ────────────────────────
-
   it("decrementEntryQuantity subtracts in-SQL and deletes on exhaustion", async () => {
     const list = await repo.create({
       userId,
@@ -1016,7 +996,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
       quantity: 5,
     });
 
-    // Each call decrements atomically, returning the new quantity.
     expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(3);
     expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(1);
 
@@ -1045,7 +1024,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
       quantity: 3,
     });
 
-    // Unknown id and foreign owner both match nothing; the real entry is intact.
     expect(await repo.decrementEntryQuantity(crypto.randomUUID(), userId, 1)).toBeUndefined();
     expect(
       await repo.decrementEntryQuantity(entry.id, "a0000000-9999-4000-a000-000000000099", 1),

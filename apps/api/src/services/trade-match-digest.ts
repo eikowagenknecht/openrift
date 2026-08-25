@@ -13,7 +13,7 @@ type SendEmail = ReturnType<typeof createEmailSender>;
 const DIGEST_MATCH_LIMIT = 500;
 
 /**
- * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
+ * Kill switch, an api-scoped site setting. Default on: absent (never
  * created) or `"true"` → send; set it to `"false"` to stop sending if a bug
  * shows up. Keep in sync with the admin site-settings page.
  */
@@ -46,13 +46,12 @@ export interface TradeMatchDigestResult {
    *  is indistinguishable from a quiet day with no new matches. */
   failed: number;
   /** Matches that were never delivered because their send threw. The watermark
-   *  advances regardless (ADR-030), so these are dropped, not retried. */
+   *  advances regardless, so these are dropped, not retried. */
   matchesDropped: number;
 }
 
 /** A match digest did nothing when no recipient was emailed and no match was
- *  included (flag off, first run, or nobody had new matches).
- *  @returns True when the run had no work to do. */
+ *  included (flag off, first run, or nobody had new matches). */
 export function isTradeMatchDigestNoop(result: TradeMatchDigestResult): boolean {
   // `failed` needs no clause: a send can only fail for a recipient that was
   // considered, so any failure already shows up in `recipients`.
@@ -60,9 +59,9 @@ export function isTradeMatchDigestNoop(result: TradeMatchDigestResult): boolean 
 }
 
 /**
- * Reads the digest watermark from a prior run's stored `result`.
- * @returns The last run-start time as a Date, or `null` if there's no usable
- *   watermark (no prior run) — the caller treats this as the first run.
+ * Reads the digest watermark from a prior run's stored `result`. Returns
+ * `null` if there's no usable watermark (no prior run) — the caller treats
+ * this as the first run.
  */
 export function extractDigestWatermark(result: unknown): Date | null {
   if (result === null || typeof result !== "object") {
@@ -86,12 +85,10 @@ interface PendingGroup {
 }
 
 /**
- * Sends the daily match digest (ADR-030): one email per opted-in, verified user
+ * Sends the daily match digest: one email per opted-in, verified user
  * aggregating the cards that became available in their groups since the
  * watermark. Per-recipient sends are best-effort — a failure is logged, counted
  * in `failed`, and the run continues so one bad address can't sink the batch.
- * @returns Counts of recipients considered, emails sent and matches included,
- *   plus the failed sends and the matches dropped with them.
  */
 export async function sendTradeMatchDigest(
   deps: TradeMatchDigestDeps,
@@ -101,8 +98,7 @@ export async function sendTradeMatchDigest(
   // Kill switch (default on): skip the whole run if the setting is explicitly
   // off. The watermark still advances (the cron writes it), so the skipped
   // window's matches are dropped rather than queued — consistent with the
-  // digest's watermark-only, best-effort design (a missed day is acceptable;
-  // ADR-030).
+  // digest's watermark-only, best-effort design (a missed day is acceptable).
   if ((await repos.siteSettings.getBool(TRADE_MATCH_DIGEST_SETTING)) === false) {
     return { recipients: 0, emailsSent: 0, matches: 0, failed: 0, matchesDropped: 0 };
   }
@@ -136,7 +132,6 @@ export async function sendTradeMatchDigest(
       for (const row of rows) {
         cardIds.add(row.cardId);
       }
-      // Resolve member display names only for groups with matches.
       const members = await repos.friendGroups.listMembers(group.id);
       const labelByUser = new Map<string, string>();
       for (const member of members) {
@@ -149,7 +144,6 @@ export async function sendTradeMatchDigest(
       continue;
     }
 
-    // Resolve card names once for this recipient, then materialise the sections.
     const cards = await repos.catalog.cardsByIds([...cardIds]);
     const nameByCard = new Map(cards.map((card) => [card.id, card.name]));
 

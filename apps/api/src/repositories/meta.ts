@@ -18,22 +18,14 @@ import type {
 } from "../db/index.js";
 
 /**
- * The synthetic account that owns every archived deck (ADR-014, seeded by
- * migration 235). It has no `accounts` row, so no credential or OAuth path can
- * produce a session for it — the id is safe to hardcode as the write path's
- * owner.
+ * The synthetic account that owns every archived deck. It has no `accounts`
+ * row, so no credential or OAuth path can produce a session for it — the id is
+ * safe to hardcode as the write path's owner.
  */
 export const META_ARCHIVE_USER_ID = "meta-archive";
 
-/** An event row plus how many decks are archived under it. */
 export type MetaEventWithCount = Selectable<MetaEventsTable> & { deckCount: number };
 
-/**
- * One archived deck, denormalized far enough for a tile: the deck's own
- * identity, its placement, its event, and the legend/champion the archive
- * groups by. Legend and champion are null when the deck has no card in that
- * zone.
- */
 export interface MetaDeckSummaryRow {
   deckId: string;
   /**
@@ -41,7 +33,6 @@ export interface MetaDeckSummaryRow {
    * page to link a tile to.
    */
   shareToken: string | null;
-  /** How much of the pilot's list this deck holds. */
   listStatus: MetaListStatus;
   deckName: string;
   deckFormat: string;
@@ -58,7 +49,6 @@ export interface MetaDeckSummaryRow {
   eventFormat: string;
 }
 
-/** The archive's own facts about one deck, for the public deck page's event panel. */
 export interface MetaDeckContextRow {
   /**
    * `"archetype"` here means the deck has no page. Such a deck also has no
@@ -76,10 +66,9 @@ export interface MetaDeckContextRow {
   eventFormat: string;
 }
 
-/** An admin's view of one archived deck within its event. */
 export interface AdminMetaDeckRow {
   deckId: string;
-  /** Null while the deck is archetype-only. @see MetaDeckSummaryRow.shareToken */
+  /** Null while the deck is archetype-only. */
   shareToken: string | null;
   listStatus: MetaListStatus;
   name: string;
@@ -90,7 +79,6 @@ export interface AdminMetaDeckRow {
   cardCount: number;
 }
 
-/** How many archived decks contain a given card, with the card's display name. */
 export interface MetaCardStatRow {
   cardId: string;
   name: string;
@@ -104,7 +92,7 @@ export interface MetaCardStatRow {
   landscape: boolean;
 }
 
-/** Optional scope for the stats aggregates, applied to the *event's* fields. */
+/** Applied to the *event's* fields, not the deck's. */
 export interface MetaStatsFilters {
   format?: string;
   dateFrom?: string;
@@ -112,29 +100,28 @@ export interface MetaStatsFilters {
 }
 
 /**
- * Narrowing shared by both stats aggregates. `knownMainDeckOnly` drops the
- * archetype-only decks, which is what the card-inclusion numbers need: those
- * decks carry a legend and nothing else, so counting them would make every
- * card's percentage read against a denominator most of it never had a chance
- * to appear in. Partial lists stay in — the aggregate reads the main zone, and
- * a partial list's main deck is complete by definition. The legend play-rate
- * passes nothing, since a legend is the one thing all three states have.
+ * `knownMainDeckOnly` drops the archetype-only decks, which is what the
+ * card-inclusion numbers need: those decks carry a legend and nothing else, so
+ * counting them would make every card's percentage read against a denominator
+ * most of it never had a chance to appear in. Partial lists stay in — a partial
+ * list's main deck is complete by definition. The legend play-rate passes
+ * nothing, since a legend is the one thing all three states have.
  */
 export interface MetaStatsScope {
   knownMainDeckOnly?: boolean;
 }
 
 /**
- * One citation on an event (migration 255): where a slice of its data came
- * from. Public, and never a contributor — a person is credited through
- * {@link MetaContributorRow} instead.
+ * One citation on an event: where a slice of its data came from. Public, and
+ * never a contributor — a person is credited through {@link MetaContributorRow}
+ * instead.
  */
 export type MetaEventSourceRow = Selectable<MetaEventSourcesTable>;
 
 /**
- * Columns a citation insert accepts. `provider` and `externalId` are null
- * together for a hand-entered citation (a VOD, a photo of the standings
- * board); a provider row carries the candidate's key so unlinking can find it.
+ * `provider` and `externalId` are null together for a hand-entered citation (a
+ * VOD, a photo of the standings board); a provider row carries the candidate's
+ * key so unlinking can find it.
  */
 export interface MetaEventSourceInput {
   metaEventId: string;
@@ -157,8 +144,7 @@ export interface MetaDeckSourceKey {
 /**
  * One contributor as an event page prints them. The name is resolved at read
  * time from the user's profile and their `meta_credit_visibility`, so a rename
- * or an opt-out reaches every past contribution with no sweep across rows
- * (ADR-014).
+ * or an opt-out reaches every past contribution with no sweep across rows.
  */
 export interface MetaContributorRow {
   metaEventId: string;
@@ -167,7 +153,6 @@ export interface MetaContributorRow {
   displayName: string;
 }
 
-/** Columns an event create accepts; the rest are defaulted by the table. */
 export interface MetaEventInput {
   slug: string;
   name: string;
@@ -178,7 +163,6 @@ export interface MetaEventInput {
   notes: string | null;
 }
 
-/** One card row of an archived deck, as the admin client resolved it. */
 export interface MetaDeckCardInput {
   cardId: string;
   zone: DeckZone;
@@ -186,7 +170,6 @@ export interface MetaDeckCardInput {
   preferredPrintingId: string | null;
 }
 
-/** Everything needed to mint an archived deck plus its satellite row in one go. */
 export interface MetaDeckInput {
   eventId: string;
   name: string;
@@ -197,14 +180,12 @@ export interface MetaDeckInput {
   finishTier: number;
   record: string | null;
   /**
-   * How much of the list `cards` holds. `"archetype"` pairs with a null
-   * `shareToken` — the two belong together, and `createArchivedDeck` is what
-   * keeps them that way.
+   * `"archetype"` pairs with a null `shareToken` — the two belong together,
+   * and `createArchivedDeck` is what keeps them that way.
    */
   listStatus: MetaListStatus;
 }
 
-/** The editable slice of an archived deck. Absent keys are left untouched. */
 export interface MetaDeckPatch {
   eventId?: string;
   name?: string;
@@ -222,28 +203,19 @@ export interface MetaDeckPatch {
 }
 
 /**
- * Queries for the admin-curated meta archive (ADR-014). Archived decks live in
- * `decks` under {@link META_ARCHIVE_USER_ID}; this repo owns the event rows,
- * the satellite placement rows, and every join that treats the two as one
- * thing.
- *
- * @returns An object with meta-archive query methods bound to the given `db`.
+ * Queries for the admin-curated meta archive. Archived decks live in `decks`
+ * under {@link META_ARCHIVE_USER_ID}; this repo owns the event rows, the
+ * satellite placement rows, and every join that treats the two as one thing.
  */
 export function metaRepo(db: Kysely<Database>) {
   const deckCountExpr = sql<number>`(select count(*)::int from meta_decks where meta_decks.meta_event_id = meta_events.id)`;
 
   /**
-   * The archived decks both stats aggregates read, joined to their event.
-   *
    * The filters read the *event*, not the deck: a deck inherits its format and
    * its date from where it was played, so "constructed decks since June" is a
    * statement about events. `knownMainDeckOnly` is the one deck-level
    * narrowing, and it exists so the card table's numerator and denominator
    * agree — see {@link MetaStatsScope}.
-   *
-   * @param filters The event-level scope.
-   * @param scope Deck-level narrowing.
-   * @returns The joined query, ready for an aggregate select.
    */
   function decksInScope(filters: MetaStatsFilters, scope?: MetaStatsScope) {
     let query = db
@@ -265,12 +237,10 @@ export function metaRepo(db: Kysely<Database>) {
   }
 
   /**
-   * Base select for deck summaries. The legend and champion come from lateral
-   * joins rather than two correlated subqueries each, so the card id and its
-   * name are read in one pass per zone. A deck with several cards in a zone
-   * (not a legal state, but representable) resolves to the alphabetically
-   * first, deterministically.
-   * @returns The joined query, unordered and unfiltered.
+   * The legend and champion come from lateral joins rather than two correlated
+   * subqueries each, so the card id and its name are read in one pass per
+   * zone. A deck with several cards in a zone (not a legal state, but
+   * representable) resolves to the alphabetically first, deterministically.
    */
   function deckSummaryQuery() {
     return db
@@ -326,16 +296,11 @@ export function metaRepo(db: Kysely<Database>) {
   }
 
   /**
-   * The public contributor read, shared by the single-event, multi-event and
-   * per-deck forms.
-   *
    * The display string is resolved in SQL so the filter and the ordering agree
    * with it: a contributor on `riot_id` falls back to their display name, a
    * blank result drops the row rather than printing part of a user id, and the
    * `DISTINCT` collapses the several decks one person contributed into one name
    * per event.
-   *
-   * @returns The query, unfiltered.
    */
   function contributorQuery() {
     const displayName = sql<string>`nullif(btrim(case
@@ -355,7 +320,6 @@ export function metaRepo(db: Kysely<Database>) {
   }
 
   return {
-    /** @returns Every archived event with its deck count, newest first. */
     listEvents(): Promise<MetaEventWithCount[]> {
       return db
         .selectFrom("metaEvents")
@@ -366,7 +330,6 @@ export function metaRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The event with that slug plus its deck count, or `undefined`. */
     eventBySlug(slug: string): Promise<MetaEventWithCount | undefined> {
       return db
         .selectFrom("metaEvents")
@@ -376,7 +339,6 @@ export function metaRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The event with that id plus its deck count, or `undefined`. */
     eventById(id: string): Promise<MetaEventWithCount | undefined> {
       return db
         .selectFrom("metaEvents")
@@ -386,11 +348,6 @@ export function metaRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Deck summaries for one event, best finish first. Ties (equal
-     * `finish_tier`) fall back to the player name so the order is stable.
-     * @returns The event's archived decks.
-     */
     deckSummariesForEvent(eventId: string): Promise<MetaDeckSummaryRow[]> {
       return deckSummaryQuery()
         .where("md.metaEventId", "=", eventId)
@@ -400,10 +357,8 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Every archived deck across every event, newest event first then best
-     * finish. Unpaginated and unfiltered by design (ADR-014): the archive is
-     * curated and small, and the deck browser filters client-side.
-     * @returns All archived deck summaries.
+     * Unpaginated and unfiltered by design: the archive is curated and small,
+     * and the deck browser filters client-side.
      */
     allDeckSummaries(): Promise<MetaDeckSummaryRow[]> {
       return deckSummaryQuery()
@@ -416,7 +371,6 @@ export function metaRepo(db: Kysely<Database>) {
     /**
      * Guard for the share-token rotate path: an archived deck's token is its
      * permalink, so rotation must be refused while this row exists.
-     * @returns Whether the deck belongs to the archive.
      */
     async isMetaDeck(deckId: string): Promise<boolean> {
       const row = await db
@@ -428,12 +382,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The two facts an update has to know before it writes: how complete the
-     * deck's list is, and whether it already carries a permalink. Promoting a
-     * deck out of `"archetype"` is what mints the token, and that must happen
+     * The two facts an update has to know before it writes: promoting a deck
+     * out of `"archetype"` is what mints the token, and that must happen
      * exactly once.
-     * @returns The deck's list and token state, or `undefined` when it is not
-     *   an archived deck.
      */
     deckShareState(
       deckId: string,
@@ -447,11 +398,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The archive's context for one deck: which event it came from and how it
-     * placed. Also the archive-membership test the public deck endpoint uses —
+     * Also the archive-membership test the public deck endpoint uses —
      * `undefined` means the token belongs to a deck outside the archive, which
      * must 404 rather than render as an archive entry.
-     * @returns The deck's event and placement, or `undefined`.
      */
     contextForDeck(deckId: string): Promise<MetaDeckContextRow | undefined> {
       return db
@@ -472,11 +421,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * How many archived decks fall in the stats scope — the denominator an
-     * aggregate is read against. Called twice by the public stats route, once
-     * per {@link MetaStatsScope}, because the two aggregates count over
-     * different populations.
-     * @returns The deck count in scope.
+     * The denominator an aggregate is read against. Called twice by the public
+     * stats route, once per {@link MetaStatsScope}, because the two aggregates
+     * count over different populations.
      */
     async deckCountInScope(filters: MetaStatsFilters, scope?: MetaStatsScope): Promise<number> {
       const row = await decksInScope(filters, scope)
@@ -486,14 +433,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Card inclusion: how many distinct archived decks in scope contain each
-     * card, in any zone. Pass `zone` to narrow it — `"main"` is what the
-     * public stats show, and `"legend"` gives the legend play-rate, which is
-     * the archive's grouping axis. Same event-level scope as
-     * {@link deckCountInScope}, whose matching result is the denominator: the
-     * card table passes `knownMainDeckOnly` on both, the legend play-rate on
-     * neither.
-     * @returns One row per card, most-played first.
+     * Same event-level scope as {@link deckCountInScope}, whose matching
+     * result is the denominator: the card table passes `knownMainDeckOnly` on
+     * both, the legend play-rate on neither.
      */
     cardInclusion(
       filters: MetaStatsFilters,
@@ -533,11 +475,6 @@ export function metaRepo(db: Kysely<Database>) {
         );
     },
 
-    /**
-     * Admin rows for one event's decks, with the card count so the table can
-     * flag a half-entered list.
-     * @returns The event's decks, best finish first.
-     */
     adminDecksForEvent(eventId: string): Promise<AdminMetaDeckRow[]> {
       return db
         .selectFrom("metaDecks as md")
@@ -566,7 +503,6 @@ export function metaRepo(db: Kysely<Database>) {
         .then((rows) => rows.map((row) => ({ ...row, cardCount: row.cardCount ?? 0 })));
     },
 
-    /** @returns The created event row, with a deck count of zero. */
     async createEvent(input: MetaEventInput): Promise<MetaEventWithCount> {
       const row = await db
         .insertInto("metaEvents")
@@ -576,11 +512,7 @@ export function metaRepo(db: Kysely<Database>) {
       return { ...row, deckCount: 0 };
     },
 
-    /**
-     * Applies a partial event update. The caller has already narrowed the body
-     * to real columns via `buildPatchUpdates`.
-     * @returns Whether the event existed.
-     */
+    /** The caller has already narrowed the body to real columns via `buildPatchUpdates`. */
     async updateEvent(id: string, updates: Updateable<MetaEventsTable>): Promise<boolean> {
       const result = await db
         .updateTable("metaEvents")
@@ -591,11 +523,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Deletes an event, its satellite rows, and the `decks` rows behind them.
      * The FK cascade only reaches `meta_decks`, so without the explicit deck
      * delete the archived decks would survive under the synthetic owner with
      * nothing left pointing at them.
-     * @returns Whether the event existed.
      */
     deleteEvent(id: string): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
@@ -625,16 +555,10 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Creates an archived deck: the `decks` row under the synthetic owner, its
-     * cards, and the satellite placement row, all in one transaction so a
-     * failure can't leave a deck with no event or an event row with no deck.
-     *
      * `shareToken` is supplied by the caller (wrapped in `withUniqueShareToken`)
      * because the retry has to re-run the whole transaction, not just the
      * insert that collided. It is null for an archetype-only deck, which has no
      * public page and so needs no permalink.
-     *
-     * @returns The new deck's id, or `undefined` when the event doesn't exist.
      */
     createDeck(
       input: MetaDeckInput,
@@ -647,8 +571,6 @@ export function metaRepo(db: Kysely<Database>) {
           .where("id", "=", input.eventId)
           .executeTakeFirst();
         if (!event) {
-          // Rolls back before anything is written, so a bad event id can never
-          // strand a deck under the synthetic owner.
           return;
         }
 
@@ -690,12 +612,6 @@ export function metaRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Applies a partial update across the deck row, its cards, and its
-     * placement row. Card replacement is wholesale, matching the deck
-     * builder's own `replaceCards`.
-     * @returns Whether the archived deck existed.
-     */
     updateDeck(deckId: string, patch: MetaDeckPatch): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
         const existing = await trx
@@ -758,11 +674,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Removes an archived deck entirely. Deleting the `decks` row cascades to
-     * both `deck_cards` and the satellite row, so this is the whole operation.
-     * The extra `meta_decks` predicate keeps the method from ever reaching a
-     * user's own deck.
-     * @returns Whether the archived deck existed.
+     * Deleting the `decks` row cascades to both `deck_cards` and the satellite
+     * row, so this is the whole operation. The extra `meta_decks` predicate
+     * keeps the method from ever reaching a user's own deck.
      */
     async deleteDeck(deckId: string): Promise<boolean> {
       const result = await db
@@ -781,9 +695,6 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    // ── Source citations (migration 255) ─────────────────────────────────────
-
-    /** @returns The event's citations, provider rows first, then oldest first. */
     sourcesForEvent(eventId: string): Promise<MetaEventSourceRow[]> {
       return db
         .selectFrom("metaEventSources")
@@ -794,7 +705,6 @@ export function metaRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The new citation row. */
     insertEventSource(input: MetaEventSourceInput): Promise<MetaEventSourceRow> {
       return db
         .insertInto("metaEventSources")
@@ -803,7 +713,6 @@ export function metaRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns Whether the citation existed. */
     async deleteEventSource(id: string): Promise<boolean> {
       const result = await db
         .deleteFrom("metaEventSources")
@@ -815,9 +724,6 @@ export function metaRepo(db: Kysely<Database>) {
     /**
      * Removes a provider's citation by its source key, which is what unlinking
      * a candidate has to work with: it knows the key, not the row id.
-     * @param provider The citing provider.
-     * @param externalId That provider's id for the event.
-     * @returns Whether a citation was removed.
      */
     async deleteEventSourceByKey(provider: string, externalId: string): Promise<boolean> {
       const result = await db
@@ -828,17 +734,11 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    // ── Deck source keys (migration 256) ─────────────────────────────────────
-
     /**
      * Records which source deck an archived deck came from, replacing whatever
      * that key pointed at before. The delete is what makes a relink work: the
      * key is unique across the table, so moving a source from one archived deck
      * to another has to take the row with it.
-     *
-     * @param deckId The archived deck the source describes.
-     * @param key The source's key for it.
-     * @returns Nothing.
      */
     async writeDeckSource(deckId: string, key: MetaDeckSourceKey): Promise<void> {
       await db
@@ -853,10 +753,6 @@ export function metaRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * @param key The source's key for a deck.
-     * @returns Whether a row was removed.
-     */
     async deleteDeckSourceByKey(key: MetaDeckSourceKey): Promise<boolean> {
       const result = await db
         .deleteFrom("metaDeckSources")
@@ -867,16 +763,13 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    // ── Contributor credit (migration 255) ───────────────────────────────────
-
     /**
-     * Records one contribution. Idempotent on the contribution's unique index
-     * (`NULLS NOT DISTINCT`, so a second event-level credit for the same user
-     * is the same row), because an accept is legitimately re-run — a corrected
-     * list, a re-upload — and a contributor is credited once per thing they
-     * contributed, not once per click.
-     *
-     * @param values The event, the deck (null credits the event itself), and the contributor.
+     * Records one contribution; a null `deckId` credits the event itself.
+     * Idempotent on the contribution's unique index (`NULLS NOT DISTINCT`, so
+     * a second event-level credit for the same user is the same row), because
+     * an accept is legitimately re-run — a corrected list, a re-upload — and a
+     * contributor is credited once per thing they contributed, not once per
+     * click.
      */
     async insertCredit(values: {
       metaEventId: string;
@@ -891,14 +784,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Drops credits for one archived deck. Deleting the deck itself cascades;
-     * this is the narrower case of taking a credit back while the deck stays,
-     * which is what unlinking a contributor's candidate does.
-     *
-     * @param deckId The archived deck.
-     * @param userId One contributor, when only their credit should go. Several
-     *   people can have contributed to one deck, so the unlink path always
-     *   passes it.
+     * Deleting the deck itself cascades; this is the narrower case of taking a
+     * credit back while the deck stays. Several people can have contributed to
+     * one deck, so the unlink path always passes `userId`.
      */
     async deleteCreditsForDeck(deckId: string, userId?: string): Promise<void> {
       let query = db.deleteFrom("metaCredits").where("deckId", "=", deckId);
@@ -909,37 +797,22 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One event's public contributor line.
-     *
      * Consent is `users.meta_credit_visibility`, read here rather than frozen
      * onto the credit row: opting in later credits every past contribution and
      * opting out removes them all, without touching an archive row.
-     *
-     * @param eventId The event to read.
-     * @returns One row per contributor, name already resolved.
      */
     contributorsForEvent(eventId: string): Promise<MetaContributorRow[]> {
       return contributorQuery().where("mc.metaEventId", "=", eventId).execute();
     },
 
-    /**
-     * The contributors of one archived deck, for the deck page's own line.
-     * @param deckId The archived deck.
-     * @returns Its public contributors.
-     */
     contributorsForDeck(deckId: string): Promise<MetaContributorRow[]> {
       return contributorQuery().where("mc.deckId", "=", deckId).execute();
     },
 
     /**
-     * One user's credit-visibility setting.
-     *
      * The column lives on `users` but its meaning is this domain's: it is the
      * consent behind {@link contributorsForEvent}, and reading it anywhere
      * else would be reading a meta-archive rule out of context.
-     *
-     * @param userId The user.
-     * @returns Their setting, or `undefined` when the user is gone.
      */
     async creditVisibility(userId: string): Promise<MetaCreditVisibility | undefined> {
       const row = await db
@@ -951,15 +824,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Changes one user's credit visibility.
-     *
-     * Nothing else moves: opting in credits every past contribution and opting
-     * out removes them all, because the public read resolves the name at render
-     * rather than freezing it onto a credit row.
-     *
-     * @param userId The user.
-     * @param visibility What their contributions should show.
-     * @returns Whether the user existed.
+     * Nothing else moves on a visibility change: opting in credits every past
+     * contribution and opting out removes them all, because the public read
+     * resolves the name at render rather than freezing it onto a credit row.
      */
     async setCreditVisibility(userId: string, visibility: MetaCreditVisibility): Promise<boolean> {
       const result = await db
@@ -970,11 +837,7 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numUpdatedRows ?? 0n) > 0n;
     },
 
-    /**
-     * Sitemap entries for the archive: one per event slug and one per archived
-     * deck token. `updatedAt` drives the `<lastmod>` the generator emits.
-     * @returns Event slugs and deck share tokens with their last-modified instants.
-     */
+    /** `updatedAt` drives the `<lastmod>` the sitemap generator emits. */
     async sitemapEntries(): Promise<{
       events: { slug: string; updatedAt: string }[];
       decks: { slug: string; updatedAt: string }[];

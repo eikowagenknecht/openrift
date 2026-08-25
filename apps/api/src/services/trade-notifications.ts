@@ -21,21 +21,20 @@ import type { EmailNotificationContext } from "../repositories/user-preferences.
 type SendEmail = ReturnType<typeof createEmailSender>;
 
 /**
- * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
- * created) or `"true"` → send; set it to `"false"` to stop sending if a bug
- * shows up. Keep in sync with the admin site-settings page. Gates both the
- * instant email and the coalesced flush.
+ * Kill switch, an api-scoped site setting. Default on: absent (never created)
+ * or `"true"` → send; set it to `"false"` to stop sending if a bug shows up.
+ * Keep in sync with the admin site-settings page. Gates both the instant email
+ * and the coalesced flush.
  */
 export const TRADE_REQUEST_EMAIL_SETTING = "trade-request-email";
 
 /**
  * Decides whether a recipient's queued burst of requests from one sender is due
- * for its coalesced email (ADR-030). `instant` is always due (the flush only
- * sees instant rows as a fallback when the instant send failed). An `Nmin`
- * cadence is a trailing debounce: send once the burst has been quiet for the
- * window (N min since the last request), capped at twice the window so a
- * never-ending trickle can't defer the email forever.
- * @returns Whether the group should be emailed now.
+ * for its coalesced email. `instant` is always due (the flush only sees instant
+ * rows as a fallback when the instant send failed). An `Nmin` cadence is a
+ * trailing debounce: send once the burst has been quiet for the window (N min
+ * since the last request), capped at twice the window so a never-ending
+ * trickle can't defer the email forever.
  */
 export function isRequestGroupDue(
   cadence: TradeRequestEmailCadence,
@@ -57,7 +56,6 @@ export function isRequestGroupDue(
   return quietFor >= windowMs || agedFor >= 2 * windowMs;
 }
 
-/** Dependencies the trade-request email needs beyond `repos` (ADR-030). */
 export interface TradeEmailDeps {
   sendEmail: SendEmail;
   /** Web origin for deep links + the unsubscribe route (BETTER_AUTH_URL). */
@@ -68,7 +66,7 @@ export interface TradeEmailDeps {
 }
 
 /**
- * Emails the non-initiator that a trade was requested (ADR-030). Gated by the
+ * Emails the non-initiator that a trade was requested. Gated by the
  * recipient's `tradeRequests` preference (on by default) and a verified email.
  *
  * Honours the recipient's cadence: `instant` claims and sends the email right
@@ -86,13 +84,11 @@ export async function sendTradeRequestEmail(
   deps: TradeEmailDeps,
 ): Promise<void> {
   try {
-    // Kill switch (default on): stop all trade-request emails only if the
-    // setting has been explicitly turned off.
+    // Kill switch (default on): only an explicit `false` stops sending.
     if ((await repos.siteSettings.getBool(TRADE_REQUEST_EMAIL_SETTING)) === false) {
       return;
     }
 
-    // The recipient is the *non-initiator*.
     const recipientUserId = trade.initiator === "giver" ? trade.receiverUserId : trade.giverUserId;
 
     const context = await repos.userPreferences.getEmailNotificationContext(recipientUserId);
@@ -161,7 +157,6 @@ export async function sendTradeRequestEmail(
   }
 }
 
-/** Dependencies for the coalesced trade-request flush cron (ADR-030). */
 export interface CoalescedRequestFlushDeps {
   repos: Repos;
   log: Logger;
@@ -183,13 +178,12 @@ export interface CoalescedRequestFlushResult {
    *  the same all-zero summary as a run with nothing to send. */
   failed: number;
   /** Requests claimed for a send that then threw. Claims are never released
-   *  (at-most-once, ADR-030), so these are dropped rather than retried. */
+   *  (at-most-once), so these are dropped rather than retried. */
   requestsDropped: number;
 }
 
 /** A trade-request flush did nothing when no pair was due (flag off, or no
- *  pending requests), so no email was sent and no queued request was folded in.
- *  @returns True when the run had no work to do. */
+ *  pending requests), so no email was sent and no queued request was folded in. */
 export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): boolean {
   // `failed` needs no clause: only a due pair can fail, so any failure is
   // already counted in `pairs`.
@@ -197,15 +191,13 @@ export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): bo
 }
 
 /**
- * Sends the coalesced follow-up emails (ADR-030): for each sender→recipient
- * pair whose burst is due under the recipient's cadence (see
- * {@link isRequestGroupDue}), folds all that pair's queued requests into one
- * email. A still-settling burst is left queued (not claimed) for a later tick;
- * an opted-out recipient's queue is claimed-and-suppressed so it isn't retried
- * forever. Per-pair sends are best-effort — a failure is logged, counted in
- * `failed`, and the run continues.
- * @returns Counts of pairs emailed, emails sent and requests included, plus the
- *   failed sends and the requests dropped with them.
+ * Sends the coalesced follow-up emails: for each sender→recipient pair whose
+ * burst is due under the recipient's cadence (see {@link isRequestGroupDue}),
+ * folds all that pair's queued requests into one email. A still-settling burst
+ * is left queued (not claimed) for a later tick; an opted-out recipient's queue
+ * is claimed-and-suppressed so it isn't retried forever. Per-pair sends are
+ * best-effort — a failure is logged, counted in `failed`, and the run
+ * continues.
  */
 export async function flushCoalescedTradeRequests(
   deps: CoalescedRequestFlushDeps,
@@ -281,7 +273,6 @@ export async function flushCoalescedTradeRequests(
       continue;
     }
 
-    // Resolve the sender's display label, and collect card ids.
     let senderLabel: string | null = null;
     const cardIds = new Set<string>();
     for (const row of claimedRows) {

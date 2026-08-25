@@ -15,10 +15,7 @@ import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardImagesRouter } from "./images";
 
-// ---------------------------------------------------------------------------
-// Mock service modules — vitest hoists vi.mock() automatically
-// ---------------------------------------------------------------------------
-
+// vitest hoists vi.mock() automatically.
 vi.mock("../../../services/images/index.js", () => ({
   CARD_MEDIA_DIR: "/mock/media/cards",
   rehostSingleImage: vi.fn(),
@@ -41,10 +38,6 @@ const mockDownloadImage = vi.mocked(downloadImage);
 const mockProcessAndSave = vi.mocked(processAndSave);
 const mockRegenerateFromOrig = vi.mocked(regenerateFromOrig);
 const mockImageRehostedUrl = vi.mocked(imageRehostedUrl);
-
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
 
 const mockPrintingImages = {
   getCandidatePrintingById: vi.fn(),
@@ -82,12 +75,9 @@ const mockTransact = vi.fn(
     callback({ printingImages: mockTrxPrintingImages }),
 );
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// AppErrors thrown by handlers are bridged to ORPCErrors inside the router, so
-// the error body is `{ message, code }` (asserted via `json.message`).
-// ---------------------------------------------------------------------------
-
+// Mounts the oRPC router directly, without the requireAdmin gate. AppErrors
+// thrown by handlers are bridged to ORPCErrors inside the router, so the
+// error body is `{ message, code }` (asserted via `json.message`).
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
@@ -111,10 +101,6 @@ const SET_IMAGE =
   "/api/admin/v1/cards/candidate-printings/00000000-0000-4000-a000-000000000001/set-image";
 const IMAGE_ID = "00000000-0000-4000-a000-000000000002";
 const PRINTING_ID = "00000000-0000-4000-a000-000000000003";
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("POST /candidate-printings/:id/set-image", () => {
   beforeEach(() => {

@@ -28,10 +28,6 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
  * so the non-standard codes (`VALIDATION_ERROR`, `MISSING_ALIAS`) would answer
  * 500. The same status-alignment trap is documented in
  * `packages/shared/src/contracts/_base.ts`.
- * @param c The Hono context to answer on.
- * @param code The error code, which also fixes the HTTP status.
- * @param message Human-readable reason, surfaced to the caller verbatim.
- * @returns The JSON response, carrying the status oRPC assigns to the code.
  */
 export function orpcErrorResponse(c: Context, code: ErrorCode, message: string): Response {
   const error = new ORPCError(code, { message });

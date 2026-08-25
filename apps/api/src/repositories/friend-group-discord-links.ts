@@ -12,21 +12,17 @@ export type RedeemResult =
   | { status: "guild-taken" };
 
 /**
- * Discord-server links for friend groups (migration 217). A link starts as a
- * pending row holding a one-time code; the bot's /link command redeems it,
- * binding the guild to the group. Authorization is the caller's job (admin
- * role for code management, the bot's service secret for redeeming).
- *
- * @returns An object with the discord-link queries bound to the given `db`.
+ * A link starts as a pending row holding a one-time code; the bot's /link
+ * command redeems it, binding the guild to the group. Authorization is the
+ * caller's job (admin role for code management, the bot's service secret for
+ * redeeming).
  */
 export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
   return {
     /**
-     * Creates a fresh pending link code for a group, replacing any earlier
-     * pending code (one outstanding code per group). Expired pending rows of
-     * other groups are swept opportunistically — they are dead weight nothing
-     * else deletes.
-     * @returns The pending link row carrying the new code.
+     * Replaces any earlier pending code (one outstanding code per group).
+     * Expired pending rows of other groups are swept opportunistically, since
+     * they are dead weight nothing else deletes.
      */
     createPendingLink(values: {
       groupId: string;
@@ -36,7 +32,7 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
     }): Promise<DiscordLink> {
       // Delete + insert share a transaction so two concurrent requests can't
       // interleave into two live codes; the partial unique index on pending
-      // rows (migration 253) rejects whichever loser slips through anyway.
+      // rows rejects whichever loser slips through anyway.
       const run = async (trx: typeof db): Promise<DiscordLink> => {
         await trx
           .deleteFrom("friendGroupDiscordLinks")
@@ -69,8 +65,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
      * `unknown-code` instead of binding a second guild. The transaction also
      * closes the crash window — a failure part-way through rolls back, so the
      * code is either fully spent or still redeemable, never half-consumed.
-     *
-     * @returns The redeem outcome (see {@link RedeemResult}).
      */
     redeemCode(values: {
       code: string;
@@ -101,7 +95,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
             // Nothing written, so the code survives for a correct retry.
             return { status: "guild-taken" };
           }
-          // Same guild, same group: refresh the name, drop the pending row.
           const link = await trx
             .updateTable("friendGroupDiscordLinks")
             .set({ guildName: values.guildName })
@@ -128,10 +121,7 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
-    /**
-     * The group's live links (pending codes excluded), oldest first.
-     * @returns The linked-guild rows for the group.
-     */
+    /** The group's live links (pending codes excluded), oldest first. */
     listLinks(groupId: string): Promise<DiscordLink[]> {
       return db
         .selectFrom("friendGroupDiscordLinks")
@@ -142,10 +132,7 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Unlinks one guild (or discards a pending code) belonging to the group.
-     * @returns True when a row was deleted.
-     */
+    /** Unlinks one guild, or discards a pending code, belonging to the group. */
     async deleteLink(groupId: string, linkId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("friendGroupDiscordLinks")
@@ -155,12 +142,7 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return result.numDeletedRows > 0n;
     },
 
-    /**
-     * Opts one channel of a linked guild in or out of card-name scanning.
-     * Idempotent in both directions, and a no-op for an unlinked guild.
-     * @returns The guild's trade channels after the change, or null when the
-     * guild has no link.
-     */
+    /** Idempotent in both directions, and a no-op for an unlinked guild. */
     async setTradeChannel(values: {
       guildId: string;
       channelId: string;
@@ -185,10 +167,8 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Every linked guild that has at least one trade channel. The bot holds
-     * this in memory and refreshes it periodically: deciding whether to scan
-     * happens on every message, which no per-message query could carry.
-     * @returns One entry per guild with trade channels.
+     * The bot holds this in memory and refreshes it periodically: deciding
+     * whether to scan happens on every message, which no per-message query could carry.
      */
     listTradeChannels(): Promise<{ guildId: string; channelIds: string[] }[]> {
       return db
@@ -200,10 +180,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
         .execute() as Promise<{ guildId: string; channelIds: string[] }[]>;
     },
 
-    /**
-     * Resolves a guild to its linked group, if any.
-     * @returns The link joined with the group's id, slug, and name, or undefined.
-     */
     findByGuildId(
       guildId: string,
     ): Promise<{ groupId: string; groupSlug: string; groupName: string } | undefined> {

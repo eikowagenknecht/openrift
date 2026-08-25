@@ -13,7 +13,7 @@ const stubFetch: Fetch = (() => {
   throw new Error("unexpected real fetch");
 }) as unknown as Fetch;
 
-// ── Representative mock data (sampled from real Cardmarket API) ──────────
+// Mock data sampled from the real Cardmarket API.
 
 const CREATED_AT = "2026-03-10T02:49:27+0100";
 
@@ -73,9 +73,8 @@ const PRICE_TEEMO = {
 
 /**
  * Vi, Piltover Enforcer V.2 — brand-new alt-art listing with a low price but
- * no average yet (no sales recorded). Regression fixture for cardmarket id
- * 885568 that was silently dropped from staging until we accepted low as a
- * fallback price signal.
+ * no average yet (no sales recorded); demonstrates accepting low as a
+ * fallback price signal when avg is 0.
  */
 const PRODUCT_VI_V2 = { idProduct: 885_568, name: "Vi, Piltover Enforcer V.2", idExpansion: 6491 };
 const PRICE_VI_V2 = {
@@ -97,8 +96,6 @@ const PRICE_VI_V2 = {
 const ZERO_COUNTS: UpsertCounts = {
   prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
-
-// ── Helpers ──────────────────────────────────────────────────────────────
 
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
@@ -168,8 +165,6 @@ function setupFetchJson(
   });
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────
-
 describe("refreshCardmarketPrices", () => {
   let fetchJsonSpy: ReturnType<typeof vi.spyOn>;
   let upsertSpy: ReturnType<typeof vi.spyOn>;
@@ -193,8 +188,6 @@ describe("refreshCardmarketPrices", () => {
     upsertSpy.mockRestore();
     logUpsertSpy.mockRestore();
   });
-
-  // ── Fetch URLs ────────────────────────────────────────────────────────
 
   describe("API fetch", () => {
     it("fetches price guide and singles from Cardmarket S3 endpoints", async () => {
@@ -225,8 +218,6 @@ describe("refreshCardmarketPrices", () => {
       expect(result.transformed.prices).toBe(0);
     });
   });
-
-  // ── Staging rows ──────────────────────────────────────────────────────
 
   describe("staging rows", () => {
     it("creates normal staging row with correct cents from non-zero avg", async () => {
@@ -309,10 +300,9 @@ describe("refreshCardmarketPrices", () => {
     });
 
     it("ingests product with low but no avg (brand-new alt-art listing)", async () => {
-      // Regression: cardmarket id 885568 (Vi, Piltover Enforcer V.2) was
-      // silently dropped because avg was 0 even though low was set, leaving
-      // newly-listed alt-arts invisible in the admin staging UI for weeks
-      // until cardmarket computed a trend.
+      // Previously such a listing was silently dropped because avg was 0 even
+      // though low was set, leaving newly-listed alt-arts invisible in the
+      // admin staging UI until cardmarket computed a trend.
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_VI_V2], [PRICE_VI_V2]);
@@ -399,8 +389,6 @@ describe("refreshCardmarketPrices", () => {
     });
   });
 
-  // ── Expansion upsert ──────────────────────────────────────────────────
-
   describe("expansion upsert", () => {
     it("collects unique expansion IDs from products", async () => {
       const { repos, insertedExpansionIds } = createMockRepos();
@@ -427,8 +415,6 @@ describe("refreshCardmarketPrices", () => {
       expect(insertedExpansionIds).toHaveLength(0);
     });
   });
-
-  // ── recordedAt ────────────────────────────────────────────────────────
 
   describe("recordedAt", () => {
     it("uses createdAt from response body when available", async () => {
@@ -477,8 +463,6 @@ describe("refreshCardmarketPrices", () => {
     });
   });
 
-  // ── upsertPriceData call ────────────────────────────────────
-
   describe("upsertPriceData call", () => {
     it("passes repos.priceRefresh as first argument", async () => {
       const { repos } = createMockRepos();
@@ -490,8 +474,6 @@ describe("refreshCardmarketPrices", () => {
       expect(upsertSpy.mock.calls[0][0]).toBe(repos.priceRefresh);
     });
   });
-
-  // ── Return value ──────────────────────────────────────────────────────
 
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
@@ -527,8 +509,6 @@ describe("refreshCardmarketPrices", () => {
       expect(result.upserted).toBe(customCounts);
     });
   });
-
-  // ── Logging ───────────────────────────────────────────────────────────
 
   describe("logging", () => {
     it("logs fetched summary with expansion and product counts", async () => {
@@ -582,8 +562,6 @@ describe("refreshCardmarketPrices", () => {
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });
   });
-
-  // ── Edge cases ────────────────────────────────────────────────────────
 
   describe("edge cases", () => {
     it("handles both normal and foil for the same product in staging", async () => {

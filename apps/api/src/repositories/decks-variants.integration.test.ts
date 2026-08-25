@@ -12,14 +12,6 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { deckPlansRepo } from "./deck-plans.js";
 import { decksRepo } from "./decks.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: deck variants and checkpoints (ADR-042, migration 236).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Seeds its own users, collection, and decks; afterAll deletes the users,
-// which cascades everything this file inserted.
-// ---------------------------------------------------------------------------
-
 const ctx = createDbContext(crypto.randomUUID());
 
 const MISSING_DECK_ID = "00000000-0000-4000-a000-000000000000";
@@ -62,7 +54,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   const decks = decksRepo(db);
   const plans = deckPlansRepo(db);
 
-  /** @returns A freshly created standalone deck owned by `owner` (the file's user by default). */
   async function makeDeck(
     name: string,
     opts?: { owner?: string },
@@ -80,7 +71,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   /**
    * Copies a deck and asserts the source was found, so the tests can read the
    * new row without threading `undefined` through every assertion.
-   * @returns The new deck row.
    */
   async function copyOf(
     sourceId: string,
@@ -92,7 +82,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     return copy as Selectable<DecksTable>;
   }
 
-  /** @returns The deck row read straight back from the database. */
   async function reload(id: string): Promise<Selectable<DecksTable>> {
     return db.selectFrom("decks").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
   }
@@ -100,7 +89,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   /**
    * Links two decks and asserts the call succeeded, so the tests can read the
    * updated row without narrowing the result literal at every use.
-   * @returns The re-read current deck row.
    */
   async function linkOf(
     id: string,
@@ -115,7 +103,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   /**
    * Unlinks a deck and asserts the call succeeded.
-   * @returns The re-read departing deck row.
    */
   async function unlinkOf(id: string, owner = userId): Promise<Selectable<DecksTable>> {
     const result = await decks.unlinkVariant(id, owner);
@@ -124,7 +111,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     return result as Selectable<DecksTable>;
   }
 
-  /** @returns Every member of the given family, most recently updated first. */
   async function familyMembers(familyId: string | null): Promise<Selectable<DecksTable>[]> {
     if (familyId === null) {
       return [];
@@ -136,8 +122,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       .orderBy("updatedAt", "desc")
       .execute();
   }
-
-  // ── Family creation ───────────────────────────────────────────────────────
 
   describe("family creation", () => {
     it("creates the family on the first copy and makes the source primary", async () => {
@@ -184,8 +168,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
   });
 
-  // ── Lineage ───────────────────────────────────────────────────────────────
-
   describe("lineage", () => {
     it("points a variant at the deck it was copied from", async () => {
       const source = await makeDeck("DV Variant Pointer");
@@ -224,8 +206,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(second.familyId).toBe(first.familyId);
     });
   });
-
-  // ── What the copy carries ─────────────────────────────────────────────────
 
   describe("copied content", () => {
     it("copies deck cards with their zones, quantities, and preferred printings", async () => {
@@ -369,8 +349,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
   });
 
-  // ── Names and wanted state ────────────────────────────────────────────────
-
   describe("naming and wanted state", () => {
     it("suffixes the source name per mode when no name is given", async () => {
       const source = await makeDeck("DV Named");
@@ -387,8 +365,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(copy.name).toBe("Store event list");
     });
   });
-
-  // ── promoteToPrimary ──────────────────────────────────────────────────────
 
   describe("promoteToPrimary", () => {
     it("moves the primary flag to the target and demotes the old primary", async () => {
@@ -441,8 +417,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(reloadedForeign.isPrimary).toBe(true);
     });
   });
-
-  // ── setPredecessor ────────────────────────────────────────────────────────
 
   describe("setPredecessor", () => {
     it("points a member at another member of the same family", async () => {
@@ -512,8 +486,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(await decks.setPredecessor(source.id, userId, foreignSibling.id)).toBe("not-found");
     });
   });
-
-  // ── linkAsVariant ─────────────────────────────────────────────────────────
 
   describe("linkAsVariant", () => {
     it("gives two standalone decks a fresh family with this deck primary", async () => {
@@ -639,8 +611,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
   });
 
-  // ── unlinkVariant ─────────────────────────────────────────────────────────
-
   describe("unlinkVariant", () => {
     it("closes the predecessor chain over the departing deck", async () => {
       // Two checkpoints stack up as live -> newer -> older.
@@ -714,8 +684,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(reloadedForeign.isPrimary).toBe(true);
     });
   });
-
-  // ── Deletion repairs the family ───────────────────────────────────────────
 
   describe("deleteByIdForUser family repair", () => {
     it("promotes the most recently updated survivor when the primary is deleted", async () => {

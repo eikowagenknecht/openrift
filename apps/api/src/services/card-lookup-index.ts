@@ -5,17 +5,10 @@ import type { Repos } from "../deps.js";
 import type { CatalogCardRow } from "../repositories/catalog.js";
 import { createContentAddressedCache } from "./catalog-assembly.js";
 
-/** A catalog card as the lookup index holds it, with its search aliases attached. */
 type LookupCard = CatalogCardRow & { altNames: string[] };
 
 export type CardLookupIndex = CardSearchIndex<LookupCard>;
 
-/**
- * Reads the cards, their lookup codes and the curated name aliases, and folds
- * them into a ready-to-query index.
- *
- * @returns The assembled lookup index.
- */
 async function assembleCardLookupIndex(repos: Repos): Promise<CardLookupIndex> {
   const [cards, codes, aliases] = await Promise.all([
     repos.catalog.cards(),
@@ -53,8 +46,6 @@ async function assembleCardLookupIndex(repos: Repos): Promise<CardLookupIndex> {
  * catalogue uses. The memo is keyed on a cheap content-version probe rather
  * than a clock, so a card edit is visible on the next lookup with no staleness
  * window.
- *
- * @returns A zero-arg loader serving the memoized index.
  */
 export function createCardLookupIndexLoader(repos: Repos): () => Promise<CardLookupIndex> {
   return createContentAddressedCache(

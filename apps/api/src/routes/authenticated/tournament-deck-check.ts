@@ -28,16 +28,10 @@ import {
   submissionWindowOpen,
 } from "../../services/deck-check-states.js";
 
-// ─── Authorization ──────────────────────────────────────────────────────────
-
 /**
- * Loads a deck-check tournament and authorizes a judge action (ADR-033): the
- * tournament host, or a `tournament_staff` organizer/judge, may act. 404s when
- * the tournament is missing or does not have deck check enabled.
- * @param repos The repository bundle.
- * @param tournamentId The tournament whose deck check is acted on.
- * @param userId The acting user.
- * @returns The deck-check event view of the tournament.
+ * Loads a deck-check tournament and authorizes a judge action: the tournament
+ * host, or a `tournament_staff` organizer/judge, may act. 404s when the
+ * tournament is missing or does not have deck check enabled.
  */
 async function authorizeJudge(
   repos: Repos,
@@ -61,10 +55,6 @@ async function authorizeJudge(
 /**
  * Loads one of the event's entries, settling the deadline auto-submit so the
  * judge never sees a stale `editable` entry once the window closed.
- * @param repos The repository bundle.
- * @param event The deck-check event the entry belongs to.
- * @param entryId The entry to load.
- * @returns The (possibly settled) entry.
  */
 async function loadEntry(
   repos: Repos,
@@ -79,11 +69,9 @@ async function loadEntry(
 }
 
 /**
- * Guards every card-level judge action: an editable list has not been delivered
- * to an official (TR 401.3, ADR-027), so judges can neither read nor touch its
- * lines until the player submits.
- * @param entry The entry being acted on.
- * @returns Nothing; throws 409 for an editable entry.
+ * Guards every card-level judge action: an editable list has not been
+ * delivered to an official, so judges can neither read nor touch its lines
+ * until the player submits.
  */
 function requireListVisible(entry: DeckCheckEntry): void {
   if (entry.state === "editable") {
@@ -98,7 +86,7 @@ function requireListVisible(entry: DeckCheckEntry): void {
 const os = implement(tournamentDeckCheckContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The tournament-scoped judge-facing deck-check router (ADR-033), mounted under
+ * The tournament-scoped judge-facing deck-check router, mounted under
  * `/api/v1/tournaments/{tournamentId}/deck-check`. It reuses the same services,
  * repo methods, and response mappers as the group-scoped surface; only the
  * resolve-and-authorize step differs (by tournament host/staff rather than
@@ -111,8 +99,8 @@ export const tournamentDeckCheckRouter = {
       const repos = context.repos;
       const event = await authorizeJudge(repos, input.tournamentId, context.userId);
       let entries = await repos.deckCheck.listEntriesForEvent(event.id);
-      // Settle the deadline auto-submit (ADR-027): entries still editable once
-      // the window closed become submissions as-is, stamped with the close time.
+      // Settle the deadline auto-submit: entries still editable once the
+      // window closed become submissions as-is, stamped with the close time.
       if (!submissionWindowOpen(event) && entries.some((entry) => entry.state === "editable")) {
         for (const entry of entries) {
           await settleExpiredEditable(repos, event, entry);

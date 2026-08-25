@@ -9,17 +9,13 @@ import { sql } from "kysely";
 import type { Database, OverlayChannelsTable } from "../db/index.js";
 import { withUniqueShareToken } from "../lib/share-token.js";
 
-/** A channel row with its jsonb payload already parsed. */
 export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "payload"> {
   payload: OverlayPayload;
 }
 
-/**
- * The stored payload goes through `normalizeOverlayPayload`, because it grows
- * display switches without a migration and older rows are missing whichever
- * ones came later.
- * @returns The row with a normalized payload.
- */
+// The stored payload goes through `normalizeOverlayPayload`, because it grows
+// display switches without a migration and older rows are missing whichever
+// ones came later.
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
   return {
     ...row,
@@ -34,14 +30,8 @@ function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
  * the two can never disagree — the version is what the OBS source's conditional
  * poll compares against, and a payload that changed without a bump would sit
  * invisible behind a 304 until the next push.
- *
- * @returns An object with overlay-channel query methods bound to the given `db`.
  */
 export function overlayChannelsRepo(db: Kysely<Database>) {
-  /**
-   * Applies a payload change and bumps the version, atomically.
-   * @returns The updated channel, or undefined when the user has none.
-   */
   async function writePayload(
     userId: string,
     payload: OverlayPayload,
@@ -56,10 +46,6 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
   }
 
   return {
-    /**
-     * @returns The user's channel, or undefined when they have never opened
-     * the dashboard.
-     */
     async findByUserId(userId: string): Promise<OverlayChannel | undefined> {
       const row = await db
         .selectFrom("overlayChannels")
@@ -69,11 +55,8 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
       return row ? toChannel(row) : undefined;
     },
 
-    /**
-     * Reads the state an OBS browser source polls for. Token-authorised, so it
-     * deliberately returns no owner information.
-     * @returns The channel, or undefined for an unknown or rotated token.
-     */
+    // Reads the state an OBS browser source polls for. Token-authorised, so
+    // it deliberately returns no owner information.
     async findByToken(token: string): Promise<OverlayChannel | undefined> {
       const row = await db
         .selectFrom("overlayChannels")
@@ -83,12 +66,8 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
       return row ? toChannel(row) : undefined;
     },
 
-    /**
-     * Creates the user's channel with a fresh token and an empty payload.
-     * Retries on the astronomically unlikely token collision, the same way
-     * every other share token here does.
-     * @returns The newly created channel.
-     */
+    // Retries on the astronomically unlikely token collision, the same way
+    // every other share token here does.
     create(userId: string): Promise<OverlayChannel> {
       // Scoped to the token constraint: without it, two concurrent first-opens
       // colliding on the user_id unique burned all retries and 500ed instead
@@ -110,19 +89,13 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
       );
     },
 
-    /**
-     * Replaces the channel's payload wholesale. Callers merge onto the current
-     * payload first, so a push that only names a card keeps the dressing.
-     * @returns The updated channel, or undefined when the user has none.
-     */
+    // Callers merge onto the current payload first, so a push that only names
+    // a card keeps the dressing.
     setPayload: writePayload,
 
-    /**
-     * Issues a new token, which immediately blinds every browser source still
-     * polling the old one. Leaves the payload alone: rotating a leaked token
-     * mid-stream should not also blank the scene.
-     * @returns The updated channel, or undefined when the user has none.
-     */
+    // Issues a new token, which immediately blinds every browser source still
+    // polling the old one. Leaves the payload alone: rotating a leaked token
+    // mid-stream should not also blank the scene.
     rotateToken(userId: string): Promise<OverlayChannel | undefined> {
       return withUniqueShareToken(async (token) => {
         const row = await db

@@ -12,22 +12,18 @@ import type { LivePrintingSnapshot, LiveSnapshot } from "../lib/card-submission-
 import { buildPrintingLinkKey } from "../lib/printing-link-key.js";
 import { joinFrontImage, listOwnedByUser } from "./query-helpers.js";
 
-/** A ledger row with its jsonb column parsed. */
 export type CardSubmissionRow = Selectable<CardSubmissionsTable>;
 
 /**
- * The durable outcome record for in-app card submissions (ADR-036, migration
- * 234). Separate from `candidate_cards` because staging is disposable and a
- * contributor's history is not.
- *
- * @returns An object with card-submission query methods bound to the given `db`.
+ * The durable outcome record for in-app card submissions. Separate from
+ * `candidate_cards` because staging is disposable and a contributor's history
+ * is not.
  */
 export function cardSubmissionsRepo(db: Kysely<Database>) {
   return {
     /**
-     * Record a new submission. Called inside the ingest transaction so a
-     * candidate row never exists without its ledger row.
-     * @returns The new submission's id.
+     * Called inside the ingest transaction so a candidate row never exists
+     * without its ledger row.
      */
     async insert(values: {
       userId: string;
@@ -49,9 +45,8 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One contributor's submissions, newest first, keyset-paginated. Always
-     * scoped by `userId` here rather than at the call site.
-     * @returns Up to `limit + 1` rows, so the caller can detect a next page.
+     * Always scoped by `userId` here rather than at the call site. Returns up
+     * to `limit + 1` rows, so the caller can detect a next page.
      */
     listByUser(
       userId: string,
@@ -63,7 +58,6 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     /**
      * Resolve a submission from the candidate's natural key, which is all the
      * ignore path has to work with.
-     * @returns The submission, or null when the key isn't a user submission.
      */
     async findByExternalId(
       provider: string,
@@ -79,10 +73,8 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Submissions still awaiting an outcome for the given staging rows. The
-     * check verbs pass the candidates they just touched; most will be scraped
-     * providers with no ledger row at all.
-     * @returns The pending submissions among those candidates.
+     * The check verbs pass the candidates they just touched; most will be
+     * scraped providers with no ledger row at all.
      */
     async pendingByCandidateCardIds(candidateCardIds: string[]): Promise<CardSubmissionRow[]> {
       if (candidateCardIds.length === 0) {
@@ -98,11 +90,8 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Every submission still awaiting an outcome under a provider. Backs the
-     * bulk "check this whole provider" admin action, which settles submissions
-     * without naming the candidates it touched.
-     * @param provider The provider being bulk-checked.
-     * @returns The provider's pending submissions.
+     * Backs the bulk "check this whole provider" admin action, which settles
+     * submissions without naming the candidates it touched.
      */
     async pendingByProvider(provider: string): Promise<CardSubmissionRow[]> {
       const rows = await db
@@ -115,9 +104,8 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The submission behind one staging row, whatever its status. Backs the
-     * admin's reply dialog, which has to show any note already written.
-     * @returns The submission, or null when the candidate isn't a submission.
+     * Any status, not just pending: the admin's reply dialog has to show a
+     * note already written on a settled submission.
      */
     async findByCandidateCardId(candidateCardId: string): Promise<CardSubmissionRow | null> {
       const row = await db
@@ -198,9 +186,6 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
      * Same two-step rule as `resolveCardIdByName` in candidate-links.ts —
      * `cards.norm_name` first, then `card_name_aliases` — done as two indexed
      * lookups instead of loading the whole catalog index for one submission.
-     *
-     * @param normName The normalized card name.
-     * @returns The live card's id and slug, or null when nothing matches.
      */
     async liveCardByNormName(normName: string): Promise<{ id: string; slug: string } | null> {
       const direct = await db
@@ -228,10 +213,6 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
      * only the printing lookup runs (by short code across the whole catalog),
      * so a new-card submission whose printings already exist elsewhere still
      * compares against them.
-     *
-     * @param cardId The live card the submission matched, or null.
-     * @param shortCodes Printing short codes the submission carries.
-     * @returns The comparison snapshot, plus the matched card's slug for the ledger's link target.
      */
     async liveSnapshot(
       cardId: string | null,
@@ -312,10 +293,9 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Count a user's submissions since a cutoff, for the ADR-036 daily cap.
-     * Counts the ledger rather than `candidate_cards` so purging staging can
-     * never hand a spammer a fresh allowance.
-     * @returns The number of submissions made since `since`.
+     * Count a user's submissions since a cutoff, for the daily cap. Counts the
+     * ledger rather than `candidate_cards` so purging staging can never hand a
+     * spammer a fresh allowance.
      */
     async countRecentByUser(userId: string, since: Date): Promise<number> {
       const row = await db

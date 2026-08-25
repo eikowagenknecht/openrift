@@ -27,15 +27,11 @@ type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type MarkersRepo = ReturnType<typeof markersRepo>;
 type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
-// ── updatePrintingMarkers ────────────────────────────────────────────────────
-
 /**
  * Replace a printing's marker set. Runs inside a transaction so the sync
  * trigger's intermediate `marker_slugs = {}` state between DELETE and INSERT
  * on `printing_markers` only has to satisfy the deferrable uniqueness checks
  * at commit time, after the final value is in place.
- *
- * @returns Promise that resolves when the marker set has been replaced.
  */
 export async function updatePrintingMarkers(
   transact: Transact,
@@ -69,9 +65,6 @@ export async function updatePrintingMarkers(
   });
 }
 
-/**
- * Replace a printing's distribution channel set by slug.
- */
 export async function updatePrintingDistributionChannels(
   repos: {
     catalogMutations: CatalogMutationsRepo;
@@ -105,13 +98,10 @@ export async function updatePrintingDistributionChannels(
   );
 }
 
-// ── deletePrinting ──────────────────────────────────────────────────────────
-
 /**
  * Delete a printing's rows inside an already-open transaction: unlink its
  * candidate printings, drop its images and link overrides, then the printing
  * row itself.
- * @returns Image file IDs that may be orphaned once the transaction commits.
  */
 export async function deletePrintingRows(
   trxRepos: { catalogMutations: CatalogMutationsRepo; candidateCards: CandidateCardsRepo },
@@ -128,7 +118,6 @@ export async function deletePrintingRows(
  * Delete image files (DB row + rehosted files) that no longer have any
  * references. Runs outside the deleting transaction: rehost deletion touches
  * external storage and must only happen after the DB delete is committed.
- * @returns Promise that resolves when the orphaned files are gone.
  */
 export async function cleanupOrphanedImageFiles(
   io: Io,
@@ -163,7 +152,6 @@ const PRINTING_BLOCKER_LABELS: Record<keyof PrintingDeleteBlockers, string> = {
 /**
  * Throw a CONFLICT AppError naming every non-zero blocker count (the
  * printing-scoped mirror of card-admin's `throwIfBlocked`).
- * @returns Nothing; returns normally when all counts are zero.
  */
 function throwIfPrintingBlocked(blockers: PrintingDeleteBlockers): void {
   const blocking = Object.entries(blockers).filter(([, count]) => count > 0);
@@ -248,8 +236,6 @@ interface AcceptPrintingFields {
  * favorites) can be re-run without duplicating rows. Callers where the admin
  * explicitly asked for a *new* printing pass `requireNew` so an identity
  * collision surfaces as a 409 instead of quietly updating the existing row.
- *
- * @returns The new printing UUID.
  */
 export async function acceptPrinting(
   transact: Transact,
@@ -399,7 +385,6 @@ export async function acceptPrinting(
       printedYear: printingFields.printedYear ?? null,
     });
 
-    // Sync the M2M joins to match the requested marker/channel slugs.
     await trxRepos.markers.setForPrinting(
       insertedId,
       markerRows.map((m) => m.id),
@@ -436,8 +421,7 @@ export async function acceptPrinting(
   // Targets the exact inserted image (not a blind batch sweep) and is fire-and-
   // forget to avoid blocking the response on a slow external download. Every
   // accept path funnels through here, so this is the single place that rehosts
-  // on accept, including the card-review (partial-admin) per-printing accept,
-  // which previously left its image un-rehosted.
+  // on accept.
   if (insertedImageId) {
     // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
     rehostSingleImage(io, repos.printingImages, insertedImageId).catch(() => {

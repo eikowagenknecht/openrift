@@ -28,8 +28,6 @@ type PrintingImageRow = Awaited<
  * citations, and indexes them so route handlers can decorate raw printing rows
  * with the resolved `markers[]`, `distributionChannels[]`, and `citations`
  * fields expected on the wire.
- *
- * @returns Indexed maps keyed by marker slug and printing id.
  */
 export async function loadPrintingDecorations(
   repos: Repos,
@@ -115,8 +113,6 @@ export async function loadPrintingDecorations(
  * derives a substitute while the rehost is pending, instead of falling back to
  * a placeholder for art we actually have. That leaves one invariant on the
  * wire — `fallbackArtMode: "pinned"` always arrives with a `fallbackImageId`.
- *
- * @returns The override fields to spread onto the response, possibly none.
  */
 export function resolveFallbackArt(row: {
   fallbackArtMode: string;
@@ -134,8 +130,6 @@ export function resolveFallbackArt(row: {
 /**
  * Resolves a printing's marker slug array against a slug→Marker map.
  * Skips slugs missing from the map (defensive for stale denormalized data).
- *
- * @returns A list of full Marker objects.
  */
 export function resolveMarkers(
   markerSlugs: readonly string[],
@@ -149,7 +143,6 @@ export function resolveMarkers(
 /**
  * Builds the `cards` lookup shared by the public catalog reads: raw card
  * rows decorated with their resolved errata and ban list, keyed by card id.
- * @returns Card responses keyed by card id.
  */
 export function buildCardsResponse(
   cardRows: readonly CardRow[],
@@ -191,7 +184,6 @@ export function buildCardsResponse(
  * Builds the `printings` list shared by every public catalog read (`/cards`,
  * `/sets`, `/promos`): raw printing rows decorated with resolved markers,
  * distribution channels, citations, and images.
- * @returns Printing responses in the same order as `printingRows`.
  */
 export function buildPrintingsResponse(
   printingRows: readonly PrintingRow[],

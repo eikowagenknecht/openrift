@@ -20,10 +20,6 @@ const os = implement(adminMetaSubmissionsContract).$context<ApiContext>().use(re
  * "rejected" over that would leave the ledger, the credit line, and the archive
  * telling three different stories; taking the deck back out is `unlink`'s job,
  * and that removes the credit with it.
- *
- * @param repos The repositories.
- * @param id The submission.
- * @returns The row, guaranteed not to be `accepted`.
  */
 async function requireUnsettled(
   repos: ApiContext["repos"],
@@ -44,7 +40,7 @@ async function requireUnsettled(
 }
 
 /**
- * Admin side of meta decklist submissions (ADR-014's User submissions).
+ * Admin side of meta decklist submissions.
  *
  * The card pipeline derives a submission's outcome from the check and ignore
  * verbs its review loop already uses. This one cannot: a submitted deck hangs

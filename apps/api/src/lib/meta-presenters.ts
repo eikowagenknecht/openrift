@@ -21,9 +21,9 @@ import type {
 } from "../repositories/meta.js";
 
 /**
- * One citation as a page prints it (migration 255). `provider` and `externalId`
- * are null together for a hand-entered row; they travel because the admin
- * review screen keys its source columns on them, and neither is a secret.
+ * One citation as a page prints it. `provider` and `externalId` are null
+ * together for a hand-entered row; they travel because the admin review screen
+ * keys its source columns on them, and neither is a secret.
  */
 export interface MetaEventSourceResponse {
   id: string;
@@ -59,8 +59,6 @@ type ImageIds = ReadonlyMap<string, string | null>;
  * `"2026-08-14"` (see the OID 1082 override in `db/connect.ts`), so nothing
  * here re-formats it. The timestamptz columns never reach the wire — the
  * archive's public shapes carry no `createdAt` / `updatedAt`.
- *
- * @returns The event as a list row.
  */
 export function toMetaEventSummary(row: MetaEventWithCount): MetaEventSummary {
   return {
@@ -75,7 +73,6 @@ export function toMetaEventSummary(row: MetaEventWithCount): MetaEventSummary {
   };
 }
 
-/** @returns One citation row. */
 export function toMetaEventSource(row: MetaEventSourceRow): MetaEventSourceResponse {
   return {
     id: row.id,
@@ -87,19 +84,13 @@ export function toMetaEventSource(row: MetaEventSourceRow): MetaEventSourceRespo
 }
 
 /**
- * The event with the long-form fields only its own page renders, plus the two
- * lists that replaced the single `source_url` column (migration 255):
- * where the data came from, and who typed it in.
+ * The event with the long-form fields only its own page renders, plus its
+ * citations and contributors.
  *
  * Contributors arrive as resolved display strings and never as user ids: the
  * repo has already dropped anyone on `hidden` and anyone whose chosen profile
  * field is blank, and a credit is deliberately plain text with no profile link
  * behind it.
- *
- * @param row The event with its deck count.
- * @param options.sources Its citations.
- * @param options.contributors Its public contributors, one row per person.
- * @returns The event detail.
  */
 export function toMetaEventDetail(
   row: MetaEventWithCount,
@@ -120,10 +111,6 @@ export function toMetaEventDetail(
  * Composes one archived-deck tile. Legend and champion artwork is looked up
  * rather than joined, so the caller resolves every card's canonical printing
  * in a single batch instead of once per deck.
- *
- * @param row The joined deck / placement / event row.
- * @param images Canonical front image ids keyed by card id.
- * @returns The serialized deck summary.
  */
 export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): MetaDeckSummary {
   return {
@@ -159,10 +146,6 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
  * chosen profile field is blank, so a user id never reaches the wire. This is
  * the deck's own credit line rather than its event's — one names whoever typed
  * in this list, the other everyone who fed the tournament.
- *
- * @param row The deck's placement and event.
- * @param contributors Its public contributors, one row per person.
- * @returns The `meta` block of the deck-detail response.
  */
 export function toMetaDeckContext(
   row: MetaDeckContextRow,
@@ -183,11 +166,6 @@ export function toMetaDeckContext(
   };
 }
 
-/**
- * @param row A card's inclusion count.
- * @param images Canonical front image ids keyed by card id.
- * @returns One row of a stats table.
- */
 export function toMetaStatRow(
   row: MetaCardStatRow,
   images: ImageIds,
@@ -202,12 +180,6 @@ export function toMetaStatRow(
   };
 }
 
-/**
- * @param row The event with its deck count.
- * @returns The event as the admin table shows it — every stored field plus the
- *   count. Attribution is no longer one of them: citations are their own list,
- *   presented by {@link toMetaEventSource}.
- */
 export function toAdminMetaEvent(row: MetaEventWithCount): AdminMetaEvent {
   return {
     id: row.id,
@@ -223,10 +195,9 @@ export function toAdminMetaEvent(row: MetaEventWithCount): AdminMetaEvent {
 }
 
 /**
- * @param row A submission ledger row.
- * @returns The submission as its contributor's own list shows it. The candidate
- *   id and the provider key stay off the wire: they are staging details a
- *   contributor has no use for, and staging is disposable.
+ * The submission as its contributor's own list shows it. The candidate id and
+ * the provider key stay off the wire: they are staging details a contributor
+ * has no use for, and staging is disposable.
  */
 export function toMetaDeckSubmission(row: MetaDeckSubmissionRow): MetaDeckSubmissionResponse {
   return {
@@ -244,10 +215,9 @@ export function toMetaDeckSubmission(row: MetaDeckSubmissionRow): MetaDeckSubmis
 }
 
 /**
- * @param row A submission ledger row.
- * @returns The submission as the reviewing admin sees it: the contributor's
- *   claim plus whatever outcome it carries. The submitter's identity is left
- *   out — the candidate deck beside it carries that.
+ * The submission as the reviewing admin sees it: the contributor's claim plus
+ * whatever outcome it carries. The submitter's identity is left out — the
+ * candidate deck beside it carries that.
  */
 export function toAdminMetaSubmission(row: MetaDeckSubmissionRow): AdminMetaSubmission {
   return {
@@ -264,7 +234,6 @@ export function toAdminMetaSubmission(row: MetaDeckSubmissionRow): AdminMetaSubm
   };
 }
 
-/** @returns One row of an event's admin deck table. */
 export function toAdminMetaDeck(row: AdminMetaDeckRow): AdminMetaDeck {
   return {
     deckId: row.deckId,

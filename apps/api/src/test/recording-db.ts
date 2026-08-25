@@ -62,10 +62,6 @@ export interface RecordingDb {
  *
  * Rows are returned through the `CamelCasePlugin` production uses, so write
  * them with snake_case keys exactly as PostgreSQL would.
- *
- * @param results One entry per statement, consumed in order; an `Error` entry
- *   makes that statement fail.
- * @returns The db plus everything it recorded.
  */
 export function createRecordingDb(results: StubResult[] = []): RecordingDb {
   // Three parallel arrays rather than deriving `queries`/`parameters` from
@@ -159,10 +155,6 @@ export function createRecordingDb(results: StubResult[] = []): RecordingDb {
 /**
  * The single statement recorded so far, with runs of whitespace collapsed so
  * assertions can be written on one line.
- *
- * @param recorded The recording db to read.
- * @returns The compiled query, its `sql` normalized.
- * @throws {Error} When the count of recorded statements is not exactly one.
  */
 export function onlyStatement(recorded: RecordingDb): CompiledQuery {
   if (recorded.statements.length !== 1) {

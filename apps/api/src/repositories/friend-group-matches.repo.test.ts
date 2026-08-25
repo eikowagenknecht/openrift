@@ -15,9 +15,9 @@ import { gravatarHashForEmail } from "../lib/gravatar.js";
 import { friendGroupMatchesRepo } from "./friend-group-matches.js";
 import type { ListRuleProviders } from "./lists.js";
 
-// ADR-034 reworked the matcher from a single SQL join to app-level expansion, so
-// the old query-shape mock no longer applies. This fake `db` dispatches each
-// `selectFrom(table)` to a FIFO queue of canned result sets — the matcher's
+// The matcher expands at the app level, not in a single SQL join. This fake
+// `db` dispatches each `selectFrom(table)` to a FIFO queue of canned result
+// sets — the matcher's
 // loaders run in a fixed order (trade shares → wish shares → supply entries →
 // demand entries → copy meta → users → printing details), so a per-table queue
 // deterministically feeds each one. WHERE/JOIN clauses are ignored (the canned
@@ -75,7 +75,6 @@ const PROVIDERS: ListRuleProviders = {
 /**
  * A {@link ListRuleProviders} stub backed by an in-memory catalog and per-owner
  * owned copies — the two things the matcher can't build from the fake `db`.
- * @returns Providers serving the given catalog/owned copies.
  */
 function providersWith(opts: {
   catalog: Printing[];
@@ -102,8 +101,8 @@ function filters(overrides: Partial<CardFilters> = {}): CardFilters {
 
 /**
  * Minimal catalog {@link Printing} for `filterCards` (mirrors the shared
- * evaluator's test builder). The empty filter matches all of these.
- * @returns A printing whose card defaults to a normal `unit`.
+ * evaluator's test builder). The empty filter matches all of these; the card
+ * defaults to a normal `unit`.
  */
 function makeCatalogPrinting(
   id: string,
@@ -165,8 +164,6 @@ function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): Owned
     ...overrides,
   };
 }
-
-// ── Row builders for the fake-db queues ─────────────────────────────────────
 
 function tradeShare(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -267,10 +264,7 @@ function printingRow(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
-/**
- * A baseline manual binder (seller) + wishlist (viewer) sharing one card.
- * @returns Per-table FIFO queues for {@link makeDb}.
- */
+/** Per-table queues for a baseline manual binder (seller) + wishlist (viewer) sharing one card. */
 function baselineQueues(overrides: { reserved?: boolean; copy?: Record<string, unknown> } = {}) {
   return {
     // First call: trade shares. Second call: wish shares.
@@ -1234,13 +1228,13 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
     const repo = friendGroupMatchesRepo(makeDb(queues), providers);
     const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toHaveLength(1);
-    // Manual 1 + rule 1 = 2 (ADR-034 additive merge); the manual entry keeps its id.
+    // Manual 1 + rule 1 = 2 (additive merge); the manual entry keeps its id.
     expect(rows[0]).toMatchObject({ cardId: "crd-1", buyEntryId: "e-w1", buyQuantity: 2 });
   });
 });
 
 describe("giverPrintingSupply", () => {
-  /** @returns Queues for one giver trade list offering one copy of prt-1. */
+  /** Queues for one giver trade list offering one copy of prt-1. */
   function giverQueues(copy: Record<string, unknown> = {}) {
     return {
       friendGroupListShares: [[tradeShare({ ownerUserId: "giver" })]],
@@ -1282,7 +1276,6 @@ describe("tradelistHoldersForCard (Discord bot lookup)", () => {
    * Two sellers offering the card manually: Alice with two copies, Bob with
    * one. Queue order for the resolver: trade shares → entries → copy meta →
    * users.
-   * @returns Per-table FIFO queues for {@link makeDb}.
    */
   function holderQueues() {
     return {

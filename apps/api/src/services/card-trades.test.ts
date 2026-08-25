@@ -69,7 +69,6 @@ describe("acceptTrade cross-claim with a concurrent loan", () => {
 
 const GROUP = { id: "group-1", slug: "summoner-skirmish" };
 
-/** A live match row for PRINTING_1, wanted three times over. */
 const MATCH_ROW = {
   printingId: "printing-1",
   buyEntryId: "wish-1",
@@ -77,7 +76,6 @@ const MATCH_ROW = {
   buyQuantity: 3,
 };
 
-/** A pending offer the giver initiated, for the resize tests. */
 const OFFER = {
   ...TRADE,
   id: "offer-1",
@@ -85,7 +83,7 @@ const OFFER = {
   receiverWishEntryId: "wish-1",
 } as unknown as LiveCardTrade;
 
-/** A pending row as `listPendingForGiverPrinting` returns it (oldest first). */
+/** Rows as `listPendingForGiverPrinting` returns them: oldest first, which the sweep relies on. */
 interface Pending {
   id: string;
   groupId: string;
@@ -94,11 +92,8 @@ interface Pending {
 }
 
 /**
- * Repos stub for the two supply-checked paths (`createTrade`, `setTradeQuantity`).
- * `supplyByGroup` is the giver's unreserved copies, per group; `pending` stands
- * in for the giver's other live trades across every group, exactly as
- * `listPendingForGiverPrinting` would return them.
- * @returns The stub repos plus the mocks the assertions read.
+ * `supplyByGroup` is the giver's unreserved copies per group; `pending` stands
+ * in for the giver's other live trades across every group.
  */
 function supplyRepos(supplyByGroup: Record<string, string[]>, pending: Pending[] = []) {
   const listPendingForGiverPrinting = vi.fn(async () => pending);
@@ -133,10 +128,6 @@ function supplyRepos(supplyByGroup: Record<string, string[]>, pending: Pending[]
   return { repos, listPendingForGiverPrinting, giverPrintingSupply, create, setPendingQuantity };
 }
 
-/**
- * Runs createTrade and returns whatever came back, error included.
- * @returns The created DTO, or the thrown error.
- */
 function runCreate(repos: Repos, role: "giver" | "receiver", quantity: number): Promise<unknown> {
   return createTrade(repos, {
     callerUserId: role === "giver" ? "giver-1" : "receiver-1",
@@ -213,12 +204,11 @@ describe("createTrade supply accounting", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("lets a second offer through when it draws on a different group's copies (regression)", async () => {
+  it("lets a second offer through when it draws on a different group's copies", async () => {
     // Group A only ever sees copy-a; group B (the caller's group) only ever
     // sees copy-b. A live offer already sits in group A, but it can't touch
-    // copy-b, so group B's offer still has a copy to give. Under the old
-    // global-count check this failed with "Only 0 copies are still available"
-    // even though copy-b was never spoken for.
+    // copy-b, so group B's offer still has a copy to give — a global count
+    // would report 0 here.
     const { repos, create } = supplyRepos({ [GROUP.id]: ["copy-b"], "group-a": ["copy-a"] }, [
       { id: "offer-in-group-a", groupId: "group-a", quantity: 1, initiator: "giver" },
     ]);
@@ -266,11 +256,7 @@ describe("setTradeQuantity supply accounting", () => {
   });
 });
 
-/**
- * Repos for the unfillable sweep: a fixed pending list and a per-group supply
- * read standing in for what the giver still offers after the drop.
- * @returns The stub repos plus the auto-cancel spy.
- */
+/** The supply stands in for what the giver still offers after the drop. */
 function sweepRepos(pending: Pending[], supplyByGroup: Record<string, string[]>) {
   const markAutoCancelled = vi.fn(() => Promise.resolve(1));
   const repos = {
@@ -417,18 +403,13 @@ describe("autoCancelUnfillablePendingTrades", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Choosing which physical copy gets promised
-// ---------------------------------------------------------------------------
-
-/** A receiver-initiated request, so the giver is the party who accepts it. */
+/** Receiver-initiated, so the giver is the party who accepts it. */
 const REQUEST = {
   ...TRADE,
   id: "request-1",
   initiator: "receiver",
 } as unknown as LiveCardTrade;
 
-/** @returns A candidate copy row as `copies.listMetadataByIds` returns it. */
 function candidate(id: string, overrides: Record<string, unknown> = {}) {
   return {
     id,
@@ -447,10 +428,8 @@ function candidate(id: string, overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * Repos stub for the accept path with a real supply to choose from. Every
- * candidate survives the lock and the loan re-check, so the only thing left to
- * decide is which ids get pinned.
- * @returns The stub repos plus the mocks the assertions read.
+ * Every candidate survives the lock and the loan re-check, so the only thing
+ * left to decide is which ids get pinned.
  */
 function acceptRepos(trade: LiveCardTrade, candidates: ReturnType<typeof candidate>[]) {
   const pinCopies = vi.fn(async () => undefined);
@@ -483,10 +462,6 @@ function acceptRepos(trade: LiveCardTrade, candidates: ReturnType<typeof candida
   return { repos, pinCopies, markReserved, listMetadataByIds };
 }
 
-/**
- * Runs acceptTrade against the stub and returns the result, error included.
- * @returns The reserved DTO, or the thrown error.
- */
 function runAccept(repos: Repos, trade: LiveCardTrade, copyIds?: string[]): Promise<unknown> {
   const acceptedBy = trade.initiator === "giver" ? trade.receiverUserId : trade.giverUserId;
   return acceptTrade(mockTransact(repos), trade.id, acceptedBy, copyIds).catch(

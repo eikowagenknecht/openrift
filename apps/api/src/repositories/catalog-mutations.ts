@@ -14,10 +14,10 @@ import type { Kysely, Selectable, Updateable } from "kysely";
 import type { CardsTable, Database, PrintingsTable } from "../db/index.js";
 
 /**
- * The field set `uq_printings_identity` (migration 092) makes unique — i.e. the
- * key `upsertPrinting` matches an existing row on. `findPrintingIdByIdentity`
- * and the upsert share it so a caller checking "does this already exist?"
- * cannot drift from what the upsert actually treats as the same printing.
+ * The field set the `uq_printings_identity` unique constraint covers — the key
+ * `upsertPrinting` matches an existing row on. `findPrintingIdByIdentity` and
+ * the upsert share it so a caller checking "does this already exist?" cannot
+ * drift from what the upsert actually treats as the same printing.
  */
 export interface PrintingIdentity {
   cardId: string;
@@ -28,19 +28,6 @@ export interface PrintingIdentity {
   language: string;
 }
 
-/**
- * Write path for the accepted catalog: cards, printings, their junction tables
- * (domains, types, super types, name aliases), and the image-file rows a
- * printing delete has to clean up. Used by the admin card-source management
- * routes and the accept flow.
- *
- * Sibling repos own the neighbouring concerns: `candidateCardsRepo` for the
- * candidate tables, `catalogDeleteGuardsRepo` for the pre-delete blocker
- * counts, `cardErrataRepo` for errata, and `keywordsRepo` for recomputing
- * `cards.keywords`.
- *
- * @returns An object with catalog mutation methods bound to the given `db`.
- */
 export function catalogMutationsRepo(db: Kysely<Database>) {
   function findPrintingIdByIdentity(
     identity: PrintingIdentity,
@@ -58,18 +45,8 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
   }
 
   return {
-    // ── Printing lookups ──────────────────────────────────────────────────
-
-    /**
-     * Look a printing up by the identity `upsertPrinting` matches on, scoped to
-     * one card. Callers that must insert (rather than silently update) check
-     * this first and reject a hit.
-     *
-     * @returns The existing printing's UUID, or undefined when none matches.
-     */
     findPrintingIdByIdentity,
 
-    /** @returns A printing's differentiator fields by UUID. */
     getPrintingDifferentiatorsById(id: string) {
       return db
         .selectFrom("printings")
@@ -78,7 +55,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns A printing's shortCode, finish, and language by UUID. */
     getPrintingById(
       id: string,
     ): Promise<{ id: string; shortCode: string; finish: string; language: string } | undefined> {
@@ -89,17 +65,14 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns A full printing row by UUID (for change tracking). */
     getFullPrintingById(id: string): Promise<Selectable<PrintingsTable> | undefined> {
       return db.selectFrom("printings").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A full card row by UUID (for change tracking / audit events). */
     getFullCardById(id: string): Promise<Selectable<CardsTable> | undefined> {
       return db.selectFrom("cards").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's cardId by composite key (shortCode, finish, markerSlugs, language). */
     getPrintingCardIdByComposite(
       shortCode: string,
       finish: Finish,
@@ -117,7 +90,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The printed_total of the set a printing belongs to. */
     getSetPrintedTotalForPrinting(
       printingId: string,
     ): Promise<{ printedTotal: number | null } | undefined> {
@@ -129,12 +101,10 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Printing UUIDs for a card by card UUID. */
     getPrintingIdsByCardId(cardId: string): Promise<{ id: string }[]> {
       return db.selectFrom("printings").select("id").where("cardId", "=", cardId).execute();
     },
 
-    /** @returns EN printing-level rules/effect texts for a card identified by UUID. */
     getPrintingTextsForCardId(
       cardId: string,
     ): Promise<Pick<Selectable<PrintingsTable>, "printedRulesText" | "printedEffectText">[]> {
@@ -146,7 +116,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns EN printing rules/effect texts for the given card ids. */
     getPrintingTextsByCardIds(
       cardIds: string[],
     ): Promise<
@@ -163,9 +132,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── Card lookups ──────────────────────────────────────────────────────
-
-    /** @returns A card's ID and name by slug. */
     getCardBySlug(slug: string): Promise<Pick<Selectable<CardsTable>, "id" | "name"> | undefined> {
       return db
         .selectFrom("cards")
@@ -174,7 +140,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns A card's ID and name by UUID. */
     getCardById(
       id: string,
     ): Promise<Pick<Selectable<CardsTable>, "id" | "name" | "slug"> | undefined> {
@@ -185,12 +150,10 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns A card's ID by slug. */
     getCardIdBySlug(slug: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {
       return db.selectFrom("cards").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns Card ids/names keyed by slug for the given slug list. */
     getCardsBySlugs(
       slugs: string[],
     ): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name">[]> {
@@ -204,7 +167,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Alias normNames for a card. */
     getCardAliases(cardId: string): Promise<{ normName: string }[]> {
       return db
         .selectFrom("cardNameAliases")
@@ -213,24 +175,18 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Set UUID by slug. */
     getSetIdBySlug(slug: string): Promise<{ id: string } | undefined> {
       return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
-    // ── Card mutations ────────────────────────────────────────────────────
-
-    /** Update arbitrary fields on a card by UUID. */
     async updateCardById(id: string, updates: Updateable<CardsTable>): Promise<void> {
       await db.updateTable("cards").set(updates).where("id", "=", id).execute();
     },
 
-    /** Rename a card's slug by card UUID. */
     async renameCardSlugById(cardId: string, newSlug: string): Promise<void> {
       await db.updateTable("cards").set({ slug: newSlug }).where("id", "=", cardId).execute();
     },
 
-    /** Replace all domains for a card by UUID (delete + insert). */
     async replaceCardDomainsById(cardId: string, domains: string[]): Promise<void> {
       // Delete + insert must share a transaction: outside one, each statement
       // commits alone, so an insert refused by the FK (an unknown slug the
@@ -255,17 +211,17 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Replace all card types for a card by UUID (delete + insert), keeping the
-     * denormalized `cards.type` scalar in sync with the first type (ADR-037).
+     * Replaces a card's types, keeping the denormalized `cards.type` scalar in
+     * sync with the first type.
      */
     async replaceCardTypesById(cardId: string, types: string[]): Promise<void> {
       if (types.length === 0) {
         throw new Error("A card must have at least one type");
       }
-      // Delete + insert must share a transaction: the deferred constraint
-      // trigger from migration 193 rejects any COMMIT that leaves a card with
-      // zero junction rows, and outside a transaction each statement commits
-      // on its own — the bare delete would be rejected before the insert runs.
+      // Delete + insert must share a transaction: a deferred constraint
+      // trigger rejects any COMMIT that leaves a card with zero junction rows,
+      // and outside a transaction each statement commits on its own — the bare
+      // delete would be rejected before the insert runs.
       const run = async (trx: typeof db): Promise<void> => {
         await trx.deleteFrom("cardCardTypes").where("cardId", "=", cardId).execute();
         await trx
@@ -277,7 +233,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
-    /** Replace all super types for a card by UUID (delete + insert). */
     async replaceCardSuperTypesById(cardId: string, superTypes: string[]): Promise<void> {
       // Same transactional pairing as replaceCardDomainsById above.
       const run = async (trx: typeof db): Promise<void> => {
@@ -292,36 +247,26 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
-    /** Delete all bans for a card by UUID. */
     async deleteCardBansByCardId(cardId: string): Promise<void> {
       await db.deleteFrom("cardBans").where("cardId", "=", cardId).execute();
     },
 
-    /** Delete manual marketplace card overrides pointing at a card by UUID. */
     async deleteMarketplaceCardOverridesByCardId(cardId: string): Promise<void> {
       await db.deleteFrom("marketplaceProductCardOverrides").where("cardId", "=", cardId).execute();
     },
 
-    /**
-     * Delete a card by UUID.
-     * @returns The deleted row's ID, or undefined if not found.
-     */
     deleteCardById(id: string): Promise<{ id: string } | undefined> {
       return db.deleteFrom("cards").where("id", "=", id).returning("id").executeTakeFirst();
     },
 
-    // ── Printing mutations ────────────────────────────────────────────────
-
-    /** Update arbitrary fields on a printing by UUID. */
     async updatePrintingById(id: string, updates: Updateable<PrintingsTable>): Promise<void> {
       await db.updateTable("printings").set(updates).where("id", "=", id).execute();
     },
 
     /**
-     * Update a single field on a printing by UUID. `field` is constrained to a
-     * real column so a caller's field allowlist is checked against `printings`
-     * at compile time; `value` stays `unknown` because callers validate it
-     * per-field against the shared field rules.
+     * `field` is constrained to a real column so a caller's field allowlist is
+     * checked against `printings` at compile time; `value` stays `unknown`
+     * because callers validate it per-field against the shared field rules.
      */
     async updatePrintingFieldById(
       id: string,
@@ -335,26 +280,18 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Delete a printing by UUID.
-     * @returns The deleted row's ID, or undefined if not found.
-     */
     deletePrintingById(id: string): Promise<{ id: string } | undefined> {
       return db.deleteFrom("printings").where("id", "=", id).returning("id").executeTakeFirst();
     },
 
     /**
-     * Insert or update a printing.
-     * `markerSlugs` is set on the printing directly; callers are responsible for
-     * syncing the `printing_markers` join afterwards (the maintenance trigger
-     * keeps marker_slugs canonical once the join is populated).
+     * `markerSlugs` is set on the printing directly; callers are responsible
+     * for syncing the `printing_markers` join afterwards (the maintenance
+     * trigger keeps marker_slugs canonical once the join is populated).
      *
-     * Uses a manual select-then-insert/update because the matching unique
-     * constraint (`uq_printings_identity`) is DEFERRABLE INITIALLY DEFERRED
-     * (migration 092) and Postgres rejects deferrable constraints as ON
-     * CONFLICT arbiters.
-     *
-     * @returns The new or existing printing UUID.
+     * Manual select-then-insert/update because the matching unique constraint
+     * (`uq_printings_identity`) is DEFERRABLE INITIALLY DEFERRED and Postgres
+     * rejects deferrable constraints as ON CONFLICT arbiters.
      */
     async upsertPrinting(values: {
       cardId: string;
@@ -401,12 +338,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       return result.id;
     },
 
-    // ── Printing image cleanup ────────────────────────────────────────────
-
-    /**
-     * Delete all printing_images for a printing UUID.
-     * @returns imageFileIds for cleanup.
-     */
     deletePrintingImagesByPrintingId(printingId: string): Promise<{ imageFileId: string }[]> {
       return db
         .deleteFrom("printingImages")
@@ -415,7 +346,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns An image_file row by ID (rehostedUrl for disk cleanup). */
     getImageFileById(
       imageFileId: string,
     ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
@@ -426,11 +356,10 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Whether any printing_images row still references the given image_file. */
     async isImageFileReferenced(imageFileId: string): Promise<boolean> {
       // Both kinds of reference count. A file can be a printing's own scan, or
-      // the substitute art another printing pins (migration 257) — most often
-      // both at once, since the usual pin is a sibling's scan. Missing the pin
+      // the substitute art another printing pins — most often both at once,
+      // since the usual pin is a sibling's scan. Missing the pin
       // here would let the orphan sweep delete a file that is still on screen,
       // and the FK is ON DELETE RESTRICT, so it would fail loudly rather than
       // silently. The pin lookup is a partial-index hit and only runs for a
@@ -452,17 +381,14 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       return pin !== undefined;
     },
 
-    /** Delete an image_files row by ID. */
     async deleteImageFileById(imageFileId: string): Promise<void> {
       await db.deleteFrom("imageFiles").where("id", "=", imageFileId).execute();
     },
 
-    // ── Accept new card from sources ──────────────────────────────────────
-
     /**
-     * Create a new card from source data,
-     * then link all candidate_cards with the given normalized name to the new card.
-     * Printings are accepted separately via acceptNewPrintingFromSource.
+     * Creates a card from source data and links every candidate_cards row with
+     * the given normalized name to it. Printings are accepted separately via
+     * acceptNewPrintingFromSource.
      */
     async acceptNewCardFromSources(
       cardFields: {
@@ -498,7 +424,7 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .returning("id")
         .executeTakeFirstOrThrow();
 
-      // Write card types to junction table (position 0 mirrors cards.type)
+      // Position 0 mirrors cards.type.
       await db
         .insertInto("cardCardTypes")
         .values(
@@ -510,7 +436,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         )
         .execute();
 
-      // Write domains to junction table
       if (cardFields.domains.length > 0) {
         await db
           .insertInto("cardDomains")
@@ -524,7 +449,6 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
           .execute();
       }
 
-      // Write super types to junction table
       const superTypes = cardFields.superTypes ?? [];
       if (superTypes.length > 0) {
         await db
@@ -541,8 +465,8 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Create name aliases for every distinct spelling of the normalized name,
-     * so that resolveCardId() can match candidate_cards to this card dynamically.
+     * Records the alias so resolveCardId() can match candidate_cards with this
+     * normalized name to the card dynamically.
      */
     async createNameAliases(normalizedName: string, cardId: string): Promise<void> {
       await db
@@ -555,13 +479,12 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
     /**
      * Keep a card's self-alias in sync after a display-name change. The
      * `cards_set_norm_name` trigger rewrites `cards.norm_name` on every name
-     * update, but nothing else maintains `card_name_aliases` — so without this a
-     * rename strands the old-name self-alias and never creates the new one,
+     * update, but nothing else maintains `card_name_aliases` — so without this
+     * a rename strands the old-name self-alias and never creates the new one,
      * desyncing the card-detail view (matches by aliases) from the list view
-     * (matches by `cards.norm_name`). Adds the new normalized name as an alias
-     * and drops the previous self-alias, leaving no stale old-name row behind.
-     * Hand-added alt-spelling aliases are untouched (only the old self-alias is
-     * removed). No-ops when the normalized name is unchanged.
+     * (matches by `cards.norm_name`). Hand-added alt-spelling aliases are
+     * untouched (only the old self-alias is removed). No-ops when the
+     * normalized name is unchanged.
      */
     async syncSelfAliasOnRename(
       cardId: string,

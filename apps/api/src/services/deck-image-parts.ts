@@ -11,15 +11,10 @@ import {
 } from "./share-image-core.js";
 
 /**
- * The pieces both deck-image layouts are built from: the render types, the deck's
- * zone split, the grid packer, the domain glyphs, the section header, and the
- * full-art backdrop. `deck-image.ts` composes them into the 1200×630 og:image
- * and into the 9:16 export.
- *
- * The layouts live next to each other in that one module; anything they would
- * otherwise restate lives here. The split follows `share-image-core`'s rule one
- * level down: that module holds what every share image shares, this one what
- * every *deck* image shares.
+ * The pieces both deck-image layouts in `deck-image.ts` (the 1200×630 og:image
+ * and the 9:16 export) are built from. The split follows `share-image-core`'s
+ * rule one level down: that module holds what every share image shares, this
+ * one what every *deck* image shares.
  */
 
 /** Gap between tiles and between stacked bands. */
@@ -45,7 +40,6 @@ export interface DeckImageCard {
   zone: string;
 }
 
-/** Everything the renderer needs to draw a deck share image. */
 export interface DeckImageInput {
   deckName: string;
   /** Owner display name shown next to the title; the chip is dropped when empty. */
@@ -65,7 +59,6 @@ export interface DeckImageInput {
   coverImageId?: string | null;
 }
 
-/** A deck card reference the renderer can enrich: identity, printing, zone, count. */
 export interface DeckImageCardRef {
   cardId: string;
   preferredPrintingId: string | null;
@@ -78,26 +71,19 @@ export interface DeckImageCardRef {
  * row also carries the domain glyphs. */
 const TITLE_MAX_CHARS = 34;
 
-/** @returns The deck title, truncated with an ellipsis when longer than the cap. */
 export function truncateTitle(title: string, max = TITLE_MAX_CHARS): string {
   return elideTitle(title, max);
 }
 
-/** @returns A presentable format label from a deck-format slug. */
 export function formatLabelFromSlug(slug: string): string {
   const spaced = slug.replaceAll("-", " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/**
- * Compares two deck cards by energy (nulls last), then name, for cost-curve order.
- * @returns A standard comparator result (negative, zero, or positive).
- */
 function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
   return (left.energy ?? 99) - (right.energy ?? 99) || left.cardName.localeCompare(right.cardName);
 }
 
-/** A deck's cards split into the groups a layout draws separately. */
 export interface DeckZones {
   legend: DeckImageCard | null;
   /** Distinct rune cards, most copies first. */
@@ -113,11 +99,6 @@ export interface DeckZones {
   sideboardCount: number;
 }
 
-/**
- * Splits a deck into the groups every layout draws: the legend, the runes, the
- * battlefields, the sideboard, and the cost-sorted main grid.
- * @returns The deck's cards grouped and sorted for rendering.
- */
 export function splitDeckZones(cards: readonly DeckImageCard[]): DeckZones {
   const zone = WellKnown.deckZone;
   const legend = cards.find((card) => card.zone === zone.LEGEND) ?? null;
@@ -153,7 +134,7 @@ export function splitDeckZones(cards: readonly DeckImageCard[]): DeckZones {
   };
 }
 
-/** @returns The "Constructed · 30 + 2 cards" metadata line. */
+/** The "Constructed · 30 + 2 cards" metadata line. */
 export function deckMetaLabel(
   formatLabel: string,
   mainCardCount: number,
@@ -196,7 +177,6 @@ export interface PackGridOptions {
  * Picks the column count that makes `count` portrait tiles as large as possible
  * while fitting both dimensions of the area. Unlike the list grid this is not
  * capped at two rows — a deck shows its whole main list.
- * @returns The column count and floored tile dimensions.
  */
 export function packGrid(
   count: number,
@@ -229,10 +209,8 @@ export function packGrid(
 }
 
 /**
- * Sums rune quantities per domain (a rune carries one domain; a multi-domain
- * rune folds into "rainbow"), so the identity panel can show one glyph per
- * domain with its count.
- * @returns Domain → total rune count, highest first.
+ * Sums rune quantities per domain, highest first. A rune carries one domain; a
+ * multi-domain rune folds into "rainbow".
  */
 export function runeCountsByDomain(
   runes: readonly DeckImageCard[],
@@ -248,10 +226,6 @@ export function runeCountsByDomain(
     .sort((left, right) => right.count - left.count || left.domain.localeCompare(right.domain));
 }
 
-/**
- * Loads and rasterizes a rune-domain glyph to a PNG data URI at `sizePx`.
- * @returns The glyph data URI, or null when the glyph asset is absent.
- */
 export async function glyphUri(
   io: Io,
   domain: string,
@@ -266,11 +240,6 @@ export async function glyphUri(
   }
 }
 
-/**
- * The deck's domain glyphs as image elements, with a gold dot standing in for
- * any glyph asset that failed to load.
- * @returns One element per domain, in the order the domains were given.
- */
 export function domainIconElements(
   domainUris: readonly (string | null)[],
   sizePx: number,
@@ -288,11 +257,6 @@ export function domainIconElements(
   );
 }
 
-/**
- * A titled section: a small gold label with a rule, then a wrapping row of tiles.
- * Used for the sideboard, battlefields, and runes bands.
- * @returns The section element.
- */
 export function deckSection(label: string, tiles: Child[], marginTop = 0): Element {
   const header = element(
     "div",
@@ -347,8 +311,7 @@ const DOMAIN_GLOW_COLORS: Record<string, string> = {
  * the web app's deck hero (`deckGlowStyle` in
  * apps/web/src/components/deck/deck-hero.tsx): one radial per domain,
  * anchored to opposite top corners so a dual-domain deck reads as a blend. A
- * deck with no legend keeps the flat background (returns undefined).
- * @returns A CSS `background-image` value, or undefined when there's no legend.
+ * deck with no legend keeps the flat background.
  */
 export function legendGlowBackground(domains: readonly string[]): string | undefined {
   if (domains.length === 0) {
@@ -363,7 +326,6 @@ export function legendGlowBackground(domains: readonly string[]): string | undef
  * Renders the blurred cover art at half the canvas size. The backdrop is
  * blurred anyway, so half resolution keeps the payload small even at the HQ
  * scale. A custom cover replaces the legend art here, and only here.
- * @returns The backdrop data URI, or null when there is no art to blur.
  */
 export function deckBackdropUri(
   io: Io,
@@ -386,9 +348,7 @@ export function deckBackdropUri(
 /**
  * Full-art identity, mirroring the web deck hero: the cover art blurred across
  * the whole canvas at low opacity, under a vertical scrim that keeps the title
- * row and the bottom band readable. The domain glow stays beneath and shows
- * through the art's transparency.
- * @returns The backdrop element, or false when there is no art.
+ * row and the bottom band readable.
  */
 export function deckHeroBackdrop(backdropUri: string | null, width: number, height: number): Child {
   return (

@@ -102,8 +102,6 @@ const isDiffScalar = (v: unknown): v is string | number | boolean | null =>
  * human-readable without widening `diffValueSchema` to a recursive JSON type
  * (which breaks openapi/hc/tanstack — see response-schemas.ts). Change detection
  * still runs on the raw normalized values, so this only affects display.
- *
- * @returns a scalar or scalar array; non-scalar values as their JSON string.
  */
 function toDiffValue(value: unknown): DiffValue {
   if (isDiffScalar(value)) {
@@ -147,8 +145,6 @@ function getChangedFields(
  *
  * Performance: bulk-fetches all existing data before the loop so the hot path
  * only does writes (~5 bulk SELECTs up front instead of ~7 queries per card).
- *
- * @returns Counts of new, updated, unchanged cards and any errors.
  */
 export async function ingestCandidates(
   transact: Transact,
@@ -175,7 +171,6 @@ export async function ingestCandidates(
   const removedPrintingDetails: ItemDetail[] = [];
   const updatedPrintings: UpdatedCardDetail[] = [];
 
-  // ── Deterministic de-duplication of incoming keys ──────────────────────────
   // Defense-in-depth: a provider payload must never carry two cards or two
   // printings that share an external_id. If it does, the per-external_id upsert
   // below resolves the same DB row twice and the stored values depend on which
@@ -211,30 +206,22 @@ export async function ingestCandidates(
   await transact(async (trxRepos) => {
     const repo = trxRepos.ingest;
 
-    // ── Phase 1: Bulk-fetch all existing data ──────────────────────────────
-
-    // 1a. All existing candidate_cards for this provider (keyed by short_code or name)
     const existingCCRows = await repo.allCandidateCardsForProvider(provider);
 
-    // Index by externalId (the provider's stable identifier for each card)
     const ccByExternalId = new Map<string, (typeof existingCCRows)[number]>();
     for (const row of existingCCRows) {
       ccByExternalId.set(row.externalId, row);
     }
 
-    // 1b. Live cards, aliases, printings and manual link overrides — the shared
-    // index behind card and printing link resolution (see candidate-links.ts).
+    // Shared index behind card and printing link resolution (see candidate-links.ts).
     const linkIndex = await loadCandidateLinkIndex(repo);
 
-    // 1c. All existing candidate_printings for candidate_cards owned by this provider.
-    // We need the candidate_card_ids first, so collect from the existing rows.
     const existingCCIds = new Set(existingCCRows.map((r) => r.id));
     let existingCPRows: Awaited<ReturnType<typeof repo.candidatePrintingsByCandidateCardIds>> = [];
     if (existingCCIds.size > 0) {
       existingCPRows = await repo.candidatePrintingsByCandidateCardIds([...existingCCIds]);
     }
 
-    // Index candidate_printings by externalId (the provider's stable identifier)
     const cpByExternalId = new Map<string, (typeof existingCPRows)[number]>();
     for (const cp of existingCPRows) {
       if (cp.externalId) {
@@ -242,7 +229,6 @@ export async function ingestCandidates(
       }
     }
 
-    // 1d. Ignored candidates — load once and build lookup sets
     const ignoredCardRows = await repo.ignoredCandidateCards(provider);
     const ignoredCards = new Set(ignoredCardRows.map((r) => r.externalId));
 
@@ -257,15 +243,10 @@ export async function ingestCandidates(
       }
     }
 
-    // 1e. (no-op — markers come straight from the upload payload as slugs)
-
-    // ── Phase 2: Process each card (writes only) ───────────────────────────
-
     const seenCCIds = new Set<string>();
     const seenCPIds = new Set<string>();
 
     for (const card of dedupedCards) {
-      // Validate card data against DB CHECK constraints (using normalized values)
       const cardValidation = candidateCardValidator.safeParse(candidateCardValidatorInput(card));
       if (!cardValidation.success) {
         errors.push(
@@ -274,12 +255,10 @@ export async function ingestCandidates(
         continue;
       }
 
-      // Skip ignored candidate cards
       if (ignoredCards.has(card.external_id)) {
         continue;
       }
 
-      // Look up existing candidate_card by externalId (provider's stable key)
       const existingCandidateCard = ccByExternalId.get(card.external_id);
 
       let candidateCardId: string;
@@ -328,7 +307,6 @@ export async function ingestCandidates(
       const cardLinked = resolveCardIdByName(linkIndex, card.name) !== null;
 
       for (const p of card.printings) {
-        // Validate printing data against DB CHECK constraints (using normalized values)
         const printingValidation = candidatePrintingValidator.safeParse(
           candidatePrintingValidatorInput(p),
         );
@@ -339,7 +317,6 @@ export async function ingestCandidates(
           continue;
         }
 
-        // Skip ignored candidate printings (check all-finish ignore, then specific finish)
         if (
           ignoredPrintings.has(p.external_id) ||
           ignoredPrintings.has(`${p.external_id}:${p.finish}`)
@@ -357,7 +334,6 @@ export async function ingestCandidates(
           cardLinked,
         });
 
-        // Look up existing candidate_printing by external_id (provider's stable key)
         const existingCP = cpByExternalId.get(p.external_id);
 
         const printingFields = buildCandidatePrintingFields(p);
@@ -405,9 +381,6 @@ export async function ingestCandidates(
       }
     }
 
-    // ── Phase 3: Remove cards/printings no longer in the upload ────────────
-
-    // Build card-name lookup for removed printings
     const ccIdToName = new Map(existingCCRows.map((cc) => [cc.id, cc.name]));
 
     const cpsToRemove = existingCPRows.filter((cp) => !seenCPIds.has(cp.id));

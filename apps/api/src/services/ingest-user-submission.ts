@@ -1,6 +1,5 @@
 /**
- * Ingest a single in-app user card submission into the candidate pipeline
- * (ADR-036).
+ * Ingest a single in-app user card submission into the candidate pipeline.
  *
  * This is deliberately NOT `ingestCandidates`: that function treats a provider
  * as a full-replace namespace and deletes any candidate rows absent from its
@@ -9,7 +8,7 @@
  * this inserts exactly one candidate card (+ its printings) with a
  * per-submission-unique `external_id`, never deleting anything. Everything
  * downstream — the admin review tabs, accept/promote, and reject/ignore — is
- * the shared ADR-008 machinery, untouched.
+ * the shared candidate-review machinery, untouched.
  *
  * The payload mapping and the live card/printing link resolution are shared
  * with the batch ingest (candidate-fields.ts, candidate-links.ts) rather than
@@ -42,10 +41,7 @@ import {
   resolvePrintingLink,
 } from "./candidate-links.js";
 
-// USER_SUBMISSION_PROVIDER now lives in the shared contract so the admin UI
-// matches on the same literal. Import it from there, not from this module.
-
-/** Per-user cap on in-app submissions in a rolling 24h window (ADR-036). */
+/** Per-user cap on in-app submissions in a rolling 24h window. */
 const USER_SUBMISSION_DAILY_LIMIT = 50;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -53,8 +49,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * UTC date stamp (`YYYYMMDD-HHmm`) baked into per-submission external_ids so a
  * user's two submissions of the same card never collide on the natural key.
- * @param date The instant to format.
- * @returns A `YYYYMMDD-HHmm` UTC string.
  */
 export function formatSubmissionDateStamp(date: Date): string {
   const yyyy = date.getUTCFullYear().toString();
@@ -68,13 +62,9 @@ export function formatSubmissionDateStamp(date: Date): string {
 /**
  * Map a validated user-submission payload to the candidate `IngestCard` shape,
  * generating the server-side external_ids. The card key is
- * `<slug>--<dateStamp>--<userId>` (ADR-036); printing keys extend it with a
- * per-printing disambiguator, finish and language so multiple printings in one
- * submission stay distinct.
- * @param input The Zod-validated submission body.
- * @param userId The submitter's id, part of the external_id.
- * @param dateStamp UTC stamp from {@link formatSubmissionDateStamp}.
- * @returns An `IngestCard` ready for {@link ingestUserSubmission}.
+ * `<slug>--<dateStamp>--<userId>`; printing keys extend it with a per-printing
+ * disambiguator, finish and language so multiple printings in one submission
+ * stay distinct.
  */
 export function buildUserSubmissionCard(
   input: CardSubmissionInput,
@@ -146,10 +136,6 @@ export function buildUserSubmissionCard(
  * thing to trust. The correction flow prefills every card field from the live
  * card, so card-level data present means a correction; the image flow sends
  * only what identifies the printing plus the URL.
- *
- * @param card The mapped candidate card.
- * @param cardLinked Whether the submission matched a live card by name.
- * @returns Which of the three flows this submission came from.
  */
 export function inferSubmissionKind(card: IngestCard, cardLinked: boolean): CardSubmissionKind {
   if (!cardLinked) {
@@ -195,9 +181,6 @@ interface IngestUserSubmissionArgs {
  * the same DB-constraint rules as the admin ingest, and resolves the live
  * card/printing links so corrections and image suggestions land in the admin
  * Updates tab rather than as spurious new rows. Never deletes.
- * @param transact Transaction runner from the API context.
- * @param args Submitter id, note, the mapped card, and the current instant.
- * @returns An {@link UserSubmissionResult} describing what happened.
  */
 export function ingestUserSubmission(
   transact: Transact,
@@ -210,7 +193,6 @@ export function ingestUserSubmission(
     const repo = trxRepos.ingest;
     const submissions = trxRepos.cardSubmissions;
 
-    // ── Per-user daily cap ────────────────────────────────────────────────────
     // The advisory lock serializes this user's concurrent submissions: without
     // it, parallel requests all read the same COUNT under READ COMMITTED and
     // all pass the cap. The lock releases when the transaction ends.
@@ -224,7 +206,6 @@ export function ingestUserSubmission(
       return { status: "rate_limited", limit: USER_SUBMISSION_DAILY_LIMIT };
     }
 
-    // ── Validate against the identical rules the admin ingest uses ───────────
     const errors: string[] = [];
     const cardValidation = candidateCardValidator.safeParse(candidateCardValidatorInput(card));
     if (!cardValidation.success) {
@@ -248,14 +229,12 @@ export function ingestUserSubmission(
       return { status: "invalid", errors };
     }
 
-    // ── Resolve live card + printing links (for the review "update" view) ────
-    // Same index and same gate as the batch ingest, so a submission links
+    // Same link index and same gate as the batch ingest, so a submission links
     // exactly where a provider upload of the same card would.
     const linkIndex = await loadCandidateLinkIndex(repo);
     const liveCardId = resolveCardIdByName(linkIndex, card.name);
     const cardLinked = liveCardId !== null;
 
-    // ── Insert the candidate card + printings ────────────────────────────────
     const candidateCardFields = buildCandidateCardFields(card);
     const cardInsert: Insertable<CandidateCardsTable> = {
       provider: USER_SUBMISSION_PROVIDER,
@@ -284,7 +263,6 @@ export function ingestUserSubmission(
       });
     }
 
-    // ── Record the durable outcome row ───────────────────────────────────────
     // Snapshotting what actually differs from the live catalog *now* is what
     // later lets review credit the contributor without attributing an admin's
     // cell click to a column. A submission that changes nothing records an

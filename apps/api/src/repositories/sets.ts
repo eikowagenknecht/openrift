@@ -5,34 +5,24 @@ import { sql } from "kysely";
 import type { Database, SetsTable } from "../db/index.js";
 import { reorderBySortOrder } from "./sort-order.js";
 
-/**
- * Queries for game sets (the `sets` table).
- *
- * @returns An object with set query methods bound to the given `db`.
- */
 export function setsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All sets ordered by sort order. */
     listAll(): Promise<Selectable<SetsTable>[]> {
       return db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();
     },
 
-    /** @returns A set's UUID by slug, or undefined. */
     getBySlug(slug: string): Promise<Pick<Selectable<SetsTable>, "id"> | undefined> {
       return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns The set's display reference (slug, name) by UUID, or undefined. */
     getRef(id: string): Promise<{ slug: string; name: string } | undefined> {
       return db.selectFrom("sets").select(["slug", "name"]).where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A set's printed total by UUID, or undefined. */
     getPrintedTotal(id: string): Promise<{ printedTotal: number | null } | undefined> {
       return db.selectFrom("sets").select("printedTotal").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A map of set UUID → name for the given ids. Missing ids are absent from the map. */
     async getNamesByIds(ids: string[]): Promise<Map<string, string>> {
       if (ids.length === 0) {
         return new Map();
@@ -45,7 +35,6 @@ export function setsRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.id, row.name]));
     },
 
-    /** Creates a new set with the given values. */
     async create(values: {
       slug: string;
       name: string;
@@ -65,8 +54,7 @@ export function setsRepo(db: Kysely<Database>) {
 
     /**
      * Atomically inserts a set if its slug doesn't already exist.
-     * Computes sortOrder inline (max + 1) to avoid race conditions.
-     * @returns `true` if a row was inserted, `false` if the slug already existed.
+     * Computes sortOrder inline (max + 1) to avoid a check-then-insert race.
      */
     async createIfNotExists(values: {
       slug: string;
@@ -90,10 +78,6 @@ export function setsRepo(db: Kysely<Database>) {
       return result?.id ?? null;
     },
 
-    /**
-     * Updates a set by slug.
-     * @returns `true` if a row was updated.
-     */
     async update(
       id: string,
       values: {
@@ -110,7 +94,6 @@ export function setsRepo(db: Kysely<Database>) {
       return (result?.numUpdatedRows ?? 0n) > 0n;
     },
 
-    /** @returns Every set's release rows, keyed by set UUID then language. */
     async releasesBySet(): Promise<Map<string, SetReleases>> {
       const rows = await db
         .selectFrom("setReleases")
@@ -162,12 +145,10 @@ export function setsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** Deletes a set by UUID. */
     async deleteById(id: string): Promise<void> {
       await db.deleteFrom("sets").where("id", "=", id).execute();
     },
 
-    /** @returns The count of distinct cards in a set (by set UUID). */
     async cardCount(setId: string): Promise<number> {
       const { count } = await db
         .selectFrom("printings")
@@ -177,7 +158,6 @@ export function setsRepo(db: Kysely<Database>) {
       return count;
     },
 
-    /** @returns The count of printings in a set (by set UUID). */
     async printingCount(setId: string): Promise<number> {
       const { count } = await db
         .selectFrom("printings")
@@ -187,7 +167,6 @@ export function setsRepo(db: Kysely<Database>) {
       return count;
     },
 
-    /** @returns Distinct card count per set (keyed by setId). */
     cardCountsBySet(): Promise<{ setId: string; cardCount: number }[]> {
       return db
         .selectFrom("printings")
@@ -199,7 +178,6 @@ export function setsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Total printing count per set (keyed by setId). */
     printingCountsBySet(): Promise<{ setId: string; printingCount: number }[]> {
       return db
         .selectFrom("printings")
@@ -211,10 +189,6 @@ export function setsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Reorders sets by id list, each set taking its 0-based position as sortOrder.
-     * @returns void once the reorder has been applied.
-     */
     reorder(ids: readonly string[]): Promise<void> {
       return reorderBySortOrder(db, {
         table: "sets",
@@ -225,9 +199,6 @@ export function setsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Upsert a set by slug, inserting it with the next sort_order if it doesn't
-     * exist. Used during card source ingestion.
-     *
      * One atomic statement, like {@link createIfNotExists}: the check-then-insert
      * this replaced read the slug in its own query, so two ingests naming the
      * same new set both saw it missing and the loser threw on `sets_slug_key`.

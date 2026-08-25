@@ -6,8 +6,6 @@ import type { Database } from "../db/index.js";
 /**
  * Shared SELECT projection: joins the categories table so callers see the
  * category slug + label alongside each tag without a second round-trip.
- *
- * @returns A Kysely query builder selecting tag rows with joined category fields.
  */
 function selectWithCategory(db: Kysely<Database>) {
   return db
@@ -50,10 +48,6 @@ export function customTagsRepo(db: Kysely<Database>) {
     /**
      * Batched slug lookup. Used by deck-format validation so a deck with
      * several region tags doesn't fan out into N round-trips.
-     *
-     * @returns Rows for the slugs that exist, in undefined order. Each row
-     *   includes the joined category slug so validators can check it without
-     *   another query.
      */
     listBySlugs(slugs: readonly string[]) {
       if (slugs.length === 0) {
@@ -117,7 +111,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       await db.deleteFrom("customTags").where("id", "=", id).execute();
     },
 
-    /** @returns Map of card id → array of custom-tag slugs (sorted). */
     async assignmentsByCard(): Promise<Map<string, string[]>> {
       const rows = await db
         .selectFrom("cardCustomTags as cct")
@@ -140,10 +133,8 @@ export function customTagsRepo(db: Kysely<Database>) {
     /**
      * Scoped variant of {@link assignmentsByCard} for endpoints that only
      * need tag data for a known set of cards (e.g. the public share endpoint
-     * denormalizing assignments for one deck's worth of cards).
-     *
-     * @returns Map of card id → custom-tag slugs (sorted), restricted to the
-     *   requested ids. Cards with no tags are simply absent from the map.
+     * denormalizing assignments for one deck's worth of cards). Cards with no
+     * tags are simply absent from the returned map.
      */
     async assignmentsForCardIds(cardIds: readonly string[]): Promise<Map<string, string[]>> {
       if (cardIds.length === 0) {
@@ -168,7 +159,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return out;
     },
 
-    /** @returns Custom-tag ids currently assigned to the given card. */
     async tagIdsForCard(cardId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("cardCustomTags")
@@ -201,8 +191,6 @@ export function customTagsRepo(db: Kysely<Database>) {
      * Attach one tag to many cards. Idempotent: re-importing the same list
      * leaves untouched assignments alone and returns the count of newly added
      * (card, tag) pairs so the bulk-import UI can report what changed.
-     *
-     * @returns Number of new rows actually inserted.
      */
     async addToCards(customTagId: string, cardIds: readonly string[]): Promise<number> {
       if (cardIds.length === 0) {
@@ -221,8 +209,6 @@ export function customTagsRepo(db: Kysely<Database>) {
      * Remove every card assignment for one tag while keeping the tag itself.
      * Used by the admin "clear" action so a tag can be re-populated from
      * scratch without recreating it.
-     *
-     * @returns Number of assignments removed.
      */
     async clearAssignments(customTagId: string): Promise<number> {
       const result = await db
@@ -232,7 +218,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return Number(result.numDeletedRows);
     },
 
-    /** @returns true if at least one card carries this custom tag. */
     async isInUse(id: string): Promise<boolean> {
       const row = await db
         .selectFrom("cardCustomTags")

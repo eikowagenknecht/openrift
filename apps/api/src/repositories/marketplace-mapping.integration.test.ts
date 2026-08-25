@@ -55,7 +55,6 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       .values({ marketplace, groupId, name: "Test CM Group" })
       .execute();
 
-    // First assignment: product → EN printing, language = NULL (CM aggregate).
     const first = await repo.upsertProductVariants([
       {
         marketplace,
@@ -70,10 +69,8 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
     expect(first).toHaveLength(1);
     expect(first[0].printingId).toBe(enPrintingId);
 
-    // Second assignment: same product → SC printing, same finish/language.
-    // Before migration 102 this would replace the EN row via the unique
-    // conflict on (product_id, finish, language). With the new index
-    // including printing_id, both rows coexist.
+    // The unique conflict is on (product_id, finish, language, printing_id),
+    // so this second printing coexists with the first rather than replacing it.
     const second = await repo.upsertProductVariants([
       {
         marketplace,
@@ -140,7 +137,6 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
   });
 
   it("upsertProductVariants is idempotent for the same (product, finish, language, printing)", async () => {
-    // Re-upsert the EN row from the previous test — must not create a duplicate.
     const again = await repo.upsertProductVariants([
       {
         marketplace,

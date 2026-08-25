@@ -9,7 +9,7 @@ import type { IngestCard } from "../routes/admin/cards/schemas.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
 
-/** Dependencies the admin card-submission alert needs beyond `repos` (ADR-036). */
+/** Dependencies the admin card-submission alert needs beyond `repos`. */
 export interface CardSubmissionEmailDeps {
   sendEmail: SendEmail;
   /** Web origin for the review deep link + the unsubscribe route (BETTER_AUTH_URL). */
@@ -25,7 +25,6 @@ export interface CardSubmissionAlert {
   submitterUserId: string;
   /** The mapped candidate card, the same one that was just ingested. */
   card: IngestCard;
-  /** The submitter's free-text note, or null when they left it empty. */
   note: string | null;
 }
 
@@ -33,13 +32,11 @@ export interface CardSubmissionAlert {
  * The admin candidates tab, filtered to in-app user submissions — where the
  * email's button lands, so the row is one click away rather than behind two
  * filter clicks.
- * @returns The absolute review URL.
  */
 function reviewUrl(appBaseUrl: string): string {
   return `${appBaseUrl}/admin/cards?tab=candidates&source=usersubmission`;
 }
 
-/** @returns The submission's printings in the shape the email builder wants. */
 function printingLines(card: IngestCard): CardSubmissionPrintingLine[] {
   return card.printings.map((printing) => ({
     publicCode: printing.public_code,
@@ -51,7 +48,7 @@ function printingLines(card: IngestCard): CardSubmissionPrintingLine[] {
 
 /**
  * Emails every admin who opted into the card-submission channel that a new
- * in-app submission is waiting for review (ADR-036).
+ * in-app submission is waiting for review.
  *
  * Opt-in per admin and default off, so promoting a second admin never starts
  * mailing them someone else's review queue — the toggle lives in their profile.

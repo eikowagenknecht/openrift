@@ -136,8 +136,8 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
 const COMPOUND_CHECKS = new Set([
   "chk_lists_intent_kind",
   "chk_lists_prefs_only_on_trade_intents",
-  // Biconditional over the closed statuses (migration 246), not a vocabulary:
-  // the status list itself is covered by chk_card_trades_status above.
+  // Biconditional over the closed statuses, not a vocabulary: the status list
+  // itself is covered by chk_card_trades_status above.
   "chk_card_trades_closed_shape",
 ]);
 
@@ -147,10 +147,7 @@ const SIMPLE_ENUM_CHECK =
 
 const SQL_STRING_LITERAL = /'(?<value>(?:[^']|'')*)'/gu;
 
-/**
- * Pulls the quoted literals out of an `ARRAY[...]` body, dropping the casts.
- * @returns The permitted values, in the order the constraint declares them.
- */
+/** Pulls the quoted literals out of an `ARRAY[...]` body, dropping the casts. */
 function parseArrayLiterals(body: string): string[] {
   return [...body.matchAll(SQL_STRING_LITERAL)].map((match) =>
     // oxlint-disable-next-line typescript/no-non-null-assertion -- the group is in the pattern

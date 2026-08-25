@@ -20,12 +20,6 @@ const GROUP_SLUG = "deck-check-ingest-itest";
 const ownerCtx = createTestContext(OWNER_ID);
 const judgeCtx = createTestContext(JUDGE_ID);
 
-/**
- * Builds an ingest push request authenticated with a Bearer push key.
- * @param token The push key, or `null` to omit the Authorization header.
- * @param body The push payload.
- * @returns A Request aimed at the ingest endpoint.
- */
 function ingestReq(token: string | null, body: unknown): Request {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) {
@@ -38,11 +32,6 @@ function ingestReq(token: string | null, body: unknown): Request {
   });
 }
 
-/**
- * A push entry built from the default single-card list, with overrides applied.
- * @param overrides Fields to override on the default entry.
- * @returns A provider push entry payload.
- */
 function entryPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     externalId: "entry-1",
@@ -52,14 +41,6 @@ function entryPayload(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
-/**
- * Restored coverage for the deck-check INGEST push pipeline on the ADR-033
- * tournament-scoped surface. The ingest endpoint is unchanged, but its old
- * driving calls (group-scoped event/key CRUD) were removed; this suite re-points
- * setup at the live host-scoped key mint (`/me/deck-check-keys`) and the
- * tournament-scoped judge API (`/tournaments/{id}/deck-check/...`). The group
- * CRUD / authz cases the original file also covered are tested elsewhere now.
- */
 describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () => {
   // oxlint-disable typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ownerCtx!;
@@ -73,21 +54,10 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
   let pushToken: string;
   const ambiguousCardIds: string[] = [];
 
-  /**
-   * Pushes entries into the suite's tournament with the suite's host key.
-   * @param entries The entries to push.
-   * @returns The ingest response.
-   */
   async function push(entries: Record<string, unknown>[]): Promise<Response> {
     return await ownerApp.fetch(ingestReq(pushToken, { tournamentId: eventId, entries }));
   }
 
-  /**
-   * Inserts a test user if missing.
-   * @param userId The user id.
-   * @param email The user email.
-   * @returns A promise that resolves once the row exists.
-   */
   async function createUser(userId: string, email: string): Promise<void> {
     await db
       .insertInto("users")
@@ -113,7 +83,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
 
     // The deck-check tournament is hosted by the group owner; the judge gets the
     // per-tournament `judge` staff role so the tournament-scoped judge API admits
-    // them (ADR-033).
+    // them.
     // A deck-check tournament is created through the umbrella tournament CRUD and
     // sits in `setup` until round 1 is generated. When OpenRift is used only for
     // deck check (no pairings) it stays in `setup`, and pushes must still land.
@@ -129,8 +99,8 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     eventId = event.id;
     await repos.tournaments.addStaff(eventId, JUDGE_ID, "judge");
 
-    // Host-scoped push key (ADR-033): the host (the owner) mints the integration
-    // key the provider push authenticates with. The plaintext token ships once.
+    // The host (the owner) mints the integration key the provider push
+    // authenticates with. The plaintext token ships once.
     const keyRes = await ownerApp.fetch(
       req("POST", "/me/deck-check-keys", { label: "ingest-itest" }),
     );
@@ -274,7 +244,6 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
     await push([entryPayload({ externalId: "entry-check", playerName: "C. Hecked" })]);
     const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-check");
 
-    // Judge approves the list, ticks a card, and marks the entry checked.
     const approveRes = await judgeApp.fetch(
       req("PUT", `/tournaments/${eventId}/deck-check/entries/${entry!.id}/state`, {
         state: "approved",
@@ -380,7 +349,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
   it("accepts pushes while the tournament is still in setup (pre-start submission)", async () => {
     // Decks are handed in before the event starts, so a `setup` tournament (the
     // default a wizard-created deck-check tournament sits in) is a valid push
-    // window. Regression: `setup` used to map to `archived` and 409.
+    // window.
     await repos.tournaments.updateSettings(eventId, { status: "setup" });
     const res = await push([]);
     expect(res.status).toBe(200);
@@ -388,7 +357,7 @@ describe.skipIf(!ownerCtx)("deck-check ingest push (integration, ADR-033)", () =
 
   it("rejects pushes to a completed or cancelled tournament with 409", async () => {
     // Only a finished/called-off tournament maps to the deck-check `archived`
-    // state, which the ingest pipeline refuses (ADR-033).
+    // state, which the ingest pipeline refuses.
     for (const status of ["completed", "cancelled"] as const) {
       await repos.tournaments.updateSettings(eventId, { status });
       const res = await push([]);

@@ -4,17 +4,17 @@ import { sql } from "kysely";
 
 import type { Database, UserPreferencesTable } from "../db/index.js";
 
-/** A verified-email user who has opted into the daily match digest (ADR-030). */
+/** A verified-email user who has opted into the daily match digest. */
 export interface MatchDigestRecipient {
   userId: string;
   email: string;
   name: string | null;
 }
 
-/** An admin who has opted into the card-submission alert (ADR-036). */
+/** An admin who has opted into the card-submission alert. */
 export type CardSubmissionRecipient = MatchDigestRecipient;
 
-/** The data needed to gate + address a transactional email to one user (ADR-030). */
+/** The data needed to gate + address a transactional email to one user. */
 export interface EmailNotificationContext {
   email: string;
   emailVerified: boolean;
@@ -51,8 +51,6 @@ export function userPreferencesRepo(db: Kysely<Database>) {
      * silently dropped the other's keys. `jsonb ||` is exactly the shallow
      * top-level replace the JS merge did, and `jsonb - text[]` performs the
      * null-means-reset deletes, so the semantics are unchanged.
-     *
-     * @returns The stored preferences after the patch.
      */
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
       const patch: Record<string, unknown> = {};
@@ -84,10 +82,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       return row.data;
     },
 
-    /**
-     * Verified-email users who have opted into the daily match digest (ADR-030).
-     * @returns Opted-in recipients with their email + name.
-     */
+    /** Verified-email users who have opted into the daily match digest. */
     async listMatchDigestRecipients(): Promise<MatchDigestRecipient[]> {
       const rows = await db
         .selectFrom("userPreferences as up")
@@ -100,11 +95,10 @@ export function userPreferencesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Admins who opted into the card-submission alert (ADR-036). The inner join
-     * on `admins` is the real gate: the preference is storable by anyone, but
-     * only an admin can ever be a recipient, so a demoted admin stops receiving
-     * these without their stored preference having to change.
-     * @returns Opted-in admin recipients with their email + name.
+     * The inner join on `admins` is the real gate: the preference is storable
+     * by anyone, but only an admin can ever be a recipient, so a demoted
+     * admin stops receiving these without their stored preference having to
+     * change.
      */
     async listCardSubmissionRecipients(): Promise<CardSubmissionRecipient[]> {
       const rows = await db
@@ -119,10 +113,8 @@ export function userPreferencesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Address + gate data for a single user's transactional email (ADR-030).
      * Left-joins preferences so a user with no preferences row still resolves
      * (empty `emailNotifications`, which reads as request-on / digest-off).
-     * @returns The context, or `undefined` if the user does not exist.
      */
     async getEmailNotificationContext(
       userId: string,

@@ -5,12 +5,10 @@ import { imageId, joinFrontImage } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
 
-/** A pending event enriched with printing/card/set/image context. */
 export interface EnrichedPrintingEvent {
   id: string;
   printingId: string;
   createdAt: Date;
-  // Joined context
   cardName: string | null;
   cardSlug: string | null;
   setName: string | null;
@@ -32,17 +30,9 @@ interface AdminPrintingEvent extends EnrichedPrintingEvent {
   retryCount: number;
 }
 
-/**
- * Repository for printing event notifications (Discord webhook queue).
- *
- * @returns An object with event query/mutation methods bound to the given `db`.
- */
+// Repository for printing event notifications (Discord webhook queue).
 export function printingEventsRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Record a "new printing" event.
-     * @returns Resolves when the event has been inserted.
-     */
     async recordNew(printingId: string): Promise<void> {
       await db
         .insertInto("printingEvents")
@@ -50,10 +40,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Fetch all pending events with full printing/card/set/image context.
-     * @returns Enriched pending events ordered by creation time.
-     */
     async listPending(): Promise<EnrichedPrintingEvent[]> {
       return await joinFrontImage(
         db
@@ -87,11 +73,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Fetch events with the given statuses, enriched with printing/card/set/image
-     * context plus status + retryCount columns. Used by the admin queue view.
-     * @returns Enriched events ordered by creation time descending (newest first).
-     */
+    /** Used by the admin queue view. */
     async listByStatus(statuses: PrintingEventStatus[]): Promise<AdminPrintingEvent[]> {
       if (statuses.length === 0) {
         return [];
@@ -131,10 +113,9 @@ export function printingEventsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Reset events back to pending and clear their retry counter so they get
+     * Resets events back to pending and clears their retry counter so they get
      * picked up by the next flush. Used by the admin queue view to retry events
      * that had hit MAX_RETRIES.
-     * @returns Resolves when the events have been updated.
      */
     async retryFailed(ids: string[]): Promise<void> {
       if (ids.length === 0) {
@@ -147,10 +128,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Mark events as sent.
-     * @returns Resolves when the events have been updated.
-     */
     async markSent(ids: string[]): Promise<void> {
       if (ids.length === 0) {
         return;
@@ -162,10 +139,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Increment retry count and mark as failed if max retries exceeded.
-     * @returns Resolves when the events have been updated.
-     */
     async markRetry(ids: string[]): Promise<void> {
       if (ids.length === 0) {
         return;

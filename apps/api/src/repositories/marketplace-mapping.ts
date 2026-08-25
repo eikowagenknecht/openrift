@@ -7,15 +7,9 @@ import { imageUrlWithOriginal, joinFrontImage } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 
-/**
- * Queries for the marketplace mapping workflow (mapping external products
- * to internal printings).
- *
- * @returns An object with marketplace-mapping query methods bound to the given `db`.
- */
 export function marketplaceMappingRepo(db: Db) {
   return {
-    /** @returns Level-2 ignored products (whole upstream listings) for a marketplace. */
+    /** Level-2 ignores: whole upstream listings. */
     ignoredProducts(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceIgnoredProducts")
@@ -24,7 +18,7 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** @returns Level-3 ignored variants (specific SKUs of an upstream product) for a marketplace. */
+    /** Level-3 ignores: specific SKUs of an upstream product. */
     ignoredVariants(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceIgnoredVariants as iv")
@@ -55,10 +49,9 @@ export function marketplaceMappingRepo(db: Db) {
      * `(marketplaceProductId, recordedAt)`. Joining it wholesale and reducing
      * with DISTINCT ON made Postgres sort every historical row for every
      * matched product just to keep the newest of each group, so the cost grew
-     * with retained history (~830ms per marketplace in prod). The lateral
-     * picks the newest row per product straight off that primary key instead,
-     * so only one price row per product is ever read.
-     * @returns One row per distinct (printingId, externalId, finish, language), each carrying that SKU's newest price.
+     * with retained history. The lateral picks the newest row per product
+     * straight off that primary key instead, so only one price row per product
+     * is ever read.
      */
     pricesByMarketplace(marketplace: Marketplace, printingIds: string[]) {
       if (printingIds.length === 0) {
@@ -115,13 +108,10 @@ export function marketplaceMappingRepo(db: Db) {
 
     /**
      * Latest known price per *unbound* SKU for a marketplace — the admin's
-     * "unmatched products" feed. Reads from `marketplace_products` joined to
-     * the latest `marketplace_product_prices` row per product, excluding
-     * products that already have at least one variant binding (those products
-     * already belong to a card and aren't candidates for fresh suggestions).
-     * @returns One row per unbound SKU with the latest recorded prices. `language`
-     *          is `null` on the marketplaces that don't split SKUs by language,
-     *          which is the normal case for cardmarket and tcgplayer.
+     * "unmatched products" feed. Products with at least one variant binding
+     * are excluded: they already belong to a card and aren't candidates for
+     * fresh suggestions. `language` is `null` on the marketplaces that don't
+     * split SKUs by language (cardmarket, tcgplayer).
      */
     allStaging(marketplace: Marketplace) {
       return db
@@ -178,7 +168,6 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** @returns Group display names, kind, and assigned-set slug for a marketplace. */
     groupNames(marketplace: Marketplace) {
       return db
         .selectFrom("marketplaceGroups as mg")
@@ -193,7 +182,6 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All cards with their printings, sets, marketplace variant mappings, and images. */
     allCardsWithPrintings(marketplace: Marketplace) {
       return (
         joinFrontImage(
@@ -255,16 +243,12 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Like `allCardsWithPrintings` but returns variant rows for every marketplace
-     * in a single query. Lets the unified mapping endpoint fetch the heavy
-     * cards × printings × images joins once instead of three times. The caller
-     * must filter rows down to the per-marketplace shape (see deriveCardsForMarketplace).
+     * Like `allCardsWithPrintings` but returns variant rows for every
+     * marketplace in a single query; the caller must filter rows down to the
+     * per-marketplace shape (see deriveCardsForMarketplace).
      *
-     * Pass `cardIdentifier` (UUID or slug) to scope the query to one card —
-     * used by the card-detail admin page which only needs mappings for the
-     * card it's viewing. Accepting either form means callers don't have to
-     * serialize a slug → id lookup before this query.
-     * @returns One row per (printing × variant), plus one row per printing with no variant in any marketplace.
+     * `cardIdentifier` accepts UUID or slug so callers don't have to serialize
+     * a slug → id lookup before this query.
      */
     allCardsWithPrintingsUnified(cardIdentifier?: string) {
       let query = joinFrontImage(
@@ -332,13 +316,6 @@ export function marketplaceMappingRepo(db: Db) {
       );
     },
 
-    /**
-     * Lightweight card+printings list for the "assign to card" dropdown in the
-     * admin marketplace UI. Returns every card with its display metadata and
-     * the set of short codes across its printings — enough for the dropdown
-     * without pulling the full cards × printings × images × variants join.
-     * @returns One entry per card, with its short codes aggregated.
-     */
     async assignableCards() {
       const result = await sql<{
         cardId: string;
@@ -361,7 +338,6 @@ export function marketplaceMappingRepo(db: Db) {
       return result.rows;
     },
 
-    /** @returns Manual card overrides for a marketplace, with the override's SKU axes inlined. */
     async stagingCardOverrides(marketplace: Marketplace) {
       const rows = await db
         .selectFrom("marketplaceProductCardOverrides as ov")
@@ -377,9 +353,6 @@ export function marketplaceMappingRepo(db: Db) {
       return rows;
     },
 
-    // ── saveMappings queries ────────────────────────────────────────────────
-
-    /** @returns Printing finishes and languages by IDs. */
     printingFinishesAndLanguages(printingIds: string[]) {
       return db
         .selectFrom("printings")
@@ -389,12 +362,10 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Fetch already-upserted product rows by external ID. Used by `saveMappings`
-     * to rebind a variant to a different printing when staging has rotated out
-     * but the upstream product record is still present — reuses the existing
-     * `group_id` and `product_name` as a fallback so the upsert can proceed.
-     * @returns One row per SKU (external_id × finish × language) with its
-     *          display name and group ID.
+     * Used by `saveMappings` to rebind a variant to a different printing when
+     * staging has rotated out but the upstream product record is still present
+     * — reuses the existing `group_id` and `product_name` as a fallback so the
+     * upsert can proceed.
      */
     productsByExternalIds(marketplace: Marketplace, externalIds: number[]) {
       if (externalIds.length === 0) {
@@ -409,17 +380,12 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Batch-upsert marketplace products and their variants.
-     *
      * For each input row: upserts the per-SKU product (keyed on
      * `(marketplace, external_id, finish, language)` — NULLS NOT DISTINCT so
      * CM/TCG collapse on NULL language) then upserts the variant (keyed on
      * `(marketplace_product_id, printing_id)`). One product SKU can map to
      * multiple printings — e.g. Cardmarket's language-aggregate product row
      * legitimately covers every language of the same card.
-     *
-     * @returns One row per input, each with its `(printingId, externalId,
-     *          finish, language)` key and the resulting `variantId`.
      */
     async upsertProductVariants(
       values: {
@@ -548,18 +514,13 @@ export function marketplaceMappingRepo(db: Db) {
       });
     },
 
-    // ── unmapPrinting queries ───────────────────────────────────────────────
-
     /**
-     * @returns The variant mapping for a (printing, product SKU) pair in a
-     *          given marketplace, with the parent product's SKU axes and
-     *          metadata inlined. Filtered by the full SKU tuple
-     *          `(externalId, finish, language)` because CardTrader fans one
-     *          blueprint id out across multiple `(finish, language)` rows in
-     *          `marketplace_products`, and admins routinely bind several of
-     *          those rows to the same printing. Without finish/language the
-     *          lookup is ambiguous and `executeTakeFirst()` would silently
-     *          delete the wrong variant.
+     * Filtered by the full SKU tuple `(externalId, finish, language)` because
+     * CardTrader fans one blueprint id out across multiple `(finish,
+     * language)` rows in `marketplace_products`, and admins routinely bind
+     * several of those rows to the same printing. Without finish/language the
+     * lookup is ambiguous and `executeTakeFirst()` would silently delete the
+     * wrong variant.
      */
     getVariantForPrinting(
       marketplace: Marketplace,
@@ -592,7 +553,6 @@ export function marketplaceMappingRepo(db: Db) {
       return query.executeTakeFirst();
     },
 
-    /** @returns A printing's finish and language by ID. */
     getPrintingFinishAndLanguage(printingId: string) {
       return db
         .selectFrom("printings")
@@ -602,28 +562,19 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Delete a marketplace variant by ID. The parent product row + its price
-     * history are left in place — they represent a known upstream SKU and
-     * survive unmap, so a later rebind inherits full history without the
-     * product being recreated.
+     * The parent product row + its price history are left in place on purpose
+     * — they represent a known upstream SKU and survive unmap, so a later
+     * rebind inherits full history without the product being recreated.
      */
     async deleteVariantById(id: string): Promise<void> {
       await db.deleteFrom("marketplaceProductVariants").where("id", "=", id).execute();
     },
 
-    // ── per-card detail queries ─────────────────────────────────────────────
-
     /**
-     * Variants visible to each printing of a card. Each printing sees exactly
-     * the variants whose `printing_id` equals its own — language-aggregate
-     * fan-out is materialised as explicit variant rows (see migration 107),
-     * so the old source/target sibling self-join is gone.
-     *
-     * `ownerLanguage` equals the printing's own language now; callers that
-     * used to distinguish owner vs inherited by comparing it against the
-     * target printing's language treat every row as "owned."
-     *
-     * @returns One row per (printing, variant) for every printing of the card.
+     * Each printing sees exactly the variants whose `printing_id` equals its
+     * own — language-aggregate fan-out is materialised as explicit variant
+     * rows, so there is no sibling self-join. `ownerLanguage` equals the
+     * printing's own language; callers treat every row as "owned."
      */
     variantsForCard(cardId: string): Promise<
       {
@@ -656,13 +607,11 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Every card alias as (cardId, normName). Used by the scoped card-detail
-     * endpoint to do the longest-alias tiebreak in JS. Returned rows include
-     * both the auto-seeded card-name alias and any manually-added aliases
-     * (e.g. reprints, renamed cards) — 383 of ~1150 rows differ from the
-     * card's name at time of writing, so the cheaper "use cardName only"
+     * Every card alias as (cardId, normName), for the longest-alias tiebreak
+     * done in JS. Rows include both the auto-seeded card-name alias and any
+     * manually-added aliases (e.g. reprints, renamed cards) — a large share of
+     * aliases differ from the card's name, so the cheaper "use cardName only"
      * shortcut would misroute products.
-     * @returns One row per (cardId, normName) across every card.
      */
     allCardAliases() {
       return db
@@ -692,10 +641,8 @@ export function marketplaceMappingRepo(db: Db) {
      * staging snapshot. `isOverride` is true when a manual override points at
      * this card for the given tuple.
      *
-     * Uses the GIN trigram index on marketplace_products.norm_name
-     * (migration 112) to keep the LIKE filters index-backed.
-     *
-     * @returns One row per unique staged SKU that could be assigned to the card, across the requested marketplaces.
+     * Relies on the GIN trigram index on marketplace_products.norm_name to
+     * keep the LIKE filters index-backed.
      */
     async stagingForCardAcrossMarketplaces(cardIdentifier: string, marketplaces: Marketplace[]) {
       if (marketplaces.length === 0) {

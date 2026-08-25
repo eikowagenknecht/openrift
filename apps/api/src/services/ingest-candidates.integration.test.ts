@@ -5,7 +5,7 @@ import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.j
 import { createTestContext, syncCardCardTypes } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 
-// Helpers — a test spells only the fields it asserts on; these fill the rest
+// A test spells only the fields it asserts on; these helpers fill the rest
 // with the same defaults `ingestCardFieldsSchema` / `ingestPrintingSchema`
 // apply, including the external_id every candidate row needs (NOT NULL).
 type CardInput = Partial<Omit<IngestCard, "printings">> &
@@ -58,13 +58,7 @@ function printing(input: PrintingInput): IngestPrinting {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Integration tests: ingestCandidates service
-//
-// Uses the shared integration database (same as price-refresh tests).
 // Reuses user 0022 solely for the DB handle — this service has no user scope.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0022-4000-a000-000000000001";
 const ctx = createTestContext(USER_ID);
 
@@ -75,14 +69,12 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   const { db } = ctx!;
   const transact = createTransact(db);
 
-  // Seed data UUIDs populated by beforeAll
   let seedSetId: string;
   let seedCardId: string;
   let seedPrintingId: string;
   let aliasCardId: string;
 
   beforeAll(async () => {
-    // Clean up any leftover data from previous runs
     await db
       .deleteFrom("candidatePrintings")
       .where(
@@ -93,7 +85,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .execute();
     await db.deleteFrom("candidateCards").where("provider", "=", SOURCE).execute();
 
-    // Also clean up the "ingest-test-batch" source used in the batch test
     await db
       .deleteFrom("candidatePrintings")
       .where(
@@ -104,7 +95,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .execute();
     await db.deleteFrom("candidateCards").where("provider", "=", "ingest-test-batch").execute();
 
-    // Seed: set + card + printing for resolution tests
     const insertedSet = await db
       .insertInto("sets")
       .values({
@@ -143,8 +133,8 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .execute();
     await syncCardCardTypes(db);
 
-    // uq_printings_identity is now DEFERRABLE (migration 092) and so cannot be
-    // used as an ON CONFLICT arbiter; do a select-or-insert dance instead.
+    // uq_printings_identity is DEFERRABLE and so cannot be used as an
+    // ON CONFLICT arbiter; do a select-or-insert dance instead.
     const existingPrinting = await db
       .selectFrom("printings")
       .select("id")
@@ -205,15 +195,12 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .execute();
     await syncCardCardTypes(db);
 
-    // Create an alias so "ingestbetaalias" → aliasCardId
     await db
       .insertInto("cardNameAliases")
       .values({ normName: "ingestbetaalias", cardId: aliasCardId })
       .onConflict((oc) => oc.column("normName").doNothing())
       .execute();
   });
-
-  // ── Basic validation ────────────────────────────────────────────────────
 
   it("throws on empty source name", async () => {
     await expect(ingestCandidates(transact, "", [])).rejects.toThrow(
@@ -246,8 +233,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     });
   });
 
-  // ── Insert new card sources ─────────────────────────────────────────────
-
   it("inserts a new candidate_card with no printings", async () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
@@ -272,7 +257,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.unchanged).toBe(0);
     expect(result.errors).toHaveLength(0);
 
-    // Verify in DB
     const row = await db
       .selectFrom("candidateCards")
       .selectAll()
@@ -321,7 +305,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.newCards).toBe(1);
     expect(result.errors).toHaveLength(0);
 
-    // Verify candidate_printing was inserted
     const cs = await db
       .selectFrom("candidateCards")
       .selectAll()
@@ -340,10 +323,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(ps[0].imageUrl).toBe("https://example.com/img.png");
   });
 
-  // ── Update existing card source ─────────────────────────────────────────
-
   it("updates an existing candidate_card when fields change", async () => {
-    // First ingest
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
@@ -362,7 +342,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
     ]);
 
-    // Second ingest with changed fields
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
@@ -398,17 +377,16 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(changedFieldNames).toContain("power");
     expect(changedFieldNames).toContain("tags");
 
-    // Verify the might field diff
     const mightDiff = result.updatedCards[0].fields.find((f) => f.field === "might");
     expect(mightDiff?.from).toBe(2);
     expect(mightDiff?.to).toBe(5);
   });
 
   it("serializes non-scalar (extra_data) field diffs to a JSON string", async () => {
-    // Regression: extra_data is an arbitrary JSON object, but the response
-    // contract's diffValueSchema only accepts scalars / scalar[]. Emitting the
-    // raw object made the upload endpoint fail output validation with a 500.
-    // The diff value must be coerced to a serializable scalar.
+    // extra_data is an arbitrary JSON object, but the response contract's
+    // diffValueSchema only accepts scalars / scalar[]. Emitting the raw object
+    // makes the upload endpoint fail output validation with a 500, so the diff
+    // value must be coerced to a serializable scalar.
     const base = {
       name: "Extra Card",
       types: ["unit"],
@@ -439,7 +417,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("returns unchanged when candidate_card has not changed", async () => {
-    // First ingest
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
@@ -458,7 +435,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
     ]);
 
-    // Second ingest with identical data
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
@@ -481,8 +457,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.updates).toBe(0);
     expect(result.newCards).toBe(0);
   });
-
-  // ── Validation errors ───────────────────────────────────────────────────
 
   it("records validation error for card with negative might", async () => {
     const result = await ingestCandidates(transact, SOURCE, [
@@ -571,10 +545,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.errors[0]).toContain("short_code");
   });
 
-  // ── Printing updates ────────────────────────────────────────────────────
-
   it("updates candidate_printing when fields change", async () => {
-    // First ingest with a printing
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
@@ -606,7 +577,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
     ]);
 
-    // Get the initial candidate_printing
     const cs = await db
       .selectFrom("candidateCards")
       .select("id")
@@ -620,7 +590,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .executeTakeFirstOrThrow();
     expect(psBefore.artist).toBe("Original Artist");
 
-    // Second ingest with changed artist
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
@@ -662,7 +631,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("does not update candidate_printing when nothing changed", async () => {
-    // First ingest
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
@@ -706,7 +674,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
-    // Second ingest with identical data
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
@@ -746,8 +713,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     // updatedAt should NOT have changed (no write occurred)
     expect(psAfter.updatedAt.getTime()).toBe(psBefore.updatedAt.getTime());
   });
-
-  // ── Card resolution ─────────────────────────────────────────────────────
 
   it("resolves card by normName and assigns printingId to candidate_printing", async () => {
     // "Ingest Alpha" normalizes to "ingestalpha" which matches our seed card
@@ -799,7 +764,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
-    // The candidate_printing should have been linked to our seed printing
     expect(ps.printingId).toBe(seedPrintingId);
   });
 
@@ -827,10 +791,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  // ── Lookup by short_code vs name ─────────────────────────────────────────
-
   it("finds existing candidate_card by short_code rather than name", async () => {
-    // Insert with short_code
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name One",
@@ -872,7 +833,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.updates).toBe(1);
     expect(result.updatedCards[0].fields.some((f) => f.field === "name")).toBe(true);
 
-    // Verify only one candidate_card exists for this short_code
     const rows = await db
       .selectFrom("candidateCards")
       .selectAll()
@@ -884,7 +844,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
   });
 
   it("finds existing candidate_card by name when short_code is absent", async () => {
-    // Insert without short_code
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Only Card",
@@ -923,8 +882,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.unchanged).toBe(1);
     expect(result.newCards).toBe(0);
   });
-
-  // ── jsonOrNull / extra_data handling ─────────────────────────────────────
 
   it("stores extra_data as null when given an empty object", async () => {
     const result = await ingestCandidates(transact, SOURCE, [
@@ -988,12 +945,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(row.extraData).toEqual({ foo: "bar", count: 42 });
   });
 
-  // ── Batch with mixed results ────────────────────────────────────────────
-
   it("handles a batch with mixed new, updated, unchanged, and errored cards", async () => {
     const batchSource = "ingest-test-batch";
 
-    // Phase 1: insert two cards
     await ingestCandidates(transact, batchSource, [
       card({
         name: "Batch Unchanged",
@@ -1027,7 +981,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
     ]);
 
-    // Phase 2: mixed batch
     const result = await ingestCandidates(transact, batchSource, [
       // Unchanged
       card({
@@ -1102,10 +1055,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.errors[0]).toContain("Batch Bad Card");
   });
 
-  // ── normalize() branch coverage (via getChangedFields) ──────────────────
-
   it("treats empty string as equivalent to null for card fields", async () => {
-    // Insert with rules_text = null
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Normalize Test Card",
@@ -1143,12 +1093,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
     ]);
 
-    // rules_text "" is converted to null by emptyToNull, so the values match
     expect(result.unchanged).toBe(1);
     expect(result.updates).toBe(0);
   });
-
-  // ── Printing: printingId is null when card cannot be resolved ─────────
 
   it("inserts candidate_printing with printingId=null when card name is unresolvable", async () => {
     // Card name "Totally Unknown Card" doesn't match any card normName or alias
@@ -1196,11 +1143,8 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .where("candidateCardId", "=", cs.id)
       .executeTakeFirstOrThrow();
 
-    // Card can't be resolved → printingId stays null
     expect(ps.printingId).toBeNull();
   });
-
-  // ── external_id and optional fields ────────────────────────────────
 
   it("stores external_id on candidate_card and candidate_printing", async () => {
     const result = await ingestCandidates(transact, SOURCE, [
@@ -1253,8 +1197,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .executeTakeFirstOrThrow();
     expect(ps.externalId).toBe("entity-print-456");
   });
-
-  // ── Printing with flavor_text and set_name ──────────────────────────────
 
   it("stores optional printing fields: flavor_text, set_name, image_url", async () => {
     await ingestCandidates(transact, SOURCE, [

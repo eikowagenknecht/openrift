@@ -17,22 +17,17 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Server-rendered share images for lists, collections and user bundles
- * (ADR-024). satori lays an element tree out to SVG, then resvg rasterizes it to
- * PNG (both via `share-image-core`). The landscape output is wired as the
- * og:image for the public share routes and offered as a downloadable attachment,
- * so a pasted link unfurls with card art in WhatsApp and Discord.
- *
- * Layout opens with the same title row the deck and tier-list images use (name,
- * owner, and what the list is), then gives the rest of the canvas to the card
- * grid, whose columns/rows are computed so the cards are as large as the space
- * allows and the rows stay balanced (no stubby last row).
+ * Server-rendered share images for lists, collections and user bundles.
+ * satori lays an element tree out to SVG, then resvg rasterizes it to PNG
+ * (both via `share-image-core`). The landscape output is wired as the og:image
+ * for the public share routes and offered as a downloadable attachment, so a
+ * pasted link unfurls with card art in WhatsApp and Discord.
  *
  * On landscape the host + QR mark moves to wherever it is free
  * (`markPlacement`): into the overflow tile, into a trailing cell, or into a
  * footer band. Unlike the deck and tier-list images — which have fixed furniture
- * to hang a footer off — that canvas is nothing but grid, so a reserved band
- * came straight out of the card art.
+ * to hang a footer off — this canvas is nothing but grid, so a reserved band
+ * would come straight out of the card art.
  *
  * The 9:16 canvas is a second composition, as it is for the deck and tier-list
  * images: a download-only export for the places a list is read on a phone held
@@ -43,11 +38,6 @@ import {
  * twenty cards still drawn wider than landscape draws twelve. Landscape's
  * geometry is deliberately left alone: it is what every published og:image
  * already looks like.
- *
- * This used to carry a bordered caption bar that never drew the list's name,
- * which made a shared wishlist unfurl as an anonymous wall of art. The title row
- * replaced it: the name is the one thing a recipient needs, and the shared
- * heading means the share images now read as one product.
  */
 
 const { width: WIDTH, height: HEIGHT } = CANVAS.landscape;
@@ -108,11 +98,8 @@ export interface ShareImageCard {
   imageId: string | null;
 }
 
-/** Everything the renderer needs to draw a list or bundle share image. */
 export interface ShareImageInput {
-  /** Public display name of the owner, shown next to the title. */
   ownerName: string;
-  /** List name, drawn as the title. */
   title: string;
   /** What the list is, e.g. "Trade list" or "Wishlist". */
   intentLabel: string;
@@ -147,23 +134,12 @@ interface GridSpec {
   cellH: number;
 }
 
-/**
- * Picks columns/rows and a card-shaped cell size so `count` tiles fill the grid
- * area as large as possible with balanced rows (1 row for a handful, otherwise
- * 2). Cells keep the portrait card aspect; the image is contained within.
- * @returns The column count and cell dimensions.
- */
 function computeGrid(count: number, areaW: number, areaH: number): GridSpec {
   const rows = count <= 6 ? 1 : 2;
   const cols = Math.ceil(count / rows);
   return gridAtColumns(count, cols, areaW, areaH, GRID_GAP);
 }
 
-/**
- * Sizes a grid of `count` tiles laid out `cols` across, bounded by both
- * dimensions of the area.
- * @returns The column count and cell dimensions.
- */
 function gridAtColumns(
   count: number,
   cols: number,
@@ -185,7 +161,6 @@ function gridAtColumns(
  * canvas barely taller than one card — but the 9:16 area is deep enough that the
  * right shape genuinely varies: five cards want two columns of three, twenty
  * want four of five, and a fixed row rule would leave either case half empty.
- * @returns The best column count and its cell dimensions.
  */
 export function bestGridForArea(
   count: number,
@@ -231,7 +206,6 @@ export type MarkPlacement =
  * single host label, and a card-sized cell holding one small line of type reads
  * as a card that failed to load. So it always takes the footer, which at label
  * height costs the grid a fraction of what the full band does.
- * @returns The chosen placement.
  */
 export function markPlacement(
   cardCount: number,
@@ -266,7 +240,6 @@ export function markPlacement(
  *
  * Every part is optional: an unshared list has no code, a list that fits has no
  * "+N more", and the tile is only built when at least one of them is present.
- * @returns The tile element.
  */
 function markCell(
   moreCount: number,
@@ -329,17 +302,14 @@ function markCell(
   );
 }
 
-/** @returns The "12 printings" line beside the list's intent. */
 function countLabel(input: ShareImageInput): string {
   return `${input.totalCount} ${input.totalCount === 1 ? input.unit.one : input.unit.many}`;
 }
 
 /**
- * The landscape title row: the list's name with the owner's byline on one
- * baseline, and what the list is plus its size as a muted cluster on the right.
- * Identical in construction and type roles to the deck and tier-list heading
- * rows — gold marks who made it, muted carries the incidental metadata.
- * @returns The title row element.
+ * The landscape title row. Identical in construction and type roles to the
+ * deck and tier-list heading rows — gold marks who made it, muted carries the
+ * incidental metadata.
  */
 function titleRow(input: ShareImageInput): Element {
   // One bottom-aligned row holds all three runs, rather than a baseline-aligned
@@ -408,13 +378,10 @@ function titleRow(input: ShareImageInput): Element {
 }
 
 /**
- * The vertical title block: the name on its own line, then the byline and the
- * intent/count sharing a second one, with the QR at the right of both. Stacked
- * rather than strung along a single row because the canvas is narrower than
- * landscape while the type is larger, so all three on one line would leave the
- * title a dozen characters. Same construction as the tier-list and deck
- * vertical exports.
- * @returns The title block element.
+ * The vertical title block. Stacked rather than strung along a single row
+ * because the canvas is narrower than landscape while the type is larger, so
+ * all three runs on one line would leave the title a dozen characters. Same
+ * construction as the tier-list and deck vertical exports.
  */
 function verticalTitleBlock(input: ShareImageInput, qrUri: string | null, blockH: number): Element {
   const type = element(
@@ -493,7 +460,6 @@ function verticalTitleBlock(input: ShareImageInput, qrUri: string | null, blockH
   );
 }
 
-/** The cards a canvas will actually draw, and the count the overflow tile reports. */
 interface ShownCards {
   shown: ShareImageCard[];
   overflow: boolean;
@@ -506,8 +472,7 @@ interface ShownCards {
  *
  * Overflow is measured against the true total (not the possibly pre-capped
  * cards array), so "+N more" stays accurate when the route caps how many
- * entries it resolves art for (per-render work bound; see the image route).
- * @returns The tiles to draw plus the "+N more" count.
+ * entries it resolves art for (per-render work bound).
  */
 function selectCards(input: ShareImageInput, maxTiles: number): ShownCards {
   const ordered = [...input.cards].sort(
@@ -519,11 +484,9 @@ function selectCards(input: ShareImageInput, maxTiles: number): ShownCards {
 }
 
 /**
- * Renders a list, collection or bundle share image to a PNG buffer (ADR-024).
- * `scale` renders the same base layout at N× resolution for the HQ download, as
- * the deck and tier-list renderers do; `options.aspect` picks the canvas and
- * `options.qr` whether the mark carries a scannable code.
- * @returns PNG bytes ready to return as `image/png`.
+ * Renders a list, collection or bundle share image to a PNG buffer. `scale`
+ * renders the same base layout at N× resolution for the HQ download, as the
+ * deck and tier-list renderers do.
  */
 export function renderShareImage(
   io: Io,
@@ -537,11 +500,6 @@ export function renderShareImage(
     : renderLandscapeShareImage(io, input, scale, withQr);
 }
 
-/**
- * The 1200×630 composition: title row, then a grid that takes the rest of the
- * canvas, with the mark tucked wherever it costs the cards least.
- * @returns PNG bytes ready to return as `image/png`.
- */
 async function renderLandscapeShareImage(
   io: Io,
   input: ShareImageInput,
@@ -600,7 +558,7 @@ async function renderLandscapeShareImage(
   );
 
   // Host label left, mark right — the same bottom-right footer the deck and
-  // tier-list images carry. Only drawn when the grid left room for it.
+  // tier-list images carry.
   const footer: Child =
     placement === "footer" &&
     element(
@@ -649,11 +607,9 @@ async function renderLandscapeShareImage(
 }
 
 /**
- * The 9:16 composition: a two-line title block carrying the QR, the grid across
- * the whole middle, and the host label as a footer. The mark has its own
- * furniture here, so `markPlacement` does not apply — the overflow tile, when
- * there is one, is just "+N more".
- * @returns PNG bytes ready to return as `image/png`.
+ * The 9:16 composition. The mark has its own furniture here, so
+ * `markPlacement` does not apply — the overflow tile, when there is one, is
+ * just "+N more".
  */
 async function renderVerticalShareImage(
   io: Io,

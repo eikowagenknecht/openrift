@@ -7,8 +7,8 @@ import type { MetaDeckInput, MetaDeckPatch } from "../repositories/meta.js";
  * its cards, and the `meta_decks` satellite row, in the repo's transaction.
  *
  * Both paths that create archived decks go through here — the admin's manual
- * "paste a deck code" form and the candidate accept (ADR-014) — so the owner,
- * the public flag, and the share token are stamped in exactly one place.
+ * "paste a deck code" form and the candidate accept — so the owner, the public
+ * flag, and the share token are stamped in exactly one place.
  *
  * An archetype-only deck (`listStatus: "archetype"`) gets no token at all: it
  * has no public page, so there is nothing for a permalink to address. A partial
@@ -22,10 +22,8 @@ import type { MetaDeckInput, MetaDeckPatch } from "../repositories/meta.js";
  * from either of those is a real fault that must surface as itself instead of
  * being re-attempted twice and reported as a token collision.
  *
- * @param meta The meta-archive repo.
- * @param input The deck, its cards, and its placement.
- * @returns The new deck's id and share token (null when archetype-only), or
- *   `undefined` when the event doesn't exist.
+ * Returns the new deck's id and share token (null when archetype-only), or
+ * `undefined` when the event doesn't exist.
  */
 export async function createArchivedDeck(
   meta: Repos["meta"],
@@ -59,10 +57,7 @@ export async function createArchivedDeck(
  * do not rot. What makes the page disappear is the read path, which refuses an
  * archetype whatever its token says.
  *
- * @param meta The meta-archive repo.
- * @param deckId The archived deck to update.
- * @param patch The fields to write.
- * @returns Whether the archived deck existed.
+ * Returns whether the archived deck existed.
  */
 export async function updateArchivedDeck(
   meta: Repos["meta"],

@@ -5,17 +5,11 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/** Text sources a card's token references are derived from. */
 interface TokenTextSources {
   errata: { correctedRulesText: string | null; correctedEffectText: string | null } | undefined;
   printings: { printedRulesText: string | null; printedEffectText: string | null }[];
 }
 
-/**
- * Flatten a card's errata and EN printing text into the list the parser takes.
- *
- * @returns Every text field that could carry a token reference.
- */
 function textsOf({ errata, printings }: TokenTextSources): (string | null)[] {
   return [
     errata?.correctedRulesText ?? null,
@@ -62,12 +56,9 @@ async function writeDerived(
  * own printings.
  *
  * Callers must refresh `mv_card_aggregates` afterwards, since that view is what
- * the catalog reads (migration 228).
- *
- * @returns An object with card-token methods bound to the given `db`.
+ * the catalog reads.
  */
 export function cardTokensRepo(db: Kysely<Database>) {
-  /** @returns Every token-supertype card, as parser input. */
   async function tokenCards(): Promise<TokenCardName[]> {
     const rows = await db
       .selectFrom("cards")
@@ -79,13 +70,12 @@ export function cardTokensRepo(db: Kysely<Database>) {
     return rows;
   }
 
-  /** @returns Every card-type slug, used to validate the word before "token". */
+  /** Every card-type slug, used to validate the word before "token". */
   async function cardTypeSlugs(): Promise<string[]> {
     const rows = await db.selectFrom("cardTypes").select("slug").execute();
     return rows.map((row) => row.slug);
   }
 
-  /** Recompute the token relation for a single card. */
   async function recomputeForCard(cardId: string): Promise<void> {
     const [tokens, typeSlugs] = await Promise.all([tokenCards(), cardTypeSlugs()]);
 
@@ -120,10 +110,6 @@ export function cardTokensRepo(db: Kysely<Database>) {
   return {
     recomputeForCard,
 
-    /**
-     * Recompute the token relation for the card that owns the given printing,
-     * by scanning all its EN sibling printings plus any card-level errata.
-     */
     async recomputeForPrintingCard(printingId: string): Promise<void> {
       const row = await db
         .selectFrom("printings")
@@ -143,8 +129,6 @@ export function cardTokensRepo(db: Kysely<Database>) {
     /**
      * Recompute the token relation for every card. Runs as one transaction so
      * readers never see a half-rebuilt table.
-     *
-     * @returns Count of cards scanned and cards that reference at least one token.
      */
     async recomputeAll(): Promise<{ totalCards: number; withTokens: number }> {
       const [tokens, typeSlugs] = await Promise.all([tokenCards(), cardTypeSlugs()]);

@@ -47,11 +47,7 @@ import {
   submitPodResult,
 } from "../../services/pod-pairing.js";
 
-/**
- * The active teammate of a teamed participant, or undefined (no team, or the
- * partner is not active). Handler-local: only the drop path needs it.
- * @returns The teammate's participant row, or undefined.
- */
+/** Handler-local: only the drop path needs it. */
 async function findActiveTeammate(
   repos: Repos,
   tournamentId: string,
@@ -70,7 +66,7 @@ async function findActiveTeammate(
 const os = implement(tournamentsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The authenticated tournaments umbrella (ADR-033), mounted at
+ * The authenticated tournaments umbrella, mounted at
  * `/api/v1/tournaments`. The handlers here own request shape and ordering only;
  * the three concerns they compose live in `lib/`, where each is reachable from
  * a test without mounting a route:
@@ -348,7 +344,6 @@ export const tournamentsRouter = {
     },
   ),
 
-  // ── Staff ──────────────────────────────────────────────────────────────────
   listStaff: os.listStaff.handler(async ({ input, context }) => {
     const repos = context.repos;
     const userId = context.userId;
@@ -420,7 +415,6 @@ export const tournamentsRouter = {
     return buildStaffList(repos, tournament);
   }),
 
-  // ── Participants ─────────────────────────────────────────────────────────
   listParticipants: os.listParticipants.handler(
     async ({ input, context }): Promise<TournamentParticipantListResponse> => {
       const repos = context.repos;
@@ -628,7 +622,6 @@ export const tournamentsRouter = {
     },
   ),
 
-  // ── Teams (2v2 play mode) ───────────────────────────────────────────────
   createTeam: os.createTeam.handler(
     async ({ input, context, errors }): Promise<TournamentParticipantListResponse> => {
       const repos = context.repos;
@@ -683,7 +676,6 @@ export const tournamentsRouter = {
     },
   ),
 
-  // ── Running (pairingStyle='pod') ────────────────────────────────────────────
   // The pod pairings + standings surface, keyed by the same tournament id.
   // `runState` is readable by anyone with a relationship to the tournament (so
   // participants and judges can follow pairings/standings); the 404 mirrors the

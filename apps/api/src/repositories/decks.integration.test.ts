@@ -10,7 +10,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   const { db, userId } = ctx!;
   const repo = decksRepo(db);
 
-  // Track IDs for cleanup
   const createdDeckIds: string[] = [];
 
   afterAll(async () => {
@@ -20,12 +19,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     }
   });
 
-  // Use the first seed card for deck card tests
   const seedCardId = CARD_FURY_UNIT.id; // Annie, Fiery
-
-  // ---------------------------------------------------------------------------
-  // create
-  // ---------------------------------------------------------------------------
 
   it("creates a deck and returns it with all fields", async () => {
     const deck = await repo.create({
@@ -62,19 +56,13 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(deck.format).toBe("freeform");
   });
 
-  // ---------------------------------------------------------------------------
-  // listForUser
-  // ---------------------------------------------------------------------------
-
   it("lists all decks for the user ordered by name", async () => {
     const decks = await repo.listForUser(userId);
 
     expect(decks.length).toBeGreaterThanOrEqual(2);
-    // Verify ordering by name
     for (let i = 1; i < decks.length; i++) {
       expect(decks[i].name >= decks[i - 1].name).toBe(true);
     }
-    // All belong to our user
     for (const d of decks) {
       expect(d.userId).toBe(userId);
     }
@@ -85,10 +73,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     expect(decks).toEqual([]);
   });
-
-  // ---------------------------------------------------------------------------
-  // getByIdForUser
-  // ---------------------------------------------------------------------------
 
   it("returns a deck by id for the correct user", async () => {
     const deckId = createdDeckIds[0];
@@ -112,10 +96,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(deck).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // getIdAndFormat
-  // ---------------------------------------------------------------------------
-
   it("returns id and format for an existing deck", async () => {
     const deckId = createdDeckIds[0];
     const result = await repo.getIdAndFormat(deckId, userId);
@@ -129,10 +109,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // exists
-  // ---------------------------------------------------------------------------
-
   it("returns the id when the deck exists", async () => {
     const deckId = createdDeckIds[0];
     const result = await repo.exists(deckId, userId);
@@ -145,10 +121,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     expect(result).toBeUndefined();
   });
-
-  // ---------------------------------------------------------------------------
-  // getShareState / setShareToken
-  // ---------------------------------------------------------------------------
 
   it("getShareState reports an unshared deck as { shareToken: null, isPublic: false }", async () => {
     const deckId = createdDeckIds[0];
@@ -181,10 +153,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(state).toBeUndefined();
   });
 
-  // ---------------------------------------------------------------------------
-  // update
-  // ---------------------------------------------------------------------------
-
   it("updates a deck and returns the updated row", async () => {
     const deckId = createdDeckIds[0];
     const updated = await repo.update(deckId, userId, { name: "Renamed Deck" });
@@ -195,8 +163,8 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   it("returns the odds config parsed after an update", async () => {
-    // Regression: jsonb reads back as a string under Bun's postgres.js, and
-    // update() only parsed formatConfig — the string oddsConfig then failed
+    // jsonb reads back as a string under Bun's postgres.js, and update() only
+    // parsed formatConfig — the string oddsConfig then failed
     // deckResponseSchema output validation on every odds-config save.
     const deckId = createdDeckIds[0];
     const oddsConfig = {
@@ -226,10 +194,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     expect(result).toBeUndefined();
   });
-
-  // ---------------------------------------------------------------------------
-  // replaceCards + cardsWithDetails
-  // ---------------------------------------------------------------------------
 
   it("replaces deck cards and retrieves them with details", async () => {
     const deckId = createdDeckIds[0];
@@ -263,12 +227,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(cards).toEqual([]);
   });
 
-  // ---------------------------------------------------------------------------
-  // deleteByIdForUser
-  // ---------------------------------------------------------------------------
-
   it("deletes a deck and returns numDeletedRows = 1", async () => {
-    // Create a throwaway deck to delete
     const deck = await repo.create({
       userId,
       name: "To Delete",
@@ -282,7 +241,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
 
     expect(result.numDeletedRows).toBe(1n);
 
-    // Verify it's gone
     const gone = await repo.getByIdForUser(deck.id, userId);
     expect(gone).toBeUndefined();
   });

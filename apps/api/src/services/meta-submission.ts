@@ -1,7 +1,5 @@
 /**
- * Ingest one signed-in user's decklist submission to the meta archive
- * (ADR-014's User submissions section, which is ADR-036's design applied to a
- * second entity).
+ * Ingest one signed-in user's decklist submission to the meta archive.
  *
  * A submission is not an upload: `ingestMetaCandidates` replaces every deck of
  * each event it names, and all submissions share one provider, so a batch
@@ -37,7 +35,7 @@ import { formatSubmissionDateStamp } from "./ingest-user-submission.js";
 /**
  * How many submissions one person may have awaiting review at once.
  *
- * A pending cap rather than ADR-036's rolling daily one: a meta submission
+ * A pending cap rather than a rolling daily one: a meta submission
  * costs an admin a review of a whole decklist, so the thing worth bounding is
  * the queue a single person can build up, and it clears itself as the archive
  * catches up. Ten is comfortably more than a real contributor sends between
@@ -45,7 +43,6 @@ import { formatSubmissionDateStamp } from "./ingest-user-submission.js";
  */
 export const META_PENDING_SUBMISSION_LIMIT = 10;
 
-/** The event a submission proposes, when the archive does not have it yet. */
 interface MetaSubmissionProposedEvent {
   name: string;
   /** ISO `YYYY-MM-DD`. */
@@ -57,7 +54,6 @@ interface MetaSubmissionProposedEvent {
   sourceUrl: string | null;
 }
 
-/** One card line as the submitter wrote it, before name resolution. */
 interface MetaSubmissionCard {
   name: string;
   /** A `WellKnown.deckZone` value. */
@@ -65,7 +61,6 @@ interface MetaSubmissionCard {
   quantity: number;
 }
 
-/** A validated submission, as the route hands it over. */
 export interface MetaSubmissionArgs {
   userId: string;
   /** The live event this targets. Null exactly when {@link proposedEvent} is set. */
@@ -110,9 +105,6 @@ const DECK_ZONES = new Set<string>(Object.values(WellKnown.deckZone));
  * The contract validates shapes; this validates the things a schema cannot
  * know, and is the backstop that keeps a bad row from failing at the insert
  * with a Postgres message no contributor can act on.
- *
- * @param args The submission.
- * @returns Human-readable problems, empty when it is valid.
  */
 export function validateMetaSubmission(args: MetaSubmissionArgs): string[] {
   const problems: string[] = [];
@@ -181,12 +173,8 @@ export function validateMetaSubmission(args: MetaSubmissionArgs): string[] {
 
 /**
  * The per-submission key both the candidate row and the ledger row are stored
- * under. Built from the submitter and the minute, with a random tail, so two
- * submissions of the same list by the same person never collide.
- *
- * @param userId The submitter.
- * @param now The submission instant.
- * @returns The external id.
+ * under. The random tail keeps two submissions of the same list by the same
+ * person from colliding.
  */
 export function buildMetaSubmissionExternalId(userId: string, now: Date): string {
   return `${formatSubmissionDateStamp(now)}--${userId}--${crypto.randomUUID().slice(0, 8)}`;
@@ -198,10 +186,6 @@ export function buildMetaSubmissionExternalId(userId: string, now: Date): string
  * The whole thing runs in one transaction: the candidate deck and the ledger
  * row are the same fact, and a submission the contributor can see but no admin
  * can review (or the reverse) is worse than no submission.
- *
- * @param transact Opens the transaction the submission runs in.
- * @param args The validated submission.
- * @returns An {@link MetaSubmissionResult} describing what happened.
  */
 export function submitMetaDeck(
   transact: Transact,

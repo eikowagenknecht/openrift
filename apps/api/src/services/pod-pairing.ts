@@ -26,10 +26,6 @@ import { scoringOf } from "../repositories/pod-tournaments.js";
 import type { PodRound } from "../repositories/pod-tournaments.js";
 import type { Tournament } from "../repositories/tournaments.js";
 
-/**
- * The 409 raised when a second pairing collides with an already-open round.
- * @returns The conflict AppError.
- */
 function roundAlreadyOpen(): AppError {
   return new AppError(
     409,
@@ -41,15 +37,14 @@ function roundAlreadyOpen(): AppError {
 /** An empty round (every active player took a bye): zero pods, zero penalty. */
 const EMPTY_PAIRING: PairingResult = { pods: [], totalPenalty: 0, perPod: [], strategy: "random" };
 
-// The engine mode for a tournament's pairing style ('none' never reaches pairing).
+// 'none' never reaches pairing.
 function pairingModeOf(tournament: Tournament): PairingMode {
   return tournament.pairingStyle === "swiss" ? "swiss" : "pod";
 }
 
 /**
- * Run the engine over the active snapshot minus the byed players, translating the
- * bad-count error to a 400. An all-bye round (no seated players) yields an empty
- * pairing rather than erroring, so the runner can always produce a valid round.
+ * An all-bye round (no seated players) yields an empty pairing rather than
+ * erroring, so the runner can always produce a valid round.
  *
  * A Swiss round with an odd seated count auto-byes one player (fewest byes, then
  * lowest score) on top of any organizer byes; the returned `byePlayerIds` are the
@@ -60,12 +55,6 @@ function pairingModeOf(tournament: Tournament): PairingMode {
  * the round can be paired (byed players are exempt) — otherwise the region
  * penalty silently treats the gaps as "no conflict" and the pairing looks fine
  * while ignoring the feature the organizer turned on.
- *
- * @param repos The request repos.
- * @param tournament The owning tournament row.
- * @param roundNumber The 1-based round number.
- * @param byePlayerIds Active players the organizer is sitting out this round.
- * @returns The scored pairing plus the effective byes to persist.
  */
 async function runPairing(
   repos: Repos,
@@ -125,22 +114,12 @@ async function runPairing(
 }
 
 /**
- * The 2v2 half of `runPairing`: validate the field decomposes into whole
- * teams, collapse it to team units, run the Swiss engine over the teams, and
- * expand the result back to size-4 player pods.
- *
  * Every seated player must be on a complete team — unteamed players and
  * half-teams (a partner dropped without the team following) block with a
  * clear 400, mirroring the missing-region block, so nobody silently misses a
  * round. Byes must cover whole teams; a byed unteamed player is legal (the
  * organizer's way to park an odd walk-in without dropping them). An odd team
  * count auto-byes one whole team (fewest byes, then lowest score).
- *
- * @param snapshot The full active snapshot (for team lookups of byed players).
- * @param seated The snapshot minus organizer byes.
- * @param roundNumber The 1-based round number.
- * @param byePlayerIds The organizer byes.
- * @returns The expanded pairing plus the effective byes to persist.
  */
 function runTeamPairing(
   snapshot: TeamSnapshotPlayer[],
@@ -199,16 +178,6 @@ function runTeamPairing(
   }
 }
 
-/**
- * Pair the next round: reject if a round is already open, run the engine over the
- * derived snapshot (minus any organizer byes), persist the round, and flip the
- * tournament to `running` on the first pairing.
- *
- * @param repos The request repos.
- * @param tournament The owning tournament row.
- * @param byePlayerIds Active players sitting this round out (default none).
- * @returns The created round.
- */
 export async function pairNextRound(
   repos: Repos,
   tournament: Tournament,
@@ -247,16 +216,6 @@ export async function pairNextRound(
   return round;
 }
 
-/**
- * Re-roll the open round: delete it and regenerate with the SAME round number,
- * preserving the byes the organizer set. Allowed only before any pod result has
- * been entered.
- *
- * @param repos The request repos.
- * @param tournament The owning tournament row.
- * @param roundNumber The open round's number.
- * @returns The freshly generated round.
- */
 export async function rerollRound(
   repos: Repos,
   tournament: Tournament,
@@ -285,20 +244,6 @@ export async function rerollRound(
   );
 }
 
-/**
- * Apply a manual whole-round pairing edit on the open round: validate that every
- * pod has a size valid for the pairing style (3/4 for pods, exactly 2 for Swiss
- * matches) and covers exactly the round's current participants (no one added or
- * dropped), then recompute the penalty and persist. Only allowed while the round
- * is open and no result has been entered.
- *
- * @param repos The request repos.
- * @param tournament The owning tournament row.
- * @param roundNumber The open round's number.
- * @param pods The new pods (size + member ids).
- * @param byePlayerIds Players moved to the bye zone.
- * @returns Nothing.
- */
 export async function replaceRoundPairing(
   repos: Repos,
   tournament: Tournament,
@@ -319,7 +264,6 @@ export async function replaceRoundPairing(
     );
   }
 
-  // Every pod must match its member count and have a size the style allows.
   const swiss = pairingModeOf(tournament) === "swiss";
   const team = tournament.playMode === "2v2";
   for (const pod of pods) {
@@ -430,16 +374,7 @@ function toPairingPlayer(snapshot: PodSnapshotPlayer): TeamSnapshotPlayer {
   };
 }
 
-/**
- * Finalize a round: require every pod reported, then commit (the round flips to
- * `finalized` and the tournament's finalized-round counter advances). In the
- * lean model this is just a status flip — standings re-derive from the rows.
- *
- * @param repos The request repos.
- * @param tournament The owning tournament row.
- * @param roundNumber The round to finalize.
- * @returns Nothing.
- */
+/** Finalizing is just a status flip — standings re-derive from the rows. */
 export async function finalizeRound(
   repos: Repos,
   tournament: Tournament,
@@ -461,19 +396,9 @@ export async function finalizeRound(
 }
 
 /**
- * Submit (or, for the owner, edit) one pod's result: each member's raw game
- * points. Validates the pod belongs to the tournament, the round is writable, and
- * the result covers exactly the pod's members. The server derives each player's
- * placement from the points (higher finishes first; equal points share a place)
- * before storing both.
- *
- * @param repos The request repos.
- * @param tournamentId The tournament the caller is authorized for.
- * @param podId The pod being scored.
- * @param results One `{ playerId, gamePoints }` per pod member.
- * @param options `allowFinalized` lets the owner edit a finalized round; the
- *   participant link cannot.
- * @returns Nothing.
+ * The server derives each player's placement from the points (higher finishes
+ * first; equal points share a place) before storing both. `allowFinalized`
+ * lets the owner edit a finalized round; the participant link cannot.
  */
 export async function submitPodResult(
   repos: Repos,
@@ -554,17 +479,8 @@ export async function submitPodResult(
 }
 
 /**
- * Submit one player's own game points (participant self-reporting). Validates the
- * pod belongs to the tournament, the round is still reporting, and the player sits
- * in the pod. The repo write completes the pod (derives placements, flips it to
+ * The repo write completes the pod (derives placements, flips it to
  * `reported`) once every member has points; until then the pod stays `pending`.
- *
- * @param repos The request repos.
- * @param tournamentId The tournament the caller is authorized for.
- * @param podId The pod being scored.
- * @param playerId The pod member whose points are being entered.
- * @param gamePoints The player's raw game points.
- * @returns Nothing.
  */
 export async function submitPodPlayerResult(
   repos: Repos,

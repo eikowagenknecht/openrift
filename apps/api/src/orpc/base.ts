@@ -20,7 +20,6 @@ import type { ApiContext } from "./context.js";
  * for AppErrors thrown outside any procedure. The status carried by the AppError
  * must equal oRPC's expected status for its code, or the upgrade is skipped (see
  * the base contract builders for the codes that need an explicit status).
- * @returns The continuation's result.
  */
 async function convertingAppErrors<TResult>(run: () => TResult): Promise<Awaited<TResult>> {
   try {

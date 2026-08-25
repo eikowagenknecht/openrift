@@ -14,8 +14,6 @@ import type {
 } from "../routes/admin/marketplace-configs.js";
 import { buildStagedRowMapping } from "./marketplace-mapping-shared.js";
 
-// ── Types ───────────────────────────────────────────────────────────────────
-
 interface PrintingRow {
   printingId: string;
   /** Slug of the printing's own set. Used by the suggester to scope by group.setId. */
@@ -56,8 +54,6 @@ interface CardIndex {
   cardGroups: Map<string, CardGroup>;
   cardNames: { normName: string; baseName: string | null; groupKey: string }[];
 }
-
-// ── buildCardIndex ──────────────────────────────────────────────────────────
 
 export function buildCardIndex(
   matchedCards: {
@@ -155,8 +151,6 @@ export function buildCardIndex(
   return { cardGroups, cardNames };
 }
 
-// ── matchStagedProducts ─────────────────────────────────────────────────────
-
 function matchStagedProducts(
   uniqueStaged: StagingRow[],
   cardGroups: Map<string, CardGroup>,
@@ -169,7 +163,6 @@ function matchStagedProducts(
   for (const row of uniqueStaged) {
     const stagingKey = `${row.externalId}::${row.finish}::${row.language}`;
 
-    // Check manual override first
     const override = overrideMap.get(stagingKey);
     if (override) {
       const groupKey = override.cardId;
@@ -227,8 +220,6 @@ function matchStagedProducts(
 
   return { stagedByCard, matchedStagingKeys };
 }
-
-// ── buildResponseGroups ─────────────────────────────────────────────────────
 
 export function buildResponseGroups(
   cardGroups: Map<string, CardGroup>,
@@ -342,8 +333,6 @@ export function buildResponseGroups(
   });
 }
 
-// ── getMappingOverview ───────────────────────────────────────────────────────
-
 type MatchedCardsRow = Awaited<
   ReturnType<Repos["marketplaceMapping"]["allCardsWithPrintings"]>
 >[number];
@@ -422,7 +411,6 @@ export async function getMappingOverview(
     });
   }
 
-  // 5d. Match staged products to card groups
   const { stagedByCard, matchedStagingKeys } = matchStagedProducts(
     uniqueStaged,
     cardGroups,
@@ -430,7 +418,6 @@ export async function getMappingOverview(
     overrideMap,
   );
 
-  // 6. Collect printings that already have a bound external ID
   const mappedPrintingIds = new Set<string>();
   for (const group of cardGroups.values()) {
     for (const p of group.printings) {
@@ -440,7 +427,6 @@ export async function getMappingOverview(
     }
   }
 
-  // 7. Fetch their latest prices and build the staged-row → response mapper
   const { mappedProductInfo, mapStagedRow } = await buildStagedRowMapping(
     config,
     mappedPrintingIds,
@@ -449,12 +435,11 @@ export async function getMappingOverview(
     groupSetSlugMap,
   );
 
-  // Unmatched products (excluding ignored)
   const unmatchedProducts = uniqueStaged
     .filter((row) => !matchedStagingKeys.has(`${row.externalId}::${row.finish}::${row.language}`))
     .map((row) => mapStagedRow(row));
 
-  // Ignored products / variants — look up group from staging data. L2 ignores
+  // Ignored products / variants: look up group from staging data. L2 ignores
   // carry no finish/language; for display purposes we pick the first staging
   // row with a matching external_id so the admin UI can show some provenance.
   const groupByExternal = new Map<string, number>();
@@ -515,7 +500,6 @@ export async function getMappingOverview(
     }),
   ];
 
-  // 8. Build response groups
   const groups = buildResponseGroups(
     cardGroups,
     stagedByCard,
@@ -542,12 +526,10 @@ export async function getMappingOverview(
   return { groups, unmatchedProducts, ignoredProducts, allCards };
 }
 
-// ── saveMappings ────────────────────────────────────────────────────────────
-
 /**
  * Caller-supplied SKU tuple. The UI passes the (externalId, finish, language)
- * from the product row the admin clicked on — we no longer guess it from the
- * printing. Metal printings mapped to foil marketplace SKUs, CM's
+ * from the product row the admin clicked on; the SKU is never derived from
+ * the printing. Metal printings mapped to foil marketplace SKUs, CM's
  * language-aggregate SKU assigned to a SC printing: both are legal with this
  * signature. The service just verifies the SKU exists (in staging or as an
  * already-upserted product) before binding it.
@@ -577,10 +559,9 @@ export async function saveMappings(
   const saved = await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    // 1. Batch-fetch SKU metadata (group_id + product_name) for the external
-    //    IDs in this batch. With the unified prices table, every fetched SKU
-    //    has a `marketplace_products` row regardless of binding state, so this
-    //    one query covers both fresh and historical mappings.
+    // Every fetched SKU has a `marketplace_products` row regardless of
+    // binding state, so this one query covers both fresh and historical
+    // mappings.
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const existingProducts = await repo.productsByExternalIds(config.marketplace, externalIds);
 
@@ -588,7 +569,6 @@ export async function saveMappings(
       existingProducts.map((p) => [skuKey(p.externalId, p.finish, p.language), p]),
     );
 
-    // Collect available SKU combos per external ID for error messages.
     const skusByExtId = new Map<number, Set<string>>();
     for (const row of existingProducts) {
       const set = skusByExtId.get(row.externalId) ?? new Set();
@@ -596,7 +576,6 @@ export async function saveMappings(
       skusByExtId.set(row.externalId, set);
     }
 
-    // 2. Resolve each mapping to a concrete SKU and build upsert values.
     const upsertValues: {
       marketplace: Marketplace;
       printingId: string;
@@ -634,11 +613,10 @@ export async function saveMappings(
       return 0;
     }
 
-    // 3. Upsert per-SKU product + variant bridge rows. Prices already live
-    //    on the product (keyed in marketplace_product_prices by SKU, not
-    //    variant) — every binding inherits the full history, so there's
-    //    nothing to copy here. The unmatched-products panel filters bound
-    //    products via `NOT EXISTS (mpv)`, so no staging cleanup needed.
+    // Prices already live on the product (keyed in marketplace_product_prices
+    // by SKU, not variant): every binding inherits the full history, so
+    // there's nothing to copy here. The unmatched-products panel filters
+    // bound products via `NOT EXISTS (mpv)`, so no staging cleanup needed.
     await repo.upsertProductVariants(upsertValues);
 
     return upsertValues.length;
@@ -646,8 +624,6 @@ export async function saveMappings(
 
   return { saved, skipped };
 }
-
-// ── unmapPrinting ───────────────────────────────────────────────────────────
 
 export async function unmapPrinting(
   transact: Transact,

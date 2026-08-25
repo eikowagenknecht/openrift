@@ -18,7 +18,6 @@ import {
 } from "./card-trade-presenters.js";
 import { gravatarHashForEmail } from "./gravatar.js";
 
-/** @returns A plain, unrecorded candidate copy with the given overrides. */
 function copy(overrides: Partial<TradeCopyRow> = {}): TradeCopyRow {
   return {
     id: "copy-a",
@@ -34,10 +33,6 @@ function copy(overrides: Partial<TradeCopyRow> = {}): TradeCopyRow {
     ...overrides,
   };
 }
-
-// ---------------------------------------------------------------------------
-// copyPinWeight
-// ---------------------------------------------------------------------------
 
 describe("copyPinWeight", () => {
   it("weighs a plain copy at zero", () => {
@@ -62,10 +57,6 @@ describe("copyPinWeight", () => {
     expect(copyPinWeight(loaded)).toBe(11);
   });
 });
-
-// ---------------------------------------------------------------------------
-// selectSplitPins
-// ---------------------------------------------------------------------------
 
 describe("selectSplitPins", () => {
   it("takes the plainest pins when nothing is being disposed", () => {
@@ -108,10 +99,6 @@ describe("selectSplitPins", () => {
     expect(selectSplitPins(["only"], 2)).toEqual(["only"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// sortCopiesForPinning
-// ---------------------------------------------------------------------------
 
 describe("sortCopiesForPinning", () => {
   it("puts the plainest copy first", () => {
@@ -167,10 +154,6 @@ describe("sortCopiesForPinning", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// copyHasRecordedDetails
-// ---------------------------------------------------------------------------
-
 describe("copyHasRecordedDetails", () => {
   it("is false for a plain unrecorded copy", () => {
     expect(copyHasRecordedDetails(copy())).toBe(false);
@@ -192,10 +175,6 @@ describe("copyHasRecordedDetails", () => {
     expect(copyHasRecordedDetails(copy({ grade: 10 }))).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// cardTradeChoiceMatters
-// ---------------------------------------------------------------------------
 
 describe("cardTradeChoiceMatters", () => {
   it("is false when the trade takes every candidate", () => {
@@ -261,10 +240,6 @@ describe("cardTradeChoiceMatters", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toCardTradeCopyOption
-// ---------------------------------------------------------------------------
-
 describe("toCardTradeCopyOption", () => {
   it("maps every field and derives hasRecordedDetails", () => {
     const links = [{ url: "https://example.com/back.jpg", label: "Back" }];
@@ -304,10 +279,6 @@ describe("toCardTradeCopyOption", () => {
     expect(toCardTradeCopyOption(copy(), false).hasRecordedDetails).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// toCardTradeCopyOptions
-// ---------------------------------------------------------------------------
 
 describe("toCardTradeCopyOptions", () => {
   it("returns the candidates in default pin order", () => {
@@ -425,11 +396,6 @@ describe("toCardTradeCopyOptions", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toCardTradeLiveAnnotation / toCardTradeLiveByPrinting
-// ---------------------------------------------------------------------------
-
-/** @returns One aggregated live-trade bucket with the given overrides. */
 function annotationRow(overrides: Partial<LiveTradeAnnotationRow> = {}): LiveTradeAnnotationRow {
   return {
     printingId: "printing-a",
@@ -500,7 +466,7 @@ describe("toCardTradeLiveByPrinting", () => {
 
   it("ranks the full phase ladder, least committed last", () => {
     // The ladder stops at reserved: a settled side has nothing left to
-    // annotate, so there is no rung above it (ADR-019, amendment 2026-08-10).
+    // annotate, so there is no rung above it.
     const result = toCardTradeLiveByPrinting([
       annotationRow({ phase: "offered" }),
       annotationRow({ phase: "asked" }),
@@ -515,10 +481,6 @@ describe("toCardTradeLiveByPrinting", () => {
     expect(rows.map((row) => row.printingId)).toEqual(["printing-z", "printing-a"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// toCardTradeCounterparty
-// ---------------------------------------------------------------------------
 
 describe("toCardTradeCounterparty", () => {
   const member = {
@@ -571,14 +533,9 @@ describe("toCardTradeCounterparty", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toCardTradeSheetRows
-// ---------------------------------------------------------------------------
-
 const GROUP_A = { id: "group-a", slug: "arcane-nights", name: "Arcane Nights" };
 const GROUP_B = { id: "group-b", slug: "bilgewater-bay", name: "Bilgewater Bay" };
 
-/** @returns A match row on one plain copy, with the given overrides. */
 function matchRow(overrides: Partial<MatchRow> = {}): MatchRow {
   const pref = { pricePref: null, priceAbsoluteCents: null, tradeType: null, currency: null };
   return {
@@ -657,8 +614,8 @@ describe("toCardTradeSheetRows", () => {
     expect(result).toHaveLength(2);
   });
 
-  // Rule-derived demand has no list_entries row (ADR-034), so null is a value
-  // in the key and not a wildcard that swallows the manual row beside it.
+  // Rule-derived demand has no list_entries row, so null is a value in the
+  // key and not a wildcard that swallows the manual row beside it.
   it("keys a rule-derived row apart from a manual one on the same list", () => {
     const result = toCardTradeSheetRows([
       {

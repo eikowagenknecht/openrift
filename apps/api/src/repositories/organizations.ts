@@ -5,10 +5,8 @@ import type { Database, OrganizationMembersTable, OrganizationsTable } from "../
 
 /**
  * Correlated subquery for the longest-standing owner's display name, shown in
- * the two summary listings. Ownership is the `role = 'owner'` membership rows
- * (migration 254), so the "owner" an admin list names is simply the oldest one.
- * @param eb An expression builder of a query with `organizations as o` in scope.
- * @returns A scalar subquery yielding the owner's user name (nullable).
+ * the two summary listings. Ownership is the `role = 'owner'` membership rows,
+ * so the "owner" an admin list names is simply the oldest one.
  */
 function ownerNameSubquery(eb: ExpressionBuilder<Database & { o: OrganizationsTable }, "o">) {
   return eb
@@ -30,7 +28,6 @@ export interface OrganizationSummary extends Organization {
   memberCount: number;
 }
 
-/** A member row joined to the user's display name. */
 export interface OrganizationMemberWithName {
   userId: string;
   name: string | null;
@@ -53,23 +50,16 @@ export interface OrganizationPatch {
 }
 
 /**
- * Event organizations (ADR-033): a first-class, admin-provisioned tournament
- * host (a local game store, a league). `organization_members` carries org-level
+ * Event organizations: a first-class, admin-provisioned tournament host (a
+ * local game store, a league). `organization_members` carries org-level
  * authority — both `owner` and `manager` inherit organizer authority on every
  * tournament the org hosts. Authorization is the caller's job; the repo is naive.
- *
- * @param db The Kysely database handle (or transaction).
- * @returns The repository methods.
  */
 export function organizationsRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Creates an organization and seeds its owner membership in one transaction.
-     * @returns The created organization row.
-     */
     create(input: NewOrganization): Promise<Organization> {
-      // One transaction: the deferred owner-guard trigger (migration 254)
-      // checks at commit that the org has an owner-role member.
+      // One transaction: a deferred owner-guard trigger checks at commit
+      // that the org has an owner-role member.
       return db.transaction().execute(async (trx) => {
         const org = await trx
           .insertInto("organizations")
@@ -89,17 +79,14 @@ export function organizationsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns The organization matched by slug, or undefined. */
     findBySlug(slug: string): Promise<Organization | undefined> {
       return db.selectFrom("organizations").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns The organization matched by id, or undefined. */
     findById(id: string): Promise<Organization | undefined> {
       return db.selectFrom("organizations").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns The organizations matched by id (batch lookup). */
     findByIds(ids: string[]): Promise<Organization[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
@@ -111,7 +98,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Every organization with its owner name and member count, newest first. */
     async listAll(): Promise<OrganizationSummary[]> {
       const rows = await db
         .selectFrom("organizations as o")
@@ -133,10 +119,7 @@ export function organizationsRepo(db: Kysely<Database>) {
       }));
     },
 
-    /**
-     * @returns The ids of organizations the user can host for (owner or manager).
-     * Excludes `judge` memberships, which carry no host authority.
-     */
+    /** Excludes `judge` memberships, which carry no host authority. */
     async listIdsForUser(userId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("organizationMembers")
@@ -147,7 +130,6 @@ export function organizationsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.orgId);
     },
 
-    /** @returns The ids of organizations the user is a `judge` of (judge authority only). */
     async listJudgeOrgIdsForUser(userId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("organizationMembers")
@@ -158,7 +140,6 @@ export function organizationsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.orgId);
     },
 
-    /** @returns Organizations where the user is an owner or manager, newest first, as summaries. */
     async listForUser(userId: string): Promise<OrganizationSummary[]> {
       const rows = await db
         .selectFrom("organizations as o")
@@ -190,7 +171,6 @@ export function organizationsRepo(db: Kysely<Database>) {
       }));
     },
 
-    /** @returns The updated organization, or undefined when it does not exist. */
     update(id: string, patch: OrganizationPatch): Promise<Organization | undefined> {
       return db
         .updateTable("organizations")
@@ -200,13 +180,11 @@ export function organizationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The number of organizations deleted (0 when none matched). */
     async deleteById(id: string): Promise<{ numDeletedRows: bigint }> {
       const result = await db.deleteFrom("organizations").where("id", "=", id).executeTakeFirst();
       return { numDeletedRows: result.numDeletedRows };
     },
 
-    /** @returns The organization's members joined to their display name, oldest first. */
     listMembers(orgId: string): Promise<OrganizationMemberWithName[]> {
       return db
         .selectFrom("organizationMembers as m")
@@ -217,7 +195,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The membership row, or undefined when the user is not a member. */
     getMembership(orgId: string, userId: string): Promise<OrganizationMember | undefined> {
       return db
         .selectFrom("organizationMembers")
@@ -246,7 +223,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Removes a member from the organization. */
     async removeMember(orgId: string, userId: string): Promise<void> {
       await db
         .deleteFrom("organizationMembers")
@@ -270,7 +246,7 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The count of `owner`-role members (used to keep at least one owner). */
+    /** Used to keep at least one owner. */
     async countOwners(orgId: string): Promise<number> {
       const row = await db
         .selectFrom("organizationMembers")

@@ -8,17 +8,7 @@ import {
 } from "../../../test/integration-context.js";
 import { readJson } from "../../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: card-review per-section grant (ADR-040 lineage)
-//
-// A non-admin user holding the `card-review` grant may reach only the
-// candidate review endpoints, sees only candidates from helper-reviewable
-// providers, and may only accept data from those providers. Everything else
-// 403s. A full-admin control context verifies admins stay unscoped.
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix CRG- for entities it creates.
-// ---------------------------------------------------------------------------
+// Requires INTEGRATION_DB_URL. Uses prefix CRG- for entities it creates.
 
 const ADMIN_USER_ID = "a0000000-0198-4000-a000-000000000001";
 const GRANT_USER_ID = "a0000000-0199-4000-a000-000000000001";
@@ -40,15 +30,11 @@ let cpDeniedId: string;
 if (adminCtx && grantCtx) {
   const { db } = grantCtx;
 
-  // ── Seed data ──────────────────────────────────────────────────────────────
-
-  // The grant that makes GRANT_USER a card-review helper
   await db
     .insertInto("adminGrants")
     .values({ userId: GRANT_USER_ID, section: "card-review" })
     .execute();
 
-  // One helper-reviewable provider, one not
   await db
     .insertInto("providerSettings")
     .values([
@@ -76,7 +62,7 @@ if (adminCtx && grantCtx) {
     .returning("id")
     .execute();
 
-  // Matched card with candidates from both providers
+  // Matched card with candidates from both providers.
   const [card1] = await db
     .insertInto("cards")
     .values({
@@ -94,7 +80,7 @@ if (adminCtx && grantCtx) {
     .execute();
   card1Id = card1.id;
 
-  // Matched card whose only candidate is from the denied provider
+  // Matched card whose only candidate is from the denied provider.
   const [card2] = await db
     .insertInto("cards")
     .values({
@@ -185,7 +171,7 @@ if (adminCtx && grantCtx) {
     .values(candidateCard(DENIED, "CRG Denied Only Card", "crg-cc-denied-only"))
     .returning("id")
     .execute();
-  // Unmatched groups (no card with these names)
+  // Unmatched groups (no card with these names).
   await db
     .insertInto("candidateCards")
     .values(candidateCard(ALLOWED, "CRG Allowed New", "crg-cc-new-allowed"))
@@ -259,17 +245,11 @@ if (adminCtx && grantCtx) {
   await refreshCardAggregates(db);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app: grantApp } = grantCtx!;
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app: adminApp, db } = adminCtx!;
-
-  // ── Path gate: excluded endpoints 403 for the grant holder ────────────────
 
   describe("excluded endpoints 403", () => {
     it.each([
@@ -307,8 +287,6 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
       expect(deleteRes.status).toBe(403);
     });
   });
-
-  // ── Read filtering ─────────────────────────────────────────────────────────
 
   describe("read filtering", () => {
     it("filters the candidate list to allowed providers", async () => {
@@ -393,8 +371,6 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
     });
   });
 
-  // ── Write scoping: 403 outside the provider allowlist ─────────────────────
-
   describe("write scoping 403", () => {
     it("rejects patching a denied provider's candidate printing", async () => {
       const res = await grantApp.fetch(
@@ -464,8 +440,6 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
       expect(res.status).toBe(403);
     });
   });
-
-  // ── Happy path: the allowed review flow works end to end ──────────────────
 
   describe("allowed review flow", () => {
     it("patches an allowed candidate printing's differentiators", async () => {

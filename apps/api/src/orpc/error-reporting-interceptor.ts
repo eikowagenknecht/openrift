@@ -17,7 +17,6 @@ import { appErrorInterceptor } from "./app-error-interceptor.js";
  * types because the base auth middleware converts AppError → ORPCError before
  * this interceptor runs (see `convertingAppErrors` in `base.ts`); keying off
  * status (not the class) keeps capture identical across that boundary.
- * @returns Whether the error should be captured.
  */
 function isServerFault(error: unknown): boolean {
   if (error instanceof AppError || error instanceof ORPCError) {
@@ -38,7 +37,6 @@ function isServerFault(error: unknown): boolean {
  * lifted out;
  * `cause.data` (the whole rejected payload, i.e. the caller's data) is
  * deliberately left behind.
- * @returns The issue summaries, or undefined when the error carries none.
  */
 function validationIssueSummary(error: unknown): string[] | undefined {
   if (!(error instanceof ORPCError) || !(error.cause instanceof ValidationError)) {
@@ -62,7 +60,6 @@ function validationIssueSummary(error: unknown): string[] | undefined {
  * {@link appErrorInterceptor} (the same mapping the route unit tests use).
  *
  * Bound to `log` so it reports through the same logger as `onError`.
- * @returns An oRPC interceptor.
  */
 export function makeReportingErrorInterceptor(log: Logger) {
   return function reportingErrorInterceptor<TOutput>(options: {

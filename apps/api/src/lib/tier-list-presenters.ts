@@ -17,16 +17,12 @@ import type { TierList } from "../repositories/tier-lists.js";
 const PREVIEW_ROW_COUNT = 4;
 const PREVIEW_ROW_CARD_COUNT = 14;
 
-/** @returns One ranked entry as its response shape, detached from the row. */
 function toTierCard(card: TierListCard): { cardId: string; printingId: string | null } {
   return { cardId: card.cardId, printingId: card.printingId };
 }
 
-/**
- * @returns One board row as its response shape, detached from the row. The
- * unranked flag is sent only when set, so an ordinary board stays as small on
- * the wire as it was before the row existed.
- */
+// The unranked flag is sent only when set, so an ordinary board stays as
+// small on the wire as it was before the row existed.
 function toTierRow(tier: TierListRow) {
   const row: { label: string; cards: ReturnType<typeof toTierCard>[]; unranked?: boolean } = {
     label: tier.label,
@@ -38,10 +34,6 @@ function toTierRow(tier: TierListRow) {
   return row;
 }
 
-/**
- * Maps a tier list row to the owner-facing response.
- * @returns The list as a `TierListResponse`.
- */
 export function toTierList(row: TierList): TierListResponse {
   return {
     id: row.id,
@@ -63,7 +55,6 @@ export function toTierList(row: TierList): TierListResponse {
  * has started ranking into A while S is still empty should see their work, not
  * the gap above it. Each row keeps its real board index, because that is what
  * the tier colour is derived from.
- * @returns The list as a `TierListSummaryResponse`.
  */
 export function toTierListSummary(row: TierList): TierListSummaryResponse {
   const previewRows = row.tiers
@@ -100,7 +91,6 @@ export function toTierListSummary(row: TierList): TierListSummaryResponse {
  * Maps a tier list row to the anonymous share view. Drops `shareToken` and
  * `isPublic`: the viewer already holds the token, and the flag is the owner's
  * business.
- * @returns The list as a `PublicTierListResponse`.
  */
 export function toPublicTierList(row: TierList): PublicTierListResponse {
   return {

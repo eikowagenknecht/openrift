@@ -7,9 +7,6 @@ import { describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 
-// ---------------------------------------------------------------------------
-// Integration test: a column with a DB default must be optional on insert.
-//
 // A `DEFAULT` is a promise the schema makes to the code — omit this and the
 // database fills it in. `tables.ts` only keeps that promise when the member is
 // `Generated<T>` (or a `ColumnType` with `undefined` in the insert position);
@@ -24,7 +21,6 @@ import { createDbContext } from "../test/integration-context.js";
 // registered in the `Database` interface), which is what makes that reliable —
 // and the parser asserts its own coverage below, so a reformat that defeats it
 // fails the suite rather than silently passing everything.
-// ---------------------------------------------------------------------------
 
 const ctx = createDbContext("column-defaults");
 
@@ -36,10 +32,6 @@ const TABLES_SRC = readFileSync(resolve(import.meta.dirname!, "tables.ts"), "utf
 const toSnakeCase = (name: string): string =>
   name.replaceAll(/[A-Z]/gu, (char) => `_${char.toLowerCase()}`);
 
-/**
- * Splits a generic argument list on its top-level commas.
- * @returns The arguments, in declaration order.
- */
 function splitTypeArgs(args: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -61,11 +53,7 @@ function splitTypeArgs(args: string): string[] {
   return parts;
 }
 
-/**
- * Whether a member's declared type lets an insert omit the column.
- * `CreatedAt` / `UpdatedAt` are the file's local aliases for exactly that shape.
- * @returns True when Kysely would accept an insert without this column.
- */
+/** `CreatedAt` / `UpdatedAt` are the file's local aliases for insert-optional columns. */
 function isInsertOptional(type: string): boolean {
   if (type === "CreatedAt" || type === "UpdatedAt" || type.startsWith("Generated<")) {
     return true;
@@ -77,11 +65,6 @@ function isInsertOptional(type: string): boolean {
   return args.length >= 2 && /\bundefined\b/u.test(args[1]!);
 }
 
-/**
- * Reads `tables.ts` and resolves every table to its members, following
- * `extends` and the `type XTable = ReferenceTable` aliases.
- * @returns Members keyed by snake_case table name, then by snake_case column.
- */
 function parseTableMembers(): Map<string, Map<string, string>> {
   const interfaces = new Map<string, Map<string, string>>();
   const aliases = new Map<string, string>();
@@ -156,7 +139,6 @@ describe.skipIf(!ctx)("columns with a database default", () => {
   const db = ctx!.db;
   const tableMembers = parseTableMembers();
 
-  /** @returns Every base-table column the database fills in when it is omitted. */
   async function defaultedColumns(): Promise<ColumnRow[]> {
     // `column_default` covers plain DEFAULTs; `is_identity` covers the identity
     // columns, which have no default expression but behave the same way on

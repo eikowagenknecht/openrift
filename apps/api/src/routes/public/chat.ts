@@ -39,9 +39,9 @@ const CHAT_CACHE_CONTROL = "public, max-age=300";
 const MAX_QUERY_LENGTH = 100;
 
 /**
- * @returns A plain-text 200. Cacheable answers (hit, miss, usage) carry the
- *   shared cache; a failure line must not be pinned for five minutes, so it is
- *   served `no-store` and the next call retries.
+ * Cacheable answers (hit, miss, usage) carry the shared cache; a failure line
+ * must not be pinned for five minutes, so it is served `no-store` and the
+ * next call retries.
  */
 function chatResponse(line: string, cacheable = true): Response {
   return new Response(line, {
@@ -57,8 +57,6 @@ function chatResponse(line: string, cacheable = true): Response {
  * Builds the route. It is a factory rather than a module-level app because it
  * owns the lookup index memo, which is scoped to one app's `repos` — a shared
  * module-level memo would leak one app's catalogue into another's in tests.
- *
- * @returns The chat route app, to mount under `/api/v1`.
  */
 export function createPublicChatRoute() {
   // Built on the first request rather than here: `repos` only exists on the

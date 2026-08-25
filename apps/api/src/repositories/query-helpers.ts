@@ -22,13 +22,9 @@ import type {
 import { AppError } from "../errors.js";
 
 /**
- * Resolve card_id dynamically: direct card name match → alias match → candidate printing match.
- * candidate_cards no longer stores card_id — matching is always derived from the
- * card name or a previously-created card_name_alias.
- * Uses indexed norm_name columns for fast equality lookups.
- *
- * @param alias — the candidate_cards table alias used in the query (e.g. "cs")
- * @returns A raw SQL expression resolving to the card UUID or NULL.
+ * Resolves card_id dynamically — candidate_cards deliberately stores none, so
+ * matching is always derived from the card name or a card_name_alias. The
+ * equality lookups ride the indexed norm_name columns.
  */
 export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   sql<string | null>`COALESCE(
@@ -38,11 +34,10 @@ export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   )`;
 
 /**
- * Resolves the image_files.id (UUID) for a self-hosted image. Returns NULL
- * when the row hasn't been rehosted yet, so callers can keep the existing
- * `IS NOT NULL` filter to exclude external-only entries from public pages.
- * The client constructs variant URLs from this ID via `imageUrl()` in shared.
- * @returns A raw SQL expression: alias.id (or NULL if not rehosted)
+ * Resolves the image_files.id for a self-hosted image. NULL when the row
+ * hasn't been rehosted yet, so callers can filter `IS NOT NULL` to exclude
+ * external-only entries from public pages. The client constructs variant URLs
+ * from this ID via `imageUrl()` in shared.
  */
 export function imageId(alias: string): RawBuilder<string | null> {
   return sql<
@@ -51,15 +46,12 @@ export function imageId(alias: string): RawBuilder<string | null> {
 }
 
 /**
- * The same rule as {@link imageId}, applied to a printing's pinned fallback art
- * (migration 257) one join away: NULL unless something is pinned *and* that
- * file has been rehosted. A correlated subquery rather than a join, because the
- * five queries that build a catalog printing row select from a shared column
- * list and would each have to carry the join otherwise. It is a primary-key
- * lookup on a column that is NULL for all but a handful of printings.
- *
- * @param alias — the printings (or `printings_ordered`) alias in the query
- * @returns An aliased SQL expression: the servable image id, or NULL.
+ * The same rule as {@link imageId}, applied to a printing's pinned fallback
+ * art one join away: NULL unless something is pinned *and* that file has been
+ * rehosted. A correlated subquery rather than a join, because the five queries
+ * that build a catalog printing row select from a shared column list and would
+ * each have to carry the join otherwise. It is a primary-key lookup on a
+ * column that is NULL for all but a handful of printings.
  */
 export function fallbackImageId(alias: string) {
   return sql<string | null>`(
@@ -70,9 +62,8 @@ export function fallbackImageId(alias: string) {
 }
 
 /**
- * Resolves the best available image URL, falling back to the original provider URL.
- * Use this only in admin contexts where showing external images is acceptable.
- * @returns A raw SQL expression: COALESCE(alias.rehosted_url, alias.original_url)
+ * Falls back to the original provider URL. Use this only in admin contexts
+ * where showing external images is acceptable.
  */
 export function imageUrlWithOriginal(alias: string): RawBuilder<string | null> {
   return sql<
@@ -83,16 +74,13 @@ export function imageUrlWithOriginal(alias: string): RawBuilder<string | null> {
 const CURSOR_SEPARATOR = "_";
 
 /**
- * Builds an opaque keyset cursor from a timestamp and id. The matching reader
- * is {@link keysetCursorPredicate}; `keysetCursorSchema` in `@openrift/shared`
- * validates the same grammar at the contract boundary.
- * @returns A cursor string encoding both values.
+ * The matching reader is {@link keysetCursorPredicate}; `keysetCursorSchema`
+ * in `@openrift/shared` validates the same grammar at the contract boundary.
  */
 export function buildKeysetCursor(createdAt: Date, id: string): string {
   return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
 }
 
-/** One page of a keyset-paginated list, as every list handler returns it. */
 export interface KeysetPage<TItem> {
   items: TItem[];
   nextCursor: string | null;
@@ -102,11 +90,6 @@ export interface KeysetPage<TItem> {
  * Turns an over-fetched row set into a response page. The repositories fetch
  * `limit + 1` rows so the extra row proves another page exists; this drops it,
  * maps what remains, and builds the next cursor from the last kept row.
- *
- * @param rows Up to `limit + 1` rows, in the query's own order.
- * @param limit The page size the caller asked for.
- * @param toItem Maps one row to its response item.
- * @returns The mapped items and the cursor for the next page (null on the last).
  */
 export function keysetPage<TRow extends { createdAt: Date; id: string }, TItem>(
   rows: TRow[],
@@ -122,14 +105,12 @@ export function keysetPage<TRow extends { createdAt: Date; id: string }, TItem>(
   };
 }
 
-/** The row shape {@link listOwnedByUser} needs: an owner, and the keyset pair. */
 interface OwnedKeysetRow {
   userId: string;
   createdAt: Date;
   id: string;
 }
 
-/** Tables that carry {@link OwnedKeysetRow}'s three columns, so they can be paged by owner. */
 type OwnedKeysetTable = {
   [K in keyof Database]: Database[K] extends {
     userId: unknown;
@@ -142,19 +123,13 @@ type OwnedKeysetTable = {
 
 /**
  * One user's rows from an owner-scoped ledger, newest first and keyset
- * paginated on `(created_at desc, id desc)`. The submission ledgers differ only
- * in their table, so they delegate here and keep their own row types.
+ * paginated on `(created_at desc, id desc)`. Returns up to `limit + 1` rows so
+ * the caller can detect a next page.
  *
  * The internal casts are what let one helper serve every such table: the table
  * name is a runtime value, so the column references cannot be resolved against
  * a specific table at compile time. `OwnedKeysetTable` still keeps the argument
  * from naming a table that lacks the columns.
- *
- * @param db The Kysely instance to query.
- * @param table The ledger to read.
- * @param userId The owner whose rows to return.
- * @param options The cursor from the previous page and the page size.
- * @returns Up to `limit + 1` rows, so the caller can detect a next page.
  */
 export async function listOwnedByUser<TRow>(
   db: Kysely<Database>,
@@ -182,10 +157,6 @@ export async function listOwnedByUser<TRow>(
   return rows as TRow[];
 }
 
-/**
- * Splits a cursor into its timestamp and id parts.
- * @returns The decoded timestamp, and the id (null for a legacy cursor).
- */
 function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
   const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
   // Legacy timestamp-only cursor (backward compat during deploys) has no
@@ -226,11 +197,6 @@ function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
  * `Date`), every row passing the truncated half satisfies
  * `date_trunc(col) <= cursorTime`, and that is equivalent to
  * `col < cursorTime + 1ms`.
- *
- * @param cursor — a cursor produced by {@link buildKeysetCursor}
- * @param options — the ordered columns and the id tie-break direction
- * @returns A SQL predicate for `query.where(...)`.
- * @throws {AppError} 400 when the cursor's timestamp part is unparseable.
  */
 export function keysetCursorPredicate(
   cursor: string,
@@ -268,9 +234,6 @@ interface FrontImageTables {
  * `p`; the generic constraint enforces that much, and the internal casts are
  * what let one helper serve every root table. Callers therefore must not
  * already use the `pi` or `imgf` aliases.
- *
- * @param qb A select query with a `p`-aliased printing in scope.
- * @returns The same query with the two image joins appended.
  */
 export function joinFrontImage<DB extends { p: { id: unknown } }, TB extends keyof DB, O>(
   qb: SelectQueryBuilder<DB, TB, O>,
@@ -302,10 +265,6 @@ interface RequiredFrontImageTables {
  *
  * Exposes the joins as `pim` and `imgf`, so a query can carry this or
  * `joinFrontImage`, never both.
- *
- * @param qb The select query to extend.
- * @param printingIdRef Reference to the printing id column to match on, e.g. `"cp.printingId"`.
- * @returns The same query with the two image joins appended.
  */
 export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
   qb: SelectQueryBuilder<DB, TB, O>,
@@ -325,11 +284,6 @@ export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
   >;
 }
 
-/**
- * Base query: copies → printings → cards → front-face printing images → image files
- * (aliases: cp, p, c, pi, imgf).
- * @returns A Kysely SelectQueryBuilder with the five tables joined.
- */
 export function selectCopyWithCard(db: Kysely<Database>) {
   return joinFrontImage(
     db
@@ -339,7 +293,6 @@ export function selectCopyWithCard(db: Kysely<Database>) {
   );
 }
 
-/** Display detail for one printing: its card's name plus the printing's own identity and art. */
 export interface PrintingDetail {
   cardName: string;
   setId: string;
@@ -350,15 +303,6 @@ export interface PrintingDetail {
   imageId: string | null;
 }
 
-/**
- * Batch-loads display detail for the given printing ids. Shared by the list
- * repository (rule-only entry enrichment) and the trade matcher, which both
- * need the same card-name/set/rarity/finish/art tuple keyed by printing.
- *
- * @param db The Kysely instance to query.
- * @param ids Printing ids to load; an empty array short-circuits without a query.
- * @returns A map of printing id to its detail. Ids with no printing are absent.
- */
 export async function printingDetailsByIds(
   db: Kysely<Database>,
   ids: string[],
@@ -407,7 +351,6 @@ export async function printingDetailsByIds(
  */
 type ShareableTable = "lists" | "decks" | "tierLists";
 
-/** A shareable row's sharing fields: the token, and the flag that arms it. */
 export interface ShareState {
   shareToken: string | null;
   isPublic: boolean;
@@ -426,12 +369,6 @@ export interface ShareState {
  * never been shared reports `{ shareToken: null, isPublic: false }`, which is
  * what lets a route tell "not yours" (undefined, so 404) apart from "yours,
  * not shared yet".
- *
- * @param db The Kysely instance to query.
- * @param table Which shareable table to read from.
- * @param id The row id.
- * @param userId The user the row must belong to.
- * @returns The share state, or `undefined` when the row isn't the user's.
  */
 export function selectShareState(
   db: Kysely<Database>,
@@ -447,11 +384,6 @@ export function selectShareState(
     .executeTakeFirst();
 }
 
-/**
- * The owner-scoped share update both {@link updateShareRow} and
- * {@link updateShareState} run; they differ only in what they return.
- * @returns The update builder, without a RETURNING clause.
- */
 function shareUpdate(
   db: Kysely<Database>,
   table: ShareableTable,
@@ -472,14 +404,6 @@ function shareUpdate(
  * `is_public=true` with a token means "shareable by link"; null + false means
  * private, and clearing the token as well is what stops a revoked link from
  * ever coming back to life.
- *
- * @param db The Kysely instance to query.
- * @param table Which shareable table to update.
- * @param id The row id.
- * @param userId The user the row must belong to.
- * @param shareToken The new token, or `null` to revoke.
- * @param isPublic Whether the link is live.
- * @returns The whole updated row, or `undefined` when it isn't the user's.
  */
 export async function updateShareRow<T extends ShareableTable>(
   db: Kysely<Database>,
@@ -499,14 +423,6 @@ export async function updateShareRow<T extends ShareableTable>(
  * {@link updateShareRow} for a caller that only needs to know the write landed:
  * returns the two share columns instead of the whole row, so a big jsonb
  * payload never rides back on an unshare.
- *
- * @param db The Kysely instance to query.
- * @param table Which shareable table to update.
- * @param id The row id.
- * @param userId The user the row must belong to.
- * @param shareToken The new token, or `null` to revoke.
- * @param isPublic Whether the link is live.
- * @returns The new share state, or `undefined` when the row isn't the user's.
  */
 export function updateShareState(
   db: Kysely<Database>,
@@ -527,12 +443,6 @@ export function updateShareState(
  * token, so revoking sharing kills the link even while the token is still on
  * the row. The owner's email is carried for gravatar derivation and never
  * reaches a response on its own.
- *
- * @param db The Kysely instance to query.
- * @param table Which shareable table to look the token up in.
- * @param shareToken The token from the share link.
- * @returns The row and its owner's name/email, or `undefined` when the token
- * doesn't match a public row.
  */
 export async function findByShareToken<T extends ShareableTable>(
   db: Kysely<Database>,
@@ -559,12 +469,9 @@ export async function findByShareToken<T extends ShareableTable>(
 }
 
 /**
- * WHERE predicate excluding copies pinned to a live outgoing trade (ADR-019):
- * still owned, but committed elsewhere. Correlates on the `cp`-aliased copy, so
- * the query must already have `copies` aliased to `cp`.
- *
- * @param eb The expression builder Kysely hands the `where` callback.
- * @returns A `NOT EXISTS` predicate over `card_trade_copies`.
+ * WHERE predicate excluding copies pinned to a live outgoing trade: still
+ * owned, but committed elsewhere. Correlates on the `cp`-aliased copy, so the
+ * query must already have `copies` aliased to `cp`.
  */
 export function notReservedByTrade<DB extends { cp: { id: unknown } }, TB extends keyof DB>(
   eb: ExpressionBuilder<DB, TB>,
@@ -581,12 +488,9 @@ export function notReservedByTrade<DB extends { cp: { id: unknown } }, TB extend
 }
 
 /**
- * The {@link notReservedByTrade} twin for loans (ADR-039): a copy out on a live
- * loan is physically absent, so it counts for nothing whatever its collection
- * says. Correlates on the same `cp` alias.
- *
- * @param eb The expression builder Kysely hands the `where` callback.
- * @returns A `NOT EXISTS` predicate over `loan_copies`.
+ * The {@link notReservedByTrade} twin for loans: a copy out on a live loan is
+ * physically absent, so it counts for nothing whatever its collection says.
+ * Correlates on the same `cp` alias.
  */
 export function notPinnedToLoan<DB extends { cp: { id: unknown } }, TB extends keyof DB>(
   eb: ExpressionBuilder<DB, TB>,

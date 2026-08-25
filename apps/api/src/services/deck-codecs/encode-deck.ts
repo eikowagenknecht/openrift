@@ -25,7 +25,6 @@ export interface EncodeDeckRow {
   domains: Domain[];
 }
 
-/** Just the short-code resolver method this service needs. */
 type ShortCodeResolver = Pick<ReturnType<typeof canonicalPrintingsRepo>, "shortCodesForRows">;
 
 /**
@@ -33,8 +32,6 @@ type ShortCodeResolver = Pick<ReturnType<typeof canonicalPrintingsRepo>, "shortC
  * requested deck-code format. Shared by the authenticated by-id `export` handler
  * and the public, stateless `encode` endpoint (logged-out local decks), so the
  * resolve-then-encode logic lives in exactly one place.
- *
- * @returns The encoded code plus any per-card warnings (e.g. missing printing).
  */
 export async function encodeDeck(
   canonicalPrintings: ShortCodeResolver,
@@ -88,7 +85,6 @@ export async function encodeDeck(
  * encodable; rows with no encodable printing at all (a card whose canonical
  * set the library doesn't know yet, e.g. a brand-new main set) are skipped
  * with a warning naming the card.
- * @returns The cards the Piltover codec can safely encode.
  */
 async function degradeToEncodable(
   canonicalPrintings: ShortCodeResolver,

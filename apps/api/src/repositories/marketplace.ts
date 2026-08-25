@@ -49,12 +49,6 @@ interface ScopeFilter {
   standard?: boolean;
 }
 
-/**
- * Card has at least one of the given custom-tag slugs. Custom tags are joined
- * through `card_custom_tags`, so they can't be tested on the printing row the
- * way keywords and tags can.
- * @returns An EXISTS fragment for the slugs.
- */
 function customTagExists(slugs: string[]) {
   const vals = sql.join(slugs.map((slug) => sql`${slug}`));
   return sql`EXISTS (
@@ -87,28 +81,19 @@ export interface CollectionValue {
 }
 
 /**
- * Read-only queries for marketplace prices and snapshots.
- *
  * Price queries read from `mv_daily_printing_prices` and its latest-day
  * derivative `mv_latest_printing_prices`, both refreshed after each
  * price-refresh pipeline run (see {@link refreshLatestPrices}). The headline
  * rule and the "cheapest bound SKU" aggregation live in the daily view, so
  * every surface that prices a printing agrees by construction. Don't
  * re-implement the headline CASE in a query here.
- *
- * @returns An object with marketplace query methods bound to the given `db`.
  */
 export function marketplaceRepo(db: Kysely<Database>) {
   return {
     /**
-     * Latest headline price per marketplace for every printing.
-     *
      * `lastSeen` is the day the price was observed, not the day it was read.
      * The pipeline writes a snapshot only when a marketplace returns data, so
      * a delisted card keeps its final price indefinitely and looks current.
-     *
-     * @returns Rows with `printingId`, `marketplace`, the headline price as
-     *          `marketCents`, and the `lastSeen` day as `YYYY-MM-DD`.
      */
     latestPrices(): Promise<
       { printingId: string; marketplace: string; marketCents: number; lastSeen: string }[]
@@ -127,8 +112,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * data. A base-table probe would roll mid-pipeline (inserts land before
      * the refresh), caching the old view under the new token and then serving
      * it stale after the refresh until the next pipeline run.
-     *
-     * @returns An opaque token that changes iff the served price map changes.
      */
     async latestPricesContentVersion(): Promise<string> {
       const result = await sql<{ token: string }>`
@@ -140,13 +123,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
       return result.rows[0]?.token ?? "";
     },
 
-    /**
-     * Latest headline price per marketplace for a subset of printings.
-     *
-     * Same data as {@link latestPrices} but filtered to the given printing IDs.
-     *
-     * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
-     */
     latestPricesForPrintings(
       printingIds: string[],
     ): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
@@ -161,14 +137,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Marketplace variants bound to a printing. Cross-language aggregates were
-     * materialised as explicit variant rows by migration 107, so a printing
-     * sees exactly the variants that carry its own `printing_id` — there is no
-     * sibling fan-out here. `language` is the parent product's SKU axis, and is
-     * `null` on the marketplaces that don't split by language (CM/TCG), which
-     * is how callers still recognise an aggregate.
-     *
-     * @returns One row per variant bound to the printing.
+     * Marketplace variants bound to a printing. Cross-language aggregates are
+     * materialised as explicit variant rows, so a printing sees exactly the
+     * variants that carry its own `printing_id` — there is no sibling fan-out
+     * here. `language` is the parent product's SKU axis, and is `null` on the
+     * marketplaces that don't split by language (CM/TCG), which is how callers
+     * still recognise an aggregate.
      */
     sourcesForPrinting(printingId: string): Promise<
       {
@@ -191,13 +165,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Batch version of {@link sourcesForPrinting}. Returns marketplace source rows
-     * for each given printing, tagged with the target `printingId` so callers can
-     * group by printing without a second pass.
-     *
-     * @returns Rows keyed by the requested `printingId`.
-     */
     sourcesForPrintings(printingIds: string[]): Promise<
       {
         printingId: string;
@@ -224,8 +191,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * Price history for the product a variant is bound to. Every variant for
      * the same SKU resolves to the same history — prices live on the product,
      * not the binding.
-     * @returns Rows for the variant's parent product, optionally filtered by
-     *          a cutoff date, ordered chronologically.
      */
     snapshots(
       variantId: string,
@@ -253,10 +218,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Total market value per deck for a user.
-     *
-     * Uses the cheapest printing of each card (from the materialized view)
-     * to estimate what it would cost to buy the deck on a given marketplace.
      * Overflow is skipped — it's a parking zone for cards the user hasn't
      * committed to the deck, and the deck editor leaves it out of its own
      * value figure too (see `computeDeckOwnership` in the web app).
@@ -269,8 +230,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * with per-language prices (CardTrader) — without it a cheap foreign
      * printing drags the tile below what the deck page shows. An empty list
      * means "no language preference" and prices at the plain cheapest.
-     *
-     * @returns A map from deck ID to total value in cents.
      */
     async deckValues(
       userId: string,
@@ -304,12 +263,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Total market value and unpriced copy count for the given collection IDs.
-     * Caller passes the list of accessible collections (personal + shared) so that
-     * shared collections — whose copies carry the contributors' user_ids, not the
-     * viewer's — are included.
-     *
-     * @returns A map from collection ID to value data.
+     * Caller passes the list of accessible collections (personal + shared) so
+     * that shared collections — whose copies carry the contributors' user_ids,
+     * not the viewer's — are included.
      */
     async collectionValues(
       collectionIds: readonly string[],
@@ -334,11 +290,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
       return new Map(rows.rows.map((row) => [row.collectionId, row]));
     },
 
-    /**
-     * Total market value and unpriced copy count for a single collection.
-     *
-     * @returns Value data for the collection, or undefined if it has no copies.
-     */
     async singleCollectionValue(
       collectionId: string,
       marketplace: string,
@@ -369,10 +320,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * card" structural rather than a property that happens to hold when the
      * event log is complete.
      *
-     * It is not complete. 6573 `removed` events across 8 accounts have no
-     * matching `added`, because event logging predates their copies and
-     * migration 139's backfill could only cover copies that still existed when
-     * it ran. A forward replay clamps per printing across all collections, so
+     * It is not complete. Some accounts carry `removed` events with no
+     * matching `added`, because event logging predates their copies and the
+     * backfill could only cover copies that still existed when it ran. A
+     * forward replay clamps per printing across all collections, so
      * one of those orphan removals silently cancels a live copy of the same
      * printing sitting in a different collection. Walking backwards, the same
      * orphans only make historical days look slightly larger, which is honest:
@@ -393,8 +344,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * The gap also survives the incomplete event log better than either line
      * alone: a phantom copy inflates both, so it distorts the gap by its price
      * movement rather than by its full value.
-     *
-     * @returns Daily value points for charting, oldest first.
      */
     async collectionValueTimeSeries(params: {
       userId: string;
@@ -405,12 +354,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
     }): Promise<CollectionValueHistoryPoint[]> {
       const { userId, marketplace, collectionIds, cutoff, scope } = params;
 
-      // Scope filter clauses on the printing itself. Both the event query and
-      // the anchor query below join printings/cards/sets under the same p/c/s
-      // aliases, so one fragment serves both — they must agree, or the anchor
-      // would count copies the walk never sees. Each array filter uses a
-      // parameterized IN-list via sql.join to avoid SQL injection from
-      // user-provided values.
+      // Both the event query and the anchor query below join
+      // printings/cards/sets under the same p/c/s aliases, so one fragment
+      // serves both — they must agree, or the anchor would count copies the
+      // walk never sees.
       const scopeClauses: ReturnType<typeof sql>[] = [];
       if (scope.sets?.length) {
         const vals = sql.join(scope.sets.map((val) => sql`${val}`));
@@ -442,10 +389,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
           sql`AND EXISTS (SELECT 1 FROM card_domains cd WHERE cd.card_id = c.id AND cd.domain_slug IN (${vals}))`,
         );
       }
-      // Negation companions (ADR-034). `types` is a single column here, so its
-      // exclude is a plain NOT IN; `domains` is a join table, so one excluded
-      // domain on the card rejects it (matching `noneExcluded` in the web
-      // filters and `matchesScope` on the stats page).
+      // `types` is a single column here, so its exclude is a plain NOT IN;
+      // `domains` is a join table, so one excluded domain on the card rejects
+      // it (matching `noneExcluded` in the web filters and `matchesScope` on
+      // the stats page).
       if (scope.setsExclude?.length) {
         const vals = sql.join(scope.setsExclude.map((val) => sql`${val}`));
         scopeClauses.push(sql`AND s.slug NOT IN (${vals})`);
@@ -476,8 +423,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
           sql`AND NOT EXISTS (SELECT 1 FROM card_domains cd WHERE cd.card_id = c.id AND cd.domain_slug IN (${vals}))`,
         );
       }
-      // Keywords and tags are text[] columns on the card, so include/exclude
-      // are array-overlap tests.
       if (scope.keywords?.length) {
         const vals = sql.join(scope.keywords.map((val) => sql`${val}`));
         scopeClauses.push(sql`AND c.keywords && ARRAY[${vals}]::text[]`);
@@ -556,8 +501,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
 
       const scopeFragment = scopeClauses.length > 0 ? sql.join(scopeClauses, sql` `) : sql``;
 
-      // ── Query A: today's composition, the anchor ───────────────────────
-      // In all-collections mode this is personal copies only. Copies in a
+      // In all-collections mode the anchor is personal copies only. Copies in a
       // friend-group collection belong to the group, and `buildStacks` in the
       // web app leaves them out of the aggregate the Stats card shows — the
       // anchor has to draw the same line or the two figures disagree on day
@@ -598,7 +542,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         GROUP BY printing_id, acquired_on
       `.execute(db);
 
-      // ── Query B: events to undo, newest last ───────────────────────────
       // Only events inside the window are needed. A forward replay had to read
       // the user's entire history to build the pre-cutoff state; anchoring to
       // the present means the 7d/30d/90d ranges never touch older rows.
@@ -606,10 +549,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // `fromIsGroup` / `toIsGroup` let all-collections mode keep the anchor's
       // personal-only line while walking back: a move across the group
       // boundary is a real entry or exit from the personal total, and an add
-      // straight into a group collection never belonged to it. Events written
-      // before migration 220 may have lost their collection id to the old
-      // ON DELETE SET NULL and read as non-group, which is right for every
-      // affected account — deleting a group collection is rarer still.
+      // straight into a group collection never belonged to it. Old events may
+      // have lost their collection id to a former ON DELETE SET NULL and read
+      // as non-group, which is right for every affected account — deleting a
+      // group collection is rarer still.
       const windowStartDay = cutoff ? toDateString(cutoff) : null;
       const windowClause = windowStartDay
         ? sql`AND ce.created_at >= ${windowStartDay}::date`
@@ -619,8 +562,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // `copy_id`. A `removed` event needs it too: undoing one puts a copy back
       // into an earlier day, and that copy has to re-enter the baseline at what
       // it cost when it was bought, not at what it was worth when it left.
-      // Migration 140 keeps events after the copy row is deleted, so this
-      // resolves even for copies that no longer exist.
+      // Events outlive their copy row, so this resolves even for copies that
+      // no longer exist.
       const events = await sql<{
         action: string;
         printingId: string;
@@ -683,12 +626,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
         ]),
       ];
 
-      // ── Query B: daily prices for those printings ──────────────────────
-      // Read straight from mv_daily_printing_prices (migration 219). The
-      // headline rule and the cheapest-bound-SKU aggregation live in the view,
-      // so the last point of this series and the Stats card's figure come from
-      // the same rows — mv_latest_printing_prices is that view's latest day.
-      // Do not reintroduce a hand-rolled headline CASE here.
+      // The headline rule and the cheapest-bound-SKU aggregation live in
+      // mv_daily_printing_prices, so the last point of this series and the
+      // Stats card's figure come from the same rows —
+      // mv_latest_printing_prices is that view's latest day. Do not
+      // reintroduce a hand-rolled headline CASE here.
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
@@ -703,7 +645,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
           AND d.marketplace = ${marketplace}
       `.execute(db);
 
-      // Build a lookup: printingId -> day -> headlineCents
       const priceMap = new Map<string, Map<string, number>>();
       for (const row of dailyPrices.rows) {
         let dayMap = priceMap.get(row.printingId);
@@ -728,7 +669,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
        * Price for `printingId` on `dayStr`, carried back from the latest
        * snapshot at or before it. Only correct when called with a
        * non-increasing `dayStr`, which the backward walk guarantees.
-       * @returns The price in cents, or undefined if no snapshot is that old.
        */
       function priceOnDay(printingId: string, dayStr: string): number | undefined {
         const days = sortedPriceDays.get(printingId);
@@ -746,7 +686,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return priceMap.get(printingId)?.get(days[idx]);
       }
 
-      // ── Cost basis: what a copy was worth the day it arrived ───────────
       /**
        * The baseline price for one copy of `printingId` acquired on
        * `acquiredOn`, floored at `startDay`.
@@ -765,9 +704,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
        * one ever. That fallback is safe here only because the day is anchored
        * to the purchase: an earlier cut floored everything at `startDay`, which
        * on the All range sent most of the collection to its release-day high
-       * and reported a 13892 EUR baseline against 4329 EUR held.
-       *
-       * @returns The basis in cents, or 0 for a printing with no price at all.
+       * and wildly overstated the baseline.
        */
       function basisFor(printingId: string, acquiredOn: string | null): number {
         const days = sortedPriceDays.get(printingId);
@@ -779,13 +716,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return priceMap.get(printingId)?.get(idx === -1 ? days[0] : days[idx]) ?? 0;
       }
 
-      // ── Backward replay ───────────────────────────────────────────────
       const targetCollectionSet = collectionIds ? new Set(collectionIds) : null;
 
       /**
        * How much an event added to the tracked total when it happened. The
        * walk subtracts this to step back over the event.
-       * @returns +1, -1, or 0.
        */
       function eventDelta(event: (typeof events.rows)[0]): number {
         if (targetCollectionSet) {
@@ -831,7 +766,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return 0;
       }
 
-      /** Steps the composition and its basis back over one event. @returns void */
       function undo(event: (typeof events.rows)[0]): void {
         const delta = eventDelta(event);
         if (delta === 0) {
@@ -899,7 +833,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         }
         reversed.push({ date: dayStr, valueCents, baselineValueCents, copyCount });
 
-        // Step back over this day's events to reach the previous day.
         while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) === dayStr) {
           undo(events.rows[eventIndex]);
           eventIndex--;
@@ -911,8 +844,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const series = reversed.toReversed();
 
       // Drop leading empty days: an account whose earliest activity cancelled
-      // out (adds undone by removes the same week, common in early testing)
-      // shouldn't open on a flat zero run.
+      // out (adds undone by removes the same week) shouldn't open on a flat
+      // zero run.
       let firstHeld = 0;
       while (firstHeld < series.length && series[firstHeld].copyCount === 0) {
         firstHeld++;
@@ -921,15 +854,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Refresh the price materialized views. Uses CONCURRENTLY so reads aren't
-     * blocked during refresh.
-     *
      * Order matters: `mv_latest_printing_prices` is defined over
      * `mv_daily_printing_prices`, so refreshing it reads whatever the daily
      * view currently holds. Daily first, or the latest view republishes
      * yesterday's data under today's content token.
-     *
-     * @returns void
      */
     async refreshLatestPrices(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_daily_printing_prices`.execute(db);

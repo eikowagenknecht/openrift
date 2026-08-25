@@ -20,19 +20,12 @@ export interface JobRun {
   noop: boolean | null;
 }
 
-/**
- * Repository for tracking background job executions (cron + admin-triggered).
- *
- * @returns An object with job-run query/mutation methods bound to the given `db`.
- */
 export function jobRunsRepo(db: Kysely<Database>) {
   return {
     /**
      * Insert a new run row in 'running' state. The partial unique index on
-     * running rows (migration 253) allows at most one per kind, so two
-     * concurrent triggers can't both claim a run.
-     * @returns The id of the newly created row, or null when a concurrent
-     *   start of the same kind won the race (its row is the running one).
+     * running rows allows at most one per kind, so two concurrent triggers
+     * can't both claim a run; the loser gets null instead of a row.
      */
     async start(params: { kind: string; trigger: JobTrigger }): Promise<{ id: string } | null> {
       try {
@@ -50,10 +43,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       }
     },
 
-    /**
-     * Mark a run as succeeded with an optional JSON result summary.
-     * @returns Resolves when the row has been updated.
-     */
     async succeed(
       id: string,
       params: { durationMs: number; result?: unknown; noop?: boolean | null },
@@ -71,10 +60,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Mark a run as failed with an error message.
-     * @returns Resolves when the row has been updated.
-     */
     async fail(id: string, params: { durationMs: number; errorMessage: string }): Promise<void> {
       await db
         .updateTable("jobRuns")
@@ -88,10 +73,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Find the currently-running row for a given kind, if any.
-     * @returns The id of the running row, or null.
-     */
     async findRunning(kind: string): Promise<{ id: string } | null> {
       const row = await db
         .selectFrom("jobRuns")
@@ -104,11 +85,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return row ?? null;
     },
 
-    /**
-     * Read the result JSONB for a single run, if it exists. Used by resumable
-     * jobs to fetch their checkpoint without pulling the whole row.
-     * @returns The parsed result object, or null if the row or column is empty.
-     */
     async getResult(id: string): Promise<unknown> {
       const row = await db
         .selectFrom("jobRuns")
@@ -118,12 +94,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return row?.result ?? null;
     },
 
-    /**
-     * Overwrite just the `result` JSONB column of a run, leaving status and
-     * timestamps alone. Used by resumable jobs to checkpoint progress between
-     * batches.
-     * @returns Resolves when the row has been updated.
-     */
     async updateResult(id: string, result: unknown): Promise<void> {
       await db
         .updateTable("jobRuns")
@@ -133,10 +103,9 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Find the most recent run of a kind that has a stored checkpoint.
-     * Rows with a null `result` are skipped so a failure that never wrote
-     * a checkpoint doesn't shadow an earlier run's progress.
-     * @returns The latest JobRun for the kind whose result is non-null, or null.
+     * Find the most recent run of a kind that has a stored checkpoint. Rows
+     * with a null `result` are skipped so a failure that never wrote a
+     * checkpoint doesn't shadow an earlier run's progress.
      */
     async findLatestForResume(kind: string): Promise<JobRun | null> {
       const row = await db
@@ -161,10 +130,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return row ?? null;
     },
 
-    /**
-     * List the most recent runs, optionally filtered by kind.
-     * @returns Rows ordered by started_at descending.
-     */
     listRecent(params: { kind?: string; limit?: number }): Promise<JobRun[]> {
       let q = db
         .selectFrom("jobRuns")
@@ -189,12 +154,8 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * List a single page of runs ordered by start time descending, with the
-     * total matching-row count for building a numbered pager. Filters by kind,
-     * trigger, and status are all applied server-side so they span the whole
-     * table rather than just the loaded page. Sort is tie-broken by id so the
-     * ordering is stable across pages when rows share a started_at.
-     * @returns The page rows plus the total count of rows matching the filters.
+     * Sort is tie-broken by id so the ordering is stable across pages when
+     * rows share a started_at.
      */
     async listPage(params: {
       kind?: string;
@@ -250,12 +211,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return { rows, total: Number(countRow.total) };
     },
 
-    /**
-     * The distinct job kinds present in the table, sorted alphabetically.
-     * Backs the kind filter dropdown so it lists every kind, not just the
-     * ones on the currently-loaded page.
-     * @returns Sorted distinct kind strings.
-     */
     async listKinds(): Promise<string[]> {
       const rows = await db
         .selectFrom("jobRuns")
@@ -266,11 +221,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.kind);
     },
 
-    /**
-     * For each kind seen in the table, return the latest run row.
-     * Used by the admin status dashboard.
-     * @returns A map from kind to its latest JobRun.
-     */
     async getLatestPerKind(): Promise<Record<string, JobRun>> {
       const rows = await db
         .selectFrom("jobRuns")
@@ -298,9 +248,8 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Mark any rows left in 'running' state as 'failed'. Called on server
+     * Mark any rows left in 'running' state as 'failed'. Must run on server
      * startup so rows orphaned by a crashed process don't block re-entrancy.
-     * @returns The number of rows swept.
      */
     async sweepOrphaned(): Promise<number> {
       const result = await db
@@ -318,10 +267,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows);
     },
 
-    /**
-     * Delete rows older than the given cutoff date.
-     * @returns The number of rows deleted.
-     */
     async purgeOlderThan(cutoff: Date): Promise<number> {
       const result = await db
         .deleteFrom("jobRuns")

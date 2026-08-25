@@ -21,19 +21,12 @@ import type {
   UpsertCounts,
 } from "./types.js";
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
 const BATCH_SIZE = 200;
-
-// ── Ignored keys ───────────────────────────────────────────────────────────
 
 /**
  * Load the two sets of ignored keys (level-2 whole-product + level-3 per-variant)
- * for a marketplace.
- *
- * @returns `{ productIds, variantKeys }`. Skip a staging row if its externalId
- *          is in `productIds` OR its `externalId::finish::language` tuple is in
- *          `variantKeys`.
+ * for a marketplace. Skip a staging row if its externalId is in `productIds`
+ * OR its `externalId::finish::language` tuple is in `variantKeys`.
  */
 export function loadIgnoredKeys(
   priceRefresh: Repos["priceRefresh"],
@@ -41,8 +34,6 @@ export function loadIgnoredKeys(
 ): Promise<LoadedIgnoredKeys> {
   return priceRefresh.loadIgnoredKeys(marketplace);
 }
-
-// ── Group upsert ────────────────────────────────────────────────────────────
 
 /**
  * Upsert marketplace groups (TCGPlayer groups / Cardmarket expansions).
@@ -55,8 +46,6 @@ export async function upsertMarketplaceGroups(
 ): Promise<void> {
   await priceRefresh.upsertGroups(marketplace, groups);
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────
 
 function pickPrices(row: PriceColumns): PriceColumns {
   return {
@@ -72,8 +61,6 @@ function pickPrices(row: PriceColumns): PriceColumns {
   };
 }
 
-// ── Main upsert ────────────────────────────────────────────────────────────
-
 interface ProductPriceInsertRow extends PriceColumns {
   marketplaceProductId: string;
   recordedAt: Date;
@@ -85,8 +72,6 @@ interface ProductPriceInsertRow extends PriceColumns {
  * then a `marketplace_product_prices` row per recorded_at. Every bound
  * printing inherits the same price history through the shared product row —
  * no more per-variant fan-out.
- *
- * @returns Per-table breakdown of new, updated, and unchanged rows.
  */
 export async function upsertPriceData(
   priceRefresh: Repos["priceRefresh"],
@@ -97,8 +82,6 @@ export async function upsertPriceData(
   const { marketplace } = config;
   const repo = priceRefresh;
 
-  // ── Product upsert ──────────────────────────────────────────────────────
-  //
   // One `marketplace_products` row per SKU in the fetch. Multiple staging
   // rows for the same SKU collapse onto a single product, so we feed the
   // unique SKU set here. Groups/names update on conflict — they legitimately
@@ -135,8 +118,6 @@ export async function upsertPriceData(
     }
   }
 
-  // ── Build product_prices rows ───────────────────────────────────────────
-  //
   // One row per (product_id, recorded_at). Multiple staging rows with the
   // same SKU and timestamp (shouldn't happen, but the fetcher doesn't
   // guarantee it) collapse to the last write — the upsert DO UPDATE step

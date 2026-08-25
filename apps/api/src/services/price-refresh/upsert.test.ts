@@ -6,10 +6,6 @@ import type { LoadedIgnoredKeys } from "../../repositories/price-refresh";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
   const log = {
@@ -52,12 +48,8 @@ function emptyIgnoredKeys(): LoadedIgnoredKeys {
 }
 
 /**
- * Build a mock `priceRefresh` repo. `upsertProductsForMarketplace` returns a
- * product id per SKU by generating a stable key so tests can assert the same
- * id appears in price rows keyed on it.
- *
- * @returns A mock repo plus helpers for asserting calls + inspecting
- *          `upsertProductPrices` input rows.
+ * `upsertProductsForMarketplace` returns a product id per SKU by generating a
+ * stable key so tests can assert the same id appears in price rows keyed on it.
  */
 function makeMockRepo(opts: { ignoredKeys?: LoadedIgnoredKeys; countResult?: number }) {
   const ignoredKeys = opts.ignoredKeys ?? emptyIgnoredKeys();
@@ -110,10 +102,6 @@ function makeMockRepo(opts: { ignoredKeys?: LoadedIgnoredKeys; countResult?: num
   };
 }
 
-// ---------------------------------------------------------------------------
-// loadIgnoredKeys
-// ---------------------------------------------------------------------------
-
 describe("loadIgnoredKeys", () => {
   it("returns LoadedIgnoredKeys with productIds and variantKeys", async () => {
     const expected: LoadedIgnoredKeys = {
@@ -139,10 +127,6 @@ describe("loadIgnoredKeys", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// upsertMarketplaceGroups
-// ---------------------------------------------------------------------------
-
 describe("upsertMarketplaceGroups", () => {
   it("calls upsertGroups even for empty array (repo handles empty)", async () => {
     const { repo, wasUpsertGroupsCalled } = makeMockRepo({});
@@ -167,10 +151,6 @@ describe("upsertMarketplaceGroups", () => {
     expect(upsertGroupsArgs()[1]).toEqual(groups);
   });
 });
-
-// ---------------------------------------------------------------------------
-// upsertPriceData
-// ---------------------------------------------------------------------------
 
 describe("upsertPriceData", () => {
   const config: PriceUpsertConfig = { marketplace: "cardmarket" };
@@ -200,8 +180,8 @@ describe("upsertPriceData", () => {
 
   it("collapses multiple staging rows for the same SKU into one price row per recorded_at", async () => {
     const { repo, upsertedPrices } = makeMockRepo({});
-    // Two staging rows for the exact same SKU + recorded_at — the price-row
-    // dedup key is `(product_id, recorded_at)`, so these become one row.
+    // The price-row dedup key is `(product_id, recorded_at)`, so two staging
+    // rows for the same SKU + recorded_at become one row.
     const row1 = makeStagingRow(2001, "normal", { marketCents: 100 });
     const row2 = makeStagingRow(2001, "normal", { marketCents: 200 });
 

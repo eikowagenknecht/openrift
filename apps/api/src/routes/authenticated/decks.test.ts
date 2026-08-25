@@ -8,10 +8,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { decksRouter } from "./decks";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
   allCardsForUser: vi.fn(() => Promise.resolve([] as object[])),
@@ -109,16 +105,12 @@ const mockEnums = {
 };
 
 /**
- * The archive membership check the rotate guard runs (ADR-014). Defaults to
- * "not an archive deck", which is what every deck in this file is.
+ * The archive membership check the rotate guard runs. Defaults to "not an
+ * archive deck", which is what every deck in this file is.
  */
 const mockMeta = {
   isMetaDeck: vi.fn(() => Promise.resolve(false)),
 };
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -148,10 +140,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -211,10 +199,6 @@ const dbDeckCardFull = {
   power: 6,
   imageUrl: null,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/decks", () => {
   beforeEach(() => {
@@ -354,7 +338,6 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(0);
   });
 
-  // Another deck's home collection must not leak into this deck's stock.
   it("ignores home-collection stock for a deck without one", async () => {
     const cardId = dbDeckCardFull.cardId;
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
@@ -376,8 +359,8 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(0);
   });
 
-  // ADR-037: type counts fan out over the full type set, so a multi-type card
-  // (e.g. Unit Gear) is counted under each of its non-excluded types.
+  // Type counts fan out over the full type set, so a multi-type card (e.g.
+  // Unit Gear) is counted under each of its non-excluded types.
   it("counts a multi-type card under each of its types", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([
@@ -885,7 +868,6 @@ describe("POST /api/v1/decks/:id/share", () => {
     const json = await readJson(res);
     expect(json.shareToken).toBe("ExIsTiNg1234");
     expect(json.isPublic).toBe(true);
-    // No new token is minted on the idempotent path.
     expect(mockRepo.setShareToken).not.toHaveBeenCalled();
   });
 

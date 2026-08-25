@@ -37,12 +37,12 @@ import type { DeckUpdateInput } from "../../repositories/decks.js";
 import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 
 /**
- * Validates the card references in a deck plan (ADR-029): every referenced
- * card must exist, each matchup must be identifiable (a linked card, a label,
- * or both), and each chosen battlefield must be a Battlefield. The opponent
- * card may be any type (a Legend, Aurora, a domain signpost, …). Swap balance
- * and battlefield-in-deck are checked softly client-side, not here. Also
- * rejects duplicate matchups (same opponent card + label).
+ * Validates the card references in a deck plan: every referenced card must
+ * exist, each matchup must be identifiable (a linked card, a label, or both),
+ * and each chosen battlefield must be a Battlefield. The opponent card may be
+ * any type (a Legend, Aurora, a domain signpost, …). Swap balance and
+ * battlefield-in-deck are checked softly client-side, not here. Also rejects
+ * duplicate matchups (same opponent card + label).
  */
 async function validateDeckPlan(
   catalog: Repos["catalog"],
@@ -118,12 +118,10 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
 const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The authenticated decks contract, mounted at `/api/v1/decks`. Bad-request and
- * not-found states are thrown as `AppError` and mapped to ORPCErrors by the
- * handler's appErrorInterceptor.
+ * Bad-request and not-found states are thrown as `AppError` and mapped to
+ * ORPCErrors by the handler's appErrorInterceptor.
  */
 export const decksRouter = {
-  // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
     const { decks, deckFolders, marketplace, userPreferences, enums, copies, loans, catalog } =
       context.repos;
@@ -172,7 +170,6 @@ export const decksRouter = {
       banRows.filter((ban) => isBaseBanFormat(ban.formatId)).map((ban) => ban.cardId),
     );
 
-    // Group cards by deck
     const cardsByDeckId = Map.groupBy(allCards, (card) => card.deckId);
 
     const cardTypeOrder = enumRows.cardTypes.map((row) => row.slug);
@@ -189,7 +186,6 @@ export const decksRouter = {
       const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
       const champion = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
 
-      // Total cards (excluding overflow)
       const totalCards = cards
         .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
         .reduce((sum, card) => sum + card.quantity, 0);
@@ -227,8 +223,7 @@ export const decksRouter = {
         missingCount += Math.max(0, needed - have);
       }
 
-      // Type counts (Unit/Spell/Gear from main+champion zones). Fan out over the
-      // full type set (ADR-037) like the domain distribution below, so a
+      // Fan out over the full type set like the domain distribution below, so a
       // multi-type card is counted under each of its (non-excluded) types.
       const typeCountMap = new Map<CardType, number>();
       for (const card of cards) {
@@ -249,7 +244,6 @@ export const decksRouter = {
           count: typeCountMap.get(type as CardType) ?? 0,
         }));
 
-      // Domain distribution (from main+champion zones)
       const domainCountMap = new Map<Domain, number>();
       for (const card of cards) {
         if (!countedZones.has(card.zone)) {
@@ -266,11 +260,11 @@ export const decksRouter = {
           count: domainCountMap.get(domain as Domain) ?? 0,
         }));
 
-      // Validation. The list endpoint cares only about pass/fail, not the
-      // detailed violations, so we deliberately don't load per-card custom
-      // tag assignments here — the tag-membership rule would mis-report when
-      // the list query skipped the join. Custom-Region decks therefore show
-      // as valid in the list and surface real violations on the deck page.
+      // The list endpoint cares only about pass/fail, not the detailed
+      // violations, so we deliberately don't load per-card custom tag
+      // assignments here — the tag-membership rule would mis-report when the
+      // list query skipped the join. Custom-Region decks therefore show as
+      // valid in the list and surface real violations on the deck page.
       const isValid =
         row.format === WellKnown.deckFormat.CONSTRUCTED
           ? validateDeck({
@@ -312,7 +306,6 @@ export const decksRouter = {
     return { items };
   }),
 
-  // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }) => {
     const { decks, deckFormats, customTags } = context.repos;
     const userId = context.userId;
@@ -330,7 +323,6 @@ export const decksRouter = {
     return toDeck(row);
   }),
 
-  // ── GET ONE ────────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<DeckDetailResponse> => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -347,7 +339,6 @@ export const decksRouter = {
     };
   }),
 
-  // ── UPDATE ──────────────────────────────────────────────────────────────────
   update: os.update.handler(async ({ input, context }) => {
     const { decks, deckFormats, customTags, collections } = context.repos;
     const userId = context.userId;
@@ -403,20 +394,16 @@ export const decksRouter = {
     return toDeck(row);
   }),
 
-  // ── DELETE ──────────────────────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { decks } = context.repos;
     const result = await decks.deleteByIdForUser(input.id, context.userId);
     assertDeleted(result, "Not found");
   }),
 
-  // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
-  // Full replace of deck cards
   replaceCards: os.replaceCards.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const userId = context.userId;
 
-    // Verify deck belongs to user
     const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
 
@@ -434,9 +421,8 @@ export const decksRouter = {
     return { cards: cardRows.map((r) => toDeckCard(r)) };
   }),
 
-  // ── GET /decks/:id/plan ───────────────────────────────────────────────────
-  // The deck's plan (ADR-029). Always returns an object; deck-level fields are
-  // empty and matchups [] when the deck has no plan yet.
+  // Always returns an object; deck-level fields are empty and matchups []
+  // when the deck has no plan yet.
   getPlan: os.getPlan.handler(async ({ input, context }) => {
     const { decks, deckPlans } = context.repos;
     const userId = context.userId;
@@ -448,8 +434,6 @@ export const decksRouter = {
     return { plan: toDeckPlan(data) };
   }),
 
-  // ── PUT /decks/:id/plan ───────────────────────────────────────────────────
-  // Full replace of the deck's plan, saved as a unit by the editor.
   replacePlan: os.replacePlan.handler(async ({ input, context }) => {
     const { decks, deckPlans, catalog } = context.repos;
     const userId = context.userId;
@@ -486,7 +470,6 @@ export const decksRouter = {
     return { plan: toDeckPlan(data) };
   }),
 
-  // ── POST /decks/:id/clone ─────────────────────────────────────────────────
   clone: os.clone.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -496,10 +479,9 @@ export const decksRouter = {
     return toDeck(newDeck);
   }),
 
-  // ── POST /decks/:id/variants ──────────────────────────────────────────────
-  // Copy a deck into its variant family (ADR-042): a checkpoint slots the copy
-  // behind the live deck as its predecessor, a variant becomes an editable
-  // sibling. Creates the family (and marks the source primary) on first use.
+  // Copy a deck into its variant family: a checkpoint slots the copy behind
+  // the live deck as its predecessor, a variant becomes an editable sibling.
+  // Creates the family (and marks the source primary) on first use.
   createVariant: os.createVariant.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const newDeck = await decks.createVariantCopy(input.id, context.userId, {
@@ -510,7 +492,6 @@ export const decksRouter = {
     return toDeck(newDeck);
   }),
 
-  // ── POST /decks/:id/link ──────────────────────────────────────────────────
   // Link a deck that already exists into this deck's variant family, merging
   // the two families when both sides already have one.
   linkVariant: os.linkVariant.handler(async ({ input, context }) => {
@@ -528,8 +509,6 @@ export const decksRouter = {
     return toDeck(result);
   }),
 
-  // ── POST /decks/:id/unlink ────────────────────────────────────────────────
-  // Take this deck out of its variant family, repairing what is left behind.
   unlinkVariant: os.unlinkVariant.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const result = await decks.unlinkVariant(input.id, context.userId);
@@ -542,8 +521,6 @@ export const decksRouter = {
     return toDeck(result);
   }),
 
-  // ── PUT /decks/:id/predecessor ────────────────────────────────────────────
-  // Repoint a deck at the family member it came from, or clear the pointer.
   setPredecessor: os.setPredecessor.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const result = await decks.setPredecessor(input.id, context.userId, input.predecessorDeckId);
@@ -556,8 +533,6 @@ export const decksRouter = {
     return toDeck(result);
   }),
 
-  // ── POST /decks/:id/promote ───────────────────────────────────────────────
-  // Make this variant front its family in the deck list.
   promotePrimary: os.promotePrimary.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const result = await decks.promoteToPrimary(input.id, context.userId);
@@ -570,8 +545,6 @@ export const decksRouter = {
     return toDeck(result);
   }),
 
-  // ── GET /decks/:id/export ────────────────────────────────────────────────
-  // Encode a deck as a shareable deck code
   export: os.export.handler(async ({ input, context }): Promise<DeckExportResponse> => {
     const { decks, canonicalPrintings } = context.repos;
     const userId = context.userId;
@@ -582,13 +555,11 @@ export const decksRouter = {
     ]);
     assertFound(deck, "Not found");
 
-    // Shared resolve-then-encode path (also used by the public `encode` endpoint
-    // for logged-out local decks). cardRows already carry the metadata the
-    // codecs need.
+    // Shared resolve-then-encode path, also used by the public `encode`
+    // endpoint for logged-out local decks.
     return encodeDeck(canonicalPrintings, cardRows, input.format ?? "piltover");
   }),
 
-  // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────
   setPinned: os.setPinned.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -598,7 +569,6 @@ export const decksRouter = {
     return toDeck(updated);
   }),
 
-  // ── PATCH /decks/:id/archive ──────────────────────────────────────────────
   setArchived: os.setArchived.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -608,10 +578,8 @@ export const decksRouter = {
     return toDeck(updated);
   }),
 
-  // ── GET /decks/:id/share ──────────────────────────────────────────────────
-  // Reports the deck's current share state. Owner-only. An owned-but-unshared
-  // deck returns { shareToken: null, isPublic: false } rather than 404ing;
-  // only a missing or foreign deck 404s.
+  // An owned-but-unshared deck returns { shareToken: null, isPublic: false }
+  // rather than 404ing; only a missing or foreign deck 404s.
   getShare: os.getShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -622,7 +590,6 @@ export const decksRouter = {
     return { shareToken: state.shareToken, isPublic: state.isPublic };
   }),
 
-  // ── POST /decks/:id/share ─────────────────────────────────────────────────
   // Idempotent enable: if the deck already has a token, return the existing
   // share state unchanged; otherwise mint one and flip is_public=true.
   // Rotation lives at POST /decks/:id/share/rotate to avoid surprise churn.
@@ -645,20 +612,18 @@ export const decksRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // ── POST /decks/:id/share/rotate ──────────────────────────────────────────
-  // Overwrites the existing token with a fresh one; the previous URL stops
-  // resolving immediately. Owner-only. When the deck isn't shared yet, rotate
-  // acts as "share now" (mints a token and flips is_public=true) — chosen over
-  // 409 since setShareToken already supports the create-from-unshared path
-  // cleanly and it matches the user-share rotate precedent.
+  // When the deck isn't shared yet, rotate acts as "share now" (mints a token
+  // and flips is_public=true) — chosen over 409 since setShareToken already
+  // supports the create-from-unshared path cleanly and it matches the
+  // user-share rotate precedent.
   rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks, meta } = context.repos;
     const userId = context.userId;
 
-    // An archived deck's token is its public permalink (ADR-014). Owner
-    // scoping already makes this unreachable — the archive's synthetic owner
-    // has no session — but the invariant is stated here so a future path that
-    // rotates on someone's behalf cannot break every archive link.
+    // An archived deck's token is its public permalink. Owner scoping already
+    // makes this unreachable — the archive's synthetic owner has no session —
+    // but the invariant is stated here so a future path that rotates on
+    // someone's behalf cannot break every archive link.
     if (await meta.isMetaDeck(input.id)) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "This deck's link cannot be rotated");
     }
@@ -672,8 +637,6 @@ export const decksRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // ── DELETE /decks/:id/share ───────────────────────────────────────────────
-  // Nulls the share token and flips is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { decks } = context.repos;
     const userId = context.userId;
@@ -682,8 +645,6 @@ export const decksRouter = {
     assertFound(updated, "Not found");
   }),
 
-  // ── POST /decks/share/:token/clone ────────────────────────────────────────
-  // Any logged-in user can clone a publicly shared deck into their account.
   cloneShared: os.cloneShared.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const userId = context.userId;

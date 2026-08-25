@@ -13,13 +13,12 @@ import { isRequestGroupDue } from "./trade-notifications.js";
 type SendEmail = ReturnType<typeof createEmailSender>;
 
 /**
- * Kill switch (ADR-030), an api-scoped site setting. Default on: absent (never
- * created) or `"true"` → send; set it to `"false"` to stop the trade-status
- * emails if a bug shows up. Keep in sync with the admin site-settings page.
+ * Kill switch, an api-scoped site setting. Default on: absent (never created)
+ * or `"true"` → send; set it to `"false"` to stop the trade-status emails if
+ * a bug shows up. Keep in sync with the admin site-settings page.
  */
 const TRADE_STATUS_EMAIL_SETTING = "trade-status-email";
 
-/** Dependencies for the coalesced trade-status flush cron (ADR-030). */
 export interface TradeStatusFlushDeps {
   repos: Repos;
   log: Logger;
@@ -41,23 +40,18 @@ export interface TradeStatusFlushResult {
    *  the same all-zero summary as a run with nothing to send. */
   failed: number;
   /** Status changes claimed for a send that then threw. Claims are never
-   *  released (at-most-once, ADR-030), so these are dropped, not retried. */
+   *  released (at-most-once), so these are dropped, not retried. */
   eventsDropped: number;
 }
 
-/** A trade-status flush did nothing when no pair was due (flag off, or no queued
- *  transitions), so no email was sent and no event was folded in.
- *  @returns True when the run had no work to do. */
+// A trade-status flush did nothing when no pair was due (flag off, or no
+// queued transitions), so no email was sent and no event was folded in.
 export function isTradeStatusFlushNoop(result: TradeStatusFlushResult): boolean {
   // `failed` needs no clause: only a due pair can fail, so any failure is
   // already counted in `pairs`.
   return result.pairs === 0 && result.emailsSent === 0 && result.events === 0;
 }
 
-/**
- * Splits a pair's rows into the trade ids to claim per marker column.
- * @returns The reserved- and closed-event trade ids.
- */
 function idsByMarker(rows: readonly QueuedStatusEmailRow[]): {
   reservedEmailSentAt: string[];
   closedEmailSentAt: string[];
@@ -74,10 +68,6 @@ function idsByMarker(rows: readonly QueuedStatusEmailRow[]): {
   return { reservedEmailSentAt, closedEmailSentAt };
 }
 
-/**
- * Claims a pair's rows across both marker columns.
- * @returns The ids actually claimed by this call.
- */
 async function claimPair(
   repos: Repos,
   rows: readonly QueuedStatusEmailRow[],
@@ -100,15 +90,13 @@ async function claimPair(
 }
 
 /**
- * Sends the coalesced trade-status emails (ADR-030): for each actor→recipient
- * pair whose burst of accept/decline/cancel actions is due under the recipient's
+ * Sends the coalesced trade-status emails: for each actor→recipient pair
+ * whose burst of accept/decline/cancel actions is due under the recipient's
  * cadence (shared with trade requests, see {@link isRequestGroupDue}), folds all
  * that pair's queued transitions into one email to the party who didn't act. A
  * still-settling burst is left queued for a later tick; an opted-out recipient's
  * queue is claimed-and-suppressed so it isn't retried forever. Per-pair sends are
  * best-effort — a failure is logged, counted in `failed`, and the run continues.
- * @returns Counts of pairs emailed, emails sent and transitions included, plus
- *   the failed sends and the transitions dropped with them.
  */
 export async function flushTradeStatusEmails(
   deps: TradeStatusFlushDeps,
@@ -179,7 +167,6 @@ export async function flushTradeStatusEmails(
       continue;
     }
 
-    // Resolve the actor's display label, and collect card ids.
     let actorLabel: string | null = null;
     const cardIds = new Set<string>();
     for (const row of claimedRows) {

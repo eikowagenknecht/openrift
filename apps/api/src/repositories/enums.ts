@@ -45,11 +45,7 @@ export interface AllEnumRows {
   markers: MarkerRow[];
 }
 
-/**
- * Read-only queries for reference tables (enums backed by DB rows).
- *
- * @returns An object with enum query methods bound to the given `db`.
- */
+/** Read-only queries for reference tables (enums backed by DB rows). */
 export function enumsRepo(db: Kysely<Database>) {
   function list(
     table: keyof Pick<
@@ -78,8 +74,6 @@ export function enumsRepo(db: Kysely<Database>) {
      * rows between them, so the digest is far cheaper than the thirteen round
      * trips it lets a caller skip — and unlike a TTL it has no staleness
      * window, so an admin edit is visible on the next read.
-     *
-     * @returns An opaque version token for the reference-table content.
      */
     async contentVersion(): Promise<string> {
       const digest = (table: string) =>
@@ -107,9 +101,9 @@ export function enumsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The reference orders a trade rule needs to rank owned copies by niceness
-     * (ADR-034): finish / rarity / art-variant slugs in ascending sort order.
-     * @returns Slug arrays keyed by dimension, premium last.
+     * The reference orders a trade rule needs to rank owned copies by
+     * niceness: finish / rarity / art-variant slugs in ascending sort order,
+     * premium last.
      */
     async keepPriorityOrders(): Promise<KeepPriorityOrders> {
       const [finishes, rarities, artVariants] = await Promise.all([
@@ -124,7 +118,6 @@ export function enumsRepo(db: Kysely<Database>) {
       };
     },
 
-    /** @returns All rows from every reference table, keyed by table name. */
     async all(): Promise<AllEnumRows> {
       const [
         cardTypes,
@@ -156,8 +149,6 @@ export function enumsRepo(db: Kysely<Database>) {
         db.selectFrom("markers").selectAll().orderBy("sortOrder").orderBy("label").execute(),
       ]);
 
-      // Map languages (code/name/color) to the standard enum shape (slug/label),
-      // carrying `color` through so the client can render language chips.
       const languages = languageRows.map((row) => ({
         slug: row.code,
         label: row.name,

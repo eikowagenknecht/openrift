@@ -161,7 +161,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
     expect(rejected).toHaveLength(1);
     expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ status: 409 });
 
-    // The copy landed in exactly one of the two claim tables, never both.
     const tradeCopyRows = await db
       .selectFrom("cardTradeCopies")
       .select("copyId")
@@ -174,7 +173,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
       .execute();
     expect(tradeCopyRows.length + loanCopyRows.length).toBe(1);
 
-    // Cross-check: the claim table that got the row matches which promise won.
     if (acceptResult.status === "fulfilled") {
       expect(tradeCopyRows).toHaveLength(1);
       expect(loanCopyRows).toHaveLength(0);

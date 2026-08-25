@@ -48,7 +48,6 @@ export interface ApiContext {
    * Reads a request header (case-insensitive). For the rare handler that
    * authenticates off something other than the session cookie — e.g. the
    * deck-check provider push, gated by an `Authorization: Bearer <api-key>`.
-   * @returns The header value, or undefined when absent.
    */
   reqHeader: (name: string) => string | undefined;
   /**
@@ -93,10 +92,8 @@ export interface ApiContext {
 }
 
 /**
- * Builds the oRPC {@link ApiContext} from the live Hono request context.
  * `loadUser` closes over `c` and reuses the idempotent `resolveSession`, so a
  * Hono middleware that already populated `user` short-circuits the lookup.
- * @returns The native oRPC context for this request.
  */
 export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContext {
   const context: ApiContext = {
@@ -131,8 +128,6 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
  * handler throw and encodes it into a `Response` before `onError` can see it,
  * so an API-key rate-limit denial or an invalid key on an oRPC route would
  * otherwise still answer 500 and be captured as an unhandled Sentry exception.
- * Anything that is not an `APIError` is returned unchanged, to be rethrown.
- * @returns The error to throw in place of the original.
  */
 function convertAuthError(error: unknown, context: ApiContext): unknown {
   if (!isAPIError(error)) {

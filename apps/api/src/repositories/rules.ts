@@ -7,13 +7,8 @@ import type { Database } from "../db/index.js";
 export function rulesRepo(db: Kysely<Database>) {
   return {
     /**
-     * Returns the latest version of every rule for a given kind (excluding
-     * removed rules). Uses DISTINCT ON to pick the newest version per
-     * rule_number within the kind. Rows are sorted by natural rule-number order
-     * in JS — `sort_order` is per-version and collides across versions, so it
-     * can't be used here.
-     *
-     * @returns All current rules ordered by natural rule_number.
+     * Rows are sorted by natural rule-number order in JS — `sort_order` is
+     * per-version and collides across versions, so it can't be used here.
      */
     async listLatest(kind: RuleKind) {
       const rows = await db
@@ -37,11 +32,8 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Returns all rules of a kind at or before a specific version. Rows are
-     * sorted by natural rule-number order in JS — `sort_order` is per-version
-     * and collides across versions, so it can't be used here.
-     *
-     * @returns Full ruleset as it was at the given version.
+     * Rows are sorted by natural rule-number order in JS — `sort_order` is
+     * per-version and collides across versions, so it can't be used here.
      */
     async listAtVersion(kind: RuleKind, version: string) {
       const rows = await db
@@ -71,9 +63,6 @@ export function rulesRepo(db: Kysely<Database>) {
      * were added, modified, or removed in this version, plus the previous
      * content for modified and removed rules (looked up from the most recent
      * earlier version that still had the rule).
-     *
-     * @returns added rule numbers, modifiedPrev map, and tombstone rows with
-     * `content` backfilled from the previous version.
      */
     async listChangesAtVersion(kind: RuleKind, version: string) {
       const changeRows = await db
@@ -125,13 +114,6 @@ export function rulesRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Returns known rule versions ordered chronologically. When `kind` is
-     * provided, results are scoped to that kind; otherwise all kinds are
-     * returned (used by admin views).
-     *
-     * @returns Version metadata list.
-     */
     listVersions(kind?: RuleKind) {
       let query = db.selectFrom("ruleVersions").selectAll();
       if (kind) {
@@ -140,11 +122,6 @@ export function rulesRepo(db: Kysely<Database>) {
       return query.orderBy("version", "asc").execute();
     },
 
-    /**
-     * Creates a new rule version entry.
-     *
-     * @returns The inserted version row.
-     */
     createVersion(values: { kind: RuleKind; version: string; comments?: string | null }) {
       return db
         .insertInto("ruleVersions")
@@ -157,11 +134,6 @@ export function rulesRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /**
-     * Bulk-inserts rule rows for a version.
-     *
-     * @returns The number of inserted rows.
-     */
     async insertRules(
       rules: {
         kind: RuleKind;
@@ -181,11 +153,6 @@ export function rulesRepo(db: Kysely<Database>) {
       return result.reduce((sum, row) => sum + Number(row.numInsertedOrUpdatedRows ?? 0), 0);
     },
 
-    /**
-     * Gets a version by its (kind, version) identifier.
-     *
-     * @returns The version row or undefined.
-     */
     getVersion(kind: RuleKind, version: string) {
       return db
         .selectFrom("ruleVersions")
@@ -195,11 +162,6 @@ export function rulesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Updates the freeform comments on an existing version.
-     *
-     * @returns The updated row, or undefined if no matching version exists.
-     */
     updateComments(kind: RuleKind, version: string, comments: string | null) {
       return db
         .updateTable("ruleVersions")
@@ -210,11 +172,6 @@ export function rulesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Deletes a version and all its rules (cascading).
-     *
-     * @returns void
-     */
     deleteVersion(kind: RuleKind, version: string) {
       return db
         .deleteFrom("ruleVersions")

@@ -7,10 +7,9 @@ import type { DeckCheckEntry, DeckCheckEntryCard } from "../repositories/deck-ch
 
 /**
  * Whether the event currently accepts player writes: it is not archived and
- * the close date (when set) has not passed. Judges are never bound by this
- * (ADR-027); `allow_self_submission` is checked separately, because it gates
- * only the creation of new entries.
- * @returns True while the window is open.
+ * the close date (when set) has not passed. Judges are never bound by this;
+ * `allow_self_submission` is checked separately, because it gates only the
+ * creation of new entries.
  */
 export function submissionWindowOpen(event: {
   status: string;
@@ -22,11 +21,7 @@ export function submissionWindowOpen(event: {
   );
 }
 
-/**
- * Re-derives the normalized card lines from stored card rows, for diffing and
- * for the pre-edit baseline snapshot.
- * @returns The stored rows as plain card lines.
- */
+/** Re-derives the normalized card lines from stored card rows, for diffing and for the pre-edit baseline snapshot. */
 export function storedCardLines(cards: DeckCheckEntryCard[]): DeckCheckCardLine[] {
   return cards.map((card) => ({
     name: card.rawName,
@@ -40,12 +35,11 @@ function summaryIsEmpty(summary: DeckCheckChangeSummary): boolean {
 }
 
 /**
- * The `editable → submitted` transition (ADR-027): stamps `submitted_at` and
- * stores the diff against the pre-edit baseline (the list as the judge last
- * saw it), so the judge reviews exactly what changed. The baseline itself is
- * kept until a judge approves or checks, so repeated unlock/submit cycles
- * keep diffing against the same reviewed list.
- * @returns The updated entry.
+ * The `editable → submitted` transition: stamps `submitted_at` and stores the
+ * diff against the pre-edit baseline (the list as the judge last saw it), so
+ * the judge reviews exactly what changed. The baseline itself is kept until a
+ * judge approves or checks, so repeated unlock/submit cycles keep diffing
+ * against the same reviewed list.
  */
 export async function submitEntryList(
   repos: Repos,
@@ -67,12 +61,11 @@ export async function submitEntryList(
 }
 
 /**
- * A transition into `editable` (ADR-027): the player's self-unlock from
- * `submitted`, a judge granting an unlock request, or a judge sending the
- * list back ("fix this"). Snapshots the current lines as the diff baseline —
- * except on a self-unlock that already has one, so the original reviewed
- * baseline survives repeated unlock/submit cycles.
- * @returns The updated entry.
+ * A transition into `editable`: the player's self-unlock from `submitted`, a
+ * judge granting an unlock request, or a judge sending the list back ("fix
+ * this"). Snapshots the current lines as the diff baseline, except on a
+ * self-unlock that already has one, so the original reviewed baseline
+ * survives repeated unlock/submit cycles.
  */
 export async function unlockEntryToEditable(
   repos: Repos,
@@ -99,11 +92,10 @@ export async function unlockEntryToEditable(
 }
 
 /**
- * The lazy deadline settle (ADR-027): an entry still `editable` once the
- * submission window closed auto-submits as-is, stamped with the close time,
- * so nobody misses the event over a forgotten button. Run wherever an entry
- * (or its event) is loaded; a no-op while the window is open.
- * @returns The settled entry, or the entry unchanged.
+ * The lazy deadline settle: an entry still `editable` once the submission
+ * window closed auto-submits as-is, stamped with the close time, so nobody
+ * misses the event over a forgotten button. Run wherever an entry (or its
+ * event) is loaded; a no-op while the window is open.
  */
 export function settleExpiredEditable(
   repos: Repos,
@@ -124,16 +116,14 @@ export interface JudgeTransitionInput {
 }
 
 /**
- * Applies one judge transition, validating ADR-027's matrix: approve from
+ * Applies one judge transition, validating the state matrix: approve from
  * `submitted`; check from `approved` with an explicit outcome (the list must
- * pass legality review before the physical check);
- * revoke / re-open back to `submitted`; hand a linked entry back to the
- * player (`editable`), optionally as a rejection; or record an issue in place
- * on a `submitted` entry that has no linked player. A judge can also withdraw
- * an entry from any state and restore a withdrawn one to `submitted` — like
- * the provider's withdrawal flag and flagless re-push, so the pre-withdrawal
- * state is not preserved (ADR-027).
- * @returns The updated entry.
+ * pass legality review before the physical check); revoke / re-open back to
+ * `submitted`; hand a linked entry back to the player (`editable`),
+ * optionally as a rejection; or record an issue in place on a `submitted`
+ * entry that has no linked player. A judge can also withdraw an entry from
+ * any state and restore a withdrawn one to `submitted` — like the provider's
+ * withdrawal flag and flagless re-push, so the pre-withdrawal state is not preserved.
  */
 // oxlint-disable-next-line max-lines-per-function -- one branch per transition, splitting hurts readability
 export async function applyJudgeTransition(
@@ -196,8 +186,8 @@ export async function applyJudgeTransition(
         unlockRequestedAt: null,
       });
       // Concluding a clean check verifies the whole list, so fill the found
-      // ticks to match (ADR-033). A flagged check leaves them as the judge left
-      // them — the issue is the point, and they may not have counted every copy.
+      // ticks to match. A flagged check leaves them as the judge left them,
+      // the issue is the point, and they may not have counted every copy.
       if (input.reviewOutcome === "ok") {
         await repos.deckCheck.markAllCopiesFound(entry.id);
       }
@@ -236,7 +226,7 @@ export async function applyJudgeTransition(
     case "submitted": {
       if (entry.state === "withdrawn") {
         // Restore; like the provider's flagless re-push, the pre-withdrawal
-        // state is not preserved (ADR-027) — the entry needs re-review.
+        // state is not preserved, the entry needs re-review.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",
@@ -267,7 +257,7 @@ export async function applyJudgeTransition(
       }
       if (entry.state === "checked") {
         // Re-open the check; clear the found ticks so the re-check starts clean
-        // and a prior auto-fill (ADR-033) can't read as a fresh physical count.
+        // and a prior auto-fill can't read as a fresh physical count.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",

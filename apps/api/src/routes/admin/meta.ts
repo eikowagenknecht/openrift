@@ -29,24 +29,17 @@ const EVENT_FIELDS: FieldMapping<Updateable<MetaEventsTable>> = {
   notes: "notes",
 };
 
-/**
- * Turns a repository's "did the row exist" boolean into the 404 the contract
- * declares. The write methods report existence rather than returning the row,
- * because none of these responses carry one back.
- * @returns void — throws AppError(404) when the row was absent.
- */
+// Turns a repository's "did the row exist" boolean into the 404 the contract
+// declares. The write methods report existence rather than returning the row,
+// because none of these responses carry one back.
 function assertExisted(existed: boolean, message: string): void {
   if (!existed) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, message);
   }
 }
 
-/**
- * Normalizes the contract's optional `preferredPrintingId` to the column's
- * explicit null, so the repo never has to reason about an absent key.
- * @param cards Card rows as the contract accepted them.
- * @returns The rows in the repo's input shape.
- */
+// Normalizes the contract's optional `preferredPrintingId` to the column's
+// explicit null, so the repo never has to reason about an absent key.
 function toCardInputs(
   cards: { cardId: string; zone: string; quantity: number; preferredPrintingId?: string | null }[],
 ): MetaDeckCardInput[] {
@@ -59,8 +52,8 @@ function toCardInputs(
 }
 
 /**
- * Meta archive curation (ADR-014), mounted under `/api/admin/v1/meta`. The
- * Hono `requireAdmin` middleware on that prefix is the only role check — no
+ * Meta archive curation, mounted under `/api/admin/v1/meta`. The Hono
+ * `requireAdmin` middleware on that prefix is the only role check — no
  * handler here re-derives it, and the archive is deliberately not a grantable
  * admin section.
  *
@@ -128,8 +121,8 @@ export const adminMetaRouter = {
     await assertKnownFormat(deckFormats, input.format);
     const formatConfig = await validateFormatConfig(customTags, input.format, input.formatConfig);
 
-    // Shared with the candidate accept path (ADR-014), so the synthetic owner,
-    // the public flag, and the share token are stamped in exactly one place.
+    // Shared with the candidate accept path, so the synthetic owner, the
+    // public flag, and the share token are stamped in exactly one place.
     const result = await createArchivedDeck(meta, {
       eventId: input.eventId,
       name: input.name,
@@ -170,7 +163,6 @@ export const adminMetaRouter = {
     assertExisted(await context.repos.meta.deleteDeck(input.id), "Archived deck not found");
   }),
 
-  // ── Source citations (ADR-014, migration 255) ────────────────────────────
   // A citation says where a slice of the event's data came from. It is public,
   // and it never carries a user: a contributor is credited through
   // `meta_credits`, which this router never touches.

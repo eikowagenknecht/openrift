@@ -8,10 +8,8 @@
 
 /**
  * Greyscale luminance below which a pixel counts as card content when
- * analyzing a scan. Equivalent to the previous `trim` threshold of 100
- * against a white background (255 - 100 = 155): the scanner halo line
- * (~178) and paper background stay above it, card borders and art fall
- * below it.
+ * analyzing a scan. The scanner halo line (~178) and paper background stay
+ * above it, card borders and art fall below it.
  */
 const SCAN_CONTENT_LUMINANCE = 155;
 
@@ -50,8 +48,9 @@ const SCAN_EDGE_COVERAGE = 0.85;
  * glass, and a sub-degree tilt leaves a bright wedge a few px deep along one
  * half of an edge. Tightening is capped at ~0.7% of the dimension so a card
  * whose edge art is genuinely bright can't lose more than a sliver.
- * @returns The detected box, or `null` when the scan holds no content or
- *   the buffer doesn't match the given dimensions.
+ *
+ * Returns `null` when the scan holds no content or the buffer doesn't match
+ * the given dimensions.
  */
 export function computeScanCropBox(
   grey: Uint8Array,
@@ -137,8 +136,9 @@ export function computeScanCropBox(
  * caps keep the stretch self-limiting: a well-exposed scan measures black ≈
  * 0 / white ≈ 255 and the correction converges to a no-op, so re-running it
  * is always safe.
- * @returns `multiply`/`offset` factors for sharp's `linear`, or `null` when
- *   the correction would be a no-op or the measurement is degenerate.
+ *
+ * Returns `multiply`/`offset` factors for sharp's `linear`, or `null` when
+ * the correction would be a no-op or the measurement is degenerate.
  */
 export function computeScanLevels(
   grey: Uint8Array,

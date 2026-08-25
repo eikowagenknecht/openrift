@@ -33,7 +33,6 @@ export const mockFetch = vi.fn(() =>
   ),
 ) as any;
 
-// ─── sharp mock ──────────────────────────────────────────────────────────
 // Default: portrait source (width < height). Individual tests can pass a
 // custom `sharp` via `customIo` to simulate landscape or specific metadata.
 let mockSharpMetadata: { width: number; height: number } = { width: 600, height: 850 };
@@ -43,12 +42,10 @@ let mockSharpMetadata: { width: number; height: number } = { width: 600, height:
 let mockGreyData: Buffer | null = null;
 let mockRotation = 0;
 
-/** Override the dimensions `sharp().metadata()` reports for the next call. */
 export function setSharpMetadata(metadata: { width: number; height: number }): void {
   mockSharpMetadata = metadata;
 }
 
-/** Feed a synthetic greyscale buffer to the scan-analysis path. */
 export function setGreyData(grey: Buffer): void {
   mockGreyData = grey;
 }
@@ -81,7 +78,6 @@ mockSharpInstance.metadata = () => Promise.resolve(mockSharpMetadata);
 /**
  * Build a synthetic greyscale scan: white background with an optional darker
  * rectangle (the "card") of the given luminance value.
- * @returns Raw single-channel buffer of `width * height` pixels.
  */
 export function greyScan(
   width: number,
@@ -117,10 +113,6 @@ export const mockIo: Io = {
   dnsLookupAll: vi.fn(() => Promise.resolve([{ address: "203.0.113.10" }])),
 };
 
-/**
- * Creates a mock PrintingImagesRepo for rehostImages/clearAllRehosted/getRehostStatus.
- * @returns Mock repo object.
- */
 export function makeMockRepo(
   opts: {
     selectResult?: any;
@@ -151,13 +143,8 @@ export function makeMockRepo(
   } as any;
 }
 
-/**
- * Shape a `readdir(..., { withFileTypes: true })` entry.
- * @returns A minimal Dirent-like object.
- */
 export const dirent = (name: string, isDir: boolean) => ({ name, isDirectory: () => isDir });
 
-/** Reset every fs / sharp / fetch double to its default. Call in `beforeEach`. */
 export function resetImageMocks(): void {
   mockMkdir.mockReset().mockResolvedValue(undefined);
   mockWriteFile.mockReset().mockResolvedValue(undefined);

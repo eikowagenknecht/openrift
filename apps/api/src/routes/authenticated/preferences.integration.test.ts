@@ -7,18 +7,10 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Preferences routes
-//
-// GET  /preferences — returns current user preferences (or defaults)
-// PATCH /preferences — upserts partial preferences
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-//
 // The upsert merges by reading `existing?.data` and spreading it. That is a
 // plain object round-trip: the jsonb column is typed as its parsed shape and
 // postgres.js does the serializing on both legs, so a merge over several
 // PATCHes composes as written.
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0044-4000-a000-000000000001";
 // A dedicated user so the emailNotifications round-trip runs as a clean first
@@ -39,8 +31,7 @@ afterAll(async () => {
     .execute();
 });
 
-/** Parse preferences from the response, handling the bun jsonb-as-string quirk.
- *  @returns The parsed preferences object. */
+/** Parses preferences from the response, handling the bun jsonb-as-string quirk. */
 function parsePrefs(json: unknown): Record<string, unknown> {
   return typeof json === "string" ? JSON.parse(json) : (json as Record<string, unknown>);
 }
@@ -49,15 +40,12 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
 
-  // ── GET /preferences ──────────────────────────────────────────────────────
-
   describe("GET /preferences", () => {
     it("returns 200 with empty object when no preferences saved", async () => {
       const res = await app.fetch(req("GET", "/preferences"));
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      // When no row exists, handler returns {} — client resolves defaults
       expect(json).toEqual({});
     });
 
@@ -67,8 +55,6 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
     });
   });
 
-  // ── PATCH /preferences ──────────────────────────────��─────────────────────
-
   describe("PATCH /preferences", () => {
     it("first PATCH returns only the stored field", async () => {
       const res = await app.fetch(req("PATCH", "/preferences", { showImages: false }));
@@ -76,7 +62,6 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
 
       const json = parsePrefs(await readJson(res));
       expect(json.showImages).toBe(false);
-      // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
       expect(json.fancyFan).toBeUndefined();
     });
 
@@ -118,10 +103,9 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    // Regression (ADR-030): the emailNotifications schema once omitted
-    // `tradeStatus`, so zod stripped it from both the PATCH input and the
-    // response output — the profile toggle silently never round-tripped. This
-    // fails without `tradeStatus` in emailNotificationPreferenceSchema.
+    // Fails without `tradeStatus` in emailNotificationPreferenceSchema: if the
+    // schema omits it, zod strips it from both the PATCH input and the
+    // response output and the profile toggle never round-trips.
     it.skipIf(!emailPrefCtx)("round-trips emailNotifications.tradeStatus", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const emailApp = emailPrefCtx!.app;
@@ -137,8 +121,6 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       expect((fetchedJson.emailNotifications as { tradeStatus?: boolean }).tradeStatus).toBe(false);
     });
   });
-
-  // ── Auth enforcement ──────────────────────────────────────────────────────
 
   describe("auth enforcement", () => {
     it("returns 401 for unauthenticated GET", async () => {

@@ -133,8 +133,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     return list;
   }
 
-  // ── Schema invariants ─────────────────────────────────────────────────────
-
   it("creates a group with the creator as the sole owner", async () => {
     const group = await createGroup(VIEWER_ID);
     const members = await repo.listMembers(group.id);
@@ -168,8 +166,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .where("id", "in", [SELLER_ID, OUTSIDER_ID])
       .execute();
   });
-
-  // ── Shared groups (person-level trade sheet) ──────────────────────────────
 
   it("sharedGroups returns every group both users are in, sorted by name", async () => {
     // Fresh users, because the file-owned four already share groups from
@@ -393,9 +389,9 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(target?.role).toBe("owner");
   });
 
-  // Regression: the promote was unguarded, so transferring to someone who is
-  // not a member updated nothing while the demote still committed. The group
-  // was left with no owner, and no owner-only action could ever fix it.
+  // Guards against a scenario where the promote is unguarded: transferring to
+  // someone who is not a member would update nothing while the demote still
+  // commits, leaving the group with no owner and no owner-only action to fix it.
   it("rolls back a transfer to a non-member, keeping the current owner", async () => {
     const group = await createGroup(VIEWER_ID);
 
@@ -444,8 +440,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     recreatedUserIds.push(OUTSIDER_ID);
     expect(await repo.getById(group.id)).toBeUndefined();
   });
-
-  // ── Match view ────────────────────────────────────────────────────────────
 
   it("kind='card' matches any printing of that card", async () => {
     const group = await createGroup(VIEWER_ID);
@@ -581,10 +575,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).toHaveLength(1);
   });
 
-  // Regression: the seller's only copy was already promised to a third member
-  // by a pending offer, but the match view still advertised it, so requesting
-  // it failed with "Only 0 copies are still available" (`assertSupplyAvailable`
-  // counts a live offer as a claim on the copy).
+  // A pending offer counts as a claim on the copy (`assertSupplyAvailable`),
+  // so the match view must not advertise a copy already promised elsewhere.
   it("a pending offer to another member hides the copy from the match view", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
@@ -629,7 +621,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
         status: "pending",
-        // A pending trade always carries its TTL (migration 253's CHECK).
+        // A pending trade always carries its TTL (enforced by a CHECK constraint).
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       })
       .returningAll()
@@ -639,8 +631,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(0);
 
-    // A request in the other direction is a bid, not a commitment (ADR-019), so
-    // it must not hide anything.
+    // A request in the other direction is a bid, not a commitment, so it must
+    // not hide anything.
     await db
       .updateTable("cardTrades")
       .set({ initiator: "receiver", giverUserId: OUTSIDER_ID, receiverUserId: SELLER_ID })
@@ -651,7 +643,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).toHaveLength(1);
 
     // A closed offer releases the copy too. Closing stamps closed_at and
-    // clears the TTL, as every real writer does (shape CHECKs, migration 246).
+    // clears the TTL, as every real writer does (enforced by shape CHECKs).
     await db
       .updateTable("cardTrades")
       .set({
@@ -859,8 +851,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     // PRINTING_2 wasn't involved — sanity check.
     expect(rows.every((row) => row.printingId !== PRINTING_2.id)).toBe(true);
   });
-
-  // ── Collection shares ─────────────────────────────────────────────────────
 
   async function createPersonalCollection(userId: string, name = "Test Binder") {
     const created = await db

@@ -28,9 +28,9 @@ function emptyMarketplaceInfo(): MarketplaceInfo {
 }
 
 /**
- * Whole days between two `YYYY-MM-DD` days. Both are dates rather than
- * instants, so UTC midnight on each side keeps this free of timezone drift.
- * @returns The day count, never negative.
+ * Whole days between two `YYYY-MM-DD` days, never negative. Both are dates
+ * rather than instants, so UTC midnight on each side keeps this free of
+ * timezone drift.
  */
 function daysBetween(from: string, to: string): number {
   const ms = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`);

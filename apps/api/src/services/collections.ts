@@ -45,11 +45,11 @@ export async function deleteCollection(
       );
     }
 
-    // Existing events keep both the id and the name snapshot: migration 220
-    // dropped the FKs so deleting a collection no longer reaches back and
-    // erases them. History stays readable as "moved from <deleted
-    // collection>", and the value-over-time replay can still tell whether an
-    // event crossed the boundary of the collection being charted.
+    // Existing events keep both the id and the name snapshot: the FKs were
+    // dropped, so deleting a collection no longer reaches back and erases
+    // them. History stays readable as "moved from <deleted collection>", and
+    // the value-over-time replay can still tell whether an event crossed the
+    // boundary of the collection being charted.
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);
   });
 }
@@ -71,8 +71,6 @@ interface ClearCollectionResult {
  * instead of failing the whole clear they are kept and reported back.
  * Disposal runs through {@link disposeCopiesInTransaction}, so `removed`
  * events are logged like any other dispose.
- *
- * @returns How many copies were removed and the ids of the copies kept.
  */
 export function clearCollection(
   transact: Transact,
@@ -87,9 +85,9 @@ export function clearCollection(
     }
 
     const copyIds = copies.map((copy) => copy.id);
-    // Lock before reading the pins (the audit #7 ordering): without the lock a
-    // concurrent trade-accept or loan could pin a copy in the gap between the
-    // filter and the delete, and the delete would cascade the fresh pin away.
+    // Lock before reading the pins: without the lock a concurrent
+    // trade-accept or loan could pin a copy in the gap between the filter
+    // and the delete, and the delete would cascade the fresh pin away.
     await trxRepos.copies.lockByIds(copyIds);
     const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
     const loaned = await trxRepos.loans.filterLoanedCopyIds(copyIds);
@@ -112,9 +110,6 @@ export function clearCollection(
 // ~65k bind-parameter limit even for very large collections.
 const RESET_BATCH_SIZE = 1000;
 
-/**
- * @returns The input split into consecutive slices of at most `size` items.
- */
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const batches: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -129,7 +124,6 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
  * wipe emptied (no remaining entries, no dynamic rules). Group collections
  * and their copies are untouched. Refuses (409) while any of the user's
  * copies are reserved in an active trade or out on a loan.
- * @returns Counts of the deleted copies, collections, and lists.
  */
 export function resetCollections(
   transact: Transact,
@@ -144,9 +138,9 @@ export function resetCollections(
 
     // Same guards as disposeCopies: a reserved copy is physically promised to
     // a trade, a loaned copy is out of the house — refuse to destroy either.
-    // Each batch is locked before its pin reads (the audit #7 ordering), so a
-    // concurrent trade-accept or loan can't pin a copy between the guard and
-    // the delete below and have the delete cascade the fresh pin away.
+    // Each batch is locked before its pin reads, so a concurrent
+    // trade-accept or loan can't pin a copy between the guard and the delete
+    // below and have the delete cascade the fresh pin away.
     for (const batch of copyIdBatches) {
       await trxRepos.copies.lockByIds(batch);
       const reserved = await trxRepos.cardTrades.filterReservedCopyIds(batch);

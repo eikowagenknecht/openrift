@@ -2,17 +2,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 
-// Migration 188 invariants: deleting a user account must rebalance the
-// organizations they own to the best surviving member (manager before judge,
-// oldest first) instead of cascading the org away. Only a memberless org dies
-// with its owner.
+// Deleting a user account must rebalance the organizations they own to the
+// best surviving member instead of cascading the org away. Only a memberless
+// org dies with its owner.
 //
-// Migration 254 removes the `owner_user_id` pointer entirely: ownership is the
-// `role = 'owner'` membership rows alone, several owners are fine, and a
-// deferred constraint trigger keeps every org at one owner or more. The
-// rebalance trigger now keys on the deleted user's owner *role*: when another
-// owner survives, nothing changes at all; when none does, the best surviving
-// member is promoted; when nobody survives, the org is deleted.
+// Ownership is the `role = 'owner'` membership rows alone (there is no
+// `owner_user_id` pointer), several owners are fine, and a deferred
+// constraint trigger keeps every org at one owner or more. The rebalance
+// trigger keys on the deleted user's owner *role*: when another owner
+// survives, nothing changes at all; when none does, the best surviving member
+// (manager before judge, oldest first) is promoted; when nobody survives, the
+// org is deleted.
 //
 // Random per-file users (seeded via seedTestUser in beforeAll) so this file
 // cannot collide with pre-seeded registry users or other files' fixtures.
@@ -30,7 +30,6 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
   let soloOrgId: string;
   let survivingOrgId: string;
 
-  /** @returns The id of a new org whose only member is `ownerUserId`, as owner. */
   async function insertOrg(slug: string, ownerUserId: string): Promise<string> {
     return db.transaction().execute(async (trx) => {
       const org = await trx
@@ -174,7 +173,7 @@ describe.skipIf(!ctx)("organization owner rebalance on user deletion (integratio
   });
 
   it("refuses to demote an org's last owner", async () => {
-    // Deferred constraint trigger (migration 254): fails at commit.
+    // Deferred constraint trigger: fails at commit.
     await expect(
       db.transaction().execute(async (trx) => {
         await trx

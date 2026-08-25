@@ -174,7 +174,6 @@ function makeApp(overrides: {
 }
 
 describe("friend-groups route", () => {
-  // ── List + counts ───────────────────────────────────────────────────────
   it("GET / returns groups and pending invites", async () => {
     const { app } = makeApp({
       friendGroups: {
@@ -299,7 +298,6 @@ describe("friend-groups route", () => {
     expect(await readJson(res)).toEqual({ count: 2 });
   });
 
-  // ── Create ──────────────────────────────────────────────────────────────
   it("POST / creates a group", async () => {
     const created = vi.fn(() => Promise.resolve(group));
     const { app } = makeApp({
@@ -339,7 +337,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(400);
   });
 
-  // ── Preview ─────────────────────────────────────────────────────────────
   it("GET /preview returns viewerStatus=available for non-members", async () => {
     const { app } = makeApp({
       friendGroups: {
@@ -365,7 +362,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(404);
   });
 
-  // ── Join ────────────────────────────────────────────────────────────────
   it("POST /join queues a request", async () => {
     const createInvite = vi.fn(() => Promise.resolve());
     const { app } = makeApp({
@@ -399,7 +395,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(409);
   });
 
-  // ── Detail ──────────────────────────────────────────────────────────────
   it("GET /{slug} returns the pending stub when the viewer has a request queued", async () => {
     const { app } = makeApp({
       friendGroups: {
@@ -678,7 +673,6 @@ describe("friend-groups route", () => {
     expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
 
-  // ── Authz ───────────────────────────────────────────────────────────────
   it("PATCH /{slug} rejects plain members with 403", async () => {
     const { app } = makeApp({
       friendGroups: {
@@ -775,7 +769,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(409);
   });
 
-  // ── Invites ─────────────────────────────────────────────────────────────
   it("POST /{slug}/invites by email rejects unknown emails with 404", async () => {
     const { app } = makeApp({
       friendGroups: {
@@ -865,7 +858,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(403);
   });
 
-  // ── Shares ──────────────────────────────────────────────────────────────
   it("POST /{slug}/lists shares a list owned by the viewer", async () => {
     const share = vi.fn(() => Promise.resolve());
     const { app } = makeApp({
@@ -901,7 +893,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(404);
   });
 
-  // ── Collection shares ───────────────────────────────────────────────────
   it("POST /{slug}/collections shares a personal collection the viewer owns", async () => {
     const shareCollection = vi.fn(() => Promise.resolve());
     const { app } = makeApp({
@@ -1025,8 +1016,8 @@ describe("friend-groups route", () => {
     expect(body.viewerRole).toBe("member");
   });
 
-  // Private notes stay owner-only on personal collections shared into a group
-  // (ADR-038): the route nulls notesPrivate for every viewer but the owner.
+  // Private notes stay owner-only on personal collections shared into a group:
+  // the route nulls notesPrivate for every viewer but the owner.
   describe("GET /{slug}/collections/{id} private notes", () => {
     const sharedCopyRow = {
       id: "a0000000-0001-4000-a000-000000000020",
@@ -1125,7 +1116,6 @@ describe("friend-groups route", () => {
     expect(body.items[1]?.sharedAt).toBeNull();
   });
 
-  // ── Match view ──────────────────────────────────────────────────────────
   it("GET /{slug}/matches returns both panels", async () => {
     const { app } = makeApp({
       friendGroups: {

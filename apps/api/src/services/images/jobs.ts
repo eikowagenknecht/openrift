@@ -18,13 +18,12 @@ import { deleteRehostFiles, generateWebpVariants, processAndSave } from "./varia
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type JobRunsRepo = ReturnType<typeof jobRunsRepo>;
 
-/** Job-runs `kind` for the resumable regenerate-images flow. */
 export const REGENERATE_IMAGES_KIND = "images.regenerate";
 
 /**
- * Rehost a single image by its printing_image ID: download, process variants, and update the DB.
- * Updates the image_files row so all printings sharing this image benefit.
- * Silently swallows errors so callers can treat this as best-effort.
+ * Rehost a single image by its printing_image ID. Updates the shared
+ * image_files row, so every printing sharing the image benefits. Best-effort:
+ * errors are swallowed.
  */
 export async function rehostSingleImage(
   io: Io,
@@ -39,13 +38,12 @@ export async function rehostSingleImage(
 }
 
 /**
- * Rehost by `image_files` ID rather than by printing image: download, process
- * variants, and update the row. The file-level half of
- * {@link rehostSingleImage}, split out because substitute art pinned from a URL
- * (migration 257) has an image_files row and deliberately no printing image to
- * reach it through. Also best-effort — a caller that pinned the file has
- * already committed the pin, and a failed rehost leaves it un-servable, which
- * the wire reports as "derive a substitute for now" rather than as an error.
+ * Rehost by `image_files` ID rather than by printing image. Split out from
+ * {@link rehostSingleImage} because substitute art pinned from a URL has an
+ * image_files row and deliberately no printing image to reach it through. Also
+ * best-effort — a caller that pinned the file has already committed the pin,
+ * and a failed rehost leaves it un-servable, which the wire reports as "derive
+ * a substitute for now" rather than as an error.
  */
 export async function rehostImageFile(
   io: Io,
@@ -238,17 +236,9 @@ function appendCappedErrors(existing: string[], more: string[]): string[] {
   if (combined.length <= MAX_CHECKPOINT_ERRORS) {
     return combined;
   }
-  // Keep the most recent failures; older noise gets dropped.
   return combined.slice(combined.length - MAX_CHECKPOINT_ERRORS);
 }
 
-/**
- * Type guard for the JSONB stored in `job_runs.result` for `images.regenerate`
- * runs. Used to safely re-hydrate prior checkpoints when deciding whether to
- * resume.
- * @returns True when the value matches the checkpoint shape closely enough to
- *   be re-used.
- */
 export function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
   if (value === null || typeof value !== "object") {
     return false;
@@ -275,7 +265,6 @@ interface RunRegenerateJobDeps {
 }
 
 interface RunRegenerateJobOptions {
-  /** When set, resume from this prior checkpoint's snapshot + counters. */
   resumeFrom?: { runId: string; checkpoint: RegenerateImagesCheckpoint };
   skipExisting?: boolean;
   /** When true, snapshot only scans (`needs_trim` images) instead of the
@@ -285,20 +274,13 @@ interface RunRegenerateJobOptions {
 }
 
 /**
- * Run the resumable regenerate-images job for a single `job_runs` row.
- *
- * Snapshots the rehosted-image list at start (or carries over a prior
- * checkpoint's snapshot when resuming), iterates `BATCH_SIZE` at a time, and
- * writes a fresh checkpoint to the row's `result` JSONB after every batch.
- * Between batches it re-reads the row to honor `cancelRequested` so a parallel
- * cancel endpoint can stop the loop without killing the process.
- *
- * Errors thrown by the per-batch helper itself (vs per-image failures, which
- * the helper records into `errors`) bubble up so `runJobAsync` records the
- * run as `failed` with that message.
- *
- * @returns The final checkpoint state; `runJobAsync` stores it as the
- *   succeeded run's `result`.
+ * Run the resumable regenerate-images job for a single `job_runs` row, writing
+ * a fresh checkpoint to the row's `result` JSONB after every batch. Between
+ * batches it re-reads the row to honor `cancelRequested`, so a parallel cancel
+ * endpoint can stop the loop without killing the process. Errors thrown by the
+ * per-batch helper itself (vs per-image failures, which it records into
+ * `errors`) bubble up so `runJobAsync` records the run as `failed`; the
+ * returned final checkpoint becomes the succeeded run's `result`.
  */
 export async function runRegenerateImagesJob(
   deps: RunRegenerateJobDeps,
@@ -387,7 +369,6 @@ export async function runRegenerateImagesJob(
  * as `imageId`), and `rehostedUrl` lives on `image_files` — so un-rehost is
  * inherently per-image_file, not per-printing_image. Disk deletion is
  * idempotent, so broken entries (the primary caller) don't fail the pass.
- * @returns Per-batch counts of total, unrehosted, failed, and any error messages.
  */
 export async function unrehostImages(
   io: Io,

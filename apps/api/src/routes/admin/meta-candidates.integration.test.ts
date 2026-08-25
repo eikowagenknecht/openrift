@@ -4,10 +4,6 @@ import { adminReq, createTestContext, req, seedTestUser } from "../../test/integ
 import type { JsonBody } from "../../test/read-json.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: meta archive candidate ingest (ADR-014, migration 236).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Everything this file creates is prefixed mtc- / MTC. The user starts as a
 // non-admin so the 403 case runs before promotion — the isAdmin cache only
 // caches positive results, so a never-admin user always re-checks the DB.
@@ -15,13 +11,12 @@ import { readJson } from "../../test/read-json.js";
 // The describes run in file order and share state on purpose: the pipeline is
 // a sequence (upload, review, accept, re-upload), and testing each step against
 // a freshly re-seeded world would test something the product never does.
-// ---------------------------------------------------------------------------
 
 const USER_ID = crypto.randomUUID();
 const ctx = createTestContext(USER_ID);
 
 const PROVIDER = "mtc-provider";
-/** The second source describing the same tournament (ADR-014, multi-source). */
+/** The second source describing the same tournament. */
 const PROVIDER_B = "mtc-provider-b";
 const FORMAT = "freeform";
 
@@ -32,7 +27,6 @@ let aliasCardId: string;
 const createdDeckIds: string[] = [];
 const createdMetaEventIds: string[] = [];
 
-/** @returns The inserted card's id. */
 async function seedCard(name: string, normName: string, type: string): Promise<string> {
   const [card] = await ctx!.db
     .insertInto("cards")
@@ -42,7 +36,6 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
   return card.id;
 }
 
-/** @returns An upload deck with a legend and a main-deck card. */
 function deck(externalId: string, overrides: Record<string, unknown> = {}) {
   return {
     externalId,
@@ -57,7 +50,6 @@ function deck(externalId: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns An upload event carrying the given decks. */
 function event(externalId: string, overrides: Record<string, unknown> = {}) {
   return {
     externalId,
@@ -73,19 +65,16 @@ function event(externalId: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The upload summary. */
 async function upload(events: unknown[]): Promise<JsonBody> {
   return uploadAs(PROVIDER, events);
 }
 
-/** @returns The upload summary for a named provider. */
 async function uploadAs(provider: string, events: unknown[]): Promise<JsonBody> {
   const res = await ctx!.app.fetch(adminReq("POST", "/meta/upload", { provider, events }));
   expect(res.status).toBe(200);
   return readJson(res);
 }
 
-/** @returns The candidate queue rows. */
 async function queue(): Promise<JsonBody[]> {
   const res = await ctx!.app.fetch(adminReq("GET", "/meta/candidates"));
   expect(res.status).toBe(200);
@@ -93,7 +82,6 @@ async function queue(): Promise<JsonBody[]> {
   return body.candidates;
 }
 
-/** @returns The queue row for one external id. */
 async function queueRow(externalId: string): Promise<JsonBody> {
   const rows = await queue();
   const row = rows.find((r) => r.externalId === externalId);
@@ -101,45 +89,38 @@ async function queueRow(externalId: string): Promise<JsonBody> {
   return row;
 }
 
-/** @returns Whether the queue currently holds that external id. */
 async function inQueue(externalId: string): Promise<boolean> {
   const rows = await queue();
   return rows.some((r) => r.externalId === externalId);
 }
 
-/** @returns The full candidate detail by candidate id. */
 async function detail(id: string): Promise<JsonBody> {
   const res = await ctx!.app.fetch(adminReq("GET", `/meta/candidates/${id}`));
   expect(res.status).toBe(200);
   return readJson(res);
 }
 
-/** @returns The full candidate detail, looked up by the source's external id. */
 async function detailOf(externalId: string): Promise<JsonBody> {
   const row = await queueRow(externalId);
   return detail(row.id);
 }
 
-/** @returns The candidate decks of one candidate event. */
 async function decksOf(externalId: string): Promise<JsonBody[]> {
   const full = await detailOf(externalId);
   return full.decks;
 }
 
-/** @returns The one candidate deck of a candidate event, asserting it is the only one. */
 async function onlyDeckOf(externalId: string): Promise<JsonBody> {
   const decks = await decksOf(externalId);
   expect(decks).toHaveLength(1);
   return decks[0];
 }
 
-/** @returns How many candidate decks one candidate event holds. */
 async function deckCountOf(externalId: string): Promise<number> {
   const decks = await decksOf(externalId);
   return decks.length;
 }
 
-/** @returns The live event's URL slug. */
 async function slugOf(metaEventId: string): Promise<string> {
   const row = await ctx!.db
     .selectFrom("metaEvents")
@@ -149,7 +130,6 @@ async function slugOf(metaEventId: string): Promise<string> {
   return row.slug;
 }
 
-/** @returns One live event's citations, oldest first. */
 async function sourcesOf(metaEventId: string): Promise<JsonBody[]> {
   const res = await ctx!.app.fetch(adminReq("GET", `/meta/events/${metaEventId}/sources`));
   expect(res.status).toBe(200);
@@ -157,7 +137,6 @@ async function sourcesOf(metaEventId: string): Promise<JsonBody[]> {
   return body.sources;
 }
 
-/** @returns The parsed body of a POST to an admin path, after asserting its status. */
 async function post(path: string, body?: unknown, status = 200): Promise<JsonBody> {
   const res = await ctx!.app.fetch(adminReq("POST", path, body));
   expect(res.status).toBe(status);
@@ -224,8 +203,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       await db.insertInto("admins").values({ userId: USER_ID }).execute();
     });
   });
-
-  // ── Staging ───────────────────────────────────────────────────────────────
 
   describe("POST /admin/meta/upload", () => {
     it("stages new events and their decks", async () => {
@@ -381,8 +358,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Review state ──────────────────────────────────────────────────────────
-
   describe("checked_at", () => {
     it("marks a candidate reviewed and unmarks it", async () => {
       const row = await queueRow("mtc-b");
@@ -460,8 +435,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Card name aliases ─────────────────────────────────────────────────────
-
   describe("POST /admin/meta/candidates/rematch", () => {
     it("resolves a name once an alias exists for it", async () => {
       await upload([
@@ -507,8 +480,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Accepting ─────────────────────────────────────────────────────────────
-
   describe("accepting a candidate", () => {
     it("refuses a deck whose parent event is not accepted yet", async () => {
       const decks = await decksOf("mtc-a");
@@ -534,8 +505,8 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(live.name).toBe("MTC renamed");
       expect(live.organizer).toBe("MTC Organizer");
 
-      // The live row carries no source key since migration 255; the credit is
-      // a citation, and the link is the candidate's own FK.
+      // The live row carries no source key; the credit is a citation, and the
+      // link is the candidate's own FK.
       const citations = await sourcesOf(accepted.metaEventId);
       expect(citations).toHaveLength(1);
       expect(citations[0].provider).toBe(PROVIDER);
@@ -575,7 +546,7 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(satellite.finishTier).toBe(1);
 
-      // The source key lives on the candidate now: `deck_id` is the only link.
+      // The source key lives on the candidate: `deck_id` is the only link.
       const candidate = await db
         .selectFrom("candidateMetaDecks")
         .select(["deckId", "externalId"])
@@ -764,10 +735,7 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Archetype-only decks ──────────────────────────────────────────────────
-
   describe("list status", () => {
-    /** @returns The accepted event id, tracked for teardown. */
     async function acceptEventOf(externalId: string): Promise<string> {
       const row = await queueRow(externalId);
       const accepted = await post(`/meta/candidates/${row.id}/accept`);
@@ -952,8 +920,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Ignoring ──────────────────────────────────────────────────────────────
-
   describe("ignoring a candidate", () => {
     it("drops the candidate and skips the key on every later upload", async () => {
       const row = await queueRow("mtc-good");
@@ -1022,13 +988,11 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Event-scoped deck ids ─────────────────────────────────────────────────
   // Real sources number their lists per event, so deck "1" exists once per
   // event. Every key that outlives the candidate row — the ignore list, the
   // live deck's source columns — has to carry the event id with it.
-
   describe("deck external ids reused across events", () => {
-    /** @returns Both events, each carrying its own deck "1". */
+    /** Both events, each carrying its own deck "1". */
     function twoEvents() {
       return [
         event("mtc-e1", { decks: [deck("1")] }),
@@ -1134,8 +1098,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Re-parenting ──────────────────────────────────────────────────────────
-
   describe("a live deck re-filed under another event", () => {
     it("reads as changed and names both events in the diff", async () => {
       const moving = await onlyDeckOf("mtc-e1");
@@ -1173,11 +1135,8 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
     });
   });
 
-  // ── Multi-source (ADR-014, amended 2026-08-18) ────────────────────────────
-  // Two sources describing one tournament have to land on one live event. The
-  // whole point of the amendment is that the second one links rather than
-  // accepting into an event of its own.
-
+  // Two sources describing one tournament have to land on one live event: the
+  // second one links rather than accepting into an event of its own.
   describe("a second source on one event", () => {
     let liveEventId: string;
     let secondCandidateId: string;
@@ -1329,7 +1288,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       const citations = await sourcesOf(liveEventId);
       expect(citations.map((c: JsonBody) => c.provider)).toEqual([PROVIDER]);
 
-      // The name this source contributed is the archive's now.
       const live = await db
         .selectFrom("metaEvents")
         .selectAll()
@@ -1338,8 +1296,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(live.name).toBe("MTC Multi Source Berlin");
     });
   });
-
-  // ── User submissions (ADR-014, ADR-036) ───────────────────────────────────
 
   describe("a signed-in user's decklist submission", () => {
     let liveEventId: string;
@@ -1450,7 +1406,6 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       const shown = await app.fetch(req("GET", `/meta/events/${await slugOf(liveEventId)}`));
       const shownBody = await readJson(shown);
       expect(shownBody.event.contributors).toHaveLength(1);
-      // And the citation list is the other half of the credit line.
       expect(shownBody.event.sources.map((s: JsonBody) => s.provider)).toEqual([PROVIDER]);
     });
 
@@ -1532,11 +1487,9 @@ describe.skipIf(!ctx)("Meta candidate ingest (integration)", () => {
       expect(credits).toEqual([]);
     });
   });
-  // ── Ignore then un-ignore (migration 256) ─────────────────────────────────
   // An ignore deletes the candidate rows, so the source key cannot live only
   // there: un-ignoring the key and re-uploading has to find the rows this source
   // already produced, or the archive gains a second copy of the same deck.
-
   describe("un-ignoring a key that was already accepted", () => {
     let liveEventId: string;
     let liveDeckId: string;

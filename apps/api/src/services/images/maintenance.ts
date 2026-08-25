@@ -25,7 +25,6 @@ export async function clearAllRehosted(
 ): Promise<ClearRehostedResponse> {
   const cleared = await repo.clearAllRehostedUrls();
 
-  // Delete all files in the media/cards directory
   try {
     const entries = await io.fs.readdir(CARD_MEDIA_DIR, { withFileTypes: true });
     for (const entry of entries) {
@@ -45,10 +44,6 @@ export async function clearAllRehosted(
   return { cleared };
 }
 
-/**
- * Strip the variant suffix from a disk filename to get the rehostedUrl prefix.
- * @returns The `/media/cards/{prefix}/{base}` prefix without the variant suffix.
- */
 function diskFileToPrefix(dirPrefix: string, file: string): string {
   // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
   // The `[^-.]+` class prevents the suffix from swallowing an internal dash
@@ -56,10 +51,6 @@ function diskFileToPrefix(dirPrefix: string, file: string): string {
   return `/media/cards/${dirPrefix}/${file.replace(/-(?:orig\.[^.]+|[^-.]+\.webp)$/u, "")}`;
 }
 
-/**
- * Extract a human-readable resolution label from a card-image filename.
- * @returns The resolution label (e.g. "orig", "full", "400w", or "other").
- */
 function resolveResolutionLabel(filename: string): string {
   if (filename.includes("-orig.")) {
     return "orig";
@@ -73,10 +64,6 @@ function resolveResolutionLabel(filename: string): string {
   return "other";
 }
 
-/**
- * Scan the media/cards directory and return per-prefix stats + all file paths grouped by prefix.
- * @returns Disk stats and file listings per prefix directory.
- */
 async function scanDisk(io: Io): Promise<{
   stats: RehostStatusDiskStats;
   filesByPrefix: { prefix: string; files: string[] }[];
@@ -171,11 +158,10 @@ export async function getRehostStatus(
 }
 
 /**
- * Identify stale duplicate `{base}-orig.*` files in a directory — when more
- * than one orig archive exists for the same base (e.g. both `-orig.png` and
- * `-orig.webp`, left over when the upstream content type changed between
- * rehost runs), keep the newest by mtime and return the rest for deletion.
- * @returns Filenames that should be removed.
+ * When more than one orig archive exists for the same base (e.g. both
+ * `-orig.png` and `-orig.webp`, left over when the upstream content type
+ * changed between rehost runs), keep the newest by mtime and return the rest
+ * for deletion.
  */
 async function findDuplicateOrigs(
   io: Io,
@@ -201,7 +187,7 @@ async function findDuplicateOrigs(
     if (origs.length <= 1) {
       continue;
     }
-    origs.sort((a, b) => b.mtime - a.mtime); // newest first
+    origs.sort((a, b) => b.mtime - a.mtime);
     for (let i = 1; i < origs.length; i++) {
       stale.add(origs[i].file);
     }
@@ -210,14 +196,12 @@ async function findDuplicateOrigs(
 }
 
 /**
- * Delete files in the media/cards directory that are no longer valid. A file
- * is considered orphaned if its base UUID has no matching rehostedUrl in the
- * DB, if its variant suffix is not in the current SIZES config (e.g. legacy
- * `-300w.webp` after a resolution change), or if it is a stale duplicate
- * `-orig.*` (another orig with a different extension exists and is newer).
- * This is the one place users can reach for to sweep stale files, so
+ * A file is considered orphaned if its base UUID has no matching rehostedUrl
+ * in the DB, if its variant suffix is not in the current SIZES config (e.g.
+ * legacy `-300w.webp` after a resolution change), or if it is a stale
+ * duplicate `-orig.*` (another orig with a different extension exists and is
+ * newer). This is the one place users can reach for to sweep stale files, so
  * regenerate no longer needs to touch them.
- * @returns Counts of scanned files, deleted files, and any errors.
  */
 export async function cleanupOrphanedFiles(
   io: Io,
@@ -254,11 +238,9 @@ export async function cleanupOrphanedFiles(
 }
 
 /**
- * Find all rehosted card images with missing files on disk. An image is
- * considered broken if its `-orig.*` archive is missing OR any current
- * `-{SIZES.suffix}.webp` variant is missing. This also catches images left
- * over from earlier resolution changes where the orig was never preserved.
- * @returns The total rehosted count and the list of entries with missing files.
+ * An image is considered broken if its `-orig.*` archive is missing OR any
+ * current `-{SIZES.suffix}.webp` variant is missing. This also catches images
+ * left over from earlier resolution changes where the orig was never preserved.
  */
 export async function findBrokenImages(
   io: Io,
@@ -294,10 +276,8 @@ export async function findBrokenImages(
 const LOW_RES_SHORT_EDGE_THRESHOLD = 400;
 
 /**
- * Find all rehosted card images whose source short edge is below a threshold.
  * Reads the `-full.webp` file (short-edge capped at 800) and checks its
- * shorter dimension — orientation-agnostic.
- * @returns The total rehosted count and the list of low-resolution entries.
+ * shorter dimension, orientation-agnostic.
  */
 export async function findLowResImages(
   io: Io,
@@ -339,10 +319,9 @@ export async function findLowResImages(
 }
 
 /**
- * Migrate files from old set-slug directory structure to UUID-prefix structure.
- * Moves files from `media/cards/{setSlug}/{uuid}-*` to `media/cards/{last2chars}/{uuid}-*`.
- * Only processes directories that are NOT 2-char hex prefixes (i.e., old set-slug dirs).
- * @returns Counts of scanned, moved, skipped, and failed files.
+ * Moves files from `media/cards/{setSlug}/{uuid}-*` to
+ * `media/cards/{last2chars}/{uuid}-*`. Only processes directories that are NOT
+ * 2-char hex prefixes (i.e., old set-slug dirs).
  */
 export async function migrateImageDirectories(io: Io): Promise<{
   scanned: number;

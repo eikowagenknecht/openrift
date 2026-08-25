@@ -3,12 +3,11 @@ import type { Logger } from "@openrift/shared/logger";
 
 import type { EnrichedPrintingEvent } from "../repositories/printing-events.js";
 
-// Discord allows up to 10 embeds per message
+// Discord allows up to 10 embeds per message.
 const MAX_EMBEDS_PER_MESSAGE = 10;
-// If more than this many new printings in a batch, send a summary instead
 const SUMMARY_THRESHOLD = 20;
 
-const COLOR_NEW = 0x57_f2_87; // green
+const COLOR_NEW = 0x57_f2_87;
 
 interface DiscordEmbed {
   title: string;
@@ -28,7 +27,6 @@ interface DiscordWebhookPayload {
 }
 
 export interface WebhookFailure {
-  /** Which webhook URL was being called. */
   channel: "newPrintings";
   /** HTTP status if Discord responded, undefined if fetch threw. */
   status?: number;
@@ -45,13 +43,6 @@ function absoluteImageUrl(appBaseUrl: string, id: string | null): string | undef
   return `${appBaseUrl}${imageUrl(id, "400w")}`;
 }
 
-/**
- * Build Discord embed messages from a batch of new-printing events and send them
- * to the configured webhook URL.
- *
- * @returns Sent/failed event ids and per-channel failure detail (HTTP status
- * and response body) for any non-2xx responses or fetch errors.
- */
 export async function flushPrintingEvents(
   events: EnrichedPrintingEvent[],
   webhookUrls: { newPrintings: string | null },
@@ -91,11 +82,6 @@ function cardUrl(appBaseUrl: string, slug: string | null): string | undefined {
   return `${appBaseUrl}/cards/${slug}`;
 }
 
-/**
- * Build webhook payloads for new printing events.
- *
- * @returns Array of Discord webhook payloads to send.
- */
 export function buildNewPrintingPayloads(
   events: EnrichedPrintingEvent[],
   appBaseUrl: string,
@@ -144,11 +130,6 @@ export function buildNewPrintingPayloads(
   return chunkEmbeds(embeds);
 }
 
-/**
- * Build a compact summary for large batches of new printings.
- *
- * @returns Array of Discord webhook payloads.
- */
 function buildNewPrintingSummary(
   events: EnrichedPrintingEvent[],
   appBaseUrl: string,

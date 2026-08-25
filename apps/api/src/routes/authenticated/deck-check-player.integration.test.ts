@@ -28,13 +28,9 @@ const playerCtx = createTestContext(PLAYER_ID, PLAYER_EMAIL);
 const strangerCtx = createTestContext(STRANGER_ID, STRANGER_EMAIL);
 const unverifiedCtx = createTestContext(UNVERIFIED_ID, UNVERIFIED_EMAIL);
 // A signed-in user who never claimed or self-registered: the canonical
-// "stranger" for the self-registration-off deck-submission gate (ADR-033).
+// "stranger" for the self-registration-off deck-submission gate.
 const outsiderCtx = createTestContext(OUTSIDER_ID, OUTSIDER_EMAIL);
 
-/**
- * Builds an ingest push request authenticated with a Bearer push key.
- * @returns A Request aimed at the ingest endpoint.
- */
 function ingestReq(token: string, body: unknown): Request {
   return new Request("http://localhost/api/v1/ingest/deck-check", {
     method: "POST",
@@ -97,7 +93,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     );
     groupId = group.id;
     await repos.friendGroups.addMember(groupId, ADMIN_ID, "admin");
-    // ADR-033 retired the friend-group `judge` role; judging is tournament staff.
+    // There is no friend-group `judge` role; judging is tournament staff.
     await repos.friendGroups.addMember(groupId, JUDGE_ID, "member");
     await repos.friendGroups.addMember(groupId, MEMBER_ID, "member");
 
@@ -116,8 +112,8 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     eventId = event.id;
     await repos.tournaments.addStaff(eventId, JUDGE_ID, "judge");
 
-    // Host-scoped push key (ADR-033): the tournament is hosted by the group
-    // owner, so the owner mints the personal integration key the ingest uses.
+    // Push keys are host-scoped: the tournament is hosted by the group owner,
+    // so the owner mints the personal integration key the ingest uses.
     const keyRes = await ownerApp.fetch(
       req("POST", "/me/deck-check-keys", { label: "player-itest" }),
     );
@@ -171,7 +167,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       ]);
       expect(res.status).toBe(200);
 
-      // No email auto-match anymore: the entry starts unclaimed.
+      // No email auto-match: the entry starts unclaimed.
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
       expect(entry?.claimedUserId).toBeNull();
 
@@ -228,7 +224,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         entry: { eventName: string; state: string; canEdit: boolean };
       };
       expect(body.entry.eventName).toBe("Self-Service Cup");
-      // A provider-fed entry arrives submitted, which is locked (ADR-027).
+      // A provider-fed entry arrives submitted, which is locked.
       expect(body.entry.state).toBe("submitted");
       expect(body.entry.canEdit).toBe(false);
     });
@@ -236,9 +232,9 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
   describe("group-less tournament (ADR-033)", () => {
     it("lists and opens a personally-hosted entry with no owning friend group", async () => {
-      // A tournament hosted by a user directly, with groupId = null — the new
-      // first-class config. The player's own queries must left-join the group,
-      // not inner-join, or the player's own deck page 404s for this entry.
+      // A tournament hosted by a user directly, with groupId = null. The
+      // player's own queries must left-join the group, not inner-join, or the
+      // player's own deck page 404s for this entry.
       const tournament = await repos.tournaments.create({
         hostType: "user",
         hostUserId: OWNER_ID,
@@ -302,7 +298,6 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       ];
       await push(memberEntry);
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-member");
-      // MEMBER claims the walk-in by link.
       const claim = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect(claim.status).toBe(200);
       const claimed = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-member");
@@ -313,7 +308,6 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       );
       expect(unlink.status).toBe(200);
 
-      // Unlink clears the link and sets the block, so a re-claim is refused.
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-member");
       expect(after?.claimedUserId).toBeNull();
       expect(after?.claimBlockedAt).not.toBeNull();
@@ -324,7 +318,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
   describe("self-submission", () => {
     it("enabling self-submission mints a token; the page resolves for a holder", async () => {
-      // ADR-033 split the toggle from the token: the host opts in to
+      // The toggle is separate from the token: the host opts in to
       // self-registration on the tournament, then mints the submission token.
       await ownerApp.fetch(req("PATCH", `/tournaments/${eventId}`, { selfRegistration: true }));
       const res = await ownerApp.fetch(req("POST", `/tournaments/${eventId}/submission-token`));
@@ -387,7 +381,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       ]);
       const result = (await readJson(res)) as { entriesUpdated: number; entriesIgnored: number };
       expect(result.entriesUpdated).toBe(1);
-      // Deprecated field, always 0 since ADR-027 removed edit-takeover.
+      // Deprecated field, always 0 (edit-takeover no longer exists).
       expect(result.entriesIgnored).toBe(0);
 
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
@@ -423,7 +417,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     });
 
     it("a user without a linked entry creates one openrift: entry, upserted on re-submit", async () => {
-      // The profile's free-text Riot ID is snapshotted onto the entry (ADR-028).
+      // The profile's free-text Riot ID is snapshotted onto the entry.
       await db
         .updateTable("users")
         .set({ riotId: "Stranger#EUW" })
@@ -533,13 +527,13 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     });
 
     it("self-registration off keeps the link for a claimed participant but blocks a stranger", async () => {
-      // ADR-033: self-registration is a roster-policy gate, not the link's kill
-      // switch. Turning it off must not break deck submission for someone who
-      // already holds a spot, while a stranger is told to claim first.
+      // Self-registration is a roster-policy gate, not the link's kill switch.
+      // Turning it off must not break deck submission for someone who already
+      // holds a spot, while a stranger is told to claim first.
       await ownerApp.fetch(req("PATCH", `/tournaments/${eventId}`, { selfRegistration: false }));
 
-      // PLAYER claimed p-entry-1 earlier, so the link still resolves (this was a
-      // 404 before the fix, when self-registration doubled as the link gate).
+      // PLAYER claimed p-entry-1 earlier, so the link still resolves even with
+      // self-registration off (a 404 here means the flag doubles as the link gate).
       const holderPage = await playerApp.fetch(
         req("GET", `/deck-check/submissions/${submissionToken}`),
       );
@@ -909,7 +903,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("mints a token on push for an entry missing one", async () => {
       await push([{ externalId: "claim-mint", playerName: "M. Int", cards: [fury] }]);
       const before = await repos.deckCheck.getEntryByExternalId(eventId, "claim-mint");
-      // The claim token lives on the participant now (ADR-033).
+      // The claim token lives on the participant.
       await db
         .updateTable("tournamentParticipants")
         .set({ claimToken: null })
@@ -948,7 +942,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
 
       // MEMBER has no other participant in this tournament, so linking respects
-      // the one-participant-per-account index (ADR-033).
+      // the one-participant-per-account index.
       const first = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect(first.status).toBe(200);
       expect((await readJson(first)) as ClaimResult).toEqual({
@@ -983,7 +977,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("refuses a claim for a judge-blocked entry", async () => {
       await push([{ externalId: "claim-blocked", playerName: "B. Locked", cards: [fury] }]);
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-blocked");
-      // The claim block lives on the participant now (ADR-033).
+      // The claim block lives on the participant.
       await db
         .updateTable("tournamentParticipants")
         .set({ claimBlockedAt: new Date() })

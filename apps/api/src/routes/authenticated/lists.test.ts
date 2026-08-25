@@ -8,10 +8,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { listsRouter } from "./lists";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockListsRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
   getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -49,10 +45,6 @@ const mockFriendGroupsRepo = {
   listGroupsSharingList: vi.fn(() => Promise.resolve([])),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const LIST_ID = "a0000000-0001-4000-a000-000000000010";
 const ENTRY_ID = "a0000000-0001-4000-a000-000000000020";
@@ -77,10 +69,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-05-17T00:00:00Z");
 
@@ -126,10 +114,6 @@ const dbCopyEntry = {
   copyId: COPY_ID,
 };
 
-// ---------------------------------------------------------------------------
-// LIST
-// ---------------------------------------------------------------------------
-
 describe("GET /api/v1/lists", () => {
   beforeEach(() => {
     mockListsRepo.listForUser.mockReset();
@@ -157,10 +141,6 @@ describe("GET /api/v1/lists", () => {
     expect(res.status).toBe(400);
   });
 });
-
-// ---------------------------------------------------------------------------
-// CREATE
-// ---------------------------------------------------------------------------
 
 describe("POST /api/v1/lists", () => {
   beforeEach(() => {
@@ -228,10 +208,6 @@ describe("POST /api/v1/lists", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// GET ONE
-// ---------------------------------------------------------------------------
-
 describe("GET /api/v1/lists/:id", () => {
   beforeEach(() => {
     mockListsRepo.getByIdForUser.mockReset();
@@ -277,10 +253,6 @@ describe("GET /api/v1/lists/:id", () => {
     expect(res.status).toBe(404);
   });
 });
-
-// ---------------------------------------------------------------------------
-// UPDATE
-// ---------------------------------------------------------------------------
 
 describe("PATCH /api/v1/lists/:id", () => {
   beforeEach(() => {
@@ -351,8 +323,8 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(mockListsRepo.update).not.toHaveBeenCalled();
   });
 
-  // ADR-034 amendment 2: several trade rules are accepted (the old one-rule
-  // cap is gone) and the combine mode is validated against the list.
+  // Several trade rules are accepted, and the combine mode is validated
+  // against the list.
   const tradeRule = {
     kind: "trade",
     filter: {},
@@ -379,7 +351,7 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  // ADR-034 amendment 4: an organize list carries rules too, shaped by its kind.
+  // An organize list carries rules too, shaped by its kind.
   it("accepts rules on an organize list, shaped by its kind", async () => {
     const organizeCopy = { ...dbList, intent: "organize" as const, kind: "copy" as const };
     mockListsRepo.getByIdForUser.mockResolvedValue(organizeCopy);
@@ -450,7 +422,7 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { ruleCombine: null });
   });
 
-  // F6: a PATCH carrying trade prefs on an organize list strips them (the DB
+  // A PATCH carrying trade prefs on an organize list strips them (the DB
   // CHECK would otherwise 500) and applies only the real fields.
   it("strips trade prefs on a PATCH to an organize list", async () => {
     mockListsRepo.getByIdForUser.mockResolvedValue({ ...dbList, intent: "organize" });
@@ -469,10 +441,6 @@ describe("PATCH /api/v1/lists/:id", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// DELETE
-// ---------------------------------------------------------------------------
-
 describe("DELETE /api/v1/lists/:id", () => {
   beforeEach(() => {
     mockListsRepo.deleteByIdForUser.mockReset();
@@ -490,10 +458,6 @@ describe("DELETE /api/v1/lists/:id", () => {
     expect(res.status).toBe(404);
   });
 });
-
-// ---------------------------------------------------------------------------
-// ENTRIES — CREATE
-// ---------------------------------------------------------------------------
 
 describe("POST /api/v1/lists/:id/entries", () => {
   beforeEach(() => {
@@ -593,10 +557,6 @@ describe("POST /api/v1/lists/:id/entries", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// ENTRIES — BULK
-// ---------------------------------------------------------------------------
-
 describe("POST /api/v1/lists/:id/entries/bulk", () => {
   beforeEach(() => {
     mockListsRepo.getIdKindIntent.mockReset();
@@ -622,7 +582,6 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ added: 1, updated: 0, skipped: 1 });
-    // bulkCreateEntries receives kind + only the owned entry.
     expect(mockListsRepo.bulkCreateEntries).toHaveBeenCalled();
     const args = mockListsRepo.bulkCreateEntries.mock.calls[0] ?? [];
     expect(args[0]).toBe("copy");
@@ -682,10 +641,6 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// ENTRIES — FROM COPIES (drag-from-collections endpoint)
-// ---------------------------------------------------------------------------
-
 describe("POST /api/v1/lists/:id/entries/from-copies", () => {
   beforeEach(() => {
     mockListsRepo.getIdKindIntent.mockReset();
@@ -728,10 +683,6 @@ describe("POST /api/v1/lists/:id/entries/from-copies", () => {
     expect(mockListsRepo.bulkCreateEntriesFromCopies).not.toHaveBeenCalled();
   });
 });
-
-// ---------------------------------------------------------------------------
-// ENTRIES — PATCH / DELETE
-// ---------------------------------------------------------------------------
 
 describe("PATCH /api/v1/lists/:id/entries/:itemId", () => {
   beforeEach(() => {
@@ -809,10 +760,6 @@ describe("DELETE /api/v1/lists/:id/entries/:itemId", () => {
     expect(res.status).toBe(404);
   });
 });
-
-// ---------------------------------------------------------------------------
-// SHARE / UNSHARE
-// ---------------------------------------------------------------------------
 
 describe("POST /api/v1/lists/:id/share", () => {
   beforeEach(() => {

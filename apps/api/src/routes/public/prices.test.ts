@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { pricesRouter } from "./prices";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockCatalogRepo = {
   printingById: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
@@ -38,10 +34,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, pricesRouter);
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const dbPrice = {
   printingId: "a0000000-0001-4000-a000-000000000001",
@@ -85,10 +77,7 @@ const dbSnapshot = {
   lowCents: 200,
 };
 
-// ---------------------------------------------------------------------------
-// GET /api/v1/prices (latest prices — kept for non-browser consumers)
-// ---------------------------------------------------------------------------
-
+// Kept for non-browser consumers.
 describe("GET /api/v1/prices", () => {
   beforeEach(() => {
     mockMarketplaceRepo.latestPrices.mockReset().mockResolvedValue([dbPrice, dbPriceFoil]);
@@ -200,10 +189,6 @@ describe("GET /api/v1/prices", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// GET /api/v1/prices/:printingId/history
-// ---------------------------------------------------------------------------
-
 describe("GET /api/v1/prices/:printingId/history", () => {
   beforeEach(() => {
     mockMarketplaceRepo.latestPrices.mockReset();
@@ -243,7 +228,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.tcgplayer.snapshots).toHaveLength(1);
     expect(json.tcgplayer.snapshots[0].market).toBe(275);
     expect(json.tcgplayer.snapshots[0].low).toBe(200);
-    // mid/high are no longer returned
     expect(json.tcgplayer.snapshots[0].mid).toBeUndefined();
     expect(json.tcgplayer.snapshots[0].high).toBeUndefined();
   });
@@ -293,7 +277,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("defaults to 30d range when no range parameter is provided", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.status).toBe(200);
-    // snapshots called with a cutoff date (30d in the past, not null)
     const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
     expect(cutoffArg).toBeInstanceOf(Date);
   });
@@ -303,7 +286,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=all",
     );
     expect(res.status).toBe(200);
-    // 'all' range should pass null cutoff
     const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
     expect(cutoffArg).toBeNull();
   });
@@ -429,10 +411,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(res.status).toBe(400);
   });
 });
-
-// ---------------------------------------------------------------------------
-// GET /api/v1/prices/marketplace-info
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/prices/marketplace-info", () => {
   const printingA = "a0000000-0001-4000-a000-000000000001";

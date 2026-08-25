@@ -9,12 +9,8 @@ import {
 } from "../../../test/integration-context.js";
 import { readJson } from "../../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Card-sources image management routes
-//
-// Uses the shared integration database. A mock io object is injected so
-// the image pipeline doesn't hit the real filesystem or network.
-// ---------------------------------------------------------------------------
+// A mock io object is injected so the image pipeline doesn't hit the real
+// filesystem or network.
 
 const FAKE_BUFFER = Buffer.from("img");
 
@@ -57,7 +53,6 @@ const USER_ID = "a0000000-0021-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID, { io: mockIo });
 
-// Seed data IDs (populated during setup)
 let printingId = "";
 let psId = ""; // printing source with image + linked
 let psNoImageId = ""; // printing source without image
@@ -67,21 +62,18 @@ let psUnlinkedId = ""; // printing source not linked to a printing
 if (ctx) {
   const { db } = ctx;
 
-  // Ensure user is an admin
   await db
     .insertInto("admins")
     .values({ userId: USER_ID })
     .onConflict((oc) => oc.column("userId").doNothing())
     .execute();
 
-  // Seed set
   const [set] = await db
     .insertInto("sets")
     .values({ slug: "CSI", name: "CSI Test Set", printedTotal: 1, sortOrder: 930 })
     .returning("id")
     .execute();
 
-  // Seed card
   const [card] = await db
     .insertInto("cards")
     .values({
@@ -104,7 +96,6 @@ if (ctx) {
     .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
-  // Seed printing
   const [printing] = await db
     .insertInto("printings")
     .values({
@@ -128,7 +119,6 @@ if (ctx) {
     .execute();
   printingId = printing.id;
 
-  // Seed card source
   const [cs] = await db
     .insertInto("candidateCards")
     .values({
@@ -255,19 +245,12 @@ if (ctx) {
   await refreshCardAggregates(db);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // Track printing_image IDs created during tests
   let mainImageId = "";
   let additionalImageId = "";
-
-  // ── POST /candidate-printings/:id/set-image ─────────────────────────────────
 
   describe("POST /admin/cards/candidate-printings/:id/set-image", () => {
     it("sets image as main for a linked printing source", async () => {
@@ -276,7 +259,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify printing_image was created with its card_image
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -349,7 +331,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify additional image was created as inactive
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -395,8 +376,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
-  // ── POST /printing-images/:imageId/activate ──────────────────────────────
-
   describe("POST /admin/cards/printing-images/:imageId/activate", () => {
     it("activates an inactive image", async () => {
       const res = await app.fetch(
@@ -406,7 +385,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the image is now active
       const image = await db
         .selectFrom("printingImages")
         .select("isActive")
@@ -415,7 +393,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(image!.isActive).toBe(true);
 
-      // The previously active image should be deactivated
       const prev = await db
         .selectFrom("printingImages")
         .select("isActive")
@@ -433,7 +410,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the image is now inactive
       const image = await db
         .selectFrom("printingImages")
         .select("isActive")
@@ -452,11 +428,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
-  // ── POST /printing-images/:imageId/activate (rehosted paths) ────────────
-
   describe("POST /admin/cards/printing-images/:imageId/activate (rehosted)", () => {
     it("does not change rehostedUrls when swapping active images", async () => {
-      // Give both images a rehostedUrl via their image_files
       const mainCardImageId = await db
         .selectFrom("printingImages")
         .select("imageFileId")
@@ -491,7 +464,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", additionalImageId)
         .execute();
 
-      // Activate the additional image → should deactivate main, leave URLs unchanged
       const res = await app.fetch(
         adminReq("POST", `/cards/printing-images/${additionalImageId}/activate`, {
           active: true,
@@ -499,7 +471,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // The newly active image keeps its own URL
       const newActive = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -511,7 +482,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted by skipIf
       expect(newActive!.rehostedUrl).toBe(additionalUrl);
 
-      // The demoted image also keeps its own URL
       const demoted = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -534,7 +504,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // The deactivated image keeps its own URL
       const image = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -548,7 +517,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
 
     it("activates an image without rehostedUrl", async () => {
-      // Clear rehostedUrl on the card_image for mainImageId
       const mainCardImageId = await db
         .selectFrom("printingImages")
         .select("imageFileId")
@@ -560,7 +528,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", mainCardImageId.imageFileId)
         .execute();
 
-      // Also ensure no currently-active image for this face
       await db
         .updateTable("printingImages")
         .set({ isActive: false })
@@ -588,8 +555,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
-  // ── POST /printing-images/:imageId/rehost ────────────────────────────────
-
   describe("POST /admin/cards/printing-images/:imageId/rehost", () => {
     it("rehosts an image with originalUrl", async () => {
       const res = await app.fetch(adminReq("POST", `/cards/printing-images/${mainImageId}/rehost`));
@@ -598,7 +563,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
-      // Verify rehostedUrl was set in DB via image_files
       const image = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -610,7 +574,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
 
     it("returns 400 when image has no originalUrl", async () => {
-      // Insert a card_image with no originalUrl (rehostedUrl satisfies the DB constraint)
+      // A card_image with no originalUrl (rehostedUrl satisfies the DB constraint).
       const [noUrlCardImage] = await db
         .insertInto("imageFiles")
         .values({ rehostedUrl: "/media/cards/CSI/placeholder" })
@@ -635,7 +599,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await readJson(res);
       expect(json.message).toBe("Image has no original URL to rehost");
 
-      // Clean up
       await db.deleteFrom("printingImages").where("id", "=", noUrlImage.id).execute();
     });
 
@@ -645,8 +608,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── POST /printing-images/:imageId/unrehost ──────────────────────────────
 
   describe("POST /admin/cards/printing-images/:imageId/unrehost", () => {
     it("unrehosts a rehosted image", async () => {
@@ -665,7 +626,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify rehostedUrl was cleared
       const after = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -694,8 +654,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
-  // ── DELETE /printing-images/:imageId ──────────────────────────────────────
-
   describe("DELETE /admin/cards/printing-images/:imageId", () => {
     it("deletes a printing image", async () => {
       const res = await app.fetch(
@@ -703,7 +661,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify it's gone
       const image = await db
         .selectFrom("printingImages")
         .select("id")
@@ -713,7 +670,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
 
     it("deletes a printing image that has a rehostedUrl", async () => {
-      // Set rehostedUrl on the card_image for mainImageId to test the deleteRehostFiles path
+      // A rehostedUrl on the card_image exercises the deleteRehostFiles path.
       const mainCardImageRow = await db
         .selectFrom("printingImages")
         .select("imageFileId")
@@ -728,7 +685,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const res = await app.fetch(adminReq("DELETE", `/cards/printing-images/${mainImageId}`));
       expect(res.status).toBe(204);
 
-      // Verify it's gone
       const image = await db
         .selectFrom("printingImages")
         .select("id")
@@ -743,8 +699,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── POST /printing/:printingId/add-image-url ─────────────────────────────
 
   describe("POST /admin/cards/printing/:printingId/add-image-url", () => {
     it("inserts an image in main mode", async () => {
@@ -838,8 +792,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
   });
 
-  // ── POST /printing/:printingId/upload-image ─────────────────────────────
-
   describe("POST /admin/cards/printing/:printingId/upload-image", () => {
     it("uploads an image as main", async () => {
       const formData = new FormData();
@@ -857,7 +809,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(json.rehostedUrl).toBeTypeOf("string");
       expect(json.rehostedUrl).toContain("/media/cards/");
 
-      // Verify DB state: should be active with rehostedUrl
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -886,7 +837,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
-      // Verify DB state: should be inactive
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
@@ -914,7 +864,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await readJson(res);
       expect(json.rehostedUrl).toBeTypeOf("string");
 
-      // Default mode is "main" — verify the row is active.
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")

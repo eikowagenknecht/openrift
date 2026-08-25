@@ -33,15 +33,6 @@ import { relinkCandidatePrintings } from "../../../services/relink-candidates.js
 
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * The `cards` column update for a validated `acceptField` write. `field` has
- * already had `domains` / `superTypes` / `types` (the junction-table columns)
- * handled and returned on by the caller, so only scalar `cards` columns
- * reach here.
- * @param field The scalar card field being written.
- * @param finalValue The validated value for that field.
- * @returns The typed `cards` update.
- */
 function cardUpdateFor(
   field: Exclude<AcceptCardField, "domains" | "superTypes" | "types">,
   finalValue: unknown,
@@ -82,12 +73,6 @@ function cardUpdateFor(
   }
 }
 
-/**
- * Bespoke admin card mutations: the candidate check/uncheck verbs and the
- * candidate-printing operations. Not-found / bad-request states are thrown as
- * `AppError` (via the `assert*` helpers or directly) and mapped by the
- * handler's appErrorInterceptor.
- */
 export const adminCardMutationsRouter = {
   checkCandidateCard: os.checkCandidateCard.handler(async ({ input, context }): Promise<void> => {
     const { candidateCards } = context.repos;
@@ -161,8 +146,6 @@ export const adminCardMutationsRouter = {
       card.id,
     );
 
-    // The review run's terminal action. Every user submission on this card that
-    // is now fully checked gets its outcome here (ADR-036).
     await resolveCheckedSubmissions(context.repos, {
       candidateCardIds,
       adminUserId: context.userId,
@@ -181,7 +164,7 @@ export const adminCardMutationsRouter = {
 
       // The contract body IS the writable-column allowlist (zod drops anything
       // else), so pass it through typed rather than re-listing the columns in a
-      // string loop the compiler cannot check against `candidate_printings`.
+      // loop the compiler cannot check against `candidate_printings`.
       const updates: Updateable<CandidatePrintingsTable> = { ...body };
 
       if (Object.keys(updates).length === 0) {
@@ -420,7 +403,6 @@ export const adminCardMutationsRouter = {
       effectiveDate,
     });
 
-    // Recompute keywords to include errata text
     const printingTexts = await mut.getPrintingTextsForCardId(cardId);
     const keywords = [
       ...extractKeywords(correctedRulesText ?? ""),
@@ -457,7 +439,6 @@ export const adminCardMutationsRouter = {
 
     await cardErrata.deleteByCardId(cardId);
 
-    // Recompute keywords from printing text only (no errata anymore)
     const printingTexts = await mut.getPrintingTextsForCardId(cardId);
     const keywords = printingTexts
       .flatMap((pt) => [
@@ -489,7 +470,6 @@ export const adminCardMutationsRouter = {
       dryRun: input.dryRun,
     });
 
-    // A dry run mutates nothing — no audit event.
     if (!input.dryRun) {
       await recordAdminEvent(context.repos, context.userId, {
         action: "errata.upload",
@@ -518,7 +498,6 @@ export const adminCardMutationsRouter = {
       assertSomeProviderInScope(await candidateCards.candidateProvidersForCard(cardId), scope);
     }
 
-    // Normalize null to empty array for array-typed fields
     const arrayFields = new Set(["types", "superTypes", "domains", "tags"]);
     const normalized = value === null && arrayFields.has(field) ? [] : value;
 
@@ -538,7 +517,7 @@ export const adminCardMutationsRouter = {
 
     // Snapshot before the write for the audit event. domains/superTypes live
     // only in junction tables — no cheap before-read, so their old is null;
-    // types uses the denormalized cards.type scalar (ADR-037).
+    // types uses the denormalized cards.type scalar.
     const cardBefore = await mut.getFullCardById(cardId);
     const auditEvent = () =>
       recordAdminEvent(context.repos, context.userId, {
@@ -573,7 +552,7 @@ export const adminCardMutationsRouter = {
       return;
     }
     // Card types live in the card_card_types junction; the repo keeps the
-    // denormalized cards.type scalar in sync (ADR-037).
+    // denormalized cards.type scalar in sync.
     if (field === "types") {
       try {
         await mut.replaceCardTypesById(cardId, finalValue as string[]);
@@ -627,8 +606,8 @@ export const adminCardMutationsRouter = {
     const { catalogMutations: mut, rarities, keywords } = context.repos;
     const { printingId, field, value, source } = input;
 
-    // Normalize enum fields that have DB check constraints (before validation
-    // so that case-insensitive input like "common" is accepted)
+    // Normalize enum fields before validation so case-insensitive input like
+    // "common" is accepted.
     let normalizedValue: unknown = value;
     if (field === "rarity" && typeof value === "string") {
       const rarityRows = await rarities.listAll();
@@ -637,7 +616,6 @@ export const adminCardMutationsRouter = {
         raritySlugs.find((slug) => slug.toLowerCase() === value.toLowerCase()) || value;
     }
 
-    // Validate against printingFieldRules when a rule exists for this field
     const validator = printingFieldRules[field as keyof typeof printingFieldRules];
     if (validator) {
       const parsed = validator.safeParse(normalizedValue);
@@ -651,12 +629,9 @@ export const adminCardMutationsRouter = {
       normalizedValue = parsed.data;
     }
 
-    // Ensure the printing exists before mutating so a bad id 404s instead of
-    // silently updating nothing.
     const printingBefore = await mut.getFullPrintingById(printingId);
     assertFound(printingBefore, "Printing not found");
 
-    // Same scoping rule as acceptField, resolved via the printing's card.
     const scope = await reviewableProviderScope(
       context.adminAccess,
       context.repos.providerSettings,
@@ -695,7 +670,8 @@ export const adminCardMutationsRouter = {
       return;
     }
 
-    // Same pattern for distribution channels (rows in printing_distribution_channels).
+    // Distribution channels also live only in a junction table
+    // (printing_distribution_channels).
     if (field === "distributionChannelSlugs") {
       const { catalogMutations, distributionChannels: channelsRepo } = context.repos;
       const newSlugs = Array.isArray(normalizedValue)
@@ -710,7 +686,6 @@ export const adminCardMutationsRouter = {
       return;
     }
 
-    // Apply typography fixes to text fields only when accepting from a provider
     if (source === "provider") {
       const printingTextFields = new Set(["printedRulesText", "printedEffectText"]);
       if (printingTextFields.has(field) && typeof normalizedValue === "string") {
@@ -725,7 +700,6 @@ export const adminCardMutationsRouter = {
       }
     }
 
-    // Append set total to publicCode when accepting from a provider
     if (source === "provider" && field === "publicCode" && typeof normalizedValue === "string") {
       const setTotal = await mut.getSetPrintedTotalForPrinting(printingId);
       normalizedValue = appendSetTotal(normalizedValue, setTotal?.printedTotal);
@@ -756,7 +730,6 @@ export const adminCardMutationsRouter = {
       throw error;
     }
 
-    // Recompute card-level derivations when printing text changes
     if (field === "printedRulesText" || field === "printedEffectText") {
       await keywords.recomputeForPrintingCard(printingId);
       await context.repos.cardTokens.recomputeForPrintingCard(printingId);
@@ -975,7 +948,7 @@ export const adminCardMutationsRouter = {
     });
 
     // A brand-new printing has no rank row yet, so it would sort last until the
-    // next refresh (migration 215).
+    // next refresh.
     await context.repos.catalog.refreshCanonicalRank();
 
     // Other providers' candidates for this printing were uploaded before it
@@ -1043,7 +1016,7 @@ export const adminCardMutationsRouter = {
     });
 
     // A brand-new printing has no rank row yet, so it would sort last until the
-    // next refresh (migration 215).
+    // next refresh.
     await context.repos.catalog.refreshCanonicalRank();
 
     return { printingId };

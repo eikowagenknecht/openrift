@@ -4,18 +4,7 @@ import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Copies routes
-//
-// Uses the shared integration database with pre-seeded OGS card data.
-// Only auth is mocked.
-// ---------------------------------------------------------------------------
-
 const ctx = createTestContext("a0000000-0003-4000-a000-000000000001");
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe.skipIf(!ctx)("Copies routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
@@ -24,8 +13,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
   let collectionId: string;
   let secondCollectionId: string;
   let copyIds: string[] = [];
-
-  // ── Setup: create collections ──────────────────────────────────────────────
 
   it("setup: creates collections for copy tests", async () => {
     // Trigger inbox creation
@@ -37,8 +24,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     const res2 = await app.fetch(req("POST", "/collections", { name: "Second Collection" }));
     secondCollectionId = ((await readJson(res2)) as { id: string }).id;
   });
-
-  // ── POST /copies ──────────────────────────────────────────────────────────
 
   describe("POST /copies", () => {
     it("adds copies to a collection", async () => {
@@ -65,8 +50,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(json.items[0].id).toBeTypeOf("string");
       expect(json.items[0].printingId).toBe(PRINTING_1.id);
       expect(json.items[0].collectionId).toBe(collectionId);
-      // The 201 body now carries the full CopyResponse shape including groupId,
-      // which is null for a personal collection.
       expect(json.items[0]).toHaveProperty("groupId");
       expect(json.items.every((copy) => copy.groupId === null)).toBe(true);
       copyIds = json.items.map((c) => c.id);
@@ -79,14 +62,11 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = (await readJson(res)) as { items: { collectionId: string }[] };
-      // Should go to inbox, which is different from our test collection
       expect(json.items[0].collectionId).not.toBe(collectionId);
     });
 
-    // ── groupId derivation for group-owned collections ─────────────────────
     // A copy added to a group-owned collection must come back with groupId set
     // to the owning group (the field the web used to synthesize client-side).
-
     describe("groupId for a group-owned collection", () => {
       let groupId: string;
       let groupCollectionId: string;
@@ -176,8 +156,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── GET /copies ───────────────────────────────────────────────────────────
-
   describe("GET /copies", () => {
     it("returns all copies for the user", async () => {
       const res = await app.fetch(req("GET", "/copies"));
@@ -195,8 +173,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── POST /copies/move ─────────────────────────────────────────────────────
-
   describe("POST /copies/move", () => {
     it("moves copies to another collection", async () => {
       const res = await app.fetch(
@@ -207,7 +183,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the copy is now in the second collection
       const listRes = await app.fetch(req("GET", "/copies"));
       const list = (await readJson(listRes)) as { items: { id: string; collectionId: string }[] };
       const moved = list.items.find((item) => item.id === copyIds[0]);
@@ -229,8 +204,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(400);
     });
   });
-
-  // ── POST /copies/update (ADR-038 metadata) ───────────────────────────────
 
   describe("POST /copies/update", () => {
     let annotatedId: string;
@@ -338,11 +311,8 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── Public share projection (ADR-038) ─────────────────────────────────────
-
   describe("public share strips private notes", () => {
     it("exposes public metadata but never notesPrivate", async () => {
-      // Ensure at least one copy in the collection carries a private note.
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [
@@ -377,14 +347,11 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── POST /copies/dispose ──────────────────────────────────────────────────
-
   describe("POST /copies/dispose", () => {
     it("disposes (hard-deletes) copies", async () => {
       const res = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copyIds[2]] }));
       expect(res.status).toBe(204);
 
-      // Verify the copy is gone
       const listRes = await app.fetch(req("GET", "/copies"));
       const list = (await readJson(listRes)) as { items: { id: string }[] };
       expect(list.items.find((item) => item.id === copyIds[2])).toBeUndefined();
@@ -401,8 +368,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── Event logging ────────────────────────────────────────────────────────────
 
   describe("Event logging", () => {
     it("created collection events for copy operations", async () => {

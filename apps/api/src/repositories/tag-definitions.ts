@@ -8,12 +8,9 @@ import type { Database } from "../db/index.js";
  * categories. The card↔tag relation itself lives on the cards; this repo only
  * maps each distinct tag string to a category. Tags without a definition row
  * are unclassified.
- *
- * @returns The tag-definitions repository bound to the given database.
  */
 export function tagDefinitionsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All classified tags with their category id and slug. */
     listAll() {
       return db
         .selectFrom("tagDefinitions")
@@ -30,8 +27,6 @@ export function tagDefinitionsRepo(db: Kysely<Database>) {
     /**
      * Classifies one tag: upserts the definition row, or deletes it when
      * `categoryId` is null (back to unclassified).
-     *
-     * @returns Nothing.
      */
     async setCategory(tag: string, categoryId: string | null): Promise<void> {
       if (categoryId === null) {
@@ -49,8 +44,6 @@ export function tagDefinitionsRepo(db: Kysely<Database>) {
      * Classifies every listed tag that has no definition yet into the given
      * category. Existing classifications are left untouched, so re-running
      * never overwrites deliberate admin choices.
-     *
-     * @returns How many tags were newly classified.
      */
     async classifyMissing(tags: string[], categoryId: string): Promise<number> {
       if (tags.length === 0) {
@@ -69,8 +62,6 @@ export function tagDefinitionsRepo(db: Kysely<Database>) {
      * printed on cards and tags that already have a definition. Definitions
      * whose tag no longer appears on any card (errata) come back with
      * cardCount 0 so they stay visible and can be un-classified.
-     *
-     * @returns One row per distinct tag with its card count and category.
      */
     async distinctCardTags(): Promise<
       { tag: string; cardCount: number; categoryId: string | null }[]

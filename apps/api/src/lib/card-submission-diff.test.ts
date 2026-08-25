@@ -31,10 +31,6 @@ const LIVE_PRINTING: LivePrintingSnapshot = {
   hasImage: true,
 };
 
-/**
- * @param overrides Fields to change from the live values.
- * @returns A proposed printing that otherwise matches {@link LIVE_PRINTING}.
- */
 function proposedPrinting(overrides: Partial<ProposedPrinting> = {}): ProposedPrinting {
   return {
     shortCode: "OGN-042",
@@ -59,10 +55,6 @@ function proposedPrinting(overrides: Partial<ProposedPrinting> = {}): ProposedPr
 const EN_NORMAL = "OGN-042:normal::EN";
 const FR_NORMAL = "OGN-042:normal::FR";
 
-/**
- * @param overrides Live-side overrides.
- * @returns A snapshot with the live card and one live printing.
- */
 function liveSnapshot(overrides: Partial<LivePrintingSnapshot> = {}): LiveSnapshot {
   return {
     card: LIVE_CARD,
@@ -94,11 +86,10 @@ describe("computeProposedDiff", () => {
   });
 
   it("keeps a card's finishes and languages apart", () => {
-    // Regression: eight printings of one card share the short code OGN-002 and
-    // differ only by finish and language. Keying the live side by short code
-    // collapsed them onto one row, so the French printing phantom-differed on
-    // language and an artist fix accepted on the English one went unnoticed —
-    // the submission read not_applied despite the admin having applied it.
+    // Eight printings of one card can share a short code and differ only by
+    // finish and language. Keying the live side by short code alone collapses
+    // them onto one row, so the French printing phantom-differs on language
+    // and an artist fix accepted on the English one goes unnoticed.
     const live: LiveSnapshot = {
       card: LIVE_CARD,
       printings: new Map([

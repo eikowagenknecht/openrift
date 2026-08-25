@@ -25,10 +25,8 @@ function isoOrNull(value: Date | null): string | null {
 }
 
 /**
- * Base DTO query: loan + lender user columns + (optional) borrower user
- * columns. Loans are personal records (no group), so there is no group join
- * and no contact-method loading, unlike trades.
- * @returns The Kysely select builder for loan DTO rows.
+ * Loans are personal records (no group), so unlike trades there is no group
+ * join and no contact-method loading.
  */
 function loanDtoBaseQuery(db: Kysely<Database>) {
   return db
@@ -65,7 +63,6 @@ type LoanDtoRow = Awaited<ReturnType<ReturnType<typeof loanDtoBaseQuery>["execut
  * Orient a raw joined row to the viewer. The lender sees the borrower (a user,
  * a free-text name, or neither after the borrower deleted their account); a
  * member borrower always sees the lender.
- * @returns The viewer-oriented loan DTO.
  */
 function mapLoanRow(row: LoanDtoRow, userId: string): LoanResponse {
   const role: LoanRole = row.lenderUserId === userId ? "lender" : "borrower";
@@ -114,18 +111,13 @@ function mapLoanRow(row: LoanDtoRow, userId: string): LoanResponse {
 }
 
 /**
- * Card lending data access (ADR-039). Pure queries/mutations — validation and
- * the pin/dispose orchestration live in the loans *service*. As with trades,
- * `updated_at` is maintained explicitly here on real transitions, driving the
- * newest-first ordering of the Loans page.
- * @returns An object with loan query methods bound to the given `db`.
+ * Card lending data access. Validation and the pin/dispose orchestration live
+ * in the loans *service*. As with trades, `updated_at` is maintained
+ * explicitly here on real transitions, driving the newest-first ordering of
+ * the Loans page.
  */
 export function loansRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Inserts an `active` loan.
-     * @returns The created row.
-     */
     create(values: NewLoan): Promise<Loan> {
       return db
         .insertInto("loans")
@@ -141,12 +133,10 @@ export function loansRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns The raw loan row, or `undefined` if not found. */
     getById(id: string): Promise<Loan | undefined> {
       return db.selectFrom("loans").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns All loans the viewer is a party to, newest change first, as DTOs. */
     async listForUser(userId: string): Promise<LoanResponse[]> {
       const rows = await loanDtoBaseQuery(db)
         .where((eb) =>
@@ -157,7 +147,6 @@ export function loansRepo(db: Kysely<Database>) {
       return rows.map((row) => mapLoanRow(row, userId));
     },
 
-    /** @returns The single loan as a viewer-oriented DTO, or `undefined`. */
     async getDtoByIdForUser(id: string, userId: string): Promise<LoanResponse | undefined> {
       const row = await loanDtoBaseQuery(db)
         .where("l.id", "=", id)
@@ -170,8 +159,7 @@ export function loansRepo(db: Kysely<Database>) {
 
     /**
      * Active loans naming the viewer as borrower that they have neither
-     * acknowledged nor rejected — the loans nav badge.
-     * @returns The count of loans awaiting the viewer's acknowledgment.
+     * acknowledged nor rejected: the loans nav badge count.
      */
     async acknowledgeNeededCountForUser(userId: string): Promise<number> {
       const row = await db
@@ -186,12 +174,11 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Borrowed-in copy count per card (ADR-039) for the viewer's deck
-     * inventory: active, acknowledged loans where the viewer is the borrower,
-     * counting the outstanding quantity (`quantity - returned_quantity`).
-     * Borrowed copies are physically in hand and buildable, so they reduce the
-     * deck's missing count — mirrors the client's `aggregateBorrowedCounts`.
-     * @returns Map from card id to outstanding borrowed quantity (only positive entries).
+     * Borrowed-in copy count per card for the viewer's deck inventory:
+     * active, acknowledged loans where the viewer is the borrower, counting
+     * the outstanding quantity. Borrowed copies are physically in hand and
+     * buildable, so they reduce the deck's missing count; mirrors the
+     * client's `aggregateBorrowedCounts`.
      */
     async borrowedCountByCard(userId: string): Promise<Map<string, number>> {
       const rows = await db
@@ -211,7 +198,6 @@ export function loansRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.cardId, row.outstanding]));
     },
 
-    /** @returns The card id of a printing, or `undefined` if the printing does not exist. */
     async printingCardId(printingId: string): Promise<string | undefined> {
       const row = await db
         .selectFrom("printings")
@@ -225,9 +211,8 @@ export function loansRepo(db: Kysely<Database>) {
      * The lender's copies of a printing that no live claim holds: personal
      * collections only (group-owned copies are not the lender's to lend), and
      * pinned by neither a trade reservation nor another loan. Ordered so the
-     * collection the lend action was triggered in is drawn from first (ADR-039
-     * "auto, context first"), topping up from other collections oldest-first.
-     * @returns The lendable copy ids, in pick order.
+     * collection the lend action was triggered in is drawn from first,
+     * topping up from other collections oldest-first.
      */
     async listUnclaimedCopyIds(
       lenderUserId: string,
@@ -253,7 +238,6 @@ export function loansRepo(db: Kysely<Database>) {
      * Pins the given copies to a loan. Throws a 23505 unique violation if any
      * copy is already pinned by another loan (the caller selects unclaimed
      * copies in the same transaction, so this only fires on a race).
-     * @returns Nothing.
      */
     async pinCopies(loanId: string, copyIds: readonly string[]): Promise<void> {
       if (copyIds.length === 0) {
@@ -265,7 +249,6 @@ export function loansRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The copy ids currently pinned (still out) on this loan. */
     async listPinnedCopyIds(loanId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("loanCopies")
@@ -275,10 +258,6 @@ export function loansRepo(db: Kysely<Database>) {
       return rows.map((row) => row.copyId);
     },
 
-    /**
-     * Releases all pins for a loan (write-off, delete).
-     * @returns Nothing.
-     */
     async deletePinsForLoan(loanId: string): Promise<void> {
       await db.deleteFrom("loanCopies").where("loanId", "=", loanId).execute();
     },
@@ -286,7 +265,6 @@ export function loansRepo(db: Kysely<Database>) {
     /**
      * Releases up to `count` pins for a loan (partial return). Copies of one
      * printing are fungible, so which pins go is arbitrary but stable.
-     * @returns The released copy ids.
      */
     async releasePins(loanId: string, count: number): Promise<string[]> {
       const rows = await db
@@ -308,7 +286,6 @@ export function loansRepo(db: Kysely<Database>) {
     /**
      * The dispose/trade-accept guard: which of these copies are currently out
      * on a loan. Mirrors `cardTrades.filterReservedCopyIds`.
-     * @returns The subset of the given ids pinned by any live loan.
      */
     async filterLoanedCopyIds(copyIds: readonly string[]): Promise<string[]> {
       if (copyIds.length === 0) {
@@ -325,8 +302,8 @@ export function loansRepo(db: Kysely<Database>) {
     /**
      * Records `count` copies as physically returned, closing the loan as
      * `returned` when everything is back. Guarded single statement: only the
-     * lender, only while `active`, never past `quantity`.
-     * @returns The number of rows updated (0 = state changed under the caller).
+     * lender, only while `active`, never past `quantity`; 0 rows updated
+     * means the state changed under the caller.
      */
     async recordReturn(loanId: string, lenderUserId: string, count: number): Promise<number> {
       const result = await db
@@ -348,7 +325,6 @@ export function loansRepo(db: Kysely<Database>) {
     /**
      * Closes an active loan as `written_off` (lender only). Pin release and
      * the optional dispose live in the service.
-     * @returns The number of rows updated (0 = state changed under the caller).
      */
     async markWrittenOff(loanId: string, lenderUserId: string): Promise<number> {
       const result = await db
@@ -361,10 +337,6 @@ export function loansRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows);
     },
 
-    /**
-     * The borrower confirms they hold the copies; clears any earlier reject.
-     * @returns The number of rows updated (0 = not the borrower or not active).
-     */
     async acknowledge(loanId: string, borrowerUserId: string): Promise<number> {
       const result = await db
         .updateTable("loans")
@@ -377,10 +349,9 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The borrower disputes the loan ("I don't have this"); clears any earlier
-     * acknowledgment. The loan stays active on the lender's side (their card is
-     * still out) — rejection only flags it back to them.
-     * @returns The number of rows updated (0 = not the borrower or not active).
+     * The borrower disputes the loan ("I don't have this"); clears any
+     * earlier acknowledgment. The loan stays active on the lender's side
+     * (their card is still out), so rejection only flags it back to them.
      */
     async reject(loanId: string, borrowerUserId: string): Promise<number> {
       const result = await db
@@ -394,9 +365,8 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Deletes a loan outright (lender only, any status — a personal ledger,
-     * history is best-effort per ADR-039). Pins cascade.
-     * @returns The number of rows deleted.
+     * Deletes a loan outright (lender only, any status: loans are a personal
+     * ledger and history is best-effort). Pins cascade.
      */
     async deleteByIdForLender(loanId: string, lenderUserId: string): Promise<number> {
       const result = await db
@@ -407,7 +377,6 @@ export function loansRepo(db: Kysely<Database>) {
       return Number(result.numDeletedRows);
     },
 
-    /** @returns `true` when the two users share at least one friend group. */
     async isCoMember(userId: string, otherUserId: string): Promise<boolean> {
       const row = await db
         .selectFrom("friendGroupMembers as me")
@@ -423,9 +392,8 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Everyone sharing at least one friend group with the viewer — the member
+     * Everyone sharing at least one friend group with the viewer: the member
      * half of the lend dialog's borrower picker.
-     * @returns Distinct co-members, sorted by name.
      */
     async coMembersForUser(userId: string): Promise<LoanCounterparty[]> {
       const rows = await db
@@ -448,9 +416,8 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Free-text borrower names the lender has used before, most recent first —
+     * Free-text borrower names the lender has used before, most recent first:
      * the other half of the borrower picker.
-     * @returns Up to `limit` distinct names.
      */
     async recentBorrowerNames(lenderUserId: string, limit: number): Promise<string[]> {
       const rows = await db

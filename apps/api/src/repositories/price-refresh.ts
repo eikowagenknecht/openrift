@@ -51,16 +51,8 @@ export function skuKey(externalId: number, finish: string, language: string | nu
   return `${externalId}::${finish}::${language ?? ""}`;
 }
 
-/**
- * Queries for the price refresh pipeline (upsert snapshots/staging, load reference data).
- *
- * @returns An object with price-refresh query methods bound to the given `db`.
- */
 export function priceRefreshRepo(db: Db) {
   return {
-    // ── Reference data ──────────────────────────────────────────────────────
-
-    /** @returns All printings with fields needed for price matching. */
     allPrintingsForPriceMatch() {
       return db
         .selectFrom("printings")
@@ -78,8 +70,6 @@ export function priceRefreshRepo(db: Db) {
         ])
         .execute();
     },
-
-    // ── Ignored keys ────────────────────────────────────────────────────────
 
     /**
      * @returns Both L2 (whole-product) and L3 (per-variant) ignored keys for a
@@ -108,9 +98,6 @@ export function priceRefreshRepo(db: Db) {
       };
     },
 
-    // ── Group upsert ────────────────────────────────────────────────────────
-
-    /** Upsert marketplace groups, preserving existing name/abbreviation. */
     async upsertGroups(
       marketplace: Marketplace,
       groups: { groupId: number; name?: string | null; abbreviation?: string | null }[],
@@ -136,8 +123,6 @@ export function priceRefreshRepo(db: Db) {
         )
         .execute();
     },
-
-    // ── Product upsert ──────────────────────────────────────────────────────
 
     /**
      * Upsert `marketplace_products` rows for a batch of SKUs and return their
@@ -193,9 +178,6 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    // ── Row counts ──────────────────────────────────────────────────────────
-
-    /** @returns Row count for marketplace product prices (joined via products). */
     async countProductPrices(marketplace: Marketplace): Promise<number> {
       const result = await db
         .selectFrom("marketplaceProductPrices as pp")
@@ -205,8 +187,6 @@ export function priceRefreshRepo(db: Db) {
         .executeTakeFirstOrThrow();
       return result.count;
     },
-
-    // ── Batch upserts ───────────────────────────────────────────────────────
 
     /**
      * Batch-upsert marketplace_product_prices with IS DISTINCT FROM filtering.
@@ -243,8 +223,6 @@ export function priceRefreshRepo(db: Db) {
         .execute();
       return rows.length;
     },
-
-    // ── Auto-match helpers (CardTrader) ─────────────────────────────────────
 
     /**
      * @returns One row per variant for the given marketplaces. A single

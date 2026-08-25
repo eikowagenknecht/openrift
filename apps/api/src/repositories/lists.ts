@@ -37,36 +37,29 @@ import {
 
 /**
  * Lazy providers a dynamic-rule list read needs but the repo can't build from
- * `db` alone (ADR-034). Wired in `createRepos`. Both are only invoked when a
- * list actually carries a rule, so manual-only reads pay nothing.
+ * `db` alone. Wired in `createRepos`; only invoked when a list actually
+ * carries a rule, so manual-only reads pay nothing.
  */
 export interface ListRuleProviders {
-  /**
-   * Assembles the full catalog `Printing[]` for `filterCards`, plus the
-   * card→custom-tag-slug map rules need to filter on custom tags (ADR-034).
-   */
   assembleCatalog: () => Promise<{
     printings: Printing[];
     customTagAssignments: Record<string, readonly string[]>;
   }>;
   /**
-   * The given user's personally-owned copies (trade-rule source), narrowed to
-   * `printingIds` — the printings the rules can actually consult
-   * (`ownedCopyPrintingScope`). Omitting the argument loads the whole
-   * collection, which is only correct when the caller has no rule set to
-   * narrow by.
+   * The given user's personally-owned copies, narrowed to `printingIds`.
+   * Omitting the argument loads the whole collection, which is only correct
+   * when the caller has no rule set to narrow by.
    */
   ownedCopies: (ownerId: string, printingIds?: readonly string[]) => Promise<OwnedCopyRow[]>;
   /**
    * Reference orders (finish / rarity / art-variant) a trade rule uses to keep
-   * the nicer copies and offer the plainer ones. Only fetched for trade rules.
+   * the nicer copies and offer the plainer ones.
    */
   enumOrders: () => Promise<KeepPriorityOrders>;
   /**
-   * Latest-price lookup (major currency units) for rules whose filter carries
-   * a price bound (`ruleFiltersOnPrice`). Only invoked for such rules; wired
-   * to a content-addressed memo in `createRepos` so the uncached public-share
-   * read never pays the full price-map load.
+   * Latest-price lookup (major currency units) for rules with a price bound.
+   * Wired to a content-addressed memo in `createRepos` so the uncached
+   * public-share read never pays the full price-map load.
    */
   priceLookup: () => Promise<PriceLookup>;
 }
@@ -78,9 +71,8 @@ const EMPTY_TRADE_PREFERENCE: TradePreference = {
 };
 
 export interface BulkUpsertResult {
-  /** Brand-new entries created. */
   inserted: number;
-  /** Existing entries whose quantity was incremented. */
+  /** Existing entries whose quantity was incremented (not replaced). */
   updated: number;
 }
 
@@ -89,13 +81,12 @@ interface ListWithCount extends Selectable<ListsTable> {
 }
 
 interface ListEntryRowBase {
-  /** Real `list_entries.id` for manual/both entries; `null` for rule-only (ADR-034). */
+  /** Real `list_entries.id` for manual/both entries; `null` for rule-only. */
   id: string | null;
   listId: string;
   quantity: number;
-  /** Where this entry came from (ADR-034). Manual-only lists are always "manual". */
   source: EntrySource;
-  /** Rule's contribution to `quantity` (ADR-034 additive model); 0 for manual-only. */
+  /** The rules' additive contribution to `quantity`; 0 for manual-only. */
   ruleQuantity: number;
   cardName: string;
   tradeOverride: TradePreference;
@@ -110,12 +101,6 @@ interface ListEntryRowPrintingFields {
   imageId: string | null;
 }
 
-/**
- * Enriched list-entry row, discriminated on `kind` to match the parent list.
- * Each variant carries exactly the fields meaningful for its kind — the
- * `card` variant has no printing details, `printing` has set/rarity/finish,
- * `copy` adds the underlying printing + owning collection.
- */
 export type ListEntryRow =
   | (ListEntryRowBase & { kind: "card"; cardId: string })
   | (ListEntryRowBase & ListEntryRowPrintingFields & { kind: "printing"; printingId: string })
@@ -125,17 +110,16 @@ export type ListEntryRow =
         copyId: string;
         printingId: string;
         collectionId: string;
-        /** True when the copy is pinned to a live in-app trade (ADR-019). */
+        /** True when the copy is pinned to a live in-app trade. */
         reserved: boolean;
-        /** True when the copy is out on a live loan (ADR-039). */
+        /** True when the copy is out on a live loan. */
         onLoan: boolean;
       });
 
 /**
- * Insert payload for `createEntry` / `bulkCreateEntries`. `kind` is required
- * and must match the parent list (the DB enforces it via the composite FK
- * `fk_list_entries_list_kind`). Exactly one of cardId/printingId/copyId is
- * non-null (per kind), per `chk_list_entries_kind_shape`.
+ * `kind` must match the parent list (composite FK `fk_list_entries_list_kind`).
+ * Exactly one of cardId/printingId/copyId is non-null per kind
+ * (`chk_list_entries_kind_shape`).
  */
 export type NewEntryValues = Pick<
   Insertable<ListEntriesTable>,
@@ -152,7 +136,7 @@ export type NewEntryValues = Pick<
   quantity: number;
 };
 
-/** Insert payload for `create`. `kind` is required and immutable post-creation. */
+/** `kind` is immutable post-creation. */
 export type NewListValues = Pick<
   Insertable<ListsTable>,
   | "userId"
@@ -164,16 +148,15 @@ export type NewListValues = Pick<
   | "defaultTradeType"
   | "currency"
 > & {
-  /** Optional dynamic rules (ADR-034); the repo serializes them before insert. */
   rules?: ListRules | null;
-  /** Optional combine mode (ADR-034 amendment 2); null = the intent's default. */
+  /** null = the intent's default combine mode. */
   ruleCombine?: ListRuleCombine | null;
 };
 
 /**
- * Patch payload for `update`. Intent and kind are immutable post-creation —
- * the DB-level intent×kind constraint would make swapping either field a
- * shape change that breaks every existing entry.
+ * Intent and kind are immutable post-creation — the DB-level intent×kind
+ * constraint would make swapping either field a shape change that breaks
+ * every existing entry.
  */
 export type ListUpdate = Omit<
   Updateable<ListsTable>,
@@ -181,8 +164,8 @@ export type ListUpdate = Omit<
 >;
 
 /**
- * Patch payload for `updateEntry`. Target columns + kind are immutable
- * post-creation by convention — a re-targeting is delete + create.
+ * Target columns + kind are immutable post-creation by convention — a
+ * re-targeting is delete + create.
  */
 export type ListEntryUpdate = Omit<
   Updateable<ListEntriesTable>,
@@ -197,18 +180,11 @@ export type ListEntryUpdate = Omit<
   | "updatedAt"
 >;
 
-/**
- * Queries for unified user lists (wish / trade / organize) × granularity
- * (card / printing / copy) and their entries.
- *
- * @returns An object with list query methods bound to the given `db`.
- */
 export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
   return {
     /**
-     * @returns All lists for a user with their entry counts, optionally filtered
-     *   by intent, ordered by name. The count is computed via a correlated
-     *   subquery so a list with no entries still appears (no GROUP BY drops).
+     * The entry count is a correlated subquery so a list with no entries
+     * still appears (no GROUP BY drops).
      */
     listForUser(userId: string, intent?: ListIntent): Promise<ListWithCount[]> {
       let query = db
@@ -226,7 +202,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return query.orderBy("sortOrder").orderBy("name").execute();
     },
 
-    /** @returns A single list by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<Selectable<ListsTable> | undefined> {
       return db
         .selectFrom("lists")
@@ -236,7 +211,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .executeTakeFirst();
     },
 
-    /** @returns The list's id, kind, and intent, scoped to a user, or `undefined`. */
     getIdKindIntent(
       id: string,
       userId: string,
@@ -250,10 +224,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Inserts a new list at the end of its (user, intent) bucket so it appears
-     * after the user's existing lists in the sidebar rather than landing at
-     * position 0 and re-ordering on every create.
-     * @returns The newly created list row.
+     * Inserts at the end of the (user, intent) bucket so the new list appears
+     * after the user's existing lists rather than landing at position 0 and
+     * re-ordering on every create.
      */
     create(values: NewListValues): Promise<Selectable<ListsTable>> {
       const { rules, ...rest } = values;
@@ -269,12 +242,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Re-numbers `sort_order` for the lists in the given intent bucket to
-     * match `orderedIds`, in a single statement so the bucket is never seen
-     * partially re-numbered. IDs not owned by the user (or not in the given
-     * intent) are silently ignored — the caller is expected to send the
-     * current view of the bucket.
-     * @returns Nothing.
+     * Single statement so the bucket is never seen partially re-numbered.
+     * IDs not owned by the user (or not in the given intent) are silently
+     * ignored — the caller is expected to send the current view of the bucket.
      */
     async reorder(
       userId: string,
@@ -298,13 +268,11 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       `.execute(db);
     },
 
-    /** @returns The updated list row, or `undefined` if not found. */
     update(
       id: string,
       userId: string,
       updates: ListUpdate,
     ): Promise<Selectable<ListsTable> | undefined> {
-      // every other column passes through unchanged.
       const { rules, ...rest } = updates;
       const setValues = rules === undefined ? rest : { ...rest, rules: rules ?? [] };
       return db
@@ -316,7 +284,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .executeTakeFirst();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     deleteByIdForUser(id: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("lists")
@@ -326,9 +293,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * @returns IDs of the user's lists that currently have at least one entry.
-     *   Snapshot for the danger-zone collection reset: only lists that had
-     *   entries before the wipe are prune candidates afterwards.
+     * Snapshot for the danger-zone collection reset: only lists that had
+     * entries before the wipe are prune candidates afterwards.
      */
     async listIdsWithEntries(userId: string): Promise<string[]> {
       const rows = await db
@@ -348,9 +314,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
 
     /**
      * Deletes the given lists if they are now empty and have no dynamic rules
-     * (a rule-driven list is never "empty" — its rules repopulate it). Scoped
-     * to the user; non-matching IDs are silently skipped.
-     * @returns The number of deleted lists.
+     * (a rule-driven list is never "empty" — its rules repopulate it).
+     * Non-matching IDs are silently skipped.
      */
     async deleteEmptyWithoutRules(userId: string, ids: readonly string[]): Promise<number> {
       if (ids.length === 0) {
@@ -375,13 +340,10 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Lists owned by `userId` that reference any of `copyIds`, with a per-list
-     * copy count and the distinct number of those copies on at least one list.
      * Only copy-kind entries carry a non-null `copy_id`, so the `copyId in`
      * filter implicitly restricts to them. Drives the dispose confirmation's
      * cross-list warning: disposing hard-deletes the copy and cascades its
      * `list_entries` away, so the copy also disappears from every list here.
-     * @returns Per-list breakdown (busiest first) and the distinct cross-list copy count.
      */
     async listMembershipsForCopies(
       copyIds: readonly string[],
@@ -438,11 +400,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Reads the current share state (token + public flag) for a list the user
-     * owns. Used by GET /lists/{id}/share and the idempotent POST /share, which
-     * must distinguish "not owned" (→ 404) from "owned but unshared" (→ token
-     * null). Returns `undefined` only when the list isn't owned by the user.
-     * @returns `{ shareToken, isPublic }` for an owned list, else `undefined`.
+     * `undefined` only when the list isn't owned by the user — callers must
+     * distinguish "not owned" (→ 404) from "owned but unshared" (→ token null).
      */
     getShareState(
       id: string,
@@ -451,10 +410,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return selectShareState(db, "lists", id, userId);
     },
 
-    /**
-     * Sets (or nulls) the share_token and is_public flag.
-     * @returns The updated list row, or `undefined` if not owned by the user.
-     */
     setShareToken(
       id: string,
       userId: string,
@@ -464,11 +419,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return updateShareRow(db, "lists", id, userId, shareToken, isPublic);
     },
 
-    /**
-     * Looks up a public list by its share token. Anonymous — no user scoping.
-     * @returns The list plus owner display name, or `undefined` if the token
-     * doesn't match a public list.
-     */
     async findByShareToken(
       shareToken: string,
     ): Promise<
@@ -481,51 +431,33 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return { list: found.row, ownerName: found.ownerName, ownerEmail: found.ownerEmail };
     },
 
-    /**
-     * Enriched entries for a list, joined with card/printing/copy details.
-     * The single query dispatched depends on the list's `kind`, so each path
-     * uses clean INNER joins along its target's FK and the per-kind partial
-     * unique index. Scoped to the owning user for defense-in-depth.
-     * @returns Enriched entry rows sorted by card name.
-     */
     entriesWithDetails(listId: string, kind: ListKind, userId: string): Promise<ListEntryRow[]> {
       return expandAndEnrich(db, providers, kind, { listId, userId });
     },
 
-    /**
-     * Same as `entriesWithDetails` but anonymous — no user scoping. Caller
-     * has already verified access (e.g. by share token).
-     * @returns Enriched entry rows sorted by card name.
-     */
+    /** No user scoping — the caller has already verified access (e.g. by share token). */
     entriesWithDetailsAnon(listId: string, kind: ListKind): Promise<ListEntryRow[]> {
       return expandAndEnrich(db, providers, kind, { listId });
     },
 
     /**
-     * Rule-expanded entry *counts* for several lists at once (ADR-034).
+     * Rule-expanded entry *counts* for several lists at once. The materialized
+     * `entryCount` on a summary row counts manual `list_entries` only, so a
+     * rule-based list reports 0 until its rules run. Stops at `expandList` and
+     * returns sizes — a caller that wants a number should not pay for a fully
+     * enriched list page.
      *
-     * The materialized `entryCount` on a summary row counts manual
-     * `list_entries` only, so a rule-based list reports 0 until its rules run.
-     * This is the count-only counterpart of `entriesWithDetailsAnon`: it stops
-     * at `expandList` and returns sizes, never loading card/printing/copy
-     * details or sorting — a caller that wants a number should not pay for a
-     * fully enriched list page.
-     *
-     * Batched across `listIds` rather than looped per list: one query for the
-     * lists, one for every list's manual entries, and one owned-copy load per
-     * distinct *owner* (several of a user's lists share one inventory). The
-     * catalog comes from the process-wide memo, so query count is
-     * `2 + distinct owners` instead of ~4 per rule list.
+     * Batched rather than looped per list: one query for the lists, one for
+     * every list's manual entries, and one owned-copy load per distinct
+     * *owner* (several of a user's lists share one inventory).
      *
      * Owned copies load unscoped here, unlike the per-list path's
      * `ownedCopyPrintingScope` narrowing: the scope is a per-rule filter pass
      * and so cannot be shared between lists, and one whole-collection read beats
      * N narrowed ones at the collection sizes this runs on.
      *
-     * @param listIds The lists to expand. Ids without rules are skipped.
-     * @returns A map from list id to its expanded entry count; lists that carry
-     *   no rules (or don't exist) are absent, so callers keep their
-     *   materialized count for those.
+     * Lists that carry no rules (or don't exist) are absent from the result,
+     * so callers keep their materialized count for those.
      */
     async expandedCounts(listIds: readonly string[]): Promise<Map<string, number>> {
       const counts = new Map<string, number>();
@@ -545,9 +477,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         return counts;
       }
 
-      // One inventory read per owner, not per list. `needsOwnedCopies` mirrors
-      // the per-list path: trade rules take copies as their supply, and a
-      // netOwned wish rule subtracts what the owner already has.
+      // One inventory read per owner, not per list.
       const owners = [
         ...new Set(ruleLists.filter((row) => needsOwnedCopies(row.rules)).map((row) => row.userId)),
       ];
@@ -611,32 +541,25 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       return counts;
     },
 
-    /** @returns The newly created entry row. */
     createEntry(values: NewEntryValues): Promise<Selectable<ListEntriesTable>> {
       return db.insertInto("listEntries").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
     /**
-     * Bulk-upsert entries (all of the same kind, matching the parent list).
-     *
      * For card- and printing-kind lists, ON CONFLICT bumps the existing row's
-     * `quantity` by the new row's `quantity` — drag-readd accumulates count
-     * instead of silently dropping. The `(xmax = 0)` marker distinguishes
-     * freshly-inserted rows from rows that took the DO UPDATE branch in a
-     * single roundtrip (xmax is the deleting/updating txid, 0 for inserts).
+     * `quantity` by the new row's — drag-readd accumulates count instead of
+     * silently dropping. The `(xmax = 0)` marker distinguishes freshly-inserted
+     * rows from rows that took the DO UPDATE branch in a single roundtrip
+     * (xmax is the deleting/updating txid, 0 for inserts).
      *
-     * For copy-kind lists, ON CONFLICT does nothing — a list_entry with a
-     * `copy_id` points to a specific physical copy, which is singular by
-     * definition. A duplicate drop of the same copy is a no-op, not a
-     * quantity bump.
+     * For copy-kind lists, ON CONFLICT does nothing — an entry with a
+     * `copy_id` points to a specific physical copy, so a duplicate drop is a
+     * no-op, not a quantity bump; `updated` is always 0 there.
      *
      * `kind` selects which partial unique index ON CONFLICT targets; Postgres
      * needs the matching WHERE predicate to disambiguate which partial index
      * to use, or it raises "no unique or exclusion constraint matching the
      * ON CONFLICT specification".
-     *
-     * @returns Counts of brand-new vs. merged-into entries (`updated` is
-     *   always 0 for copy-kind lists).
      */
     async bulkCreateEntries(kind: ListKind, values: NewEntryValues[]): Promise<BulkUpsertResult> {
       if (values.length === 0) {
@@ -647,8 +570,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       // Pre-aggregate dupes by conflict key: Postgres rejects two rows in the
       // same INSERT both hitting ON CONFLICT DO UPDATE on the same target
       // ("cannot affect row a second time"). Card/printing kinds sum the
-      // quantities so the merge semantics match a later ON CONFLICT bump;
-      // copy kind keeps the first occurrence (DO NOTHING is singular).
+      // quantities to match the ON CONFLICT bump semantics; copy kind keeps
+      // the first occurrence (DO NOTHING is singular).
       const aggregated = new Map<string, NewEntryValues>();
       for (const value of values) {
         const conflictKey = `${value.listId}\0${String(value[targetColumn])}`;
@@ -689,24 +612,12 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Drag-from-collections sugar: takes copy IDs and inserts entries in the
-     * shape required by the list's kind. The mapping is:
-     *   - kind = 'copy'     → one entry per owned copy
-     *   - kind = 'printing' → one entry per distinct printing across the owned copies
-     *   - kind = 'card'     → one entry per distinct card across the owned copies
-     *
-     * Accounting:
-     *   - `added`: derived targets that produced a brand-new entry.
-     *   - `updated`: derived targets that matched an existing entry — the
-     *     existing row's quantity is incremented (see `bulkCreateEntries`).
-     *   - `skipped`: copy IDs that didn't qualify (see `personalOnly`: own
-     *     collections only for trade/wish, plus shared group collections for
-     *     organize). Kind-dedup collapses (3 copies of one card → 1 card entry)
-     *     are NOT counted as skipped — the user got the entry they wanted; the
-     *     other two folded into the same row.
-     *
-     * @returns `{ added, updated, skipped }` — drives the success-toast
-     *   wording ("Added N", "Updated quantity", "(M not owned)").
+     * Takes copy IDs and inserts entries in the shape required by the list's
+     * kind (distinct printing/card per copy for those kinds). The result
+     * drives the success-toast wording. `skipped` counts copy IDs that didn't
+     * qualify (see `personalOnly`); kind-dedup collapses (3 copies of one card
+     * → 1 card entry) are NOT counted as skipped — the user got the entry they
+     * wanted, the other copies folded into the same row.
      */
     async bulkCreateEntriesFromCopies(
       listId: string,
@@ -719,14 +630,11 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         return { added: 0, updated: 0, skipped: 0 };
       }
 
-      // Resolve { copyId, printingId, cardId } for the addable subset. With
-      // `personalOnly` (trade/wish lists), only copies in the user's own
+      // With `personalOnly` (trade/wish lists), only copies in the user's own
       // collections qualify — a card you merely have group access to isn't
       // yours to trade away or to wish for. Without it (organize lists), shared
-      // group collections the user belongs to count too. Copies that don't
-      // qualify are silently dropped; we recover the count via `copyIds.length -
-      // owned.length` so they still surface as skipped instead of vanishing
-      // from the toast.
+      // group collections the user belongs to count too. Non-qualifying copies
+      // are dropped here and recovered as `skipped` via the count difference.
       const owned = await db
         .selectFrom("copies as cp")
         .innerJoin("printings as p", "p.id", "cp.printingId")
@@ -800,9 +708,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
 
       const result = await this.bulkCreateEntries(kind, values);
       // Copy-kind dupes go through DO NOTHING so they don't return a row;
-      // recover them here so they surface as `skipped` in the toast rather
-      // than vanishing. For card/printing kinds, every row either inserts or
-      // updates, so `droppedDupes` is 0.
+      // recover them here so they surface as `skipped` rather than vanishing.
+      // For card/printing kinds, every row either inserts or updates, so
+      // `droppedDupes` is 0.
       const droppedDupes = values.length - result.inserted - result.updated;
       return {
         added: result.inserted,
@@ -811,7 +719,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       };
     },
 
-    /** @returns The updated entry row, or `undefined` if not found. */
     updateEntry(
       entryId: string,
       listId: string,
@@ -834,10 +741,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
      * so a wish that trade-sync empties is removed, never written non-positive).
      * The guarded UPDATE fires only while the result stays positive, so it can't
      * violate the check constraint, and its row write-lock serializes concurrent
-     * decrements — replacing the old read-into-JS-then-absolute-set that lost a
-     * concurrent writer's change. The conditional DELETE handles exhaustion.
-     * Owner-scoped; a missing or non-owned entry is a silent no-op.
-     * @returns The new quantity, or `undefined` when the entry was deleted or absent.
+     * decrements. A missing or non-owned entry is a silent no-op. Returns
+     * `undefined` when the entry was deleted or absent.
      */
     async decrementEntryQuantity(
       entryId: string,
@@ -855,9 +760,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       if (updated) {
         return updated.quantity;
       }
-      // Either the entry is gone, or its quantity is <= by: it's exhausted, so
-      // remove it. The quantity guard makes this a no-op if a concurrent edit
-      // raised the entry back above `by` in the meantime.
+      // The entry is gone or exhausted (quantity <= by): remove it. The
+      // quantity guard makes this a no-op if a concurrent edit raised the
+      // entry back above `by` in the meantime.
       await db
         .deleteFrom("listEntries")
         .where("id", "=", entryId)
@@ -868,11 +773,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Atomically raises an entry's quantity to at least `min`, leaving it
-     * untouched when it is already higher (`GREATEST` in one UPDATE). Removes
-     * the read-then-absolute-set race where a concurrent edit is clobbered. A
-     * missing or non-owned entry matches no row and is a silent no-op.
-     * @returns Nothing.
+     * Atomically raises an entry's quantity to at least `min` (`GREATEST` in
+     * one UPDATE — no read-then-set race with concurrent edits). A missing or
+     * non-owned entry is a silent no-op.
      */
     async raiseEntryQuantityTo(entryId: string, userId: string, min: number): Promise<void> {
       await db
@@ -883,7 +786,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .execute();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the entry existed. */
     deleteEntry(entryId: string, listId: string, userId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("listEntries")
@@ -894,10 +796,9 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Reads a single entry by id, scoped to its owner, regardless of which list
-     * it belongs to. Used by trade-sync (ADR-019) to decrement a snapshotted
-     * wish entry whose `listId` was not carried alongside the entry id.
-     * @returns The entry row, or `undefined` if not found / not owned by the user.
+     * Owner-scoped but list-agnostic on purpose: trade-sync decrements a
+     * snapshotted wish entry whose `listId` was not carried alongside the
+     * entry id.
      */
     getEntryByIdForUser(
       entryId: string,
@@ -912,10 +813,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Reads raw entry rows for a list-to-list move. Scoped to a single list +
-     * the owning user so a stray entry id from another list (or another user's
-     * list) is filtered out, not 403'd.
-     * @returns The matching insertable subset of each entry row.
+     * Scoped to a single list + the owning user so a stray entry id from
+     * another list (or another user's list) is filtered out, not 403'd.
      */
     entriesForMove(
       listId: string,
@@ -957,7 +856,6 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .execute();
     },
 
-    /** @returns Delete result — `numDeletedRows` is the count actually removed. */
     deleteEntriesByIds(
       entryIds: readonly string[],
       listId: string,
@@ -975,17 +873,12 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Drops the owner's trade-list entries for the given copies, used when a
-     * copy stops being theirs to offer (moving it into a group collection).
-     *
-     * Trade lists only: an organize list may hold group-shared copies on
-     * purpose (`personalOnly` is false for that intent on the manual-add
-     * routes), so an organize entry pointing at a group-owned copy is correct
-     * and must survive. Wish lists never hold copies at all
-     * (`chk_lists_intent_kind` pins them to card and printing kind).
-     * @param copyIds The copies leaving the owner's personal collections.
-     * @param userId The entries' owner.
-     * @returns Delete result — `numDeletedRows` is the count actually removed.
+     * Drops the owner's trade-list entries for copies that stop being theirs
+     * to offer (moving into a group collection). Trade lists only: an organize
+     * list may hold group-shared copies on purpose (`personalOnly` is false
+     * for that intent on the manual-add routes), so an organize entry pointing
+     * at a group-owned copy is correct and must survive. Wish lists never hold
+     * copies at all (`chk_lists_intent_kind` pins them to card and printing kind).
      */
     deleteTradeEntriesForCopies(copyIds: readonly string[], userId: string): Promise<DeleteResult> {
       if (copyIds.length === 0) {
@@ -1023,7 +916,6 @@ async function fetchEnrichedEntries(
   return rows.sort((a, b) => a.cardName.localeCompare(b.cardName));
 }
 
-/** @returns The target id (cardId / printingId / copyId) of an enriched row. */
 function entryTargetKey(row: ListEntryRow): string {
   if (row.kind === "card") {
     return row.cardId;
@@ -1034,7 +926,6 @@ function entryTargetKey(row: ListEntryRow): string {
   return row.copyId;
 }
 
-/** @returns The target id of an expanded entry for the list's kind. */
 function expandedTargetKey(
   kind: ListKind,
   entry: { cardId?: string; printingId?: string; copyId?: string },
@@ -1048,13 +939,11 @@ function expandedTargetKey(
   return entry.copyId ?? "";
 }
 
-/** @returns The lightweight manual-entry shape `expandList` consumes. */
 /**
- * Whether a rule set consults the owner's copies: a trade rule takes them as its
- * supply, and a `netOwned` wish rule subtracts what the owner already has
- * (ADR-034). Kept as one predicate so the per-list and batched-count paths can't
- * drift on which rules trigger the inventory load.
- * @returns True when the rules need owned copies.
+ * Whether a rule set consults the owner's copies: a trade rule takes them as
+ * its supply, and a `netOwned` wish rule subtracts what the owner already has.
+ * Kept as one predicate so the per-list and batched-count paths can't drift on
+ * which rules trigger the inventory load.
  */
 function needsOwnedCopies(rules: ListRules): boolean {
   return rules.some((rule) => rule.kind === "trade" || (rule.kind === "wish" && rule.netOwned));
@@ -1070,9 +959,6 @@ function needsOwnedCopies(rules: ListRules): boolean {
  * its list's, and `chk_list_entries_kind_shape` means exactly the one id column
  * for that kind is set. So no row an INNER join would have dropped reaches here,
  * and the merged key set is the same one the enriched path produces.
- *
- * @param row The raw entry row.
- * @returns The manual entry row.
  */
 function toRawManualEntryRow(
   row: Pick<
@@ -1111,15 +997,6 @@ function toManualEntryRow(row: ListEntryRow): ManualEntryRow {
   };
 }
 
-/**
- * The authority that turns a list's manual entries + its dynamic rules into the
- * rendered, enriched, deduped entry set (ADR-034). Manual-only lists short-
- * circuit to the existing enrichment. When rules are present they are evaluated
- * against the server-assembled catalog (+ the owner's copies for trade rules),
- * merged with manual entries via `expandList`, and the rule-only entries are
- * enriched by target id.
- * @returns Enriched entry rows (manual ∪ rule output), sorted by card name.
- */
 async function expandAndEnrich(
   db: Kysely<Database>,
   providers: ListRuleProviders | undefined,
@@ -1137,20 +1014,16 @@ async function expandAndEnrich(
   }
   const listRow = await ruleQuery.executeTakeFirst();
   const rules = listRow ? hydrateListRules(listRow.rules) : [];
-  // Manual-only (the overwhelmingly common case): nothing to expand.
   if (!listRow || rules.length === 0 || !providers) {
     return manual;
   }
 
   const { printings: catalog, customTagAssignments } = await providers.assembleCatalog();
-  // Price-bounded rules resolve each printing's latest price during matching.
   // Loaded before the copy scope below — the scope must see the same prices as
   // the evaluation, or copy loading would drift from what the rules match.
   const priceLookup = rules.some((rule) => ruleFiltersOnPrice(rule))
     ? await providers.priceLookup()
     : undefined;
-  // Trade rules need the owner's copies for supply; wish rules need them too when
-  // netting against what's owned ("only what I'm missing", ADR-034).
   const needsCopies = needsOwnedCopies(rules);
   // Only load the copies the rules can actually consult. Computed from the
   // catalog alone (no rule's match depends on what is owned), so this is a pure
@@ -1161,8 +1034,8 @@ async function expandAndEnrich(
         ownedCopyPrintingScope(rules, kind, { catalog, customTagAssignments, priceLookup }),
       )
     : [];
-  // Trade rules rank owned copies by niceness (keep the nicer, offer the plainer);
-  // wish rules don't, so only pay for the reference orders on a trade rule.
+  // Trade rules rank owned copies by niceness (keep the nicer, offer the
+  // plainer); wish rules don't, so the reference orders load only for trade rules.
   const needsKeepOrder = rules.some((rule) => rule.kind === "trade");
   const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
   const ruleEntries = evaluateListRules(
@@ -1224,10 +1097,6 @@ interface CopyDetail extends PrintingDetail {
   onLoan: boolean;
 }
 
-/**
- * Loads detail rows for the rule-only target ids of the given kind.
- * @returns Detail maps for cards, printings, and copies (only the relevant one is populated).
- */
 async function loadRuleOnlyDetails(
   db: Kysely<Database>,
   kind: ListKind,
@@ -1253,10 +1122,6 @@ async function loadRuleOnlyDetails(
   return { ...empty, copies: await copyDetailsByIds(db, ids) };
 }
 
-/**
- * Assembles an enriched `ListEntryRow` for one rule-only entry.
- * @returns The enriched row, or null if its detail row vanished.
- */
 function buildRuleOnlyRow(
   kind: ListKind,
   entry: {
@@ -1392,11 +1257,6 @@ async function copyDetailsByIds(
   );
 }
 
-/**
- * Card-targeted entries: `le.card_id` is set. Joins straight to cards. The
- * client picks a representative printing of the card.
- * @returns Rows for the card-kind subset, shaped as the `card` variant of `ListEntryRow`.
- */
 async function cardEntryQuery(
   db: Kysely<Database>,
   scope: { listId: string; userId?: string },
@@ -1433,11 +1293,6 @@ async function cardEntryQuery(
   }));
 }
 
-/**
- * Printing-targeted entries: `le.printing_id` is set. Reaches the card via
- * the printing, and the front-face image via the printing-images join.
- * @returns Rows for the printing-kind subset, shaped as the `printing` variant of `ListEntryRow`.
- */
 async function printingEntryQuery(
   db: Kysely<Database>,
   scope: { listId: string; userId?: string },
@@ -1488,11 +1343,6 @@ async function printingEntryQuery(
   }));
 }
 
-/**
- * Copy-targeted entries: `le.copy_id` is set; reaches printing/card via the
- * copy, and the front-face image via the printing-images join.
- * @returns Rows for the copy-kind subset, shaped as the `copy` variant of `ListEntryRow`.
- */
 async function copyEntryQuery(
   db: Kysely<Database>,
   scope: { listId: string; userId?: string },
@@ -1510,7 +1360,7 @@ async function copyEntryQuery(
     // is pinned to at most one live trade (UNIQUE copy_id), so the join can't
     // multiply rows; its presence means the copy is reserved.
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
-    // Same shape for loans (ADR-039): at most one live loan per copy.
+    // Same shape for loans: at most one live loan per copy.
     .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {

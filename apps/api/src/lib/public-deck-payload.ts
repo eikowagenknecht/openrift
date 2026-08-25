@@ -23,13 +23,9 @@ export interface SharedDeckRow {
  * catalog.
  *
  * Split out of the `/decks/share/{token}` handler because the meta archive's
- * deck page returns the same payload plus an event panel (ADR-014); the token
- * lookup and the archive-membership check stay with the callers, since only
- * they know which decks they are allowed to resolve.
- *
- * @param repos The request's repositories.
- * @param found The deck row and owner fields from `decks.findByShareToken`.
- * @returns The full public deck-detail payload.
+ * deck page returns the same payload plus an event panel; the token lookup
+ * and the archive-membership check stay with the callers, since only they
+ * know which decks they are allowed to resolve.
  */
 export async function buildPublicDeckDetail(
   repos: Repos,

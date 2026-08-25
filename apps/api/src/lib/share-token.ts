@@ -7,7 +7,6 @@ const SHARE_TOKEN_LENGTH = 12;
  * Generates an unguessable base62 share token. 12 chars × log2(62) ≈ 71 bits
  * of entropy. Unbiased via rejection sampling: we only accept bytes below the
  * largest multiple of 62 that fits in a byte (248).
- * @returns A 12-character base62 token.
  */
 export function generateShareToken(): string {
   const threshold = Math.floor(256 / SHARE_TOKEN_ALPHABET.length) * SHARE_TOKEN_ALPHABET.length;
@@ -37,11 +36,6 @@ export function generateShareToken(): string {
  * Pass `constraint` when the callback writes more than the token-bearing row:
  * without it any 23505 the write raises — a duplicate satellite row, say —
  * burns all three attempts and then surfaces as a token problem.
- *
- * @param attempt The write, given a freshly minted token.
- * @param options.constraint The token's unique constraint, when the callback can
- *   raise 23505 from more than one index.
- * @returns Whatever the callback returns on its first successful attempt.
  */
 export async function withUniqueShareToken<Result>(
   attempt: (token: string) => Promise<Result>,

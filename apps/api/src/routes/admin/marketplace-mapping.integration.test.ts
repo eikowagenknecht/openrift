@@ -8,26 +8,13 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Marketplace mapping mutation routes
-//
-// Tests POST/DELETE on /admin/marketplace-mappings?marketplace=<mp>
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix MKM- for entities it creates, groupId range distinct from others.
-//
-// Phase-4 schema: prices live on `marketplace_product_prices` keyed by SKU;
-// the legacy `marketplace_staging` and `marketplace_snapshots` are gone.
-// All upstream products live in `marketplace_products` with price history in
-// `marketplace_product_prices`. The "unmatched products" feed surfaces
-// products with no `marketplace_product_variants` row. Card overrides key on
-// `marketplace_product_id` instead of the SKU tuple.
-// ---------------------------------------------------------------------------
+// The integration database is shared across files, so entities created here use
+// the MKM- prefix and a groupId range distinct from the other test files.
 
 const USER_ID = "a0000000-0013-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Seed IDs populated during setup
 let setId: string;
 let cardId: string;
 let printingId: string;
@@ -35,7 +22,6 @@ let printingId: string;
 if (ctx) {
   const { db } = ctx;
 
-  // Seed set
   const [setRow] = await db
     .insertInto("sets")
     .values({ slug: "MKM-TEST", name: "MKM Test Set", printedTotal: 2, sortOrder: 100 })
@@ -43,7 +29,6 @@ if (ctx) {
     .execute();
   setId = setRow.id;
 
-  // Seed card
   const [cardRow] = await db
     .insertInto("cards")
     .values({
@@ -64,7 +49,6 @@ if (ctx) {
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
-  // Seed printing (normal finish)
   const [printingRow] = await db
     .insertInto("printings")
     .values({
@@ -88,7 +72,6 @@ if (ctx) {
     .execute();
   printingId = printingRow.id;
 
-  // Seed second printing (foil finish)
   await db
     .insertInto("printings")
     .values({
@@ -111,19 +94,17 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // Marketplace group for TCGPlayer
   await db
     .insertInto("marketplaceGroups")
     .values({ marketplace: "tcgplayer", groupId: 10_200, name: "MKM TCG Group" })
     .execute();
 
-  // Marketplace group for Cardmarket
   await db
     .insertInto("marketplaceGroups")
     .values({ marketplace: "cardmarket", groupId: 10_201, name: "MKM CM Group" })
     .execute();
 
-  // ── TCGPlayer product + price (the "staged" product the admin will map) ─
+  // The "staged" TCGPlayer product the admin will map.
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -163,7 +144,6 @@ if (ctx) {
     .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // ── Cardmarket product + price ─────────────────────────────────────────
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -206,15 +186,9 @@ if (ctx) {
   await refreshCardAggregates(db);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
-
-  // ── TCGPlayer: GET (via unified endpoint) ─────────────────────────────────
 
   describe("GET /admin/marketplace-mappings (TCGPlayer data)", () => {
     it("returns overview with groups and staged products", async () => {
@@ -227,7 +201,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(json.unmatchedProducts).toBeDefined();
       expect(json.allCards).toEqual(expect.any(Array));
 
-      // Our seeded card should appear in groups
       const testGroup = json.groups.find(
         (g: { cardName: string }) => g.cardName === "MKM Test Card",
       );
@@ -238,8 +211,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(testGroup.tcgplayer.stagedProducts[0].externalId).toBe(12_345);
     });
   });
-
-  // ── TCGPlayer: POST (save mappings) ────────────────────────────────────────
 
   describe("POST /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("returns saved: 0 for empty mappings array", async () => {
@@ -265,11 +236,11 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("after mapping, the variant binding exists and the product row is preserved", async () => {
-      // Phase 4: saveMappings doesn't delete or rewrite anything in the
-      // products table — it only inserts a `marketplace_product_variants` row.
-      // The unmatched-products feed filters bound products via NOT EXISTS(mpv),
-      // so the product disappears from the staged panel but the row itself
-      // (and its price history) remains untouched.
+      // saveMappings doesn't delete or rewrite anything in the products table —
+      // it only inserts a `marketplace_product_variants` row. The
+      // unmatched-products feed filters bound products via NOT EXISTS(mpv), so
+      // the product disappears from the staged panel but the row itself (and
+      // its price history) remains untouched.
       const variantRow = await db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -280,7 +251,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(variantRow).toBeDefined();
       expect(variantRow?.externalId).toBe(12_345);
 
-      // The marketplace_products row still exists.
       const productRow = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -310,8 +280,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── TCGPlayer: DELETE (unmap single) ───────────────────────────────────────
-
   describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("unmaps a single printing, deletes the variant, keeps the product and its price history", async () => {
       const res = await app.fetch(
@@ -322,7 +290,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Variant should be deleted (parent product is intentionally left behind).
       const variantRow = await db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -332,9 +299,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .executeTakeFirst();
       expect(variantRow).toBeUndefined();
 
-      // Phase 4: unmap leaves the product row in place — no per-fetch rehydrate
-      // step is needed for it to reappear in the unmatched panel. Verify the
-      // product row still exists and its price history is intact.
+      // Unmap leaves the product row and its price history in place, so it
+      // reappears in the unmatched panel without any rehydrate step.
       const productRow = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -353,8 +319,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Cardmarket: POST (save mappings) ───────────────────────────────────────
-
   describe("POST /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
@@ -367,7 +331,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const json = await readJson(res);
       expect(json.saved).toBe(1);
 
-      // Verify the product + variant was created (joined via the variant).
       const sourceRow = await db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -378,9 +341,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(sourceRow).toBeDefined();
       expect(sourceRow?.externalId).toBe(67_890);
 
-      // Phase 4: the product row stays in place after mapping. Verify it is
-      // still present (the unmatched-products feed hides it via NOT EXISTS,
-      // but the underlying row is untouched).
+      // The product row stays in place after mapping: the unmatched-products
+      // feed hides it via NOT EXISTS, but the underlying row is untouched.
       const productRow = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -403,8 +365,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Cardmarket: DELETE (unmap single) ──────────────────────────────────────
-
   describe("DELETE /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("unmaps a single printing", async () => {
       const res = await app.fetch(
@@ -417,10 +377,9 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("only removes the specified product when two are mapped to the same printing", async () => {
-      // Seed two CardTrader products and a CardTrader group. CardTrader is the
-      // realistic case for this bug — TCG/CM enforce one product per printing
-      // by SKU, but CardTrader doesn't, so an admin can legitimately end up
-      // with two product IDs bound to the same printing.
+      // CardTrader is the realistic case: TCG/CM enforce one product per
+      // printing by SKU, but CardTrader doesn't, so an admin can legitimately
+      // end up with two product IDs bound to the same printing.
       await db
         .insertInto("marketplaceGroups")
         .values({ marketplace: "cardtrader", groupId: 10_202, name: "MKM CT Group" })
@@ -444,7 +403,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           .execute();
       }
 
-      // Map both products to the same printing.
       const mapRes = await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
           mappings: [
@@ -455,7 +413,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(mapRes.status).toBe(200);
 
-      // Sanity: two variants exist for this (cardtrader, printingId).
       const before = await db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -465,8 +422,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .execute();
       expect(before.map((row) => row.externalId).toSorted()).toEqual([55_555, 66_666]);
 
-      // Unmap just product 55_555. Without the externalId filter the lookup
-      // is ambiguous and could non-deterministically delete the wrong variant.
+      // Without the externalId filter the lookup is ambiguous and could
+      // non-deterministically delete the wrong variant.
       const unmapRes = await app.fetch(
         adminReq(
           "DELETE",
@@ -486,12 +443,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Coverage: ignored-product filter ──────────────────────────────────────
-
   describe("staging row filtering edge cases", () => {
     it("excludes ignored products from staging and lists them separately", async () => {
-      // Seed a fresh "staged" product (marketplace_products + price) that we'll
-      // then mark as ignored at the L2 level.
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -533,7 +486,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      // Insert an L2 ignored-product record for this external_id (whole-product ignore).
+      // Whole-product ignore, keyed on external_id.
       await db
         .insertInto("marketplaceIgnoredProducts")
         .values({
@@ -549,7 +502,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       const json = await readJson(res);
 
-      // Should NOT appear in staged products for tcgplayer
       const testGroup = json.groups.find(
         (g: { cardName: string }) => g.cardName === "MKM Test Card",
       );
@@ -560,7 +512,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         ).toBeUndefined();
       }
 
-      // Should NOT appear in unmatched products
       expect(
         json.unmatchedProducts.tcgplayer.find(
           (p: { externalId: number }) => p.externalId === 99_001,
@@ -569,13 +520,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Coverage: manual card overrides ───────────────────────────────────────
-
   describe("manual card overrides", () => {
     it("matches staged product via override instead of name prefix", async () => {
-      // Insert a marketplace product (with price) whose name does NOT match
-      // any card by prefix or containment — only the override should pull it
-      // into our test card's group.
+      // A product whose name does NOT match any card by prefix or containment —
+      // only the override should pull it into our test card's group.
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -617,8 +565,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      // Phase 4: the override is keyed on `marketplace_product_id` (the
-      // table's PK), so we look up the product first and then pin it.
       await db
         .insertInto("marketplaceProductCardOverrides")
         .values({
@@ -637,7 +583,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       );
       expect(testGroup).toBeDefined();
 
-      // The override-matched product should appear as staged under our card's tcgplayer section
       const overrideStaged = testGroup.tcgplayer.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 99_002,
       );
@@ -645,15 +590,12 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(overrideStaged.productName).toBe("ZZZ Totally Unrelated Product Name");
       expect(overrideStaged.isOverride).toBe(true);
 
-      // It should NOT appear in unmatchedProducts
       const unmatched = json.unmatchedProducts.tcgplayer.find(
         (p: { externalId: number }) => p.externalId === 99_002,
       );
       expect(unmatched).toBeUndefined();
     });
   });
-
-  // ── Coverage: containment matching second pass ────────────────────────────
 
   describe("containment matching", () => {
     it("matches staged product via containment when prefix fails", async () => {
@@ -721,20 +663,17 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       const json = await readJson(res);
 
-      // Find the group for "Annie, Fiery"
       const annieGroup = json.groups.find(
         (g: { cardName: string }) => g.cardName === "Annie, Fiery",
       );
       expect(annieGroup).toBeDefined();
 
-      // The containment-matched product should be staged under Annie's tcgplayer section
       const containmentStaged = annieGroup.tcgplayer.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 99_003,
       );
       expect(containmentStaged).toBeDefined();
       expect(containmentStaged.productName).toBe("Champion Annie, Fiery Special");
 
-      // Should NOT appear in unmatchedProducts
       const unmatched = json.unmatchedProducts.tcgplayer.find(
         (p: { externalId: number }) => p.externalId === 99_003,
       );
@@ -742,13 +681,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Coverage: saveMappings with no matching product ───────────────────────
-
   describe("saveMappings edge cases", () => {
     it("returns saved: 0 when mapping references a non-existent product", async () => {
-      // Phase 4: saveMappings looks up the SKU in `marketplace_products`
-      // (not staging). An external ID with no matching product row produces
-      // a `skipped` entry and `saved: 0`.
       const res = await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 999_999, finish: "normal", language: null }],

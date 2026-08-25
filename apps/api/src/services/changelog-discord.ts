@@ -25,16 +25,6 @@ const DEFAULT_POST_DELAY_MS = 3000;
 // counting differences between JS UTF-16 length and Discord's own count.
 const MAX_DESCRIPTION_CHARS = 4000;
 
-/**
- * Parses a changelog markdown document into all dated sections.
- * Sections without any feat/fix entries are dropped. Entries carry their
- * `### Highlights` / `### Other` sub-section (legacy un-sectioned entries
- * default to `other`); the optional `(Area)` tag is tolerated but not kept.
- * The message keeps its `**Title** — body` markdown; the em-dash divider is
- * rewritten to `**Title**: body` at format time before posting.
- *
- * @returns Sections sorted oldest-first by date.
- */
 export function parseChangelogSections(markdown: string): ChangelogSection[] {
   const sections: ChangelogSection[] = [];
   const blocks = markdown.split(/^## /mu).slice(1);
@@ -71,12 +61,6 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
   return sections.toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
-/**
- * Rewrites the changelog's `**Title** — body` divider to `**Title**: body`.
- * Legacy entries without a bold title pass through unchanged.
- *
- * @returns The message with the title divider rewritten.
- */
 function formatEntryMessage(message: string): string {
   return message.replace(/^(?<title>\*\*.+?\*\*) — /u, "$<title>: ");
 }
@@ -97,8 +81,6 @@ function formatSectionLines(entries: ChangelogEntry[]): string[] {
 function formatEntryLines(entries: ChangelogEntry[]): string[] {
   const highlights = entries.filter((entry) => entry.section === "highlight");
   const other = entries.filter((entry) => entry.section !== "highlight");
-  // When there are highlights, label both blocks; an all-"other" day (or a
-  // legacy un-sectioned date) just lists its entries without a header.
   if (highlights.length === 0) {
     return formatSectionLines(other);
   }
@@ -130,13 +112,6 @@ function chunkLinesToFit(lines: string[], limit: number): string[][] {
   return chunks;
 }
 
-/**
- * Builds one or more Discord webhook payloads for a single date's entries.
- * A long day's worth of entries is split across multiple payloads so each
- * description stays under Discord's 4096-char embed limit.
- *
- * @returns One payload per chunk, in display order.
- */
 export function buildDiscordPayloads(date: string, entries: ChangelogEntry[]) {
   const lines = formatEntryLines(entries);
   const chunks = chunkLinesToFit(lines, MAX_DESCRIPTION_CHARS);
@@ -151,11 +126,6 @@ export function buildDiscordPayloads(date: string, entries: ChangelogEntry[]) {
   }));
 }
 
-/**
- * Extracts a watermark date from a prior job run's stored result.
- *
- * @returns The last-posted date string, or null if no usable watermark.
- */
 export function extractWatermark(result: unknown): string | null {
   if (result === null || typeof result !== "object") {
     return null;
@@ -177,16 +147,9 @@ interface PostChangelogParams {
   readFile?: (path: string) => Promise<string>;
 }
 
-/**
- * Posts every changelog section dated strictly after `fromDate` to the
- * Discord webhook, oldest first, throttled to one message per `postDelayMs`.
- * Long sections are split across multiple webhook posts so each embed
- * stays under Discord's 4096-char description limit. The watermark only
- * advances after every chunk for a date is posted, so a crash mid-date
- * re-posts the whole date on the next run rather than skipping the rest.
- *
- * @returns The number of dates posted and the new watermark.
- */
+// The watermark only advances after every chunk for a date is posted, so a
+// crash mid-date re-posts the whole date on the next run rather than
+// skipping the rest.
 export async function postChangelogToDiscord(
   params: PostChangelogParams,
 ): Promise<ChangelogJobResult> {

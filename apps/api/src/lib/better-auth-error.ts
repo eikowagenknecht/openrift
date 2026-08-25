@@ -18,10 +18,7 @@ export interface MappedAuthError {
 
 const CANONICAL_CODES = new Set<string>(Object.values(ERROR_CODES));
 
-/**
- * Reads the api-key plugin's millisecond retry hint off an error body.
- * @returns The wait in whole seconds, or undefined when the body carries none.
- */
+/** Reads the api-key plugin's millisecond retry hint off an error body. */
 function retryAfterSecondsFrom(body: APIError["body"]): number | undefined {
   const details = body?.details as { tryAgainIn?: unknown } | undefined;
   const tryAgainIn = details?.tryAgainIn;
@@ -46,7 +43,6 @@ function retryAfterSecondsFrom(body: APIError["body"]): number | undefined {
  * `code` is the published enum that `apiErrorResponseSchema` documents. So a
  * code we don't enumerate falls back to the canonical code for the status
  * instead of leaking one the schema rejects.
- * @returns The mapped status, code, message, and retry hint.
  */
 export function mapAuthError(err: APIError): MappedAuthError {
   const status = err.statusCode;

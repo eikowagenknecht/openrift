@@ -13,8 +13,6 @@ const stubFetch: Fetch = (() => {
   throw new Error("unexpected real fetch");
 }) as unknown as Fetch;
 
-// ── Representative mock data (modelled on real TCGCSV responses) ─────────
-
 const GROUP_A = { groupId: 101, name: "Core Set", abbreviation: "CS" };
 const GROUP_B = { groupId: 102, name: "Expansion One", abbreviation: "EX1" };
 
@@ -45,7 +43,6 @@ const PRODUCT_BOLT = {
   extendedData: [],
 };
 
-/** Normal price entry for Flame Striker */
 const PRICE_FLAME_NORMAL = {
   productId: 5001,
   subTypeName: "Normal",
@@ -56,7 +53,6 @@ const PRICE_FLAME_NORMAL = {
   directLowPrice: null,
 };
 
-/** Foil price entry for Flame Striker */
 const PRICE_FLAME_FOIL = {
   productId: 5001,
   subTypeName: "Foil",
@@ -89,7 +85,6 @@ const PRICE_ICE_ZERO_MARKET = {
   directLowPrice: null,
 };
 
-/** Normal price entry for Lightning Bolt (group B) */
 const PRICE_BOLT_NORMAL = {
   productId: 5003,
   subTypeName: "Normal",
@@ -105,8 +100,6 @@ const ZERO_COUNTS: UpsertCounts = {
 };
 
 const LAST_MODIFIED = new Date("2026-03-10T20:00:00Z");
-
-// ── Helpers ──────────────────────────────────────────────────────────────
 
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
@@ -147,16 +140,12 @@ function createMockRepos(config: MockReposConfig = {}) {
   return { repos, wasUpsertGroupsCalled: () => upsertGroupsCalled };
 }
 
-// ── fetchJson mock setup ─────────────────────────────────────────────────
-
 interface MockApiData {
   groups?: Record<string, unknown>[];
-  /** Products keyed by groupId */
   productsByGroup?: Map<number, Record<string, unknown>[]>;
-  /** Prices keyed by groupId */
   pricesByGroup?: Map<number, Record<string, unknown>[]>;
   lastModified?: Date | null;
-  /** Per-group Last-Modified overrides (takes precedence over lastModified) */
+  /** Per-group Last-Modified overrides; takes precedence over lastModified. */
   lastModifiedByGroup?: Map<number, Date | null>;
 }
 
@@ -196,8 +185,6 @@ function upsertStaging(spy: ReturnType<typeof vi.spyOn>): StagingRow[] {
   return spy.mock.calls[0][3];
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────
-
 describe("refreshTcgplayerPrices", () => {
   let fetchJsonSpy: ReturnType<typeof vi.spyOn>;
   let upsertSpy: ReturnType<typeof vi.spyOn>;
@@ -217,8 +204,6 @@ describe("refreshTcgplayerPrices", () => {
     upsertSpy.mockRestore();
     logUpsertSpy.mockRestore();
   });
-
-  // ── API fetch ──────────────────────────────────────────────────────────
 
   describe("API fetch", () => {
     it("fetches groups, products, and prices from TCGCSV endpoints", async () => {
@@ -276,8 +261,6 @@ describe("refreshTcgplayerPrices", () => {
       expect(urls).toContainEqual("https://tcgcsv.com/tcgplayer/89/102/prices");
     });
   });
-
-  // ── Staging rows ──────────────────────────────────────────────────────
 
   describe("staging rows", () => {
     it("creates normal staging row with correct cents", async () => {
@@ -461,8 +444,6 @@ describe("refreshTcgplayerPrices", () => {
     });
   });
 
-  // ── Group upsert ──────────────────────────────────────────────────────
-
   describe("group upsert", () => {
     it("upserts groups via repo when groups exist", async () => {
       const { repos, wasUpsertGroupsCalled } = createMockRepos();
@@ -485,14 +466,9 @@ describe("refreshTcgplayerPrices", () => {
 
       await refreshTcgplayerPrices(stubFetch, repos, log);
 
-      // upsertMarketplaceGroups is still called but with empty array;
-      // the repo's upsertGroups returns early for empty arrays
-      // and upsertPriceData is mocked
       expect(wasUpsertGroupsCalled()).toBe(true);
     });
   });
-
-  // ── recordedAt ────────────────────────────────────────────────────────
 
   describe("recordedAt", () => {
     it("uses Last-Modified header from prices response", async () => {
@@ -561,8 +537,6 @@ describe("refreshTcgplayerPrices", () => {
     });
   });
 
-  // ── upsertPriceData call ──────────────────────────────────────────────
-
   describe("upsertPriceData call", () => {
     it("passes repos.priceRefresh as first argument", async () => {
       const { repos } = createMockRepos();
@@ -574,8 +548,6 @@ describe("refreshTcgplayerPrices", () => {
       expect(upsertSpy.mock.calls[0][0]).toBe(repos.priceRefresh);
     });
   });
-
-  // ── Return value ──────────────────────────────────────────────────────
 
   describe("return value", () => {
     it("returns correct fetched counts", async () => {
@@ -615,8 +587,6 @@ describe("refreshTcgplayerPrices", () => {
       expect(result.upserted).toBe(customCounts);
     });
   });
-
-  // ── Logging ───────────────────────────────────────────────────────────
 
   describe("logging", () => {
     it("logs fetched summary with group and product counts", async () => {
@@ -688,8 +658,6 @@ describe("refreshTcgplayerPrices", () => {
       expect(logUpsertSpy).toHaveBeenCalledWith(log, ZERO_COUNTS);
     });
   });
-
-  // ── Edge cases ────────────────────────────────────────────────────────
 
   describe("edge cases", () => {
     it("handles groups with missing products or prices gracefully", async () => {

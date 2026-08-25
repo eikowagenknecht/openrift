@@ -40,8 +40,6 @@ let tempDbSeq = 0;
  * `Date.now()` name, then one run's `DROP IF EXISTS` would delete the other's
  * fresh DB and both would `migrate()` the same database concurrently, leaving a
  * corrupted (partial) migration table.
- *
- * @returns The generated database name.
  */
 export async function createTempDb(databaseUrl: string, label: string): Promise<string> {
   const name = `openrift_test_${label}_${Date.now()}_${process.pid}_${tempDbSeq++}`;
@@ -54,27 +52,18 @@ export async function createTempDb(databaseUrl: string, label: string): Promise<
   return name;
 }
 
-/**
- * Drop a temporary database.
- * Skipped when KEEP_TEST_DB is set — use `bun run db:cleanup` to drop later.
- */
+/** Skipped when KEEP_TEST_DB is set: use `bun run db:cleanup` to drop later. */
 export async function dropTempDb(databaseUrl: string, name: string): Promise<void> {
   if (process.env.KEEP_TEST_DB) {
     console.log(`KEEP_TEST_DB: preserving ${name}`);
     return;
   }
   const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
-  // WITH (FORCE) terminates other sessions then drops, atomically (PG13+) —
-  // replaces the old terminate-then-drop pair.
+  // WITH (FORCE) terminates other sessions then drops, atomically (PG13+).
   await sql.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   await sql.end();
 }
 
-/**
- * List all test databases (names starting with `openrift_test_`).
- *
- * @returns An array of database names.
- */
 export async function listTestDatabases(databaseUrl: string): Promise<string[]> {
   const sql = postgres(replaceDbName(databaseUrl, "postgres"), { onnotice: noop });
   const rows = await sql<{ datname: string }[]>`
@@ -88,8 +77,6 @@ export async function listTestDatabases(databaseUrl: string): Promise<string[]> 
  * Extract the creation epoch-ms embedded in a temp-DB name
  * (`openrift_test_<label>_<epoch-ms>[_<pid>_<seq>]`). Tolerates the legacy
  * suffix-less format so old leftovers are still sweepable.
- *
- * @returns The epoch-ms timestamp, or `null` if the name doesn't match.
  */
 export function parseTestDbTimestamp(name: string): number | null {
   const match = /^openrift_test_[^_]+_(?<timestamp>\d+)/u.exec(name);
@@ -105,8 +92,6 @@ export function parseTestDbTimestamp(name: string): number | null {
  * name. Run at the start of an integration run so leftovers from interrupted
  * runs (killed processes never reach teardown) are reclaimed automatically. The
  * age cutoff protects a concurrently-running run's fresh DB from being dropped.
- *
- * @returns The names that were dropped.
  */
 export async function sweepStaleTestDatabases(
   databaseUrl: string,
@@ -124,7 +109,6 @@ export async function sweepStaleTestDatabases(
   return stale;
 }
 
-/** A pre-seeded user available to every integration test file. */
 export interface TestUser {
   id: string;
   email: string;
@@ -132,10 +116,9 @@ export interface TestUser {
 }
 
 /**
- * Test user registry — pre-seeded users for test files that reference them
+ * Test user registry: pre-seeded users for test files that reference them
  * without inserting them. Shared by the integration and coverage runners so
- * the two can never drift apart (they once did: the coverage runner's copy
- * was missing users 0054+, so trade tests could not have run under it).
+ * the two can never drift apart.
  *
  * Do NOT add entries for new test files. New files own their users: generate
  * IDs with `crypto.randomUUID()` at module scope and insert them via
@@ -201,28 +184,23 @@ export const TEST_USERS: TestUser[] = [
   // Second user for the deck-clone route test ("clone as another user").
   { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
   // Second user for the preferences route test (clean-first-PATCH
-  // emailNotifications round-trip, ADR-030).
+  // emailNotifications round-trip).
   { id: "a0000000-0044-4000-a000-000000000002", email: "user-0044b@test.com", isAdmin: false },
   // user-contact-methods repo tests (0056, 0057) and deck-plans repo tests
   // (0058) reference these without inserting them
   { id: "a0000000-0056-4000-a000-000000000001", email: "repo-0056@test.com", isAdmin: false },
   { id: "a0000000-0057-4000-a000-000000000001", email: "req-0057@test.com", isAdmin: false },
   { id: "a0000000-0058-4000-a000-000000000001", email: "req-0058@test.com", isAdmin: false },
-  // Products snapshot service tests (ADR-015)
+  // Products snapshot service tests
   { id: "a0000000-0197-4000-a000-000000000001", email: "repo-0197@test.com", isAdmin: false },
-  // card-review grant tests (ADR-040 lineage): one admin control, one
-  // non-admin grant holder (the test file seeds its admin_grants row itself)
+  // card-review grant tests: one admin control, one non-admin grant holder
+  // (the test file seeds its admin_grants row itself)
   { id: "a0000000-0198-4000-a000-000000000001", email: "admin-0198@test.com", isAdmin: true },
   { id: "a0000000-0199-4000-a000-000000000001", email: "crg-0199@test.com", isAdmin: false },
-  // API key auth tests (migration 200)
+  // API key auth tests
   { id: "a0000000-0200-4000-a000-000000000001", email: "key-0200@test.com", isAdmin: false },
 ];
 
-/**
- * Insert the {@link TEST_USERS} registry (promoting the admin-flagged ones).
- *
- * @returns Resolves once every user row (and admin row) is inserted.
- */
 export async function insertTestUsers(db: Kysely<Database>): Promise<void> {
   for (const user of TEST_USERS) {
     await db
@@ -246,9 +224,6 @@ export async function insertTestUsers(db: Kysely<Database>): Promise<void> {
  * database, run migrations, load the seed fixture, and insert the test-user
  * registry, logging each step. On failure the temp database is dropped before
  * rethrowing, so the caller only has to drop it after a successful bootstrap.
- *
- * @returns The temp database name (for the caller's teardown) and the
- *   connection URL pointing at it.
  */
 export async function bootstrapSeededTestDb(
   databaseUrl: string,
@@ -272,12 +247,12 @@ export async function bootstrapSeededTestDb(
       // Migrations create the views before the seed data exists.
       console.log("Refreshing materialized views...");
       await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
-      // Daily before latest — the latest view is defined over the daily one
-      // (migration 219), so refreshing it first would publish an empty result.
+      // Daily before latest: the latest view is defined over the daily one,
+      // so refreshing it first would publish an empty result.
       await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`;
       await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
-      // Without this every seeded printing falls back to the sentinel rank and
-      // `printings_ordered` returns them in arbitrary order (migration 215).
+      // Without this every seeded printing falls back to the sentinel rank
+      // and `printings_ordered` returns them in arbitrary order.
       await sql`REFRESH MATERIALIZED VIEW mv_printings_canonical_rank`;
     }
     await sql.end();
@@ -293,17 +268,9 @@ export async function bootstrapSeededTestDb(
   return { tempDbName, testUrl };
 }
 
-/**
- * Creates a temporary test database, runs all migrations, and returns a
- * Kysely instance pointed at it.  Call `teardown()` in afterAll to drop the
- * database and close connections.
- *
- * @returns The Kysely db, a noop logger, and a teardown function.
- */
 export async function setupTestDb(databaseUrl: string, label: string) {
   const dbName = await createTempDb(databaseUrl, label);
 
-  // Connect and run migrations
   const testUrl = replaceDbName(databaseUrl, dbName);
   const db = new Kysely<Database>({
     dialect: new PostgresJSDialect({ postgres: postgres(testUrl, { onnotice: noop }) }),

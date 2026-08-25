@@ -39,14 +39,12 @@ import { printingDetailsByIds } from "./query-helpers.js";
  * carries the *trade* side's card identity (the physical copy that could
  * change hands) plus enough wish-side info to explain *why* the row matched.
  *
- * The "counterparty" is the *other* user — in `othersHaveYourWants` the
- * counterparty is the seller (they have what you want); in
- * `othersWantYourHaves` the counterparty is the buyer (they want what you
- * have). The shape is identical so the UI can render both panels uniformly.
+ * The "counterparty" is the *other* user — the seller in `othersHaveYourWants`,
+ * the buyer in `othersWantYourHaves`. The shape is identical so the UI can
+ * render both panels uniformly.
  *
- * Computed app-side (ADR-034): both manual entries and dynamic-rule output
- * participate. Rule-derived entries have no `list_entries` row, so
- * `sellEntryId` / `buyEntryId` are null for them.
+ * Rule-derived entries have no `list_entries` row, so `sellEntryId` /
+ * `buyEntryId` are null for them.
  */
 export interface MatchRow {
   counterpartyUserId: string;
@@ -106,42 +104,28 @@ export interface IncomingMatchFeedRow {
 }
 
 /**
- * Match-view queries for ADR-013 friend groups, expanded for ADR-034 dynamic
- * rules. Computed at read time, never materialised.
+ * Friend-group match views, computed at read time, never materialised.
  *
  * Both panels share one shape: intersect wish demand against trade supply
  * within the same group's opted-in shares. Manual entries and rule output are
- * both expanded (`evaluateListRules` + `expandList`) and matched in TypeScript,
- * preserving every invariant of the old single-join query — group/share
- * visibility, reserved-copy exclusion, trade-pref coalescing, and
- * copy → printing → card resolution. Demand is additionally netted against
- * quantities already promised to the wanting member by firm live trades
- * ({@link netDemandAgainstPromises}), the demand-side mirror of the supply
- * side's reserved-copy exclusion. Supply drops one more class on top of the
- * reserved copies: those a member's own live offers already commit
- * ({@link copiesClaimedByPendingOffers}), so the view never advertises a card
- * whose copies a request could not claim.
+ * both expanded (`evaluateListRules` + `expandList`) and matched in TypeScript.
+ * Demand is netted against quantities already promised to the wanting member
+ * by firm live trades ({@link netDemandAgainstPromises}), the demand-side
+ * mirror of the supply side's reserved-copy exclusion. Supply drops one more
+ * class on top of the reserved copies: those a member's own live offers
+ * already commit ({@link copiesClaimedByPendingOffers}), so the view never
+ * advertises a card whose copies a request could not claim.
  *
  * **Only `wish` ↔ `trade` shares participate.** `organize` lists never appear
- * here. Deck-derived demand is excluded by construction — we only read list
- * entries / rule output, which decks never populate.
- *
- * @returns An object with the match queries bound to the given `db`.
+ * here. Deck-derived demand is excluded by construction — only list entries /
+ * rule output are read, which decks never populate.
  */
 export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
   return {
-    /**
-     * Cards the *viewer wants* that other members have offered for sale.
-     * @returns Match rows; sorted by counterparty, then card name.
-     */
     othersHaveYourWants(scope: MatchScope): Promise<MatchRow[]> {
       return runMatchQuery(db, providers, scope, "others-have-your-wants");
     },
 
-    /**
-     * Cards the *viewer has* that other members are looking for.
-     * @returns Match rows; sorted by counterparty, then card name.
-     */
     othersWantYourHaves(scope: MatchScope): Promise<MatchRow[]> {
       return runMatchQuery(db, providers, scope, "others-want-your-haves");
     },
@@ -149,15 +133,14 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
     /**
      * The giver's offered copies of one printing in a group — the reservable
      * supply used to validate and pin a trade. Counts manual `copy` entries and
-     * dynamic trade-rule output alike (ADR-034), reusing the same supply builder
-     * as the match view so the two can never disagree (a copy offered only via a
-     * rule must not read as "0 available" at trade time).
+     * dynamic trade-rule output alike, reusing the same supply builder as the
+     * match view so the two can never disagree (a copy offered only via a rule
+     * must not read as "0 available" at trade time).
      *
      * Deliberately offer-agnostic: copies claimed by the giver's own pending
      * offers stay in the result, because every caller nets them itself and
      * `setTradeQuantity` must exclude the very offer it is resizing. The match
      * view runs that pass in {@link copiesClaimedByPendingOffers}.
-     * @returns The unreserved reservable copy ids plus whether any copy is offered.
      */
     giverPrintingSupply(
       scope: GiverSupplyScope,
@@ -175,7 +158,6 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
      * answer is a pointer to a person rather than something to act on directly.
      * Not viewer-centric: the group's link to a Discord server is the consent
      * that scopes it.
-     * @returns One row per offering member, most copies first.
      */
     tradelistHoldersForCard(scope: {
       groupId: string;
@@ -198,18 +180,11 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
      * wishlist the viewer owns participates, matching the wishlist heart that
      * already renders on box surfaces. That also means the answer is
      * viewer-private — no other member's lists are read.
-     * @returns One row per (box, printing) the viewer still wants.
      */
     boxWantsForViewer(scope: { groupId: string; viewerUserId: string }): Promise<BoxWantRow[]> {
       return resolveBoxWantsForViewer(db, providers, scope);
     },
 
-    /**
-     * The viewer's *incoming* matches (others have what the viewer wants),
-     * deduped to one row per (counterparty, printing) and dated by the latest
-     * contributing timestamp. Newest first.
-     * @returns Deduped incoming match feed rows, newest match first.
-     */
     async recentIncomingMatchesForFeed(scope: {
       groupId: string;
       viewerUserId: string;
@@ -223,8 +198,6 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
         "others-have-your-wants",
         { withMatchedAt: true },
       );
-      // Dedupe to one row per (counterparty, printing), keeping the latest
-      // matchedAt; apply the digest watermark; newest first.
       const byKey = new Map<string, IncomingMatchFeedRow>();
       for (const row of matches) {
         const matchedAt = row.matchedAt ?? new Date(0);
@@ -255,7 +228,6 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
 
 type MatchDirection = "others-have-your-wants" | "others-want-your-haves";
 
-/** A trade list shared into a group, with its rules. */
 interface SharedListRow {
   listId: string;
   listName: string;
@@ -357,7 +329,6 @@ async function loadSharedLists(
  * The same shape as {@link loadSharedLists}, but keyed on ownership rather than
  * a group share. `sharedAt` carries the list's creation time — it only feeds
  * match-feed timestamps, which no owner-scoped caller reads.
- * @returns The user's own lists of the given intent, with their rules.
  */
 async function loadOwnedLists(
   db: Kysely<Database>,
@@ -469,13 +440,12 @@ function promisedKey(userId: string, id: string): string {
  * unapplied (the card is coming, or is in hand but not recorded yet — the same
  * "live" ladder as the card-trades repo's `liveAnnotationsForUser`). Pending
  * rows are deliberately absent: a pending request is a bid, not a promise, and
- * several members may bid on one card (ADR-019).
+ * several members may bid on one card.
  *
  * The sync guard applies to `reserved` too, because a side settles while the
  * trade is still reserved and only the second settle completes it. A receiver
  * who has recorded their half owns the copy, so netting a promise on top of it
  * would count the same card twice and hide their other suggestions.
- * @returns The promised quantities pooled per printing and per card.
  */
 async function loadPromisedIncoming(
   db: Kysely<Database>,
@@ -513,7 +483,6 @@ async function loadPromisedIncoming(
   return { byPrinting, byCard };
 }
 
-/** One of a giver's live offers, in the order the claim pass consumes them. */
 interface PendingOfferRow {
   id: string;
   groupId: string;
@@ -524,10 +493,10 @@ interface PendingOfferRow {
 
 /**
  * Loads every still-`pending` **offer** (`initiator = 'giver'`) the given
- * members have out, in any group. Requests are excluded on purpose: a
- * receiver-initiated pending row is a bid and claims nothing (ADR-019), so
+ * members have out, in any group, oldest first (the order
+ * {@link claimCopiesForOffers} allocates in). Requests are excluded on
+ * purpose: a receiver-initiated pending row is a bid and claims nothing, so
  * several members may keep asking for one card while the giver decides.
- * @returns The offers, oldest first (the order {@link claimCopiesForOffers} allocates in).
  */
 async function loadPendingOffers(
   db: Kysely<Database>,
@@ -548,10 +517,6 @@ async function loadPendingOffers(
   return rows.filter((row): row is PendingOfferRow => row.giverUserId !== null);
 }
 
-/**
- * Groups a claim pass by the giver+printing it allocates within.
- * @returns The composite key.
- */
 function offerKey(giverUserId: string, printingId: string): string {
   return `${giverUserId}:${printingId}`;
 }
@@ -574,7 +539,6 @@ function offerKey(giverUserId: string, printingId: string): string {
  * supply read per (printing, other group), and only for printings this group
  * can see at all, so the common case of every offer sitting in the group being
  * viewed adds no reads.
- * @returns The copy ids to drop from this group's supply.
  */
 async function copiesClaimedByPendingOffers(
   db: Kysely<Database>,
@@ -639,7 +603,6 @@ async function copiesClaimedByPendingOffers(
  * per-printing pool; entries consume a pool in build order, a fully covered
  * entry drops out, and a partially covered one keeps its residual want (which
  * is genuinely still tradeable).
- * @returns The demand entries with promised quantities subtracted.
  */
 function netDemandAgainstPromises(
   demand: DemandEntry[],
@@ -748,21 +711,15 @@ async function loadUsers(
 }
 
 /**
- * Whether a physical copy may take part in matching at all.
- *
- * ADR-019: copies reserved by a live trade are invisible to matching.
- * ADR-039: copies out on a loan are physically absent, same treatment.
- * Altered copies never match automatically — a wish means the clean card.
- * @returns True when the copy is present, unreserved and unaltered.
+ * Whether a physical copy may take part in matching at all. Copies reserved by
+ * a live trade are invisible to matching; copies out on a loan are physically
+ * absent, same treatment. Altered copies never match automatically — a wish
+ * means the clean card.
  */
 function isMatchableCopy(meta: CopyMeta | undefined): meta is CopyMeta {
   return meta !== undefined && !meta.reserved && !meta.loaned && !meta.altered;
 }
 
-/**
- * Expands one trade list's manual + rule entries into supply rows (reserved copies dropped).
- * @returns The offered supply copies for the list.
- */
 function buildSupply(
   list: SharedListRow,
   manual: ManualEntryWithMeta[],
@@ -812,10 +769,6 @@ function buildSupply(
   return supply;
 }
 
-/**
- * Expands one wish list's manual + rule entries into demand rows.
- * @returns The wish demand entries for the list.
- */
 function buildDemand(
   list: SharedListRow,
   manual: ManualEntryWithMeta[],
@@ -855,30 +808,25 @@ function buildDemand(
   });
 }
 
-/** Resolves the rule-evaluation context for one list owner. */
 type RuleEvalContextFor = (ownerUserId: string) => Parameters<typeof evaluateListRules>[2];
 
 /**
- * Loads everything the ADR-034 rule evaluator needs for a set of lists, once,
- * and returns the per-owner context factory over it. Every input is lazy: the
+ * Loads everything the rule evaluator needs for a set of lists, once, and
+ * returns the per-owner context factory over it. Every input is lazy: the
  * catalog is only assembled when some list has rules, keep orders only for
  * trade rules, prices only for price-bounded rules, and a member's copies only
  * for the printings their own rules can consult.
- * @returns A factory producing the evaluation context for a given list owner.
  */
 async function buildRuleEvalContexts(
   providers: ListRuleProviders | undefined,
   lists: readonly SharedListRow[],
 ): Promise<RuleEvalContextFor> {
-  // Rules on any participating list mean we need the catalog for `filterCards`
-  // (and, for trade rules, each owner's copies). Manual-only matching skips it;
-  // output card/printing details come from a targeted query either way.
   const needsCatalog = lists.some((list) => list.rules.length > 0);
   const ruleCatalog = needsCatalog && providers ? await providers.assembleCatalog() : null;
   const catalog = ruleCatalog?.printings ?? [];
   const customTagAssignments = ruleCatalog?.customTagAssignments;
 
-  // Reference orders for trade-rule keep/offer ranking. Fetched once here so the
+  // Reference orders for trade-rule keep/offer ranking, fetched once so the
   // matcher picks the exact same copies the owner sees on their list page — a
   // divergent order would offer copies that don't match what got surfaced.
   const needsKeepOrder =
@@ -886,19 +834,17 @@ async function buildRuleEvalContexts(
     lists.some((list) => list.rules.some((rule) => rule.kind === "trade"));
   const enumOrders = needsKeepOrder ? await providers.enumOrders() : undefined;
 
-  // Price-bounded rules resolve latest prices during matching. Loaded before
-  // the copy scopes below so scope and evaluation see the same prices.
+  // Loaded before the copy scopes below so scope and evaluation see the same
+  // prices.
   const needsPrices =
     providers !== undefined && lists.some((list) => list.rules.some(ruleFiltersOnPrice));
   const priceLookup = needsPrices ? await providers.priceLookup() : undefined;
 
-  // Owner copies, loaded once per distinct owner. Needed for trade-rule supply
-  // and for wish rules that net against what's owned ("only what I'm missing").
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
   if (providers) {
-    // Per owner, the printings any of *their* rule-bearing lists can consult.
-    // Unioned across that owner's lists so one read still covers them all, but
-    // bounded by the rules instead of pulling the whole collection.
+    // Per owner, the printings any of *their* rule-bearing lists can consult,
+    // unioned across that owner's lists so one read still covers them all but
+    // stays bounded by the rules instead of pulling the whole collection.
     const scopeByOwner = new Map<string, Set<string>>();
     for (const list of lists) {
       if (
@@ -922,8 +868,8 @@ async function buildRuleEvalContexts(
     }
   }
 
-  // The evaluation context for a given list owner. `customTagAssignments` lets
-  // rules filter on custom tags (without it `filterCards` reads no tags).
+  // `customTagAssignments` lets rules filter on custom tags (without it
+  // `filterCards` reads no tags).
   return (ownerUserId: string) => ({
     catalog,
     ownedCopies: ownedCopiesByOwner.get(ownerUserId) ?? [],
@@ -933,11 +879,6 @@ async function buildRuleEvalContexts(
   });
 }
 
-/**
- * Expands a set of wish lists into demand entries — manual entries unioned with
- * dynamic-rule output (ADR-034), in list order.
- * @returns The raw (un-netted) demand entries for those lists.
- */
 async function assembleDemand(
   db: Kysely<Database>,
   providers: ListRuleProviders | undefined,
@@ -970,7 +911,6 @@ async function assembleDemand(
  * supply side (`buildSupply`); this is the demand-side mirror. Wish entries are
  * only decremented when the receiver applies their sync, so without this the
  * same want re-surfaces everywhere until then.
- * @returns The demand with promised incoming quantities subtracted.
  */
 async function netDemandAgainstLiveTrades(
   db: Kysely<Database>,
@@ -992,7 +932,6 @@ async function runMatchQuery(
   const tradeLists = await loadSharedLists(db, scope.groupId, "trade");
   const wishLists = await loadSharedLists(db, scope.groupId, "wish");
 
-  // Partition by who plays seller (supply) and buyer (demand) in this direction.
   const isOthersHave = direction === "others-have-your-wants";
   const supplyLists = tradeLists.filter((list) =>
     isOthersHave
@@ -1004,8 +943,7 @@ async function runMatchQuery(
       ? list.ownerUserId === scope.viewerUserId
       : list.ownerUserId !== scope.viewerUserId,
   );
-  // Counterparty scoping (member-detail page): the counterparty is the seller in
-  // "others have", the buyer in "others want".
+  // The counterparty is the seller in "others have", the buyer in "others want".
   const scopedSupply =
     scope.counterpartyUserId !== undefined && isOthersHave
       ? supplyLists.filter((list) => list.ownerUserId === scope.counterpartyUserId)
@@ -1027,9 +965,9 @@ async function runMatchQuery(
   );
   const rawDemand = await assembleDemand(db, providers, scopedDemand, evalContextFor);
 
-  // Evaluate each ruled supply list's copies exactly once, then reuse the result
-  // for both the copy-id batch below and `buildSupply` (a `filterCards` pass over
-  // the full catalog is not free, so don't run it twice per list).
+  // Evaluate each ruled supply list's copies exactly once and reuse the result
+  // for both the copy-id batch below and `buildSupply` (a `filterCards` pass
+  // over the full catalog is not free).
   const supplyRuleEntries = new Map<string, ReturnType<typeof evaluateListRules>>();
   for (const list of scopedSupply) {
     if (list.rules.length > 0 && providers) {
@@ -1040,7 +978,6 @@ async function runMatchQuery(
     }
   }
 
-  // Resolve every supply copy's identity + reservation in one pass.
   const allCopyIds = new Set<string>();
   for (const list of scopedSupply) {
     for (const entry of supplyManual.get(list.listId) ?? []) {
@@ -1056,7 +993,6 @@ async function runMatchQuery(
   }
   const copyMeta = await loadCopyMeta(db, [...allCopyIds]);
 
-  // Build supply + demand.
   const offeredSupply: SupplyEntry[] = [];
   for (const list of scopedSupply) {
     offeredSupply.push(
@@ -1070,10 +1006,9 @@ async function runMatchQuery(
   }
   const demand = await netDemandAgainstLiveTrades(db, rawDemand);
 
-  // The supply-side counterpart: a copy one of the owner's own live offers
-  // already commits stops advertising, because a request for it would be
-  // refused (see `copiesClaimedByPendingOffers`). Read after the demand netting
-  // so both `cardTrades` reads stay in one place.
+  // The supply-side counterpart of the demand netting: a copy one of the
+  // owner's own live offers already commits stops advertising, because a
+  // request for it would be refused (see `copiesClaimedByPendingOffers`).
   const offerClaimed = await copiesClaimedByPendingOffers(
     db,
     providers,
@@ -1082,7 +1017,6 @@ async function runMatchQuery(
   );
   const supply = offeredSupply.filter((entry) => !offerClaimed.has(entry.copyId));
 
-  // Index demand for matching: card demand by cardId, printing demand by printingId.
   const demandByCard = new Map<string, DemandEntry[]>();
   const demandByPrinting = new Map<string, DemandEntry[]>();
   const pushInto = (map: Map<string, DemandEntry[]>, key: string, entry: DemandEntry) => {
@@ -1116,13 +1050,12 @@ async function runMatchQuery(
       ...(demandByPrinting.get(supplyEntry.printingId) ?? []),
     ];
     for (const demandEntry of matches) {
-      // Never match a user with themselves.
       if (supplyEntry.ownerUserId === demandEntry.ownerUserId) {
         continue;
       }
       // A rule-produced card want only accepts printings its filters matched —
       // a copy of the right card in an excluded printing (overnumbered variant,
-      // other language) is not a match (ADR-034 amendment 3).
+      // other language) is not a match.
       if (
         demandEntry.acceptablePrintingIds !== null &&
         !demandEntry.acceptablePrintingIds.has(supplyEntry.printingId)
@@ -1142,9 +1075,6 @@ async function runMatchQuery(
         counterpartyGravatarHash: gravatarHashForEmail(profile?.email ?? ""),
         counterpartyListId: isOthersHave ? supplyEntry.sellListId : demandEntry.buyListId,
         counterpartyListName: isOthersHave ? supplyEntry.sellListName : demandEntry.buyListName,
-        // Mirror of counterpartyListName: the viewer's own side. Incoming rows
-        // come from the viewer's wish list (demand), outgoing from their trade
-        // list (supply).
         viewerListName: isOthersHave ? demandEntry.buyListName : supplyEntry.sellListName,
         sellEntryId: supplyEntry.sellEntryId,
         sellListId: supplyEntry.sellListId,
@@ -1200,7 +1130,6 @@ async function runMatchQuery(
  * through {@link loadCopyMeta} and {@link isMatchableCopy}, the same pair the
  * match view uses, so a copy that is reserved, out on loan or altered can never
  * count in one place and not the other.
- * @returns One entry per box holding at least one takeable copy.
  */
 async function loadGroupBoxContents(
   db: Kysely<Database>,
@@ -1249,11 +1178,6 @@ async function loadGroupBoxContents(
   }));
 }
 
-/**
- * Resolves {@link friendGroupMatchesRepo}'s `boxWantsForViewer` — see there for
- * the scoping rules.
- * @returns One row per (box, printing) the viewer's wishlists still want.
- */
 async function resolveBoxWantsForViewer(
   db: Kysely<Database>,
   providers: ListRuleProviders | undefined,
@@ -1267,7 +1191,6 @@ async function resolveBoxWantsForViewer(
   if (boxes.length === 0) {
     return [];
   }
-  // Only now is the catalog worth assembling — both sides are non-empty.
   const evalContextFor = await buildRuleEvalContexts(providers, wishLists);
   const rawDemand = await assembleDemand(db, providers, wishLists, evalContextFor);
   const demand = await netDemandAgainstLiveTrades(db, rawDemand);
@@ -1287,8 +1210,7 @@ interface GiverSupplyScope {
  * drop out of the reservable set. `hasAny` stays reservation-agnostic so the
  * accept path can tell a stack merely exhausted by competing reservations
  * (copies still exist, request stays pending) apart from a vanished basis (the
- * giver deleted/unshared the copies, request auto-cancels — ADR-019).
- * @returns The unreserved reservable copy ids plus whether any copy is offered.
+ * giver deleted/unshared the copies, request auto-cancels).
  */
 async function resolveGiverPrintingSupply(
   db: Kysely<Database>,
@@ -1301,14 +1223,13 @@ async function resolveGiverPrintingSupply(
     return { unreservedCopyIds: [], hasAny: false };
   }
 
-  // Rules need the catalog (for `filterCards`) and the giver's own copies (trade
-  // rules offer owned copies). Both are lazy — skipped when no list has rules.
   const hasRules = tradeLists.some((list) => list.rules.length > 0);
   const ruleCatalog = hasRules && providers ? await providers.assembleCatalog() : null;
   const needsPrices =
     providers !== undefined && tradeLists.some((list) => list.rules.some(ruleFiltersOnPrice));
   const priceLookup = needsPrices ? await providers.priceLookup() : undefined;
-  // Narrowed to what these trade lists can consult, unioned across them.
+  // The copy load below is narrowed to the printings these trade lists can
+  // consult, unioned across them.
   const giverScope = new Set<string>();
   for (const list of tradeLists) {
     for (const id of ownedCopyPrintingScope(
@@ -1328,8 +1249,8 @@ async function resolveGiverPrintingSupply(
     ownedCopies:
       hasRules && providers ? await providers.ownedCopies(scope.giverUserId, [...giverScope]) : [],
     customTagAssignments: ruleCatalog?.customTagAssignments,
-    // Trade lists: keep the nicer copies, offer the plainer — same order the
-    // owner's list page uses, so surfaced and matched copies never diverge.
+    // Keep the nicer copies, offer the plainer — same order the owner's list
+    // page uses, so surfaced and matched copies never diverge.
     enumOrders: hasRules && providers ? await providers.enumOrders() : undefined,
     priceLookup,
   };
@@ -1339,8 +1260,8 @@ async function resolveGiverPrintingSupply(
     tradeLists.map((list) => list.listId),
   );
   const ruleByList = new Map<string, ReturnType<typeof evaluateListRules>>();
-  // Every offered copy id (manual + rule), reservation-agnostic, so the meta
-  // lookup can classify each by printing and reservation state.
+  // Reservation-agnostic on purpose: the meta lookup classifies each copy by
+  // printing and reservation state, and `hasAny` needs the reserved ones too.
   const offeredCopyIds = new Set<string>();
   for (const list of tradeLists) {
     for (const entry of manualByList.get(list.listId) ?? []) {
@@ -1361,8 +1282,8 @@ async function resolveGiverPrintingSupply(
 
   const copyMeta = await loadCopyMeta(db, [...offeredCopyIds]);
 
-  // Unreserved reservable set: buildSupply drops reserved copies, mirroring the
-  // match view exactly so the reservable count equals the displayed availability.
+  // buildSupply drops reserved copies, mirroring the match view exactly so the
+  // reservable count equals the displayed availability.
   const unreserved = new Set<string>();
   for (const list of tradeLists) {
     for (const entry of buildSupply(
@@ -1387,13 +1308,11 @@ async function resolveGiverPrintingSupply(
   return { unreservedCopyIds: [...unreserved], hasAny };
 }
 
-/** Copies of one printing an owner offers, plus the lists they came from. */
 interface PrintingSupplyBucket {
   copyIds: Set<string>;
   listNames: Set<string>;
 }
 
-/** One printing's share of a member's offered copies of a card. */
 interface TradelistHolderPrintingRow {
   printingId: string;
   quantity: number;
@@ -1401,7 +1320,6 @@ interface TradelistHolderPrintingRow {
   listNames: string[];
 }
 
-/** One member's offered copies of a card, aggregated for the bot reply. */
 export interface TradelistHolderRow {
   userId: string;
   userName: string | null;
@@ -1417,7 +1335,6 @@ export interface TradelistHolderRow {
  * several shared lists. Copies stay split by printing so the caller can tell an
  * alt art from the standard print; the owner total is their sum, which is exact
  * because a copy belongs to exactly one printing.
- * @returns One row per member offering the card, most copies first.
  */
 async function resolveTradelistHoldersForCard(
   db: Kysely<Database>,

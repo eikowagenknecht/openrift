@@ -7,8 +7,8 @@ import { createDbContext, syncCardCardTypes } from "../test/integration-context.
 const USER_ID = "a0000000-0197-4000-a000-000000000002";
 const ctx = createDbContext(USER_ID);
 
-// Two printings of the same card (normal + foil promo). ADR-015 models finish
-// as printing identity, so a product shipping both is two content rows.
+// Two printings of the same card (normal + foil promo): finish is part of
+// printing identity, so a product shipping both is two content rows.
 const ANNIE = CARDS["annie-fiery"];
 const ANNIE_NORMAL = PRINTINGS["OGS-001:epic:normal::EN"];
 const ANNIE_FOIL = PRINTINGS["OGS-001:epic:foil:promo:EN"];
@@ -31,7 +31,7 @@ describe.skipIf(!ctx)("products repo productsForCard (integration)", () => {
     }
   });
 
-  /** @returns A product with the given contents, cleaned up in afterAll. */
+  /** Creates a product with the given contents, cleaned up in afterAll. */
   async function makeProduct(name: string, rows: { printingId: string; quantity: number }[]) {
     slugCounter += 1;
     const product = await repos.products.create({
@@ -158,11 +158,7 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
     return printing.id;
   }
 
-  /**
-   * Attaches a front image; `rehosted: false` leaves only an external URL.
-   *
-   * @returns The created image file id.
-   */
+  /** Attaches a front image; `rehosted: false` leaves only an external URL. */
   async function addImage(
     printingId: string,
     { rehosted = true, active = true } = {},

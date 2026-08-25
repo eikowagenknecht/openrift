@@ -10,13 +10,11 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   const { db } = ctx!;
   const repo = candidateCardsRepo(db);
 
-  // ── Seed IDs from fixtures/constants.ts ──────────────────────────────────
   const SEED_SET_ID = OGS_SET.id;
   const SEED_CARD_ANNIE_ID = CARD_FURY_UNIT.id;
   const SEED_PRINTING_ANNIE_ID = PRINTING_1.id;
   const SEED_PRINTING_FIRESTORM_ID = PRINTING_2.id;
 
-  // ── Test candidate card + printing IDs (deterministic UUIDs) ──────────────
   const CC_ID_1 = "cc000034-0001-4000-a000-000000000001"; // matches 'anniefiery' normName
   const CC_ID_2 = "cc000034-0002-4000-a000-000000000001"; // matches 'firestorm' normName
   const CC_ID_3 = "cc000034-0003-4000-a000-000000000001"; // no match — unique name
@@ -28,12 +26,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   const CP_ID_6 = "c0000034-0006-4000-a000-000000000001"; // for CC_ID_3, EN language
 
   const PROVIDER = "test-cc-34";
-
-  // ── Setup: insert test candidate cards + printings ────────────────────────
-
-  // We use a self-invoking block to run setup once before tests.
-  // Vitest doesn't guarantee beforeAll order across parallel files,
-  // but createDbContext gives us a shared DB.
 
   afterAll(async () => {
     // Clean up in reverse FK order
@@ -240,8 +232,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       .execute();
   });
 
-  // ── listCardsWithMissingImages (lines 151-169) ────────────────────────────
-
   it("listCardsWithMissingImages returns cards lacking active front images", async () => {
     // Temporarily deactivate Annie's front image so at least one printing is missing
     await db
@@ -277,8 +267,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       .execute();
   });
 
-  // ── listCandidatePrintingsForSourceList (lines 186-196) ───────────────────
-
   it("listCandidatePrintingsForSourceList returns candidate printings", async () => {
     const result = await repo.listCandidatePrintingsForSourceList();
     expect(Array.isArray(result)).toBe(true);
@@ -289,9 +277,9 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(ours[0]).toHaveProperty("printingId");
   });
 
-  // Regression: like candidatePrintingsForDetail below, this query used to
-  // ignore language, so same-code candidates in different languages came back
-  // in physical row order. It now shares the canonical printing order.
+  // Like candidatePrintingsForDetail below, this query used to ignore
+  // language, so same-code candidates in different languages came back in
+  // physical row order. It now shares the canonical printing order.
   it("listCandidatePrintingsForSourceList orders by language sort order", async () => {
     const result = await repo.listCandidatePrintingsForSourceList();
     const ours = result.filter((row) => row.candidateCardId === CC_ID_3);
@@ -302,20 +290,14 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     ]);
   });
 
-  // ── distinctArtists (lines 190-198 proxy — actually 190-198 covered, but
-  //    the return rows.map line 197 needs coverage) ──────────────────────────
-
   it("distinctArtists returns an array of strings", async () => {
     const artists = await repo.distinctArtists();
     expect(Array.isArray(artists)).toBe(true);
     expect(artists.length).toBeGreaterThan(0);
-    // All entries should be strings
     for (const artist of artists) {
       expect(typeof artist).toBe("string");
     }
   });
-
-  // ── cardBySlug (line 440) ─────────────────────────────────────────────────
 
   it("cardBySlug returns a card for existing slug", async () => {
     const result = await repo.cardBySlug(CARD_FURY_UNIT.slug);
@@ -327,8 +309,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     const result = await repo.cardBySlug("NONEXISTENT-SLUG");
     expect(result).toBeUndefined();
   });
-
-  // ── candidatePrintingsForDetail (lines 650, 652-685) ──────────────────────
 
   it("candidatePrintingsForDetail returns detail fields", async () => {
     const result = await repo.candidatePrintingsForDetail([CC_ID_1]);
@@ -352,11 +332,9 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // Regression: the query used to order only by (setId, finish, isSigned,
-  // shortCode), so an SC and an EN candidate for the same printing tied on
-  // every key and came back in physical row order — the ZH→SC backfill
-  // (migration 204) rewrote the Chinese rows and SC groups started appearing
-  // before EN on the admin card detail page. The order now mirrors the
+  // The query used to order only by (setId, finish, isSigned, shortCode), so
+  // an SC and an EN candidate for the same printing tied on every key and
+  // came back in physical row order. The order now mirrors the
   // printings_ordered view: languages.sort_order first, unknowns last.
   it("candidatePrintingsForDetail orders by language sort order like accepted printings", async () => {
     const result = await repo.candidatePrintingsForDetail([CC_ID_3]);
@@ -366,8 +344,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       ["ZZZ-001", null], // unknown language sorts last
     ]);
   });
-
-  // ── markerSlugsByIds ──────────────────────────────────────────────────────
 
   it("markerSlugsByIds returns [] for empty input", async () => {
     const result = await repo.markerSlugsByIds([]);
@@ -379,14 +355,10 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── printingImagesForDetail (line 719) ────────────────────────────────────
-
   it("printingImagesForDetail returns [] for empty input", async () => {
     const result = await repo.printingImagesForDetail([]);
     expect(result).toEqual([]);
   });
-
-  // ── setInfoByIds (line 748) ───────────────────────────────────────────────
 
   it("setInfoByIds returns set info for known IDs", async () => {
     const result = await repo.setInfoByIds([SEED_SET_ID]);
@@ -402,8 +374,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── setPrintedTotalBySlugs (line 762) ─────────────────────────────────────
-
   it("setPrintedTotalBySlugs returns totals for known slugs", async () => {
     const result = await repo.setPrintedTotalBySlugs(["OGS"]);
     expect(result.length).toBe(1);
@@ -415,8 +385,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     const result = await repo.setPrintedTotalBySlugs([]);
     expect(result).toEqual([]);
   });
-
-  // ── allCandidatePrintingsForCandidateCards (lines 787-796) ────────────────
 
   it("allCandidatePrintingsForCandidateCards returns all printings unfiltered", async () => {
     const result = await repo.allCandidatePrintingsForCandidateCards([CC_ID_1]);
@@ -431,8 +399,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── candidateCardsByNormName (lines 801-808) ──────────────────────────────
-
   it("candidateCardsByNormName returns candidates by exact normName", async () => {
     const result = await repo.candidateCardsByNormName("anniefiery");
     expect(result.length).toBeGreaterThanOrEqual(1);
@@ -444,8 +410,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     const result = await repo.candidateCardsByNormName("zzzznonexistent");
     expect(result).toEqual([]);
   });
-
-  // ── candidateCardsForDetail (lines ~813-863) — covers both string and array overloads
 
   it("candidateCardsForDetail with string normName", async () => {
     const result = await repo.candidateCardsForDetail("anniefiery");
@@ -471,8 +435,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(ourIds).toContain(CC_ID_2);
   });
 
-  // ── printingsForDetail (lines 567-594 — adjacent uncovered block) ─────────
-
   it("printingsForDetail returns printings without timestamps", async () => {
     const result = await repo.printingsForDetail(SEED_CARD_ANNIE_ID);
     expect(result.length).toBeGreaterThanOrEqual(1);
@@ -485,8 +447,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result[0]).not.toHaveProperty("createdAt");
     expect(result[0]).not.toHaveProperty("updatedAt");
   });
-
-  // ── exportCards / exportPrintings ─────────────────────────────────────────
 
   it("exportCards returns all cards ordered by name", async () => {
     const result = await repo.exportCards();

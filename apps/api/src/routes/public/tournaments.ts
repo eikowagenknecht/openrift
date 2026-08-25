@@ -12,10 +12,6 @@ import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Tournament } from "../../repositories/tournaments.js";
 
-/**
- * Resolves the host's public display name (user name or org name).
- * @returns The host display name.
- */
 async function hostDisplayName(repos: Repos, tournament: Tournament): Promise<string> {
   if (tournament.hostType === "user") {
     if (!tournament.hostUserId) {
@@ -31,10 +27,9 @@ async function hostDisplayName(repos: Repos, tournament: Tournament): Promise<st
 }
 
 /**
- * Public display name for a self-registering participant. Falls back to the
- * email's local part when the account has no (non-blank) name — the raw email
- * address must never become a publicly visible participant name.
- * @returns The name to store on the participant row.
+ * Falls back to the email's local part when the account has no (non-blank)
+ * name — the raw email address must never become a publicly visible
+ * participant name.
  */
 export function participantDisplayName(name: string | null | undefined, email: string): string {
   const trimmed = name?.trim();
@@ -46,11 +41,9 @@ export function participantDisplayName(name: string | null | undefined, email: s
 }
 
 /**
- * Attaches the caller to a tournament roster as a `requested` participant, or
- * returns the existing spot. Idempotent under a concurrent double-submit: the
- * one-participant-per-account partial index rejects the second insert, which we
- * catch and resolve to the winning row instead of surfacing a raw 500.
- * @returns The join response (`alreadyJoined` true when a spot already existed).
+ * Idempotent under a concurrent double-submit: the one-participant-per-account
+ * partial index rejects the second insert, which we catch and resolve to the
+ * winning row instead of surfacing a raw 500.
  */
 export async function resolveSelfJoin(
   repos: Repos,
@@ -99,7 +92,7 @@ export async function resolveSelfJoin(
 const os = implement(publicTournamentsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Public, token-gated request-to-join surface for the umbrella (ADR-033). The
+ * Public, token-gated request-to-join surface for the umbrella. The
  * landing is unauthenticated; `requestJoin` requires a session and, when
  * self-registration is open, creates a `requested` participant for the caller
  * (the approval gate). An existing participant is returned, never duplicated.

@@ -6,19 +6,13 @@ import type { DeckCheckHost } from "./deck-check.js";
 export type DeckCheckKey = Selectable<DeckCheckKeysTable>;
 
 /**
- * Repository for deck-check integration keys (ADR-033): the host-scoped tokens
+ * Repository for deck-check integration keys: the host-scoped tokens
  * providers present on the ingest endpoint. Every mutation is scoped to the
  * owning host, so a key id from another host can never be touched.
- * @param db The Kysely database handle (or transaction).
- * @returns The repository methods.
  */
 export function deckCheckKeysRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Lists a host's integration keys directly (ADR-033): the host is the
-     * current user or an organization, not resolved through a friend group.
-     * @returns The host's keys with the creator name, newest first.
-     */
+    /** The host is the current user or an organization, not resolved through a friend group. */
     async listKeysForHost(
       host: DeckCheckHost,
     ): Promise<(DeckCheckKey & { createdByName: string | null })[]> {
@@ -37,10 +31,6 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
       return rows.map((row) => ({ ...row, createdByName: row.createdByName ?? null }));
     },
 
-    /**
-     * Mints an integration key owned by a host directly (ADR-033).
-     * @returns The created key row.
-     */
     createKeyForHost(input: {
       host: DeckCheckHost;
       tokenHash: string;
@@ -63,11 +53,6 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /**
-     * Renames a host's key, scoped to the host so a key id from another host
-     * cannot be relabelled.
-     * @returns The updated key, or undefined when the host does not own it.
-     */
     updateKeyLabelForHost(
       host: DeckCheckHost,
       keyId: string,
@@ -81,10 +66,6 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
       return query.returningAll().executeTakeFirst();
     },
 
-    /**
-     * Revokes a host's key, scoped to the host.
-     * @returns True when an active key was revoked.
-     */
     async revokeKeyForHost(host: DeckCheckHost, keyId: string): Promise<boolean> {
       let query = db
         .updateTable("deckCheckKeys")
@@ -100,11 +81,9 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Permanently removes a host's already-revoked key, scoped to the host. The
-     * `revoked_at IS NOT NULL` guard keeps an active key from being deleted out
-     * from under a provider — revoke first, then remove the dead row. Nothing
-     * references a key id, so the delete leaves no dangling rows.
-     * @returns True when a revoked key was deleted.
+     * The `revoked_at IS NOT NULL` guard keeps an active key from being
+     * deleted out from under a provider — revoke first, then remove the dead
+     * row. Nothing references a key id, so the delete leaves no dangling rows.
      */
     async deleteRevokedKeyForHost(host: DeckCheckHost, keyId: string): Promise<boolean> {
       let query = db
@@ -119,10 +98,7 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
       return result.numDeletedRows > 0n;
     },
 
-    /**
-     * Resolves a presented token's hash to its host; revoked keys do not match.
-     * @returns The key id and host, or undefined when no active key matches.
-     */
+    /** Revoked keys do not match. */
     findActiveKeyByHash(tokenHash: string): Promise<(DeckCheckHost & { id: string }) | undefined> {
       return db
         .selectFrom("deckCheckKeys")

@@ -12,42 +12,30 @@ import type {
 import type { MetaDeckCardDiff, MetaDeckDiff, MetaFieldDiff } from "./meta-candidate-diff.js";
 import { hasDeckDiff, metaCandidateState } from "./meta-candidate-diff.js";
 
-/** Card display names by card id, for the diff rows the review screen renders. */
 type CardNames = ReadonlyMap<string, string>;
 
-/** The card-list delta as the wire carries it: every row named for display. */
 type CardDiffResponse = NonNullable<MetaCandidateDeck["diff"]>["cards"];
 
 /**
- * The distinct card names in a candidate deck that matched no live card.
- *
- * This is the accept gate: a deck with any entry here cannot become an archived
+ * The distinct card names in a candidate deck that matched no live card. This
+ * is the accept gate: a deck with any entry here cannot become an archived
  * deck, because a `deck_cards` row needs a real card id. The fix is a
  * `card_name_aliases` row plus a rematch, not an edit here.
- *
- * @param deck The candidate deck.
- * @returns The unmatched names, de-duplicated, in first-seen order.
  */
 export function unresolvedCardNames(deck: CandidateMetaDeckRow): string[] {
   return [...new Set(deck.cards.filter((card) => card.cardId === null).map((card) => card.name))];
 }
 
 /**
- * Swaps the `event` field diff's live-event ids for their names.
- *
- * The diff compares events by id, because two events can share a name and a
- * move between them is still a move. A reviewer needs the name, so it goes on
+ * Swaps the `event` field diff's live-event ids for their names. The diff
+ * compares events by id, because two events can share a name and a move
+ * between them is still a move. A reviewer needs the name, so it goes on
  * here — an id with no name left stands for itself rather than disappearing.
- *
- * @param fields The deck's field diffs.
- * @param eventNames Live event names by id.
- * @returns The same diffs, with the event row named.
  */
 function withEventNames(
   fields: readonly MetaFieldDiff[],
   eventNames: ReadonlyMap<string, string>,
 ): MetaFieldDiff[] {
-  /** @returns The event's name, or the raw value when it is not an id we know. */
   function label(value: MetaFieldDiff["from"]): MetaFieldDiff["from"] {
     return typeof value === "string" ? (eventNames.get(value) ?? value) : value;
   }
@@ -56,11 +44,6 @@ function withEventNames(
   );
 }
 
-/**
- * @param diff A card-list delta.
- * @param cardNames Display names for the cards it mentions.
- * @returns The delta with a name on every row.
- */
 function toCardDiffResponse(diff: MetaDeckCardDiff, cardNames: CardNames): CardDiffResponse {
   return {
     added: diff.added.map((entry) => ({ ...entry, name: cardNames.get(entry.cardId) ?? null })),
@@ -70,15 +53,9 @@ function toCardDiffResponse(diff: MetaDeckCardDiff, cardNames: CardNames): CardD
 }
 
 /**
- * @param deck The candidate deck.
- * @param options.diff Its diff against the linked live deck, or null while unlinked.
- * @param options.shareToken The linked live deck's permalink, or null.
- * @param options.cardNames Display names for the cards the diff mentions.
- * @param options.eventNames Display names for the live events the diff mentions.
- * @param options.submittedByName The submitter's display name, for a user
- *   submission. Null for a provider's deck, and for a submitter who never set a
- *   name or whose account is gone.
- * @returns The deck as the review screen reads it.
+ * The deck as the review screen reads it. `submittedByName` is null for a
+ * provider's deck, and for a submitter who never set a name or whose account
+ * is gone.
  */
 export function toMetaCandidateDeck(
   deck: CandidateMetaDeckRow,
@@ -124,17 +101,9 @@ export function toMetaCandidateDeck(
 }
 
 /**
- * One row of the review queue. `deckCount` and `unresolvedCardCount` come from
- * the caller because they are aggregates over the event's decks, which the
- * queue reads in one batch rather than per row.
- *
- * @param event The candidate event.
- * @param options.deckCount How many candidate decks it holds.
- * @param options.unacceptedDeckCount How many of those are not yet in the archive.
- * @param options.unresolvedCardCount How many card names across them matched nothing.
- * @param options.hasDiff Whether the linked live event disagrees.
- * @param options.metaEventSlug The linked live event's slug, or null.
- * @returns The queue row.
+ * One row of the review queue. The count options come from the caller because
+ * they are aggregates over the event's decks, which the queue reads in one
+ * batch rather than per row.
  */
 export function toMetaCandidateQueueRow(
   event: CandidateMetaEventRow,
@@ -164,19 +133,10 @@ export function toMetaCandidateQueueRow(
 }
 
 /**
- * The full candidate view: the event's own fields, what accepting it would
- * change, and every deck under it with the same treatment.
- *
- * @param event The candidate event.
- * @param options.diff Its field diff against the linked live event, or null while unlinked.
- * @param options.formatKnown Whether `event.format` exists in `deck_formats`.
- * @param options.metaEventSlug The linked live event's slug, or null.
- * @param options.decks Its decks, already presented.
- * @param options.sources Every candidate on the same live event, this one
- *   included, so the review screen gets one column per source.
- * @param options.submittedDecks Candidate decks attached to the live event
- *   directly — user submissions, which belong to no source column.
- * @returns The detail response.
+ * The full candidate view. `sources` holds every candidate on the same live
+ * event, this one included, so the review screen gets one column per source;
+ * `submittedDecks` are candidate decks attached to the live event directly —
+ * user submissions, which belong to no source column.
  */
 export function toMetaCandidateDetail(
   event: CandidateMetaEventRow,
@@ -213,15 +173,6 @@ export function toMetaCandidateDetail(
   };
 }
 
-/**
- * One source's column in the review grid: its key, the values it proposes, and
- * the decks it holds. The live values it is compared against are the event's
- * own row, which the caller already has.
- *
- * @param event The candidate event this source pushed.
- * @param decks Its decks, already presented.
- * @returns The source row.
- */
 export function toMetaCandidateSource(
   event: CandidateMetaEventRow,
   decks: MetaCandidateDeck[],

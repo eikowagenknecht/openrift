@@ -25,8 +25,6 @@ export type JobOutcome<T> =
  * the oRPC reporting interceptor ever sees them. Without this, a failed cron is
  * visible only in the `job_runs` table and the logs, and nothing pushes an
  * alert anywhere.
- *
- * @returns Nothing.
  */
 function captureJobFailure(
   error: unknown,
@@ -54,10 +52,9 @@ interface RunJobDeps {
 }
 
 /**
- * Claim the single running row for `kind`. The partial unique index on
- * running rows (migration 253) means only one insert can win; a loser
- * re-reads the winner's row and reports it instead of running a duplicate.
- * @returns The claimed run id, or the already-running run's id.
+ * Claim the single running row for `kind`. A partial unique index on running
+ * rows means only one insert can win; a loser re-reads the winner's row and
+ * reports it instead of running a duplicate.
  */
 async function claimRun(
   deps: RunJobDeps,
@@ -89,9 +86,6 @@ async function claimRun(
  * need to know whether the work actually succeeded should check the return
  * value: `T` on success, `null` on failure or if a run was already in progress.
  * Use {@link runJobOutcome} when those two must be told apart.
- *
- * @returns The value returned by `fn`, or `null` if the job already had a
- *   running row or if `fn` threw.
  */
 export async function runJob<T>(
   deps: RunJobDeps,
@@ -108,10 +102,9 @@ export async function runJob<T>(
  * {@link runJob} without the `null` collapse: the same tracked run, reported as
  * a discriminated {@link JobOutcome}. Use it where "the job failed" and "a run
  * was already in flight" need different answers, e.g. an admin endpoint that
- * would otherwise return 200 for a failed run.
- *
- * @returns The run's outcome. A failing `fn` yields a `failed` outcome rather
- *   than a rejection; only a `job_runs` write that itself throws propagates.
+ * would otherwise return 200 for a failed run. A failing `fn` yields a
+ * `failed` outcome rather than a rejection; only a `job_runs` write that
+ * itself throws propagates.
  */
 export function runJobOutcome<T>(
   deps: RunJobDeps,
@@ -181,9 +174,6 @@ async function runJobInner<T>(
  *
  * If a run of the same `kind` is already `running`, returns the existing
  * runId with status `already_running` instead of starting a duplicate.
- *
- * @returns Object with `runId` and `status` indicating whether a new run was
- * started or an existing one was returned.
  */
 export async function runJobAsync<T>(
   deps: RunJobDeps,

@@ -20,28 +20,17 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Server-rendered tier-list share image: the ranked board as a stack of
- * labelled rows, drawn to PNG for the public share route's og:image and the
- * creator's export download. Built from the same satori + resvg primitives as
- * the list and deck images (`share-image-core`), so all four surfaces share one
- * font loader, art transcoder, and rasterizer.
- *
  * Unranked cards never reach this renderer — the board is the artifact, and a
  * trailing tray of everything the creator hasn't got to yet would dominate it.
  * Empty rows *are* drawn, because a deliberately empty D tier is a statement
  * about the set.
  *
- * Two resolutions share one layout via `scale`: the og:image renders at 1×
- * (1200×630), the download at 2×, with raster sources embedded at the matching
- * resolution while satori lays out once at base size (ADR-031).
- *
- * The board also renders on the 9:16 vertical canvas as a download-only export.
- * That is a second composition, not a resize: landscape divides its height
- * evenly across the rows, which on a canvas three times as tall would leave each
- * row mostly empty around a width-capped tile. Vertical instead sizes rows to
- * their content and lets a crowded row wrap onto more than one line, so the
- * extra height buys bigger cards. Landscape's geometry is deliberately left
- * alone — it is what every published og:image already looks like.
+ * The vertical canvas is a second composition, not a resize: landscape divides
+ * its height evenly across the rows, which on a canvas three times as tall
+ * would leave each row mostly empty around a width-capped tile. Vertical sizes
+ * rows to their content and lets a crowded row wrap, so the extra height buys
+ * bigger cards. Landscape's geometry is deliberately left alone — it is what
+ * every published og:image already looks like.
  */
 
 const PAD = 24;
@@ -49,37 +38,33 @@ const GAP = 10;
 
 const TILE_GAP = 4;
 
-/** The footer is a single line of type: the QR that used to set its height now
- * rides the title row, where the full canvas width lets it be bigger. */
 const FOOTER_H = 26;
 
 const ROW_GAP = 8;
-/** Breathing room between a row's border and its tiles. */
 const ROW_PAD = 5;
 /** Floor on tile height, so a hopeless board still renders something. */
 const MIN_TILE_H = 12;
-/** Landscape's label chip. Fits three characters at the largest row height. */
+/** Fits three characters at the largest row height. */
 const LABEL_W = 58;
 
 /** Longest title kept before eliding, so it never collides with the right cluster. */
 const TITLE_MAX_CHARS = 46;
 
-/** The title row's three type sizes. Named because the baseline corrections are
- * derived from the gaps between them, so a size change must reach both places. */
+/** Named because the baseline corrections are derived from the gaps between
+ * these sizes, so a size change must reach both places. */
 const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
 
 /**
- * Per-canvas geometry. Everything that differs between the two compositions
- * lives here rather than being branched on at each use, so a vertical tweak
- * cannot silently move the landscape og:image.
+ * Everything that differs between the two compositions lives here rather than
+ * being branched on at each use, so a vertical tweak cannot silently move the
+ * landscape og:image.
  */
 interface TierCanvas {
   width: number;
   height: number;
   pad: number;
-  /** Width of a row's label chip. */
   labelW: number;
   titleSize: number;
   bylineSize: number;
@@ -88,12 +73,9 @@ interface TierCanvas {
   /** Reserved height for the title area (one row landscape, two lines vertical). */
   titleH: number;
   /**
-   * Size of the QR at the right end of the title area. It sits there rather
-   * than in the footer because down there it was hemmed in by the footer's own
-   * height, which left it too small to scan once a chat client renders the
-   * image at a few hundred pixels. The title area has the whole width, so the
-   * mark can be bigger; the area grows to the mark's height and the footer
-   * shrinks to the host label alone to pay some of that back.
+   * The QR sits in the title area rather than the footer: hemmed in by the
+   * footer's height it was too small to scan once a chat client renders the
+   * image at a few hundred pixels.
    */
   headerQr: number;
   /** Lines of tiles a single row may wrap onto before the "+N" chip takes over. */
@@ -117,13 +99,11 @@ const VERTICAL: TierCanvas = {
   ...CANVAS.vertical,
   pad: 28,
   labelW: 88,
-  // Type steps up with the canvas: a story is read at arm's length on a phone,
-  // where the landscape sizes would be a third of the frame's width.
+  // A story is read at arm's length on a phone, where the landscape type sizes
+  // would be a third of the frame's width.
   titleSize: 46,
   bylineSize: 28,
   metaSize: 26,
-  // Narrower canvas and larger type, so fewer characters fit than landscape —
-  // and the byline no longer shares this line, so the whole width is the title's.
   titleMaxChars: 30,
   // Title line, then the byline and count on a second line beneath it.
   titleH: 92,
@@ -131,30 +111,25 @@ const VERTICAL: TierCanvas = {
   maxLines: 3,
 };
 
-/** @returns The canvas geometry for an aspect. */
 function canvasFor(aspect: ShareImageAspect): TierCanvas {
   return aspect === "vertical" ? VERTICAL : LANDSCAPE;
 }
 
-/** @returns The title, truncated with an ellipsis when longer than the cap. */
 export function truncateTierListTitle(title: string, max = TITLE_MAX_CHARS): string {
   return elideTitle(title, max);
 }
 
-/** One stored board entry, before its art is resolved. */
 export interface TierListImageEntry {
   cardId: string;
   /** Printing the creator pinned for the tile; null takes the card's default. */
   printingId: string | null;
 }
 
-/** One ranked card the renderer needs; `imageId` is the resolved art, null when none. */
 export interface TierListImageCard {
   cardName: string;
   imageId: string | null;
 }
 
-/** One row of the board, already resolved to renderable cards. */
 export interface TierListImageRow {
   label: string;
   cards: readonly TierListImageCard[];
@@ -162,21 +137,17 @@ export interface TierListImageRow {
   unranked?: boolean;
 }
 
-/** Everything the renderer needs to draw a tier-list share image. */
 export interface TierListImageInput {
   title: string;
-  /** Owner display name shown next to the title; dropped when empty. */
   ownerName?: string;
   rows: readonly TierListImageRow[];
-  /** Host shown in the footer (e.g. "openrift.app"); omitted when empty. */
   siteHost?: string;
-  /** Absolute share URL encoded in the QR; the QR is dropped when absent. */
   shareUrl?: string;
 }
 
 /**
- * Geometry shared by every row: one tile size for the whole board, so a card in
- * S is exactly as large as a card in D and the rows read as one ladder.
+ * One tile size for the whole board, so a card in S is exactly as large as a
+ * card in D and the rows read as one ladder.
  */
 interface BoardMetrics {
   rowH: number;
@@ -187,15 +158,10 @@ interface BoardMetrics {
 }
 
 /**
- * Sizes the board so every row fits the available height, then caps the tile
- * width so the fullest row still fits horizontally. Both constraints are
- * global rather than per row: a uniform tile is what makes the ranking legible.
- *
- * Landscape only. Rows here are a fixed share of the height whether or not
- * their tiles fill it, which is right on a canvas where the height is the
- * binding constraint. See `measureWrappedBoard` for the vertical canvas, where
- * it is not.
- * @returns The shared row and tile geometry.
+ * Landscape only: rows are a fixed share of the height whether or not their
+ * tiles fill it, which is right where height is the binding constraint. Both
+ * caps are global rather than per row — a uniform tile is what makes the
+ * ranking legible. See `measureWrappedBoard` for the vertical canvas.
  */
 export function measureBoard(
   rowCount: number,
@@ -220,9 +186,8 @@ export function measureBoard(
 }
 
 /**
- * Board geometry where each row is as tall as its own content. Rows may differ
- * in height because a crowded row wraps onto more lines than a sparse one, but
- * the tile size is still global, so a card in S is the same size as a card in D.
+ * Rows may differ in height (a crowded row wraps onto more lines), but the
+ * tile size is still global, so a card in S is the same size as a card in D.
  */
 export interface WrappedBoardMetrics {
   tileH: number;
@@ -235,11 +200,6 @@ export interface WrappedBoardMetrics {
   rowHeights: number[];
 }
 
-/**
- * Measures one candidate tile height: how each row wraps at that size, and
- * whether the resulting board still fits the available height.
- * @returns The per-row geometry and the board's total height.
- */
 function wrapAtTileHeight(
   cardCounts: readonly number[],
   tilesAreaW: number,
@@ -261,17 +221,11 @@ function wrapAtTileHeight(
 }
 
 /**
- * Sizes a board whose rows wrap: picks the largest tile at which every row's
- * wrapped height still fits the area. This is what turns the vertical canvas's
- * extra height into bigger cards — dividing the height evenly instead (as
- * landscape does) would give each row a tall box holding one short line of
- * width-capped tiles.
- *
- * Total height rises monotonically with tile height (a bigger tile fits fewer
- * per line, so rows wrap onto more lines, never fewer), which is what makes the
- * search a binary one. If even the smallest tile overflows, the wrap allowance
- * is spent one line at a time until the board fits.
- * @returns The tile size, per-row line counts, and per-row heights.
+ * Picks the largest tile at which every row's wrapped height still fits the
+ * area. Total height rises monotonically with tile height (a bigger tile fits
+ * fewer per line, so rows wrap onto more lines, never fewer), which is what
+ * makes the search a binary one. If even the smallest tile overflows, the wrap
+ * allowance is spent one line at a time until the board fits.
  */
 export function measureWrappedBoard(
   cardCounts: readonly number[],
@@ -286,7 +240,6 @@ export function measureWrappedBoard(
   }
 
   for (let lines = Math.max(1, maxLines); lines >= 1; lines--) {
-    // Nothing can be taller than the whole area, and no wider than the row.
     let low = MIN_TILE_H;
     let high = Math.max(MIN_TILE_H, Math.floor(Math.min(areaH, tilesAreaW / CARD_ASPECT)));
     if (wrapAtTileHeight(cardCounts, tilesAreaW, low, lines).totalH > areaH) {
@@ -312,11 +265,6 @@ export function measureWrappedBoard(
   };
 }
 
-/**
- * The "+N" chip that stands in for cards past what fits on a row. Sized off the
- * tile so it sits in the row's rhythm rather than breaking it.
- * @returns The overflow chip element.
- */
 function overflowChip(hidden: number, tileW: number, tileH: number): Element {
   return element(
     "div",
@@ -338,10 +286,8 @@ function overflowChip(hidden: number, tileW: number, tileH: number): Element {
 }
 
 /**
- * Truncates a row label to what its chip can show. Rows default to one
- * character but a creator may rename them ("Broken", "Trap"), and satori has no
- * text overflow — an over-long label would push the tiles off the row.
- * @returns The label, truncated to fit the chip.
+ * A creator may rename rows ("Broken", "Trap"), and satori has no text
+ * overflow — an over-long label would push the tiles off the row.
  */
 export function fitRowLabel(label: string, rowH: number): string {
   // Roughly two characters per 24px of row height, floored at three so a short
@@ -354,23 +300,17 @@ export function fitRowLabel(label: string, rowH: number): string {
 const BOLD_CHAR_WIDTH_RATIO = 0.58;
 
 /**
- * Truncates a row label to what its chip can show, measured against the chip's
- * *width* rather than the row's height. The vertical board's rows are several
- * times taller than landscape's while the chip is only slightly wider, so the
- * height heuristic `fitRowLabel` uses would allow a label many times the chip's
- * width. Landscape keeps that heuristic: it is what its published og:images
- * already render, and its rows never get tall enough for the two to diverge far.
- * @returns The label, truncated to fit the chip.
+ * Measured against the chip's *width*: the vertical board's rows are several
+ * times taller than landscape's while the chip is only slightly wider, so
+ * `fitRowLabel`'s height heuristic would allow a label many times the chip's
+ * width. Landscape keeps that heuristic — it is what its published og:images
+ * already render.
  */
 export function fitRowLabelToChip(label: string, chipW: number, fontSize: number): string {
   const max = Math.max(1, Math.floor(chipW / (fontSize * BOLD_CHAR_WIDTH_RATIO)));
   return label.length > max ? label.slice(0, max) : label;
 }
 
-/**
- * One board row: the coloured label chip, then the row's tiles.
- * @returns The row element.
- */
 function boardRow(
   row: TierListImageRow,
   color: string,
@@ -436,12 +376,6 @@ function boardRow(
   );
 }
 
-/**
- * One row of the vertical board: the same coloured chip and tiles, but the row
- * is as tall as the lines its cards wrap onto, and the chip's type is sized off
- * its own width so a renamed label cannot run past it.
- * @returns The row element.
- */
 function wrappedBoardRow(
   row: TierListImageRow,
   color: string,
@@ -455,7 +389,6 @@ function wrappedBoardRow(
   const capacity = lines * metrics.tilesPerLine;
   const shown = row.cards.slice(0, capacity);
   const hidden = row.cards.length - shown.length;
-  // The chip stands in for the last visible card, as on the landscape board.
   const visible = hidden > 0 ? shown.slice(0, -1) : shown;
   const hiddenTotal = row.cards.length - visible.length;
 
@@ -545,12 +478,6 @@ function wrappedBoardRow(
   );
 }
 
-/**
- * Resolves display art for a board's card ids and drops any that no longer
- * resolve, mirroring how the deck renderer tolerates a stale id. Granularity is
- * per card, so each one takes its default printing's image.
- * @returns The board's rows with names and art ids attached.
- */
 export async function buildTierListImageRows(
   repos: Pick<Repos, "catalog" | "canonicalPrintings">,
   tiers: readonly { label: string; cards: readonly TierListImageEntry[]; unranked?: boolean }[],
@@ -559,8 +486,8 @@ export async function buildTierListImageRows(
   if (entries.length === 0) {
     return tiers.map((tier) => ({ label: tier.label, cards: [], unranked: tier.unranked }));
   }
-  // Keyed on card *and* pinned printing: the same card cannot repeat across the
-  // board, so one key per entry is already the deduplicated set.
+  // The same card cannot repeat across the board, so one key per entry is
+  // already the deduplicated set.
   const uniqueCardIds = [...new Set(entries.map((entry) => entry.cardId))];
   const [cardMetas, printingMetas] = await Promise.all([
     repos.catalog.cardsByIds(uniqueCardIds),
@@ -590,25 +517,20 @@ export async function buildTierListImageRows(
   }));
 }
 
-/** @returns The board's total ranked-card count. */
 function countRanked(rows: readonly TierListImageRow[]): number {
   return rows.reduce((sum, row) => sum + row.cards.length, 0);
 }
 
-/** @returns The "N cards ranked" line. */
 function rankedLabel(rankedCount: number): string {
   return `${rankedCount} ${rankedCount === 1 ? "card" : "cards"} ranked`;
 }
 
 /**
- * The landscape title row: title and byline share a baseline inside their own
- * left group, and the count is a vertically-centred cluster on the right.
- * Baseline-aligning the whole row instead puts the count's baseline on the 34px
- * title's, which reads as a misaligned header — and the flexible spacer between
- * them has no text baseline at all to align to. The type roles match the deck
- * and list images, so the three read as one family: gold marks who made it,
- * muted carries the incidental metadata.
- * @returns The title row element.
+ * Title and byline share a baseline inside their own left group; the count is
+ * a separate cluster. Baseline-aligning the whole row instead would put the
+ * count's baseline on the 34px title's, and the flexible spacer between them
+ * has no text baseline at all to align to. Type roles match the deck and list
+ * images: gold marks who made it, muted carries the incidental metadata.
  */
 function landscapeTitle(
   input: TierListImageInput,
@@ -674,11 +596,9 @@ function landscapeTitle(
 }
 
 /**
- * The vertical title block: the title on its own line, then the byline and the
- * count sharing a second one. Stacked rather than strung along a single row
- * because the canvas is narrower than landscape while the type is larger, so
- * all three on one line would leave the title a dozen characters.
- * @returns The title block element.
+ * Stacked rather than one row: the canvas is narrower than landscape while the
+ * type is larger, so all three on one line would leave the title a dozen
+ * characters.
  */
 function verticalTitle(
   input: TierListImageInput,
@@ -746,10 +666,8 @@ function verticalTitle(
 }
 
 /**
- * The title area: the type block, and the QR at its right when there is one.
- * The type keeps its own height and centres against the mark, so growing the
- * area for the QR does not drag the title down onto the area's bottom edge.
- * @returns The title area element.
+ * The type block keeps its own height and centres against the mark, so growing
+ * the area for the QR does not drag the title onto the area's bottom edge.
  */
 function titleArea(typeBlock: Element, qrUri: string | null, canvas: TierCanvas): Element {
   return element(
@@ -772,10 +690,6 @@ function titleArea(typeBlock: Element, qrUri: string | null, canvas: TierCanvas)
   );
 }
 
-/**
- * Resolves the art for every tile the board will actually draw.
- * @returns Per-row arrays of art data URIs, index-aligned with each row's cards.
- */
 function boardArtUris(
   io: Io,
   rows: readonly TierListImageRow[],
@@ -795,12 +709,6 @@ function boardArtUris(
   );
 }
 
-/**
- * Renders a tier-list share image to a PNG buffer. `scale` renders the same
- * base layout at N× resolution for the HQ download; `aspect` picks the canvas
- * (landscape for the og:image, vertical for the 9:16 export).
- * @returns PNG bytes ready to return as `image/png`.
- */
 export async function renderTierListImage(
   io: Io,
   input: TierListImageInput,
@@ -813,8 +721,6 @@ export async function renderTierListImage(
 
   const innerW = canvas.width - canvas.pad * 2;
   const hasFooter = Boolean(input.siteHost);
-  // The title area grows to the QR's height when there is one; a board with no
-  // share link keeps the short title row.
   const titleAreaH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
   const boardH =
     canvas.height - canvas.pad * 2 - titleAreaH - GAP - (hasFooter ? FOOTER_H + GAP : 0);
@@ -879,8 +785,6 @@ export async function renderTierListImage(
     ),
   );
 
-  // Host label only. The QR that used to sit beside it now rides the title row,
-  // the same move the deck image makes.
   const footer: Child =
     hasFooter &&
     element(

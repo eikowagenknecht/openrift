@@ -4,18 +4,7 @@ import { CARD_CALM_UNIT, CARD_FURY_UNIT } from "../../test/fixtures/constants.js
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Decks routes
-//
-// Uses the shared integration database with pre-seeded OGS card data.
-// Only auth is mocked.
-// ---------------------------------------------------------------------------
-
 const ctx = createTestContext("a0000000-0008-4000-a000-000000000001");
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe.skipIf(!ctx)("Decks routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
@@ -25,8 +14,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
   // Created alongside the others so the DELETE cases have a deck they can
   // consume without disturbing the ones later tests still read.
   let disposableDeckId: string;
-
-  // ── POST /decks ───────────────────────────────────────────────────────────
 
   describe("POST /decks", () => {
     it("creates a standard deck", async () => {
@@ -80,8 +67,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     });
   });
 
-  // ── GET /decks ────────────────────────────────────────────────────────────
-
   describe("GET /decks", () => {
     it("returns all decks for the user", async () => {
       const res = await app.fetch(req("GET", "/decks"));
@@ -93,15 +78,12 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     });
   });
 
-  // ── GET /decks/:id ────────────────────────────────────────────────────────
-
   describe("GET /decks/:id", () => {
     it("returns deck with nested deck + cards structure", async () => {
       const res = await app.fetch(req("GET", `/decks/${deckId}`));
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      // Custom getOne returns { deck, cards } shape
       expect(json.deck.id).toBe(deckId);
       expect(json.deck.name).toBe("My Deck");
       expect(json.deck.format).toBe("constructed");
@@ -115,8 +97,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── PATCH /decks/:id ──────────────────────────────────────────────────────
 
   describe("PATCH /decks/:id", () => {
     it("updates deck name", async () => {
@@ -143,8 +123,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
 
   describe("PUT /decks/:id/cards", () => {
     it("sets cards for a standard deck (>=40 main)", async () => {
@@ -231,8 +209,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     });
   });
 
-  // ── DELETE /decks/:id ──────────────────────────────────────────────────────
-
   describe("DELETE /decks/:id", () => {
     it("deletes a deck", async () => {
       const res = await app.fetch(req("DELETE", `/decks/${disposableDeckId}`));
@@ -250,8 +226,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── POST/DELETE /decks/:id/share + GET /decks/share/:token + clone ───────
 
   describe("Share deck flow", () => {
     let shareDeckId: string;
@@ -302,10 +276,8 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(200);
       const json = await readJson(res);
       expect(json.isPublic).toBe(true);
-      // Re-share does NOT churn the token — the existing one is returned.
       expect(json.shareToken).toBe(shareToken);
 
-      // And the original URL still resolves.
       const stillResolves = await app.fetch(req("GET", `/decks/share/${shareToken}`));
       expect(stillResolves.status).toBe(200);
     });
@@ -319,7 +291,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
       expect(json.shareToken).not.toBe(oldToken);
 
-      // Old token is dead, new token resolves.
       const oldTokenGet = await app.fetch(req("GET", `/decks/share/${oldToken}`));
       expect(oldTokenGet.status).toBe(404);
       const newTokenGet = await app.fetch(req("GET", `/decks/share/${json.shareToken}`));
@@ -360,7 +331,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
         expect(json.deckId).toBeTypeOf("string");
         expect(json.deckId).not.toBe(shareDeckId);
 
-        // Verify the clone exists under the second user, private, named "Copy of ..."
         const detail = await otherUser.app.fetch(req("GET", `/decks/${json.deckId}`));
         expect(detail.status).toBe(200);
         const detailJson = await readJson(detail);
@@ -419,9 +389,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     });
   });
 
-  // ── POST /decks/:id/variants + POST /decks/:id/promote ───────────────────
-
-  describe("Deck variants (ADR-042)", () => {
+  describe("Deck variants", () => {
     const fakeId = "00000000-0000-4000-a000-000000000000";
     let liveDeckId: string;
     let checkpointId: string;

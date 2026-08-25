@@ -15,7 +15,6 @@ import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.j
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 
-// ── Validation ───────────────────────────────────────────────────────────────
 // Built from the DB field rules, so they validate values exactly as they'll be
 // written. Both ingest paths validate against these; only the way they report
 // the issues differs (an admin batch report vs. a per-field user error list).
@@ -53,8 +52,6 @@ export const candidatePrintingValidator = z.object({
 /**
  * The subset of an ingest card {@link candidateCardValidator} checks, with the
  * same empty-to-null coercion the insert applies.
- * @param card The ingest card.
- * @returns The payload to `safeParse`.
  */
 export function candidateCardValidatorInput(card: IngestCard): Record<string, unknown> {
   return {
@@ -74,8 +71,6 @@ export function candidateCardValidatorInput(card: IngestCard): Record<string, un
 /**
  * The subset of an ingest printing {@link candidatePrintingValidator} checks,
  * with the same empty-to-null coercion the insert applies.
- * @param printing The ingest printing.
- * @returns The payload to `safeParse`.
  */
 export function candidatePrintingValidatorInput(printing: IngestPrinting): Record<string, unknown> {
   return {
@@ -96,13 +91,9 @@ export function candidatePrintingValidatorInput(printing: IngestPrinting): Recor
   };
 }
 
-// ── Row shapes ───────────────────────────────────────────────────────────────
-
 /**
  * Normalizes a jsonb payload to null when it carries nothing, matching the
  * `<> '{}' AND <> 'null'::jsonb` CHECK on both candidate tables.
- * @param value The raw `extra_data` from the payload.
- * @returns The value, or null when absent or an empty object.
  */
 function jsonOrNull(value: unknown): unknown {
   if (value === null || value === undefined) {
@@ -114,10 +105,8 @@ function jsonOrNull(value: unknown): unknown {
   return value;
 }
 
-/** The candidate-card columns derived from the payload, without `provider`. */
 export type CandidateCardFields = Omit<Insertable<CandidateCardsTable>, "provider">;
 
-/** The candidate-printing columns derived from the payload, without the links. */
 export type CandidatePrintingFields = Omit<
   Insertable<CandidatePrintingsTable>,
   "candidateCardId" | "printingId"
@@ -126,8 +115,6 @@ export type CandidatePrintingFields = Omit<
 /**
  * Map an ingest card onto its candidate_cards columns. Callers add `provider`
  * and, for user submissions, the submitter attribution.
- * @param card The ingest card.
- * @returns The column values.
  */
 export function buildCandidateCardFields(card: IngestCard): CandidateCardFields {
   return {
@@ -151,8 +138,6 @@ export function buildCandidateCardFields(card: IngestCard): CandidateCardFields 
 /**
  * Map an ingest printing onto its candidate_printings columns. Marker slugs are
  * sorted here so the stored order matches the one the link key is built from.
- * @param printing The ingest printing.
- * @returns The column values.
  */
 export function buildCandidatePrintingFields(printing: IngestPrinting): CandidatePrintingFields {
   return {

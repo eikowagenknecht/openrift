@@ -16,16 +16,13 @@
  * overstates their credit.
  *
  * Printings are identified by `buildPrintingLinkKey`, the same key the ingest
- * link resolution uses. That module exists because three copies of this key had
- * already drifted apart; this is the fourth caller and it goes through the same
- * function rather than rolling its own.
+ * link resolution uses — never a hand-rolled copy of it.
  */
 import { buildPrintingLinkKey } from "./printing-link-key.js";
 
-/** Live `cards` values a submission can be compared against. */
 interface LiveCardSnapshot {
   name: string;
-  /** The denormalized primary type (ADR-037); the junction order is not read. */
+  /** The denormalized primary type; the junction tables are not read. */
   type: string;
   might: number | null;
   energy: number | null;
@@ -34,7 +31,6 @@ interface LiveCardSnapshot {
   tags: string[];
 }
 
-/** Live `printings` values a submission can be compared against. */
 export interface LivePrintingSnapshot {
   rarity: string | null;
   artist: string | null;
@@ -92,40 +88,26 @@ export interface LiveSnapshot {
    * Keyed by {@link buildPrintingLinkKey}, **not** by short code. One short code
    * covers every finish and language of a printing (a card with 4 languages ×
    * 2 finishes has 8 rows all reading `OGN-002`), so a short-code map collapses
-   * them onto whichever row was written last. That made every proposed printing
-   * compare against an arbitrary sibling: French rows phantom-differed on
-   * language against the English row, and an artist fix accepted on one
-   * printing went unnoticed because the comparison was against another.
+   * them onto whichever row was written last and every proposed printing then
+   * compares against an arbitrary sibling.
    */
   printings: Map<string, LivePrintingSnapshot>;
 }
 
-/**
- * Blank-ish proposals say "I have nothing to offer here", not "make it empty".
- * @param value The proposed value.
- * @returns Whether the submission left this field alone.
- */
+/** Blank-ish proposals say "I have nothing to offer here", not "make it empty". */
 function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === "";
 }
 
 /**
- * Case- and whitespace-insensitive text comparison. A contributor typing
- * "riot games" for "Riot Games" is not proposing a change, and treating it as
- * one would credit them for a correction the admin never made.
- * @param a First value.
- * @param b Second value.
- * @returns Whether the two read as the same text.
+ * Case- and whitespace-insensitive: a contributor typing "riot games" for
+ * "Riot Games" is not proposing a change, and treating it as one would credit
+ * them for a correction the admin never made.
  */
 function sameText(a: string | null | undefined, b: string | null | undefined): boolean {
   return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 }
 
-/**
- * @param a First tag list.
- * @param b Second tag list.
- * @returns Whether both lists hold the same tags, order-insensitively.
- */
 function sameTags(a: string[], b: string[]): boolean {
   if (a.length !== b.length) {
     return false;
@@ -136,15 +118,12 @@ function sameTags(a: string[], b: string[]): boolean {
 }
 
 /**
- * Compare one submission against the live catalog.
+ * Compare one submission against the live catalog, returning the field paths
+ * that differ (e.g. `card.energy`, `printing.OGN-042.artist`).
  *
  * Called twice in a submission's life with the same inputs but a moving live
  * side: once at submit time to record `proposed_diff`, and again at review time
  * to see how much of it the catalog has since adopted.
- *
- * @param proposed The submitted card and its printings, as stored on the candidate rows.
- * @param live The live catalog values, or a null card for a new-card submission.
- * @returns Field paths that differ, e.g. `card.energy`, `printing.OGN-042.artist`.
  */
 export function computeProposedDiff(
   proposed: { card: ProposedCard; printings: ProposedPrinting[] },
@@ -153,7 +132,6 @@ export function computeProposedDiff(
   const diff: string[] = [];
 
   if (live.card === null) {
-    // Nothing to compare against: the whole card is the proposal.
     diff.push("card.new");
   } else {
     const liveCard = live.card;
@@ -232,12 +210,6 @@ export function computeProposedDiff(
   return diff;
 }
 
-/**
- * How much of the original proposal the catalog has since adopted.
- * @param proposedDiff The field paths recorded at submission time.
- * @param currentDiff The same comparison run against the catalog now.
- * @returns The paths that no longer differ.
- */
 export function adoptedFields(proposedDiff: string[], currentDiff: string[]): string[] {
   const stillDiffering = new Set(currentDiff);
   return proposedDiff.filter((field) => !stillDiffering.has(field));

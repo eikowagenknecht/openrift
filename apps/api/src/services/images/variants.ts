@@ -24,7 +24,6 @@ const SIZES = [
  * `-{SIZES.suffix}.webp`). Files failing this check are either legacy-resolution
  * stragglers (e.g. `-300w.webp`) or unrelated junk, and should be treated as
  * orphaned by the cleanup pass.
- * @returns `true` when the filename matches a known suffix.
  */
 export function isValidVariantSuffix(file: string): boolean {
   if (/-orig\.[^.]+$/u.test(file)) {
@@ -47,7 +46,6 @@ export async function generateWebpVariants(
    * `-orig` file is never touched regardless of this flag.
    */
   needsTrim: boolean,
-  /** When true, variants already on disk are kept as-is. */
   skipExisting = false,
 ): Promise<void> {
   await io.fs.mkdir(outputDir, { recursive: true });
@@ -145,7 +143,6 @@ export async function generateWebpVariants(
  * Used by `processAndSave` as a cheap "don't clobber" guard — NOT for
  * integrity checking. Use `rehostFilesComplete` for "are all required files
  * present" (broken-image detection).
- * @returns `true` if at least one matching file exists.
  */
 export async function rehostFilesExist(
   io: Io,
@@ -165,7 +162,6 @@ export async function rehostFilesExist(
  * Check whether ALL expected rehost files exist on disk: the `-orig.*` archive
  * plus every `-{SIZES.suffix}.webp` variant. Used by the broken-image finder
  * so an image missing its orig (or any variant) is surfaced to the admin.
- * @returns `true` when every required file is present.
  */
 export async function rehostFilesComplete(
   io: Io,
@@ -214,7 +210,6 @@ export async function processAndSave(
   fileBase: string,
   rotation: number,
   needsTrim: boolean,
-  /** Set to true to allow overwriting existing files (e.g. regeneration). */
   allowOverwrite = false,
 ): Promise<void> {
   if (!allowOverwrite && (await rehostFilesExist(io, outputDir, fileBase))) {
@@ -227,17 +222,11 @@ export async function processAndSave(
     );
   }
   await io.fs.mkdir(outputDir, { recursive: true });
-  // Sweep any pre-existing orig with a different extension so we don't end
-  // up with both e.g. `{base}-orig.png` and `{base}-orig.webp` on disk.
   await sweepExistingOrig(io, outputDir, fileBase);
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
   await generateWebpVariants(io, buffer, outputDir, fileBase, rotation, needsTrim);
 }
 
-/**
- * Delete all rehosted files for a given rehosted_url path prefix.
- * Removes the orig archive and every WebP variant for the base.
- */
 export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
   const dir = join(CARD_MEDIA_DIR, rehostedUrl.replace(/^\/media\/cards\//u, ""));
   const parentDir = dirname(dir);
@@ -258,11 +247,7 @@ export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<vo
   }
 }
 
-/**
- * Regenerate webp variants for an image_file from its on-disk `-orig.*` file.
- * Falls back to re-downloading from `originalUrl` if the orig file is missing.
- * Used by the rotate endpoint to rebuild variants after changing rotation.
- */
+/** Used by the rotate endpoint to rebuild variants after changing rotation. */
 export async function regenerateFromOrig(
   io: Io,
   imageFileId: string,

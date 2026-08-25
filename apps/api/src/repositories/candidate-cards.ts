@@ -32,8 +32,7 @@ import type { ProposedCard, ProposedPrinting } from "../lib/card-submission-diff
  * and card_sizes as `sz`; candidate data is provider-supplied, so unknown
  * reference values sort last (ASC puts NULL sort orders after known ones),
  * the raw column after each joined sort_order tiebreaks them, and the
- * trailing id makes the full order stable. Apply with
- * `CANONICAL_CANDIDATE_PRINTING_ORDER.reduce((q, key) => q.orderBy(key), qb)`.
+ * trailing id makes the full order stable.
  */
 const CANONICAL_CANDIDATE_PRINTING_ORDER = [
   sql`l.sort_order`,
@@ -51,24 +50,16 @@ const CANONICAL_CANDIDATE_PRINTING_ORDER = [
 ];
 
 /**
- * The three filters below correlate to the outer query only through `sql.ref`
- * on a caller-supplied alias, so they need nothing from the calling query's
- * table scope. Building them on a standalone expression builder rather than the
- * one Kysely hands a `.where()` callback keeps the subqueries fully checked
- * against `Database`, where the old `ExpressionBuilder<Database, any>` parameter
- * silently disabled checking for the whole body. Call sites are unchanged:
- * `.where()` takes a boolean expression as readily as a callback.
- * @returns An expression builder rooted at `Database` with no tables in scope.
+ * The filters below correlate to the outer query only through `sql.ref` on a
+ * caller-supplied alias, so they need nothing from the calling query's table
+ * scope. A standalone expression builder keeps the subqueries fully checked
+ * against `Database`; an `ExpressionBuilder<Database, any>` parameter would
+ * silently disable checking for the whole body.
  */
 function candidateFilterEb() {
   return expressionBuilder<Database, never>();
 }
 
-/**
- * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
- * @param alias — the candidate_cards table alias used in the query (e.g. "cs", "candidateCards")
- * @returns A NOT EXISTS boolean expression.
- */
 function notIgnoredCard(alias: string): Expression<SqlBool> {
   const eb = candidateFilterEb();
   return eb.not(
@@ -82,11 +73,6 @@ function notIgnoredCard(alias: string): Expression<SqlBool> {
   );
 }
 
-/**
- * Reusable WHERE filter: exclude candidate_cards whose provider is hidden in provider_settings.
- * @param alias — the candidate_cards table alias used in the query (e.g. "cs", "candidateCards")
- * @returns A NOT EXISTS boolean expression.
- */
 function notHiddenSource(alias: string): Expression<SqlBool> {
   const eb = candidateFilterEb();
   return eb.not(
@@ -100,12 +86,6 @@ function notHiddenSource(alias: string): Expression<SqlBool> {
   );
 }
 
-/**
- * Reusable WHERE filter: exclude candidate_printings that appear in ignored_candidate_printings.
- * @param alias — the candidate_printings table alias used in the query (e.g. "ps", "candidatePrintings")
- * @param csAlias — the candidate_cards table alias to resolve the provider name
- * @returns A NOT EXISTS boolean expression.
- */
 function notIgnoredPrinting(alias: string, csAlias: string): Expression<SqlBool> {
   const eb = candidateFilterEb();
   return eb.not(
@@ -125,11 +105,6 @@ function notIgnoredPrinting(alias: string, csAlias: string): Expression<SqlBool>
   );
 }
 
-// ── Row types for aggregate / joined queries ────────────────────────────────
-
-/** @see ProviderStatsResponse — shared contract for GET /candidates/provider-stats */
-
-/** Row returned by `exportPrintings`. */
 interface ExportPrintingRow extends Selectable<PrintingsTable> {
   setSlug: string;
   setName: string;
@@ -139,30 +114,12 @@ interface ExportPrintingRow extends Selectable<PrintingsTable> {
 }
 
 /**
- * Queries and mutations over the candidate tables (`candidate_cards`,
- * `candidate_printings`, `printing_link_overrides`) that back the
- * candidate-cards admin UI: the read side feeding the list and detail views,
- * and the write side that checks, patches, and links candidates against
- * accepted printings. Writes to the accepted catalog itself live in
- * `catalogMutationsRepo`.
- *
- * Each method performs a single database query (or returns early for empty
- * inputs). Response shaping and multi-query orchestration live in the
- * service layer (`services/card-source-queries.ts`).
- *
- * @returns An object with candidate-card methods bound to the given `db`.
+ * Writes to the accepted catalog itself live in `catalogMutationsRepo`. Each
+ * method performs a single database query (or returns early for empty inputs);
+ * response shaping and multi-query orchestration live in the service layer.
  */
 export function candidateCardsRepo(db: Kysely<Database>) {
   return {
-    // ── Simple list endpoints ─────────────────────────────────────────────
-
-    /**
-     * @returns Lightweight card list ordered by slug, with distinct `setSlugs`
-     *   and `shortCodes` across the card's accepted printings (empty arrays if
-     *   the card has no printings yet). Admins use `setSlugs` to scope list and
-     *   detail views to a single set, and `shortCodes` so the admin card
-     *   pickers resolve a typed `OGN-202` the way every other picker does.
-     */
     listAllCards(): Promise<
       (Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type"> & {
         types: string[];
@@ -179,8 +136,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "c.slug",
           "c.name",
           "c.type",
-          // Full ordered type set (ADR-037) via a correlated subquery so it
-          // isn't multiplied by the printings/sets join above.
+          // Correlated subquery so the printings/sets join above doesn't
+          // multiply the type rows.
           sql<string[]>`(
             select array_agg(cct.type_slug order by cct.position)
             from card_card_types cct
@@ -206,7 +163,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All cards with fields needed for the card source list. */
     listCardsForSourceList(): Promise<
       Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "normName">[]
     > {
@@ -217,14 +173,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All card name aliases — e.g. { normName: "firebal", cardId: "uuid-123" } */
     listAliasesForSourceList(): Promise<
       Pick<Selectable<CardNameAliasesTable>, "normName" | "cardId">[]
     > {
       return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
     },
 
-    /** @returns All candidate cards with fields needed for the card source list. */
     listCandidateCardsForSourceList(): Promise<
       Pick<Selectable<CandidateCardsTable>, "id" | "normName" | "name" | "provider" | "checkedAt">[]
     > {
@@ -237,7 +191,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings with fields needed for the card source list, sorted deterministically. */
     listPrintingsForSourceList(): Promise<
       (Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language"> & {
         setSlug: string | null;
@@ -251,11 +204,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Cards where at least one printing has no active front-face image, with the
-     * number of such printings broken down per language.
-     * @returns One entry per card, each carrying its per-language missing counts.
-     */
     async listCardsWithMissingImages(): Promise<MissingImageCard[]> {
       const rows = await db
         .selectFrom("printings as p")
@@ -298,7 +246,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return [...cards.values()];
     },
 
-    /** @returns All candidate printings with fields needed for the card source list, sorted deterministically. */
     listCandidatePrintingsForSourceList(): Promise<
       Pick<
         Selectable<CandidatePrintingsTable>,
@@ -318,8 +265,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.checkedAt",
           "ps.printingId",
           "ps.language",
-          // For candidate printings this column stores the set *slug* directly
-          // (not a UUID like accepted printings) — see setPrintedTotalBySlugs.
+          // For candidate printings this column stores the set *slug* directly,
+          // not a UUID like accepted printings.
           "ps.setId",
         ])
         .where(notIgnoredPrinting("ps", "cs"))
@@ -327,7 +274,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return CANONICAL_CANDIDATE_PRINTING_ORDER.reduce((q, key) => q.orderBy(key), query).execute();
     },
 
-    /** @returns Distinct artist names from published printings, ordered alphabetically. */
     async distinctArtists(): Promise<string[]> {
       const rows = await db
         .selectFrom("printings")
@@ -338,7 +284,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.artist);
     },
 
-    /** @returns Distinct provider names, ordered alphabetically. */
     async distinctProviderNames(): Promise<string[]> {
       const rows = await db
         .selectFrom("candidateCards")
@@ -349,12 +294,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.provider);
     },
 
-    /**
-     * @returns Per-provider card count, printing count, and last-updated
-     *   timestamp as an ISO string. The aggregate is a `timestamptz`, which the
-     *   driver hands back as a native `Date`, so the conversion happens here
-     *   rather than leaving every caller to do it.
-     */
     async providerStats(): Promise<ProviderStatsResponse[]> {
       const rows = await db
         .selectFrom("candidateCards as cs")
@@ -382,14 +321,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       }));
     },
 
-    // ── GET /:cardId — detail sub-queries ─────────────────────────────────
-
-    /** @returns A single card by slug, or `undefined`. */
     cardBySlug(slug: string): Promise<Selectable<CardsTable> | undefined> {
       return db.selectFrom("cards").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns Card detail fields for the card source detail page, looked up by slug. */
     cardForDetailBySlug(
       slug: string,
     ): Promise<
@@ -436,7 +371,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Name aliases for a card. */
     cardNameAliases(cardId: string): Promise<{ normName: string }[]> {
       return db
         .selectFrom("cardNameAliases")
@@ -445,7 +379,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Card errata for a card, or null. */
     async cardErrataForDetail(cardId: string) {
       return (
         (await db
@@ -462,10 +395,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       );
     },
 
-    /**
-     * @returns Printings for detail page (no timestamps), in canonical order
-     * via the `printings_ordered` view.
-     */
     printingsForDetail(cardId: string) {
       return db
         .selectFrom("printingsOrdered")
@@ -498,7 +427,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Candidate printings for detail page, without timestamps. */
     async candidatePrintingsForDetail(
       candidateCardIds: string[],
     ): Promise<
@@ -578,7 +506,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /** @returns Marker ID → slug mapping for given IDs. */
     markerSlugsByIds(ids: string[]): Promise<{ id: string; slug: string }[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
@@ -586,10 +513,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return db.selectFrom("markers").select(["id", "slug"]).where("id", "in", ids).execute();
     },
 
-    /**
-     * @returns One row per (printing, channel) link with the channel slug,
-     *          for the given printing IDs.
-     */
     distributionChannelSlugsForPrintings(
       printingIds: string[],
     ): Promise<{ printingId: string; channelSlug: string }[]> {
@@ -604,7 +527,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Printing images for detail page, only fields the frontend needs. */
     printingImagesForDetail(printingIds: string[]): Promise<
       {
         id: string;
@@ -640,7 +562,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Set slug, name and printed total for given IDs. */
     setInfoByIds(setIds: string[]): Promise<
       {
         id: string;
@@ -659,7 +580,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Printed totals for sets identified by slug. */
     setPrintedTotalBySlugs(
       slugs: string[],
     ): Promise<{ slug: string; printedTotal: number | null }[]> {
@@ -673,9 +593,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── GET /new/:name — unmatched detail sub-queries ─────────────────────
-
-    /** @returns All candidate printings for given candidate card IDs, unfiltered (no ignore/hidden exclusions). */
+    /** Unfiltered: no ignore/hidden exclusions. */
     allCandidatePrintingsForCandidateCards(
       candidateCardIds: string[],
     ): Promise<Selectable<CandidatePrintingsTable>[]> {
@@ -689,7 +607,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Candidate cards by exact normalized name, excluding ignored. Ordered by provider. */
     candidateCardsByNormName(normName: string): Promise<Selectable<CandidateCardsTable>[]> {
       return db
         .selectFrom("candidateCards")
@@ -702,13 +619,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns Candidate cards for detail page, explicit columns. Columns are
-     * table-qualified because of the `users` join (`name` exists on both).
-     * `submittedByName` is only ever set for user submissions; the join
-     * resolves the stored id to something an admin can read. The submitter's
-     * email is deliberately not selected — this endpoint is also reachable by
-     * card-review grant holders, who have no business seeing contributor
-     * contact details.
+     * The submitter's email is deliberately not selected: this endpoint is
+     * also reachable by card-review grant holders, who have no business
+     * seeing contributor contact details.
      */
     async candidateCardsForDetail(
       normName: string | string[],
@@ -770,9 +683,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    // ── card-review provider scoping lookups ─────────────────────────────────
-
-    /** @returns Provider of each given candidate printing (via its candidate card). */
     providersForCandidatePrintings(ids: string[]): Promise<{ id: string; provider: string }[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
@@ -785,10 +695,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * @returns Distinct providers of visible (non-ignored, non-hidden)
-     * candidate cards with the given normalized name.
-     */
     async candidateProvidersForNormName(normName: string): Promise<string[]> {
       const rows = await db
         .selectFrom("candidateCards")
@@ -801,11 +707,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.provider);
     },
 
-    /**
-     * @returns Distinct providers of candidate data attached to a card:
-     * visible candidate cards matched via the card's name aliases, plus
-     * candidate printings linked to the card's accepted printings.
-     */
     async candidateProvidersForCard(cardId: string): Promise<string[]> {
       const [byAlias, byPrinting] = await Promise.all([
         db
@@ -829,9 +730,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return [...new Set([...byAlias, ...byPrinting].map((r) => r.provider))];
     },
 
-    // ── GET /export ───────────────────────────────────────────────────────
-
-    /** @returns All cards with all columns, ordered by name. */
     exportCards(): Promise<
       (Selectable<CardsTable> & { domains: string[]; superTypes: string[]; types: string[] })[]
     > {
@@ -844,7 +742,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All card errata keyed by cardId for export. */
     exportCardErrata(): Promise<
       { cardId: string; correctedRulesText: string | null; correctedEffectText: string | null }[]
     > {
@@ -854,44 +751,35 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings with set slug/name and active front image URLs. */
     exportPrintings(): Promise<ExportPrintingRow[]> {
-      return (
-        db
-          .selectFrom("printings")
-          .innerJoin("sets", "sets.id", "printings.setId")
-          .leftJoin("printingImages", (jb) =>
-            jb
-              .onRef("printingImages.printingId", "=", "printings.id")
-              .on("printingImages.face", "=", "front")
-              .on("printingImages.isActive", "=", true),
-          )
-          .leftJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-          .selectAll("printings")
-          .select([
-            "sets.slug as setSlug",
-            "sets.name as setName",
-            "printingImages.id as imageId",
-            "ci.rehostedUrl",
-            "ci.originalUrl",
-          ])
-          // Same canonical order as every other printing list (the old keys
-          // led with the set UUID, which is an arbitrary order).
-          .innerJoin("printingsOrdered as po", "po.id", "printings.id")
-          .orderBy("po.canonicalRank")
-          .execute()
-      );
+      return db
+        .selectFrom("printings")
+        .innerJoin("sets", "sets.id", "printings.setId")
+        .leftJoin("printingImages", (jb) =>
+          jb
+            .onRef("printingImages.printingId", "=", "printings.id")
+            .on("printingImages.face", "=", "front")
+            .on("printingImages.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .selectAll("printings")
+        .select([
+          "sets.slug as setSlug",
+          "sets.name as setName",
+          "printingImages.id as imageId",
+          "ci.rehostedUrl",
+          "ci.originalUrl",
+        ])
+        .innerJoin("printingsOrdered as po", "po.id", "printings.id")
+        .orderBy("po.canonicalRank")
+        .execute();
     },
-
-    // ── Submission review state (ADR-036) ─────────────────────────────────
 
     /**
      * How far review has got on each candidate: whether the card itself is
      * checked, and how many of its printings are not. A user submission is only
      * settled once both are done, so checking one printing of a multi-printing
      * submission doesn't resolve it early.
-     * @param candidateCardIds The candidates to report on.
-     * @returns A map from candidate id to its review state.
      */
     async reviewStateForCandidates(
       candidateCardIds: string[],
@@ -926,8 +814,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
      * The values a candidate proposed, in the shape the submission diff
      * compares. Read back from staging rather than kept on the ledger so the
      * review-time comparison uses exactly what the admin is looking at.
-     * @param candidateCardId The candidate to read.
-     * @returns The proposed card and printings, or null when the candidate is gone.
      */
     async proposalForCandidate(
       candidateCardId: string,
@@ -965,12 +851,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return { card, printings };
     },
 
-    // ── Candidate card checks ─────────────────────────────────────────────
-
-    /**
-     * Mark a single candidate card as checked.
-     * @returns Update result.
-     */
     checkCandidateCard(candidateCardId: string): Promise<UpdateResult> {
       return db
         .updateTable("candidateCards")
@@ -979,10 +859,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Clear checked_at on a single candidate card.
-     * @returns Update result.
-     */
     uncheckCandidateCard(candidateCardId: string): Promise<UpdateResult> {
       return db
         .updateTable("candidateCards")
@@ -1004,23 +880,19 @@ export function candidateCardsRepo(db: Kysely<Database>) {
      * were done stays pending, and a later "check all" would otherwise update
      * nothing and so resolve nothing, leaving the submission stuck. Resolution
      * gates on the candidate being fully checked anyway, so a wider set is safe.
-     *
-     * @returns The rows updated and the matching candidate card ids.
      */
     async checkAllCandidateCards(
       normNames: string[],
       cardId: string,
     ): Promise<{ updated: number; candidateCardIds: string[] }> {
       const now = new Date();
-      // Candidate cards linked because their candidate_printings already have a printingId
       const linkedByPrintingId = db
         .selectFrom("candidatePrintings")
         .innerJoin("printings", "printings.id", "candidatePrintings.printingId")
         .select("candidatePrintings.candidateCardId")
         .where("printings.cardId", "=", cardId);
 
-      // Candidate cards linked because their candidate_printings have a shortCode matching
-      // a printing's shortCode (same logic as the display query)
+      // Short-code linking matches the display query's logic.
       const printingShortCodes = db
         .selectFrom("printings")
         .select("shortCode")
@@ -1054,12 +926,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return { updated: rows.length, candidateCardIds: allMatching.map((row) => row.id) };
     },
 
-    // ── Candidate printing checks ─────────────────────────────────────────
-
-    /**
-     * Mark a single candidate printing as checked.
-     * @returns The parent candidate card id, or undefined when no row matched.
-     */
     checkCandidatePrinting(id: string): Promise<{ candidateCardId: string } | undefined> {
       return db
         .updateTable("candidatePrintings")
@@ -1069,10 +935,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Clear checked_at on a single candidate printing.
-     * @returns Update result.
-     */
     uncheckCandidatePrinting(id: string): Promise<UpdateResult> {
       return db
         .updateTable("candidatePrintings")
@@ -1081,10 +943,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Mark all candidate printings for a given printing (and optional extra IDs) as checked.
-     * @returns The rows updated and the distinct parent candidate card ids.
-     */
     async checkAllCandidatePrintings(
       printingId?: string,
       extraIds?: string[],
@@ -1110,10 +968,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Mark all candidate cards and printings for a given provider as checked.
-     * @returns Number of cards and printings checked.
-     */
     async checkByProvider(
       provider: string,
       now: Date,
@@ -1142,12 +996,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       };
     },
 
-    // ── Candidate printing mutations ──────────────────────────────────────
-
-    /**
-     * Patch allowed fields on a candidate printing.
-     * @returns Update result.
-     */
     patchCandidatePrinting(
       id: string,
       updates: Updateable<CandidatePrintingsTable>,
@@ -1159,15 +1007,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Delete a candidate printing by ID.
-     * @returns Delete result.
-     */
     deleteCandidatePrinting(id: string): Promise<DeleteResult> {
       return db.deleteFrom("candidatePrintings").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A candidate printing by ID (all columns). */
     getCandidatePrintingById(id: string): Promise<Selectable<CandidatePrintingsTable> | undefined> {
       return db
         .selectFrom("candidatePrintings")
@@ -1176,7 +1019,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** Copy a candidate printing and link it to a different printing. */
     async copyCandidatePrinting(
       ps: Selectable<CandidatePrintingsTable>,
       target: {
@@ -1213,10 +1055,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Delete all candidate cards for a given provider name.
-     * @returns Number of deleted rows.
-     */
     async deleteByProvider(provider: string): Promise<number> {
       const result = await db
         .deleteFrom("candidateCards")
@@ -1225,9 +1063,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return Number(result[0].numDeletedRows);
     },
 
-    // ── Candidate printing linking ────────────────────────────────────────
-
-    /** Bulk-link (or unlink) candidate printings to a printing UUID. */
     async linkCandidatePrintings(
       candidatePrintingIds: string[],
       printingUuid: string | null,
@@ -1239,7 +1074,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Link candidate printings to a printing UUID and mark as checked. */
     async linkAndCheckCandidatePrintings(
       candidatePrintingIds: string[],
       printingUuid: string,
@@ -1251,7 +1085,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Unlink all candidate_printings referencing a printing UUID (set printing_id to null). */
     async unlinkCandidatePrintingsByPrintingId(printingId: string): Promise<void> {
       await db
         .updateTable("candidatePrintings")
@@ -1260,7 +1093,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Upsert printing link overrides for the given candidate printing IDs. */
     async upsertPrintingLinkOverrides(
       candidatePrintingIds: string[],
       printingId: string,
@@ -1297,7 +1129,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Remove printing link overrides for the given candidate printing IDs (unlink). */
     async removePrintingLinkOverrides(candidatePrintingIds: string[]): Promise<void> {
       const rows = await db
         .selectFrom("candidatePrintings as cp")
@@ -1326,7 +1157,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete printing_link_overrides that reference a printing ID. */
     async deletePrintingLinkOverridesById(printingId: string): Promise<void> {
       await db.deleteFrom("printingLinkOverrides").where("printingId", "=", printingId).execute();
     },

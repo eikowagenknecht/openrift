@@ -33,12 +33,6 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Server-rendered deck share image (ADR-031): a beautified, Archive-style
- * decklist rendered to PNG for the public deck share route's og:image and an
- * HQ download. Built from the same satori + resvg primitives as the list image
- * (`share-image-core`), with the deck-shaped pieces both layouts are assembled
- * from in `deck-image-parts`.
- *
  * Two resolutions share one layout via the `scale` arg: the og:image renders at
  * 1× (1200×630); the download renders at 2× by embedding raster sources (card
  * art, glyphs, QR) at the matching resolution while satori lays out once at base
@@ -46,17 +40,12 @@ import {
  * `share-image-core` so this image and the list and tier-list images stay one
  * family.
  *
- * Both canvases live here, as they do for the tier list. They are two
- * compositions rather than one resized layout, because the landscape layout is
- * horizontal at its core: a legend panel *beside* a grid, with a band whose
- * tiles absorb whatever vertical slack the grid leaves. Turned upright that
- * arrangement is inside out, so the vertical export stacks instead — title →
- * identity band (legend beside its battlefields and runes) → main grid →
- * sideboard → footer, each band a fixed height and the grid taking the rest.
- * The payoff is legibility: 1080×1920 is 2.7× the pixels of 1200×630 and nearly
- * all of it reaches the main grid, so a full decklist renders at roughly 1.7×
- * the tile size the landscape image can manage. Vertical is download-only — no
- * crawler consumes a 9:16 og:image.
+ * The two canvases are two compositions rather than one resized layout: the
+ * landscape layout is horizontal at its core (a legend panel *beside* a grid,
+ * with a band whose tiles absorb the grid's vertical slack), which turned
+ * upright is inside out. The vertical export stacks fixed-height bands and
+ * gives the grid the rest, so nearly all of its 2.7× pixel count reaches the
+ * main grid. Vertical is download-only — no crawler consumes a 9:16 og:image.
  */
 
 /**
@@ -149,11 +138,7 @@ const VERTICAL_TITLE_MAX_CHARS = 32;
 export type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
 export { formatLabelFromSlug, truncateTitle } from "./deck-image-parts.js";
 
-/**
- * Resolves the deck's custom cover to a printable image id, honoring the
- * pinned printing the same way the web resolves it.
- * @returns The cover's image id, or null when the deck has no custom cover.
- */
+/** Honors the pinned cover printing the same way the web resolves it. */
 export async function resolveCoverImageId(
   repos: Pick<Repos, "canonicalPrintings">,
   deck: { coverCardId: string | null; coverPrintingId: string | null },
@@ -168,11 +153,9 @@ export async function resolveCoverImageId(
 }
 
 /**
- * Resolves the printing art and card meta for a set of card references and maps
- * them to the render shape, mirroring how the public deck route enriches cards.
- * Shared by the by-id builder (server decks) and the from-cards render endpoint
- * (browser-local decks, which have no server row — ADR-035).
- * @returns The cards with names, energy, domains, and art ids.
+ * Mirrors how the public deck route enriches cards. Shared by the by-id
+ * builder (server decks) and the from-cards render endpoint (browser-local
+ * decks, which have no server row).
  */
 export async function buildDeckImageCardsFromRefs(
   repos: Pick<Repos, "catalog" | "canonicalPrintings">,
@@ -210,11 +193,6 @@ export async function buildDeckImageCardsFromRefs(
   return result;
 }
 
-/**
- * Resolves the printing art for a saved deck's cards and maps them to the render
- * shape.
- * @returns The deck's cards with names, energy, domains, and art ids.
- */
 export async function buildDeckImageCards(
   repos: Pick<Repos, "decks" | "catalog" | "canonicalPrintings">,
   deckId: string,
@@ -225,10 +203,9 @@ export async function buildDeckImageCards(
 }
 
 /**
- * Renders a deck share image to a PNG buffer (ADR-031). `scale` renders the same
- * base layout at N× resolution for the HQ download; `aspect` picks the canvas
- * (landscape for the og:image, vertical for the 9:16 export).
- * @returns PNG bytes ready to return as `image/png`.
+ * `scale` renders the same base layout at N× resolution for the HQ download;
+ * `aspect` picks the canvas (landscape for the og:image, vertical for the 9:16
+ * export).
  */
 export function renderDeckImage(
   io: Io,
@@ -241,14 +218,6 @@ export function renderDeckImage(
     : renderLandscapeDeckImage(io, input, scale);
 }
 
-/**
- * The 1200×630 composition: a left legend hero, the legend's domain glyphs by
- * the title's card count, a cost-sorted main grid, and a bottom band (sideboard
- * row, then battlefields + runes) whose tiles grow to fill whatever space the
- * grid leaves, with the QR mark at the title row's right end and the host label
- * pinned bottom-right.
- * @returns PNG bytes ready to return as `image/png`.
- */
 async function renderLandscapeDeckImage(
   io: Io,
   input: DeckImageInput,
@@ -260,13 +229,9 @@ async function renderLandscapeDeckImage(
   const { legend, runes, runeCards, battlefields, sideboard, gridCards } = zones;
   const { mainCardCount, sideboardCount } = zones;
 
-  // The left panel is the legend hero alone, vertically centred; the host label
-  // sits at the bottom-right of the grid area and the QR rides the title row.
   const hasLeftPanel = legend !== null;
   const leftW = hasLeftPanel ? LANDSCAPE_LEFT_W : 0;
   const innerW = canvasW - canvas.pad * 2;
-  // The title row is as tall as its tallest content: the type alone normally,
-  // the QR when there is one. A deck with no share link keeps the short row.
   const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
   const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
   const rightW = innerW - leftW - (hasLeftPanel ? BODY_GAP : 0);
@@ -275,11 +240,9 @@ async function renderLandscapeDeckImage(
   const legendW = LANDSCAPE_LEFT_W - 14;
   const legendH = Math.round(legendW / CARD_ASPECT);
 
-  // Bottom band: sideboard on its own full-width row, then battlefields + runes
-  // sharing the row beneath with the host label on the right. The section tiles grow
-  // to fill whatever vertical space the main grid leaves — a shallow deck yields a
-  // short grid and larger sections — capped by a max scale and by each row's width
-  // so nothing ever wraps.
+  // The band tiles grow to fill whatever vertical space the main grid leaves —
+  // a shallow deck yields a short grid and larger sections — capped by a max
+  // scale and by each row's width so nothing ever wraps.
   const willHaveFooter = Boolean(input.siteHost);
   const hasSideboard = sideboard.length > 0;
   const bfCount = battlefields.length;
@@ -287,8 +250,6 @@ async function renderLandscapeDeckImage(
   const bottomRowScalable = bfCount > 0 || runeCount > 0;
   const hasBottomRow = bottomRowScalable || willHaveFooter;
 
-  // With the QR moved up, a bottom row carrying only the host label needs a
-  // line's height rather than a mark's.
   const bandGaps = hasSideboard && hasBottomRow ? GAP : 0;
   const bottomRowFixedH = hasBottomRow && !bottomRowScalable ? canvas.footerLabelH : 0;
   const bandFixedH =
@@ -322,10 +283,8 @@ async function renderLandscapeDeckImage(
       )
     : 0;
 
-  // Battlefields + runes share their row with the host label; cap height so both
-  // sections plus the label fit the row width. The host width is estimated
-  // generously (12px/char at 20px) so the sections shrink rather than shoving
-  // the label past the clipped right edge.
+  // The host-label width is estimated generously (12px/char at 20px) so the
+  // sections shrink rather than shoving the label past the clipped right edge.
   const footerMarkW = input.siteHost ? input.siteHost.length * 12 : 0;
   const bottomRowAvailW = rightW - (footerMarkW > 0 ? footerMarkW + BODY_GAP : 0);
   const bottomUnitW = bfCount * BATTLEFIELD_ASPECT + runeCount * CARD_ASPECT;
@@ -388,10 +347,6 @@ async function renderLandscapeDeckImage(
 
   const hasFooterMark = Boolean(input.siteHost);
 
-  // ── Title row ──────────────────────────────────────────────────────────────
-  // Name + byline keep their shared text baseline in a left group; the count and
-  // the deck's domain glyphs sit as a vertically-centred cluster on the right,
-  // with the QR beyond them at the row's end.
   const domainIcons = domainIconElements(domainUris, canvas.domainIcon);
   const titleRow = element(
     "div",
@@ -482,7 +437,6 @@ async function renderLandscapeDeckImage(
       : false,
   );
 
-  // ── Left panel: the legend hero, top-aligned with the main grid ────────────
   const leftPanel =
     hasLeftPanel &&
     element(
@@ -497,7 +451,6 @@ async function renderLandscapeDeckImage(
       legend && cardTile(legend, legendUri, legendW, legendH),
     );
 
-  // ── Main grid (right column) ─────────────────────────────────────────────
   const mainGrid =
     grid &&
     element(
@@ -515,8 +468,6 @@ async function renderLandscapeDeckImage(
       ),
     );
 
-  // ── Bottom band: sideboard on its own row, then battlefields + runes sharing
-  // the row beneath with the host mark pinned bottom-right ───────────────────
   const sideboardSection =
     hasSideboard &&
     deckSection(
@@ -543,8 +494,6 @@ async function renderLandscapeDeckImage(
       runeCards.map((card, index) => cardTile(card, runeUris[index] ?? null, runeTileW, runeTileH)),
     );
 
-  // Host label, bottom-right. The QR that used to sit beside it now rides the
-  // title row, so this is a single line of type.
   const footerMark =
     hasFooterMark &&
     element(
@@ -638,11 +587,6 @@ async function renderLandscapeDeckImage(
   return renderTreeToPng(io, root, canvasW, canvasH, scale);
 }
 
-/**
- * Height of a single full-width row of `count` tiles, bounded by the width it
- * has to share and by a ceiling so a sparse row stays a row.
- * @returns The tile height, or 0 when there is nothing to draw.
- */
 function fitRowTileH(count: number, areaW: number, aspect: number, maxH: number): number {
   if (count === 0) {
     return 0;
@@ -651,11 +595,8 @@ function fitRowTileH(count: number, areaW: number, aspect: number, maxH: number)
 }
 
 /**
- * The vertical title block: the deck name on its own line, then the byline, the
- * format/count, and the domain glyphs sharing a second one, with the QR at the
- * right of both. Stacked rather than strung along a single row because the
+ * Stacked over two lines rather than strung along a single row because the
  * canvas is narrower than landscape while the type is larger.
- * @returns The title block element.
  */
 function verticalTitleBlock(
   input: DeckImageInput,
@@ -756,11 +697,8 @@ function verticalTitleBlock(
 }
 
 /**
- * The 9:16 composition: title → identity band → main grid → lower bands →
- * footer. `scale` renders the same base layout at N× resolution; 1× is already
- * 1080×1920, the native upload size for every vertical surface, so `scale` here
- * is editing headroom rather than the deliverable.
- * @returns PNG bytes ready to return as `image/png`.
+ * 1× is already 1080×1920, the native upload size for every vertical surface,
+ * so `scale` here is editing headroom rather than the deliverable.
  */
 async function renderVerticalDeckImage(
   io: Io,
@@ -773,8 +711,6 @@ async function renderVerticalDeckImage(
   const { legend, runeCards, battlefields, sideboard, gridCards } = zones;
 
   const innerW = canvasW - canvas.pad * 2;
-  // The title block is as tall as its tallest content: the two type lines
-  // normally, the QR when there is one.
   const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
   const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
   const hasFooterMark = Boolean(input.siteHost);
@@ -783,10 +719,9 @@ async function renderVerticalDeckImage(
   const bfCount = battlefields.length;
   const runeCount = runeCards.length;
 
-  // ── Identity band: the legend hero, with its battlefields and runes beside it.
-  // Only a deck with a legend gets one; a freeform deck sends both bands to the
-  // full-width stack below the grid instead, where they read as sections rather
-  // than as an identity that isn't there.
+  // Only a deck with a legend gets an identity band; a freeform deck sends
+  // battlefields and runes to the full-width stack below the grid instead,
+  // where they read as sections rather than as an identity that isn't there.
   const hasIdentityBand = legend !== null;
   const legendW = VERTICAL_LEGEND_W;
   const legendH = Math.round(legendW / CARD_ASPECT);
@@ -814,7 +749,6 @@ async function renderVerticalDeckImage(
     : 0;
   const bandBfH = bandBf ? Math.floor(Math.min(bandBfWidthCap, bandAvailH - bandRuneH)) : 0;
 
-  // ── Full-width bands below the grid ────────────────────────────────────────
   const lowerBf = !hasIdentityBand && bfCount > 0;
   const lowerRunes = !hasIdentityBand && runeCount > 0;
   const hasSideboard = sideboard.length > 0;
@@ -833,7 +767,6 @@ async function renderVerticalDeckImage(
     lowerSections.reduce((sum, height) => sum + height + SECTION_HEADER_H, 0) +
     Math.max(0, lowerSections.length - 1) * GAP;
 
-  // Everything else is fixed, so the grid takes what remains.
   const gridAreaH = Math.max(
     120,
     bodyH -

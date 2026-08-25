@@ -43,8 +43,6 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
     /**
      * Max sort order among siblings of a given parent (NULL = root level).
      * Scoped per-parent so new roots and new children don't collide on ordering.
-     *
-     * @returns The largest sort_order among siblings, or -1 if the group is empty.
      */
     async getMaxSortOrderForParent(parentId: string | null): Promise<number> {
       let query = db
@@ -136,8 +134,6 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
     /**
      * Printing counts grouped by channel id. Channels with zero printings are
      * omitted — callers should default missing entries to 0.
-     *
-     * @returns Array of `{ channelId, count }` rows.
      */
     async usageCountsByChannel() {
       const rows = await db
@@ -152,11 +148,6 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
       await db.deleteFrom("printingDistributionChannels").where("channelId", "=", id).execute();
     },
 
-    /**
-     * Whether this channel has at least one direct child.
-     *
-     * @returns A row when a child exists, undefined otherwise.
-     */
     hasChildren(id: string) {
       return db
         .selectFrom("distributionChannels")

@@ -18,7 +18,6 @@ const SHOCK = "11111111-0000-7000-8000-000000000003";
 
 const CHECKED = new Date("2026-08-10T09:30:00.000Z");
 
-/** @returns A candidate event row with every field populated. */
 function eventRow(overrides: Partial<CandidateMetaEventRow> = {}): CandidateMetaEventRow {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -40,13 +39,13 @@ function eventRow(overrides: Partial<CandidateMetaEventRow> = {}): CandidateMeta
   };
 }
 
-/** @returns A candidate deck row whose cards all resolved. */
+/** A candidate deck row whose cards all resolved. */
 function deckRow(overrides: Partial<CandidateMetaDeckRow> = {}): CandidateMetaDeckRow {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000010",
     candidateEventId: "3f7a1c2e-0000-7000-8000-000000000001",
-    // Exactly one parent (migration 255): a provider's deck hangs off its
-    // candidate event, a user submission off the live event it targets.
+    // Exactly one parent: a provider's deck hangs off its candidate event, a
+    // user submission off the live event it targets.
     metaEventId: null,
     submittedByUserId: null,
     submissionNote: null,

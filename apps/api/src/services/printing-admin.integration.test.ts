@@ -5,13 +5,11 @@ import type { Io } from "../io.js";
 import { createDbContext, syncCardCardTypes } from "../test/integration-context.js";
 import { acceptPrinting, updatePrintingMarkers } from "./printing-admin.js";
 
-// ---------------------------------------------------------------------------
-// Regression: editing one sibling printing's markers must not trip the
+// Editing one sibling printing's markers must not trip the
 // `uq_printings_identity` constraint even when another printing already has
 // the empty `marker_slugs = {}` state that the DELETE phase passes through.
-// Fix relies on (a) deferrable uniqueness constraints (migration 092) and
-// (b) `updatePrintingMarkers` running DELETE + INSERT inside one transaction.
-// ---------------------------------------------------------------------------
+// Relies on deferrable uniqueness constraints and `updatePrintingMarkers`
+// running DELETE + INSERT inside one transaction.
 
 const USER_ID = "a0000000-0042-4000-a000-000000000001";
 const ctx = createDbContext(USER_ID);
@@ -162,12 +160,10 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Regression: the admin "create printing" flow (and the duplicate-a-printing
-// shortcut behind it) went through the same upsert as the ingest paths, so
-// submitting an unchanged duplicate overwrote the source printing and reported
-// success. `requireNew` makes that identity collision a 409 instead.
-// ---------------------------------------------------------------------------
+// The admin "create printing" flow (and the duplicate-a-printing shortcut
+// behind it) went through the same upsert as the ingest paths, so submitting
+// an unchanged duplicate overwrote the source printing and reported success.
+// `requireNew` makes that identity collision a 409 instead.
 
 describe.skipIf(!ctx)("acceptPrinting requireNew (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf

@@ -27,21 +27,18 @@ export type GroupUpdate = Pick<
   "slug" | "previousSlug" | "name" | "description" | "updatedAt"
 >;
 
-/** Joined member row used by the roster UI — adds the user's public profile. */
 export interface MemberWithUser extends GroupMember {
   userName: string | null;
   userEmail: string;
   userImage: string | null;
 }
 
-/** A group two users have in common, identified just enough to label and link. */
 export interface SharedGroupRow {
   id: string;
   slug: string;
   name: string;
 }
 
-/** Profile basics for a tile avatar stack; the route maps email → gravatar hash. */
 export interface MemberPreviewRow {
   userId: string;
   userName: string | null;
@@ -49,7 +46,6 @@ export interface MemberPreviewRow {
   userImage: string | null;
 }
 
-/** Summary row for the `/groups` index — role of the viewer + a member-count. */
 export interface GroupSummary extends Group {
   viewerRole: FriendGroupRole;
   memberCount: number;
@@ -61,12 +57,6 @@ export interface GroupSummary extends Group {
 /** How many member profiles the index tiles show before the "+N" overflow. */
 const MEMBER_PREVIEW_LIMIT = 5;
 
-/**
- * First `MEMBER_PREVIEW_LIMIT` members of each given group, in roster order
- * (owner → admin → member, then name, then join date) — one query for all
- * groups via a `row_number()` window.
- * @returns Preview rows keyed by group id; groups without rows are absent.
- */
 async function memberPreviewsByGroup(
   db: Kysely<Database>,
   groupIds: string[],
@@ -116,24 +106,16 @@ async function memberPreviewsByGroup(
 }
 
 /**
- * Friend groups, members, invites, and list-shares. The match query joins
- * across these via {@link friendGroupMatchesRepo} in `friend-group-matches.ts`.
- *
  * Authorization is the caller's job: routes pull the viewer's role via
  * `getMembership` and gate writes against {@link FriendGroupRole}. The repo
  * itself is naïve.
- *
- * @returns An object with friend-group query methods bound to the given `db`.
  */
 export function friendGroupsRepo(db: Kysely<Database>) {
   return {
-    // ── Groups ─────────────────────────────────────────────────────────────
-    /** @returns The group row, or `undefined` if no group has that id. */
     getById(id: string): Promise<Group | undefined> {
       return db.selectFrom("friendGroups").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns The group row, or `undefined` if no group has that slug. */
     getBySlug(slug: string): Promise<Group | undefined> {
       return db.selectFrom("friendGroups").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
@@ -144,7 +126,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
      * rename. A current slug always beats another group's stale alias; on the
      * rare alias collision the most recently updated group wins. Keep the
      * exact `getBySlug` for uniqueness/conflict checks.
-     * @returns The matched group row, or `undefined`.
      */
     async getBySlugOrPrevious(slug: string): Promise<Group | undefined> {
       const current = await db
@@ -163,15 +144,13 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The group row matched by its join code, or `undefined`. */
     getByCode(code: string): Promise<Group | undefined> {
       return db.selectFrom("friendGroups").selectAll().where("code", "=", code).executeTakeFirst();
     },
 
     /**
-     * Atomic create — inserts the group and the owner's membership in one
-     * transaction so the partial-unique-owner invariant always holds.
-     * @returns The created group row.
+     * Inserts the group and the owner's membership in one transaction so the
+     * partial-unique-owner invariant always holds.
      */
     createWithOwner(values: NewGroupValues, ownerUserId: string): Promise<Group> {
       return db.transaction().execute(async (trx) => {
@@ -190,7 +169,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns The updated row, or `undefined` if the group was not found. */
     update(id: string, patch: GroupUpdate): Promise<Group | undefined> {
       return db
         .updateTable("friendGroups")
@@ -206,11 +184,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Sets the join code. `null` disables code-based joining (admins must
-     * issue direct invites). Bumps `code_rotated_at` regardless of whether
-     * we're rotating or disabling — the column tracks "when did the current
-     * value start applying".
-     * @returns The updated row, or `undefined` if the group was not found.
+     * `null` disables code-based joining (admins must issue direct invites).
+     * Bumps `code_rotated_at` whether rotating or disabling — the column
+     * tracks "when did the current value start applying".
      */
     setCode(id: string, code: string | null): Promise<Group | undefined> {
       return db
@@ -221,8 +197,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    // ── Membership ─────────────────────────────────────────────────────────
-    /** @returns The membership row, or `undefined` if the user is not a member. */
     getMembership(groupId: string, userId: string): Promise<GroupMember | undefined> {
       return db
         .selectFrom("friendGroupMembers")
@@ -232,12 +206,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * @returns The roster joined with each user's profile. Sorted by role
-     *   (owner → admin → member) and then by name (case-insensitive, NULL
-     *   names last), with `joined_at` as a final tiebreaker, so the owner is
-     *   always at the top.
-     */
     listMembers(groupId: string): Promise<MemberWithUser[]> {
       return (
         db
@@ -259,12 +227,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Groups the viewer is in, with member counts, a shared-list count, the
-     * first few member profiles for the tile avatar stack, and (for
-     * admins/owners) a pending-request count per group. The request count is
-     * `0` for plain members so the UI can render the same row shape
-     * regardless of role.
-     * @returns Group summary rows for the index page.
+     * The pending-request count is `0` for plain members so the UI can render
+     * the same row shape regardless of role.
      */
     async listGroupsForUser(userId: string): Promise<GroupSummary[]> {
       const rows = await db
@@ -306,8 +270,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         rows.map((row) => row.id),
       );
 
-      // Sub-selects come back typed as `number | null`; coerce to plain numbers
-      // for the consumer.
+      // Sub-selects come back typed as `number | null`.
       return rows.map((row) => ({
         ...row,
         memberCount: Number(row.memberCount ?? 0),
@@ -318,12 +281,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The groups both users belong to. Backs the person-level trade sheet,
-     * which pools one counterparty's matches across every group the two share;
-     * an empty result is also the sheet's authorization answer, since two
-     * people with no group in common can see nothing of each other.
-     * @returns The shared groups, sorted by name (case-insensitive, id as a
-     *   stable tiebreak). Empty when the users share no group.
+     * The groups both users belong to. An empty result is also the trade
+     * sheet's authorization answer: two people with no group in common can
+     * see nothing of each other.
      */
     sharedGroups(userIdA: string, userIdB: string): Promise<SharedGroupRow[]> {
       return db
@@ -339,7 +299,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Idempotent member insert (DO NOTHING on existing row). */
     async addMember(groupId: string, userId: string, role: FriendGroupRole): Promise<void> {
       await db
         .insertInto("friendGroupMembers")
@@ -348,7 +307,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Drops the membership; the FK cascade removes shares for that group. */
+    /** The FK cascade removes the member's shares for that group. */
     async removeMember(groupId: string, userId: string): Promise<void> {
       await db
         .deleteFrom("friendGroupMembers")
@@ -358,10 +317,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Updates the role for a single member. Does not touch the owner — use
-     * `transferOwnership` for owner changes (the partial unique index would
-     * reject two owners anyway).
-     * @returns The updated row, or `undefined` if no membership matched.
+     * Not for owner changes — use `transferOwnership` (the partial unique
+     * index would reject two owners anyway).
      */
     updateRole(
       groupId: string,
@@ -377,12 +334,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * The contact methods every member has revealed to this group, keyed by
-     * userId and ordered by the owner's `sort_order`. Members with no revealed
-     * methods are simply absent from the map.
-     * @returns A map of userId → the revealed {@link ContactMethod}s.
-     */
     async getRevealedContactsForMembers(groupId: string): Promise<Map<string, ContactMethod[]>> {
       const rows = await db
         .selectFrom("friendGroupMemberContacts as fgmc")
@@ -403,9 +354,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Replaces the set of contact methods a member reveals to a group. Only ids
-     * the member actually owns are accepted (others are silently dropped), so a
-     * caller can't reveal someone else's method.
+     * Only ids the member actually owns are accepted (others are silently
+     * dropped), so a caller can't reveal someone else's method.
      */
     async setRevealedContacts(
       groupId: string,
@@ -423,8 +373,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           return;
         }
 
-        // Keep only ids this user owns — guards against revealing another
-        // member's method by id.
         const owned = await trx
           .selectFrom("userContactMethods")
           .select("id")
@@ -454,8 +402,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
      * checks membership first, so reaching the throw means the target left the
      * group in between — the transaction rolls back and the owner keeps the
      * group.
-     *
-     * @throws {Error} When `toUserId` is not a member of the group.
      */
     async transferOwnership(groupId: string, fromUserId: string, toUserId: string): Promise<void> {
       await db.transaction().execute(async (trx) => {
@@ -482,8 +428,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       });
     },
 
-    // ── Invites & requests ─────────────────────────────────────────────────
-    /** @returns The pending invite/request for this (group, user), or `undefined`. */
     getInvite(groupId: string, userId: string): Promise<GroupInvite | undefined> {
       return db
         .selectFrom("friendGroupInvites")
@@ -493,13 +437,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Invites addressed to a user (direction='invite') — for the avatar-menu
-     * badge and the pinned section at the top of /groups. Carries the group's
-     * member count and preview profiles so the invite callout can show who is
-     * inside before the user accepts.
-     * @returns Invite rows joined with the group's name/slug.
-     */
     async listInvitesForUser(userId: string): Promise<
       (GroupInvite & {
         groupName: string;
@@ -538,12 +475,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Join requests a user has sent (direction='request') that are still
-     * awaiting approval — for the "Awaiting approval" section on /groups, so the
-     * requester can find and cancel their own pending request. Only the member
-     * count is exposed (no profile previews): like the join preview, a group
-     * doesn't reveal its roster to someone it hasn't accepted yet.
-     * @returns Request rows joined with the group's name/slug.
+     * Only the member count is exposed (no profile previews): a group doesn't
+     * reveal its roster to someone it hasn't accepted yet.
      */
     async listOwnRequestsForUser(
       userId: string,
@@ -571,11 +504,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       }));
     },
 
-    /**
-     * Join requests (direction='request') queued against a group — for the
-     * admin-only requests list.
-     * @returns Request rows joined with the requester's profile.
-     */
     listRequestsForGroup(groupId: string): Promise<
       (GroupInvite & {
         userName: string | null;
@@ -594,7 +522,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The avatar-menu badge count: pending invites for this user. */
     async pendingInvitesCountForUser(userId: string): Promise<number> {
       const row = await db
         .selectFrom("friendGroupInvites")
@@ -605,11 +532,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       return Number(row.count);
     },
 
-    /**
-     * @returns Total pending join requests across every group the user owns or
-     * administers (the requests awaiting their approval). Mirrors the per-group
-     * `pendingRequestCount` surfaced by {@link listGroupsForUser}.
-     */
     async pendingRequestsCountForUser(userId: string): Promise<number> {
       const row = await db
         .selectFrom("friendGroupInvites as i")
@@ -627,9 +549,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Creates an invite/request row. UNIQUE(group_id, user_id) means there's
-     * at most one row per (group, user); ON CONFLICT DO NOTHING swallows
-     * duplicate clicks without erroring.
+     * UNIQUE(group_id, user_id) means at most one row per (group, user);
+     * ON CONFLICT DO NOTHING swallows duplicate clicks without erroring.
      */
     async createInvite(
       groupId: string,
@@ -643,7 +564,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Hard-deletes the invite/request row. */
     async deleteInvite(groupId: string, userId: string): Promise<void> {
       await db
         .deleteFrom("friendGroupInvites")
@@ -652,12 +572,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── List shares ────────────────────────────────────────────────────────
-    /**
-     * All list-shares in a group, joined with each list's owner + metadata.
-     * Used by the match query and by the member-detail page.
-     * @returns Share rows enriched with list and user info.
-     */
     listSharesForGroup(groupId: string): Promise<
       (GroupShare & {
         listName: string;
@@ -678,7 +592,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.intent as listIntent",
           "l.kind as listKind",
           // Cheap materialized-row count. Exact for manual lists; rule-based
-          // lists report 0 here and get an expanded count in the route (ADR-034).
+          // lists report 0 here and get an expanded count in the route.
           sql<number>`(select count(*)::int from list_entries where list_entries.list_id = l.id)`.as(
             "entryCount",
           ),
@@ -689,11 +603,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * The viewer's own shares in a single group. Drives the "which of my
-     * lists are shared here?" checkbox panel on the group settings.
-     * @returns List rows annotated with `sharedAt` when shared, otherwise null.
-     */
     listShareableForUserInGroup(
       groupId: string,
       userId: string,
@@ -730,7 +639,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.defaultPriceAbsoluteCents",
           "l.defaultTradeType",
           "l.currency",
-          // ADR-034: summaries report the rule flag, never the expanded count.
+          // Summaries report the rule flag, never the expanded count.
           sql<boolean>`(jsonb_array_length(l.rules) > 0)`.as("hasRule"),
         ])
         .where("l.userId", "=", userId)
@@ -739,11 +648,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * The list of groups a given list is currently shared with — for the
-     * passive "shared with N groups" badge on the list page.
-     * @returns Lightweight rows: group id, slug, name.
-     */
     listGroupsSharingList(
       listId: string,
     ): Promise<{ groupId: string; groupSlug: string; groupName: string }[]> {
@@ -757,9 +661,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Idempotent share insert. `user_id` is denormalised so the composite FK
-     * to friend_group_members enforces "you can only share into a group
-     * you're a member of".
+     * `user_id` is denormalised so the composite FK to friend_group_members
+     * enforces "you can only share into a group you're a member of".
      */
     async share(groupId: string, listId: string, userId: string): Promise<void> {
       await db
@@ -769,7 +672,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Hard-deletes the share. */
     async unshare(groupId: string, listId: string): Promise<void> {
       await db
         .deleteFrom("friendGroupListShares")
@@ -778,14 +680,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Resolves a list shared with a group, scoped to a viewer who must be a
-     * member of that group. Used to gate the "browse a shared list" view —
-     * the API surface for non-owner reads of another member's list.
-     * @returns The list, its owner's display name, and the viewer's role in
-     *   the group; `undefined` if the list isn't shared here or the viewer
-     *   isn't a member.
-     */
     async getSharedList(
       groupId: string,
       listId: string,
@@ -856,12 +750,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       };
     },
 
-    // ── Collection shares ──────────────────────────────────────────────────
     /**
-     * All personal-collection shares in a group, joined with each
-     * collection's owner. Pooled (group-owned) collections never appear here:
-     * they're enforced out by the composite FK to collections(id, user_id).
-     * @returns Share rows enriched with collection and user info.
+     * Pooled (group-owned) collections never appear here: they're enforced
+     * out by the composite FK to collections(id, user_id).
      */
     collectionSharesForGroup(groupId: string): Promise<
       (GroupCollectionShare & {
@@ -880,7 +771,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "c.name as collectionName",
           "c.sortOrder as collectionSortOrder",
           "u.name as userName",
-          // Total copies in the collection (cast to int — count() is bigint).
           sql<number>`(select count(*)::int from copies cp where cp.collection_id = s.collection_id)`.as(
             "copyCount",
           ),
@@ -892,12 +782,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * The viewer's own collection-shares in a single group. Drives the
-     * checkbox panel on the collection-share dialog. Only personal
-     * collections (user_id IS NOT NULL) are returned.
-     * @returns Collection rows annotated with `sharedAt` when shared, else null.
-     */
     collectionShareableForUserInGroup(
       groupId: string,
       userId: string,
@@ -920,11 +804,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Groups a given collection is currently shared with — for a passive
-     * "shared with N groups" badge on the collection page.
-     * @returns Lightweight rows: group id, slug, name.
-     */
     groupsSharingCollection(
       collectionId: string,
     ): Promise<{ groupId: string; groupSlug: string; groupName: string }[]> {
@@ -938,10 +817,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Idempotent share insert. The composite FK to
-     * friend_group_members(user_id, group_id) enforces "you can only share
-     * into a group you're a member of"; the composite FK to
-     * collections(id, user_id) blocks pooled collections.
+     * The composite FK to friend_group_members(user_id, group_id) enforces
+     * "you can only share into a group you're a member of"; the composite FK
+     * to collections(id, user_id) blocks pooled collections.
      */
     async shareCollection(groupId: string, collectionId: string, userId: string): Promise<void> {
       await db
@@ -951,7 +829,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Hard-deletes the share. */
     async unshareCollection(groupId: string, collectionId: string): Promise<void> {
       await db
         .deleteFrom("friendGroupCollectionShares")
@@ -960,13 +837,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Resolves a collection shared with a group, scoped to a viewer who must
-     * be a member of that group. Gates the read-only "browse a shared
-     * collection" view.
-     * @returns The collection, its owner's display name, and the viewer's
-     *   role in the group; `undefined` if not shared or not a member.
-     */
     async getSharedCollection(
       groupId: string,
       collectionId: string,
@@ -1027,13 +897,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Authorization helper: does the viewer have read access to this
-     * collection through any shared-with-group channel? True iff the
-     * collection is shared to at least one group the viewer belongs to.
-     *
-     * @returns True when the viewer has read access via group membership.
-     */
     async viewerCanReadCollection(viewerUserId: string, collectionId: string): Promise<boolean> {
       const row = await db
         .selectFrom("friendGroupCollectionShares as s")
@@ -1047,12 +910,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    /**
-     * Collections an owner has shared with any group the viewer belongs to.
-     * Used to surface a "Collections" section on the owner's bundle page
-     * when the bundle viewer is authenticated and a fellow group member.
-     * @returns Per-collection rows annotated with the via-groups list.
-     */
     async collectionsBundleForViewer(
       ownerUserId: string,
       viewerUserId: string,

@@ -29,7 +29,6 @@ export interface LegacyTierListRow {
 /**
  * Brings a stored row up to the current entry shape. A legacy `cardIds` row
  * becomes entries pinned to no printing, which is exactly what it meant.
- * @returns The row in the current shape.
  */
 export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): TierListRow[] {
   return tiers.map((tier) => {
@@ -57,24 +56,21 @@ export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): Tier
 /**
  * Applied at the single exit point of each query rather than at call sites, so
  * a new query cannot forget it.
- * @returns The row with `tiers` migrated to the current shape.
  */
 function withParsedTiers<Row extends { tiers: TierListRow[] }>(row: Row): Row {
   return { ...row, tiers: normalizeTiers(row.tiers as (TierListRow | LegacyTierListRow)[]) };
 }
 
 /**
- * Queries for creator-authored tier lists (migration 237).
+ * Queries for creator-authored tier lists.
  *
  * Every owner-scoped method takes `userId` and filters on it, so an id
  * belonging to someone else matches nothing rather than erroring — the routes
  * carry no separate ownership pre-check. `findByShareToken` is the one
  * unscoped read, and it additionally requires `is_public`.
- * @returns An object with tier-list query methods bound to the given `db`.
  */
 export function tierListsRepo(db: Kysely<Database>) {
   return {
-    /** @returns The user's tier lists, most recently edited first. */
     async listForUser(userId: string): Promise<TierList[]> {
       const rows = await db
         .selectFrom("tierLists")
@@ -85,7 +81,6 @@ export function tierListsRepo(db: Kysely<Database>) {
       return rows.map((row) => withParsedTiers(row));
     },
 
-    /** @returns The list, or `undefined` when it isn't the caller's. */
     async getByIdForUser(id: string, userId: string): Promise<TierList | undefined> {
       const row = await db
         .selectFrom("tierLists")
@@ -96,7 +91,6 @@ export function tierListsRepo(db: Kysely<Database>) {
       return row ? withParsedTiers(row) : undefined;
     },
 
-    /** @returns The newly created tier list. */
     async create(
       userId: string,
       values: {
@@ -124,7 +118,6 @@ export function tierListsRepo(db: Kysely<Database>) {
      * Applies a partial edit. `undefined` fields are left alone, so the builder
      * can save the board without restating the title. Not a no-op guard: the
      * caller only reaches this with at least one field set.
-     * @returns The updated list, or `undefined` when it isn't the caller's.
      */
     async update(
       id: string,
@@ -145,7 +138,6 @@ export function tierListsRepo(db: Kysely<Database>) {
       return row ? withParsedTiers(row) : undefined;
     },
 
-    /** @returns True if a list was deleted. */
     async remove(id: string, userId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("tierLists")
@@ -156,7 +148,6 @@ export function tierListsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns `{ shareToken, isPublic }` for an owned list, else `undefined`.
      * An owned-but-unshared list reports `{ shareToken: null, isPublic: false }`
      * rather than being indistinguishable from a missing one.
      */
@@ -170,7 +161,6 @@ export function tierListsRepo(db: Kysely<Database>) {
     /**
      * Sets (or clears) the share token and public flag, including the
      * unique-violation surface that `withUniqueShareToken` retries on.
-     * @returns The new share state, or `undefined` when the list isn't the caller's.
      */
     setShare(
       id: string,
@@ -184,7 +174,6 @@ export function tierListsRepo(db: Kysely<Database>) {
     /**
      * Resolves a public share token. Requires `is_public` as well as the token,
      * so revoking sharing kills the link even if the token is still on the row.
-     * @returns The list and its owner's name, or `undefined`.
      */
     async findByShareToken(shareToken: string): Promise<SharedTierList | undefined> {
       const found = await findByShareToken(db, "tierLists", shareToken);

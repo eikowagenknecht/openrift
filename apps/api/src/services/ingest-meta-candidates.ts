@@ -1,6 +1,4 @@
 /**
- * Candidate ingest for the meta archive (ADR-014).
- *
  * External tooling pushes `{ provider, events: [...] }`; each uploaded event
  * wholly replaces its own candidate — fields and decks alike — and events the
  * payload does not name are left alone. There is deliberately no provider-wide
@@ -40,7 +38,6 @@ import type {
 import type { CardNameIndex } from "./candidate-links.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
-/** `{ externalId, name }` of an event the upload created or changed. */
 interface MetaIngestEventDetail {
   externalId: string;
   name: string;
@@ -83,40 +80,29 @@ export interface MetaIngestResult {
 const DECK_ZONES = new Set<string>(Object.values(WellKnown.deckZone));
 
 /**
- * The key a deck is identified by outside its own event's candidate row.
- *
- * External ids are only unique within an event, so anything that spans events —
- * the ignore list, the index of live decks this provider already contributed —
- * has to pair the two. The separator is a newline, which no source id contains.
- *
- * @param eventExternalId The source's id for the deck's event.
- * @param externalId The source's id for the deck.
- * @returns The composite lookup key.
+ * External deck ids are only unique within an event, so anything that spans
+ * events — the ignore list, the index of live decks this provider already
+ * contributed — has to pair the two. The separator is a newline, which no
+ * source id contains.
  */
 function deckKey(eventExternalId: string, externalId: string): string {
   return `${eventExternalId}\n${externalId}`;
 }
 
-/** @returns Whether the value is a positive whole number. */
 function isPositiveInt(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
 
-/** @returns Whether an optional string is absent or within the column's bounds. */
 function inBounds(value: string | null, min: number, max: number): boolean {
   return value === null || (value.length >= min && value.length <= max);
 }
 
 /**
- * Every reason this event cannot be staged, checked against the same bounds the
- * table's CHECK constraints enforce. An empty result means it is safe to write.
+ * Checked against the same bounds the table's CHECK constraints enforce.
  *
  * `format` is deliberately not checked against `deck_formats`: a candidate
  * carries whatever the source called it, and an unknown format is something the
  * review screen reports, not a reason to drop the event.
- *
- * @param event The uploaded event.
- * @returns Human-readable problems, empty when the event is valid.
  */
 function validateEvent(event: MetaIngestEvent): string[] {
   const problems: string[] = [];
@@ -148,12 +134,9 @@ function validateEvent(event: MetaIngestEvent): string[] {
 }
 
 /**
- * Every reason this deck cannot be staged. A deck with no cards is rejected
- * even though the column would accept `[]`: an empty list trivially satisfies
- * "every card resolved" and would accept into an empty archived deck.
- *
- * @param deck The uploaded deck.
- * @returns Human-readable problems, empty when the deck is valid.
+ * A deck with no cards is rejected even though the column would accept `[]`:
+ * an empty list trivially satisfies "every card resolved" and would accept
+ * into an empty archived deck.
  */
 function validateDeck(deck: MetaIngestEventDeck): string[] {
   const problems: string[] = [];
@@ -189,10 +172,7 @@ function validateDeck(deck: MetaIngestEventDeck): string[] {
   return problems;
 }
 
-/**
- * @param event The uploaded event.
- * @returns The candidate event columns an upload owns, for change detection and writes.
- */
+/** The candidate event columns an upload owns, for change detection and writes. */
 function eventFields(event: MetaIngestEvent) {
   return {
     name: event.name,
@@ -206,10 +186,7 @@ function eventFields(event: MetaIngestEvent) {
   };
 }
 
-/**
- * @param deck The uploaded deck.
- * @returns The candidate deck columns an upload owns, excluding the card list.
- */
+/** The candidate deck columns an upload owns, excluding the card list. */
 function deckFields(deck: MetaIngestEventDeck) {
   return {
     playerName: deck.playerName,
@@ -229,9 +206,6 @@ function deckFields(deck: MetaIngestEventDeck) {
  * strings read as absent — the same rule the diff module applies, so a stored
  * `""` never reads as a change against an incoming null. Non-scalars (only
  * `extra_data`, arbitrary JSON) pass through for `Bun.deepEquals` to handle.
- *
- * @param fields One record's owned columns.
- * @returns The record with its empty-ish scalars folded to null.
  */
 function comparable(fields: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -245,9 +219,6 @@ function comparable(fields: Record<string, unknown>): Record<string, unknown> {
 /**
  * `extra_data` is arbitrary JSON, so a shallow compare would report a change on
  * every upload. Everything else here is a scalar.
- * @param a One record.
- * @param b The other.
- * @returns Whether they hold the same values.
  */
 function sameFields(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
   return Bun.deepEquals(comparable(a), comparable(b));
@@ -257,9 +228,6 @@ function sameFields(a: Record<string, unknown>, b: Record<string, unknown>): boo
  * A deck's cards in a stable order, so a source that reshuffles its list
  * between pushes does not read as a change and reset a completed review. The
  * stored column keeps the source's own order; only the comparison is sorted.
- *
- * @param cards Card rows, resolved or not.
- * @returns The same rows, ordered by card (id where known, else name), zone, quantity.
  */
 function sortedCards(cards: readonly CandidateMetaDeckCard[]): CandidateMetaDeckCard[] {
   return cards.toSorted((a, b) => {
@@ -277,9 +245,6 @@ function sortedCards(cards: readonly CandidateMetaDeckCard[]): CandidateMetaDeck
  * on this rather than on the resolved rows, so that a rematch turning a null
  * `cardId` into a real one does not kick an already-reviewed deck back into the
  * queue — the source said the same thing, we just understand it better now.
- *
- * @param cards Card rows, resolved or not.
- * @returns The source-only projection, order-independent.
  */
 function sourceCards(cards: readonly CandidateMetaDeckCard[]) {
   return sortedCards(cards).map((card) => ({
@@ -294,9 +259,6 @@ function sourceCards(cards: readonly CandidateMetaDeckCard[]) {
  * ones and summing rows that landed on the same card and zone — the same
  * collapse the accept path applies before writing `deck_cards`, so an accepted
  * deck reads as in sync afterwards.
- *
- * @param cards Card rows, resolved or not.
- * @returns One diff entry per resolved card and zone.
  */
 function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardEntry[] {
   const entries: MetaDeckCardEntry[] = [];
@@ -308,7 +270,6 @@ function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckC
   return collapseCardEntries(entries);
 }
 
-/** @returns The payload's cards with each name run through the shared matcher. */
 function resolveCards(index: CardNameIndex, deck: MetaIngestEventDeck): CandidateMetaDeckCard[] {
   return deck.cards.map((card) => ({
     name: card.name,
@@ -324,13 +285,7 @@ function resolveCards(index: CardNameIndex, deck: MetaIngestEventDeck): Candidat
  * Three cases, in order: a row that now matches its live counterpart settles
  * itself so it never reaches the queue; a row the upload changed (in its fields
  * or in what it links to) goes back into the queue; anything else keeps the
- * review state it had.
- *
- * @param options.previous The stored `checked_at`, or undefined for a new row.
- * @param options.changed Whether this upload changed the row.
- * @param options.inSync Whether the row is linked and identical to live.
- * @param options.now The ingest timestamp.
- * @returns The value to write, or `undefined` to leave the column alone.
+ * review state it had. Returns `undefined` to leave the column alone.
  */
 function nextCheckedAt(options: {
   previous: Date | null | undefined;
@@ -358,11 +313,6 @@ function nextCheckedAt(options: {
  * not, so a mid-batch failure can never leave an event's decks half-replaced.
  * Per-item validation failures are not batch failures — they are reported and
  * skipped.
- *
- * @param transact Opens the transaction the whole ingest runs in.
- * @param provider The uploading provider; a new string is a new provider.
- * @param events The payload's events with their decks.
- * @returns Counts and per-item detail for the upload summary.
  */
 export async function ingestMetaCandidates(
   transact: Transact,
@@ -390,7 +340,6 @@ export async function ingestMetaCandidates(
     unresolvedCards: [],
   };
 
-  // ── Deterministic de-duplication of incoming keys ──────────────────────────
   // Two events sharing an external id would resolve to the same candidate row
   // twice, and which values survived would depend on payload order — a silent
   // flip on every re-upload. Keep the first occurrence and report the rest.
@@ -430,7 +379,6 @@ export async function ingestMetaCandidates(
     const repo = repos.metaCandidates;
     const now = new Date();
 
-    // ── Phase 1: bulk-read everything the write loop needs ──────────────────
     const eventKeys = deduped.map((event) => event.externalId);
     const deckKeys = deduped.flatMap((event) => event.decks.map((deck) => deck.externalId));
 
@@ -450,10 +398,9 @@ export async function ingestMetaCandidates(
       ignoredDeckKeys.map((key) => deckKey(key.eventExternalId, key.externalId)),
     );
     // Both indexes are keyed on the *source's* vocabulary, which the live
-    // tables have not held since migration 255. The repo reads it from the
-    // `meta_event_sources` / `meta_deck_sources` rows — deliberately not from
-    // the candidate, which an ignore deletes — and hands the key back alongside
-    // the live row.
+    // tables do not hold. The repo reads it from the `meta_event_sources` /
+    // `meta_deck_sources` rows — deliberately not from the candidate, which an
+    // ignore deletes — and hands the key back alongside the live row.
     const liveEventByKey = new Map(liveEvents.map((row) => [row.candidateExternalId, row]));
     const liveDeckByKey = new Map<string, LiveMetaDeckRow>(
       liveDecks.map((row) => [deckKey(row.candidateEventExternalId, row.candidateExternalId), row]),
@@ -474,7 +421,6 @@ export async function ingestMetaCandidates(
     const existingDecks = await repo.decksByCandidateEventIds(existingEvents.map((row) => row.id));
     const existingDecksByEvent = Map.groupBy(existingDecks, (row) => row.candidateEventId);
 
-    // ── Phase 2: per-event replace ──────────────────────────────────────────
     for (const event of deduped) {
       if (ignoredEvents.has(event.externalId)) {
         result.ignoredSkipped++;
@@ -534,7 +480,6 @@ export async function ingestMetaCandidates(
         }
       }
 
-      // ── Phase 3: wholesale-replace this event's decks ─────────────────────
       const existingDeckRows = existingDecksByEvent.get(candidateEventId) ?? [];
       const existingDeckByKey = new Map(existingDeckRows.map((row) => [row.externalId, row]));
       const keptDeckIds = new Set<string>();
@@ -641,7 +586,7 @@ export async function ingestMetaCandidates(
   return result;
 }
 
-/** @returns The stored candidate event in the shape {@link eventFields} reads. */
+/** The stored candidate event in the shape {@link eventFields} reads. */
 function toEventLike(row: CandidateMetaEventRow): MetaIngestEvent {
   return {
     externalId: row.externalId,
@@ -657,7 +602,7 @@ function toEventLike(row: CandidateMetaEventRow): MetaIngestEvent {
   };
 }
 
-/** @returns The stored candidate deck in the shape {@link deckFields} reads. */
+/** The stored candidate deck in the shape {@link deckFields} reads. */
 function toDeckLike(row: CandidateMetaDeckRow): MetaIngestEventDeck {
   return {
     externalId: row.externalId,
@@ -681,13 +626,6 @@ function toDeckLike(row: CandidateMetaDeckRow): MetaIngestEventDeck {
  * The event comparison is what stops a re-parented deck settling itself: the
  * candidate's parent points at one live event, the deck it links to still sits
  * under another, and accepting would move it.
- *
- * @param liveDeck The linked live deck.
- * @param liveCards Its card rows.
- * @param deck The uploaded deck.
- * @param cards Its resolved card rows.
- * @param candidateEventId The live event the candidate's parent points at, if any.
- * @returns Whether anything would change.
  */
 function hasAnyDeckChange(
   liveDeck: LiveMetaDeckRow,

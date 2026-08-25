@@ -19,7 +19,7 @@ const ctx = createDbContext(userId);
  * headline price rule with its own ordering, and because a printing can have
  * several SKUs bound on one marketplace with nothing saying which is the price.
  *
- * Migration 219 makes both read `mv_daily_printing_prices`, so the agreement is
+ * Both read `mv_daily_printing_prices`, so the agreement is
  * structural rather than two expressions kept in sync by hand. These tests pin
  * that down, plus the two rules the view encodes: cheapest bound SKU wins, and
  * CardTrader's Zero price carries forward across days.
@@ -40,7 +40,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   let groupCollectionId = "";
   let groupId = "";
 
-  /** @returns The UTC date `daysAgo` days before today, at midnight. */
   function dayOffset(daysAgo: number): Date {
     const d = new Date();
     d.setUTCHours(0, 0, 0, 0);
@@ -169,7 +168,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       ])
       .execute();
 
-    // Two copies of the normal printing, one of the CT printing.
     const copyRows = await db
       .insertInto("copies")
       .values([
@@ -196,9 +194,9 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .execute();
 
     // An orphan `removed` with no matching `added`, for a printing the user
-    // still holds. 6573 of these exist in production: their copies predate
-    // event logging, so migration 139's backfill could never reach them. A
-    // forward replay lets this cancel one of the two live copies above.
+    // still holds. These exist in production because their copies predate
+    // event logging and could never be backfilled. A forward replay lets
+    // this cancel one of the two live copies above.
     await db
       .insertInto("collectionEvents")
       .values({
@@ -296,10 +294,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
     await db.deleteFrom("printings").where("id", "in", [normalPrintingId, ctPrintingId]).execute();
     await repo.refreshLatestPrices();
   });
-
-  // ---------------------------------------------------------------------------
-  // The invariant
-  // ---------------------------------------------------------------------------
 
   it("ends the series on the same value the Stats card shows", async () => {
     const series = await repo.collectionValueTimeSeries({
@@ -400,10 +394,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
 
     expect(series.at(-1)!.valueCents).toBe(values.get(collectionId)!.totalValueCents);
   });
-
-  // ---------------------------------------------------------------------------
-  // The rules the daily view encodes
-  // ---------------------------------------------------------------------------
 
   it("prices a printing from its cheapest bound SKU, not an arbitrary one", async () => {
     const row = await db

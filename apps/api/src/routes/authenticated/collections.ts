@@ -39,7 +39,6 @@ const os = implement(collectionsContract).$context<ApiContext>().use(requireAuth
  * Which of the caller's decks live in which collection, so a collection can
  * present itself as a deck box. Scoped to the caller, so a group member never
  * learns where another member stores their decks.
- * @returns Deck names keyed by the collection they are stored in.
  */
 async function homeDecksByCollection(
   repos: ApiContext["repos"],
@@ -64,7 +63,6 @@ async function homeDecksByCollection(
  * by the handler's appErrorInterceptor.
  */
 export const collectionsRouter = {
-  // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ context }): Promise<CollectionListResponse> => {
     const repos = context.repos;
     const userId = context.userId;
@@ -82,7 +80,6 @@ export const collectionsRouter = {
     };
   }),
 
-  // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const { collections, collectionDeckbuildingPrefs, friendGroups } = context.repos;
     const userId = context.userId;
@@ -115,7 +112,7 @@ export const collectionsRouter = {
       sortOrder,
     });
 
-    // Deck-building availability is now a per-viewer preference, not a column.
+    // Deck-building availability is a per-viewer preference, not a column.
     // The type default is "available if it's my own collection" (group_id IS
     // NULL), so a personal collection only needs an explicit row when the
     // creator opts it OUT. Group collections default off and are opted in via
@@ -136,7 +133,6 @@ export const collectionsRouter = {
     });
   }),
 
-  // ── GET ONE ─────────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const repos = context.repos;
     const userId = context.userId;
@@ -152,7 +148,6 @@ export const collectionsRouter = {
     );
   }),
 
-  // ── UPDATE ──────────────────────────────────────────────────────────────────
   update: os.update.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const { collections } = context.repos;
     const userId = context.userId;
@@ -182,10 +177,9 @@ export const collectionsRouter = {
     );
   }),
 
-  // ── DELETE /collections/:id ─────────────────────────────────────────────────
-  // Personal: blocks inbox, moves remaining copies to inbox, then deletes.
-  // Shared: requires group admin. There's no group "inbox" — deletion fails if
-  // the collection still has copies. The UI surfaces this.
+  // There is no group inbox, so a shared collection must be emptied before
+  // deletion (the UI surfaces this); a personal collection's remaining copies
+  // move to the owner's inbox.
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
     const transact = context.transact;
@@ -226,8 +220,6 @@ export const collectionsRouter = {
     });
   }),
 
-  // ── POST /collections/:id/clear ─────────────────────────────────────────────
-  // Removes every copy from the collection but keeps the collection itself.
   // Built for the inbox (which can never be deleted, so "clear" is its
   // delete-equivalent), but allowed for any collection the viewer administers.
   // Copies pinned by a live trade or loan stay put and are reported back.
@@ -246,7 +238,6 @@ export const collectionsRouter = {
     return clearCollectionService(transact, { collectionId: input.id, userId });
   }),
 
-  // ── GET /collections/:id/copies ─────────────────────────────────────────────
   copies: os.copies.handler(async ({ input, context }): Promise<CopyListResponse> => {
     const { collections, copies } = context.repos;
     const userId = context.userId;
@@ -260,11 +251,9 @@ export const collectionsRouter = {
     return keysetPage(rows, effectiveLimit, toCopy);
   }),
 
-  // ── POST /collections/:id/share ───────────────────────────────────────────
-  // Enables sharing and returns the share token + is_public=true. Idempotent:
-  // re-sharing an already-shared collection returns the EXISTING token unchanged
-  // rather than minting a new one. Use POST /share/rotate to deliberately churn
-  // the token. Personal owners or group admins only.
+  // Idempotent: re-sharing an already-shared collection returns the EXISTING
+  // token unchanged rather than minting a new one. Use rotate to deliberately
+  // churn the token.
   share: os.share.handler(async ({ input, context }): Promise<CollectionShareResponse> => {
     const { collections } = context.repos;
     const userId = context.userId;
@@ -275,7 +264,6 @@ export const collectionsRouter = {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can share this collection");
     }
 
-    // Idempotent: if already public with a token, hand back the existing state.
     if (access.collection.isPublic && access.collection.shareToken) {
       return { shareToken: access.collection.shareToken, isPublic: true };
     }
@@ -287,10 +275,9 @@ export const collectionsRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // ── GET /collections/:id/share ────────────────────────────────────────────
-  // Reports the current share state. Owner/group-admin only. An owned-but-
-  // unshared collection returns { shareToken: null, isPublic: false } — it does
-  // NOT 404 (404 is reserved for collections the viewer can't access at all).
+  // An owned-but-unshared collection returns { shareToken: null, isPublic:
+  // false } — it does NOT 404 (404 is reserved for collections the viewer
+  // can't access at all).
   shareState: os.shareState.handler(
     async ({ input, context }): Promise<CollectionShareResponse> => {
       const { collections } = context.repos;
@@ -313,11 +300,9 @@ export const collectionsRouter = {
     },
   ),
 
-  // ── POST /collections/:id/share/rotate ────────────────────────────────────
-  // Mints a NEW share token, invalidating the old one (old links 404 forever),
-  // and ensures is_public=true. If the collection isn't shared yet, this acts as
-  // "share now" — the repo's setShareTokenById handles both cases identically.
-  // Owner/group-admin only.
+  // Mints a NEW share token, invalidating the old one (old links 404 forever).
+  // If the collection isn't shared yet, this acts as "share now" — the repo's
+  // setShareTokenById handles both cases identically.
   rotateShare: os.rotateShare.handler(
     async ({ input, context }): Promise<CollectionShareResponse> => {
       const { collections } = context.repos;
@@ -337,8 +322,6 @@ export const collectionsRouter = {
     },
   ),
 
-  // ── DELETE /collections/:id/share ─────────────────────────────────────────
-  // Nulls the share token and flips is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { collections } = context.repos;
     const userId = context.userId;
@@ -353,9 +336,7 @@ export const collectionsRouter = {
     assertFound(updated, "Not found");
   }),
 
-  // ── GET /collections/:id/group-shares ─────────────────────────────────────
-  // "Shared with N groups" badge on the collection page. Scoped to personal
-  // collections the viewer owns; non-owned/pooled collections 404.
+  // Backs the "Shared with N groups" badge on the collection page.
   groupShares: os.groupShares.handler(
     async ({ input, context }): Promise<CollectionGroupSharesResponse> => {
       const { collections, friendGroups } = context.repos;
@@ -372,31 +353,25 @@ export const collectionsRouter = {
     },
   ),
 
-  // ── POST /collections/reset ───────────────────────────────────────────────
-  // Danger-zone reset: wipes every copy from the user's personal collections,
-  // deletes every personal collection except the inbox (created if missing),
-  // and prunes lists the wipe emptied (no entries left, no dynamic rules).
-  // Group collections are untouched. 409s while copies are reserved in active
-  // trades or out on loans.
+  // Danger-zone reset: wipes personal collections only (inbox kept, created if
+  // missing; group collections untouched) and prunes lists the wipe emptied.
+  // 409s while copies are reserved in active trades or out on loans.
   resetAll: os.resetAll.handler(async ({ context }): Promise<ResetCollectionsResponse> => {
     const { resetCollections } = context.services;
     return await resetCollections(context.transact, context.userId);
   }),
 
-  // ── POST /collections/reorder ─────────────────────────────────────────────
-  // Bulk reorder for the user's personal collections. Group-owned rows are
-  // silently ignored (they stay alphabetical) so the client can pass any
-  // visible-order subset without filtering first.
+  // Group-owned rows are silently ignored (they stay alphabetical) so the
+  // client can pass any visible-order subset without filtering first.
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { collections } = context.repos;
     const userId = context.userId;
     await collections.reorderPersonal(userId, input.orderedIds);
   }),
 
-  // ── PUT /collections/:id/deckbuilding ──────────────────────────────────────
-  // Sets the *caller's own* deck-building availability for a collection. This
-  // is a per-viewer preference, so any member with access may set it for
-  // themselves — including for shared group collections (not admin-gated).
+  // Deck-building availability is a per-viewer preference, so any member with
+  // access may set it for themselves — including for shared group collections
+  // (not admin-gated).
   setDeckbuilding: os.setDeckbuilding.handler(async ({ input, context }): Promise<void> => {
     const { collections, collectionDeckbuildingPrefs } = context.repos;
     const userId = context.userId;
@@ -407,7 +382,6 @@ export const collectionsRouter = {
     await collectionDeckbuildingPrefs.set(userId, input.id, input.available);
   }),
 
-  // ── PUT /collections/:id/sidebar ──────────────────────────────────────────
   // Pushes the collection behind the sidebar's "Show more" toggle for the
   // caller only. Per-viewer like deck-building availability, so members of a
   // shared group collection can each curate their own sidebar (not

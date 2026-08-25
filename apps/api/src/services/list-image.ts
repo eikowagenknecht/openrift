@@ -5,9 +5,9 @@ import type { ShareImageCard, ShareImageOptions } from "./share-image.js";
 import { renderShareImage } from "./share-image.js";
 
 /**
- * Prepares a single list's enriched entries into a share image (ADR-024).
- * Shared by the public og:image route, the bundle route, and the owner's
- * download route so the rendering and the work-bounding stay in one place.
+ * Prepares a single list's enriched entries into a share image. Shared by the
+ * public og:image route, the bundle route, and the owner's download route so
+ * the rendering and the work-bounding stay in one place.
  */
 
 /** Max entries whose art we resolve per render; the grid only shows a dozen. */
@@ -17,7 +17,6 @@ const RENDER_ENTRY_CAP = 60;
  * Keeps the entries most likely to be shown (the renderer leads with the
  * highest quantities) and drops the long tail before the batched art lookup and
  * the render, so an oversized list can't force unbounded per-request work.
- * @returns At most RENDER_ENTRY_CAP entries.
  */
 export function topByQuantity(entries: readonly ListEntryRow[]): readonly ListEntryRow[] {
   if (entries.length <= RENDER_ENTRY_CAP) {
@@ -32,7 +31,6 @@ export function topByQuantity(entries: readonly ListEntryRow[]): readonly ListEn
  * Maps enriched entries to render cards, resolving a representative printing's
  * art for card-kind entries (which carry no specific printing) the same way the
  * card grids pick a canonical printing.
- * @returns Render cards in entry order.
  */
 export async function buildCards(
   entries: readonly ListEntryRow[],
@@ -64,7 +62,6 @@ export async function buildCards(
  * Derives the footer host (e.g. "openrift.app") from `CORS_ORIGIN`. That env var
  * is a comma-separated allow-list (see cors.ts), so we take the first origin;
  * running `new URL()` on the whole string mis-parses the authority.
- * @returns The host, or undefined when there is no parseable origin.
  */
 export function siteHostFromOrigin(corsOrigin: string | undefined): string | undefined {
   const firstOrigin = corsOrigin?.split(",")[0]?.trim();
@@ -82,7 +79,6 @@ export function siteHostFromOrigin(corsOrigin: string | undefined): string | und
  * Builds an absolute share URL for a QR from `CORS_ORIGIN` and a site-relative
  * path. Same first-origin rule as `siteHostFromOrigin`: the first entry of the
  * allow-list is the canonical site origin.
- * @returns The absolute URL, or undefined when there is no configured origin.
  */
 export function shareUrlFromOrigin(
   corsOrigin: string | undefined,
@@ -92,7 +88,6 @@ export function shareUrlFromOrigin(
   return firstOrigin ? `${firstOrigin}${path}` : undefined;
 }
 
-/** @returns The caption label for a list's intent. */
 function intentLabel(intent: string): string {
   if (intent === "trade") {
     return "Trade list";
@@ -103,7 +98,7 @@ function intentLabel(intent: string): string {
   return "List";
 }
 
-/** @returns The count unit for a list kind (mirrors the share text's KIND_NOUN). */
+// Mirrors the share text's KIND_NOUN.
 function unitForKind(kind: string): { one: string; many: string } {
   // Copy (trade) lists merge to one tile per printing, so they count printings.
   if (kind === "printing" || kind === "copy") {
@@ -115,13 +110,12 @@ function unitForKind(kind: string): { one: string; many: string } {
 /**
  * Collapses copy-kind rows (one per physical copy) into one row per printing,
  * summing quantities — a trade binder shows one tile "3× Cleave" not three.
- * @returns One row per distinct printing.
  */
 function mergeCopyRows(entries: readonly ListEntryRow[]): ListEntryRow[] {
   const byPrinting = new Map<string, ListEntryRow>();
   for (const entry of entries) {
-    // Key by target id, not entry id — rule-only entries (ADR-034) have a null
-    // entry id, which would collapse them all onto one bucket.
+    // Key by target id, not entry id — rule-only entries have a null entry
+    // id, which would collapse them all onto one bucket.
     const key = entry.kind === "card" ? entry.cardId : entry.printingId;
     const existing = byPrinting.get(key);
     byPrinting.set(
@@ -149,7 +143,6 @@ export interface ListImageData {
  * Renders one list's share image from its enriched entries. `scale` renders the
  * same layout at N× for the HQ download; `options` picks the canvas and whether
  * the mark carries a scannable code.
- * @returns PNG bytes ready to return as `image/png`.
  */
 export async function renderListImage(
   io: Io,

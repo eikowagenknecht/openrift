@@ -9,8 +9,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminRulesContract).$context<ApiContext>().use(requireAuthedUser);
 
-// ── Parser ──────────────────────────────────────────────────────────────────
-
 interface ParsedRule {
   ruleNumber: string;
   ruleType: RuleType;
@@ -19,11 +17,7 @@ interface ParsedRule {
   sortOrder: number;
 }
 
-/**
- * Computes the depth of a rule number based on its dot-separated segments.
- *
- * @returns 0 for "100", 1 for "100.1", 2 for "100.1.a", 3 for "100.1.a.1".
- */
+/** Depth of a rule number from its dot-separated segments: 0 for "100", 1 for "100.1", 2 for "100.1.a", 3 for "100.1.a.1". */
 function computeDepth(ruleNumber: string): number {
   const parts = ruleNumber.split(".");
   return Math.min(parts.length - 1, 3);
@@ -36,8 +30,6 @@ const RULE_LINE_REGEX = /^(?<number>\d+(?:\.[A-Za-z0-9]+)*)\.\s+(?<rest>.*)$/u;
  * `<rule_number>. <markdown_content>`, where a leading `# ` marks a title and
  * `## ` a subtitle. Literal `\n` sequences in the content become real newlines
  * so a single line can hold a multi-paragraph rule.
- *
- * @returns Array of parsed rules.
  */
 export function parseRulesText(text: string): ParsedRule[] {
   const rules: ParsedRule[] = [];
@@ -115,7 +107,6 @@ export const adminRulesRouter = {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid rules found in content");
     }
 
-    // Get the previous version's rules (within this kind) to compute diffs.
     // Versions are ordered ASC so `at(-1)` is the highest existing version.
     const versions = await repo.listVersions(body.kind);
     const previousVersion = versions.at(-1)?.version;
@@ -137,7 +128,6 @@ export const adminRulesRouter = {
       previousRulesMap = new Map(previousRules.map((r) => [r.ruleNumber, r.content]));
     }
 
-    // Compute change types
     const newRuleNumbers = new Set(parsed.map((r) => r.ruleNumber));
     const rulesWithChanges: {
       kind: RuleKind;
@@ -155,7 +145,6 @@ export const adminRulesRouter = {
     let removed = 0;
 
     if (previousVersion) {
-      // Detect added and modified rules
       for (const rule of parsed) {
         const previousContent = previousRulesMap.get(rule.ruleNumber);
         if (previousContent === undefined) {
@@ -175,10 +164,8 @@ export const adminRulesRouter = {
           });
           modified++;
         }
-        // Unchanged rules: no new row needed
       }
 
-      // Detect removed rules
       for (const [ruleNumber] of previousRulesMap) {
         if (!newRuleNumbers.has(ruleNumber)) {
           rulesWithChanges.push({
@@ -195,7 +182,6 @@ export const adminRulesRouter = {
         }
       }
     } else {
-      // First version (for this kind): all rules are "added"
       for (const rule of parsed) {
         rulesWithChanges.push({
           kind: body.kind,

@@ -6,65 +6,49 @@ import type { Io } from "../io.js";
 import { CARD_MEDIA_DIR } from "./images/paths.js";
 
 /**
- * Shared primitives for the server-rendered share images (ADR-024, ADR-031):
- * the satori hyperscript, the bundled fonts, the card-art / SVG transcoders, the
- * card tile, the QR mark, and the satori → resvg finish. The list/bundle
- * renderer (`share-image.ts`), the deck renderer (`deck-image.ts`) and the
- * tier-list renderer (`tier-list-image.ts`) all compose these; the layouts live
- * in those files, everything the three share lives here.
+ * Shared primitives for the server-rendered share images. A constant that
+ * governs how the renderers *look* the same — palette, card aspect, tile, mark
+ * size — belongs here rather than being restated per renderer, which is how
+ * the surfaces drifted apart in the first place.
  *
- * A constant that governs how the three *look* the same — the palette, the card
- * aspect, the tile, the mark size — belongs here rather than being restated per
- * renderer, which is how the surfaces drifted apart in the first place.
- *
- * satori speaks a CSS subset: every container with more than one child needs an
- * explicit `display: "flex"`, the default flex direction is `row`, and colors
- * must be concrete (no oklch). Raster sources (card art is WebP, glyphs are SVG)
- * cannot be embedded by satori directly, so each is transcoded to a PNG data URI
- * with sharp first.
+ * satori speaks a CSS subset: every container with more than one child needs
+ * an explicit `display: "flex"`, the default flex direction is `row`, and
+ * colors must be concrete (no oklch). Raster sources (WebP card art, SVG
+ * glyphs) cannot be embedded by satori directly, so each is transcoded to a
+ * PNG data URI with sharp first.
  */
 
 /**
- * Which canvas a share image renders on. `landscape` is the link-unfurl shape
- * every og:image uses; `vertical` is a download-only export for the places a
- * decklist is read on a phone held upright — a story, a photo-mode slide, or a
- * background plate in a video editor. No crawler consumes a 9:16 og:image (they
- * crop or letterbox it), so an aspect never reaches the `og:image` URL.
+ * `vertical` is a download-only export: no crawler consumes a 9:16 og:image
+ * (they crop or letterbox it), so an aspect never reaches the `og:image` URL.
  */
 export type ShareImageAspect = "landscape" | "vertical";
 
 /**
- * Canvas size per aspect. 1200×630 is the og convention; 1080×1920 is the
- * native upload resolution for every vertical surface, so the 1× vertical
- * render is already the deliverable and `size=hq` is only editing headroom.
+ * 1200×630 is the og convention; 1080×1920 is the native upload resolution for
+ * every vertical surface, so the 1× vertical render is already the deliverable.
  */
 export const CANVAS: Record<ShareImageAspect, { width: number; height: number }> = {
   landscape: { width: 1200, height: 630 },
   vertical: { width: 1080, height: 1920 },
 };
 
-/** @returns The aspect a request asked for; anything unrecognized stays landscape. */
 export function aspectFromQuery(value: string | undefined): ShareImageAspect {
   return value === "vertical" ? "vertical" : "landscape";
 }
 
 /**
- * Largest multiplier a render may be asked for. ADR-031 caps the *public*,
- * immutably-cached images at 2× because rasterizing cost grows super-linearly
- * and every URL is a new cache entry. 3× is offered only on the owner-only
- * download routes, which are authenticated, `no-store`, and low traffic — there
- * it buys a creator real editing headroom for a thumbnail crop.
+ * Public, immutably-cached images are capped at 2× because rasterizing cost
+ * grows super-linearly and every URL is a new cache entry. 3× is offered only
+ * on the owner-only download routes (authenticated, `no-store`, low traffic).
  */
 export const MAX_IMAGE_SCALE = 3;
 
 /**
- * Render multiplier a request asked for. `?scale=N` is the explicit form used by
- * the export dialogs; `?size=hq` is the older two-valued form and still means 2×,
- * so existing og:image and download URLs keep rendering exactly what they did.
- * An unparseable or out-of-range `scale` falls through to `size` rather than
- * erroring — a bad multiplier should cost sharpness, not the whole image.
- *
- * @returns An integer multiplier between 1 and {@link MAX_IMAGE_SCALE}.
+ * `?size=hq` is the older two-valued form and still means 2×, so existing
+ * og:image and download URLs keep rendering what they did. An unparseable
+ * `scale` falls through rather than erroring — a bad multiplier should cost
+ * sharpness, not the whole image.
  */
 export function scaleFromQuery(scale: string | undefined, size: string | undefined): number {
   const asked = Number(scale);
@@ -74,13 +58,7 @@ export function scaleFromQuery(scale: string | undefined, size: string | undefin
   return size === "hq" ? 2 : 1;
 }
 
-/**
- * Whether the scannable mark should be drawn. On by default, so every caller
- * that predates the toggle keeps its QR; `?qr=0` is the opt-out for a creator
- * who wants a clean plate to composite over.
- *
- * @returns True unless the request explicitly turned the mark off.
- */
+/** `?qr=0` is the opt-out for a creator who wants a clean plate to composite over. */
 export function qrFromQuery(value: string | undefined): boolean {
   return value !== "0";
 }
@@ -107,35 +85,25 @@ export const CARD_ASPECT = 0.715;
 export const TILE_BORDER = 1;
 
 /**
- * Scannable mark size, one value for every image that carries one. Sized for the
- * worst case these images meet — a code read off a paused stream frame or a feed
- * thumbnail — rather than for whatever space a given layout happened to have
- * spare, which is what made the tier list's mark 52px and the deck's 84px.
+ * One mark size for every image, sized for the worst case these images meet —
+ * a code read off a paused stream frame or a feed thumbnail — rather than for
+ * whatever space a given layout happened to have spare.
  */
 export const QR_SIZE = 84;
 
-/** Corner radius on the QR's white plate. */
 const QR_RADIUS = 6;
 
-/** Largest self-hosted variant (short edge ~800px); the tiles are big, so use it. */
+/** Largest self-hosted variant (short edge ~800px). */
 const CARD_ART_VARIANT = "full";
 
 /**
- * Card corner radius as a fraction of the tile's short edge. Mirrors the web
- * app's proportional `5% / 3.6%` card radius (apps/web card-grid-constants.ts):
- * for a portrait 63×88 card, 5% of the width is ~3.6% of the height, i.e. a
- * near-circular corner at ~5% of the short edge. Deriving it off the short edge
- * — rather than a fixed pixel value — keeps every tile size, and the landscape
- * battlefield tiles, rounded in proportion to the art the way the app does.
+ * Mirrors the web app's proportional `5% / 3.6%` card radius
+ * (card-grid-constants.ts). Derived off the short edge rather than fixed in
+ * px, so every tile size — landscape battlefield tiles included — rounds in
+ * proportion to the art the way the app does.
  */
 export const CARD_RADIUS_FRACTION = 0.05;
 
-/**
- * Computes the proportional card corner radius in px for a tile of the given
- * size. The art is masked to this same radius so corners never bleed past the
- * tile (satori does not clip a child `<img>` to the parent's `border-radius`).
- * @returns The corner radius in px, matching the app's size-relative rounding.
- */
 export function cardRadiusPx(tileW: number, tileH: number): number {
   return Math.round(Math.min(tileW, tileH) * CARD_RADIUS_FRACTION);
 }
@@ -146,11 +114,7 @@ export interface Element {
 }
 export type Child = Element | string | false | null | undefined;
 
-/**
- * Minimal hyperscript so the layout reads top-down without JSX (the api is not
- * set up for JSX). Falsy children are dropped so conditionals inline cleanly.
- * @returns A satori-compatible element node.
- */
+/** Falsy children are dropped so conditionals inline cleanly. */
 export function element(
   type: string,
   style: Record<string, unknown>,
@@ -173,11 +137,8 @@ interface SatoriFont {
 let cachedFonts: SatoriFont[] | null = null;
 
 /**
- * Loads the bundled Hanken Grotesk weights once and reuses them across renders.
- * These match the app UI font. The TTFs ship in the api image (the Dockerfile
- * copies all of apps/api and runs from source); satori cannot read the WOFF2
- * the web app uses, so these are static instances of the same variable face.
- * @returns The satori `fonts` array.
+ * satori cannot read the WOFF2 the web app uses, so these TTFs are static
+ * instances of the same variable face.
  */
 async function loadFonts(io: Io): Promise<SatoriFont[]> {
   if (cachedFonts) {
@@ -209,12 +170,9 @@ async function loadFonts(io: Io): Promise<SatoriFont[]> {
 }
 
 /**
- * Reads a card image off disk and transcodes it to a PNG data URI at the given
- * pixel size. Cards vary in orientation (portrait vs landscape), so
- * `fit: "contain"` letterboxes each onto a uniform transparent tile that drops
- * onto the dark surface cleanly. Callers pass the target resolution (display px
- * times the render scale) so high-res renders embed crisp source art.
- * @returns A `data:image/png;base64,...` URI, or null if the file is unreadable.
+ * Cards vary in orientation, so `fit: "contain"` letterboxes each onto a
+ * uniform transparent tile. Callers pass the target resolution (display px ×
+ * render scale) so high-res renders embed crisp source art.
  */
 async function cardArtDataUri(
   io: Io,
@@ -226,10 +184,9 @@ async function cardArtDataUri(
   try {
     const path = `${CARD_MEDIA_DIR}/${imageId.slice(-2)}/${imageId}-${CARD_ART_VARIANT}.webp`;
     const source = await io.fs.readFile(path);
-    // Round the art's corners in sharp (transparent outside the radius) rather
-    // than relying on the tile's overflow:hidden — satori does not clip a child
-    // <img> to the parent's border-radius, so a square scan would otherwise poke
-    // past the rounded tile at the corners.
+    // Corners are rounded in sharp rather than via the tile's overflow:hidden —
+    // satori does not clip a child <img> to the parent's border-radius, so a
+    // square scan would poke past the rounded tile at the corners.
     const cornerMask = Buffer.from(
       `<svg width="${widthPx}" height="${heightPx}"><rect width="${widthPx}" height="${heightPx}" rx="${radiusPx}" ry="${radiusPx}" fill="#fff"/></svg>`,
     );
@@ -248,13 +205,9 @@ async function cardArtDataUri(
 }
 
 /**
- * Renders a card image as a blurred full-bleed backdrop, mirroring the web
- * deck hero's full-art treatment: cover-crop anchored below the card's top
- * border (so the frame edge never shows), strong gaussian blur, and a slight
- * saturation lift. The blur is baked in here because satori has no CSS
- * `filter`. Callers overlay their own scrim gradients and set opacity in the
- * element tree.
- * @returns A `data:image/png;base64,...` URI, or null if the file is unreadable.
+ * Mirrors the web deck hero's full-art treatment. The blur is baked in here
+ * because satori has no CSS `filter`; callers overlay their own scrim
+ * gradients and opacity in the element tree.
  */
 export async function blurredArtBackdropDataUri(
   io: Io,
@@ -283,11 +236,8 @@ export async function blurredArtBackdropDataUri(
 }
 
 /**
- * Rasterizes an SVG buffer to a PNG data URI at the given pixel size. Used for
- * the rune-domain glyphs, which ship as small (24px) SVGs: the input density is
- * raised so librsvg renders the vector natively at the target size rather than
- * upscaling a 24px bitmap.
- * @returns A `data:image/png;base64,...` URI, or null if the SVG is unrenderable.
+ * The input density is raised so librsvg renders the vector natively at the
+ * target size rather than upscaling a 24px bitmap.
  */
 export async function svgToPngDataUri(
   io: Io,
@@ -308,12 +258,6 @@ export async function svgToPngDataUri(
   }
 }
 
-/**
- * Resolves a tile's art at the render scale. Generated at the content-box size
- * (inside the tile border) so the art fills that box exactly and stays centered
- * rather than clipping bottom-right.
- * @returns The art data URI, or null when there is no art or it is unreadable.
- */
 export function tileArtDataUri(
   io: Io,
   imageId: string | null,
@@ -335,24 +279,17 @@ export function tileArtDataUri(
   );
 }
 
-/** A card as a tile needs it: a name for the art-less fallback, and a count. */
 export interface TileCard {
   cardName: string;
-  /** Copies held; the badge is drawn only above one. Tier-list tiles omit it —
-   * a tier list ranks a card once, so there is nothing to count. */
+  /** Tier-list tiles omit it — a tier list ranks a card once, so there is nothing to count. */
   quantity?: number;
 }
 
 /**
- * One card tile: the art, or a name-only fallback, plus a quantity badge when
- * the card is held in multiples. Card images already bake in cost/power/name/
- * text, so a tile is just art plus the badge — there is no per-card chrome to
- * re-composite.
- *
- * Every measurement is a fraction of the tile rather than a fixed pixel value,
- * so one tile serves the deck grid's ~90px cells, the list grid's ~180px cells
- * and a tier row's tiles alike without per-surface constants to drift apart.
- * @returns The tile element.
+ * Card images already bake in cost/power/name/text, so a tile is just art plus
+ * the badge. Every measurement is a fraction of the tile rather than a fixed
+ * pixel value, so one tile serves ~90px deck cells and ~300px list cells alike
+ * without per-surface constants to drift apart.
  */
 export function cardTile(
   card: TileCard,
@@ -383,10 +320,8 @@ export function cardTile(
       );
 
   const quantity = card.quantity ?? 1;
-  // Proportional between the bounds, so the badge stays legible on the deck
-  // grid's small tiles without ballooning on a five-card list where each tile is
-  // 300px tall — past ~40px it stops reading as a badge and starts competing
-  // with the art.
+  // Bounded because past ~40px the badge stops reading as a badge and starts
+  // competing with the art.
   const badgeH = Math.min(40, Math.max(20, Math.round(tileH * 0.18)));
   const inset = Math.max(5, Math.round(tileH * 0.03));
   const badge =
@@ -431,11 +366,10 @@ export function cardTile(
 }
 
 /**
- * Truncates a title to `max` characters with an ellipsis. Elided in code rather
- * than with `overflow: hidden` so the title stays a plain text node whose flex
- * baseline is its text baseline — an overflow-clipped node reports its box
- * bottom as the baseline instead, which pushes an adjacent byline off it.
- * @returns The title, truncated when longer than the cap.
+ * Elided in code rather than with `overflow: hidden` so the title stays a
+ * plain text node whose flex baseline is its text baseline — an
+ * overflow-clipped node reports its box bottom as the baseline instead, which
+ * pushes an adjacent byline off it.
  */
 export function elideTitle(title: string, max: number): string {
   return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
@@ -485,28 +419,19 @@ export function baselineNudge(largerFontSize: number, smallerFontSize: number): 
 }
 
 /**
- * Encodes `url` as a scannable code at the render scale. Dark-on-white rather
- * than gold-on-transparent: a light-on-dark code is inverted polarity, which
- * older and cheaper scanners refuse, and these images are the artifacts most
- * likely to be scanned off a stranger's phone. The 2-module quiet zone is white
- * rather than transparent, so it doubles as the light plate the code needs and
- * the mark's footprint stays exactly `size` for the layout maths.
- *
- * `size` is the display size the layout will draw the mark at. Pass it whenever
- * that differs from `QR_SIZE`, so the source is generated at the resolution it
- * is shown at rather than being scaled up from a smaller one.
- * @returns The QR data URI, or null when encoding fails.
+ * Dark-on-white rather than gold-on-transparent: a light-on-dark code is
+ * inverted polarity, which older and cheaper scanners refuse. The 2-module
+ * quiet zone is white rather than transparent, so it doubles as the light
+ * plate the code needs and the mark's footprint stays exactly `size` for the
+ * layout maths.
  */
 export function qrDataUri(url: string, scale: number, size = QR_SIZE): Promise<string | null> {
   return qrPngDataUri(url, { width: size * scale }).catch(() => null);
 }
 
 /**
- * The QR image element, at the shared mark size unless a layout genuinely can't
- * fit it (a code inside a narrow grid tile) or has room for more. Keep `size`
- * equal to the `size` the source was generated at: scaling down resamples
- * cleanly, but scaling up blurs the modules.
- * @returns The mark element.
+ * Keep `size` equal to the size the source was generated at: scaling down
+ * resamples cleanly, but scaling up blurs the modules.
  */
 export function qrMark(dataUri: string, size = QR_SIZE): Element {
   return {
@@ -521,13 +446,10 @@ export function qrMark(dataUri: string, size = QR_SIZE): Element {
 }
 
 /**
- * Lays the element tree out with satori, then rasterizes the SVG to PNG with
- * resvg. resvg is the canonical satori rasterizer and is ~20× faster here than
- * sharp's librsvg path (ADR-031): a 2× render drops from ~14s to ~0.8s. satori
- * renders text as vector paths, so resvg needs no fonts; `zoom: scale` renders
- * the same base-sized layout at N× (raster sources are embedded at the matching
- * resolution by the caller, so they stay crisp).
- * @returns PNG bytes.
+ * resvg rather than sharp's librsvg path: ~20× faster here (a 2× render drops
+ * from ~14s to ~0.8s). satori renders text as vector paths, so resvg needs no
+ * fonts; `zoom: scale` renders the same base-sized layout at N×, with raster
+ * sources embedded at the matching resolution by the caller.
  */
 export async function renderTreeToPng(
   io: Io,

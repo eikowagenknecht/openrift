@@ -66,17 +66,13 @@ import type {
 } from "@openrift/shared/types";
 import type { ColumnType, Generated } from "kysely";
 
-// ─── Column helpers ──────────────────────────────────────────────────────────
-
 /** Timestamp column that defaults to NOW() on insert. */
 type CreatedAt = ColumnType<Date, Date | undefined, Date>;
 
 /** Timestamp column that defaults to NOW() and updates on every write. */
 type UpdatedAt = ColumnType<Date, Date | undefined, Date>;
 
-// ─── Card data ───────────────────────────────────────────────────────────────
-
-/** @see setFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by setFieldRules in `schemas.ts`. */
 export interface SetsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -95,7 +91,7 @@ export interface SetsTable {
 type ReleasePrecision = "day" | "month" | "quarter" | "year";
 
 /**
- * When a set reached a given language (migration 233). One row per
+ * When a set reached a given language. One row per
  * (set, language); an absent row means the set is not announced there.
  *
  * There is no stored `released` flag — it is derived from the date, so the
@@ -117,10 +113,9 @@ interface SetReleasesTable {
 }
 
 /**
- * Game card — unique by game identity (name + rules).
- *
- * The `slug` is the base printing's source ID (e.g. "OGN-027").
- * @see cardFieldRules in `schemas.ts` for Zod validation of CHECK constraints
+ * Game card — unique by game identity (name + rules). The `slug` is the base
+ * printing's source ID (e.g. "OGN-027"). CHECK constraints are Zod-validated
+ * by cardFieldRules in `schemas.ts`.
  */
 export interface CardsTable {
   id: Generated<string>;
@@ -129,7 +124,7 @@ export interface CardsTable {
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
-  /** FK → card_types(slug). Always the first entry of `card_card_types` (position 0); see ADR-037. */
+  /** FK → card_types(slug). Always the first entry of `card_card_types` (position 0). */
   type: CardType;
   /** CHECK: >= 0 */
   might: number | null;
@@ -149,7 +144,7 @@ export interface CardsTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see cardErrataFieldRules in `@openrift/shared/db-field-rules` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by cardErrataFieldRules in `@openrift/shared/db-field-rules`. */
 export interface CardErrataTable {
   id: Generated<string>;
   cardId: string;
@@ -171,11 +166,7 @@ export interface CardErrataTable {
   createdAt: CreatedAt;
 }
 
-/**
- * Physical printing of a game card.
- *
- * @see printingFieldRules in `schemas.ts` for Zod validation of CHECK constraints
- */
+/** CHECK constraints are Zod-validated by printingFieldRules in `schemas.ts`. */
 export interface PrintingsTable {
   id: Generated<string>;
   cardId: string;
@@ -215,9 +206,9 @@ export interface PrintingsTable {
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
   /**
-   * Substitute-art override for a printing with no scan of its own (migration
-   * 257). CHECK: one of 'auto' | 'pinned' | 'none', and 'pinned' iff
-   * `fallbackImageFileId` is set.
+   * Substitute-art override for a printing with no scan of its own. CHECK:
+   * one of 'auto' | 'pinned' | 'none', and 'pinned' iff `fallbackImageFileId`
+   * is set.
    */
   fallbackArtMode: Generated<FallbackArtMode>;
   /** FK → image_files(id) ON DELETE RESTRICT. Set exactly when the mode is 'pinned'. */
@@ -225,8 +216,6 @@ export interface PrintingsTable {
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── Unified marketplace pricing (migration 022) ────────────────────────────
 
 interface MarketplaceGroupsTable {
   id: Generated<string>;
@@ -242,7 +231,6 @@ interface MarketplaceGroupsTable {
   updatedAt: UpdatedAt;
 }
 
-/** Level 2: one row per upstream marketplace listing (e.g. one TCGplayer product). */
 /**
  * Level 2: one row per *SKU* in the upstream marketplace —
  * `(marketplace, external_id, finish, language)`. `language` is NULL when
@@ -286,8 +274,9 @@ interface MarketplaceProductVariantsTable {
  * Price history per marketplace SKU. One row per
  * `(marketplace_product_id, recorded_at)`; every bound printing for a SKU
  * shares the same price history through
- * `marketplace_products → marketplace_product_variants`.
- * @see marketplaceProductPriceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+ * `marketplace_products → marketplace_product_variants`. CHECK constraints
+ * are Zod-validated by marketplaceProductPriceFieldRules in `schemas.ts`.
+ */
 export interface MarketplaceProductPricesTable {
   marketplaceProductId: string;
   recordedAt: Date;
@@ -340,22 +329,18 @@ interface MarketplaceProductCardOverridesTable {
   createdAt: CreatedAt;
 }
 
-// ─── Admin (migration 012) ────────────────────────────────────────────────
-
 interface AdminsTable {
   userId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
-/** Per-section admin grants (migration 196) — selective, non-full admin access. */
+/** Per-section admin grants — selective, non-full admin access. */
 interface AdminGrantsTable {
   userId: string;
   section: string;
   createdAt: CreatedAt;
 }
-
-// ─── Auth (migration 003) ─────────────────────────────────────────────────
 
 interface UsersTable {
   id: string;
@@ -366,9 +351,9 @@ interface UsersTable {
   shareToken: string | null;
   riotId: string | null;
   /**
-   * DEFAULT 'hidden'. CHECK: one of 'hidden' / 'name' / 'riot_id' (migration
-   * 255). Whether this user's meta-archive contributions are credited
-   * publicly, and which field the credit reads. Consent cannot live on the
+   * DEFAULT 'hidden'. CHECK: one of 'hidden' / 'name' / 'riot_id'. Whether
+   * this user's meta-archive contributions are credited publicly, and which
+   * field the credit reads. Consent cannot live on the
    * credit row because the name is resolved at render.
    */
   metaCreditVisibility: Generated<MetaCreditVisibility>;
@@ -413,7 +398,7 @@ interface VerificationsTable {
 }
 
 /**
- * better-auth `@better-auth/api-key` plugin table (migration 200). Owned and
+ * better-auth `@better-auth/api-key` plugin table. Owned and
  * written exclusively by the plugin (column names mapped in auth.ts); typed
  * here so scripts can read keys for display.
  */
@@ -443,9 +428,7 @@ interface ApiKeysTable {
   metadata: string | null;
 }
 
-// ─── Collection tracking (migration 009) ────────────────────────────────────
-
-/** @see collectionFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by collectionFieldRules in `schemas.ts`. */
 export interface CollectionsTable {
   id: Generated<string>;
   /** Personal collections set user_id; shared collections set group_id. CHECK enforces exactly one. */
@@ -495,7 +478,7 @@ interface CollectionDeckbuildingPrefsTable {
 }
 
 /**
- * Per-viewer sidebar visibility override for a collection (migration 223). A
+ * Per-viewer sidebar visibility override for a collection. A
  * row with `hidden = true` pushes the collection behind the sidebar's "Show
  * more" toggle for that user only; absence means visible. Per-viewer because a
  * group collection has many viewers and each curates their own sidebar.
@@ -526,8 +509,6 @@ export interface CollectionEventsTable {
   toCollectionName: string | null;
   createdAt: CreatedAt;
 }
-
-// ─── Admin audit events (migration 201) ──────────────────────────────────────
 
 /** Action vocabulary for {@link AdminEventsTable}. Enforced here, not by a DB CHECK, so new actions don't need a migration. */
 export type AdminEventAction =
@@ -575,7 +556,6 @@ export type AdminEventAction =
   | "meta-submission.resolve"
   | "meta-submission.reopen";
 
-/** Entity vocabulary for {@link AdminEventsTable}. */
 export type AdminEventEntityType =
   | "card"
   | "printing"
@@ -613,7 +593,7 @@ interface AdminEventsTable {
   createdAt: CreatedAt;
 }
 
-/** @see deckFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by deckFieldRules in `schemas.ts`. */
 export interface DecksTable {
   id: Generated<string>;
   userId: string;
@@ -666,7 +646,7 @@ export interface DecksTable {
    */
   collectionId: string | null;
   /**
-   * Groups variants of one deck into a family (ADR-042). NULL for standalone
+   * Groups variants of one deck into a family. NULL for standalone
    * decks; assigned to both rows when a deck gains its first variant. Not an
    * FK — it is a shared opaque id, not a reference to another table.
    */
@@ -684,7 +664,7 @@ export interface DecksTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see deckCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by deckCardFieldRules in `schemas.ts`. */
 export interface DeckCardsTable {
   id: Generated<string>;
   deckId: string;
@@ -698,9 +678,10 @@ export interface DeckCardsTable {
 }
 
 /**
- * Deck-level plan (ADR-029), 1:1 with a deck. All text fields default to ''
+ * Deck-level plan, 1:1 with a deck. All text fields default to ''
  * and are length-checked at the DB; battlefield FKs are nullable single cards
- * (one battlefield per scenario). @see updateDeckPlanSchema in `schemas.ts`.
+ * (one battlefield per scenario); Zod-validated by updateDeckPlanSchema in
+ * `schemas.ts`.
  */
 export interface DeckPlansTable {
   id: Generated<string>;
@@ -748,7 +729,7 @@ export interface DeckMatchupSwapsTable {
 }
 
 /**
- * User-authored folder for organising the deck list (migration 231). Flat, and
+ * User-authored folder for organising the deck list. Flat, and
  * many-to-many with decks via `deck_folder_entries` — a deck may sit in several
  * folders at once. Unrelated to `decks.collectionId`, which is the physical
  * deck box rather than a view grouping.
@@ -764,7 +745,7 @@ export interface DeckFoldersTable {
 }
 
 /**
- * One stream overlay per user (migration 238): the token an OBS browser source
+ * One stream overlay per user: the token an OBS browser source
  * polls, and whatever card is currently pushed to it.
  *
  * `version` bumps on every write and becomes the poll's ETag, so an unchanged
@@ -786,7 +767,7 @@ export interface OverlayChannelsTable {
 }
 
 /**
- * A named bundle of on-screen dressing for the creator tools (migration 242):
+ * A named bundle of on-screen dressing for the creator tools:
  * the stream overlay and presentation mode. Applying one merges its set fields
  * over whatever the surface already shows, so every field inside `config` is
  * optional and an absent key means "leave that switch alone".
@@ -839,7 +820,7 @@ export interface TierListRow {
 }
 
 /**
- * Creator-authored tier list (migration 237). The whole board lives in the
+ * Creator-authored tier list. The whole board lives in the
  * `tiers` jsonb because it is only ever read and written whole — rows have no
  * identity beyond their position, so there is nothing for a rows table to key
  * on. Card ids are bare (no FK): the list ranks cards, and one that leaves the
@@ -863,10 +844,8 @@ export interface TierListsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Meta archive (migration 235, ADR-014) ──────────────────────────────────
-
 /**
- * One archived competitive event (migration 235). Admin-curated: there is no
+ * One archived competitive event. Admin-curated: there is no
  * submission flow. Metadata is deliberately light — riftdecks-equivalent, not
  * more — so no location, standings, or multi-day representation.
  */
@@ -890,18 +869,17 @@ export interface MetaEventsTable {
   organizer: string | null;
   /** Markdown. CHECK: NULL or length <= 4000 */
   notes: string | null;
-  // No source key and no source URL: migration 255 moved both off the live
-  // row. Attribution is {@link MetaEventSourcesTable}, and the link to a
-  // provider is the candidate-side FK, which is many-to-one so several
-  // sources can feed one event.
+  // No source key and no source URL on this row: attribution is
+  // {@link MetaEventSourcesTable}, and the link to a provider is the
+  // candidate-side FK, which is many-to-one so several sources can feed
+  // one event.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
 /**
- * Satellite row pairing an archived `decks` row with its event and placement
- * (migration 235). The deck is the PK because a deck belongs to exactly one
- * event. Both FKs cascade, but neither reaches the `decks` row itself — the
+ * Satellite row pairing an archived `decks` row with its event and placement.
+ * The deck is the PK because a deck belongs to exactly one event. Both FKs cascade, but neither reaches the `decks` row itself — the
  * admin delete-event path removes those explicitly.
  */
 export interface MetaDecksTable {
@@ -924,20 +902,17 @@ export interface MetaDecksTable {
    * of 'archetype' is what mints the token.
    */
   listStatus: Generated<MetaListStatus>;
-  // No source key: migration 255 moved it off this row, because
-  // `candidate_meta_decks.deck_id` is many-to-one and two providers can both
-  // describe one archived deck. It lives in {@link MetaDeckSourcesTable}
-  // (migration 256), not on the candidate, which an ignore deletes.
+  // No source key on this row: `candidate_meta_decks.deck_id` is many-to-one
+  // and two providers can both describe one archived deck. It lives in
+  // {@link MetaDeckSourcesTable}, not on the candidate, which an ignore deletes.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
-// ─── Meta archive candidates (migration 236, ADR-014) ───────────────────────
-
 /**
- * A proposed event, pushed by external tooling and awaiting an admin's accept
- * (migration 236). `(provider, external_id)` is UNIQUE — the source's own key,
- * which is what makes an upload idempotent and per-event replacing.
+ * A proposed event, pushed by external tooling and awaiting an admin's accept.
+ * `(provider, external_id)` is UNIQUE — the source's own key, which is what
+ * makes an upload idempotent and per-event replacing.
  *
  * `format` carries whatever the source called it and has no FK: an unknown
  * format is something the review screen reports, not a reason to reject an
@@ -985,7 +960,7 @@ export interface CandidateMetaDeckCard {
 }
 
 /**
- * A proposed deck under a candidate event (migration 236). Card lists are jsonb
+ * A proposed deck under a candidate event. Card lists are jsonb
  * rather than a third staging table: they are written whole, read whole, and
  * never queried across rows.
  *
@@ -999,7 +974,7 @@ export interface CandidateMetaDecksTable {
    * FK → candidate_meta_events.id ON DELETE CASCADE. NULL for a user
    * submission, which targets a live event directly through
    * {@link metaEventId} rather than inventing a placeholder candidate event.
-   * CHECK: exactly one of the two is set (migration 255).
+   * CHECK: exactly one of the two is set.
    */
   candidateEventId: string | null;
   /** FK → meta_events.id ON DELETE CASCADE. See {@link candidateEventId}. */
@@ -1026,7 +1001,7 @@ export interface CandidateMetaDecksTable {
   /** FK → decks.id ON DELETE SET NULL — the live archived deck this became. */
   deckId: string | null;
   /**
-   * FK → users.id ON DELETE SET NULL (migration 255). Set for the
+   * FK → users.id ON DELETE SET NULL. Set for the
    * `usersubmission` provider only; scraped providers leave it NULL. Copied
    * from `candidate_cards`, and admin-facing: nothing public reads it.
    */
@@ -1039,7 +1014,7 @@ export interface CandidateMetaDecksTable {
 }
 
 /**
- * A candidate event the admin rejected (migration 236). Skipped at ingest, so
+ * A candidate event the admin rejected. Skipped at ingest, so
  * the same key never re-enters the queue. The source key is the identity —
  * there is no surrogate id.
  */
@@ -1052,9 +1027,9 @@ interface IgnoredCandidateMetaEventsTable {
 }
 
 /**
- * A rejected candidate deck (migration 236). Keyed on the source's event id as
+ * A rejected candidate deck. Keyed on the source's event id as
  * well as the deck's, because deck external ids are only unique within their
- * event. @see IgnoredCandidateMetaEventsTable
+ * event.
  */
 interface IgnoredCandidateMetaDecksTable {
   /** PK part. CHECK: <> '' */
@@ -1066,10 +1041,8 @@ interface IgnoredCandidateMetaDecksTable {
   createdAt: CreatedAt;
 }
 
-// ─── Meta archive multi-source (migration 255, ADR-014) ─────────────────────
-
 /**
- * Where an event's data came from, one row per source (migration 255). This is
+ * Where an event's data came from, one row per source. This is
  * a citation, public and printed on the event page. It never carries a user: a
  * contributor is credited through {@link MetaCreditsTable} instead.
  *
@@ -1094,8 +1067,8 @@ export interface MetaEventSourcesTable {
 }
 
 /**
- * Which source deck an archived deck came from, one row per source
- * (migration 256). Not a citation and nothing public reads it — a deck prints
+ * Which source deck an archived deck came from, one row per source. Not a
+ * citation and nothing public reads it — a deck prints
  * no attribution of its own, its event's {@link MetaEventSourcesTable} list
  * covers that. It exists so the source key outlives the candidate row: ignoring
  * a deck deletes the candidate, and without this the next upload would archive
@@ -1120,7 +1093,7 @@ interface MetaDeckSourcesTable {
 
 /**
  * One contribution by a signed-in user, written in the same transaction as the
- * accept it belongs to (migration 255). Never written for provider ingest or
+ * accept it belongs to. Never written for provider ingest or
  * hand entry.
  *
  * The row holds the user id and nothing else on purpose: a credit points at a
@@ -1140,8 +1113,8 @@ interface MetaCreditsTable {
 }
 
 /**
- * The outcome ledger for user decklist submissions (migration 255), shaped
- * like `card_submissions` (ADR-036). Provider uploads get none: those sources
+ * The outcome ledger for user decklist submissions, shaped
+ * like `card_submissions`. Provider uploads get none: those sources
  * are the maintainer's own tooling, and staging's presence semantics suffice.
  *
  * Every FK out of this row is ON DELETE SET NULL except the submitter's, so
@@ -1183,11 +1156,9 @@ export interface MetaDeckSubmissionsTable {
 }
 
 /**
- * Unified list table — replaces the old trade_lists and wish_lists.
- *
  * `intent` is the surface (wish / trade / organize). `kind` is the granularity
  * the list tracks: a list contains uniformly cards, printings, or copies.
- * The intent × kind matrix is constrained (migration 133, renamed in 135):
+ * The intent × kind matrix is constrained:
  *   wish     → card | printing
  *   trade    → copy
  *   organize → card | printing | copy
@@ -1205,7 +1176,7 @@ export interface ListsTable {
   shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
-  /** ADR-017: list-level default for entries that don't override. */
+  /** List-level default for entries that don't override. */
   defaultPricePref: TradePricePref | null;
   /** Set iff defaultPricePref === 'absolute'. Positive integer. */
   defaultPriceAbsoluteCents: number | null;
@@ -1214,20 +1185,20 @@ export interface ListsTable {
   currency: Currency | null;
   sortOrder: Generated<number>;
   /**
-   * Migration 223: pushes the list behind the sidebar's "Show more" toggle. A
+   * Pushes the list behind the sidebar's "Show more" toggle. A
    * plain column (not a per-viewer table like collections use) because a list
    * has exactly one viewer, its owner.
    */
   sidebarHidden: Generated<boolean>;
   /**
-   * ADR-034 dynamic rules (jsonb array). Typed as the parsed shape on both
+   * Dynamic rules (jsonb array). Typed as the parsed shape on both
    * sides — the repo passes the array straight through and postgres.js does the
    * serializing, guarded by a `jsonb_typeof(rules) = 'array'` CHECK. NOT NULL
    * with a `'[]'` default, so insert may omit it. Empty array = manual-only list.
    */
   rules: ColumnType<ListRules, ListRules | undefined, ListRules>;
   /**
-   * How several rules combine (ADR-034 amendment 2, migration 190). NULL = the
+   * How several rules combine. NULL = the
    * intent's default (wish: sum, trade: protect). CHECK constrains the slugs.
    */
   ruleCombine: ListRuleCombine | null;
@@ -1254,14 +1225,12 @@ export interface ListEntriesTable {
   quantity: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
-  /** ADR-017: per-entry override. NULL = inherit parent list default. */
+  /** Per-entry override. NULL = inherit parent list default. */
   pricePref: TradePricePref | null;
   /** Set iff pricePref === 'absolute'. */
   priceAbsoluteCents: number | null;
   tradeType: TradeType | null;
 }
-
-// ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────
 
 export interface FriendGroupsTable {
   id: Generated<string>;
@@ -1288,7 +1257,7 @@ export interface FriendGroupMembersTable {
   joinedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
-/** Account-level contact channels a user can reveal per group (migration 162). */
+/** Account-level contact channels a user can reveal per group. */
 interface UserContactMethodsTable {
   id: Generated<string>;
   userId: string;
@@ -1301,7 +1270,7 @@ interface UserContactMethodsTable {
   updatedAt: UpdatedAt;
 }
 
-/** Which of a member's contact methods are revealed to a given group (migration 162). */
+/** Which of a member's contact methods are revealed to a given group. */
 interface FriendGroupMemberContactsTable {
   groupId: string;
   userId: string;
@@ -1331,7 +1300,7 @@ export interface FriendGroupCollectionSharesTable {
 }
 
 /**
- * A Discord server linked to a friend group (migration 217). Pending rows
+ * A Discord server linked to a friend group. Pending rows
  * carry a one-time `code` (guild fields null); redeeming the code via the
  * bot's /link command sets `guildId`/`guildName`/`linkedAt` and clears the
  * code. CHECK: exactly one of `guildId` / `code` is set.
@@ -1348,15 +1317,14 @@ export interface FriendGroupDiscordLinksTable {
   createdByUserId: string | null;
   createdAt: CreatedAt;
   linkedAt: Date | null;
-  /** Channels of the linked guild the bot scans for card names (migration 222). */
+  /** Channels of the linked guild the bot scans for card names. */
   tradeChannelIds: Generated<string[]>;
 }
 
-// ─── Organizations (migration 166, ADR-033) ──────────────────────────────────
 // A first-class tournament host alongside users (a local game store, a league).
 // Admin-provisioned. `organization_members` carries org-level authority; both
 // `owner` and `manager` are implicit organizers on every tournament the org hosts.
-// Ownership is the `role = 'owner'` membership rows alone (migration 254); a
+// Ownership is the `role = 'owner'` membership rows alone; a
 // deferred constraint trigger keeps every org at one owner or more.
 
 export interface OrganizationsTable {
@@ -1379,17 +1347,16 @@ export interface OrganizationMembersTable {
    * organizer authority on every tournament the org hosts; judge does not.
    * An org may have several `owner` members. `organizations.owner_user_id`
    * names the primary one, whom `fk_organizations_owner_membership`
-   * (migration 249) keeps a member of the org — the pointer is constrained to a
+   * keeps a member of the org — the pointer is constrained to a
    * membership row, not to one carrying the owner role.
    */
   role: OrganizationRole;
   joinedAt: CreatedAt;
 }
 
-// ─── Tournaments umbrella (migration 145 as pod_tournaments, renamed 167) ─────
-// ADR-033: one entity composing any subset of {pairing engine, deck submission,
+// One entity composing any subset of {pairing engine, deck submission,
 // deck check, judges} under a user or organization host, optionally linked to a
-// friend group. The pairing module keeps ADR-022's lean derive-on-read model:
+// friend group. The pairing module keeps a lean derive-on-read model:
 // pod_players carries no aggregate columns and there is no pod_opponents table;
 // score, pod tallies, rounds played, and opponent counts are derived on read
 // from finalized rounds. Stored: raw facts (placement) and write-once outputs.
@@ -1447,8 +1414,7 @@ export interface TournamentsTable {
   allowedSets: string[] | null;
   selfRegistration: Generated<boolean>;
 
-  // Tokens (distinct capabilities).
-  /** Pod follow-along + result entry (ADR-022). Unique where not null. */
+  /** Pod follow-along + result entry. Unique where not null. */
   reportToken: string | null;
   /** Read-only pod follow-along (no result entry). Unique where not null. */
   followToken: string | null;
@@ -1473,7 +1439,7 @@ interface TournamentStaffTable {
   addedAt: CreatedAt;
 }
 
-// A fixed 2v2 team (migration 212). Identity only: membership rides on
+// A fixed 2v2 team. Identity only: membership rides on
 // tournament_participants.team_id, and the display name derives from the two
 // member names. Deleting the row dissolves the team (members SET NULL).
 // Not exported: only the Database interface references it.
@@ -1483,10 +1449,9 @@ interface TournamentTeamsTable {
   createdAt: CreatedAt;
 }
 
-// Unified participant (ADR-033): walk-in name → invited/claimable email →
-// linked account. Replaces pod_players and the identity half of
-// deck_check_entries. Pairing reads only id/status; the identity + claim columns
-// are dormant for a plain pod tournament.
+// Unified participant: walk-in name → invited/claimable email → linked
+// account. Pairing reads only id/status; the identity + claim columns are
+// dormant for a plain pod tournament.
 export interface TournamentParticipantsTable {
   id: Generated<string>;
   tournamentId: string;
@@ -1515,7 +1480,6 @@ export interface TournamentParticipantsTable {
    * Soft: steers post-pairing table assignment only, never who plays whom.
    */
   fixedTable: number | null;
-  /** Claim machinery, lifted from deck_check_entries. */
   claimSource: TournamentClaimSource | null;
   /** UNIQUE where not null; resolves a claim link to one participant. */
   claimToken: string | null;
@@ -1569,7 +1533,7 @@ interface PodMembersTable {
   seat: number | null;
 }
 
-// Byes (migration 147). A row records that a player sat a round out; the score
+// Byes. A row records that a player sat a round out; the score
 // it is worth is the tournament's bye_points (derived on read — no points
 // column). Manual only. Not exported for the same reason as PodMembersTable: no
 // module derives a Selectable<> from it.
@@ -1578,18 +1542,15 @@ interface PodByesTable {
   playerId: string;
 }
 
-// ─── Deck check (migration 149, ADR-025; re-parented to the tournaments
-// umbrella in migration 169/170, ADR-033) ────────────────────────────────────
-// The event is gone — a deck-check tournament is `tournaments` that collects
-// decklists (deck_submission <> 'none'). Per-person identity + claim columns live
+// A deck-check tournament is `tournaments` that collects decklists
+// (deck_submission <> 'none'). Per-person identity + claim columns live
 // on tournament_participants; the entry keeps the decklist + verification state
 // and references its tournament + participant.
 
 export interface DeckCheckEntriesTable {
   id: Generated<string>;
-  /** Owning tournament (was event_id; reuses the migrated event's uuid). */
   tournamentId: string;
-  /** The participant this decklist belongs to; CASCADE — removing the participant deletes this entry (migration 174). */
+  /** The participant this decklist belongs to; CASCADE — removing the participant deletes this entry. */
   participantId: string | null;
   /** Provider's upsert key; UNIQUE per (tournamentId, externalId). */
   externalId: string;
@@ -1602,13 +1563,13 @@ export interface DeckCheckEntriesTable {
   allowRiotIdSharing: Generated<boolean>;
   /** Hash over the normalized card lines; unchanged re-push is a no-op. */
   contentHash: string;
-  /** Lifecycle state (ADR-027); the player edits only in 'editable'. */
+  /** Lifecycle state; the player edits only in 'editable'. */
   state: Generated<DeckCheckEntryState>;
   /** How the most recent judge review went; null until a judge reviewed. */
   reviewOutcome: DeckCheckReviewOutcome | null;
   checkedBy: string | null;
   checkedAt: Date | null;
-  /** Pre-event list approval (ADR-027), separate from the event-day check. */
+  /** Pre-event list approval, separate from the event-day check. */
   approvedBy: string | null;
   approvedAt: Date | null;
   /** Player request to unlock an approved entry; a judge grants or declines. */
@@ -1650,8 +1611,8 @@ export interface DeckCheckEntryCardsTable {
 
 export interface DeckCheckKeysTable {
   id: Generated<string>;
-  // Re-parented to the host (was group_id): exactly one of user / organization
-  // (CHECK chk_deck_check_keys_host), so a host's keys span all its tournaments.
+  // Exactly one of user / organization (CHECK chk_deck_check_keys_host), so a
+  // host's keys span all its tournaments.
   hostType: TournamentHostType;
   hostUserId: string | null;
   hostOrgId: string | null;
@@ -1667,13 +1628,11 @@ export interface DeckCheckKeysTable {
   revokedAt: Date | null;
 }
 
-// ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
-
 export interface CardTradesTable {
   id: Generated<string>;
   /**
    * CHECK: exactly one of groupId / groupName is set. The id while the friend
-   * group exists, the snapshotted name once it is deleted (migration 252), so a
+   * group exists, the snapshotted name once it is deleted, so a
    * finished trade keeps saying where it happened. Deleting a group cancels its
    * live trades, so a NULL here always means the trade is terminal.
    */
@@ -1683,7 +1642,7 @@ export interface CardTradesTable {
   /**
    * Owns the copies (supply / tradelist side). Exactly one of giverUserId /
    * giverName is set: the id while the account exists, the snapshotted display
-   * name once it is deleted (migration 248).
+   * name once it is deleted.
    */
   giverUserId: string | null;
   /** CHECK: <> '' when set. Set only for a deleted giver. */
@@ -1714,19 +1673,19 @@ export interface CardTradesTable {
   /** pending TTL (created_at + 24h); cleared once not pending. */
   expiresAt: Date | null;
   /**
-   * ADR-030 coalescing marker: when the recipient was emailed about this
+   * Coalescing marker: when the recipient was emailed about this
    * request (instant or coalesced), or when it was suppressed (opted out).
    * NULL = still queued, awaiting the flush cron.
    */
   requestEmailSentAt: Date | null;
   /**
-   * ADR-030 status-email marker: when the initiator was emailed that the trade
+   * Status-email marker: when the initiator was emailed that the trade
    * was accepted (reserved), or when it was suppressed. NULL while `status =
    * 'reserved'` = still queued for the trade-status flush.
    */
   reservedEmailSentAt: Date | null;
   /**
-   * ADR-030 status-email marker: when the non-actor was emailed that the trade
+   * Status-email marker: when the non-actor was emailed that the trade
    * was declined or cancelled, or when it was suppressed. NULL while `status IN
    * ('declined','cancelled')` = still queued for the trade-status flush.
    */
@@ -1738,8 +1697,6 @@ interface CardTradeCopiesTable {
   copyId: string;
 }
 
-// ─── Loans (migration 195, ADR-039) ──────────────────────────────────────────
-
 export interface LoansTable {
   id: Generated<string>;
   /** Owns the copies; the loan is their personal ledger entry. */
@@ -1747,7 +1704,7 @@ export interface LoansTable {
   /**
    * CHECK: exactly one of borrowerUserId / borrowerName is set. A member
    * borrower who deletes their account leaves the id NULL and their display
-   * name snapshotted into borrowerName (migration 248), which is the same shape
+   * name snapshotted into borrowerName, which is the same shape
    * an off-platform borrower has from the start.
    */
   borrowerUserId: string | null;
@@ -1775,9 +1732,7 @@ interface LoanCopiesTable {
   copyId: string;
 }
 
-// ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
-
-/** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by candidateCardFieldRules in `schemas.ts`. */
 export interface CandidateCardsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -1785,7 +1740,7 @@ export interface CandidateCardsTable {
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
-  /** Ordered card types (ADR-037); empty when the source didn't provide one. */
+  /** Ordered card types; empty when the source didn't provide one. */
   types: Generated<string[]>;
   superTypes: Generated<string[]>;
   domains: string[];
@@ -1808,16 +1763,16 @@ export interface CandidateCardsTable {
   externalId: string;
   /** CHECK: <> '{}' AND <> 'null'::jsonb */
   extraData: unknown | null;
-  /** ADR-036: user who submitted this candidate in-app; NULL for other providers. FK users(id) ON DELETE SET NULL. */
+  /** User who submitted this candidate in-app; NULL for other providers. FK users(id) ON DELETE SET NULL. */
   submittedByUserId: string | null;
-  /** ADR-036: contributor's free-text "where I spotted this" note. CHECK: <> '' */
+  /** Contributor's free-text "where I spotted this" note. CHECK: <> '' */
   submissionNote: string | null;
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
-/** @see candidatePrintingFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** CHECK constraints are Zod-validated by candidatePrintingFieldRules in `schemas.ts`. */
 export interface CandidatePrintingsTable {
   id: Generated<string>;
   candidateCardId: string;
@@ -1869,8 +1824,6 @@ export interface CandidatePrintingsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Ignored candidates (migration 031, renamed in 038) ──────────────────────
-
 export interface IgnoredCandidateCardsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -1890,8 +1843,6 @@ export interface IgnoredCandidatePrintingsTable {
   finish: string | null;
   createdAt: CreatedAt;
 }
-
-// ─── Card submissions (migration 234, ADR-036) ───────────────────────────────
 
 /** What a contributor sent: a whole new card, a field correction, or an image. */
 export type CardSubmissionKind = "new_card" | "correction" | "image";
@@ -1964,7 +1915,7 @@ interface PrintingLinkOverridesTable {
   externalId: string;
   finish: string;
   /**
-   * Source provider the pin is scoped to (migration 253); '' is the legacy
+   * Source provider the pin is scoped to; '' is the legacy
    * wildcard that matches candidates from any provider. Resolution prefers a
    * provider-scoped row over the wildcard.
    */
@@ -2018,16 +1969,14 @@ export interface CardNameAliasesTable {
   cardId: string;
 }
 
-// ─── Languages (migration 054) ───────────────────────────────────────────────
-
 interface LanguagesTable {
   code: string;
   name: string;
-  /** Hex color for the language chip (CHECK: ^#[0-9a-fA-F]{6}$). Migration 203. */
+  /** Hex color for the language chip (CHECK: ^#[0-9a-fA-F]{6}$). */
   color: string | null;
   sortOrder: Generated<number>;
   /**
-   * Listed in `WellKnown.language`; a trigger blocks rename/delete. Migration 205.
+   * Listed in `WellKnown.language`; a trigger blocks rename/delete.
    * `Generated` because admin-created languages are never well-known and the
    * repo's insert omits it, leaning on the column's `DEFAULT false`.
    */
@@ -2035,8 +1984,6 @@ interface LanguagesTable {
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── Markers (migration 090) ──────────────────────────────────────────────────
 
 /**
  * Visual markers stamped/printed on a card (e.g. "promo", "top-8", "prerelease").
@@ -2062,14 +2009,10 @@ interface PrintingMarkersTable {
   markerId: string;
 }
 
-// ─── Custom tags (migration 128, categories table added in 130) ──────────────
-
 /**
  * Admin-curated category vocabulary for {@link CustomTagsTable}. Categories
  * namespace tags so each custom deck-builder format (e.g. region-locked
- * freeform) only sees its own set. Migrated from a freeform text column on
- * `custom_tags` in 130 so categories can be renamed and described in one
- * place.
+ * freeform) only sees its own set.
  */
 interface CustomTagCategoriesTable {
   id: Generated<string>;
@@ -2110,8 +2053,6 @@ interface CardCustomTagsTable {
   customTagId: string;
 }
 
-// ─── Printed-tag classification (migration 202) ──────────────────────────────
-
 /**
  * Admin-managed categories for the printed card tags (`cards.tags`):
  * region, champion, species, … Groups tag options into sections in the
@@ -2147,8 +2088,6 @@ interface TagDefinitionsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Preconstructed products (migration 198, ADR-015) ────────────────────────
-
 /**
  * Fixed-content Riot products. Catalog data, not user
  * data: contents are written only by snapshotting a list server-side, and
@@ -2177,8 +2116,6 @@ interface ProductPrintingsTable {
   /** CHECK: > 0 */
   quantity: number;
 }
-
-// ─── Distribution channels (migration 090, renamed from promo_types/034) ─────
 
 /**
  * Where a printing was distributed: tournament events, retail products,
@@ -2214,7 +2151,7 @@ interface PrintingDistributionChannelsTable {
 }
 
 /**
- * Where a promo printing's claims come from (migration 258). Named "citations"
+ * Where a promo printing's claims come from. Named "citations"
  * rather than "sources" because a *printing source* already means a provider's
  * candidate row everywhere else in this codebase.
  */
@@ -2230,21 +2167,17 @@ interface PrintingCitationsTable {
   createdAt: CreatedAt;
 }
 
-// ─── Provider settings (migration 035, renamed in 038) ───────────────────────
-
 interface ProviderSettingsTable {
   /** PK — matches candidate_cards.provider */
   provider: string;
   sortOrder: Generated<number>;
   isHidden: Generated<boolean>;
   isFavorite: Generated<boolean>;
-  /** Whether card-review grant holders may review this provider's candidates (migration 199). */
+  /** Whether card-review grant holders may review this provider's candidates. */
   helperReviewable: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── Keywords (migration 043, renamed in 116) ────────────────────────────────
 
 export interface KeywordsTable {
   /** PK — canonical keyword name */
@@ -2253,13 +2186,11 @@ export interface KeywordsTable {
   color: string;
   darkText: Generated<boolean>;
   isWellKnown: Generated<boolean>;
-  /** Glyph cost renders inside the keyword bracket, e.g. `[Equip :rb_energy_1:]` (migration 191). */
+  /** Glyph cost renders inside the keyword bracket, e.g. `[Equip :rb_energy_1:]`. */
   costKeyword: ColumnType<boolean, boolean | undefined, boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── Keyword translations (migration 071) ───────────────────────────────────
 
 interface KeywordTranslationsTable {
   /** FK → keywords(name) ON UPDATE CASCADE */
@@ -2272,8 +2203,6 @@ interface KeywordTranslationsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Feature flags (migration 014) ───────────────────────────────────────────
-
 export interface FeatureFlagsTable {
   key: string;
   enabled: Generated<boolean>;
@@ -2282,15 +2211,11 @@ export interface FeatureFlagsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── User feature flag overrides (migration 057) ────────────────────────────
-
 export interface UserFeatureFlagsTable {
   userId: string;
   flagKey: string;
   enabled: boolean;
 }
-
-// ─── Site settings (migration 048) ────────────────────────────────────────────
 
 export interface SiteSettingsTable {
   /** CHECK: <> '' */
@@ -2301,8 +2226,6 @@ export interface SiteSettingsTable {
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── User preferences (migration 047, consolidated in 050) ──────────────────
 
 export interface UserPreferencesTable {
   userId: string;
@@ -2315,8 +2238,6 @@ export interface UserPreferencesTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Formats (migration 054) ────────────────────────────────────────────────
-
 interface FormatsTable {
   /** CHECK: <> '' */
   id: string;
@@ -2324,8 +2245,6 @@ interface FormatsTable {
   name: string;
   createdAt: CreatedAt;
 }
-
-// ─── Card Bans (migration 054) ──────────────────────────────────────────────
 
 export interface CardBansTable {
   id: Generated<string>;
@@ -2337,8 +2256,6 @@ export interface CardBansTable {
   reason: string | null;
   createdAt: CreatedAt;
 }
-
-// ─── Rules (migration 060) ──────────────────────────────────────────────────
 
 interface RuleVersionsTable {
   /** CHECK: IN ('core', 'tournament') */
@@ -2366,8 +2283,6 @@ interface RulesTable {
   createdAt: CreatedAt;
 }
 
-// ─── Reference tables (migration 062) ────────────────────────────────────────
-
 export interface ReferenceTable {
   slug: string;
   label: string;
@@ -2393,11 +2308,8 @@ type ArtVariantsTable = ReferenceTable;
 type CardSizesTable = ReferenceTable;
 type DeckFormatsTable = ReferenceTable;
 type DeckZonesTable = ReferenceTable;
-// Copy metadata reference tables (migration 194, ADR-038)
 type ConditionsTable = ReferenceTable;
 type GradersTable = ReferenceTable;
-
-// ─── Printing events (migration 071) ────────────────────────────────────────
 
 interface PrintingEventsTable {
   id: Generated<string>;
@@ -2407,8 +2319,6 @@ interface PrintingEventsTable {
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-// ─── Job runs (migration 101) ────────────────────────────────────────────────
 
 interface JobRunsTable {
   id: Generated<string>;
@@ -2421,7 +2331,7 @@ interface JobRunsTable {
   errorMessage: ColumnType<string | null, string | null | undefined, string | null>;
   result: ColumnType<unknown, unknown | undefined, unknown>;
   /** Activity axis: true = succeeded but found no work, false = did work, null
-   *  = unclassified (failed runs, jobs without a classifier, pre-migration). */
+   *  = unclassified (failed runs, jobs without a classifier, rows predating the column). */
   noop: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
 }
 
@@ -2447,8 +2357,6 @@ interface ScanIndexTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Junction tables (migration 059) ─────────────────────────────────────────
-
 interface CardDomainsTable {
   cardId: string;
   domainSlug: string;
@@ -2460,7 +2368,7 @@ interface CardSuperTypesTable {
   superTypeSlug: string;
 }
 
-/** Ordered card-type junction (ADR-037). Position 0 mirrors `cards.type`. */
+/** Ordered card-type junction. Position 0 mirrors `cards.type`. */
 interface CardCardTypesTable {
   cardId: string;
   typeSlug: string;
@@ -2469,13 +2377,13 @@ interface CardCardTypesTable {
 
 /**
  * Where a `card_tokens` row came from. Mirrors `chk_card_tokens_source`
- * (migration 228); exported as a value so the enum-CHECK parity test can
+ *; exported as a value so the enum-CHECK parity test can
  * compare the two.
  */
 export const CARD_TOKEN_SOURCES = ["derived", "manual"] as const;
 
 /**
- * Token cards a card tells the player to create (migration 228). Derived from
+ * Token cards a card tells the player to create. Derived from
  * EN text; `manual` rows survive the recompute.
  */
 interface CardTokensTable {
@@ -2485,17 +2393,15 @@ interface CardTokensTable {
   source: Generated<(typeof CARD_TOKEN_SOURCES)[number]>;
 }
 
-// ─── Materialized views (migration 085) ─────────────────────────────────────
-
 interface MvLatestPrintingPricesView {
   printingId: string;
   marketplace: string;
   headlineCents: number;
-  /** Day the price was last observed (migration 221). A date, not a timestamp. */
+  /** Day the price was last observed. A date, not a timestamp. */
   lastSeen: string;
 }
 
-/** Per-day headline price per printing (migration 219). `day` is a date. */
+/** Per-day headline price per printing. `day` is a date. */
 interface MvDailyPrintingPricesView {
   printingId: string;
   marketplace: string;
@@ -2508,26 +2414,20 @@ interface MvCardAggregatesView {
   domains: string[];
   superTypes: string[];
   types: string[];
-  /** Token card ids, ordered by token name (migration 228). */
+  /** Token card ids, ordered by token name. */
   tokenCardIds: string[];
 }
-
-// ─── Views (migration 096) ───────────────────────────────────────────────────
 
 /** Every column of `printings` plus a precomputed `canonical_rank` integer. */
 type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
 
-// ─── Database ────────────────────────────────────────────────────────────────
-
 export interface Database {
-  // Card data (migration 001, restructured in 007)
   sets: SetsTable;
   setReleases: SetReleasesTable;
   cards: CardsTable;
   cardErrata: CardErrataTable;
   printings: PrintingsTable;
 
-  // Unified marketplace pricing (migration 022, split into 4 levels in 078)
   marketplaceGroups: MarketplaceGroupsTable;
   marketplaceProducts: MarketplaceProductsTable;
   marketplaceProductVariants: MarketplaceProductVariantsTable;
@@ -2536,25 +2436,21 @@ export interface Database {
   marketplaceIgnoredVariants: MarketplaceIgnoredVariantsTable;
   marketplaceProductCardOverrides: MarketplaceProductCardOverridesTable;
 
-  // Admin (migration 012), per-section grants (migration 196)
   admins: AdminsTable;
   adminGrants: AdminGrantsTable;
 
-  // Auth tables (migration 003)
   users: UsersTable;
   sessions: SessionsTable;
   accounts: AccountsTable;
   verifications: VerificationsTable;
   apiKeys: ApiKeysTable;
 
-  // Collection tracking (migration 009)
   collections: CollectionsTable;
   copies: CopiesTable;
   collectionDeckbuildingPrefs: CollectionDeckbuildingPrefsTable;
   collectionSidebarPrefs: CollectionSidebarPrefsTable;
   collectionEvents: CollectionEventsTable;
 
-  // Admin audit events (migration 201)
   adminEvents: AdminEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;
@@ -2562,11 +2458,9 @@ export interface Database {
   deckMatchupPlans: DeckMatchupPlansTable;
   deckMatchupSwaps: DeckMatchupSwapsTable;
 
-  // Deck folders (migration 231)
   deckFolders: DeckFoldersTable;
   deckFolderEntries: DeckFolderEntriesTable;
 
-  // Meta archive (migration 235, ADR-014)
   metaEvents: MetaEventsTable;
   metaDecks: MetaDecksTable;
   candidateMetaEvents: CandidateMetaEventsTable;
@@ -2578,19 +2472,15 @@ export interface Database {
   metaCredits: MetaCreditsTable;
   metaDeckSubmissions: MetaDeckSubmissionsTable;
 
-  // Tier lists (migration 237)
   tierLists: TierListsTable;
 
-  // Stream overlay channels (migration 238)
   overlayChannels: OverlayChannelsTable;
 
-  // Saved creator-tool dressing (migration 242)
   stagePresets: StagePresetsTable;
 
   lists: ListsTable;
   listEntries: ListEntriesTable;
 
-  // Friend groups (migration 134, ADR-013)
   friendGroups: FriendGroupsTable;
   friendGroupMembers: FriendGroupMembersTable;
   friendGroupInvites: FriendGroupInvitesTable;
@@ -2598,15 +2488,12 @@ export interface Database {
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
 
-  // Contact methods (migration 162)
   userContactMethods: UserContactMethodsTable;
   friendGroupMemberContacts: FriendGroupMemberContactsTable;
 
-  // Organizations (migration 166, ADR-033)
   organizations: OrganizationsTable;
   organizationMembers: OrganizationMembersTable;
 
-  // Tournaments umbrella (migration 145 as pod_tournaments, renamed 167, ADR-033)
   tournaments: TournamentsTable;
   tournamentStaff: TournamentStaffTable;
   tournamentParticipants: TournamentParticipantsTable;
@@ -2616,95 +2503,70 @@ export interface Database {
   podMembers: PodMembersTable;
   podByes: PodByesTable;
 
-  // Card trades (migration 143, ADR-019)
   cardTrades: CardTradesTable;
   cardTradeCopies: CardTradeCopiesTable;
 
-  // Loans (migration 195, ADR-039)
   loans: LoansTable;
   loanCopies: LoanCopiesTable;
 
-  // Deck check (migration 149, ADR-025; re-parented to tournaments in 169/170)
   deckCheckEntries: DeckCheckEntriesTable;
   deckCheckEntryCards: DeckCheckEntryCardsTable;
   deckCheckKeys: DeckCheckKeysTable;
 
-  // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;
   candidatePrintings: CandidatePrintingsTable;
   cardNameAliases: CardNameAliasesTable;
 
-  // Ignored candidates (migration 031, renamed in 038)
   ignoredCandidateCards: IgnoredCandidateCardsTable;
   ignoredCandidatePrintings: IgnoredCandidatePrintingsTable;
 
-  // Card submissions (migration 234, ADR-036)
   cardSubmissions: CardSubmissionsTable;
 
-  // Printing link overrides (migration 033)
   printingLinkOverrides: PrintingLinkOverridesTable;
 
-  // Image archive (migration 013, deduplicated in 069, renamed in 071)
   imageFiles: ImageFilesTable;
   printingImages: PrintingImagesTable;
 
-  // Languages (migration 054)
   languages: LanguagesTable;
 
-  // Markers + distribution channels (migration 090, renamed from promo_types/034)
   markers: MarkersTable;
   printingMarkers: PrintingMarkersTable;
   distributionChannels: DistributionChannelsTable;
   printingDistributionChannels: PrintingDistributionChannelsTable;
 
-  // Promo source citations (migration 258)
   printingCitations: PrintingCitationsTable;
 
-  // Custom tags (migration 128, categories added in 130)
   customTagCategories: CustomTagCategoriesTable;
   customTags: CustomTagsTable;
   cardCustomTags: CardCustomTagsTable;
 
-  // Printed-tag classification (migration 202)
   tagCategories: TagCategoriesTable;
   tagDefinitions: TagDefinitionsTable;
 
-  // Preconstructed products (migration 198, ADR-015)
   products: ProductsTable;
   productPrintings: ProductPrintingsTable;
 
-  // Provider settings (migration 035, renamed in 038)
   providerSettings: ProviderSettingsTable;
 
-  // Feature flags (migration 014)
   featureFlags: FeatureFlagsTable;
 
-  // User feature flag overrides (migration 057)
   userFeatureFlags: UserFeatureFlagsTable;
 
-  // Keywords (migration 043, renamed in 116)
   keywords: KeywordsTable;
 
-  // Keyword translations (migration 071)
   keywordTranslations: KeywordTranslationsTable;
 
-  // Site settings (migration 048)
   siteSettings: SiteSettingsTable;
 
-  // User preferences (migration 047)
   userPreferences: UserPreferencesTable;
 
-  // Formats (migration 054)
   formats: FormatsTable;
 
-  // Card bans (migration 054)
   cardBans: CardBansTable;
 
-  // Rules (migration 060)
   ruleVersions: RuleVersionsTable;
   rules: RulesTable;
 
-  // Reference tables (migration 062)
   cardTypes: CardTypesTable;
   rarities: RaritiesTable;
   domains: DomainsTable;
@@ -2717,26 +2579,20 @@ export interface Database {
   conditions: ConditionsTable;
   graders: GradersTable;
 
-  // Junction tables (migration 062)
   cardDomains: CardDomainsTable;
   cardSuperTypes: CardSuperTypesTable;
   cardCardTypes: CardCardTypesTable;
   cardTokens: CardTokensTable;
 
-  // Printing events (migration 071)
   printingEvents: PrintingEventsTable;
 
-  // Job runs (migration 101)
   jobRuns: JobRunsTable;
 
-  // Scanner embedding bank metadata (migration 213)
   scanIndex: ScanIndexTable;
 
-  // Materialized views (migration 085)
   mvLatestPrintingPrices: MvLatestPrintingPricesView;
   mvDailyPrintingPrices: MvDailyPrintingPricesView;
   mvCardAggregates: MvCardAggregatesView;
 
-  // Views (migration 096)
   printingsOrdered: PrintingsOrderedView;
 }

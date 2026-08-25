@@ -4,14 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Prices routes
-//
-// GET /prices — latest market prices per marketplace for all printings
-// GET /prices/:printingId/history — price history per printing
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix PRC- for entities it creates.
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0023-4000-a000-000000000001";
 
@@ -26,7 +19,6 @@ let printingNoSourceId: string;
 if (ctx) {
   const { db } = ctx;
 
-  // Seed set
   const [setRow] = await db
     .insertInto("sets")
     .values({ slug: "PRC-TEST", name: "PRC Price Test Set", printedTotal: 2, sortOrder: 200 })
@@ -34,7 +26,6 @@ if (ctx) {
     .execute();
   setId = setRow.id;
 
-  // Seed card
   const [cardRow] = await db
     .insertInto("cards")
     .values({
@@ -55,7 +46,6 @@ if (ctx) {
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
-  // Seed printing with marketplace sources
   const [printingRow] = await db
     .insertInto("printings")
     .values({
@@ -79,7 +69,6 @@ if (ctx) {
     .execute();
   printingId = printingRow.id;
 
-  // Seed a second printing with NO marketplace sources
   const [printingNoSourceRow] = await db
     .insertInto("printings")
     .values({
@@ -103,7 +92,6 @@ if (ctx) {
     .execute();
   printingNoSourceId = printingNoSourceRow.id;
 
-  // TCGPlayer product + variant for printingId.
   // TCG has no per-language SKU axis, so language=null on the product row.
   const [tcgProduct] = await db
     .insertInto("marketplaceProducts")
@@ -126,7 +114,7 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // Cardmarket product + variant for printingId. CM also has no per-language SKU axis.
+  // CM also has no per-language SKU axis.
   const [cmProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -148,8 +136,8 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // TCGPlayer prices at various dates. Prices are keyed on the SKU product,
-  // not the variant — every variant bound to the product inherits the history.
+  // Prices are keyed on the SKU product, not the variant — every variant
+  // bound to the product inherits the history.
   const now = new Date();
   const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
 
@@ -187,7 +175,6 @@ if (ctx) {
     ])
     .execute();
 
-  // Cardmarket price (2 days ago)
   await db
     .insertInto("marketplaceProductPrices")
     .values({
@@ -198,7 +185,6 @@ if (ctx) {
     })
     .execute();
 
-  // CardTrader product + variant for printingId.
   // CT carries real per-variant language codes.
   const [ctProduct] = await db
     .insertInto("marketplaceProducts")
@@ -223,7 +209,7 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // CardTrader prices: Zero-eligible low 2 days ago + plain low 5 days ago.
+  // Zero-eligible low 2 days ago + plain low 5 days ago.
   await db
     .insertInto("marketplaceProductPrices")
     .values([
@@ -247,20 +233,14 @@ if (ctx) {
   // GET /prices reads headline prices from the mv_latest_printing_prices
   // materialized view. The runner refreshes it during setup, before this
   // file seeds its prices at import time — so refresh again to surface them.
-  // Daily first: the latest view is defined over it (migration 219).
+  // Daily first: the latest view is defined over it.
   await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
   await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Prices routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
-
-  // ── GET /prices ─────────────────────────────────────────────────────────
 
   describe("GET /prices", () => {
     it("returns 200 with a prices map", async () => {
@@ -303,8 +283,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       );
     });
   });
-
-  // ── GET /prices/:printingId/history ──────────────────────────────────────
 
   describe("GET /prices/:printingId/history", () => {
     it("returns history with both tcgplayer and cardmarket data", async () => {

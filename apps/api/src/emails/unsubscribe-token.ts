@@ -4,10 +4,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { EmailNotificationChannel } from "@openrift/shared/types";
 
 /**
- * Self-describing, stateless one-click-unsubscribe token (ADR-030). It is an
- * HMAC of `(userId, channel)` signed with the app secret, so no table is
- * needed: the link both names which preference to flip and proves it was issued
- * by us. The token is opaque to the recipient and tamper-evident.
+ * Self-describing, stateless one-click-unsubscribe token. It is an HMAC of
+ * `(userId, channel)` signed with the app secret, so no table is needed: the
+ * link both names which preference to flip and proves it was issued by us.
  */
 
 const VALID_CHANNELS: readonly EmailNotificationChannel[] = [
@@ -25,10 +24,7 @@ function sign(secret: string, payload: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-/**
- * Builds an unsubscribe token for a single channel.
- * @returns The `userId.channel.signature` token (all parts base64url-safe).
- */
+/** Token format: `userId.channel.signature`, all parts base64url-safe. */
 export function signUnsubscribeToken(
   secret: string,
   userId: string,
@@ -39,13 +35,12 @@ export function signUnsubscribeToken(
 }
 
 /**
- * Builds the two unsubscribe URLs an email needs (ADR-030, RFC 8058): the
- * human-facing confirmation page on the web app (the in-body footer link, which
- * never mutates on GET) and the RFC 8058 one-click endpoint on the API (the
+ * Builds the two unsubscribe URLs an email needs: the human-facing
+ * confirmation page on the web app (the in-body footer link, which never
+ * mutates on GET) and the RFC 8058 one-click endpoint on the API (the
  * `List-Unsubscribe` header target the mail client POSTs). Both carry the same
  * single-channel token. `appBaseUrl` is the web origin; `/api/v1` is proxied to
  * the API on that same origin.
- * @returns `{ pageUrl, oneClickUrl }`.
  */
 export function buildUnsubscribeUrls(
   appBaseUrl: string,
@@ -60,11 +55,6 @@ export function buildUnsubscribeUrls(
   };
 }
 
-/**
- * Verifies an unsubscribe token and recovers its `(userId, channel)`.
- * @returns The decoded fields, or `null` if the token is malformed, names an
- *   unknown channel, or the signature does not match.
- */
 export function verifyUnsubscribeToken(
   secret: string,
   token: string,

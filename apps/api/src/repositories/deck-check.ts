@@ -26,7 +26,6 @@ import { imageId, requireFrontImage } from "./query-helpers.js";
 
 export type DeckCheckEntryCard = Selectable<DeckCheckEntryCardsTable>;
 
-/** The host a deck-check integration key (and its tournaments) belongs to. */
 export interface DeckCheckHost {
   hostType: TournamentHostType;
   hostUserId: string | null;
@@ -34,11 +33,9 @@ export interface DeckCheckHost {
 }
 
 /**
- * The deck-check "event" view of a deck-check tournament (ADR-033): a
- * `tournaments` row that collects decklists (`deck_submission <> 'none'`). The
- * event fields map onto tournament columns (status active/archived ↔ running/
- * completed, format ↔ deck_format, allowSelfSubmission ↔ self_registration,
- * eventDate ↔ starts_at).
+ * The deck-check "event" view of a deck-check tournament: a `tournaments` row
+ * that collects decklists (`deck_submission <> 'none'`), its fields mapped
+ * onto tournament columns by `tournamentToEvent`.
  */
 export interface DeckCheckEvent {
   id: string;
@@ -46,7 +43,7 @@ export interface DeckCheckEvent {
   name: string;
   eventDate: Date | null;
   format: string | null;
-  /** 1v1 or 2v2: a 2v2 event's decks are additionally checked against the 2v2 banlist. */
+  /** A 2v2 event's decks are additionally checked against the 2v2 banlist. */
   playMode: TournamentPlayMode;
   allowedSets: string[] | null;
   status: "active" | "archived";
@@ -65,9 +62,9 @@ export interface DeckCheckEventWithCounts extends DeckCheckEvent {
 }
 
 /**
- * A deck-check entry plus the per-person identity it now sources from its
- * `tournament_participants` row (ADR-033). The identity/claim columns moved off
- * the entry; reads flatten them back onto the entry so the response mappers keep
+ * A deck-check entry plus the per-person identity it sources from its
+ * `tournament_participants` row. The identity/claim columns live on the
+ * participant; reads flatten them onto the entry so the response mappers keep
  * the same field names. The sharing-consent flags (`allowNameSharing` /
  * `allowRiotIdSharing` / `allowDeckPublishing`) stay on the entry itself.
  */
@@ -85,7 +82,6 @@ export interface DeckCheckEntrySummary extends DeckCheckEntry {
   checkedByName: string | null;
   approvedByName: string | null;
   claimedUserName: string | null;
-  /** Owning participant's status, so the judge list can flag dropped players. */
   participantStatus: TournamentParticipantStatus | null;
   copyCount: number;
   verifiedCopyCount: number;
@@ -95,14 +91,13 @@ export interface DeckCheckEntrySummary extends DeckCheckEntry {
 export interface NewDeckCheckEntry {
   tournamentId: string;
   /**
-   * The roster participant that owns this deck. Entries always attach to an
-   * existing participant (ADR-033) — resolve or create it (e.g. via
-   * `tournaments.resolveOrCreateParticipant`) before calling.
+   * Entries always attach to an existing participant — resolve or create it
+   * (e.g. via `tournaments.resolveOrCreateParticipant`) before calling.
    */
   participantId: string;
   externalId: string;
   submittedAt: Date | null;
-  /** Sharing-consent flags; omitted on insert = the column default (true, opt-out model). */
+  /** Sharing-consent flags; omitted = the column default (true, opt-out model). */
   allowDeckPublishing?: boolean;
   allowNameSharing?: boolean;
   allowRiotIdSharing?: boolean;
@@ -111,15 +106,14 @@ export interface NewDeckCheckEntry {
   state?: DeckCheckEntryState;
 }
 
-/** An entry as its own player reads it, on the tournament's My deck page. */
 export interface PlayerDeckCheckEntryRow extends DeckCheckEntry {
   eventName: string;
   eventDate: Date | string | null;
   eventStatus: string;
   submissionsCloseAt: Date | null;
-  /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+  /** Null for a personally-hosted tournament with no owning friend group. */
   groupName: string | null;
-  /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+  /** Null for a personally-hosted tournament with no owning friend group. */
   groupSlug: string | null;
 }
 
@@ -145,11 +139,6 @@ export interface CardResolution {
   matchStatus: DeckCheckMatchStatus;
 }
 
-/**
- * Maps a deck-check tournament row onto the event view used by the rest of the
- * subsystem.
- * @returns The event projection.
- */
 function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
   return {
     id: row.id,
@@ -176,13 +165,11 @@ function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
  * never happens when OpenRift is used only for deck check) is a valid push
  * window. Only a finished (`completed`) or called-off (`cancelled`) event is
  * archived and refuses pushes.
- * @returns The deck-check event status for a tournament's DB status.
  */
 export function eventStatusForTournamentStatus(status: TournamentStatus): "active" | "archived" {
   return status === "completed" || status === "cancelled" ? "archived" : "active";
 }
 
-/** Identity fields a participant join contributes to a flattened entry. */
 interface JoinedIdentity {
   playerName: string | null;
   riotId: string | null;
@@ -193,11 +180,6 @@ interface JoinedIdentity {
   claimToken: string | null;
 }
 
-/**
- * Flattens an entry row joined to its participant onto the {@link DeckCheckEntry}
- * shape, so downstream response mappers keep their field names.
- * @returns The materialized entry.
- */
 function materializeEntry<
   T extends JoinedIdentity & { changeSummary: unknown; preEditLines: unknown },
 >(row: T): DeckCheckEntry {
@@ -215,19 +197,12 @@ function materializeEntry<
 }
 
 /**
- * Data access for the deck-check subsystem (ADR-025), re-parented onto the
- * tournaments umbrella (ADR-033): deck-check tournaments, entries keyed off a
- * unified `tournament_participants` identity, and catalog resolution. The
- * host-scoped push keys live in `deck-check-keys.ts`.
- * @param db The Kysely database handle (or transaction).
- * @returns The repository methods.
+ * Data access for the deck-check subsystem: deck-check tournaments, entries
+ * keyed off a unified `tournament_participants` identity, and catalog
+ * resolution. The host-scoped push keys live in `deck-check-keys.ts`.
  */
 // oxlint-disable-next-line max-lines-per-function -- repository factory, one method per query
 export function deckCheckRepo(db: Kysely<Database>) {
-  /**
-   * Selects an entry with its participant identity flattened.
-   * @returns The base query, ready for `.where()` clauses.
-   */
   function selectEntryWithParticipant() {
     return db
       .selectFrom("deckCheckEntries as en")
@@ -245,10 +220,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
   }
 
   /**
-   * The player projection's base select: the entry, its participant, and the
-   * tournament/group labels the player's deck page shows. Callers add the
-   * ownership predicate (always `p.userId`) plus whichever key they hold.
-   * @returns The query builder.
+   * Callers add the ownership predicate (always `p.userId`) plus whichever
+   * key they hold.
    */
   function selectPlayerEntry() {
     return (
@@ -256,7 +229,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .selectFrom("deckCheckEntries as en")
         .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
         .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
-        // Left join: a personally-hosted tournament with no friend group (ADR-033)
+        // Left join: a personally-hosted tournament with no friend group
         // still resolves; the group name/slug are only labels and stay null.
         .leftJoin("friendGroups as g", "g.id", "ev.groupId")
         .selectAll("en")
@@ -278,10 +251,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
     );
   }
 
-  /**
-   * Flattens a {@link selectPlayerEntry} row onto the player projection.
-   * @returns The entry with its tournament and group labels.
-   */
   function materializePlayerEntry(
     row: Awaited<ReturnType<ReturnType<typeof selectPlayerEntry>["executeTakeFirstOrThrow"]>>,
   ): PlayerDeckCheckEntryRow {
@@ -296,13 +265,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
     };
   }
 
-  /** @returns The flattened entry by id, or undefined. */
   async function loadEntryById(entryId: string): Promise<DeckCheckEntry | undefined> {
     const row = await selectEntryWithParticipant().where("en.id", "=", entryId).executeTakeFirst();
     return row ? materializeEntry(row) : undefined;
   }
 
-  /** @returns The participant id owning an entry, or undefined. */
   async function participantIdForEntry(entryId: string): Promise<string | null | undefined> {
     const row = await db
       .selectFrom("deckCheckEntries")
@@ -313,18 +280,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
   }
 
   return {
-    // ── Events (deck-check tournaments) ───────────────────────────────────────
-    //
-    // A deck-check event is just a tournament with `deckSubmission != 'none'`.
-    // It is created and its lifecycle (setup, running, completed/cancelled) is
-    // driven through the umbrella tournament CRUD (`repos.tournaments`), so there
-    // are no create/update-event methods here. The event view is read-only.
+    // A deck-check event is created and its lifecycle driven through the
+    // umbrella tournament CRUD (`repos.tournaments`), so there are no
+    // create/update-event methods here. The event view is read-only.
 
-    /**
-     * Loads a deck-check tournament scoped to its host (the ingest path; the key
-     * resolves to a host, not a group).
-     * @returns The event, or undefined when it does not match the host.
-     */
+    /** The ingest path's read: the push key resolves to a host, not a group. */
     async getEventForHost(
       host: DeckCheckHost,
       tournamentId: string,
@@ -342,10 +302,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? tournamentToEvent(row) : undefined;
     },
 
-    /**
-     * Loads a deck-check tournament without group scoping (player paths).
-     * @returns The event, or undefined when it does not exist.
-     */
     async getEventById(tournamentId: string): Promise<DeckCheckEvent | undefined> {
       const row = await db
         .selectFrom("tournaments")
@@ -356,14 +312,10 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? tournamentToEvent(row) : undefined;
     },
 
-    /**
-     * Resolves a submission link's token to its deck-check tournament.
-     * @returns The event with its group name, or undefined.
-     */
     async getEventBySubmissionToken(
       token: string,
     ): Promise<(DeckCheckEvent & { groupName: string }) | undefined> {
-      // Left join: a host without a friend group (ADR-033) still resolves its
+      // Left join: a host without a friend group still resolves its
       // submission token; the group name is only used as a label.
       const row = await db
         .selectFrom("tournaments as ev")
@@ -376,10 +328,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? { ...tournamentToEvent(row), groupName: row.groupName ?? "" } : undefined;
     },
 
-    /**
-     * Updates the self-submission settings (admin action).
-     * @returns The updated event, or undefined when it does not exist.
-     */
     async updateEventSubmission(
       tournamentId: string,
       patch: Partial<{
@@ -407,8 +355,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .executeTakeFirst();
       return row ? tournamentToEvent(row) : undefined;
     },
-
-    // ── Entries ─────────────────────────────────────────────────────────────
 
     async listEntriesForEvent(tournamentId: string): Promise<DeckCheckEntrySummary[]> {
       const rows = await db
@@ -468,16 +414,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       }));
     },
 
-    /**
-     * Legend art from publishing-consented, non-withdrawn entries, batched per
-     * tournament: up to `limit` distinct legend cards each, in submission
-     * order. Feeds the tournament-summary card fans; entries whose players did
-     * not opt into deck publishing never surface here.
-     *
-     * @param tournamentIds The tournaments to collect legends for.
-     * @param limit Max distinct legends per tournament.
-     * @returns Cover rows grouped by tournament, in fan display order.
-     */
     async coverLegendsAcross(
       tournamentIds: string[],
       limit: number,
@@ -536,15 +472,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return rows as { tournamentId: string; printingId: string; imageId: string }[];
     },
 
-    /**
-     * The legend art of each participant's publishing-consented, non-withdrawn
-     * entry, batched. Used for the winner chip on completed tournaments;
-     * participants without consent (or without a resolved legend image) are
-     * absent from the map.
-     *
-     * @param participantIds The participants to look up.
-     * @returns A map from participant id to their legend's image id.
-     */
     async legendImagesForParticipants(participantIds: string[]): Promise<Map<string, string>> {
       if (participantIds.length === 0) {
         return new Map();
@@ -588,13 +515,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
 
     /**
      * Loads one entry for a judge state transition, taking a `FOR UPDATE` lock
-     * on its row first. Two near-simultaneous judge requests against the same
-     * entry now serialize on that lock instead of both reading the same
+     * on its row first: two near-simultaneous judge requests against the same
+     * entry serialize on that lock instead of both reading the same
      * pre-transition state and the later commit silently overwriting the
-     * earlier one (audit: stale-snapshot judge transitions). Callers must run
-     * this inside a transaction so the lock is actually held.
-     * @returns The freshly-locked entry, or undefined when it does not match
-     * the tournament.
+     * earlier one. Callers must run this inside a transaction so the lock is
+     * actually held.
      */
     async getEntryForUpdate(
       tournamentId: string,
@@ -628,12 +553,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? materializeEntry(row) : undefined;
     },
 
-    /**
-     * The deck entry attached to a participant, if any (one deck per
-     * participant). Used to route a just-claimed participant to their deck when
-     * the tournament runs deck check.
-     * @returns The entry id, or undefined when the participant has no deck.
-     */
+    /** The deck entry attached to a participant, if any (one deck per participant). */
     async findEntryIdByParticipant(participantId: string): Promise<string | undefined> {
       const row = await db
         .selectFrom("deckCheckEntries")
@@ -644,14 +564,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Mints a claim token for a participant that lacks one (defensively). No-op
-     * when set.
-     * @param entryId The entry whose participant to stamp.
-     * @param token The token to write.
-     * @returns The token now stored on the participant — `token` when this
-     *   call won the guarded write, the existing one when a concurrent mint
-     *   beat it (so callers never report a token that was not stored), or
-     *   null for an entry with no participant.
+     * Mints a claim token for a participant that lacks one. Returns the token
+     * now stored on the participant — `token` when this call won the guarded
+     * write, the existing one when a concurrent mint beat it (so callers never
+     * report a token that was not stored), or null for an entry with no
+     * participant.
      */
     async setClaimTokenIfMissing(entryId: string, token: string): Promise<string | null> {
       const participantId = await participantIdForEntry(entryId);
@@ -675,10 +592,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row?.claimToken ?? null;
     },
 
-    /**
-     * Looks up the display name of an account.
-     * @returns The user's display name, or null when unknown.
-     */
     async getUserName(userId: string): Promise<string | null> {
       const row = await db
         .selectFrom("users")
@@ -688,7 +601,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row?.name ?? null;
     },
 
-    /** @returns Whether the participant already owns a deck-check entry. */
     async participantHasDeck(participantId: string): Promise<boolean> {
       const row = await db
         .selectFrom("deckCheckEntries")
@@ -766,8 +678,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
         playerMessage: string | null;
       }>,
     ): Promise<DeckCheckEntry | undefined> {
-      // Identity / claim columns moved to the participant (ADR-033); route them
-      // there. The sharing-consent flags stay on the entry (see entryPatch).
+      // Identity / claim columns live on the participant; route them there.
+      // The sharing-consent flags stay on the entry (see entryPatch).
       const participantPatch: Updateable<TournamentParticipantsTable> = {};
       if (patch.playerName !== undefined) {
         participantPatch.displayName = patch.playerName;
@@ -820,7 +732,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
       const writesEntry = Object.keys(entryPatch).length > 0;
 
       // One patch spans two tables, so the two writes share a transaction: a
-      // failure between them used to leave the participant renamed while the
+      // failure between them would leave the participant renamed while the
       // entry kept its old state, which the checked/approved columns make
       // visible to judges immediately.
       const applyPatches = async (trx: Kysely<Database>): Promise<boolean> => {
@@ -877,13 +789,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return result.numDeletedRows > 0n;
     },
 
-    // ── Account links and player access (ADR-026, on participants) ───────────
-
-    /**
-     * One account's identity fields, for existence checks and for populating
-     * a self-submitted entry's player fields from the account.
-     * @returns The account row, or undefined when the user does not exist.
-     */
     getUserAccount(
       userId: string,
     ): Promise<
@@ -899,7 +804,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
     /**
      * Judge unlink: clears the participant's claim columns and sets the block so
      * no auto-match path (ingest, lazy, backfill) ever restores the bad link.
-     * @returns The updated entry, or undefined when it does not exist.
      */
     async unlinkEntry(entryId: string): Promise<DeckCheckEntry | undefined> {
       const participantId = await participantIdForEntry(entryId);
@@ -920,10 +824,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One entry, guarded by ownership: returns nothing unless the entry's
-     * participant is linked to the caller. The 404-vs-403 distinction happens in
-     * the route.
-     * @returns The entry with its tournament and group names, or undefined.
+     * Guarded by ownership: returns nothing unless the entry's participant is
+     * linked to the caller. The 404-vs-403 distinction happens in the route.
      */
     async getEntryForPlayer(
       entryId: string,
@@ -937,11 +839,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The caller's own entry in one tournament — the read behind the player's
-     * deck page, which is addressed by tournament rather than by entry id
-     * (ADR-033). At most one row: a participant is unique per account per
-     * tournament, and an entry belongs to exactly one participant.
-     * @returns The entry with its tournament and group names, or undefined.
+     * At most one row: a participant is unique per account per tournament, and
+     * an entry belongs to exactly one participant.
      */
     async getEntryForPlayerByTournament(
       tournamentId: string,
@@ -954,10 +853,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? materializePlayerEntry(row) : undefined;
     },
 
-    /**
-     * The caller's linked entry within one event, for submission-as-edit.
-     * @returns The entry, or undefined when none is linked.
-     */
     async getLinkedEntryForUser(
       tournamentId: string,
       userId: string,
@@ -969,8 +864,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? materializeEntry(row) : undefined;
     },
 
-    // ── Entry cards ─────────────────────────────────────────────────────────
-
     listCardsForEntry(entryId: string): Promise<DeckCheckEntryCard[]> {
       return db
         .selectFrom("deckCheckEntryCards")
@@ -980,10 +873,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Replaces an entry's card lines wholesale (re-import semantics).
-     * @returns Nothing; old rows are deleted and the new lines inserted.
-     */
     async replaceEntryCards(entryId: string, cards: NewDeckCheckEntryCard[]): Promise<void> {
       await db.deleteFrom("deckCheckEntryCards").where("entryId", "=", entryId).execute();
       if (cards.length > 0) {
@@ -994,11 +883,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       }
     },
 
-    /**
-     * Rewrites one card line's raw name plus its resolution (the on-site
-     * typo fix); zone, quantity, and found ticks stay.
-     * @returns False when the row no longer exists.
-     */
     async updateCardName(
       entryId: string,
       cardId: string,
@@ -1020,14 +904,12 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Moves copies of a card line into another zone (the judge's per-copy fix),
-     * renaming and re-resolving the line in the same step. Moving the whole line
-     * just re-zones it in place; moving fewer than all copies splits the line,
-     * leaving the remainder where it was. Copies landing in a zone that already
+     * Moves copies of a card line into another zone, renaming and re-resolving
+     * the line in the same step. Moving fewer than all copies splits the line,
+     * leaving the remainder where it was; copies landing in a zone that already
      * holds the same resolved card merge into that line. A re-zone to the line's
      * current zone is treated as a plain rename, never a split. Found ticks for
      * moved (or newly merged-in) copies reset to unfound.
-     * @returns False when the source row no longer exists.
      */
     moveCardCopies(
       entryId: string,
@@ -1043,7 +925,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
       // Wrapped in a transaction with a FOR UPDATE lock on the source line so a
       // concurrent split of the same line (two judges, or a double-click)
       // serializes instead of both reading the same quantity and issuing
-      // conflicting shrink writes (audit #1). Every read/write below uses trx.
+      // conflicting shrink writes. Every read/write below uses trx.
       return db.transaction().execute(async (trx) => {
         const source = await trx
           .selectFrom("deckCheckEntryCards")
@@ -1118,7 +1000,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
             })
             .where("id", "=", mergeTarget.id)
             .execute();
-          // The source line is emptied by a full move, otherwise just shrunk.
           if (fullMove) {
             await trx
               .deleteFrom("deckCheckEntryCards")
@@ -1150,7 +1031,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
           return true;
         }
 
-        // Partial move into a fresh line in the target zone.
         await trx
           .updateTable("deckCheckEntryCards")
           .set({
@@ -1186,12 +1066,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Moves one card line to a different zone (the bulk zone-fix action), also
-     * overwriting its provider section string so the row stays coherent; name,
-     * resolution, quantity, and found ticks stay.
-     * @returns False when the row no longer exists.
-     */
     async updateCardZone(
       entryId: string,
       cardId: string,
@@ -1207,7 +1081,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return result.numUpdatedRows > 0n;
     },
 
-    /** Appends one card line after the entry's current highest sort order. */
     async addEntryCard(entryId: string, card: NewDeckCheckEntryCard): Promise<void> {
       await db
         .insertInto("deckCheckEntryCards")
@@ -1216,17 +1089,14 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Removes one physical copy of a card line: the quantity drops by one and
-     * the clicked copy's found tick is spliced out (other ticks keep their
-     * cells). Removing the last copy deletes the line.
+     * Removes one physical copy of a card line; removing the last copy deletes
+     * the line.
      *
      * Wrapped in a transaction with a FOR UPDATE lock on the line, for the same
-     * reason as {@link moveCardCopies} (audit #1): two judges removing copies of
-     * a quantity-2 line would otherwise both read 2 and take the decrement
+     * reason as {@link moveCardCopies}: two judges removing copies of a
+     * quantity-2 line would otherwise both read 2 and take the decrement
      * branch, and the second write would drive quantity to 0 and trip the
      * `quantity > 0` CHECK as a 500 instead of deleting the line.
-     *
-     * @returns False when the row or copy no longer exists.
      */
     deleteEntryCardCopy(entryId: string, cardId: string, copyIndex: number): Promise<boolean> {
       const position = copyIndex + 1;
@@ -1274,8 +1144,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * array with a non-1 lower bound, which the postgres.js driver cannot
      * represent. The rewrite is computed from the row's current value inside
      * one UPDATE, so concurrent judges ticking different copies both land.
-     * @returns False when the row no longer exists (replaced by a re-import)
-     *   or the copy index is outside the line's quantity.
      */
     async setCardCopyFound(
       entryId: string,
@@ -1302,11 +1170,9 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Marks every physical copy of every card line in an entry as found. Used
-     * when a judge marks the list checked (ADR-033): concluding the check
-     * implies the whole list was verified, so the found ticks are filled to
-     * match. Each line's array is rewritten dense to its own `quantity`.
-     * @returns Nothing; an entry with no card lines is a no-op.
+     * Marks every physical copy of every card line in an entry as found, when
+     * a judge marks the list checked: concluding the check implies the whole
+     * list was verified, so the found ticks are filled to match.
      */
     async markAllCopiesFound(entryId: string): Promise<void> {
       await sql`
@@ -1320,10 +1186,9 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Clears every found tick across an entry's card lines, back to the empty
-     * default. Used when a judge re-opens a checked list (ADR-033): re-checking
-     * starts from a clean slate so a stale auto-fill can't read as a fresh count.
-     * @returns Nothing.
+     * Clears every found tick across an entry's card lines, when a judge
+     * re-opens a checked list: re-checking starts from a clean slate so a
+     * stale auto-fill can't read as a fresh count.
      */
     async clearAllCopiesFound(entryId: string): Promise<void> {
       await db
@@ -1333,10 +1198,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Card lines of an event still unmatched or ambiguous, for the re-resolve action.
-     * @returns The unresolved card rows across all of the event's entries.
-     */
     listUnresolvedCardsForEvent(tournamentId: string): Promise<DeckCheckEntryCard[]> {
       return (
         db
@@ -1344,7 +1205,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           .innerJoin("deckCheckEntries as en", "en.id", "c.entryId")
           .selectAll("c")
           .where("en.tournamentId", "=", tournamentId)
-          // An editable entry's list is invisible to officials (ADR-027), so the
+          // An editable entry's list is invisible to officials, so the
           // event-wide re-resolve leaves its lines alone too.
           .where("en.state", "!=", "editable")
           .where("c.matchStatus", "!=", "matched")
@@ -1363,19 +1224,12 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .where("id", "=", cardId)
         .execute();
     },
-    // ── Card resolution ─────────────────────────────────────────────────────
-
     /**
      * The canonical printing of each given card, purely to source a thumbnail
-     * for a resolved decklist line.
-     *
-     * Name resolution itself is not here: it runs against the shared in-memory
-     * lookup index (`services/card-lookup-index.ts`), so a decklist name reaches
-     * the same card the pickers, the chat lookup and the Discord bot reach. All
-     * this read still owns is the picture.
-     *
-     * @param cardIds The resolved card ids.
-     * @returns Card id to its canonical printing id.
+     * for a resolved decklist line. Name resolution itself is not here: it runs
+     * against the shared in-memory lookup index
+     * (`services/card-lookup-index.ts`), so a decklist name reaches the same
+     * card the pickers, the chat lookup and the Discord bot reach.
      */
     async canonicalPrintingByCard(cardIds: string[]): Promise<Map<string, string>> {
       const thumbnailByCard = new Map<string, string>();
@@ -1396,11 +1250,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return thumbnailByCard;
     },
 
-    /**
-     * Maps printing short codes (as found in a pasted deck code) onto cards,
-     * for the self-submission decode path (ADR-026).
-     * @returns Card name and type keyed by short code.
-     */
     async getCardsByShortCodes(
       shortCodes: string[],
     ): Promise<Map<string, { cardId: string; name: string; types: string[] }>> {
@@ -1423,10 +1272,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return byShortCode;
     },
 
-    /**
-     * Denormalized card details for building a DeckState from resolved lines.
-     * @returns Card details keyed by card id.
-     */
     async getCardDetails(cardIds: string[]): Promise<
       Map<
         string,
@@ -1480,10 +1325,6 @@ export function deckCheckRepo(db: Kysely<Database>) {
       );
     },
 
-    /**
-     * Set slugs of the printings each card appears in, for the allowedSets check.
-     * @returns Set slugs keyed by card id.
-     */
     async getCardSetSlugs(cardIds: string[]): Promise<Map<string, string[]>> {
       if (cardIds.length === 0) {
         return new Map();

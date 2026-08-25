@@ -1,5 +1,5 @@
 /**
- * Stamping outcomes on in-app card submissions (ADR-036, migration 234).
+ * Stamping outcomes on in-app card submissions.
  *
  * The admin's review loop has exactly two terminal actions: check ("done with
  * this one", the Check all & next button) and ignore ("reject"). Everything
@@ -29,10 +29,6 @@ import { adoptedFields, computeProposedDiff } from "../lib/card-submission-diff.
  * An empty proposed diff means the catalog already matched everything sent.
  * That is a real outcome and not a rejection, so it gets its own status rather
  * than being folded into `not_applied`.
- *
- * @param proposedDiffSize How many fields differed when the submission was made.
- * @param adoptedCount How many of those the catalog now agrees with.
- * @returns The status to stamp.
  */
 export function outcomeForCheckedSubmission(
   proposedDiffSize: number,
@@ -51,10 +47,6 @@ export function outcomeForCheckedSubmission(
  * "Fully reviewed" means the candidate card is checked and none of its
  * printings are still unchecked. Without that gate, checking a single printing
  * on a multi-printing submission would settle the whole thing early.
- *
- * @param repos The API repositories.
- * @param args The candidate rows just checked, the acting admin, and the instant to stamp.
- * @returns The number of submissions resolved.
  */
 export async function resolveCheckedSubmissions(
   repos: Repos,
@@ -123,12 +115,9 @@ export async function resolveCheckedSubmissions(
  * Mark the submission behind an ignored candidate as rejected.
  *
  * The ignore path only carries `(provider, external_id)`, which is enough:
- * ADR-036 mints a per-submission external_id, so the key identifies exactly one
- * submission. Candidates from scraped providers have no ledger row and this
- * no-ops for them.
- *
- * @param repos The API repositories.
- * @param args The ignored candidate's key, the acting admin, and the instant to stamp.
+ * submissions mint a per-submission external_id, so the key identifies exactly
+ * one submission. Candidates from scraped providers have no ledger row and
+ * this no-ops for them.
  */
 export async function rejectIgnoredSubmission(
   repos: Repos,
@@ -149,9 +138,6 @@ export async function rejectIgnoredSubmission(
  * Return a rejected submission to the queue when its candidate is unignored, so
  * a misclick is recoverable and the contributor's page follows. Any note the
  * admin wrote is kept, on the assumption they will reuse or edit it.
- *
- * @param repos The API repositories.
- * @param args The unignored candidate's key.
  */
 export async function reopenUnignoredSubmission(
   repos: Repos,

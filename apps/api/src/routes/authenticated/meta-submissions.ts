@@ -14,14 +14,12 @@ import type { Variables } from "../../types.js";
 /** A decklist is a few hundred short text lines, never a binary upload. */
 const MAX_BODY_BYTES = 128 * 1024;
 
-/** Page size when the client doesn't ask for one. */
 const DEFAULT_LIST_LIMIT = 25;
 
 const os = implement(metaSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The meta archive's signed-in surfaces (ADR-014's User submissions and
- * Contributor credit, both ADR-036's design applied to a second entity).
+ * The meta archive's signed-in surfaces.
  *
  * Auth is per procedure, through `requireAuthedUser`, and deliberately not a
  * Hono middleware on the `/api/v1/meta` prefix: the archive's reads live on that
@@ -95,9 +93,6 @@ export const metaSubmissionsRouter = {
  *
  * Scoped to the exact submission path, never to `/api/v1/meta/*`: the archive's
  * public reads share that prefix.
- *
- * @param app The Hono app to register middleware on.
- * @returns Nothing; registers middleware on the passed app.
  */
 export function mountMetaSubmissionsMiddleware(app: Hono<{ Variables: Variables }>): void {
   app.use(

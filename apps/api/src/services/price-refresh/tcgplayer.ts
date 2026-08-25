@@ -21,19 +21,13 @@ import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
-// ── Upsert config ─────────────────────────────────────────────────────────
-
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "tcgplayer",
 };
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
 const TCGCSV_BASE = "https://tcgcsv.com/tcgplayer";
 const TCGCSV_CATEGORY = 89; // Riftbound
 const TCGCSV_HEADERS = { "User-Agent": "OpenRift/1.0.0" };
-
-// ── External API types ─────────────────────────────────────────────────────
 
 interface TcgcsvGroup {
   groupId: number;
@@ -59,8 +53,6 @@ interface TcgcsvPrice {
   marketPrice: number | null;
   directLowPrice: number | null;
 }
-
-// ── Fetch ──────────────────────────────────────────────────────────────────
 
 interface TcgplayerFetchResult {
   groups: TcgcsvGroup[];
@@ -115,8 +107,6 @@ async function fetchTcgplayerData(fetchFn: Fetch): Promise<TcgplayerFetchResult>
     totalProducts,
   };
 }
-
-// ── Transform ──────────────────────────────────────────────────────────────
 
 function buildTcgplayerStaging(
   { groups, groupProducts, groupPrices, groupRecordedAt }: TcgplayerFetchResult,
@@ -181,13 +171,10 @@ function buildTcgplayerGroups(groups: TcgcsvGroup[]): GroupRow[] {
   }));
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
-
 /**
  * Fetch the latest TCGPlayer groups, products, and prices from the TCGCSV API,
  * upsert group metadata, and write snapshots for already-mapped sources. All
  * products are staged for manual admin mapping.
- * @returns Fetch totals and per-table upsert counts.
  */
 export async function refreshTcgplayerPrices(
   fetchFn: Fetch,
@@ -196,11 +183,9 @@ export async function refreshTcgplayerPrices(
 ): Promise<PriceRefreshResponse> {
   const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "tcgplayer");
 
-  // Phase 1: Fetch
   const fetchResult = await fetchTcgplayerData(fetchFn);
   const { groups, totalProducts } = fetchResult;
 
-  // Phase 2: Transform
   const allStaging = buildTcgplayerStaging(fetchResult, ignoredKeys);
   const groupRows = buildTcgplayerGroups(groups);
 
@@ -216,7 +201,6 @@ export async function refreshTcgplayerPrices(
     ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
   );
 
-  // Phase 3: Persist
   await upsertMarketplaceGroups(repos.priceRefresh, "tcgplayer", groupRows);
 
   const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);

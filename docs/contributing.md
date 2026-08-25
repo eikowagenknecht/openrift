@@ -56,6 +56,16 @@ bunx shadcn@latest add <component-name>
 
 When customizing a scaffolded component, add a `// custom: <reason>` comment on every changed or added line. This makes it easy to re-scaffold with `--overwrite` and diff to re-apply customizations.
 
+## Comments
+
+The default is no comment. A comment exists only when it states something the code cannot say:
+
+- **A non-derivable constraint or invariant** — ordering requirements, locking rationale, anything a correct-looking edit would silently break.
+- **An external quirk** — a browser or library bug, ideally with the condition under which the workaround (and the comment) can be removed.
+- **A deliberate non-action** — "this field is left untouched on purpose", where the omission would otherwise read as a bug.
+
+Everything else gets deleted, not improved: comments restating the code, section banners, diff narration ("now handles null"), and provenance markers ("Regression:", audit or ADR/migration numbers outside migration files) — git history owns provenance. Before writing a comment, ask what rename, extraction, or test title would make it unnecessary. In tests, intent belongs in the `it()` title and grouping in `describe` blocks. JSDoc follows the same bar: no boilerplate `@param`/`@returns` tags; a JSDoc survives only as a summary carrying real information, usually one line. Functional comments are exempt: `oxlint-disable` reasons, `// custom:` shadcn markers, `"use memo"`/`"use no memo"` directives.
+
 ## Linting
 
 We use **oxlint** as the primary linter, plus ESLint for the React Compiler rules that oxlint doesn't cover. When suppressing an oxlint rule, use `oxlint-disable` comments — not `eslint-disable`:

@@ -21,7 +21,6 @@ import { logEvents } from "./event-logger.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 import { sendTradeRequestEmail } from "./trade-notifications.js";
 
-/** Pending requests expire this long after creation (ADR-019, hard-coded). */
 const PENDING_TTL_HOURS = 24 * 7;
 
 export interface CreateTradeInput {
@@ -34,7 +33,6 @@ export interface CreateTradeInput {
   quantity: number;
 }
 
-/** @returns The viewer's role on a trade, or `null` if they are not a party. */
 function callerRole(trade: CardTrade, userId: string): CardTradeRole | null {
   if (trade.giverUserId === userId) {
     return "giver";
@@ -50,11 +48,6 @@ function tooFewAvailable(count: number): AppError {
   return new AppError(409, ERROR_CODES.CONFLICT, `Only ${count} ${noun} still available`);
 }
 
-/**
- * Re-reads a trade as a viewer-oriented DTO from inside a transaction. Used to
- * return the updated state right after a mutation.
- * @returns The DTO (must exist; the trade was just read/mutated in this txn).
- */
 async function reloadDto(
   repos: Repos,
   tradeId: string,
@@ -68,14 +61,10 @@ async function reloadDto(
 }
 
 /**
- * Narrows a trade to one whose group and both parties still exist.
- *
- * Deleting an account (migration 248) or a friend group (migration 252) nulls
- * the id it owned on every trade it touched and cancels the live ones in the
- * same trigger, so a trade missing any of the three is finished history — there
- * is no action left to take on it, and whoever else took part sees it read-only
- * through the DTO surfaces instead.
- * @returns The same trade, typed as having its group and both parties.
+ * Deleting an account or a friend group nulls the id it owned on every trade
+ * it touched and cancels the live ones in the same trigger, so a trade missing
+ * any of the three is finished history: nothing is left to act on, and the
+ * other party sees it read-only through the DTO surfaces.
  */
 function requireLiveTrade(trade: CardTrade): LiveCardTrade {
   const { groupId, giverUserId, receiverUserId } = trade;
@@ -96,11 +85,6 @@ function requireLiveTrade(trade: CardTrade): LiveCardTrade {
   return { ...trade, groupId, giverUserId, receiverUserId };
 }
 
-/**
- * Loads a trade and verifies the caller is a party to it. Shared entry point
- * for every mutation below.
- * @returns The trade and the caller's role on it.
- */
 async function loadTradeForParty(
   repos: Repos,
   tradeId: string,
@@ -117,14 +101,12 @@ async function loadTradeForParty(
   return { trade: requireLiveTrade(trade), role };
 }
 
-/** Throws a 409 with `message` unless `trade.status` is `expected`. */
 function assertTradeStatus(trade: CardTrade, expected: CardTrade["status"], message: string): void {
   if (trade.status !== expected) {
     throw new AppError(409, ERROR_CODES.CONFLICT, message);
   }
 }
 
-/** Throws 403 unless `role` is the recipient, i.e. not the trade's initiator. */
 function assertRecipient(trade: CardTrade, role: CardTradeRole, action: string): void {
   if (role === trade.initiator) {
     throw new AppError(403, ERROR_CODES.FORBIDDEN, `Only the recipient can ${action} this trade`);
@@ -132,26 +114,13 @@ function assertRecipient(trade: CardTrade, role: CardTradeRole, action: string):
 }
 
 /**
- * Caps `quantity` against what the giver can genuinely still hand over: their
- * live unreserved copies of `printingId` in `groupId`, minus whatever their
- * other pending offers have already claimed.
- *
- * Rule-aware (ADR-034): a copy offered only via a dynamic trade rule counts here
- * just as it does in the match view, so callers can't disagree with the dialog's
- * `availableCount`.
- *
- * Offers count against the total because an offer (`initiator = 'giver'`) is a
- * commitment the giver made, and nothing is pinned until the recipient accepts.
- * Each live offer claims specific copy ids out of the group it lives in, oldest
- * offer first (see {@link claimCopiesForOffers}), so a copy shared only with a
- * different group is never falsely counted against this one. This refines
- * ADR-019's "a pending request reserves nothing" rule, which still holds for
- * the request direction: receiver-initiated pending rows are bids and claim no
- * copies, so several members may ask for one card and the giver picks. A
- * knock-on effect is intended: once the only copy is out on an offer, a new
- * request for it also fails here, because the supply really is committed. The
- * match view runs the same claim pass and hides those copies, so this is the
- * backstop for a race rather than the message a member normally sees.
+ * Offers (`initiator = 'giver'`) count against supply — a commitment with
+ * nothing pinned until the recipient accepts — while requests are bids and
+ * claim nothing, so several members may ask for one card and the giver picks.
+ * Allocation is by copy id per group ({@link claimCopiesForOffers}), so a copy
+ * shared only with a different group is never falsely counted against this
+ * one. The knock-on is intended: once the only copy is out on an offer, a new
+ * request also fails here, because the supply really is committed.
  *
  * `excludeTradeId` drops the trade being resized from the claim pass, so a
  * pending offer does not compete with itself in {@link setTradeQuantity}.
@@ -182,10 +151,8 @@ async function assertSupplyAvailable(
 }
 
 /**
- * Reads the giver's unreserved copies of one printing, once per group.
  * Sequential on purpose: the repos may be bound to a single transaction
  * connection, which cannot serve concurrent queries.
- * @returns Group id to the copy ids that group can see.
  */
 async function readSupplyByGroup(
   repos: Repos,
@@ -206,33 +173,12 @@ async function readSupplyByGroup(
 }
 
 /**
- * Cancels every still-`pending` trade of one giver+printing that the giver's
- * current supply can no longer fill (ADR-019). The threshold is the trade's own
- * `quantity`, not zero: a request for 2 against 1 remaining copy is dead and is
- * closed rather than left to sit out its seven-day TTL.
- *
- * Runs inside the caller's transaction, so the supply drop and the cancellations
- * commit together. Call it from every path where a giver's supply can fall:
- * accepting a competing trade, disposing copies, moving copies, and unsharing a
- * trade list.
- *
- * Ordering, when several pending trades compete for one stack:
- *
- * 1. Offers first, oldest first. An offer (`initiator = 'giver'`) is a
- *    commitment and consumes supply, exactly as in {@link assertSupplyAvailable},
- *    so the copies it holds come off the table before anything else is judged.
- *    Oldest-first lets the first promise survive and keeps the result stable.
- * 2. Requests last, each judged against what the surviving offers left. A
- *    request is a bid, not a commitment (ADR-019), so requests never consume
- *    from each other: several members may still compete for one card and the
- *    giver picks. A request dies only when the supply itself stops covering it.
- *
- * Allocation is by copy id, not by count, so a giver who shares different copies
- * with different groups is not falsely emptied out. An offer in one group only
- * claims copies that group can see. No trade counts against itself: an offer is
- * measured against what the *other* offers left, and claims its own share only
- * if it fits.
- * @returns The ids of the trades that were auto-cancelled.
+ * The threshold is the trade's own `quantity`, not zero: a request for 2
+ * against 1 remaining copy is dead and is closed rather than left to sit out
+ * its TTL. Runs inside the caller's transaction so the supply drop and the
+ * cancellations commit together — call it from every path where a giver's
+ * supply can fall: accepting a competing trade, disposing copies, moving
+ * copies, and unsharing a trade list.
  */
 export async function autoCancelUnfillablePendingTrades(
   trxRepos: Repos,
@@ -244,7 +190,6 @@ export async function autoCancelUnfillablePendingTrades(
     return [];
   }
 
-  // One supply read per group these trades span.
   const supplyByGroup = await readSupplyByGroup(
     trxRepos,
     new Set(pending.map((trade) => trade.groupId)),
@@ -261,9 +206,8 @@ export async function autoCancelUnfillablePendingTrades(
     }
   };
 
-  // Pass 1: the offers claim their copies, oldest first. This is the same
-  // allocation {@link assertSupplyAvailable} runs, so a trade this sweep keeps
-  // is exactly one `createTrade` would have allowed.
+  // Offers claim first, oldest first — the same allocation assertSupplyAvailable
+  // runs, so a trade this sweep keeps is exactly one createTrade would allow.
   const { claimed, unfillable } = claimCopiesForOffers(
     pending.filter((trade) => trade.initiator === "giver"),
     supplyByGroup,
@@ -272,7 +216,8 @@ export async function autoCancelUnfillablePendingTrades(
     await cancel(offer.id);
   }
 
-  // Pass 2: the requests share whatever is left, competing freely.
+  // Requests are bids, not commitments: they never consume from each other, so
+  // each is judged against what the surviving offers left.
   for (const trade of pending) {
     if (trade.initiator === "giver") {
       continue;
@@ -286,26 +231,18 @@ export async function autoCancelUnfillablePendingTrades(
   return cancelled;
 }
 
-/** Claims the giver's side of a completed trade's sync (guards a double-apply). */
 async function claimGiverSyncSide(repos: Repos, tradeId: string): Promise<void> {
   if ((await repos.cardTrades.setGiverSyncApplied(tradeId)) === 0) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
   }
 }
 
-/** Claims the receiver's side of a completed trade's sync (guards a double-apply). */
 async function claimReceiverSyncSide(repos: Repos, tradeId: string): Promise<void> {
   if ((await repos.cardTrades.setReceiverSyncApplied(tradeId)) === 0) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "You've already resolved your side");
   }
 }
 
-/**
- * Creates a `pending` trade from a still-valid match. Validates membership, that
- * the match holds (re-running the match repo scoped to the counterparty + printing),
- * the quantity against live supply, and that no live trade already exists.
- * @returns The created trade as a viewer-oriented DTO.
- */
 export async function createTrade(
   repos: Repos,
   input: CreateTradeInput,
@@ -336,9 +273,9 @@ export async function createTrade(
   const giverUserId = role === "giver" ? callerUserId : counterpartyUserId;
   const receiverUserId = role === "giver" ? counterpartyUserId : callerUserId;
 
-  // Re-run the match scoped to the counterparty to confirm it still holds and to
-  // snapshot the receiver's wish entry. `receiver` initiates from an "others have
-  // your wants" row; `giver` from an "others want your haves" row.
+  // Re-run the match to confirm it still holds and to snapshot the receiver's
+  // wish entry. `receiver` initiates from an "others have your wants" row;
+  // `giver` from an "others want your haves" row.
   const matchRows =
     role === "receiver"
       ? await repos.friendGroupMatches.othersHaveYourWants({
@@ -374,10 +311,9 @@ export async function createTrade(
     throw new AppError(409, ERROR_CODES.CONFLICT, "A live trade for this card already exists");
   }
 
-  // Live supply nets out reserved copies and the giver's pending offers.
   await assertSupplyAvailable(repos, group.id, giverUserId, printingId, quantity);
-  // Never trade more than the wanting side wants — over-trading would over-credit
-  // copies and drive the wishlist negative on sync.
+  // Never trade more than the wanting side wants — over-trading would
+  // over-credit copies and drive the wishlist negative on sync.
   if (quantity > demandQuantity) {
     throw new AppError(
       400,
@@ -411,8 +347,7 @@ export async function createTrade(
     throw error;
   }
 
-  // ADR-030: notify the non-initiator. After commit, outside any transaction,
-  // and best-effort (the helper swallows its own errors) so a mail failure can
+  // Best-effort (the helper swallows its own errors) so a mail failure can
   // never fail the trade — the bell stays the source of truth.
   if (emailDeps !== undefined) {
     await sendTradeRequestEmail(repos, created, emailDeps);
@@ -422,18 +357,11 @@ export async function createTrade(
 }
 
 /**
- * Decides which physical copies an accept promises, out of the candidates that
- * survived the row lock and the loan re-check. Reservations pin copy ids, so
- * this is the choice of what physically leaves the giver's binder (ADR-019).
- *
- * `chosenCopyIds` is the accepting giver's explicit pick. It is honoured only
- * once every id is confirmed to be in `availableCopyIds` — the live supply
- * narrowed by the lock — so an id from another member, from another printing,
- * or from a copy that just went away is refused instead of pinned.
- *
- * Without a pick the plainest copies go first, so a graded, noted or altered
- * copy stays with its owner while a plain one is still on the table.
- * @returns Exactly `trade.quantity` copy ids to pin.
+ * Without an explicit pick the plainest copies go first, so a graded, noted or
+ * altered copy stays with its owner while a plain one is still on the table. A
+ * pick is honoured only once every id is confirmed to be in
+ * `availableCopyIds`, so an id from another member, another printing, or a
+ * copy that just went away is refused instead of pinned.
  */
 async function resolvePinnedCopyIds(
   trxRepos: Repos,
@@ -443,7 +371,6 @@ async function resolvePinnedCopyIds(
   chosenCopyIds?: string[],
 ): Promise<string[]> {
   if (chosenCopyIds === undefined) {
-    // Nothing to weigh when the whole stack is going anyway.
     if (availableCopyIds.length === trade.quantity) {
       return availableCopyIds;
     }
@@ -455,8 +382,6 @@ async function resolvePinnedCopyIds(
     return [...ordered, ...availableCopyIds.filter((id) => !seen.has(id))].slice(0, trade.quantity);
   }
 
-  // Only the giver owns these copies. On a giver-initiated offer the receiver
-  // is the one accepting, and they have no say over which copy they get.
   if (role !== "giver") {
     throw new AppError(
       403,
@@ -484,25 +409,20 @@ async function resolvePinnedCopyIds(
 }
 
 /**
- * The copies the giver could put behind a trade they have not settled yet: the
- * ones currently pinned, plus every other free copy of the printing in their
- * own collections.
- *
- * The candidate set is deliberately wider than the accept path's. That one is
- * scoped to what the group can see, because a pin promises a copy into a live
- * trade. This one runs after the cards have physically changed hands, so it is
- * recording which copy left — and that is routinely one the group never saw,
- * which is the whole reason the giver is correcting the pick.
- * @returns The pinned copies followed by the free alternatives.
+ * Deliberately wider than the accept path's candidate set. That one is scoped
+ * to what the group can see, because a pin promises a copy into a live trade;
+ * this one runs after the cards physically changed hands and records which
+ * copy left — routinely one the group never saw, which is the whole reason the
+ * giver is correcting the pick.
  */
 async function listSettleCandidateCopies(
   repos: Repos,
   trade: LiveCardTrade,
   pinnedCopyIds: readonly string[],
 ): Promise<TradeCopyRow[]> {
-  // Sequential: the settle path calls this with transaction-bound repos, which
-  // share one connection. `listFreePersonalMetadataForPrinting` excludes every
-  // trade-pinned copy, so the two reads cannot overlap.
+  // Sequential: transaction-bound repos share one connection.
+  // `listFreePersonalMetadataForPrinting` excludes every trade-pinned copy, so
+  // the two reads cannot overlap.
   const pinned = await repos.copies.listMetadataByIds(pinnedCopyIds);
   const free = await repos.copies.listFreePersonalMetadataForPrinting(
     trade.giverUserId,
@@ -512,16 +432,9 @@ async function listSettleCandidateCopies(
 }
 
 /**
- * The physical copies a trade could draw on, for the giver's picker. Giver-only:
- * the rows carry the owner's private notes, and the giver is the only party who
- * gets to choose which copy leaves their binder.
- *
- * On a pending trade this is the accept picker's candidate set — the same
- * reservable supply the accept path pins from, so the picker can never offer a
- * copy the accept would then refuse. On a reserved trade the giver has not
- * settled yet, so it is the settle picker's set instead
- * (see {@link listSettleCandidateCopies}).
- * @returns The candidates in default order, plus whether to prompt at all.
+ * Giver-only because the rows carry the owner's private notes. The pending
+ * branch reads the same reservable supply the accept path pins from, so the
+ * picker can never offer a copy the accept would then refuse.
  */
 export async function listTradeCopyOptions(
   repos: Repos,
@@ -558,14 +471,6 @@ export async function listTradeCopyOptions(
   });
 }
 
-/**
- * Accepts a pending trade (recipient only): pins `quantity` unreserved copies and
- * flips to `reserved`.
- *
- * `chosenCopyIds` lets an accepting giver say which physical copies to promise
- * (see {@link resolvePinnedCopyIds}). Omitted, the plainest copies go first.
- * @returns The reserved trade as a viewer-oriented DTO.
- */
 export function acceptTrade(
   transact: Transact,
   tradeId: string,
@@ -577,12 +482,10 @@ export function acceptTrade(
     assertTradeStatus(trade, "pending", "This trade is no longer pending");
     assertRecipient(trade, role, "accept");
 
-    // Rule-aware (ADR-034): the reservable supply mirrors the match view, so a
-    // copy offered only via a dynamic trade rule is pinnable here. `hasAny` is
-    // reservation-agnostic, telling the two exhaustion cases apart below.
     // Pending offers are not netted out here, unlike in createTrade: the pins
     // settle the race, and this trade's own offer must not block the accept
-    // that turns it into a reservation.
+    // that turns it into a reservation. `hasAny` is reservation-agnostic,
+    // telling the two exhaustion cases apart below.
     const { unreservedCopyIds: copyIds, hasAny } =
       await trxRepos.friendGroupMatches.giverPrintingSupply({
         groupId: trade.groupId,
@@ -590,9 +493,9 @@ export function acceptTrade(
         printingId: trade.printingId,
       });
     if (copyIds.length < trade.quantity) {
-      // Tell apart a stack merely exhausted by competing reservations (the copies
-      // still exist, so the request stays pending and 409s) from a vanished basis
-      // — the giver deleted/unshared the copies — which auto-cancels (ADR-019).
+      // A stack merely exhausted by competing reservations stays pending and
+      // 409s; a vanished basis (the giver deleted/unshared the copies)
+      // auto-cancels.
       if (hasAny) {
         throw tooFewAvailable(copyIds.length);
       }
@@ -604,10 +507,10 @@ export function acceptTrade(
       return reloadDto(trxRepos, tradeId, byUserId);
     }
 
-    // Lock the candidate copies before pinning so a concurrent dispose of one of
-    // them serializes against this accept (audit #7); the survivors are the ids
-    // that still exist under the lock. If a dispose deleted one in the gap we
-    // now have too few — 409 rather than an FK violation on a vanished copy.
+    // Lock the candidate copies before pinning so a concurrent dispose of one
+    // of them serializes against this accept; the survivors are the ids that
+    // still exist under the lock. If a dispose deleted one in the gap we now
+    // have too few — 409 rather than an FK violation on a vanished copy.
     const surviving = new Set(await trxRepos.copies.lockByIds(copyIds));
     const lockedCopyIds = copyIds.filter((id) => surviving.has(id));
     if (lockedCopyIds.length < trade.quantity) {
@@ -626,8 +529,6 @@ export function acceptTrade(
       throw tooFewAvailable(availableCopyIds.length);
     }
 
-    // Which of the survivors actually gets promised — the giver's own pick when
-    // they sent one, otherwise the plainest copies.
     const pinnedCopyIds = await resolvePinnedCopyIds(
       trxRepos,
       trade,
@@ -657,10 +558,6 @@ export function acceptTrade(
   });
 }
 
-/**
- * Declines a pending trade (recipient only).
- * @returns The declined trade as a viewer-oriented DTO.
- */
 export function declineTrade(
   transact: Transact,
   tradeId: string,
@@ -678,11 +575,6 @@ export function declineTrade(
   });
 }
 
-/**
- * Cancels a trade. The initiator may cancel while `pending`; either party may
- * cancel while `reserved` (releasing the reserved copies).
- * @returns The cancelled trade as a viewer-oriented DTO.
- */
 export function cancelTrade(
   transact: Transact,
   tradeId: string,
@@ -701,38 +593,31 @@ export function cancelTrade(
     } else if (trade.status !== "reserved") {
       throw new AppError(409, ERROR_CODES.CONFLICT, "This trade can no longer be cancelled");
     } else if (trade.giverSyncAppliedAt !== null || trade.receiverSyncAppliedAt !== null) {
-      // One side has already settled. The giver's settle hard-deletes the copy
-      // rows, so cancelling cannot put back the copy, its id, or its condition,
-      // grade and notes — it would only record a lie about a swap that half
-      // happened (ADR-019, amendment 2026-08-10).
+      // The giver's settle hard-deletes the copy rows, so cancelling cannot
+      // put back the copy, its id, or its condition, grade and notes — it
+      // would only record a lie about a swap that half happened.
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
         "Someone has already settled their side of this trade, so it can no longer be cancelled",
       );
     }
-    // Transition first (guarded), so a lost race against complete/another cancel
-    // does not delete copies it didn't transition.
+    // Transition first (guarded), so a lost race against complete or another
+    // cancel does not delete copies it didn't transition.
     const cancelled = await trxRepos.cardTrades.markCancelled(tradeId, byUserId);
     if (cancelled === 0) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "This trade can no longer be cancelled");
     }
-    // Release any reserved copies (no-op while pending).
-    await trxRepos.cardTrades.deleteCopiesForTrade(tradeId);
+    await trxRepos.cardTrades.deleteCopiesForTrade(tradeId); // no-op while pending
     return reloadDto(trxRepos, tradeId, byUserId);
   });
 }
 
 /**
- * Resizes a still-pending request to a new total quantity (initiator only). Used
- * by per-copy claiming on a member's tradelist: claiming/releasing a copy bumps
- * the single live trade up or down rather than opening a second one (the unique
- * index `uq_card_trades_live` forbids two live trades per printing). Validates
- * the new quantity against live supply, and raises the linked wish entry so the
- * trade never wants more than the wishlist asks for (sync would otherwise drive
- * it negative). A quantity of 0 is not allowed here — release the last copy via
+ * Per-copy claiming bumps the single live trade up or down rather than opening
+ * a second one: `uq_card_trades_live` forbids two live trades per printing. A
+ * quantity of 0 is not allowed here — release the last copy via
  * {@link cancelTrade} instead.
- * @returns The resized trade as a viewer-oriented DTO.
  */
 export function setTradeQuantity(
   transact: Transact,
@@ -750,9 +635,6 @@ export function setTradeQuantity(
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the initiator can change this request");
     }
 
-    // Cap by the giver's live (unreserved) supply, mirroring createTrade. This
-    // trade is excluded from the committed-offer sum: a pending offer being
-    // resized must not count against itself.
     await assertSupplyAvailable(
       trxRepos,
       trade.groupId,
@@ -762,11 +644,9 @@ export function setTradeQuantity(
       trade.id,
     );
 
-    // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit
-    // "I want this one too", and trade-sync decrements the wish by the trade
-    // quantity, so a smaller wish would go negative. Receiver-initiated requests
-    // always carry the entry; the guard keeps the giver-offer path safe. Done as
-    // an atomic GREATEST so a concurrent wishlist edit isn't clobbered (audit #3).
+    // Keep the receiver's wish entry ≥ the request: trade-sync decrements the
+    // wish by the trade quantity, so a smaller wish would go negative. Done as
+    // an atomic GREATEST so a concurrent wishlist edit isn't clobbered.
     if (trade.receiverWishEntryId !== null) {
       await trxRepos.lists.raiseEntryQuantityTo(
         trade.receiverWishEntryId,
@@ -784,14 +664,10 @@ export function setTradeQuantity(
 }
 
 /**
- * Guards the caller into settling their own half of a swap, and promotes the
- * trade once both halves are in.
- *
- * A settle is legal from `reserved` (the normal path) and from `completed`,
- * which only rows predating the 2026-08-10 amendment can still be in: the
- * migration revived every completed row with an unresolved sync, so what is
- * left is a fully-resolved row whose `claim*SyncSide` will match zero and 409.
- * @returns Nothing.
+ * `completed` is allowed only for rows that finished before partial settles
+ * existed: the migration revived every completed row with an unresolved sync,
+ * so what is left is fully resolved and its `claim*SyncSide` will match zero
+ * and 409.
  */
 function assertSettleable(trade: LiveCardTrade): void {
   if (trade.status !== "reserved" && trade.status !== "completed") {
@@ -799,12 +675,6 @@ function assertSettleable(trade: LiveCardTrade): void {
   }
 }
 
-/**
- * Guards the reads and choices that only make sense while the giver's own half
- * is still open. Once they have settled, the copies are gone and there is
- * nothing left to pick between.
- * @returns Nothing.
- */
 function assertGiverUnsettled(trade: LiveCardTrade): void {
   assertSettleable(trade);
   if (trade.giverSyncAppliedAt !== null) {
@@ -812,7 +682,6 @@ function assertGiverUnsettled(trade: LiveCardTrade): void {
   }
 }
 
-/** Adds `quantity` copies of the trade's printing for the receiver and decrements their wish. */
 async function applyReceiverSync(
   trxRepos: Repos,
   trade: LiveCardTrade,
@@ -832,8 +701,8 @@ async function applyReceiverSync(
     collectionId = targetCollectionId;
   }
 
-  // Copies have no owner column — ownership derives from the collection (the
-  // event below still records receiverUserId as the actor). Matches addCopies.
+  // Copies have no owner column — ownership derives from the collection; the
+  // event below still records receiverUserId as the actor.
   const copyValues = Array.from({ length: trade.quantity }, () => ({
     printingId: trade.printingId,
     collectionId,
@@ -855,9 +724,8 @@ async function applyReceiverSync(
   );
 
   // Decrement the snapshotted wish entry atomically so a concurrent wishlist
-  // edit isn't clobbered (audit #2); the repo deletes it when it hits zero. A
-  // deleted entry (FK SET NULL leaves receiverWishEntryId, or the row is gone)
-  // matches nothing and is a no-op.
+  // edit isn't clobbered; the repo deletes it when it hits zero. A deleted
+  // entry matches nothing and is a no-op.
   if (trade.receiverWishEntryId !== null) {
     await trxRepos.lists.decrementEntryQuantity(
       trade.receiverWishEntryId,
@@ -868,22 +736,10 @@ async function applyReceiverSync(
 }
 
 /**
- * Decides which copies the giver's settle actually removes.
- *
- * `chosenCopyIds` is the giver saying the card that left their hands was not
- * the one the accept pinned — a plain copy gets promised, then the copy that
- * physically travels comes out of a different binder. It is honoured only once
- * every id is confirmed to still be a settle candidate under the row lock, so
- * an id belonging to someone else, to another printing, or to a copy another
- * trade has since claimed is refused rather than deleted.
- *
- * Substituting is safe where re-pinning would not be: these rows are about to
- * be hard-deleted, not promised, so the swapped-in copy never needs to have
- * been visible to the group.
- *
- * `quantity` is how many copies this settle covers, which is the split half's
- * quantity on a partial settle rather than the whole row's.
- * @returns Exactly `quantity` copy ids to dispose.
+ * Substituting copies is safe here where re-pinning would not be: these rows
+ * are about to be hard-deleted, not promised, so the swapped-in copy never
+ * needs to have been visible to the group. On a partial settle `quantity` is
+ * the split half's, not the whole row's.
  */
 async function resolveSettleCopyIds(
   trxRepos: Repos,
@@ -902,10 +758,9 @@ async function resolveSettleCopyIds(
   }
 
   // Lock the chosen rows before reading the candidate set, so a concurrent
-  // accept or dispose of one of them serializes against this settle and the
-  // read below sees whatever that transaction committed. A copy that lost the
-  // race is either gone from `locked` or no longer a candidate. Locking the
-  // whole candidate set instead would take rows this settle never touches.
+  // accept or dispose serializes against this settle and the read below sees
+  // what that transaction committed. Locking the whole candidate set instead
+  // would take rows this settle never touches.
   const locked = new Set(await trxRepos.copies.lockByIds(chosenCopyIds));
   const candidates = await listSettleCandidateCopies(trxRepos, trade, pinnedCopyIds);
   const allowed = new Set(candidates.map((copy) => copy.id));
@@ -916,19 +771,15 @@ async function resolveSettleCopyIds(
 }
 
 /**
- * Splits `quantity` off a trade so the caller can settle that much of it
- * (ADR-019, amendment 2026-08-10). The remainder stays in flight, carrying the
- * rest of the quantity and the rest of the pins, so "they'll bring the other
- * two next time" needs no state of its own.
+ * The remainder stays in flight with the rest of the quantity and pins, so
+ * "they'll bring the other two next time" needs no state of its own.
  *
- * The guarded decrement is the entire concurrency story: it takes the row lock,
- * refuses a caller whose side is already settled, and refuses a quantity that
- * would leave no remainder. Two partial settles racing therefore serialize on
- * it, and the loser is told its side is resolved rather than driving the
- * quantity negative. The insert that follows carries the caller's settle
- * timestamp from the first statement, which keeps the new row outside
- * `uq_card_trades_live` while the original holds the live slot.
- * @returns The split half, already stamped as settled on the caller's side.
+ * The guarded decrement is the entire concurrency story: it takes the row
+ * lock, refuses a caller whose side is already settled, and refuses a quantity
+ * that would leave no remainder — two racing partial settles serialize on it
+ * and the loser 409s instead of driving the quantity negative. The insert that
+ * follows is born settled on the caller's side, which keeps the new row
+ * outside `uq_card_trades_live` while the original holds the live slot.
  */
 async function splitTradeForSettle(
   trxRepos: Repos,
@@ -948,8 +799,8 @@ async function splitTradeForSettle(
     lastActorUserId: byUserId,
   });
 
-  // Empty once the giver has settled and released them, which is the normal
-  // shape of a receiver splitting after the fact.
+  // Empty once the giver has settled and released the pins — the normal shape
+  // of a receiver splitting after the fact.
   const pinnedCopyIds = await trxRepos.cardTrades.listReservedCopyIds(trade.id);
   if (pinnedCopyIds.length > 0) {
     const pinned = await trxRepos.copies.listMetadataByIds(pinnedCopyIds);
@@ -961,13 +812,9 @@ async function splitTradeForSettle(
 }
 
 /**
- * Resolves which row a settle lands on and claims the caller's side of it.
- * That is the trade itself for a full settle, or a freshly split half below it.
- *
  * The two paths guard a double-apply differently and both have to: a full
  * settle claims its side with a guarded UPDATE, while a split's row is born
  * settled and leans on the guarded decrement instead.
- * @returns The row to apply the caller's half of the swap to.
  */
 async function claimSettleTarget(
   trxRepos: Repos,
@@ -995,21 +842,11 @@ async function claimSettleTarget(
 }
 
 /**
- * Settles the caller's own half of a swap, with the data change. Giver: dispose
- * the reserved copies (releasing the reservation first, atomically), which is
- * "I handed them over". Receiver: add the copies and decrement the wish entry,
- * which is "I got them".
- *
- * Each side asserts only its own half, so nothing here claims the swap happened
- * for the other party. The second settle promotes the trade to `completed`.
- *
- * `copyIds` is the giver's correction to which copies leave
- * (see {@link resolveSettleCopyIds}); `targetCollectionId` is the receiver's
- * target collection. Each is ignored on the other side's settle. `quantity`
- * settles part of the row, splitting the rest off to stay in flight
- * (see {@link splitTradeForSettle}); omitted, the whole row settles.
- * @returns The settled half as a viewer-oriented DTO — the split one on a
- * partial settle, not the remainder.
+ * Each side settles only its own half — the giver's dispose is "I handed them
+ * over", the receiver's add is "I got them" — so nothing here claims the swap
+ * happened for the other party. The second settle promotes the trade to
+ * `completed`. On a partial settle the returned DTO is the split half, not the
+ * remainder.
  */
 export function applyTradeSync(
   transact: Transact,
@@ -1020,8 +857,6 @@ export function applyTradeSync(
   return transact(async (trxRepos) => {
     const { trade, role } = await loadTradeForParty(trxRepos, tradeId, byUserId);
     assertSettleable(trade);
-    // The copies at stake are the giver's own, so a receiver has no say over
-    // which ones the swap took. Refused rather than ignored.
     if (options.copyIds !== undefined && role !== "giver") {
       throw new AppError(
         403,
@@ -1032,10 +867,9 @@ export function applyTradeSync(
 
     let settledId: string;
     if (role === "giver") {
-      // Resolved before the claim, because a split has to know which pins cover
-      // the copies it disposes. Nothing is written yet: this reads and locks
-      // the chosen copies, and the claim below is still what makes the dispose
-      // run exactly once — a concurrent double-apply matches zero rows there.
+      // Resolved before the claim, because a split has to know which pins
+      // cover the copies it disposes. Nothing is written yet: the claim below
+      // is still what makes the dispose run exactly once.
       const pinnedCopyIds = await trxRepos.cardTrades.listReservedCopyIds(tradeId);
       const chosenCopyIds =
         options.copyIds === undefined
@@ -1056,9 +890,8 @@ export function applyTradeSync(
         chosenCopyIds,
       );
       settledId = target.id;
-      // Without a choice the pins are what goes. A split moved some of them, so
-      // re-read; settling the whole row leaves them where the read above found
-      // them.
+      // Without a choice the pins are what goes; a split moved some of them,
+      // so re-read.
       let copyIds = chosenCopyIds;
       if (copyIds === undefined) {
         copyIds =
@@ -1067,9 +900,8 @@ export function applyTradeSync(
             : await trxRepos.cardTrades.listReservedCopyIds(target.id);
       }
       // Release the reservation rows so the dispose guard passes, then dispose
-      // through the shared service body (emits a `removed` event, sweeps the
-      // giver's now-unfillable pending trades, and cascade-removes the copies'
-      // copy-kind tradelist entries).
+      // through the shared service body so the `removed` event and the
+      // unfillable-trade sweep still happen.
       await trxRepos.cardTrades.deleteCopiesForTrade(target.id);
       if (copyIds.length > 0) {
         await disposeCopiesInTransaction(trxRepos, trade.giverUserId, copyIds, {
@@ -1077,12 +909,12 @@ export function applyTradeSync(
         });
       }
     } else {
-      // Claim the receiver's side first, so a concurrent double-apply cannot add
-      // the copies twice or double-decrement the wish.
+      // Claim first, so a concurrent double-apply cannot add the copies twice
+      // or double-decrement the wish. The split half carries its own quantity
+      // and the same wish entry, so the two halves' decrements sum to the
+      // original's.
       const target = await claimSettleTarget(trxRepos, trade, role, byUserId, options.quantity);
       settledId = target.id;
-      // The split half carries its own quantity and the same wish entry, so the
-      // two halves' decrements sum to the original's.
       await applyReceiverSync(trxRepos, target, options.targetCollectionId);
     }
 
@@ -1092,17 +924,10 @@ export function applyTradeSync(
 }
 
 /**
- * Settles the caller's own half without the data change: the swap happened, but
- * leave my collection alone. Covers the giver who already removed the card by
- * hand and anyone who doesn't track their collection closely.
- *
- * The giver's skip still releases the reservation — the copy physically left,
- * so the stale copy reappears as available until they fix it manually.
- *
- * `quantity` skips part of the row, splitting the rest off to stay in flight.
- * It is also how a receiver closes a remainder that never arrived once cancel
- * is past: settling the half without touching their collection.
- * @returns The settled half as a viewer-oriented DTO.
+ * "The swap happened, but leave my collection alone" — covers the giver who
+ * already removed the card by hand and anyone who doesn't track closely. A
+ * partial skip is also how a receiver closes a remainder that never arrived
+ * once cancel is past.
  */
 export function skipTradeSync(
   transact: Transact,

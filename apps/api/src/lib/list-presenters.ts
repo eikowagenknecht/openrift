@@ -67,37 +67,29 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
     updatedAt: row.updatedAt.toISOString(),
     tradeDefaults: tradeDefaultsFromList(row),
     currency: row.currency,
-    // The summary reports whether any dynamic rules exist (ADR-034); the rules
-    // themselves ride only on detail responses (toListDetail).
+    // The summary only reports whether rules exist; the rules themselves ride
+    // only on detail responses (toListDetail).
     hasRule: parseListRules(row.rules).length > 0,
     sidebarHidden: row.sidebarHidden,
   };
 }
 
 /**
- * Re-hydrate the persisted `rules` jsonb into normalized {@link ListRules}.
- * Delegates to the shared {@link hydrateListRules} so a rule saved before a
- * newer filter dimension existed backfills that dimension instead of emitting a
- * partial filter that fails `listDetailListResponseSchema` output validation
- * (ADR-034).
- * @returns The parsed, normalized rules (empty array when the column is empty).
+ * Delegates to the shared `hydrateListRules` so a rule saved before a newer
+ * filter dimension existed backfills that dimension instead of emitting a
+ * partial filter that fails response output validation.
  */
 export function parseListRules(value: ListRules | null | undefined): ListRules {
   return hydrateListRules(value);
 }
 
-/**
- * Detail variant of {@link toList} — carries the dynamic rules so the editor can
- * load them. ADR-034.
- * @returns The detail list response, including the parsed rules.
- */
 export function toListDetail(
   row: Selectable<ListsTable> & { entryCount?: number },
 ): ListDetailListResponse {
   return { ...toList(row), rules: parseListRules(row.rules), ruleCombine: row.ruleCombine };
 }
 
-/** @returns Public-facing list fields — excludes shareToken, isPublic, userId. */
+/** Public-facing shape — deliberately omits shareToken, isPublic, userId. */
 export function toPublicList(row: Selectable<ListsTable>): PublicListResponse {
   return {
     id: row.id,
@@ -112,10 +104,8 @@ export function toPublicList(row: Selectable<ListsTable>): PublicListResponse {
 }
 
 /**
- * Maps a raw list-entry row (wide nullable shape from the DB) to the bare
- * discriminated response. The kind column tells us which of
- * cardId/printingId/copyId is non-null per `chk_list_entries_kind_shape`.
- * @returns The narrowed list entry response.
+ * The kind column tells which of cardId/printingId/copyId is non-null per
+ * `chk_list_entries_kind_shape` — hence the casts.
  */
 export function toListEntry(row: Selectable<ListEntriesTable>): ListEntryResponse {
   const base = {
@@ -133,12 +123,6 @@ export function toListEntry(row: Selectable<ListEntriesTable>): ListEntryRespons
   return { ...base, kind: "copy", copyId: row.copyId as string };
 }
 
-/**
- * Maps an enriched list-entry row to the discriminated detail response. The
- * repo's per-kind queries already produce the right variant — this mapper
- * just narrows the union for the route handler.
- * @returns The serialized list entry detail response.
- */
 export function toListEntryDetail(
   row:
     | {
@@ -232,9 +216,9 @@ export function toListEntryDetail(
     ruleQuantity: row.ruleQuantity,
     copyId: row.copyId,
     printingId: row.printingId,
-    // collectionId is owner-internal: it identified the owner's collection that
-    // holds the copy, but it is never consumed by clients and it leaked to
-    // anonymous viewers of public/group-shared lists (G3). Dropped from the wire.
+    // collectionId is deliberately dropped from the wire: clients never consume
+    // it, and it leaked the owner's collection to anonymous viewers of
+    // public/group-shared lists.
     cardName: row.cardName,
     setId: row.setId,
     rarity: row.rarity as Rarity,

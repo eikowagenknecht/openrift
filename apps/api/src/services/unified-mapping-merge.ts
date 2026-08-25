@@ -34,7 +34,6 @@ type MatchedCardsRow = Awaited<
  * it, name-matched staged products for that card get marked as matched in
  * `matchStagedProducts`/`buildUnifiedMappingsCardResponse` but attached to no
  * group — they vanish from both the per-card view and the unmatched panel.
- * @returns Per-marketplace matchedCards rows in the same shape as the legacy query.
  */
 function deriveCardsForMarketplace(
   unifiedRows: UnifiedCardRow[],
@@ -113,7 +112,6 @@ export type GetMappingOverview = (
  * lands in `group.printings` more than once. The wire response only has one
  * slot per printingId for marketplace IDs, so the duplicates would otherwise
  * surface in the admin Assign dropdown as repeated, all-checked entries.
- * @returns A new array with duplicates by printingId removed.
  */
 function dedupePrintingsByPrintingId<T extends { printingId: string }>(printings: T[]): T[] {
   const seen = new Set<string>();
@@ -165,13 +163,6 @@ function toMergedPrinting(p: RawGroupPrinting, marketplace: MarketplaceSlot): Me
   };
 }
 
-/**
- * Merge one marketplace's overview groups into `mergedMap`, keyed by cardId.
- * A cardId already in the map gains this marketplace's external IDs on its
- * existing printings (plus any printings only this marketplace has); a new
- * cardId gets a fresh entry seeded from this marketplace alone.
- * @returns Nothing — `mergedMap` is updated in place.
- */
 function mergeMarketplaceIntoMap(
   mergedMap: Map<string, MergedGroup>,
   result: MappingOverviewResult,
@@ -221,11 +212,6 @@ function mergeMarketplaceIntoMap(
   }
 }
 
-/**
- * Merge per-marketplace overview results into a single map keyed by cardId.
- * Each printing carries external IDs from whichever marketplaces have it.
- * @returns Map of cardId → merged group data (without primaryShortCode).
- */
 function mergeOverviewsByCard(
   tcgResult: MappingOverviewResult,
   cmResult: MappingOverviewResult,
@@ -238,11 +224,6 @@ function mergeOverviewsByCard(
   return mergedMap;
 }
 
-/**
- * Attach a `primaryShortCode` to each merged group (the lex-smallest short
- * code across its printings — used for sorting and as the "canonical" ID).
- * @returns An array of merged groups with primaryShortCode populated.
- */
 function withPrimaryShortCode(mergedMap: Map<string, MergedGroup>): UnifiedMappingGroupResponse[] {
   return [...mergedMap.values()].map((g) => ({
     ...g,
@@ -253,11 +234,6 @@ function withPrimaryShortCode(mergedMap: Map<string, MergedGroup>): UnifiedMappi
   }));
 }
 
-/**
- * Merge TCGplayer, Cardmarket, and CardTrader mapping overviews into a unified response.
- * Combines data from all marketplaces per card and computes primary source IDs.
- * @returns Unified mappings response with merged groups, unmatched products, and card list.
- */
 export async function buildUnifiedMappingsResponse(
   repos: Repos,
   tcgplayerConfig: MarketplaceConfig,
@@ -328,7 +304,6 @@ export async function buildUnifiedMappingsResponse(
  * `cardIdentifier` can be either the card UUID or its slug — the repo
  * queries resolve either internally so the route doesn't need a separate
  * slug → id lookup.
- * @returns The merged group for the card (null when the card has no rows) plus the assignable-card list.
  */
 export async function buildUnifiedMappingsCardResponse(
   repos: Repos,
@@ -340,9 +315,6 @@ export async function buildUnifiedMappingsCardResponse(
   const configs = [tcgplayerConfig, cardmarketConfig, cardtraderConfig];
   const marketplaces = configs.map((c) => c.marketplace);
 
-  // One round trip: scoped cards join, assignable-cards list, global alias
-  // index for the longest-match tiebreak, and candidate staging rows across
-  // all 3 marketplaces.
   const [unifiedRows, allCards, allAliases, stagedRaw] = await Promise.all([
     repos.marketplaceMapping.allCardsWithPrintingsUnified(cardIdentifier),
     repos.marketplaceMapping.assignableCards(),
@@ -378,11 +350,8 @@ export async function buildUnifiedMappingsCardResponse(
     return true;
   });
 
-  // Partition once; each marketplace loop reads its own slice.
   const stagedByMarketplace = Map.groupBy(stagedForThisCard, (row) => row.marketplace);
 
-  // Per-marketplace response groups — each runs its own priceQuery (for
-  // prices on already-mapped printings) in parallel.
   const perMarketplaceResults = await Promise.all(
     configs.map(async (config) => {
       const matchedCards = deriveCardsForMarketplace(unifiedRows, config.marketplace);

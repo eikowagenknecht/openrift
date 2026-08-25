@@ -18,10 +18,6 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { DeckCheckHost } from "../../repositories/deck-check.js";
 
-/**
- * Mints a fresh push token and its sha256 hash.
- * @returns The plaintext token, its hash, and its display prefix.
- */
 function mintToken(): { token: string; tokenHash: string; tokenPrefix: string } {
   const token = `orpk_${randomBytes(24).toString("base64url")}`;
   return {
@@ -32,13 +28,8 @@ function mintToken(): { token: string; tokenHash: string; tokenPrefix: string } 
 }
 
 /**
- * Resolves an organization host, asserting the caller is an owner/manager.
  * 404s a missing org, 403s a non-member (both org roles inherit organizer
- * authority, ADR-033).
- * @param repos The repository bundle.
- * @param orgId The hosting organization.
- * @param userId The acting user.
- * @returns The organization deck-check host.
+ * authority).
  */
 async function authorizeOrgHost(
   repos: Repos,
@@ -50,7 +41,6 @@ async function authorizeOrgHost(
   return { hostType: "organization", hostUserId: null, hostOrgId: org.id };
 }
 
-/** @returns The current user as a deck-check host. */
 function userHost(userId: string): DeckCheckHost {
   return { hostType: "user", hostUserId: userId, hostOrgId: null };
 }
@@ -58,14 +48,13 @@ function userHost(userId: string): DeckCheckHost {
 const os = implement(deckCheckKeysContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Host-scoped deck-check integration keys (ADR-033), mounted at
+ * Host-scoped deck-check integration keys, mounted at
  * `/api/v1/me/deck-check-keys` and `/api/v1/organizations/{orgId}/deck-check-keys`.
  * Keys belong to a host (the current user or an organization) rather than a
  * friend group, so any host can mint provider push credentials. The plaintext
  * token is returned only once at mint time.
  */
 export const deckCheckKeysRouter = {
-  // ── Personal keys ──────────────────────────────────────────────────────────
   listMine: os.listMine.handler(async ({ context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;
     const keys = await repos.deckCheckKeys.listKeysForHost(userHost(context.userId));
@@ -120,7 +109,6 @@ export const deckCheckKeysRouter = {
     }
   }),
 
-  // ── Organization keys ──────────────────────────────────────────────────────
   listForOrg: os.listForOrg.handler(async ({ input, context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;
     const host = await authorizeOrgHost(repos, input.orgId, context.userId);

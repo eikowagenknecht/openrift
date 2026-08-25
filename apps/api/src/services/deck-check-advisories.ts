@@ -74,8 +74,6 @@ const REGION_CONFIG_CODES = new Set<string>(["FORMAT_TAG_REQUIRED", "CARD_NOT_IN
  * vs champion vs overflow — are a deckbuilding choice, never derivable from the
  * card type, so they're left alone: a custom-format deck is never auto-corrected,
  * only flagged for the judge to confirm.
- *
- * @returns One suggestion per mis-zoned line; empty when all are placed right.
  */
 export function computeZoneSuggestions(
   cards: AdvisoryCardLine[],
@@ -116,7 +114,6 @@ export function computeZoneSuggestions(
  * deck-rules violations for the event's format, the allowed-sets findings, and
  * the deck-stat aggregates (same counting the deck list uses: main+champion
  * zones, legend/rune/battlefield types excluded from type counts).
- * @returns Violations and stat aggregates; none of them block a check.
  */
 export async function buildEntryAdvisories(
   repos: Repos,

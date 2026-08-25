@@ -4,15 +4,10 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext } from "../test/integration-context.js";
 import { META_ARCHIVE_USER_ID, metaRepo } from "./meta.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: meta archive (migration 235, ADR-014).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix MTA- / mta- for everything it creates. The `meta-archive` user
 // itself is seeded by the migration and shared with every other file, so this
 // file never deletes it — it deletes its own events (which cascade to
 // meta_decks) and the decks those events owned.
-// ---------------------------------------------------------------------------
 
 const ctx = createDbContext(crypto.randomUUID());
 
@@ -25,13 +20,6 @@ const createdEventIds: string[] = [];
 const createdDeckIds: string[] = [];
 const createdUserIds: string[] = [];
 
-/**
- * A contributor, with the credit visibility the test is about.
- * @param suffix Makes the id and email unique within the file.
- * @param visibility What the user consented to show.
- * @param profile The name and Riot ID the credit resolves from.
- * @returns The created user's id, tracked for teardown.
- */
 async function seedUser(
   suffix: string,
   visibility: MetaCreditVisibility,
@@ -52,7 +40,6 @@ async function seedUser(
   return id;
 }
 
-/** @returns The inserted card's id. */
 async function seedCard(name: string, normName: string, type: string): Promise<string> {
   const [card] = await ctx!.db
     .insertInto("cards")
@@ -62,7 +49,6 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
   return card.id;
 }
 
-/** @returns The created event's id, tracked for teardown. */
 async function seedEvent(
   repo: ReturnType<typeof metaRepo>,
   slug: string,
@@ -81,7 +67,6 @@ async function seedEvent(
   return event.id;
 }
 
-/** @returns The created deck's id, tracked for teardown. */
 async function seedDeck(
   repo: ReturnType<typeof metaRepo>,
   eventId: string,
@@ -130,11 +115,8 @@ async function seedDeck(
   return created.deckId;
 }
 
-/**
- * An archetype entry: the legend the source published and nothing else, with no
- * share token, exactly as `createArchivedDeck` writes one.
- * @returns The created deck's id, tracked for teardown.
- */
+// An archetype entry: the legend the source published and nothing else, with
+// no share token, exactly as `createArchivedDeck` writes one.
 async function seedArchetypeDeck(
   repo: ReturnType<typeof metaRepo>,
   eventId: string,
@@ -657,8 +639,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
         sourceUrl: null,
       });
 
-      // One event, two citations: the fan-in the amendment exists for. Neither
-      // is reachable by a live-side key any more — the link is the candidate's
+      // One event, two citations: the fan-in this supports. Neither is
+      // reachable by a live-side key any more — the link is the candidate's
       // own FK, and this list is the credit it writes.
       const sources = await repo.sourcesForEvent(eventId);
       expect(sources.map((source) => source.label).toSorted()).toEqual(["mta-prb", "mta-uvs"]);

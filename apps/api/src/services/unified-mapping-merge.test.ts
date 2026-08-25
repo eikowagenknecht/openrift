@@ -12,8 +12,6 @@ import {
   buildUnifiedMappingsResponse,
 } from "./unified-mapping-merge.js";
 
-// ── Helpers ─────────────────────────────────────────────────────────────
-
 function makeGroup(overrides: Record<string, unknown> = {}) {
   return {
     cardId: "card-1",
@@ -56,8 +54,6 @@ function makeMappingResult(overrides: Record<string, unknown> = {}) {
 function makeConfig(marketplace: string): MarketplaceConfig {
   return { marketplace } as MarketplaceConfig;
 }
-
-// ── Tests ───────────────────────────────────────────────────────────────
 
 describe("buildUnifiedMappingsResponse", () => {
   beforeEach(() => {
@@ -216,13 +212,12 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("passes allCardsForMatching so each marketplace sees every card's name for longest-match tiebreak", async () => {
-    // Regression: before the fix, `buildUnifiedMappingsResponse` only passed
-    // per-marketplace `matchedCards` to `getMappingOverview`. That means the
-    // name index for e.g. Cardmarket matching only contained cards that had
-    // CM variants — so a card like "Blastcone Fae" (TCG/CT only, no CM yet)
-    // was invisible to CM's matcher. A CM staging row named "Blastcone Fae"
-    // then matched the shorter "Blast Cone" prefix and got routed to the
-    // wrong card.
+    // If only per-marketplace `matchedCards` were passed to
+    // `getMappingOverview`, the name index for e.g. Cardmarket matching would
+    // only contain cards that had CM variants, making a card like "Blastcone
+    // Fae" (TCG/CT only, no CM yet) invisible to CM's matcher: a CM staging
+    // row named "Blastcone Fae" would then match the shorter "Blast Cone"
+    // prefix and get routed to the wrong card.
     const repos = {
       marketplaceMapping: {
         allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
@@ -279,10 +274,10 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("unions printings across marketplaces — a CT-only printing stays visible when TCG/CM also see the card", async () => {
-    // Regression: before the fix, a printing that only had a CT variant would
-    // be dropped from `group.printings` if TCG was the first marketplace to
-    // register the card, because the CT merge path only stamped ctExternalId
-    // onto existing printings and never added new ones.
+    // A printing that only has a CT variant must not be dropped from
+    // `group.printings` when TCG is the first marketplace to register the
+    // card: the CT merge path must add new printings, not just stamp
+    // ctExternalId onto existing ones.
     const repos = {
       marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
     } as unknown as Repos;
@@ -556,12 +551,12 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("dedupes printings that appear multiple times in a marketplace's group", async () => {
-    // Regression: when a printing has multiple variants in the same
-    // marketplace (e.g. TCG product 653007 has both a "normal" and a "foil"
-    // SKU bound to the same printingId), `buildCardIndex` emits one row per
-    // variant and the response printings list ends up with duplicates. The
-    // admin Assign dropdown then shows the printing twice with both entries
-    // checked. The merge should collapse duplicate printingIds.
+    // When a printing has multiple variants in the same marketplace (e.g. TCG
+    // product 653007 has both a "normal" and a "foil" SKU bound to the same
+    // printingId), `buildCardIndex` emits one row per variant, which would
+    // duplicate the printing in the response and make the admin Assign
+    // dropdown show it twice with both entries checked. The merge collapses
+    // duplicate printingIds.
     const repos = {
       marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
     } as unknown as Repos;
@@ -748,8 +743,8 @@ describe("buildUnifiedMappingsCardResponse", () => {
   });
 
   it("drops staging rows whose longer alias belongs to another card", async () => {
-    // Regression: /admin/cards/blast-cone — SQL returns both "Blast Cone" and
-    // "Blastcone Fae" products via the prefix branch; the JS tiebreak against
+    // /admin/cards/blast-cone: SQL returns both "Blast Cone" and "Blastcone
+    // Fae" products via the prefix branch; the JS tiebreak against
     // allCardAliases should drop the Fae row because its longer alias points
     // to a different card.
     const repos = {
@@ -930,10 +925,10 @@ describe("buildUnifiedMappingsCardResponse", () => {
   });
 
   it("resolves assigned-product groupName from the unified row when no staging exists", async () => {
-    // Regression: /admin/cards/<slug> showed "Group #4425" for a mapped
-    // cardtrader printing because the card had no current staging rows — the
-    // groupName map was only seeded from staging. Now the unified query carries
-    // sourceGroupName and seeds the map up front.
+    // /admin/cards/<slug> would show "Group #4425" for a mapped cardtrader
+    // printing when the card had no current staging rows, since the
+    // groupName map was seeded from staging alone; the unified query also
+    // carries sourceGroupName and seeds the map up front.
     const priceQuery = vi.fn().mockResolvedValue([
       {
         printingId: "p-allay",
@@ -1032,12 +1027,12 @@ describe("buildUnifiedMappingsCardResponse", () => {
   });
 
   it("surfaces staged products for marketplaces where the card has no variants but other marketplaces do", async () => {
-    // Regression: /admin/cards/ashe-focused — every printing was bound to
-    // tcgplayer but had no cardmarket/cardtrader variants. Cardmarket staging
-    // rows that auto-matched the card via name became invisible: not in the
-    // cardmarket section's stagedProducts (the card had been dropped from
-    // cardmarket's cardGroups by deriveCardsForMarketplace) and not in the
-    // unmatched panel (matchStagedProducts had marked them as matched).
+    // /admin/cards/ashe-focused: every printing was bound to tcgplayer but had
+    // no cardmarket/cardtrader variants. Cardmarket staging rows that
+    // auto-matched the card via name became invisible: not in the cardmarket
+    // section's stagedProducts (the card had been dropped from cardmarket's
+    // cardGroups by deriveCardsForMarketplace) and not in the unmatched panel
+    // (matchStagedProducts had marked them as matched).
     const repos = {
       marketplaceMapping: {
         allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([

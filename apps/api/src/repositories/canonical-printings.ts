@@ -5,7 +5,6 @@ import { sql } from "kysely";
 import type { Database } from "../db/index.js";
 import { imageId, joinFrontImage } from "./query-helpers.js";
 
-/** Input row for per-row short code resolution. */
 interface DeckRowForShortCode {
   cardId: string;
   preferredPrintingId: string | null;
@@ -38,14 +37,8 @@ interface ResolvedRowPrintingMeta extends DeckRowForShortCode {
  *   3. Short code (alphabetical — picks base variant over alt-art/overnumbered)
  *   4. Non-promo first
  *   5. Normal finish before foil
- *
- * @returns An object with resolver methods bound to the given `db`.
  */
 export function canonicalPrintingsRepo(db: Kysely<Database>) {
-  /**
-   * Base query: printings joined to sets.
-   * @returns A query builder ready for further chaining.
-   */
   function baseQuery() {
     return db.selectFrom("printings as p").innerJoin("sets as s", "s.id", "p.setId");
   }
@@ -54,7 +47,6 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
    * Appends canonical sort order to a query. Must be called AFTER the
    * DISTINCT ON column's leading ORDER BY (PostgreSQL requires the
    * DISTINCT ON expression to match the first ORDER BY expression).
-   * @returns The query with canonical ordering appended.
    */
   function appendCanonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
     return (
@@ -74,12 +66,9 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
 
   return {
     /**
-     * Resolves a short code per deck row. If a row has a preferredPrintingId,
-     * uses that printing's short code; otherwise falls back to the card's
-     * canonical short code.
-     *
-     * @returns One entry per input row in the same order, with `shortCode` null
-     *   when neither the preferred printing nor any canonical printing exists.
+     * Resolves a short code per deck row: the preferred printing's code when
+     * set and existing, otherwise the card's canonical short code, null when
+     * neither exists. One entry per input row, in input order.
      */
     async shortCodesForRows(rows: DeckRowForShortCode[]): Promise<ResolvedRowShortCode[]> {
       if (rows.length === 0) {
@@ -135,15 +124,12 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Resolves the printing metadata (id, short code, image URLs) for each
-     * deck row. For rows with a `preferredPrintingId`, uses that printing;
-     * otherwise falls back to the card's canonical default (same ordering as
-     * `canonicalShortCodesByCardIds`). URLs can be null when the resolved
-     * printing has no active front image; the whole row is "all nulls except
-     * the input pair" when neither a preferred nor a canonical printing
-     * exists.
-     *
-     * @returns One entry per input row, in input order.
+     * Resolves the printing metadata (id, short code, image id) for each deck
+     * row: the preferred printing when set, otherwise the card's canonical
+     * default. `imageId` is null when the resolved printing has no active
+     * front image; the whole row is all nulls except the input pair when
+     * neither a preferred nor a canonical printing exists. One entry per
+     * input row, in input order.
      */
     async resolvePrintingMetaForRows(
       rows: DeckRowForShortCode[],

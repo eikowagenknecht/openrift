@@ -8,7 +8,6 @@ interface CollectionWithCount extends Selectable<CollectionsTable> {
   copyCount: number;
 }
 
-/** Collection row enriched with group context and viewer-role flags. */
 export interface AccessibleCollection extends CollectionWithCount {
   groupSlug: string | null;
   groupName: string | null;
@@ -29,7 +28,6 @@ export interface AccessibleCollection extends CollectionWithCount {
   viewerCanAdmin: boolean;
 }
 
-/** Subset returned by single-row access lookups; viewerCanAdmin is computed inline. */
 export interface CollectionAccess {
   collection: Selectable<CollectionsTable> & {
     groupSlug: string | null;
@@ -43,14 +41,8 @@ export interface CollectionAccess {
   viewerCanAdmin: boolean;
 }
 
-/**
- * Queries for user collections.
- *
- * @returns An object with collection query methods bound to the given `db`.
- */
 export function collectionsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All collections for a user with copy counts, inbox first, then by sort order and name. */
     listForUser(userId: string): Promise<CollectionWithCount[]> {
       return db
         .selectFrom("collections")
@@ -67,14 +59,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Personal collections plus shared collections from every group the user belongs to.
-     * Each row carries group context (slug/name) and a `viewerCanAdmin` flag that's true
-     * for personal owners and group owner/admin members.
-     *
-     * @returns Accessible collections ordered: personal first (inbox first), then groups
-     * (alphabetical by group name), then by collection sort order / name within each.
-     */
     listAccessibleForUser(userId: string): Promise<AccessibleCollection[]> {
       return db
         .selectFrom("collections as c")
@@ -110,7 +94,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns A single collection by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<Selectable<CollectionsTable> | undefined> {
       return db
         .selectFrom("collections")
@@ -120,11 +103,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Resolves a collection from the viewer's perspective. The viewer has access if they
-     * personally own the collection or are a member of its owning group.
-     * @returns The collection plus access flags, or `undefined` if the viewer can't see it.
-     */
     async getAccessForUser(id: string, userId: string): Promise<CollectionAccess | undefined> {
       const row = await db
         .selectFrom("collections as c")
@@ -165,11 +143,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Subset of the given IDs that the viewer can write copies to (add/move/dispose).
-     * Personal collections require ownership; shared collections require membership.
-     * @returns IDs the viewer may write copies to; ordering is undefined.
-     */
     async filterWritableByViewer(ids: readonly string[], userId: string): Promise<string[]> {
       if (ids.length === 0) {
         return [];
@@ -186,7 +159,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.id);
     },
 
-    /** @returns The newly created collection row. */
     create(values: {
       userId: string | null;
       groupId: string | null;
@@ -199,9 +171,8 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns The next `sort_order` value to assign to a new personal collection
-     * so it lands at the bottom of the user's list instead of stacking onto
-     * position 0 with everyone else.
+     * The next `sort_order` for a new personal collection, so it lands at the
+     * bottom of the user's list instead of stacking onto position 0.
      */
     async nextPersonalSortOrder(userId: string): Promise<number> {
       const row = await db
@@ -219,7 +190,6 @@ export function collectionsRepo(db: Kysely<Database>) {
      * reorderable and are silently ignored if present in `orderedIds`. The
      * inbox is treated like any other personal collection — the repo doesn't
      * pin it; that's the UI's job.
-     * @returns Nothing.
      */
     async reorderPersonal(userId: string, orderedIds: readonly string[]): Promise<void> {
       if (orderedIds.length === 0) {
@@ -239,7 +209,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       `.execute(db);
     },
 
-    /** @returns The updated collection row, or `undefined` if not found. */
     update(
       id: string,
       userId: string,
@@ -257,7 +226,6 @@ export function collectionsRepo(db: Kysely<Database>) {
     /**
      * Updates a collection by id without user scoping. Caller is responsible for
      * verifying admin access first via `getAccessForUser`.
-     * @returns The updated row, or `undefined` if the id no longer exists.
      */
     updateById(
       id: string,
@@ -271,7 +239,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The target collection's `id` and `name`, or `undefined` if not found. */
     getIdAndName(
       id: string,
       userId: string,
@@ -284,7 +251,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Whether the collection exists for the given user. */
     exists(
       id: string,
       userId: string,
@@ -297,7 +263,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns IDs of the given collections that belong to the user. */
     listIdsByIdsForUser(
       ids: string[],
       userId: string,
@@ -310,18 +275,12 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns `id` and `name` for the given collection IDs. */
     listIdAndNameByIds(
       ids: string[],
     ): Promise<Pick<Selectable<CollectionsTable>, "id" | "name">[]> {
       return db.selectFrom("collections").select(["id", "name"]).where("id", "in", ids).execute();
     },
 
-    /**
-     * @returns `id`, `name`, and `groupId` for the given collection IDs.
-     * `groupId` is null for personal collections; callers use it to populate a
-     * copy's owning-group field (so the client no longer synthesizes it).
-     */
     listIdNameGroupByIds(
       ids: string[],
     ): Promise<Pick<Selectable<CollectionsTable>, "id" | "name" | "groupId">[]> {
@@ -332,7 +291,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Copies in the given collection (id and printingId only). */
     listCopiesInCollection(
       collectionId: string,
     ): Promise<Pick<Selectable<CopiesTable>, "id" | "printingId">[]> {
@@ -343,7 +301,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Moves all copies from one collection to another. */
     async moveCopiesBetweenCollections(
       fromCollectionId: string,
       toCollectionId: string,
@@ -355,7 +312,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Deletes a collection by ID scoped to a user. */
     async deleteByIdForUser(id: string, userId: string): Promise<void> {
       await db
         .deleteFrom("collections")
@@ -376,7 +332,6 @@ export function collectionsRepo(db: Kysely<Database>) {
      * Deletes every personal collection of the user except the inbox. The
      * collections must already be empty — a DB trigger rejects deleting a
      * collection that still has copies.
-     * @returns The number of deleted collections.
      */
     async deleteAllPersonalExceptInbox(userId: string): Promise<number> {
       const result = await db
@@ -387,10 +342,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       return Number(result.numDeletedRows);
     },
 
-    /**
-     * Sets (or nulls) the share_token and is_public on a collection, scoped to the owning user.
-     * @returns The updated collection row, or `undefined` if not owned by the user.
-     */
     setShareToken(
       id: string,
       userId: string,
@@ -407,9 +358,8 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Sets (or nulls) the share_token and is_public on a collection without user scoping.
-     * Caller must verify admin access first via `getAccessForUser`.
-     * @returns The updated collection row, or `undefined` if the id no longer exists.
+     * No user scoping. Caller must verify admin access first via
+     * `getAccessForUser`.
      */
     setShareTokenById(
       id: string,
@@ -425,10 +375,9 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Looks up a public collection by its share token. Anonymous — no user scoping.
-     * Personal collections expose the owner's display name; shared collections expose
-     * the group name in that slot (the share page treats it as an "owner" label).
-     * @returns The collection row plus owner label, or `undefined`.
+     * Anonymous — no user scoping. Personal collections expose the owner's
+     * display name; shared collections expose the group name in that slot (the
+     * share page treats it as an "owner" label).
      */
     async findByShareToken(shareToken: string): Promise<
       | {
@@ -466,10 +415,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       return { collection, ownerName, ownerEmail };
     },
 
-    /**
-     * Lists the shared collections owned by the given group, with copy counts.
-     * @returns Collections belonging to the group, ordered by sort_order then name.
-     */
     listForGroup(groupId: string): Promise<CollectionWithCount[]> {
       return db
         .selectFrom("collections")
@@ -485,11 +430,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Ensures the user has an inbox collection. Creates one if it doesn't exist,
-     * handling race conditions via `ON CONFLICT DO NOTHING`.
-     * @returns The inbox collection ID
-     */
     async ensureInbox(userId: string): Promise<string> {
       const result = await db
         .insertInto("collections")
@@ -508,7 +448,6 @@ export function collectionsRepo(db: Kysely<Database>) {
         return result.id;
       }
 
-      // Insert was a no-op (inbox already exists) — fetch it
       const row = await db
         .selectFrom("collections")
         .select("id")

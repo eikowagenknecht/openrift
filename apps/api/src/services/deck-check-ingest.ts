@@ -37,7 +37,6 @@ function sha256(input: string): string {
 /**
  * Maps every entry's sections up front so an unknown section rejects the whole
  * push before anything is written.
- * @returns Zone-mapped card lines per entry, aligned with `payload.entries`.
  */
 function mapAllSections(entries: IngestEntry[]): DeckCheckCardLine[][] {
   const unknownSections = new Set<string>();
@@ -69,8 +68,6 @@ function mapAllSections(entries: IngestEntry[]): DeckCheckCardLine[][] {
  * Recomputes an entry's content hash from its stored card lines, after a
  * manual card edit, so a later provider re-push diffs against what the judge
  * actually sees.
- * @param repos The request repositories.
- * @param entryId The edited entry.
  */
 export async function recomputeEntryHash(repos: Repos, entryId: string): Promise<void> {
   const cards = await repos.deckCheck.listCardsForEntry(entryId);
@@ -80,17 +77,11 @@ export async function recomputeEntryHash(repos: Repos, entryId: string): Promise
 }
 
 /**
- * Applies one provider push (ADR-025): upserts the entries it lists into an
- * existing event (partial semantics — absent entries are untouched), honors
- * explicit withdrawal, and invalidates checks whose card list changed. Pushes
- * never create events; the event is created in OpenRift and addressed by its
- * uuid. Run inside a transaction so a failed push imports nothing.
- *
- * @param repos Transaction-bound repositories.
- * @param host The host the push key resolved to.
- * @param payload The validated push payload.
- * @param appBaseUrl The web origin used to build each entry's claim link.
- * @returns Per-entry outcome counts plus a claim link per entry for the provider.
+ * Applies one provider push: upserts the entries it lists into an existing
+ * event (partial semantics — absent entries are untouched), honors explicit
+ * withdrawal, and invalidates checks whose card list changed. Pushes never
+ * create events; the event is created in OpenRift and addressed by its uuid.
+ * Run inside a transaction so a failed push imports nothing.
  */
 export async function ingestDeckCheckPush(
   repos: Repos,
@@ -114,8 +105,8 @@ export async function ingestDeckCheckPush(
     );
   }
 
-  // The self-submission namespace is reserved (ADR-026): a provider must never
-  // upsert onto (or withdraw) an entry the player created.
+  // The self-submission namespace is reserved: a provider must never upsert
+  // onto (or withdraw) an entry the player created.
   const reservedIds = payload.entries
     .map((entry) => entry.externalId)
     .filter((externalId) => externalId.startsWith(SELF_SUBMIT_EXTERNAL_ID_PREFIX));
@@ -147,7 +138,7 @@ export async function ingestDeckCheckPush(
   };
 
   // Records one pushed entry's claim link in the response, minting a token for
-  // the rare entry that lacks one (created before the amendment's backfill).
+  // the rare entry that lacks one.
   const recordEntry = async (
     externalId: string,
     entry: { id: string; claimToken: string | null },
@@ -204,8 +195,8 @@ export async function ingestDeckCheckPush(
     const existing = await repos.deckCheck.getEntryByExternalId(event.id, entry.externalId);
     if (!existing) {
       // Each pushed entry creates its own walk-in participant. Players link
-      // themselves later through the claim link (ADR-033); the push carries no
-      // identity that could auto-match an account.
+      // themselves later through the claim link; the push carries no identity
+      // that could auto-match an account.
       const participant = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: event.id,
         riotId: identity.riotId,
@@ -227,7 +218,7 @@ export async function ingestDeckCheckPush(
       continue;
     }
 
-    // Withdrawal is a state transition (ADR-027): the flag moves the entry to
+    // Withdrawal is a state transition: the flag moves the entry to
     // 'withdrawn'; a push without it returns a withdrawn entry to 'submitted'
     // (the pre-withdrawal state is not preserved — the push is a fresh
     // submission), and leaves any other state alone.
@@ -260,7 +251,7 @@ export async function ingestDeckCheckPush(
       continue;
     }
 
-    // Changed list: the provider always wins (ADR-027). The push lands the
+    // Changed list: the provider always wins. The push lands the
     // entry in 'submitted' from any state — discarding a player's in-progress
     // edit and pending unlock request, and invalidating a review with a
     // stored diff for the judge.
@@ -302,11 +293,6 @@ export type CreateDeckCheckEntryPayload = z.infer<typeof createDeckCheckEntrySch
  * with a provider id — note a later push for the same player (under the
  * provider's own id) lands as a separate entry rather than merging into this
  * one. The caller owns the one-deck-per-participant check.
- *
- * @param repos The request repositories.
- * @param tournamentId The deck-check tournament to add the deck to.
- * @param payload The validated participant id + card-line input.
- * @returns The created entry row.
  */
 export async function createManualDeckCheckEntry(
   repos: Repos,

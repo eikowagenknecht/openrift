@@ -47,8 +47,6 @@ import { autoCancelUnfillablePendingTrades } from "../../services/card-trades.js
 /** Discord link codes are one-shot and short-lived — 15 minutes to run /link. */
 const DISCORD_LINK_CODE_TTL_MS = 15 * 60 * 1000;
 
-// ─── Mappers ────────────────────────────────────────────────────────────────
-
 function toGroup(row: Group, includeCode: boolean): FriendGroupResponse {
   return {
     id: row.id,
@@ -128,7 +126,6 @@ interface CollectionCoverRow {
   imageId: string;
 }
 
-/** @returns Cover rows grouped by collection id, in display order. */
 function groupCovers(rows: CollectionCoverRow[]): Map<string, CollectionCoverRow[]> {
   return Map.groupBy(rows, (row) => row.collectionId);
 }
@@ -184,7 +181,6 @@ const os = implement(friendGroupsContract).$context<ApiContext>().use(requireAut
  * by the handler's appErrorInterceptor.
  */
 export const friendGroupsRouter = {
-  // ── LIST ────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ context }): Promise<FriendGroupListResponse> => {
     const userId = context.userId;
     const { friendGroups } = context.repos;
@@ -217,7 +213,6 @@ export const friendGroupsRouter = {
     };
   }),
 
-  // ── BADGE COUNT ─────────────────────────────────────────────────────────
   pendingInvitesCount: os.pendingInvitesCount.handler(
     async ({ context }): Promise<FriendGroupPendingInvitesCountResponse> => {
       const userId = context.userId;
@@ -236,7 +231,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── CREATE ──────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
     const userId = context.userId;
     const { friendGroups } = context.repos;
@@ -257,7 +251,6 @@ export const friendGroupsRouter = {
     return toGroup(group, true);
   }),
 
-  // ── JOIN PREVIEW ────────────────────────────────────────────────────────
   preview: os.preview.handler(
     async ({ input, context }): Promise<FriendGroupJoinPreviewResponse> => {
       const viewerId = context.userId;
@@ -287,7 +280,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── JOIN (submits a request) ────────────────────────────────────────────
   join: os.join.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -305,7 +297,6 @@ export const friendGroupsRouter = {
     await friendGroups.createInvite(group.id, viewerId, "request");
   }),
 
-  // ── DETAIL ──────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {
     const viewerId = context.userId;
     const { friendGroups, lists, cardTrades, copies } = context.repos;
@@ -359,7 +350,7 @@ export const friendGroupsRouter = {
 
     // The materialized `entryCount` counts only manual rows, so rule-based lists
     // report 0. Expand just those lists (manual lists are already exact) to show
-    // their real size — the same expansion the list detail page uses (ADR-034).
+    // their real size — the same expansion the list detail page uses.
     const [expandedCounts, shareCovers] = await Promise.all([
       expandRuleListCounts(lists, shares),
       copies.coverPrintingsAcross(
@@ -386,7 +377,6 @@ export const friendGroupsRouter = {
     };
   }),
 
-  // ── UPDATE METADATA (admin+) ────────────────────────────────────────────
   // Detailed input: path `slug` (current) and body `slug` (rename target) are
   // distinct, so they're kept in separate `params` / `body` envelopes.
   update: os.update.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
@@ -411,7 +401,7 @@ export const friendGroupsRouter = {
     const patched = await friendGroups.update(ctx.group.id, {
       slug: body.slug,
       // A rename keeps the old slug as a lookup alias so bookmarks and
-      // in-flight trade emails keep resolving (migration 189).
+      // in-flight trade emails keep resolving.
       ...(isRename ? { previousSlug: ctx.group.slug } : {}),
       name: body.name,
       description: body.description ?? undefined,
@@ -423,7 +413,6 @@ export const friendGroupsRouter = {
     return toGroup(patched, true);
   }),
 
-  // ── DELETE (owner only) ─────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -434,7 +423,6 @@ export const friendGroupsRouter = {
     await friendGroups.deleteById(ctx.group.id);
   }),
 
-  // ── ROTATE CODE (admin+) ────────────────────────────────────────────────
   rotateCode: os.rotateCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -449,7 +437,6 @@ export const friendGroupsRouter = {
     return toGroup(updated, true);
   }),
 
-  // ── DISABLE CODE (admin+) ───────────────────────────────────────────────
   disableCode: os.disableCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -464,7 +451,6 @@ export const friendGroupsRouter = {
     return toGroup(updated, true);
   }),
 
-  // ── RE-ENABLE CODE (admin+) ─────────────────────────────────────────────
   enableCode: os.enableCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -479,7 +465,6 @@ export const friendGroupsRouter = {
     return toGroup(updated, true);
   }),
 
-  // ── INVITE BY EMAIL (admin+) ────────────────────────────────────────────
   inviteByEmail: os.inviteByEmail.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups, users } = context.repos;
@@ -500,7 +485,6 @@ export const friendGroupsRouter = {
     await friendGroups.createInvite(ctx.group.id, target.id, "invite");
   }),
 
-  // ── ACCEPT (invite or request) ──────────────────────────────────────────
   acceptInvite: os.acceptInvite.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -529,15 +513,14 @@ export const friendGroupsRouter = {
 
     // Add the member and consume the invite atomically so a failure can't
     // leave a member without clearing the pending invite (or vice versa).
-    // Visibility is opt-in (ADR-013): the new member chooses which of their
-    // lists to share with the group from the manage page after joining.
+    // Visibility is opt-in: the new member chooses which of their lists to
+    // share with the group from the manage page after joining.
     await context.transact(async (repos) => {
       await repos.friendGroups.addMember(group.id, targetUserId, "member");
       await repos.friendGroups.deleteInvite(group.id, targetUserId);
     });
   }),
 
-  // ── DECLINE (invite or request) ─────────────────────────────────────────
   declineInvite: os.declineInvite.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -553,7 +536,6 @@ export const friendGroupsRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "No pending invite");
     }
 
-    // Allow self-decline (invitee declining / requester cancelling) OR admin/owner.
     if (targetUserId !== viewerId) {
       const membership = await friendGroups.getMembership(group.id, viewerId);
       if (!membership || !hasRole(membership.role, "admin")) {
@@ -564,7 +546,6 @@ export const friendGroupsRouter = {
     await friendGroups.deleteInvite(group.id, targetUserId);
   }),
 
-  // ── LEAVE ───────────────────────────────────────────────────────────────
   leave: os.leave.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
 
@@ -578,14 +559,13 @@ export const friendGroupsRouter = {
     }
 
     // Cancel the leaver's live trades in this group (releasing reserved copies)
-    // atomically with dropping membership (ADR-019).
+    // atomically with dropping membership.
     await context.transact(async (trxRepos) => {
       await trxRepos.cardTrades.cancelForDepartingMember(ctx.group.id, viewerId);
       await trxRepos.friendGroups.removeMember(ctx.group.id, viewerId);
     });
   }),
 
-  // ── TRANSFER OWNERSHIP (owner only) ─────────────────────────────────────
   transferOwnership: os.transferOwnership.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -605,7 +585,6 @@ export const friendGroupsRouter = {
     await friendGroups.transferOwnership(ctx.group.id, viewerId, targetUserId);
   }),
 
-  // ── UPDATE ROLE (admin+) ────────────────────────────────────────────────
   updateRole: os.updateRole.handler(
     async ({ input, context }): Promise<FriendGroupMemberResponse> => {
       const viewerId = context.userId;
@@ -622,7 +601,6 @@ export const friendGroupsRouter = {
       if (target.role === "owner") {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot demote the owner");
       }
-      // Only the owner may promote to or demote from admin.
       if ((target.role === "admin" || input.role === "admin") && ctx.membership.role !== "owner") {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the owner can change admins");
       }
@@ -631,7 +609,6 @@ export const friendGroupsRouter = {
       if (!updated) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
       }
-      // Re-fetch with user join to return the full DTO.
       const [members, contactsByUser] = await Promise.all([
         friendGroups.listMembers(ctx.group.id),
         friendGroups.getRevealedContactsForMembers(ctx.group.id),
@@ -644,7 +621,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── SET REVEALED CONTACTS (self only) ───────────────────────────────────
   setRevealedContacts: os.setRevealedContacts.handler(
     async ({ input, context }): Promise<FriendGroupMemberResponse> => {
       const viewerId = context.userId;
@@ -670,7 +646,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── KICK MEMBER (admin+) ────────────────────────────────────────────────
   kickMember: os.kickMember.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;
@@ -694,14 +669,13 @@ export const friendGroupsRouter = {
     }
 
     // Cancel the kicked member's live trades in this group (releasing reserved
-    // copies) atomically with dropping membership (ADR-019).
+    // copies) atomically with dropping membership.
     await context.transact(async (trxRepos) => {
       await trxRepos.cardTrades.cancelForDepartingMember(ctx.group.id, targetUserId);
       await trxRepos.friendGroups.removeMember(ctx.group.id, targetUserId);
     });
   }),
 
-  // ── SHAREABLE LISTS (viewer's own) ──────────────────────────────────────
   shareableLists: os.shareableLists.handler(
     async ({ input, context }): Promise<FriendGroupShareableListsResponse> => {
       const viewerId = context.userId;
@@ -711,7 +685,7 @@ export const friendGroupsRouter = {
 
       const rows = await friendGroups.listShareableForUserInGroup(ctx.group.id, viewerId);
       // Rule-based lists materialize 0 rows; expand their real counts so the
-      // share picker doesn't show "0 cards" for a smart list (ADR-034).
+      // share picker doesn't show "0 cards" for a smart list.
       const expandedCounts = await expandRuleListCounts(lists, rows);
       return {
         items: rows.map((row) => ({
@@ -736,7 +710,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── SHARE A LIST (self only) ────────────────────────────────────────────
   shareList: os.shareList.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups, lists } = context.repos;
@@ -751,7 +724,6 @@ export const friendGroupsRouter = {
     await friendGroups.share(ctx.group.id, input.listId, viewerId);
   }),
 
-  // ── UNSHARE A LIST (self only) ──────────────────────────────────────────
   unshareList: os.unshareList.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups, lists } = context.repos;
@@ -770,8 +742,8 @@ export const friendGroupsRouter = {
 
     // Pulling a trade list out of the group drops the supply behind the
     // viewer's live offers and the requests aimed at them, so re-check both in
-    // the same transaction as the unshare (ADR-019). Only the printings that
-    // still have a pending trade are worth a supply read.
+    // the same transaction as the unshare. Only the printings that still have
+    // a pending trade are worth a supply read.
     await context.transact(async (trxRepos) => {
       await trxRepos.friendGroups.unshare(ctx.group.id, input.listId);
       const printingIds = await trxRepos.cardTrades.listPendingPrintingIdsForGiverInGroup(
@@ -785,7 +757,6 @@ export const friendGroupsRouter = {
     });
   }),
 
-  // ── MATCH VIEW ──────────────────────────────────────────────────────────
   matches: os.matches.handler(async ({ input, context }): Promise<FriendGroupMatchesResponse> => {
     const viewerId = context.userId;
 
@@ -800,7 +771,6 @@ export const friendGroupsRouter = {
     return { othersHaveYourWants, othersWantYourHaves };
   }),
 
-  // ── BULK-BOX WANTS ──────────────────────────────────────────────────────
   boxWants: os.boxWants.handler(
     async ({ input, context }): Promise<FriendGroupBoxWantsResponse> => {
       const viewerId = context.userId;
@@ -816,7 +786,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── SHARED LIST DETAIL (browsable by any group member) ──────────────────
   getSharedList: os.getSharedList.handler(
     async ({ input, context }): Promise<FriendGroupSharedListDetailResponse> => {
       const viewerId = context.userId;
@@ -857,7 +826,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── MEMBER DETAIL ───────────────────────────────────────────────────────
   getMemberDetail: os.getMemberDetail.handler(
     async ({ input, context }): Promise<FriendGroupMemberDetailResponse> => {
       const viewerId = context.userId;
@@ -884,9 +852,8 @@ export const friendGroupsRouter = {
         (share) => share.userId === counterpartyUserId,
       );
 
-      // Rule-based lists materialize 0 rows, so expand their real counts here too
-      // — the trades page (`get`) does the same. Without this the member page
-      // showed 0 cards for every smart wishlist/tradelist (ADR-034).
+      // Rule-based lists materialize 0 rows, so expand their real counts here
+      // too — the trades page (`get`) does the same.
       const [expandedCounts, shareCovers] = await Promise.all([
         expandRuleListCounts(lists, memberShares),
         copies.coverPrintingsAcross(
@@ -908,7 +875,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── SHAREABLE COLLECTIONS (viewer's own) ────────────────────────────────
   shareableCollections: os.shareableCollections.handler(
     async ({ input, context }): Promise<FriendGroupShareableCollectionsResponse> => {
       const viewerId = context.userId;
@@ -927,7 +893,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── SHARE A COLLECTION (self only) ──────────────────────────────────────
   shareCollection: os.shareCollection.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups, collections } = context.repos;
@@ -945,7 +910,6 @@ export const friendGroupsRouter = {
     await friendGroups.shareCollection(ctx.group.id, input.collectionId, viewerId);
   }),
 
-  // ── UNSHARE A COLLECTION (self only) ────────────────────────────────────
   unshareCollection: os.unshareCollection.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups, collections } = context.repos;
@@ -960,7 +924,6 @@ export const friendGroupsRouter = {
     await friendGroups.unshareCollection(ctx.group.id, input.collectionId);
   }),
 
-  // ── SHARED COLLECTION DETAIL (browsable by any group member) ────────────
   getSharedCollection: os.getSharedCollection.handler(
     async ({ input, context }): Promise<FriendGroupSharedCollectionDetailResponse> => {
       const viewerId = context.userId;
@@ -986,9 +949,9 @@ export const friendGroupsRouter = {
       const copyRows = await copies.listForCollection(input.collectionId);
 
       // This route serves personally-owned collections shared into the group,
-      // so private notes stay owner-only (ADR-038): null them out for every
-      // viewer but the owner. (Group-owned collections flow through the copies
-      // feed instead, where members legitimately see private notes.)
+      // so private notes stay owner-only: null them out for every viewer but
+      // the owner. (Group-owned collections flow through the copies feed
+      // instead, where members legitimately see private notes.)
       const viewerIsOwner = shared.collection.userId === viewerId;
 
       return {
@@ -1011,7 +974,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── ACTIVITY FEED ───────────────────────────────────────────────────────
   activity: os.activity.handler(
     async ({ input, context }): Promise<FriendGroupActivityResponse> => {
       const viewerId = context.userId;
@@ -1093,7 +1055,6 @@ export const friendGroupsRouter = {
     },
   ),
 
-  // ── DISCORD LINKS (admin+) ──────────────────────────────────────────────
   // Linking a server is the group's consent that the bot may name members and
   // their shared-tradelist cards in replies there, so the whole surface is
   // admin-gated like the join code.

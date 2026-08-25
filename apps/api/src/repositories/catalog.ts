@@ -15,7 +15,6 @@ import type {
 } from "../db/index.js";
 import { fallbackImageId, imageId } from "./query-helpers.js";
 
-/** Card columns returned by the catalog (excludes normName and timestamps). */
 export type CatalogCardRow = Omit<
   Selectable<CardsTable>,
   "normName" | "createdAt" | "updatedAt"
@@ -38,21 +37,18 @@ interface CardAggregateNarrowing {
   types: CardType[];
 }
 
-/** Active ban row returned by the catalog. */
 type CatalogCardBanRow = Pick<
   Selectable<CardBansTable>,
   "cardId" | "formatId" | "bannedAt" | "reason"
 > & { formatName: string };
 
-/** Card errata row returned by the catalog. */
 type CatalogCardErrataRow = Pick<
   Selectable<CardErrataTable>,
   "cardId" | "correctedRulesText" | "correctedEffectText" | "source" | "sourceUrl" | "effectiveDate"
 >;
 
 /**
- * Set columns returned by the catalog, with the per-language release periods
- * folded in. No `released` boolean: clients derive it from the dates via
+ * No `released` boolean on purpose: clients derive it from the dates via
  * `isReleased`, so a cached response can't claim a set is still upcoming a
  * week after its date passed.
  */
@@ -60,10 +56,8 @@ type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "setTy
   releases: SetReleases;
 };
 
-/** A printing's lookup codes, for code-based card search. */
 type PrintingCodeRow = Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "publicCode">;
 
-/** Active printing image with resolved image_files.id (null IDs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   imageId: string;
 };
@@ -89,16 +83,14 @@ export interface ScanReferenceRow {
 }
 
 /**
- * Printing row returned by the catalog. `markerSlugs` is the printing's
- * denormalized sorted marker array (empty for unmarked printings).
- * Marker metadata (label/description) and distribution channels are resolved
- * separately by the route layer using the catalog's `markersList()` and
- * the distribution-channels repo.
+ * Printing row returned by the catalog. Marker metadata (label/description)
+ * and distribution channels are resolved separately by the route layer using
+ * the catalog's `markersList()` and the distribution-channels repo.
  *
- * `canonicalRank` is the integer sort key from the `printings_ordered` view
- * (see migration 096). Clients sort by this integer and get language-first,
- * set-order, shortCode, non-promo-first, finish-sort-order semantics in one
- * compare. User language preference overrides the language axis post-query.
+ * `canonicalRank` is the integer sort key from the `printings_ordered` view.
+ * Clients sort by this integer and get language-first, set-order, shortCode,
+ * non-promo-first, finish-sort-order semantics in one compare. User language
+ * preference overrides the language axis post-query.
  */
 type CatalogPrintingRow = Omit<
   Selectable<PrintingsTable>,
@@ -119,9 +111,8 @@ type CatalogPrintingRow = Omit<
 };
 
 /**
- * The card fields the catalog exposes, joined with the aggregate view's slug
- * arrays. Shared by every read that returns a {@link CatalogCardRow}, so a
- * column added to the contract reaches all of them at once.
+ * Shared by every read that returns a {@link CatalogCardRow}, so a column
+ * added to the contract reaches all of them at once.
  */
 const CARD_COLUMNS = [
   "cards.id",
@@ -170,8 +161,7 @@ const PRINTING_VIEW_COLUMNS = [
 
 /**
  * The per-language release map for a set, as a correlated subquery so the set
- * reads stay one round trip. Returns `{}` for a set announced nowhere.
- * @returns A jsonb expression aliased as `releases`.
+ * reads stay one round trip.
  */
 function releasesJson() {
   return sql<SetReleases>`coalesce((
@@ -184,14 +174,6 @@ function releasesJson() {
   ), '{}'::jsonb)`.as("releases");
 }
 
-/**
- * Active bans (nothing unbanned) with the format's display name. Callers append
- * their own card scope — none for the whole catalog, an `in` or an `=` for a
- * card set or a single card — and execute.
- *
- * @param db The Kysely instance to query.
- * @returns A select query yielding {@link CatalogCardBanRow}s.
- */
 function selectCardBans(db: Kysely<Database>) {
   return db
     .selectFrom("cardBans")
@@ -206,13 +188,6 @@ function selectCardBans(db: Kysely<Database>) {
     .where("unbannedAt", "is", null);
 }
 
-/**
- * The errata columns the catalog exposes. Callers append their own card scope
- * and execute.
- *
- * @param db The Kysely instance to query.
- * @returns A select query yielding {@link CatalogCardErrataRow}s.
- */
 function selectCardErrata(db: Kysely<Database>) {
   return db
     .selectFrom("cardErrata")
@@ -227,14 +202,8 @@ function selectCardErrata(db: Kysely<Database>) {
 }
 
 /**
- * Active printing images with their resolved `image_files.id`, ordered by
- * printing then face. External-only rows are excluded here rather than at the
- * call sites, so a page can never be handed an image it has no URL for.
- * Callers append their own scope — a printing id list, or a `printings` join
- * for a card's or a set's images — and execute.
- *
- * @param db The Kysely instance to query.
- * @returns A select query yielding {@link CatalogPrintingImageRow}s.
+ * External-only rows are excluded here rather than at the call sites, so a
+ * page can never be handed an image it has no URL for.
  */
 function selectPrintingImages(db: Kysely<Database>) {
   return db
@@ -290,26 +259,18 @@ const STORED_CATALOG_AGGREGATES = sql<string>`
       coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM set_releases)::text, '')
 `;
 
-/**
- * @returns The md5 of `expression`, or "" when the row is somehow absent.
- */
 async function hashedToken(db: Kysely<Database>, expression: RawBuilder<string>): Promise<string> {
   const result = await sql<{ token: string }>`SELECT md5(${expression}) AS token`.execute(db);
   return result.rows[0]?.token ?? "";
 }
 
 /**
- * Read-only queries for the card catalog (sets + printings + cards).
- *
  * The `.select()` columns in each method define the public API contract —
  * the catalog route spreads these rows directly into the response. Only
  * select columns that are safe to expose to clients.
- *
- * @returns An object with catalog query methods bound to the given `db`.
  */
 export function catalogRepo(db: Kysely<Database>) {
   return {
-    /** @returns All sets ordered by their display position. */
     async sets(): Promise<CatalogSetRow[]> {
       const rows = await db
         .selectFrom("sets")
@@ -320,13 +281,10 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Catalogue-wide list of distinct `cards.tags` values appearing on Legend
-     * cards. Each Legend has exactly one tag (the champion's name), so this
-     * is the canonical set of champion-identifier tags — used by Custom-Region
-     * to tell champion-name tags apart from region/utility tags during deck
-     * validation.
-     *
-     * @returns Sorted, distinct champion-identifier tags.
+     * Distinct `cards.tags` values appearing on Legend cards. Each Legend has
+     * exactly one tag (the champion's name), so this is the canonical set of
+     * champion-identifier tags — used by Custom-Region to tell champion-name
+     * tags apart from region/utility tags during deck validation.
      */
     async championIdentifierTags(): Promise<string[]> {
       const result = await sql<{ tag: string }>`
@@ -341,7 +299,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return result.rows.map((row) => row.tag);
     },
 
-    /** @returns All cards (no printings), for building a card lookup. */
     cards(): Promise<CatalogCardRow[]> {
       return db
         .selectFrom("cards")
@@ -352,17 +309,14 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All active card bans (not yet unbanned), with format display name. */
     cardBans(): Promise<CatalogCardBanRow[]> {
       return selectCardBans(db).execute();
     },
 
-    /** @returns All card errata (one per card at most). */
     cardErrata(): Promise<CatalogCardErrataRow[]> {
       return selectCardErrata(db).execute();
     },
 
-    /** @returns Active bans for a set of cards. */
     cardBansByCardIds(cardIds: string[]): Promise<CatalogCardBanRow[]> {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
@@ -370,7 +324,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return selectCardBans(db).where("cardBans.cardId", "in", cardIds).execute();
     },
 
-    /** @returns Errata for a set of cards. */
     cardErrataByCardIds(cardIds: string[]): Promise<CatalogCardErrataRow[]> {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
@@ -378,7 +331,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return selectCardErrata(db).where("cardId", "in", cardIds).execute();
     },
 
-    /** @returns All printings in canonical order (see `printings_ordered` view). */
     printings(): Promise<CatalogPrintingRow[]> {
       return db
         .selectFrom("printingsOrdered")
@@ -392,8 +344,6 @@ export function catalogRepo(db: Kysely<Database>) {
      * full `printings()` read carries every printed rules and flavor text on
      * every row, which is orders of magnitude more bytes than a code lookup
      * needs.
-     *
-     * @returns Each printing's card id and its short and public codes.
      */
     printingCodes(): Promise<PrintingCodeRow[]> {
       return db
@@ -410,8 +360,6 @@ export function catalogRepo(db: Kysely<Database>) {
      * feed `SearchableCard.altNames` as already-squashed strings. Aliases are
      * written alongside the card rows that own them, so `catalogContentVersion`
      * moves whenever they do and no separate probe is needed.
-     *
-     * @returns Each alias's normalized key and the card it resolves to.
      */
     nameAliases(): Promise<{ cardId: string; normName: string }[]> {
       return db
@@ -421,12 +369,10 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All active printing images (front and back), ordered by printing then face. */
     printingImages(): Promise<CatalogPrintingImageRow[]> {
       return selectPrintingImages(db).execute();
     },
 
-    /** @returns The total number of copies across all users. */
     async totalCopies(): Promise<number> {
       const result = await db
         .selectFrom("copies")
@@ -436,8 +382,9 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * A cheap content-version token for the assembled catalog, used to keep the
-     * dynamic list-rule expansion memo fresh (ADR-034). It folds together a
+     * A cheap content-version token for the assembled catalog, changing iff the
+     * rule-relevant catalog changes; it keeps the dynamic list-rule expansion
+     * memo fresh. It folds together a
      * `count(*)` plus the latest mutation timestamp of every table that feeds the
      * server-assembled `Printing[]` — so any admin edit that can change rule
      * output (a card/printing/set field, a ban or errata added/removed, a marker
@@ -456,12 +403,12 @@ export function catalogRepo(db: Kysely<Database>) {
      * instead. `cards.updated_at` is not bumped on a domain/super-type edit (only
      * the junction rows change), so without these hashes the memo would serve a
      * stale card set for any rule filtering on a domain, super-type, or custom
-     * tag. The hashes are over the junctions only (a few thousand rows at ADR-009
-     * scale); `custom_tags` slug renames are caught by its own `updated_at`.
+     * tag. The hashes are over the junctions only (a few thousand rows);
+     * `custom_tags` slug renames are caught by its own `updated_at`.
      *
      * `current_date` is folded in **here only**, because the assembled
      * `Printing[]` this memo guards carries `setReleased`, derived from the
-     * per-language release dates rather than stored (migration 233). Without it
+     * per-language release dates rather than stored. Without it
      * a set whose date passed at midnight would keep evaluating as unreleased
      * until some unrelated admin edit happened to roll the token.
      *
@@ -472,7 +419,6 @@ export function catalogRepo(db: Kysely<Database>) {
      *
      * Far cheaper than the full assembly (aggregates only, no row materialization
      * or map building), so it can run on every ruled-list read.
-     * @returns An opaque string that changes iff the rule-relevant catalog changes.
      */
     catalogContentVersion(): Promise<string> {
       return hashedToken(db, sql`${STORED_CATALOG_AGGREGATES} || '|' || current_date::text`);
@@ -513,8 +459,6 @@ export function catalogRepo(db: Kysely<Database>) {
      * Notably absent: `current_date`. Carrying it would roll this token at every
      * UTC midnight and throw away every client's `immutable` entry daily, while
      * the response bytes did not change at all.
-     *
-     * @returns An opaque string that changes iff the catalog response changes.
      */
     async catalogResponseVersion(): Promise<string> {
       const [storedToken, result] = await Promise.all([
@@ -552,10 +496,6 @@ export function catalogRepo(db: Kysely<Database>) {
      * deterministic per UTC day — `md5(printing_id || current_date)` — so an
      * edge cache can serve the same payload to every visitor for the day,
      * with the scatter rotating once at midnight.
-     *
-     * @param sampleSize — maximum number of thumbnail image IDs to return.
-     * @returns Distinct card count, total printing count, total copy count,
-     *   and at most `sampleSize` thumbnail image IDs.
      */
     async landingSummary(sampleSize: number): Promise<{
       cardCount: number;
@@ -602,17 +542,14 @@ export function catalogRepo(db: Kysely<Database>) {
       };
     },
 
-    /** @returns The card's `id`, or `undefined` if not found. */
     cardById(id: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {
       return db.selectFrom("cards").select("id").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns The printing's `id`, or `undefined` if not found. */
     printingById(id: string): Promise<Pick<Selectable<PrintingsTable>, "id"> | undefined> {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A single card by slug, or `undefined` if not found. */
     cardBySlug(slug: string): Promise<CatalogCardRow | undefined> {
       return db
         .selectFrom("cards")
@@ -624,7 +561,6 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns All printings for a given card ID in canonical order.
      * `printings[0]` is the canonical default printing for SSR meta tags
      * and the UI's initially-selected printing.
      *
@@ -683,7 +619,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Printing images for a given card's printings. */
     printingImagesByCardId(cardId: string): Promise<CatalogPrintingImageRow[]> {
       return selectPrintingImages(db)
         .innerJoin("printings", "printings.id", "printingImages.printingId")
@@ -691,17 +626,14 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Active bans for a single card. */
     cardBansByCardId(cardId: string): Promise<CatalogCardBanRow[]> {
       return selectCardBans(db).where("cardBans.cardId", "=", cardId).execute();
     },
 
-    /** @returns Errata for a single card, or `undefined`. */
     cardErrataByCardId(cardId: string): Promise<CatalogCardErrataRow | undefined> {
       return selectCardErrata(db).where("cardId", "=", cardId).executeTakeFirst();
     },
 
-    /** @returns Sets matching the given IDs. */
     async setsByIds(ids: string[]): Promise<CatalogSetRow[]> {
       if (ids.length === 0) {
         return [];
@@ -715,7 +647,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /** @returns A single set by slug, or `undefined`. */
     async setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
       return await db
         .selectFrom("sets")
@@ -724,7 +655,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns All printings for a given set ID in canonical order. */
     printingsBySetId(setId: string): Promise<CatalogPrintingRow[]> {
       return db
         .selectFrom("printingsOrdered")
@@ -734,7 +664,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Printings matching the given IDs, in canonical order. */
     printingsByIds(ids: string[]): Promise<CatalogPrintingRow[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
@@ -747,7 +676,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Cards matching the given IDs. */
     cardsByIds(ids: string[]): Promise<CatalogCardRow[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
@@ -762,7 +690,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Printing images for a given set's printings. */
     printingImagesBySetId(setId: string): Promise<CatalogPrintingImageRow[]> {
       return selectPrintingImages(db)
         .innerJoin("printings", "printings.id", "printingImages.printingId")
@@ -775,8 +702,6 @@ export function catalogRepo(db: Kysely<Database>) {
      * with the identity fields the scan labels carry. One row per image file;
      * `createdAt` is the printing image's creation time (the bank watermark
      * is the maximum over the built set).
-     *
-     * @returns One row per catalogued front render.
      */
     scanReferences(): Promise<ScanReferenceRow[]> {
       return (
@@ -819,7 +744,6 @@ export function catalogRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns The image_files.id of a cover image per set (first available printing image). */
     async setCoverImageIds(): Promise<Map<string, string>> {
       const rows = await db
         .selectFrom("printings")
@@ -838,11 +762,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return new Map(rows.map((r) => [r.setId, r.imageId]));
     },
 
-    /**
-     * Card count and printing count per set, in a single query.
-     *
-     * @returns A map from set ID to `{ cardCount, printingCount }`.
-     */
     async setCountsAll(): Promise<Map<string, { cardCount: number; printingCount: number }>> {
       const rows = await db
         .selectFrom("printings")
@@ -861,7 +780,6 @@ export function catalogRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns All markers, ordered by sort order then label. */
     markersList(): Promise<
       { id: string; slug: string; label: string; description: string | null }[]
     > {
@@ -873,7 +791,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Active printing images for a list of printing IDs. */
     printingImagesByPrintingIds(printingIds: string[]): Promise<CatalogPrintingImageRow[]> {
       if (printingIds.length === 0) {
         return Promise.resolve([]);
@@ -883,10 +800,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * @returns All printings distributed through at least one channel (event or
-     * product), in canonical order.
-     */
     channelDistributedPrintings(): Promise<CatalogPrintingRow[]> {
       return db
         .selectFrom("printingsOrdered")
@@ -903,7 +816,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All card sitemap entries (slug + updatedAt). */
     async allCardSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
       const rows = await db
         .selectFrom("cards")
@@ -913,7 +825,6 @@ export function catalogRepo(db: Kysely<Database>) {
       return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
     },
 
-    /** @returns All set sitemap entries (slug + updatedAt). */
     async allSetSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
       const rows = await db
         .selectFrom("sets")
@@ -923,38 +834,28 @@ export function catalogRepo(db: Kysely<Database>) {
       return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
     },
 
-    /**
-     * Refresh the `mv_card_aggregates` materialized view.
-     * Uses CONCURRENTLY so reads aren't blocked during refresh.
-     *
-     * @returns void
-     */
     async refreshCardAggregates(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
     },
 
     /**
      * Refresh `mv_printings_canonical_rank`, which backs the
-     * `printings_ordered` view's `canonical_rank` (migration 215).
+     * `printings_ordered` view's `canonical_rank`.
      *
      * Must run after anything that changes the ranking: printings themselves,
      * or the `sort_order` of sets / finishes / card_sizes / languages /
      * markers. Until it does, a new printing coalesces to the largest int and
      * sorts last rather than disappearing, so a missed refresh delays ordering
      * instead of hiding cards.
-     *
-     * @returns void
      */
     async refreshCanonicalRank(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
     },
 
     /**
-     * Refresh every materialized view derived from the card/printing catalog.
-     * Card and printing mutations invalidate both of them, so they refresh
-     * together rather than leaving callers to remember the pair.
-     *
-     * @returns void
+     * Card and printing mutations invalidate both catalog-derived materialized
+     * views, so they refresh together rather than leaving callers to remember
+     * the pair.
      */
     async refreshCatalogViews(): Promise<void> {
       // Not `this.refresh…()`: instrumentRepo rebinds these methods onto a new

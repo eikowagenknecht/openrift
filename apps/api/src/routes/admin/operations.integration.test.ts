@@ -11,13 +11,9 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin operations (clear prices, refresh prices)
-//
 // Uses the shared integration database. Price-refresh HTTP calls are stubbed
 // via a mock io.fetch that returns empty data, so the real refresh functions
-// run but produce no-op results.
-// Uses prefix OPS- for entities it creates.
+// run but produce no-op results. Uses prefix OPS- for entities it creates.
 //
 // This file owns the DESTRUCTIVE clear-prices tests, and it wipes cardtrader:
 // the endpoint deletes everything for one marketplace, integration files run
@@ -25,7 +21,6 @@ import { readJson } from "../../test/read-json.js";
 // clearing cardtrader here cannot eat another file's data. Assertions about
 // what got deleted stay scoped to this file's own rows (its externalIds) —
 // deleted counts are only ever >= what this file seeded.
-// ---------------------------------------------------------------------------
 
 const mockIo: Io = {
   ...defaultIo,
@@ -47,11 +42,9 @@ const ctx = createTestContext(ADMIN_USER_ID, { io: mockIo });
 const unauthCtx = createUnauthenticatedTestContext();
 const nonAdminCtx = createTestContext(NON_ADMIN_USER_ID);
 
-// Seed test-specific data (OPS- prefix to avoid collisions)
 if (ctx) {
   const { db } = ctx;
 
-  // Ensure admin user is in admins table
   await db
     .insertInto("admins")
     .values({ userId: ADMIN_USER_ID })
@@ -71,15 +64,10 @@ const MARKETPLACE_ORDINAL: Record<Marketplace, number> = {
 /** Groups this file created; the clear endpoint leaves groups behind, so afterAll removes them. */
 const seededGroups: { marketplace: Marketplace; groupId: number }[] = [];
 
-/**
- * Seed marketplace data for a given marketplace.
- * @returns The ids identifying this call's rows (the file's isolation keys).
- */
 async function seedMarketplaceData(marketplace: Marketplace) {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
 
-  // Use a counter suffix to ensure unique slugs across repeated calls
   const suffix = seedCounter++;
 
   const [set] = await db
@@ -137,7 +125,6 @@ async function seedMarketplaceData(marketplace: Marketplace) {
     .returning("id")
     .execute();
 
-  // Use suffix-based IDs to avoid conflicts across repeated seed calls
   const ordinal = MARKETPLACE_ORDINAL[marketplace];
   const baseGroupId = 90_000 + suffix * 10 + ordinal;
   const baseExtId = 90_000 + suffix * 100 + 90 + ordinal;
@@ -169,7 +156,7 @@ async function seedMarketplaceData(marketplace: Marketplace) {
     .returning("id")
     .execute();
 
-  // marketplace_product_variants — pure (product, printing) link now that SKU axes live on the product.
+  // marketplace_product_variants — pure (product, printing) link; SKU axes live on the product.
   await db
     .insertInto("marketplaceProductVariants")
     .values({
@@ -189,9 +176,8 @@ async function seedMarketplaceData(marketplace: Marketplace) {
     })
     .execute();
 
-  // A second product representing an "unmatched" SKU (no variant binding).
-  // Phase 4 collapsed staging into marketplace_products + marketplace_product_prices,
-  // so the unmatched-products feed reads from products with `NOT EXISTS (mpv)`.
+  // A second product representing an "unmatched" SKU (no variant binding); the
+  // unmatched-products feed reads from products with `NOT EXISTS (mpv)`.
   const [stagingProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -221,10 +207,6 @@ async function seedMarketplaceData(marketplace: Marketplace) {
     externalIds: [baseExtId, stagingExtId],
   };
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
@@ -258,8 +240,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
         .execute();
     }
   });
-
-  // ── Authentication & authorization ──────────────────────────────────────
 
   describe("authentication and authorization", () => {
     it("returns 401 for unauthenticated request to clear-prices", async () => {
@@ -303,8 +283,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/clear-prices (validation) ─────────────────────────────
-
   describe("POST /admin/clear-prices (validation)", () => {
     it("returns 400 for invalid source value", async () => {
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "invalid" }));
@@ -321,8 +299,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(res.status).toBe(400);
     });
   });
-
-  // ── POST /admin/clear-prices (cardtrader — the marketplace this file wipes) ──
 
   describe("POST /admin/clear-prices (cardtrader)", () => {
     it("clears cardtrader marketplace data and returns counts", async () => {
@@ -343,7 +319,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
       expect(json.deleted.products).toBeGreaterThanOrEqual(2);
 
-      // This file's specific rows are gone.
       const remaining = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -366,16 +341,16 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json.deleted.products).toBe(0);
     });
 
-    it("clears a marketplace with ignored variants (migration 253 regression)", async () => {
+    it("clears a marketplace with ignored variants", async () => {
       const seeded = await seedMarketplaceData("cardtrader");
       await db
         .insertInto("marketplaceIgnoredVariants")
         .values({ marketplaceProductId: seeded.productId, productName: "OPS Ignored Variant" })
         .execute();
 
-      // Before migration 253 added ON DELETE CASCADE to
-      // marketplace_ignored_variants.marketplace_product_id, this endpoint
-      // FK-faulted whenever any variant of the marketplace was ignored.
+      // This endpoint relies on marketplace_ignored_variants.marketplace_product_id
+      // having ON DELETE CASCADE, or it FK-faults whenever any variant of the
+      // marketplace is ignored.
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
@@ -395,19 +370,14 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/clear-prices does not affect other marketplace ─────────
-
   describe("POST /admin/clear-prices (cross-marketplace isolation)", () => {
     it("clearing cardtrader does not remove tcgplayer data", async () => {
-      // Seed both marketplaces
       const ct = await seedMarketplaceData("cardtrader");
       const tcg = await seedMarketplaceData("tcgplayer");
 
-      // Clear only cardtrader
       const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardtrader" }));
       expect(res.status).toBe(200);
 
-      // Verify this file's cardtrader rows are cleared
       const ctRows = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -416,7 +386,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
         .execute();
       expect(ctRows).toHaveLength(0);
 
-      // Verify this file's tcgplayer rows are untouched
       const tcgRows = await db
         .selectFrom("marketplaceProducts")
         .select("id")
@@ -447,8 +416,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/refresh-tcgplayer-prices ────────────────────────────────
-
   describe("POST /admin/refresh-tcgplayer-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {
       const res = await app.fetch(adminReq("POST", "/refresh-tcgplayer-prices"));
@@ -460,8 +427,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/refresh-cardmarket-prices ──────────────────────────────
-
   describe("POST /admin/refresh-cardmarket-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {
       const res = await app.fetch(adminReq("POST", "/refresh-cardmarket-prices"));
@@ -472,8 +437,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json).toHaveProperty("status");
     });
   });
-
-  // ── POST /admin/refresh-cardtrader-prices ─────────────────────────────
 
   describe("POST /admin/refresh-cardtrader-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {

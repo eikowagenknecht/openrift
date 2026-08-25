@@ -29,8 +29,6 @@ const tracer = trace.getTracer("openrift-api/http");
  * used (e.g. `/api/v1/cards/:cardSlug`), not the parent wildcard. When no
  * route matched (404), the span is still emitted with route="<unmatched>"
  * so unrouted traffic remains visible without exploding cardinality.
- *
- * @returns A Hono middleware handler.
  */
 export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> = async (
   c,

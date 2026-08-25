@@ -7,16 +7,12 @@ import type { Tournament, TournamentParticipant } from "../repositories/tourname
 import { hasOrgRole, loadOrg, requireOrgRole } from "./org-access.js";
 
 /**
- * Loaders and authorization gates for the tournaments umbrella (ADR-033),
- * mirroring {@link import("./group-access.js")} for friend groups. Authority
- * composes host standing (the hosting user, or an org owner/manager) with
+ * Loaders and authorization gates for the tournaments umbrella, mirroring
+ * {@link import("./group-access.js")} for friend groups. Authority composes
+ * host standing (the hosting user, or an org owner/manager) with
  * `tournament_staff` grants; every route-level gate resolves through here.
  */
 
-/**
- * Loads the tournament; 404 if missing.
- * @returns The tournament row.
- */
 export async function loadTournament(repos: Repos, id: string): Promise<Tournament> {
   const tournament = await repos.tournaments.findById(id);
   if (!tournament) {
@@ -25,7 +21,6 @@ export async function loadTournament(repos: Repos, id: string): Promise<Tourname
   return tournament;
 }
 
-/** @returns Whether the user is the hosting user, or an owner/manager of the host org. */
 export async function isHost(
   repos: Repos,
   tournament: Tournament,
@@ -52,10 +47,6 @@ export interface TournamentHostColumns {
 /**
  * Resolves an organization host for a create or a host reassignment: 404 on an
  * unknown org, 403 unless the caller is an owner or manager of it.
- * @param repos The repository bundle.
- * @param orgId The organization to host under.
- * @param userId The acting user.
- * @returns The host columns for that org.
  */
 export async function resolveOrgHost(
   repos: Repos,
@@ -80,10 +71,10 @@ export async function requireManage(
 }
 
 /**
- * Throws 403 unless the user works the event (host, organizer, or judge). Looser
- * than {@link requireManage}: a judge can add a walk-in (ADR-033 decision 18 — a
- * judge/host manual add is a trusted, auto-active roster path) without gaining
- * the rest of the management surface.
+ * Throws 403 unless the user works the event (host, organizer, or judge).
+ * Looser than {@link requireManage}: a judge can add a walk-in (a judge/host
+ * manual add is a trusted, auto-active roster path) without gaining the rest
+ * of the management surface.
  */
 export async function requireStaff(
   repos: Repos,
@@ -110,10 +101,6 @@ export async function requireHost(
   }
 }
 
-/**
- * Loads a participant and asserts it belongs to the tournament; 404 otherwise.
- * @returns The participant row.
- */
 export async function loadParticipant(
   repos: Repos,
   tournamentId: string,

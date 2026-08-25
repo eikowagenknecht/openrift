@@ -10,7 +10,7 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ADR-016 optional-auth coupling guard.
+// Optional-auth coupling guard.
 //
 // Exactly two public reads branch on the viewer (`context.user`) instead of
 // being fully anonymous: `GET /api/v1/feature-flags` and

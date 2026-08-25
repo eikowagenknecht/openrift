@@ -31,9 +31,9 @@ function sha256(input: string): string {
 }
 
 /**
- * Claims a participant (a tournament "spot") via its claim token (ADR-026
- * amendment, ADR-033). Rooted on the participant, so it works with or without
- * deck check. Resolves against the participant's current state:
+ * Claims a participant (a tournament "spot") via its claim token. Rooted on
+ * the participant, so it works with or without deck check. Resolves against
+ * the participant's current state:
  *
  * - unclaimed and not blocked: link it (`claim_link`);
  * - already the caller's: idempotent no-op, the caller still lands on it
@@ -45,8 +45,7 @@ function sha256(input: string): string {
  *
  * The token is the capability, so claiming never waits on email verification.
  * `entryId` routes the caller to their deck when the tournament runs deck check,
- * and is null otherwise.
- * @returns The outcome, or null when the token matches no participant (a 404).
+ * and is null otherwise. Returns null when the token matches no participant.
  */
 export async function claimParticipantByToken(
   repos: Repos,
@@ -126,10 +125,8 @@ export async function claimParticipantByToken(
 }
 
 /**
- * Builds the normalized card lines a player submission resolves to, from one
- * of the three allowed inputs: an own deck's id, a pasted deck code, or the
- * card lines of a pasted text list.
- * @returns Card lines in the same shape a provider push produces.
+ * Builds the normalized card lines a player submission resolves to, in the
+ * same shape a provider push produces.
  */
 export function buildPlayerLines(
   repos: Repos,
@@ -159,7 +156,6 @@ export function buildPlayerLines(
  * a paste without zone headers lands everything in main, and those types can
  * never legally live in it. The chosen champion cannot be inferred; it needs
  * a "Champion:" header, and the legality preview flags it when missing.
- * @returns The zone-mapped card lines.
  */
 async function linesFromCardList(
   repos: Repos,
@@ -227,7 +223,6 @@ async function linesFromOwnDeck(
  * inferring zones the lossy format does not carry. An unknown short code
  * becomes an unmatched line carrying the code as its raw name, so a judge
  * sees a flagged placeholder instead of a silently dropped card.
- * @returns The decoded card lines.
  */
 async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCheckCardLine[]> {
   // parsePiltoverDeckCode owns the decode and the champion split (the encoder
@@ -265,7 +260,6 @@ async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCh
  * Resolves player lines against the catalog into entry-card rows, the same
  * way a provider push does. The section stores the zone slug, since a player
  * submission has no provider vocabulary to preserve.
- * @returns Rows ready for `replaceEntryCards`.
  */
 export async function resolvePlayerCardRows(
   repos: Repos,
@@ -299,11 +293,6 @@ export interface PlayerSharingConsent {
   allowRiotIdSharing?: boolean;
 }
 
-/**
- * The consent columns a submission actually states, for spreading into an
- * entry update.
- * @returns A patch containing only the flags the player answered.
- */
 function consentPatch(consent: PlayerSharingConsent): Partial<{
   allowDeckPublishing: boolean;
   allowNameSharing: boolean;
@@ -324,11 +313,10 @@ function consentPatch(consent: PlayerSharingConsent): Partial<{
 
 /**
  * Replaces an entry's card lines with the player's list and recomputes the
- * content hash. The caller guards that the entry is `editable` (ADR-027) —
- * this never touches the state; the diff against the judge's baseline is
- * computed when the player submits. An unchanged list is idempotent (but
- * still records a changed sharing consent).
- * @returns The updated entry.
+ * content hash. The caller guards that the entry is `editable` — this never
+ * touches the state; the diff against the judge's baseline is computed when
+ * the player submits. An unchanged list is idempotent (but still records a
+ * changed sharing consent).
  */
 export async function applyPlayerList(
   repos: Repos,
@@ -355,11 +343,10 @@ export async function applyPlayerList(
 }
 
 /**
- * Creates a fresh self-submitted entry (ADR-026): born linked and `submitted`
- * (the token link is an explicit send-for-review, ADR-027), keyed
- * `openrift:<userId>` so a re-submission upserts the same entry, with the
- * player fields populated from the account.
- * @returns The created entry.
+ * Creates a fresh self-submitted entry: born linked and `submitted` (the token
+ * link is an explicit send-for-review), keyed `openrift:<userId>` so a
+ * re-submission upserts the same entry, with the player fields populated from
+ * the account.
  */
 export async function createSelfSubmittedEntry(
   repos: Repos,
@@ -369,19 +356,19 @@ export async function createSelfSubmittedEntry(
   cardRows: NewDeckCheckEntryCard[],
   consent: PlayerSharingConsent = {},
 ): Promise<DeckCheckEntry> {
-  // Attach to the account's existing entrant, or create one, born linked to the
-  // account either way (ADR-033).
+  // Attach to the account's existing entrant, or create one, born linked to
+  // the account either way.
   const participant = await repos.tournaments.resolveOrCreateParticipant({
     tournamentId: event.id,
     userId: account.id,
-    // The profile's free-text Riot ID (ADR-028), snapshotted at submission.
+    // The profile's free-text Riot ID, snapshotted at submission.
     riotId: account.riotId,
     displayName: account.name?.trim() || account.email,
     claimSource: "self_submit",
     claimedAt: new Date(),
     // A stranger submitting through the open link lands in the approval queue,
-    // not straight on the roster (ADR-033 decisions 18/19). An already-rostered
-    // caller is matched by account above and keeps their existing status.
+    // not straight on the roster. An already-rostered caller is matched by
+    // account above and keeps their existing status.
     status: "requested",
   });
   const entry = await repos.deckCheck.createEntry({

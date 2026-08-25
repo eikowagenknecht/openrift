@@ -69,7 +69,7 @@ export function toCollection(
   };
 }
 
-/** @returns Public-facing collection fields — excludes shareToken, isPublic, isInbox, sortOrder, availableForDeckbuilding. */
+/** Public-facing collection fields — excludes shareToken, isPublic, isInbox, sortOrder, availableForDeckbuilding. */
 export function toPublicCollection(
   row: Selectable<CollectionsTable> & { copyCount?: number },
   value?: CollectionValue,
@@ -86,10 +86,6 @@ export function toPublicCollection(
   };
 }
 
-/**
- * Maps an enriched collection event row to CollectionEventResponse.
- * @returns The serialized collection event response.
- */
 export function toCollectionEvent(row: {
   id: string;
   action: string;

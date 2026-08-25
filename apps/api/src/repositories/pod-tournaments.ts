@@ -39,22 +39,19 @@ export type PodPlayer = Selectable<TournamentParticipantsTable>;
  */
 export type PodRosterPlayer = PodPlayer & { status: PodPlayerStatus };
 
-/** The statuses that put a participant on the competing roster. */
 const ROSTER_STATUSES: readonly PodPlayerStatus[] = ["active", "dropped"];
 export type PodRound = Selectable<PodRoundsTable>;
 export type Pod = Selectable<PodsTable>;
 
-/** Pod context for a result submission: the pod, its round, owning tournament, and member ids. */
 export interface PodForResult {
   pod: Pod;
   round: PodRound;
   tournament: Tournament;
   memberPlayerIds: string[];
-  /** Player id -> current team id, for the members that have one (2v2 play). */
+  /** Player id -> team id, only for members that have one (2v2 play). */
   teamByPlayer: Map<string, string>;
 }
 
-/** An engine snapshot row plus the player's team, for team-unit pairing (2v2). */
 export type PairingSnapshotPlayer = PairingPlayer & { teamId: string | null };
 
 /**
@@ -75,12 +72,6 @@ export interface PodScoring {
   playMode: TournamentPlayMode;
 }
 
-/**
- * Pluck the scoring knobs off a tournament row.
- *
- * @param tournament The tournament row.
- * @returns The scoring context for the derived reads.
- */
 export function scoringOf(tournament: Tournament): PodScoring {
   return {
     scheme: tournament.scoringScheme,
@@ -96,8 +87,6 @@ function podSizeOf(value: number): 2 | 3 | 4 {
   return value === 2 ? 2 : value === 3 ? 3 : 4;
 }
 
-// Points per member for one pod: Swiss win/draw points for a match (size 2),
-// the placement tables for a 3/4 FFA pod.
 function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring): number[] {
   if (size === 2) {
     return swissPointsForPlacements(placements, scoring.winPoints, scoring.drawPoints);
@@ -107,11 +96,8 @@ function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring
 
 /**
  * The two team ids of a 2v2 team match, or null when the members don't form
- * exactly two full teams (a 1v1 pod, or pre-teams legacy data — those fall back
- * to the per-player scoring paths).
- *
- * @param members One row per pod member, carrying the participant's team.
- * @returns The two distinct team ids, or null.
+ * exactly two full teams (a 1v1 pod, or pre-teams data — those fall back to
+ * the per-player scoring paths).
  */
 function teamsOf(members: { teamId: string | null }[]): [string, string] | null {
   if (members.length !== 4 || members.some((member) => member.teamId === null)) {
@@ -121,16 +107,6 @@ function teamsOf(members: { teamId: string | null }[]): [string, string] | null 
   return distinct.length === 2 ? [distinct[0], distinct[1]] : null;
 }
 
-/**
- * Points per member of a 2v2 team match: both sides' placements collapse to one
- * placement per team (members share it), the pair scores like a Swiss match,
- * and each member earns their team's points.
- *
- * @param members The four member rows, carrying placement and team.
- * @param teams The two team ids from {@link teamsOf}.
- * @param scoring The tournament's scoring knobs.
- * @returns Points per member, parallel to `members`.
- */
 function pointsForTeamPod(
   members: { teamId: string | null; placement: number | null }[],
   teams: [string, string],
@@ -191,10 +167,9 @@ function tieBreakKey(id: string): number {
 }
 
 /**
- * Times each region has been faced: fold the opponent meeting counts through
- * the opponents' CURRENT regions. Derive-on-read like everything else, so a
- * region edit recounts the history on the next pairing.
- * @returns region slug -> prior meetings against that region.
+ * Times each region has been faced (region slug -> prior meetings), folding the
+ * opponent meeting counts through the opponents' CURRENT regions. Derive-on-read
+ * like everything else, so a region edit recounts the history on the next pairing.
  */
 function regionHistoryFrom(
   opponents: Map<string, number> | undefined,
@@ -229,18 +204,6 @@ function emptyAggregate(): PlayerAggregate {
   };
 }
 
-/**
- * Fold the finalized pod/member rows (and finalized byes) into per-player
- * aggregates. Scheme points are derived per pod from placement via the pure
- * scorer; raw game points are summed for the tie-breaker; opponent counts come
- * from co-membership; a sole 1st place is a pod win; a bye adds the tournament's
- * bye points and a round played but no opponents or pod tally.
- *
- * @param rows The finalized pod-member rows.
- * @param byePlayerIds One entry per finalized bye (a player id, repeated per bye).
- * @param scoring The tournament's scoring knobs.
- * @returns A map from player id to their derived aggregate.
- */
 function foldFinalized(
   rows: FinalizedMemberRow[],
   byePlayerIds: string[],
@@ -290,8 +253,6 @@ function foldFinalized(
       const best = Math.min(...placements);
       const leaders = members.filter((member) => member.placement === best);
       if (teams) {
-        // The team match record: leaders span one team (that team won) or
-        // both (a draw); every member carries their team's result.
         const leaderTeams = new Set(leaders.map((member) => member.teamId));
         for (const member of members) {
           const aggregate = ensure(member.playerId);
@@ -308,7 +269,6 @@ function foldFinalized(
         if (leaders.length === 1) {
           ensure(leaders[0].playerId).podWins += 1;
         }
-        // The Swiss match record: a 2-pod is a win/draw/loss per member.
         if (size === 2) {
           for (const member of members) {
             const aggregate = ensure(member.playerId);
@@ -352,15 +312,6 @@ function foldFinalized(
   return aggregates;
 }
 
-/**
- * Materialize and sort the standing rows for one tournament from its players
- * and folded aggregates, best first. Shared by `computeStandings` and the
- * batched `winnersAcross`.
- *
- * @param players The tournament's participants.
- * @param aggregates Per-player aggregates from {@link foldFinalized}.
- * @returns The standing rows, sorted best first.
- */
 function sortedStandingRows(
   players: PodRosterPlayer[],
   aggregates: Map<string, PlayerAggregate>,
@@ -489,18 +440,16 @@ function toRoundResponse(
 }
 
 /**
- * The pod-engine tables (ADR-022): rounds, pods, pod members, byes, and the
- * roster/team side of `tournament_participants`. The `tournaments` row itself
- * belongs to {@link import("./tournaments.js").tournamentsRepo} — there is one
- * tournament row and one `Tournament` type, and this repo takes ids.
+ * The pod-engine tables: rounds, pods, pod members, byes, and the roster/team
+ * side of `tournament_participants`. The `tournaments` row itself belongs to
+ * `tournamentsRepo` — there is one tournament row and one `Tournament` type,
+ * and this repo takes ids.
  *
  * Lean model: player aggregates and opponent history are NOT stored; they are
- * derived on read from the finalized rounds via {@link foldFinalized}. Stored
- * values are the raw facts (pod_members.placement) and the engine's write-once
+ * derived on read from the finalized rounds via `foldFinalized`. Stored values
+ * are the raw facts (pod_members.placement) and the engine's write-once
  * outputs (round/pod penalties). Authorization is the caller's job; the repo is
  * naive.
- *
- * @returns Pod-engine query methods bound to `db`.
  */
 export function podTournamentsRepo(db: Kysely<Database>) {
   function loadFinalizedRows(tournamentId: string): Promise<FinalizedMemberRow[]> {
@@ -534,7 +483,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     return rows.map((row) => row.playerId);
   }
 
-  // Insert a round's pods (+ their result-less members) and byes inside a trx.
   // Pod numbers are the physical tables: pods holding a fixed-seat player claim
   // that table, everyone else fills the free numbers in engine order. Members
   // are written in seat order, arranged so nobody repeats earlier rounds'
@@ -611,7 +559,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
   }
 
   return {
-    // ── Players ────────────────────────────────────────────────────────────
     listPlayers(tournamentId: string): Promise<PodRosterPlayer[]> {
       return db
         .selectFrom("tournamentParticipants")
@@ -657,10 +604,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Undo a drop: the player is active again and paired from the next round; results are retained.
-     * @returns The reactivated player, or `undefined` if not found.
-     */
+    /** Undo a drop: the player is active again and paired from the next round; results are retained. */
     reactivatePlayer(playerId: string): Promise<PodPlayer | undefined> {
       return db
         .updateTable("tournamentParticipants")
@@ -674,7 +618,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       await db.deleteFrom("tournamentParticipants").where("id", "=", playerId).execute();
     },
 
-    /** @returns True if the player is in any pod (so they cannot be hard-deleted). */
     async playerHasMemberships(playerId: string): Promise<boolean> {
       const row = await db
         .selectFrom("podMembers")
@@ -684,11 +627,9 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    // ── Teams (2v2 play mode) ──────────────────────────────────────────────
     /**
      * Create a team from two participants, atomically. Eligibility (2v2
      * tournament, both active and unteamed) is the service's job.
-     * @returns The created team id.
      */
     createTeam(tournamentId: string, participantIds: [string, string]): Promise<string> {
       return db.transaction().execute(async (trx) => {
@@ -701,7 +642,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         // participant safe: the loser updates fewer than two rows, throws, and
         // its team row rolls back with the transaction — no half-team remains.
         // Scoping to the tournament also backstops a cross-tournament id mixup
-        // (the composite team FK from migration 253 rejects those outright).
+        // (the composite team FK rejects those outright).
         const updated = await trx
           .updateTable("tournamentParticipants")
           .set({ teamId: team.id })
@@ -720,7 +661,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns The team row, or `undefined` if no team has that id. */
     findTeam(teamId: string): Promise<{ id: string; tournamentId: string } | undefined> {
       return db
         .selectFrom("tournamentTeams")
@@ -734,12 +674,10 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       await db.deleteFrom("tournamentTeams").where("id", "=", teamId).execute();
     },
 
-    /** Deletes every team of a tournament (leaving 2v2 before any round). */
     async dissolveAllTeams(tournamentId: string): Promise<void> {
       await db.deleteFrom("tournamentTeams").where("tournamentId", "=", tournamentId).execute();
     },
 
-    /** @returns True if any member of the team is seated in any pod (the team has played). */
     async teamHasMemberships(teamId: string): Promise<boolean> {
       const row = await db
         .selectFrom("podMembers as m")
@@ -750,7 +688,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    // ── Rounds / pods ──────────────────────────────────────────────────────
     findOpenRound(tournamentId: string): Promise<PodRound | undefined> {
       return db
         .selectFrom("podRounds")
@@ -769,11 +706,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Atomic insert of a round, its pods and their (result-less) members, and any
-     * byes (players the organizer sat out this round).
-     * @returns The created round.
-     */
     createRound(
       tournamentId: string,
       roundNumber: number,
@@ -797,12 +729,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Replace an open round's pairing in place (organizer manual edit): wipe its
-     * pods, members, and byes, then re-insert the new partition. Keeps the same
-     * round row and number; updates the stored penalty and marks it manual.
-     * @returns Nothing.
-     */
     async replacePairing(
       roundId: string,
       pairing: PairingResult,
@@ -820,7 +746,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns The player ids byed in this round (used to preserve byes on re-roll). */
     async listRoundByePlayerIds(roundId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("podByes")
@@ -830,7 +755,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.playerId);
     },
 
-    /** @returns The player ids seated in any pod of this round (for the manual-edit coverage check). */
     async listRoundMemberPlayerIds(roundId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("podMembers as m")
@@ -845,7 +769,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       await db.deleteFrom("podRounds").where("id", "=", roundId).execute();
     },
 
-    /** @returns The pod plus its round, tournament, and member ids — or `undefined`. */
     async findPodForResult(podId: string): Promise<PodForResult | undefined> {
       const pod = await db
         .selectFrom("pods")
@@ -890,7 +813,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       };
     },
 
-    /** Writes each member's game points + derived placement and flips the pod to `reported`. */
     async setPodResult(
       podId: string,
       results: { playerId: string; placement: number; gamePoints: number }[],
@@ -913,13 +835,10 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Writes one or more members' game points (per-player self-reporting; 2v2
-     * passes both members of the reporter's team, since a team shares one game
-     * score). Once every member of the pod has points, derives the placements
-     * and flips the pod to `reported` — the same completion `setPodResult`
-     * performs in one shot. The pod row is locked for the transaction so two
-     * players submitting at the same time serialize and the second one sees
-     * the first one's points.
+     * Per-player self-reporting; 2v2 passes both members of the reporter's
+     * team, since a team shares one game score. The pod row is locked for the
+     * transaction so two players submitting at the same time serialize and the
+     * second one sees the first one's points.
      */
     async setMemberGamePoints(
       podId: string,
@@ -960,7 +879,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    /** @returns True once every pod in the round is `reported`. */
     async allPodsReported(roundId: string): Promise<boolean> {
       const pending = await db
         .selectFrom("pods")
@@ -971,7 +889,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return pending === undefined;
     },
 
-    /** @returns True if any pod in the round has a result (re-roll is then blocked). */
     async anyResultEntered(roundId: string): Promise<boolean> {
       const reported = await db
         .selectFrom("pods")
@@ -982,7 +899,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return reported !== undefined;
     },
 
-    /** Finalizes the round and advances the tournament's finalized-round counter, atomically. */
     async finalizeRound(
       roundId: string,
       tournamentId: string,
@@ -1002,8 +918,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    // ── Derived reads (the lean model) ───────────────────────────────────────
-    /** @returns Active players as engine snapshots, aggregates derived from finalized rounds. */
     async loadPairingSnapshot(
       tournamentId: string,
       scoring: PodScoring,
@@ -1046,7 +960,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      * warnings and manual editor, with `opponents` as a plain record so it
      * serializes over the wire. Dropped players are included because a player
      * dropped while a round is open still sits in that round's pods.
-     * @returns One serializable snapshot row per player in the tournament.
      */
     async loadOpenRoundSnapshot(
       tournamentId: string,
@@ -1082,11 +995,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * @returns All players as standings rows, sorted by the tie-break order:
-     *   tournament score → pod wins → average opponent score → game points →
-     *   average opponent game points → random (a stable per-player draw).
-     */
     async computeStandings(tournamentId: string, scoring: PodScoring): Promise<PodStandingRow[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
@@ -1108,9 +1016,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      * The standings leader per tournament, batched: three queries across all
      * ids instead of three per tournament. A tournament with no finalized
      * rounds (or no finalized byes) has no winner and is absent from the map.
-     *
-     * @param tournaments The tournaments with their scoring configuration.
-     * @returns A map from tournament id to its standings leader.
      */
     async winnersAcross(
       tournaments: { id: string; scoring: PodScoring }[],
@@ -1182,7 +1087,6 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return winners;
     },
 
-    /** @returns Every round with its pods and members (placements + derived points + penalty). */
     async loadRounds(tournamentId: string, scoring: PodScoring): Promise<PodRoundResponse[]> {
       const rounds = await db
         .selectFrom("podRounds")

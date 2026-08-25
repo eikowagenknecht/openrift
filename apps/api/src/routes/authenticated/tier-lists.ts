@@ -15,7 +15,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const NOT_FOUND = "Tier list not found";
 
-/** @returns A fresh S/A/B/C/D board, the shape a new list starts from. */
 function defaultTiers(): TierListRow[] {
   return DEFAULT_TIER_LABELS.map((label) => ({ label, cards: [] }));
 }
@@ -23,7 +22,6 @@ function defaultTiers(): TierListRow[] {
 /**
  * Trims a nullish free-text field down to what should be stored: `undefined`
  * leaves the column alone, an empty string clears it to null.
- * @returns The value to write, or `undefined` to leave the column untouched.
  */
 function normalizeText(value: string | null | undefined): string | null | undefined {
   if (value === undefined) {
@@ -39,7 +37,7 @@ function normalizeText(value: string | null | undefined): string | null | undefi
 const os = implement(tierListsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Creator-authored tier lists (migration 237), mounted at `/api/v1/tier-lists`.
+ * Creator-authored tier lists, mounted at `/api/v1/tier-lists`.
  *
  * Every read and write is user-scoped in the repository, so a list belonging to
  * someone else resolves to nothing and surfaces as NOT_FOUND — the caller never

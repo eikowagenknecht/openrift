@@ -10,14 +10,13 @@ import { AppError } from "../errors.js";
 import type { Tournament } from "../repositories/tournaments.js";
 
 /**
- * The cross-field tournament invariants (ADR-033), mirroring the DB CHECK
- * constraints with readable messages. They live outside the router because the
- * update contract's fields are all optional and can't see the existing row:
- * callers pass the *effective* post-merge values, which is the part worth
- * testing on its own.
+ * The cross-field tournament invariants, mirroring the DB CHECK constraints
+ * with readable messages. They live outside the router because the update
+ * contract's fields are all optional and can't see the existing row: callers
+ * pass the *effective* post-merge values, which is the part worth testing on
+ * its own.
  */
 
-/** Throws 422 when the schedule instants are out of order. */
 export function assertDateOrder(
   startsAt: Date,
   endsAt: Date | null,
@@ -39,11 +38,7 @@ export function assertDateOrder(
   }
 }
 
-/**
- * Throws 422 when the play mode contradicts a sibling setting, mirroring the
- * DB CHECKs (chk_tournaments_play_mode_*).
- * @returns Nothing; throws on an invalid combination.
- */
+// Mirrors the DB CHECKs (chk_tournaments_play_mode_*).
 export function assertPlayModeCompatible(
   playMode: TournamentPlayMode,
   pairingStyle: TournamentPairingStyle,
@@ -69,10 +64,10 @@ export function assertPlayModeCompatible(
 }
 
 /**
- * Forward-only lifecycle (ADR-033). `cancelled` is terminal (and additionally
- * blocked upstream by the cannot-edit-cancelled guard); every state may stay
- * itself, so an unchanged status write is always a no-op. Reaching `cancelled`
- * is normally the dedicated `cancel` endpoint, but an explicit status write to
+ * Forward-only lifecycle. `cancelled` is terminal (and additionally blocked
+ * upstream by the cannot-edit-cancelled guard); every state may stay itself,
+ * so an unchanged status write is always a no-op. Reaching `cancelled` is
+ * normally the dedicated `cancel` endpoint, but an explicit status write to
  * it is honored too.
  */
 const ALLOWED_STATUS_TRANSITIONS: Record<TournamentStatus, readonly TournamentStatus[]> = {
@@ -82,13 +77,7 @@ const ALLOWED_STATUS_TRANSITIONS: Record<TournamentStatus, readonly TournamentSt
   cancelled: ["cancelled"],
 };
 
-/**
- * Throws 409 on a status move the forward-only lifecycle disallows. A patch
- * that omits the status, or restates the current one, is a no-op.
- * @param current The stored status.
- * @param next The requested status, or undefined when the patch omits it.
- * @returns Nothing; throws on a disallowed move.
- */
+// A patch that omits the status, or restates the current one, is a no-op.
 export function assertStatusTransition(
   current: TournamentStatus,
   next: TournamentStatus | undefined,
@@ -117,13 +106,9 @@ export function assertParticipantsOpen(tournament: Tournament): void {
   }
 }
 
-/**
- * Validates a participant region: `null`/`undefined` pass (unset/clear);
- * otherwise the value must be an existing custom-tag slug in the `region`
- * category — the same vocabulary the Custom - Region deck format uses.
- * Throws 400 on an unknown slug or a tag from another category.
- * @returns Nothing; throws on an invalid region slug.
- */
+// `null`/`undefined` pass (unset/clear); otherwise the value must be an
+// existing custom-tag slug in the `region` category — the same vocabulary the
+// Custom - Region deck format uses.
 export async function assertValidRegion(
   repos: Repos,
   region: string | null | undefined,

@@ -36,13 +36,10 @@ import {
   unlockEntryToEditable,
 } from "../../services/deck-check-states.js";
 
-// ─── Mappers ────────────────────────────────────────────────────────────────
-
 /**
- * Builds the player projection of one entry: the deck by zone with the
- * advisory findings, and nothing the judging team owns (no other entrants, no
+ * The player projection of one entry: the deck by zone with the advisory
+ * findings, and nothing the judging team owns (no other entrants, no
  * `checked_by`, no judge notes).
- * @returns The player entry-detail response.
  */
 async function buildPlayerDetail(
   repos: Repos,
@@ -91,7 +88,6 @@ async function buildPlayerDetail(
 /**
  * The dry-run preview shape: not-yet-persisted rows get synthetic ids and
  * empty ticks so they render through the same card-line components.
- * @returns Card-line responses for the preview.
  */
 function toPreviewCards(cardRows: NewDeckCheckEntryCard[]): DeckCheckEntryCardResponse[] {
   return cardRows.map((row) => ({
@@ -108,7 +104,6 @@ function toPreviewCards(cardRows: NewDeckCheckEntryCard[]): DeckCheckEntryCardRe
   }));
 }
 
-/** A loaded entry, its event, and whether this load performed the deadline settle. */
 interface LoadedOwnEntry {
   row: PlayerDeckCheckEntryRow;
   event: DeckCheckEvent;
@@ -117,9 +112,8 @@ interface LoadedOwnEntry {
 
 /**
  * Loads one of the caller's entries with its event, settling the deadline
- * auto-submit on the way (ADR-027). Not-owned and missing entries are 404
- * (never 403), so existence is not leaked.
- * @returns The (possibly settled) row, its event, and whether this call settled it.
+ * auto-submit on the way. Not-owned and missing entries are 404 (never 403),
+ * so existence is not leaked.
  */
 async function loadOwnEntry(
   repos: Repos,
@@ -131,10 +125,9 @@ async function loadOwnEntry(
 
 /**
  * The same load keyed by tournament: the player's deck page is a section of the
- * tournament, so it addresses the entry through the tournament it belongs to
- * (ADR-033). A viewer with no entry there is a 404, exactly like a viewer
- * asking for someone else's.
- * @returns The (possibly settled) row and its event.
+ * tournament, so it addresses the entry through the tournament it belongs to.
+ * A viewer with no entry there is a 404, exactly like a viewer asking for
+ * someone else's.
  */
 async function loadOwnEntryForTournament(
   repos: Repos,
@@ -156,7 +149,6 @@ async function loadOwnEntryForTournament(
  * an entry writes in that case, so a caller that is about to reject on a closed
  * window needs to know whether the rejection would contradict a write it just
  * caused. Only `submit` acts on it: see the window guard there.
- * @returns The (possibly settled) row, its event, and whether this call settled it.
  */
 async function withSettledEvent(
   repos: Repos,
@@ -184,8 +176,8 @@ async function loadOpenSubmissionEvent(
   const event = await repos.deckCheck.getEventBySubmissionToken(token);
   // The submission token is the link's on/off switch (rotating or disabling it
   // clears the token, so the lookup misses). Self-registration is a separate
-  // policy gate handled per-caller (ADR-033): turning it off keeps the link
-  // alive for already-claimed participants.
+  // policy gate handled per-caller: turning it off keeps the link alive for
+  // already-claimed participants.
   if (!event) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Submission link not found");
   }
@@ -194,11 +186,10 @@ async function loadOpenSubmissionEvent(
 
 /**
  * Loads the submission event for a token and enforces the self-registration
- * gate (ADR-033). When self-registration is open, anyone with the link may
- * submit (creating their own spot). When it is closed, only a caller who
- * already holds a spot may submit; a stranger must claim their spot via the
- * personal claim link the organizer sent before the link will take a deck.
- * @returns The open submission event.
+ * gate. When self-registration is open, anyone with the link may submit
+ * (creating their own spot). When it is closed, only a caller who already
+ * holds a spot may submit; a stranger must claim their spot via the personal
+ * claim link the organizer sent before the link will take a deck.
  */
 async function loadSubmissionEventForUser(
   repos: Repos,
@@ -223,11 +214,10 @@ async function loadSubmissionEventForUser(
  * Persists a submission: replaces and resubmits the caller's linked entry
  * while it is still in the player's hands (`editable` or `submitted` — the
  * latter being the self-service unlock, replace, and resubmit composed into
- * one step, ADR-027); creates a fresh self-submitted entry otherwise. An
- * `approved` or `checked` entry is locked (the deck page handles unlock
- * requests), and a withdrawn one blocks both paths so a pulled player cannot
- * sidestep the withdrawal through the token link.
- * @returns The written entry.
+ * one step); creates a fresh self-submitted entry otherwise. An `approved` or
+ * `checked` entry is locked (the deck page handles unlock requests), and a
+ * withdrawn one blocks both paths so a pulled player cannot sidestep the
+ * withdrawal through the token link.
  */
 async function persistSubmission(
   repos: Repos,
@@ -290,9 +280,9 @@ async function persistSubmission(
 const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Player-facing deck-check contract (ADR-026/027), mounted at
- * `/api/v1/deck-check`. Not-found / conflict / validation states are thrown as
- * `AppError` and mapped to ORPCErrors by the handler's appErrorInterceptor.
+ * Player-facing deck-check contract, mounted at `/api/v1/deck-check`.
+ * Not-found / conflict / validation states are thrown as `AppError` and
+ * mapped to ORPCErrors by the handler's appErrorInterceptor.
  */
 export const deckCheckPlayerRouter = {
   getMine: os.getMine.handler(

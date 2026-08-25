@@ -21,8 +21,6 @@ const os = implement(publicOverlayContract).$context<ApiContext>().use(requireUs
  * deleted, or to an id copied out of someone else's URL, keeps painting the
  * plain channel state. Blanking the scene or answering with an error would put
  * the failure on someone's stream.
- *
- * @returns The state to return, dressed by the preset when one applies.
  */
 async function dressedState(
   repos: Repos,

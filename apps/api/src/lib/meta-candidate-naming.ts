@@ -1,6 +1,6 @@
 /**
  * Names an accepted candidate has to invent: the live event's URL slug, and a
- * deck's display name when the source shipped none (ADR-014).
+ * deck's display name when the source shipped none.
  *
  * Both are pure and both are deliberately conservative — the slug grammar is a
  * CHECK constraint on `meta_events.slug`, and the reserved list is enforced at
@@ -30,12 +30,10 @@ const RESERVED_SLUGS = new Set(["decks", "events", "stats", "new", "admin"]);
 /** How many `-2`, `-3`, … variants {@link metaEventSlugCandidates} offers. */
 const MAX_SLUG_VARIANTS = 50;
 
-/** @returns The text without leading or trailing hyphens. */
 function trimHyphens(text: string): string {
   return text.replaceAll(/^-+|-+$/gu, "");
 }
 
-/** @returns The four-digit year of an ISO date, or `""` when it has none. */
 function yearOf(eventDate: string): string {
   return /^(?<year>\d{4})/u.exec(eventDate)?.groups?.year ?? "";
 }
@@ -47,10 +45,6 @@ function yearOf(eventDate: string): string {
  * The year is what keeps a recurring series ("Summoner Skirmish") from
  * colliding with itself every season, so it is part of the base rather than a
  * disambiguation suffix. A name that already ends in the year keeps it once.
- *
- * @param name The candidate's event name.
- * @param eventDate The candidate's ISO event date.
- * @returns A slug matching the column's CHECK constraint.
  */
 export function metaEventSlugBase(name: string, eventDate: string): string {
   const year = yearOf(eventDate);
@@ -71,10 +65,6 @@ export function metaEventSlugBase(name: string, eventDate: string): string {
  *
  * Reserved slugs are dropped rather than renamed, because the numbered variants
  * after them ("decks-2", …) are free and read better than a rewritten stem.
- *
- * @param name The candidate's event name.
- * @param eventDate The candidate's ISO event date.
- * @returns Ordered slug candidates, all valid and none reserved.
  */
 export function metaEventSlugCandidates(name: string, eventDate: string): string[] {
   const base = metaEventSlugBase(name, eventDate);
@@ -100,11 +90,6 @@ const MAX_DECK_NAME_LENGTH = 200;
  * page is useless. The legend is what players call the archetype, so it leads;
  * the event name stands in when the list has no legend zone card (an
  * incomplete import, or a format without legends).
- *
- * @param legendName The deck's legend card name, or null when it has none.
- * @param playerName The pilot.
- * @param eventName The event, used when there is no legend.
- * @returns A non-empty name within the column's length bound.
  */
 export function defaultMetaDeckName(
   legendName: string | null,

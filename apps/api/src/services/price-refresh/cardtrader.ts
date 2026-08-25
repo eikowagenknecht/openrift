@@ -1,13 +1,3 @@
-/**
- * Refreshes CardTrader price data from the CardTrader API v2.
- *
- * Fetches blueprints per expansion, then marketplace listings per expansion
- * to compute the lowest price per blueprint. Auto-matches blueprints to
- * existing printings via TCGPlayer/Cardmarket cross-references, writes
- * snapshots for already-mapped sources into marketplace_product_prices, and
- * stages unmatched products in marketplace_staging for admin mapping.
- */
-
 import { WellKnown } from "@openrift/shared";
 import type { Marketplace, PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
@@ -19,20 +9,14 @@ import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
 
-// ── Upsert config ─────────────────────────────────────────────────────────
-
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "cardtrader",
 };
-
-// ── Constants ──────────────────────────────────────────────────────────────
 
 const CT_API_BASE = "https://api.cardtrader.com/api/v2";
 const CT_GAME_ID = 22; // Riftbound
 const CT_SINGLES_CATEGORY = 258;
 const FETCH_TIMEOUT_MS = 30_000;
-
-// ── External API types ─────────────────────────────────────────────────────
 
 interface CtExpansion {
   id: number;
@@ -91,8 +75,6 @@ interface CtPrice {
  * code inserts cleanly and then joins to nothing — the prices just disappear
  * from the UI while the refresh reports success. Keep this in step with the
  * `languages` table.
- *
- * @returns The normalized language code.
  */
 function normalizeCtLanguage(raw: string | undefined): string {
   if (!raw) {
@@ -105,12 +87,9 @@ function normalizeCtLanguage(raw: string | undefined): string {
   return upper;
 }
 
-// ── API helpers ───────────────────────────────────────────────────────────
-
 /**
- * Fetch JSON from CardTrader API v2 with auth and timeout.
- * Handles the `{"array": [...]}` response wrapping some endpoints use.
- * @returns The parsed JSON body.
+ * Fetch JSON from CardTrader API v2 with auth and timeout, unwrapping the
+ * `{"array": [...]}` response wrapping some endpoints use.
  */
 async function ctFetch<T>(
   fetchFn: Fetch,
@@ -125,7 +104,6 @@ async function ctFetch<T>(
     throw new Error(`HTTP ${res.status} for ${url}: ${await res.text()}`);
   }
   const json: unknown = await res.json();
-  // Some endpoints wrap arrays in {"array": [...]}
   if (
     json !== null &&
     typeof json === "object" &&
@@ -136,8 +114,6 @@ async function ctFetch<T>(
   }
   return json as T;
 }
-
-// ── Fetch ──────────────────────────────────────────────────────────────────
 
 interface CardtraderFetchResult {
   expansions: CtExpansion[];
@@ -151,7 +127,6 @@ async function fetchCardtraderData(
   authHeaders: Record<string, string>,
   log: Logger,
 ): Promise<CardtraderFetchResult> {
-  // 1. Fetch all expansions, filter to Riftbound
   const allExpansions = await ctFetch<CtExpansion[]>(
     fetchFn,
     `${CT_API_BASE}/expansions`,
@@ -160,7 +135,6 @@ async function fetchCardtraderData(
   const expansions = allExpansions.filter((e) => e.game_id === CT_GAME_ID);
   log.info(`${expansions.length} Riftbound expansions`);
 
-  // 2. Fetch blueprints per expansion
   const allBlueprints: CtBlueprint[] = [];
   for (const exp of expansions) {
     const blueprints = await ctFetch<CtBlueprint[]>(
@@ -172,7 +146,6 @@ async function fetchCardtraderData(
   }
   log.info(`${allBlueprints.length} blueprints total`);
 
-  // 3. Fetch marketplace listings per expansion, extract lowest price per blueprint+finish
   const prices = new Map<string, CtPrice>();
   for (const exp of expansions) {
     const products = await ctFetch<Record<string, CtMarketplaceProduct[]>>(
@@ -187,11 +160,6 @@ async function fetchCardtraderData(
       }
       const id = Number(bpId);
 
-      // Only consider listings that are:
-      //  - Near Mint (or condition unspecified)
-      //  - not from a seller on vacation (listed but unreachable until they return)
-      //  - single-card listings (bundle_size > 1 means price_cents is a multi-card total,
-      //    not a per-card price, so treating it as a single would misreport pricing)
       const eligible = allListings.filter(
         (listing) =>
           (!listing.properties_hash?.condition ||
@@ -203,9 +171,6 @@ async function fetchCardtraderData(
         continue;
       }
 
-      // Group listings by (language, finish) to produce per-language prices.
-      // Normalize CardTrader's language codes (e.g. "zh-CN") to the form we use
-      // on printings ("SC") so downstream matching lines up.
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
       for (const listing of eligible) {
         const lang = normalizeCtLanguage(listing.properties_hash?.riftbound_language);
@@ -248,8 +213,6 @@ async function fetchCardtraderData(
   };
 }
 
-// ── Transform ──────────────────────────────────────────────────────────────
-
 function buildCardtraderStaging(
   { blueprints, prices, recordedAt }: CardtraderFetchResult,
   ignoredKeys: LoadedIgnoredKeys,
@@ -263,7 +226,6 @@ function buildCardtraderStaging(
     if (ignoredKeys.productIds.has(bp.id)) {
       continue;
     }
-    // Iterate all prices for this blueprint (keyed by id::finish::language)
     for (const price of prices.values()) {
       if (price.blueprintId !== bp.id || price.minPriceCents <= 0) {
         continue;
@@ -302,15 +264,11 @@ function buildCardtraderGroups(expansions: CtExpansion[]): GroupRow[] {
   }));
 }
 
-// ── Auto-matching ──────────────────────────────────────────────────────────
-
 /**
  * Build a lookup from "printing identity without language" to a map of
  * `language → printingId`, so that given an English printing we can find its
  * sibling printing in any other language that shares the same card, set,
  * short code, finish, art variant, signed status, and promo type.
- *
- * @returns A map keyed by the printing-identity string.
  */
 function buildSiblingLookup(
   printings: {
@@ -353,8 +311,6 @@ function buildSiblingLookup(
  * sibling printing in our catalog — same card, short code, finish, art variant,
  * signed status, and promo type, but with the requested language — and create
  * a variant pointing at the sibling.
- *
- * @returns The number of newly auto-matched variant rows.
  */
 async function autoMatchBlueprints(
   repos: Repos,
@@ -362,15 +318,11 @@ async function autoMatchBlueprints(
   prices: Map<string, CtPrice>,
   log: Logger,
 ): Promise<number> {
-  // Load existing tcg/cm variants (one row per finish × language). These
-  // provide the cross-reference from cardtrader blueprints to printings.
   const existingSources = await repos.priceRefresh.existingSourcesByMarketplaces([
     "tcgplayer",
     "cardmarket",
   ]);
 
-  // Load all printings once and build a sibling lookup so we can walk from
-  // an English printing to its SC (or any other language) counterpart.
   const allPrintings = await repos.priceRefresh.allPrintingsForPriceMatch();
   const siblingByIdentity = buildSiblingLookup(allPrintings);
   const identityByPrintingId = new Map<string, string>();
@@ -381,8 +333,8 @@ async function autoMatchBlueprints(
   }
 
   // Only the `printingId` and `finish` matter for sibling resolution — the
-  // cross-ref's own `language` is irrelevant because we pick the target
-  // language from the cardtrader blueprint's own prices (see below).
+  // cross-ref's own `language` is irrelevant because the target language is
+  // picked from the cardtrader blueprint's own prices.
   interface CrossRefEntry {
     printingId: string;
     finish: string;
@@ -402,8 +354,6 @@ async function autoMatchBlueprints(
     lookup.set(src.externalId, list);
   }
 
-  // Group the fetched prices by blueprint id so we can learn what
-  // (finish, language) combos each blueprint actually sells in.
   const pricesByBlueprint = Map.groupBy([...prices.values()], (p) => p.blueprintId);
 
   // Build a per-variant skip set from existing cardtrader variants. Skipping at
@@ -434,10 +384,6 @@ async function autoMatchBlueprints(
       continue;
     }
 
-    // Try TCGPlayer cross-reference first, falling back to Cardmarket. The
-    // cross-ref entries are all English printings because TCG/CM don't list
-    // Chinese cards, but they anchor us to the correct (cardId, shortCode,
-    // finish, …) identity which we can then language-swap.
     let crossRefVariants: CrossRefEntry[] | undefined;
     if (bp.tcg_player_id !== null) {
       crossRefVariants = tcgLookup.get(bp.tcg_player_id);
@@ -455,9 +401,6 @@ async function autoMatchBlueprints(
       continue;
     }
 
-    // Walk each cross-ref's printing up to its identity and remember which
-    // finishes the cross-ref covers — we only honor observed finishes that
-    // line up with what the cross-ref actually has.
     const identityByFinish = new Map<string, string>();
     for (const variant of crossRefVariants) {
       const identity = identityByPrintingId.get(variant.printingId);
@@ -466,8 +409,6 @@ async function autoMatchBlueprints(
       }
     }
 
-    // For every (finish, language) combo this blueprint actually sells in,
-    // resolve the sibling printing and emit a variant.
     const observed = pricesByBlueprint.get(bp.id) ?? [];
     for (const price of observed) {
       const identity = identityByFinish.get(price.finish);
@@ -509,15 +450,6 @@ async function autoMatchBlueprints(
   return toInsert.length;
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
-
-/**
- * Fetch the latest CardTrader blueprint prices for Riftbound, auto-match
- * blueprints to existing printings via cross-references, upsert expansion
- * metadata, and write snapshots. Unmatched products are staged for manual
- * admin mapping.
- * @returns Fetch totals and per-table upsert counts.
- */
 export async function refreshCardtraderPrices(
   fetchFn: Fetch,
   repos: Repos,
@@ -527,20 +459,16 @@ export async function refreshCardtraderPrices(
   const authHeaders = { Authorization: `Bearer ${apiToken}` };
   const ignoredKeys = await loadIgnoredKeys(repos.priceRefresh, "cardtrader");
 
-  // Phase 1: Fetch
   const fetchResult = await fetchCardtraderData(fetchFn, authHeaders, log);
   const { expansions, blueprints, prices } = fetchResult;
 
-  // Phase 2: Upsert groups first (auto-match needs the FK)
+  // Groups must be upserted before auto-match: the variant rows need the FK.
   const groupRows = buildCardtraderGroups(expansions);
   await upsertMarketplaceGroups(repos.priceRefresh, "cardtrader", groupRows);
 
-  // Phase 3: Auto-match (before transform so new products get snapshots).
-  // Pass `prices` so the matcher can read what (finish, language) combos each
-  // blueprint actually sells in and resolve Chinese listings to SC printings.
+  // Auto-match before transform so newly matched products get snapshots.
   await autoMatchBlueprints(repos, blueprints, prices, log);
 
-  // Phase 4: Transform
   const allStaging = buildCardtraderStaging(fetchResult, ignoredKeys);
 
   const transformedCounts = {
@@ -555,7 +483,6 @@ export async function refreshCardtraderPrices(
     ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
   );
 
-  // Phase 5: Persist snapshots + staging
   const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 

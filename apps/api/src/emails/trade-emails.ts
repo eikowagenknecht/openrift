@@ -1,22 +1,16 @@
 import { emailButton, escapeHtml, MUTED_TEXT, renderEmailLayout } from "./layout.js";
 
 /*
- * Builders for the two ADR-030 transactional emails. Pure: they take
- * already-resolved data plus pre-computed absolute URLs and return
- * `{ subject, html }`. URL construction, preference gating, and sending live in
- * the callers (the `createTrade` service and the digest cron).
+ * Transactional trade email builders. Pure: they take already-resolved data
+ * plus pre-computed absolute URLs and return `{ subject, html }`. URL
+ * construction, preference gating, and sending live in the callers (the
+ * `createTrade` service and the digest cron).
  */
 
 function quantityLabel(quantity: number, cardName: string): string {
   return quantity > 1 ? `${quantity}× ${cardName}` : cardName;
 }
 
-/**
- * Lead sentence for a single trade request, e.g.
- * "Garen wants to trade for your 2× Card." — shared by the instant email and
- * the coalesced email's single-request form.
- * @returns The HTML sentence for the request's kind.
- */
 function requestLead(senderHtml: string, card: string, kind: "wants" | "offers"): string {
   const cardHtml = `<strong>${escapeHtml(card)}</strong>`;
   return kind === "wants"
@@ -24,10 +18,7 @@ function requestLead(senderHtml: string, card: string, kind: "wants" | "offers")
     : `${senderHtml} is offering you ${cardHtml}.`;
 }
 
-/**
- * Subject for a single trade request, matching the lead sentence's phrasing.
- * @returns The subject line (without the "— OpenRift" suffix).
- */
+/** The "— OpenRift" suffix is appended by the caller. */
 function requestSubject(sender: string, cardName: string, kind: "wants" | "offers"): string {
   return kind === "wants"
     ? `${sender} wants to trade for ${cardName}`
@@ -37,7 +28,6 @@ function requestSubject(sender: string, cardName: string, kind: "wants" | "offer
 export interface TradeRequestEmailInput {
   /** Display name of the recipient (the non-initiator); may be null. */
   recipientName: string | null;
-  /** Display name of the person who started the trade. */
   initiatorName: string | null;
   cardName: string;
   quantity: number;
@@ -45,16 +35,12 @@ export interface TradeRequestEmailInput {
   kind: "wants" | "offers";
   /** The initiator's revealed contact channels for this group, or `""` if none. */
   initiatorContact?: string;
-  /** Deep link to the trade sheet with the initiator. */
   sheetUrl: string;
   /** One-click unsubscribe link for the `tradeRequests` channel. */
   unsubscribeUrl: string;
 }
 
-/**
- * Builds the instant "someone requested a trade" email.
- * @returns The subject line and full HTML body.
- */
+/** The instant "someone requested a trade" email. */
 export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
   subject: string;
   html: string;
@@ -97,7 +83,6 @@ interface CoalescedRequest {
 
 export interface CoalescedRequestGroup {
   groupName: string;
-  /** Deep link to this group's Trades tab. */
   tradesUrl: string;
   requests: CoalescedRequest[];
 }
@@ -120,7 +105,7 @@ export interface CoalescedTradeRequestsEmailInput {
 
 /**
  * Builds the coalesced "{sender} sent you N trade requests" email, folding a
- * burst from a single member into one message (ADR-030).
+ * burst from a single member into one message.
  *
  * For any non-instant cadence (including the default `5min`) this is the
  * recipient's *first and only* notification of the burst — no instant email
@@ -128,7 +113,6 @@ export interface CoalescedTradeRequestsEmailInput {
  * have more waiting" follow-up. It stays accurate whether the burst is one
  * request or several, and whether or not an instant email happened to precede
  * it.
- * @returns The subject line and full HTML body.
  */
 export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEmailInput): {
   subject: string;
@@ -240,7 +224,6 @@ interface TradeStatusUpdate {
 
 export interface TradeStatusUpdateGroup {
   groupName: string;
-  /** Deep link to this group's Trades tab. */
   tradesUrl: string;
   updates: TradeStatusUpdate[];
 }
@@ -248,7 +231,6 @@ export interface TradeStatusUpdateGroup {
 export interface TradeStatusUpdateEmailInput {
   /** Display name of the recipient (the party who didn't act); may be null. */
   recipientName: string | null;
-  /** Display name of the member who made the change(s). */
   actorName: string | null;
   groups: TradeStatusUpdateGroup[];
   /** One-click unsubscribe link for the `tradeStatus` channel. */
@@ -265,10 +247,7 @@ const STATUS_OUTCOMES = [
   { event: "cancelled", verb: "cancelled", heading: "Cancelled", color: MUTED_TEXT },
 ] as const;
 
-/**
- * Joins parts into an English enumeration ("a", "a and b", "a, b, and c").
- * @returns The joined phrase.
- */
+/** Joins parts into an English enumeration ("a", "a and b", "a, b, and c"). */
 function joinWithAnd(parts: string[]): string {
   if (parts.length <= 1) {
     return parts[0] ?? "";
@@ -279,11 +258,6 @@ function joinWithAnd(parts: string[]): string {
   return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
 }
 
-/**
- * Sentence for the single-update email, e.g.
- * "Garen accepted your request for 2× Card".
- * @returns The HTML phrase for the update's event.
- */
 function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): string {
   const card = `<strong>${escapeHtml(quantityLabel(update.quantity, update.cardName))}</strong>`;
   switch (update.event) {
@@ -299,10 +273,7 @@ function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): strin
   }
 }
 
-/**
- * Subject for the single-update email, matching the body's sentence phrasing.
- * @returns The subject line (without the "— OpenRift" suffix).
- */
+/** The "— OpenRift" suffix is appended by the caller. */
 function singleUpdateSubject(actor: string, event: TradeStatusUpdate["event"]): string {
   switch (event) {
     case "reserved": {
@@ -318,10 +289,9 @@ function singleUpdateSubject(actor: string, event: TradeStatusUpdate["event"]): 
 }
 
 /**
- * Builds the coalesced "{actor} updated your trades" email (ADR-030): folds one
+ * Builds the coalesced "{actor} updated your trades" email: folds one
  * member's accept/decline/cancel actions toward this recipient into a single
  * message, so accepting a basket of cards sends one email, not one per card.
- * @returns The subject line and full HTML body.
  */
 export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput): {
   subject: string;
@@ -427,7 +397,6 @@ interface DigestMatch {
 
 export interface DigestGroupSection {
   groupName: string;
-  /** Deep link to this group's Trades tab. */
   tradesUrl: string;
   matches: DigestMatch[];
 }
@@ -439,10 +408,7 @@ export interface TradeMatchDigestEmailInput {
   unsubscribeUrl: string;
 }
 
-/**
- * Builds the daily "new matches in your groups" digest email.
- * @returns The subject line and full HTML body.
- */
+/** The daily "new matches in your groups" digest email. */
 export function buildTradeMatchDigestEmail(input: TradeMatchDigestEmailInput): {
   subject: string;
   html: string;

@@ -21,7 +21,6 @@ import { generateShareToken } from "../lib/share-token.js";
 export type Tournament = Selectable<TournamentsTable>;
 export type TournamentParticipant = Selectable<TournamentParticipantsTable>;
 
-/** The full set of wizard-written columns for a new umbrella tournament. */
 export interface NewTournament {
   hostType: TournamentHostType;
   hostUserId?: string | null;
@@ -82,13 +81,11 @@ export interface TournamentPatch {
   selfRegistration?: boolean;
 }
 
-/** A tournament summary row with the participant / pending-request counts folded in. */
 export interface TournamentSummaryRow extends Tournament {
   participantCount: number;
   pendingRequestCount: number;
 }
 
-/** A staff grant joined to the user's display name. */
 export interface TournamentStaffWithName {
   userId: string;
   name: string | null;
@@ -96,8 +93,8 @@ export interface TournamentStaffWithName {
   addedAt: Date;
 }
 
-/** A participant joined to its linked account's display name (null for walk-ins). */
 export interface TournamentParticipantWithUser extends TournamentParticipant {
+  /** Linked account's display name; null for walk-ins. */
   userName: string | null;
 }
 
@@ -132,18 +129,12 @@ export interface TournamentParticipantPatch {
 }
 
 /**
- * The tournaments umbrella (ADR-033): hosts, staff authorization, and the
- * unified participant identity that the re-parented deck-check flow keys off.
- * Authorization composes host authority (the hosting user, or an organization's
- * owner/manager) with per-tournament `tournament_staff` grants. The repo is
- * naive about who is calling; the route composes the checks.
- *
- * @param db The Kysely database handle (or transaction).
- * @returns The repository methods.
+ * Authorization composes host authority (the hosting user, or an
+ * organization's owner/manager) with per-tournament `tournament_staff` grants.
+ * The repo is naive about who is calling; the route composes the checks.
  */
 export function tournamentsRepo(db: Kysely<Database>) {
   return {
-    /** @returns The tournament row, or undefined when no tournament has that id. */
     async findById(id: string): Promise<Tournament | undefined> {
       const row = await db
         .selectFrom("tournaments")
@@ -153,7 +144,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /** @returns The group's tournaments (any module), by tournament date, most recent first. */
     async listForGroup(groupId: string): Promise<Tournament[]> {
       const rows = await db
         .selectFrom("tournaments")
@@ -165,12 +155,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /**
-     * The group's tournaments with the participant / pending-request counts
-     * folded in (the group "Events" lens, ADR-033), by tournament date, most
-     * recent first.
-     * @returns Matching tournaments with folded counts.
-     */
     async listForGroupWithCounts(groupId: string): Promise<TournamentSummaryRow[]> {
       const rows = await db
         .selectFrom("tournaments as t")
@@ -200,14 +184,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The first `limit` participants per tournament (registration order) with
-     * their linked account's avatar data, batched for the summary facepiles.
      * Mirrors `participantCount`'s population (every status), so the facepile
      * never disagrees with the count next to it.
-     *
-     * @param tournamentIds The tournaments to preview.
-     * @param limit Max participants per tournament.
-     * @returns Preview rows grouped by tournament, in registration order.
      */
     participantPreviewAcross(
       tournamentIds: string[],
@@ -240,11 +218,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Resolves a friend group's owner, the host of its migrated/created
-     * deck-check tournaments and integration keys (ADR-033).
-     * @returns The owner's user id, or undefined when the group has no owner.
-     */
     async getGroupOwnerUserId(groupId: string): Promise<string | undefined> {
       const row = await db
         .selectFrom("friendGroupMembers")
@@ -255,9 +228,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row?.userId;
     },
 
-    // ── Staff / authorization ─────────────────────────────────────────────────
-
-    /** @returns The user's `tournament_staff` roles for this tournament. */
     async getStaffRoles(tournamentId: string, userId: string): Promise<TournamentStaffRole[]> {
       const rows = await db
         .selectFrom("tournamentStaff")
@@ -268,7 +238,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.role);
     },
 
-    /** Grants a staff role; idempotent on the (tournament, user, role) primary key. */
     async addStaff(tournamentId: string, userId: string, role: TournamentStaffRole): Promise<void> {
       await db
         .insertInto("tournamentStaff")
@@ -277,7 +246,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Removes one staff grant. */
     async removeStaff(
       tournamentId: string,
       userId: string,
@@ -291,14 +259,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * People a host may grant staff to without typing an email: members of the
-     * linked friend group plus anyone already on the roster with a linked
-     * account. Existing staff (explicit grants) are excluded so the picker only
-     * offers fresh additions; the row's `source` says where the candidate came
-     * from. Deduped by user id, preferring the group label.
-     * @returns The eligible candidates, name-sorted (NULL names last).
-     */
     async listStaffCandidates(
       tournamentId: string,
       groupId: string | null,
@@ -350,11 +310,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Whether the user is eligible to be granted staff by the picker: a member
-     * of the linked friend group, or an account-linked participant. This is the
-     * server-side gate behind {@link listStaffCandidates}, so a forged user id
-     * can't grant staff to an unrelated account.
-     * @returns True when the user may be added as staff by id.
+     * The server-side gate behind {@link listStaffCandidates}, so a forged
+     * user id can't grant staff to an unrelated account.
      */
     async isStaffCandidate(
       tournamentId: string,
@@ -381,15 +338,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return participant !== undefined;
     },
 
-    /**
-     * Whether the user has host authority or one of the accepted staff roles on
-     * the tournament. Host authority is the hosting user, or — for an
-     * organization host — an `organization_members` row mapped to an implicit
-     * staff role: `owner`/`manager` are implicit organizers, `judge` an implicit
-     * judge. Explicit `tournament_staff` grants delegate the listed roles too
-     * (so an org judge can still be granted organizer on a single tournament).
-     * @returns True when the user passes the host-or-staff check.
-     */
     async isHostOrStaff(
       tournamentId: string,
       userId: string,
@@ -432,9 +380,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return staff !== undefined;
     },
 
-    // ── Participants ──────────────────────────────────────────────────────────
-
-    /** @returns The tournament's participants, oldest first. */
     listParticipants(tournamentId: string): Promise<TournamentParticipant[]> {
       return db
         .selectFrom("tournamentParticipants")
@@ -444,7 +389,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The participant, or undefined when no participant has that id. */
     findParticipantById(participantId: string): Promise<TournamentParticipant | undefined> {
       return db
         .selectFrom("tournamentParticipants")
@@ -453,7 +397,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The participant a claim token resolves to, or undefined. */
     findParticipantByClaimToken(token: string): Promise<TournamentParticipant | undefined> {
       return db
         .selectFrom("tournamentParticipants")
@@ -462,14 +405,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * The pre-claim landing for a participant claim link: the tournament (start,
-     * organizer, owning group, and whether decks are submitted) and the spot's
-     * name. Rooted on the participant, so it works with or without deck check.
-     * The organizer name is resolved from the host org or host user inline
-     * (ADR-033).
-     * @returns The landing fields, or undefined when no participant has that token.
-     */
     async getClaimLandingByToken(token: string): Promise<
       | {
           tournamentId: string;
@@ -522,10 +457,9 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Links the participant a claim token resolves to, but only while it is
-     * unclaimed and not judge-blocked. The guard re-checks atomically, so a race
-     * resolves to no update (a refusal), never a steal.
-     * @returns The linked participant, or undefined when the guard rejected it.
+     * Links only while the spot is unclaimed and not judge-blocked. The guard
+     * re-checks atomically, so a race resolves to no update (a refusal), never
+     * a steal.
      */
     linkParticipantByClaimTokenIfUnclaimed(
       token: string,
@@ -542,7 +476,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The participant linked to a user within a tournament, or undefined. */
     findParticipantByUser(
       tournamentId: string,
       userId: string,
@@ -556,12 +489,10 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Finds the roster participant a deck submission belongs to, or creates one.
      * Matching is by linked account only (never by name); without a userId a
-     * fresh walk-in is created. This is how a self-submitted list attaches to an
-     * already-claimed entrant instead of spawning a duplicate (ADR-033). Manual
-     * entry passes a participant id directly and never goes through here.
-     * @returns The resolved or newly created participant row.
+     * fresh walk-in is created. This is how a self-submitted list attaches to
+     * an already-claimed entrant instead of spawning a duplicate. Manual entry
+     * passes a participant id directly and never goes through here.
      */
     async resolveOrCreateParticipant(input: {
       tournamentId: string;
@@ -574,8 +505,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
        * Status for a *newly created* participant. Defaults to `active` for
        * trusted callers (provider push via API key). The open self-submission
        * link passes `requested` so a stranger lands in the approval queue
-       * instead of straight onto the roster (ADR-033 decisions 18/19). Ignored
-       * when an existing participant is matched by linked account.
+       * instead of straight onto the roster. Ignored when an existing
+       * participant is matched by linked account.
        */
       status?: TournamentParticipantStatus;
     }): Promise<TournamentParticipant> {
@@ -598,10 +529,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Creates a participant. Every participant gets a claim token (minted here
-     * when not supplied) so it can be claimed by link, with or without deck
-     * check (ADR-033).
-     * @returns The created participant row.
+     * Every participant gets a claim token so the spot can be claimed by link,
+     * with or without deck check.
      */
     createParticipant(input: NewTournamentParticipant): Promise<TournamentParticipant> {
       const { status, claimToken, ...rest } = input;
@@ -616,7 +545,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns The updated participant, or undefined when it does not exist. */
     updateParticipant(
       participantId: string,
       patch: TournamentParticipantPatch,
@@ -635,10 +563,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Clears the claim block an unlink left behind and rotates the claim token,
-     * so the correct player can claim the spot through a fresh link (ADR-033).
-     * Also drops any stale link fields, leaving the spot fully unclaimed.
-     * @returns The updated participant, or undefined when it does not exist.
+     * Clears the claim block an unlink left behind and rotates the claim
+     * token, so the correct player can claim the spot through a fresh link.
      */
     reissueClaim(participantId: string): Promise<TournamentParticipant | undefined> {
       return db
@@ -662,7 +588,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
      * creation, removal): a concurrent pairing holds `FOR KEY SHARE` on this
      * row through its pod_members FK inserts, so the lock serializes the two
      * and the re-check after it sees the committed truth.
-     * @returns True when the row exists (and is now locked).
      */
     async lockParticipant(participantId: string): Promise<boolean> {
       const row = await db
@@ -674,19 +599,17 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    /** Removes one participant row outright (deny / remove). */
     async deleteParticipant(participantId: string): Promise<void> {
-      // Their decklist is discarded too, enforced by the deck_check_entries
-      // participant_id ON DELETE CASCADE FK (migration 174) — no code path can
-      // leave an orphaned entry. Claim/link/re-submit never delete a participant,
-      // so the cascade only fires on an explicit removal.
+      // The decklist is discarded too, via the deck_check_entries
+      // participant_id ON DELETE CASCADE FK — no code path can leave an
+      // orphaned entry. Claim/link/re-submit never delete a participant, so
+      // the cascade only fires on an explicit removal.
       await db.deleteFrom("tournamentParticipants").where("id", "=", participantId).execute();
     },
 
     /**
-     * Whether the participant is referenced by any pod (so it cannot be hard-
-     * deleted; the host drops it instead, mirroring the pod player guard).
-     * @returns True when the participant sits in a pod or holds a bye.
+     * A participant in a pod or holding a bye cannot be hard-deleted; the host
+     * drops it instead, mirroring the pod player guard.
      */
     async participantHasMemberships(participantId: string): Promise<boolean> {
       const member = await db
@@ -705,7 +628,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return bye !== undefined;
     },
 
-    /** @returns The tournament's participants joined to the linked account name, oldest first. */
     listParticipantsWithUser(tournamentId: string): Promise<TournamentParticipantWithUser[]> {
       return db
         .selectFrom("tournamentParticipants as p")
@@ -717,9 +639,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── Umbrella tournament CRUD ──────────────────────────────────────────────
-
-    /** @returns The created tournament row (all wizard columns). */
     async create(values: NewTournament): Promise<Tournament> {
       const { status, allowedSets, ...rest } = values;
       const row = await db
@@ -734,7 +653,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /** @returns The updated tournament, or undefined when it does not exist. */
     async updateSettings(id: string, patch: TournamentPatch): Promise<Tournament | undefined> {
       const { status, allowedSets, ...rest } = patch;
       const row = await db
@@ -755,10 +673,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       await db.deleteFrom("tournaments").where("id", "=", id).execute();
     },
 
-    /**
-     * Sets (rotate/enable) or clears (`null`) the open self-submission token.
-     * @returns The updated tournament, or undefined when it does not exist.
-     */
     async setSubmissionToken(id: string, token: string | null): Promise<Tournament | undefined> {
       const row = await db
         .updateTable("tournaments")
@@ -769,7 +683,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /** @returns The tournament whose submission token matches, or undefined. */
     async findBySubmissionToken(token: string): Promise<Tournament | undefined> {
       const row = await db
         .selectFrom("tournaments")
@@ -779,10 +692,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * Sets (rotate/enable) or clears (`null` disables) the participant report token.
-     * @returns The updated tournament, or undefined when it does not exist.
-     */
     async setReportToken(id: string, token: string | null): Promise<Tournament | undefined> {
       const row = await db
         .updateTable("tournaments")
@@ -793,10 +702,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * Sets (enable) or clears (`null` disables) the read-only follow-along token.
-     * @returns The updated tournament, or undefined when it does not exist.
-     */
     async setFollowToken(id: string, token: string | null): Promise<Tournament | undefined> {
       const row = await db
         .updateTable("tournaments")
@@ -808,10 +713,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Resolves a follow-along link by either the report (read+write) or the
-     * follow (read-only) token. The caller decides write permission by comparing
-     * the matched token against `reportToken`.
-     * @returns The tournament whose report or follow token matches, or undefined.
+     * The caller decides write permission by comparing the matched token
+     * against `reportToken` (read+write) vs `followToken` (read-only).
      */
     async findByShareToken(token: string): Promise<Tournament | undefined> {
       const row = await db
@@ -822,12 +725,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * Sets (rotate/enable) or clears (`null`) the reusable staff-invite link for
-     * one role. The two roles live in separate columns, so enabling one never
-     * disturbs the other.
-     * @returns The updated tournament, or undefined when it does not exist.
-     */
     async setStaffInviteToken(
       id: string,
       role: TournamentStaffRole,
@@ -843,11 +740,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * Resolves a staff-invite token to its tournament and the role it grants.
-     * Either invite column may hold it; the matching column names the role.
-     * @returns The tournament and granted role, or undefined when no token matches.
-     */
     async findByStaffInviteToken(
       token: string,
     ): Promise<{ tournament: Tournament; role: TournamentStaffRole } | undefined> {
@@ -866,7 +758,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return { tournament, role };
     },
 
-    /** @returns The participant / pending-request counts for one tournament. */
     async getCounts(
       tournamentId: string,
     ): Promise<{ participantCount: number; pendingRequestCount: number }> {
@@ -893,7 +784,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       };
     },
 
-    /** @returns True once the tournament has any round (then the pairing engine is fixed). */
     async hasRounds(tournamentId: string): Promise<boolean> {
       const row = await db
         .selectFrom("podRounds")
@@ -904,11 +794,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    /**
-     * Tournaments the user relates to: host (user), member of the host org (via
-     * the `orgIds` the caller resolved), tournament staff, or a participant.
-     * @returns Matching tournaments with folded counts, by tournament date, most recent first.
-     */
     async listForUser(userId: string, orgIds: string[]): Promise<TournamentSummaryRow[]> {
       const rows = await db
         .selectFrom("tournaments as t")
@@ -956,7 +841,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       }));
     },
 
-    /** @returns The user's staff roles across the given tournaments. */
     staffRolesAcross(
       tournamentIds: string[],
       userId: string,
@@ -972,7 +856,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The tournament ids (of those given) where the user is a participant. */
     async participantTournamentIdsAcross(
       tournamentIds: string[],
       userId: string,
@@ -989,7 +872,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.tournamentId);
     },
 
-    /** @returns The tournament's staff grants joined to the user's display name. */
     listStaffWithNames(tournamentId: string): Promise<TournamentStaffWithName[]> {
       return db
         .selectFrom("tournamentStaff as s")
@@ -1000,7 +882,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns A map from friend-group id to its slug + name for the given groups. */
     async getGroupInfo(groupIds: string[]): Promise<Map<string, { slug: string; name: string }>> {
       const unique = [...new Set(groupIds)];
       if (unique.length === 0) {
@@ -1014,7 +895,6 @@ export function tournamentsRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.id, { slug: row.slug, name: row.name }]));
     },
 
-    /** @returns A map from user id to display name for the given users. */
     async getUserNames(userIds: string[]): Promise<Map<string, string | null>> {
       const unique = [...new Set(userIds)];
       if (unique.length === 0) {
@@ -1029,10 +909,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Whether the user has any relationship to the tournament (host, staff,
-     * participant, or member of a linked friend group) — the in-app visibility
-     * gate for the detail read.
-     * @returns True when the user may see the tournament detail.
+     * Any relationship (host, staff, participant, or linked-group member) —
+     * the in-app visibility gate for the detail read.
      */
     async hasRelationship(tournamentId: string, userId: string): Promise<boolean> {
       const tournament = await db

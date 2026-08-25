@@ -13,10 +13,6 @@ import {
   buildUnmatchedDetail,
 } from "./candidate-queries.js";
 
-// ---------------------------------------------------------------------------
-// Mock repo factory
-// ---------------------------------------------------------------------------
-
 function createMockRepo(overrides: Record<string, unknown> = {}) {
   return {
     listCardsForSourceList: vi.fn().mockResolvedValue([]),
@@ -50,10 +46,6 @@ function createMockMarketplaceRepo(overrides: Record<string, unknown> = {}) {
 }
 
 const mpRepo = () => createMockMarketplaceRepo();
-
-// ---------------------------------------------------------------------------
-// buildCandidateCardList
-// ---------------------------------------------------------------------------
 
 describe("buildCandidateCardList", () => {
   beforeEach(() => {
@@ -152,9 +144,8 @@ describe("buildCandidateCardList", () => {
   });
 
   it("keeps non-Latin candidate names in separate rows", async () => {
-    // Regression: `[^a-z0-9]` normalized every CJK name to "", so all seven of
-    // these landed in one bucket and the admin list rendered them as a single
-    // card. The normalizer now preserves the script, so each keeps its own key.
+    // `[^a-z0-9]` used to normalize every CJK name to "", landing all seven in
+    // one bucket. The normalizer now preserves the script, so each keeps its own key.
     const cjk = [
       { name: "影流之主", normName: "影流之主", shortCode: "VEN-189*" },
       { name: "沙漠皇帝", normName: "沙漠皇帝", shortCode: "VEN-191*" },
@@ -309,9 +300,9 @@ describe("buildCandidateCardList", () => {
     expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
   });
 
-  // Regression: staging codes used to be concatenated one candidate card at a
-  // time, so with several providers the merged list came out in provider
-  // blocks instead of the repo's canonical printing order.
+  // Staging codes used to be concatenated one candidate card at a time, so
+  // with several providers the merged list came out in provider blocks
+  // instead of the repo's canonical printing order.
   it("keeps staging short codes in repo order when merged across providers", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi
@@ -663,8 +654,8 @@ describe("buildCandidateCardList", () => {
   });
 
   it("includes pending candidate-printing sets in an unmatched row's setSlugs", async () => {
-    // Regression: a new-set candidate has no accepted printing, so setSlugs must
-    // come from its candidate printings — otherwise ?set=VEN hides it.
+    // A new-set candidate has no accepted printing, so setSlugs must come from
+    // its candidate printings, otherwise ?set=VEN hides it.
     const repo = createMockRepo({
       listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
         {
@@ -746,10 +737,6 @@ describe("buildCandidateCardList", () => {
     expect(result[0].setSlugs).toEqual([]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// buildExport
-// ---------------------------------------------------------------------------
 
 describe("buildExport", () => {
   beforeEach(() => {
@@ -1216,10 +1203,6 @@ describe("buildExport", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// buildCardDetail
-// ---------------------------------------------------------------------------
-
 describe("buildCardDetail", () => {
   /** Minimal matched card for tests that need candidates to be fetched. */
   const matchedCard = {
@@ -1302,10 +1285,10 @@ describe("buildCardDetail", () => {
   });
 
   it("matches candidates by the card's own normName even when the self-alias is missing", async () => {
-    // Regression: a rename left the old-name alias ("akalirogueassassin")
-    // behind and never created the new-name self-alias ("rogueassassin"). The
-    // detail view must still match candidates under the current normName —
-    // otherwise it desyncs from the list view, which matches by cards.norm_name.
+    // A rename left the old-name alias ("akalirogueassassin") behind and never
+    // created the new-name self-alias ("rogueassassin"). The detail view must
+    // still match candidates under the current normName, otherwise it desyncs
+    // from the list view, which matches by cards.norm_name.
     const candidateCardsForDetail = vi.fn().mockResolvedValue([]);
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue({
@@ -2814,10 +2797,6 @@ describe("buildCardDetail", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// buildUnmatchedDetail
-// ---------------------------------------------------------------------------
-
 describe("buildUnmatchedDetail", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -2863,16 +2842,11 @@ describe("buildUnmatchedDetail", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Provider scoping (card-review grants: allowedProviders)
-// ---------------------------------------------------------------------------
-
 describe("provider scoping (allowedProviders)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  /** @returns A minimal candidate card row for detail queries. */
   function candidate(id: string, provider: string, name = "X") {
     return {
       id,

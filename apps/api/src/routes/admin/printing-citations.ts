@@ -11,7 +11,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminPrintingCitationsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/** @returns The wire shape of a citation row (the sort key stays server-side). */
+/** The wire shape of a citation row; the sort key stays server-side. */
 function toCitation(row: { id: string; label: string; sourceUrl: string | null }) {
   return { id: row.id, label: row.label, sourceUrl: row.sourceUrl } satisfies AdminPrintingCitation;
 }
@@ -20,9 +20,6 @@ function toCitation(row: { id: string; label: string; sourceUrl: string | null }
  * Turns the partial unique index's violation into a 409 and leaves anything
  * else alone. Caught rather than pre-read on purpose: two admins pasting the
  * same link at once would both pass a check-then-act.
- *
- * @returns The error to throw — a 409 for the duplicate link, otherwise the
- *   original.
  */
 function asDuplicateLinkConflict(error: unknown): unknown {
   if (isUniqueViolationOn(error, "uq_printing_citations_url")) {
@@ -34,8 +31,6 @@ function asDuplicateLinkConflict(error: unknown): unknown {
 /**
  * Throws 404 unless the citation belongs to the printing in the path, so an id
  * from one printing cannot be edited or deleted through another's URL.
- *
- * @returns Nothing; it throws when the citation is not the printing's.
  */
 async function assertOwnedByPrinting(
   repo: ApiContext["repos"]["printingCitations"],
@@ -50,8 +45,8 @@ async function assertOwnedByPrinting(
 }
 
 /**
- * Source citations on a promo printing (migration 258): the videos and posts
- * backing what the catalog claims about where a card came from.
+ * Source citations on a promo printing: the videos and posts backing what the
+ * catalog claims about where a card came from.
  *
  * Every citation here is hand-entered, which is what makes this router smaller
  * than the meta archive's equivalent — there is no ingest that owns rows, so no

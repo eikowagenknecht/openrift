@@ -24,25 +24,23 @@ import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../reposito
 const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The authenticated unified-lists contract (ADR-017), mounted at
- * `/api/v1/lists`. Bad-request / not-found / conflict states are thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor.
+ * The authenticated unified-lists contract, mounted at `/api/v1/lists`.
+ * Bad-request / not-found / conflict states are thrown as `AppError` and
+ * mapped by the handler's appErrorInterceptor.
  */
 export const listsRouter = {
-  // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<ListListResponse> => {
     const { lists } = context.repos;
     const rows = await lists.listForUser(context.userId, input.intent);
     return { items: rows.map((row) => toList(row)) };
   }),
 
-  // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<ListResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
-    // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
-    // constraint rejects non-null prefs on organize lists; we strip here so
-    // the API never round-trips a 500.
+    // Trade defaults only apply to wish/trade lists. The DB CHECK constraint
+    // rejects non-null prefs on organize lists; we strip here so the API
+    // never round-trips a 500.
     const supportsPrefs = input.intent !== "organize";
     const tradeDefaults = supportsPrefs ? input.tradeDefaults : undefined;
     const row = await lists.create({
@@ -54,18 +52,17 @@ export const listsRouter = {
       defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (input.currency ?? null) : null,
-      // ADR-034: every intent may carry rules; each rule's kind and the combine
-      // mode must match the list *kind* — both enforced by createListSchema's
-      // refinements (amendment 4).
+      // Every intent may carry rules; each rule's kind and the combine mode
+      // must match the list *kind*, both enforced by createListSchema's
+      // refinements.
       rules: input.rules ?? [],
       ruleCombine: input.ruleCombine ?? null,
     });
-    // Group visibility is opt-in (ADR-013): a new list is private and the owner
-    // shares it with specific groups from the create dialog or the manage page.
+    // Group visibility is opt-in: a new list is private and the owner shares
+    // it with specific groups from the create dialog or the manage page.
     return toList(row);
   }),
 
-  // ── GET ONE (with enriched entries) ─────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<ListDetailResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -81,13 +78,12 @@ export const listsRouter = {
     };
   }),
 
-  // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
   update: os.update.handler(async ({ input, context }): Promise<ListResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
 
-    // ADR-017: trade defaults/currency only apply to wish/trade lists — the DB
-    // CHECK rejects non-null prefs on organize lists. Look up the list's intent
+    // Trade defaults/currency only apply to wish/trade lists; the DB CHECK
+    // rejects non-null prefs on organize lists. Look up the list's intent
     // and strip those fields for organize lists (mirroring create), so a PATCH
     // that carries them is a no-op for those fields instead of a 500.
     const existing = await lists.getByIdForUser(input.id, userId);
@@ -112,17 +108,17 @@ export const listsRouter = {
     if (supportsPrefs && input.currency !== undefined) {
       updates.currency = input.currency;
     }
-    // ADR-034: validate the rules against the (immutable) list kind — the rule
-    // shape follows kind, not intent, so organize lists carry rules too
-    // (amendment 4). The create schema can self-check (it has the kind); update
-    // can't, so the route gates it here. An empty array clears all rules.
+    // Validate the rules against the (immutable) list kind: the rule shape
+    // follows kind, not intent, so organize lists carry rules too. The create
+    // schema can self-check (it has the kind); update can't, so the route
+    // gates it here. An empty array clears all rules.
     if (input.rules !== undefined) {
       if (input.rules.some((rule) => rule.kind !== ruleKindForListKind(existing.kind))) {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "rule kind must match the list kind");
       }
       updates.rules = input.rules;
     }
-    // ADR-034 amendment 2: the combine mode must belong to the list kind (same
+    // The combine mode must belong to the list kind (same
     // update-can't-self-check reasoning as rules). null = back to the kind's
     // default.
     if (input.ruleCombine !== undefined) {
@@ -143,14 +139,12 @@ export const listsRouter = {
     return toList(row);
   }),
 
-  // ── DELETE ──────────────────────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
     const result = await lists.deleteByIdForUser(input.id, context.userId);
     assertDeleted(result, "Not found");
   }),
 
-  // ── POST /lists/:id/entries ───────────────────────────────────────────────
   createEntry: os.createEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
     const { lists, copies } = context.repos;
     const userId = context.userId;
@@ -192,7 +186,6 @@ export const listsRouter = {
     return toListEntry(row);
   }),
 
-  // ── POST /lists/:id/entries/bulk ──────────────────────────────────────────
   bulkCreateEntries: os.bulkCreateEntries.handler(
     async ({ input, context }): Promise<ListBulkAddResponse> => {
       const { lists, copies } = context.repos;
@@ -265,7 +258,6 @@ export const listsRouter = {
     },
   ),
 
-  // ── POST /lists/:id/entries/from-copies ──────────────────────────────────
   // Drag-from-collections sugar. Front-end passes copy IDs from a drag; the
   // repo derives the right target shape based on the list's kind:
   //   kind = copy     → one entry per owned copy
@@ -295,11 +287,10 @@ export const listsRouter = {
     },
   ),
 
-  // ── POST /lists/:id/entries/move ─────────────────────────────────────────
-  // Move entries from this list (the {id} in the path) to another list owned
-  // by the same user. The destination must match the source on kind + intent
-  // — different kind would reshape every entry, different intent would
-  // silently re-purpose them (turning a wishlist into a tradelist row).
+  // Move entries from this list to another list owned by the same user. The
+  // destination must match the source on kind + intent: a different kind
+  // would reshape every entry, a different intent would silently re-purpose
+  // them (turning a wishlist into a tradelist row).
   moveEntries: os.moveEntries.handler(async ({ input, context }): Promise<ListMoveResponse> => {
     const { moveListEntries } = context.services;
     const repos = context.repos;
@@ -309,7 +300,6 @@ export const listsRouter = {
     return await moveListEntries(repos, transact, userId, input.id, input.toListId, input.entryIds);
   }),
 
-  // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────
   updateEntry: os.updateEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -333,7 +323,6 @@ export const listsRouter = {
     return toListEntry(row);
   }),
 
-  // ── DELETE /lists/:id/entries/:itemId ─────────────────────────────────────
   removeEntry: os.removeEntry.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -342,7 +331,6 @@ export const listsRouter = {
     assertDeleted(result, "Not found");
   }),
 
-  // ── GET /lists/:id/share ──────────────────────────────────────────────────
   // Owner-only. Reports the current share state. An owned-but-unshared list
   // resolves to { shareToken: null, isPublic: false } rather than 404 — 404 is
   // reserved for lists the caller doesn't own.
@@ -356,7 +344,6 @@ export const listsRouter = {
     return state;
   }),
 
-  // ── POST /lists/:id/entries/bulk-delete ───────────────────────────────────
   // Bulk-remove from select mode. deleteEntriesByIds is scoped to the list +
   // owner, so entry ids from another list (or another user) are filtered out
   // rather than erroring. We still 404 a missing list so a stale URL is loud.
@@ -371,7 +358,6 @@ export const listsRouter = {
     await lists.deleteEntriesByIds(input.entryIds, listId, userId);
   }),
 
-  // ── POST /lists/:id/share ─────────────────────────────────────────────────
   // Idempotent enable: if the list already has a token, return the existing
   // share state unchanged (no token churn). Otherwise mint a token and flip
   // is_public=true. Token rotation lives in the dedicated /share/rotate route.
@@ -394,7 +380,6 @@ export const listsRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // ── POST /lists/:id/share/rotate ──────────────────────────────────────────
   // Owner-only. Mints a NEW token (the previous URL stops resolving) and
   // ensures is_public=true. Treats rotate-while-unshared as "share now" rather
   // than 409 — setShareToken supports it cleanly, so a client that rotates
@@ -412,8 +397,6 @@ export const listsRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // ── DELETE /lists/:id/share ───────────────────────────────────────────────
-  // Nulls the share token and sets is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -422,7 +405,6 @@ export const listsRouter = {
     assertFound(updated, "Not found");
   }),
 
-  // ── POST /lists/reorder ───────────────────────────────────────────────────
   // Bulk reorder for the user's lists in a single intent bucket. Lists in
   // other intents are silently ignored so the client only needs to send the
   // current bucket's view.
@@ -432,7 +414,6 @@ export const listsRouter = {
     await lists.reorder(userId, input.intent, input.orderedIds);
   }),
 
-  // ── GET /lists/:id/group-shares (ADR-013) ─────────────────────────────────
   // The "shared with N groups" badge on the list page. Scoped to lists the
   // viewer owns; non-owned lists 404.
   groupShares: os.groupShares.handler(
@@ -453,7 +434,6 @@ export const listsRouter = {
  * Validates that the body's target matches the list's kind, and pre-checks
  * copy ownership for kind = 'copy' so the route returns a clean 404 instead
  * of leaking the composite-FK error from the DB.
- * @returns The normalized triple with two nulls and one ID matching `kind`.
  */
 async function resolveEntryTarget(
   kind: ListKind,
@@ -477,7 +457,6 @@ async function resolveEntryTarget(
   if (kind === "printing") {
     return { cardId: null, printingId: body.printingId ?? null, copyId: null };
   }
-  // kind === "copy"
   const copyId = body.copyId;
   if (copyId !== undefined) {
     const accessible = await copies.existsForViewer(copyId, userId, personalOnly);
@@ -486,9 +465,6 @@ async function resolveEntryTarget(
   return { cardId: null, printingId: null, copyId: copyId ?? null };
 }
 
-/**
- * @returns Whether the body's single non-null target is the one expected by `kind`.
- */
 function targetMatchesKind(
   kind: ListKind,
   body: { cardId?: string; printingId?: string; copyId?: string },

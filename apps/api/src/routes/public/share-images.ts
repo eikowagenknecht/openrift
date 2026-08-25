@@ -27,38 +27,35 @@ import { buildTierListImageRows, renderTierListImage } from "../../services/tier
 import type { Variables } from "../../types.js";
 
 /**
- * Public share images (ADR-024). `GET .../image.png` renders the card-grid PNG
- * used as the og:image and the downloadable attachment. These live in a route
- * app without `loadSession` on purpose: crawlers are anonymous and the image is
- * served with a long immutable cache, so it must never vary by viewer (the
- * bundle image always renders the anonymous, public-only projection).
+ * These routes live in an app without `loadSession` on purpose: crawlers are
+ * anonymous and the image is served with a long immutable cache, so it must
+ * never vary by viewer (the bundle image always renders the anonymous,
+ * public-only projection).
  *
  * The URL carries a `?v=` content version for cache-busting, which the handler
  * ignores — it always renders current state; the version only changes the edge
- * cache key (see ADR-024 / ADR-016).
+ * cache key.
  */
 
 /** Long immutable cache: the `?v=` version makes each URL content-addressed. */
 const IMAGE_CACHE_CONTROL = "public, immutable, max-age=31536000";
 
-/** Upper bound on card rows the from-cards render endpoint will accept. */
 const MAX_RENDER_CARD_ROWS = 300;
 
-/** Length cap for the free-text strings a render body may carry. Matches the
- * deck contract's name limit; anything longer only inflates satori layout. */
+/** Matches the deck contract's name limit; anything longer only inflates satori layout. */
 const MAX_RENDER_TEXT_LENGTH = 200;
 
 // The POST render endpoint is anonymous by design (browser-local decks have no
-// session, ADR-035), and each call runs the CPU-heavy satori/resvg/sharp
-// pipeline. Unlike the GET share images it is neither token-gated nor
-// edge-cached, so it gets the same guards as the other anonymous write-ish
-// surfaces: a per-IP rate limit and a body cap that rejects oversized payloads
-// before JSON parsing. A legitimate 300-card payload is a few tens of KB.
+// session), and each call runs the CPU-heavy satori/resvg/sharp pipeline.
+// Unlike the GET share images it is neither token-gated nor edge-cached, so it
+// gets the same guards as the other anonymous write-ish surfaces: a per-IP
+// rate limit and a body cap that rejects oversized payloads before JSON
+// parsing. A legitimate 300-card payload is a few tens of KB.
 const RENDER_MAX_BODY_BYTES = 256 * 1024;
 const RENDERS_PER_MINUTE = 10;
 
-/** Per-IP render throttle. `x-real-ip` is trustworthy because nginx overwrites
- * it from the connection address (see docs/deployment.md). */
+/** `x-real-ip` is trustworthy because nginx overwrites it from the connection
+ * address (see docs/deployment.md). */
 const renderRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: RENDERS_PER_MINUTE,
@@ -77,17 +74,14 @@ const renderBodyLimit = bodyLimit({
 });
 
 /**
- * The canvas and mark params every share image accepts: `?aspect=vertical` for
- * the 9:16 export, `?qr=0` for a plate with no scannable code. An og:image URL
- * never carries either, so the crawler's cached entry is untouched and each
- * variant is its own immutable cache entry.
- * @returns The render options a request asked for.
+ * `?aspect=vertical` selects the 9:16 export, `?qr=0` a plate with no
+ * scannable code. An og:image URL never carries either, so the crawler's
+ * cached entry is untouched and each variant is its own immutable cache entry.
  */
 function imageOptions(aspect: string | undefined, qr: string | undefined): ShareImageOptions {
   return { aspect: aspectFromQuery(aspect), qr: qrFromQuery(qr) };
 }
 
-/** @returns A PNG response with the immutable share-image cache headers. */
 function pngResponse(png: Buffer): Response {
   return new Response(png, {
     status: 200,
@@ -97,9 +91,8 @@ function pngResponse(png: Buffer): Response {
 
 /**
  * Collapses cards that recur across a bundle's lists into one tile, keeping the
- * first occurrence's quantity (summing across lists would misrepresent "how
- * many of this card" for a mixed wish/trade bundle).
- * @returns Deduplicated cards.
+ * first occurrence's quantity: summing across lists would misrepresent "how
+ * many of this card" for a mixed wish/trade bundle.
  */
 function dedupeCards(cards: readonly ShareImageCard[]): ShareImageCard[] {
   const byKey = new Map<string, ShareImageCard>();
@@ -113,7 +106,6 @@ function dedupeCards(cards: readonly ShareImageCard[]): ShareImageCard[] {
 }
 
 export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
-  // ── GET /lists/share/:token/image.png ─────────────────────────────────────
   .get("/lists/share/:token/image.png", async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
@@ -143,7 +135,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // ── GET /users/share/:token/image.png ─────────────────────────────────────
   .get("/users/share/:token/image.png", async (c) => {
     const { userShares, lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
@@ -182,7 +173,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // ── GET /collections/share/:token/image.png ───────────────────────────────
   .get("/collections/share/:token/image.png", async (c) => {
     const { collections, copies } = c.get("repos");
     const config = c.get("config");
@@ -211,7 +201,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // ── GET /decks/share/:token/image.png ─────────────────────────────────────
   .get("/decks/share/:token/image.png", async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
@@ -223,8 +212,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
 
     const cards = await buildDeckImageCards(repos, found.deck.id, found.deck.userId);
     // `?size=hq` renders the same layout at 2× for the download; default 1× is
-    // the og:image. The first CORS origin is the canonical site origin for the QR.
-    // The rasterize cost grows super-linearly with output pixels (see ADR-031),
+    // the og:image. The rasterize cost grows super-linearly with output pixels,
     // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
     // `?aspect=vertical` serves the 9:16 export off the same share token; the
     // og:image itself never carries the param, so the cached crawler URL is
@@ -255,7 +243,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // ── GET /tier-lists/share/:token/image.png ────────────────────────────────
   .get("/tier-lists/share/:token/image.png", async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
@@ -290,11 +277,10 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // ── POST /decks/image ──────────────────────────────────────────────────────
-  // Renders a deck image from posted cards for browser-local decks (ADR-035),
-  // which have no server row and no session — saved decks use the owner-auth GET
-  // route (`deck-image.ts`) instead. Enriches names/art/energy server-side from
-  // the posted card ids, so the client sends only identity, printing, zone, and
+  // Renders a deck image from posted cards for browser-local decks, which have
+  // no server row and no session — saved decks use the owner-auth GET route
+  // (`deck-image.ts`) instead. Enriches names/art/energy server-side from the
+  // posted card ids, so the client sends only identity, printing, zone, and
   // count. Served `no-store`: the body is the content, there is nothing to cache.
   .post("/decks/image", renderRateLimit, renderBodyLimit, async (c) => {
     const repos = c.get("repos");

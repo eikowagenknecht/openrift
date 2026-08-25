@@ -18,8 +18,6 @@ function createMigrator(db: Kysely<Database>) {
  * The canonical migration order is the name sort: Kysely resolves the migration
  * list with the default JS string sort (`Object.keys(migrations).sort()`), so we
  * order names the same way here rather than relying on the database's collation.
- *
- * @returns The names of every recorded migration, in canonical order.
  */
 function canonicalOrder(names: string[]): string[] {
   return [...names].sort();
@@ -43,8 +41,6 @@ function canonicalOrder(names: string[]): string[] {
  * sequence, so the recorded order always matches the order Kysely expects. It is
  * a no-op when the table is absent, empty, or already correctly ordered, so it
  * costs a single read on a healthy database and only writes when repairing.
- *
- * @returns A promise that resolves once the timestamps are normalized.
  */
 async function normalizeMigrationTimestamps(db: Kysely<Database>): Promise<void> {
   const { rows: exists } = await sql<{ present: boolean }>`

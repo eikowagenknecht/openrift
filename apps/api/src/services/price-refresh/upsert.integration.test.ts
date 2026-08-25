@@ -6,12 +6,6 @@ import { createTestContext, syncCardCardTypes } from "../../test/integration-con
 import type { PriceUpsertConfig, StagingRow } from "./types.js";
 import { upsertPriceData } from "./upsert.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Price refresh upsert service
-//
-// Uses the shared integration database.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0022-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
@@ -19,8 +13,6 @@ const ctx = createTestContext(USER_ID);
 // oxlint-disable-next-line no-empty-function -- noop logger for tests
 const noop = () => {};
 const noopLogger = { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
-
-// ── Cardmarket config (matches real usage) ───────────────────────────────
 
 const CM_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
@@ -31,17 +23,14 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
   const { db } = ctx!;
   const repo = priceRefreshRepo(db);
 
-  // Seed slugs (human-readable) — UUIDs are auto-generated
   const setSlug = "UPS";
   const cardSlug = "UPS-001";
-  // UUIDs populated by beforeAll after INSERT ... RETURNING
   let setId: string;
   let cardId: string;
   let printingId: string;
   let printingId2: string;
 
   beforeAll(async () => {
-    // Seed reference data: set -> card -> printings
     const insertedSet = await db
       .insertInto("sets")
       .values({ slug: setSlug, name: "UPS Integration Set", printedTotal: 100, sortOrder: 940 })
@@ -69,7 +58,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
     await syncCardCardTypes(db);
 
-    // Seed group for cardmarket marketplace
     await db
       .insertInto("marketplaceGroups")
       .values({ marketplace: "cardmarket", groupId: 94_001, name: "UPS Test Expansion" })
@@ -117,7 +105,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     printingId = insertedPrintings[0].id;
     printingId2 = insertedPrintings[1].id;
 
-    // Seed marketplace products + variants (created via admin mapping in production).
     // Each marketplace product row represents ONE SKU; cardmarket has no per-language axis.
     const insertedProducts = await db
       .insertInto("marketplaceProducts")
@@ -157,8 +144,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       ])
       .execute();
   });
-
-  // ── upsertPriceData ───────────────────────────────────────────────────
 
   describe("upsertPriceData", () => {
     const recordedAt = new Date("2026-03-10T00:00:00Z");

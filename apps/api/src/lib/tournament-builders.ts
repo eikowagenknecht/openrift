@@ -23,17 +23,12 @@ import { isHost, loadTournament } from "./tournament-access.js";
 import { moduleFlags, toParticipant, toStaffMember } from "./tournament-presenters.js";
 
 /**
- * Response assembly for the tournaments umbrella (ADR-033). Where
+ * Response assembly for the tournaments umbrella. Where
  * `tournament-presenters.ts` maps one row to one response, everything here
- * reads the repos to compose a whole payload — host names, staff, counts, the
- * viewer's roles, and the visual extras. It sits outside the router so the
- * assembly is reachable from a test without mounting a route.
+ * reads the repos to compose a whole payload. It sits outside the router so
+ * the assembly is reachable from a test without mounting a route.
  */
 
-/**
- * Resolves the host to a display name (and org slug for an org host).
- * @returns The resolved host info.
- */
 async function resolveHost(repos: Repos, tournament: Tournament): Promise<TournamentHostInfo> {
   if (tournament.hostType === "user") {
     const names = tournament.hostUserId
@@ -59,7 +54,6 @@ async function resolveHost(repos: Repos, tournament: Tournament): Promise<Tourna
   };
 }
 
-/** The visual summary extras: facepile preview, winner, and cover legends. */
 interface SummaryExtras {
   participantPreview: TournamentParticipantPreview[];
   winner: TournamentWinner | null;
@@ -68,14 +62,9 @@ interface SummaryExtras {
 
 /**
  * Batch-loads the visual extras for a set of tournaments: the facepile
- * preview (first few participants with avatar data), the standings winner
- * (completed pod tournaments only), and the cover legends for the card fan
- * (publishing-consented decks only). Every id gets an entry, so callers can
- * spread the result unconditionally.
- *
- * @param repos The repository bundle.
- * @param rows The tournaments to load extras for.
- * @returns A map from tournament id to its extras.
+ * preview, the standings winner (completed paired tournaments only), and the
+ * cover legends for the card fan (publishing-consented decks only). Every id
+ * gets an entry, so callers can spread the result unconditionally.
  */
 async function loadSummaryExtras(
   repos: Repos,
@@ -155,17 +144,14 @@ async function loadSummaryExtras(
   );
 }
 
-/** The empty extras, for the impossible missing-map-entry case. */
 const EMPTY_EXTRAS: SummaryExtras = { participantPreview: [], winner: null, coverLegends: [] };
 
 /**
  * The tournament's staff: explicit `tournament_staff` grants, plus — for an
- * org-hosted tournament — the host org's members as implicit staff (owners and
- * managers as organizers, judges as judges).
+ * org-hosted tournament — the host org's members as implicit staff.
  * Org membership supersedes a grant for the same user (their access can't be
  * revoked here), so a member with a redundant grant is listed once, from the
  * org. Org members come first; grant rows keep their `addedAt` order.
- * @returns The merged staff list.
  */
 async function resolveStaff(
   repos: Repos,
@@ -192,7 +178,6 @@ async function resolveStaff(
   return [...orgRows, ...grantRows];
 }
 
-/** @returns The tournament's staff (explicit grants + implicit org staff). */
 export async function buildStaffList(
   repos: Repos,
   tournament: Tournament,
@@ -200,7 +185,6 @@ export async function buildStaffList(
   return { items: await resolveStaff(repos, tournament) };
 }
 
-/** @returns The tournament's participants as the list response. */
 export async function buildParticipantList(
   repos: Repos,
   tournamentId: string,
@@ -209,11 +193,6 @@ export async function buildParticipantList(
   return { items: rows.map((row) => toParticipant(row)) };
 }
 
-/**
- * Builds the full tournament detail, resolving host info, group slug, the
- * caller's roles, the counts, and the staff list.
- * @returns The tournament detail response.
- */
 export async function buildDetail(
   repos: Repos,
   tournament: Tournament,
@@ -349,10 +328,6 @@ export async function buildDetail(
   };
 }
 
-/**
- * Reloads + builds the detail after a mutation.
- * @returns The fresh tournament detail response.
- */
 export async function detailById(
   repos: Repos,
   id: string,
@@ -363,15 +338,9 @@ export async function detailById(
 }
 
 /**
- * Maps summary rows (with folded counts) to the list response, resolving host
- * display names, group slugs, and the caller's roles per row in batched lookups.
- * Shared by the user-scoped list and the group lens (ADR-033).
- * @param repos The repository bundle.
- * @param rows The summary rows to map.
- * @param userId The viewing user.
- * @param orgIdSet The orgs the viewer owns or manages (drives the host flag).
- * @param judgeOrgIdSet The orgs the viewer is a judge of (drives the judge role).
- * @returns The summary responses.
+ * Maps summary rows to the list response. `orgIdSet` is the orgs the viewer
+ * owns or manages (drives the host flag); `judgeOrgIdSet` the orgs the viewer
+ * is a judge of (drives the judge role).
  */
 export async function buildSummaries(
   repos: Repos,
@@ -387,7 +356,6 @@ export async function buildSummaries(
     repos.tournaments.getGroupInfo(rows.flatMap((row) => (row.groupId ? [row.groupId] : []))),
     loadSummaryExtras(repos, rows),
   ]);
-  // Resolve host display names: batch the user hosts and the org hosts.
   const hostUserIds = rows.flatMap((row) =>
     row.hostType === "user" && row.hostUserId ? [row.hostUserId] : [],
   );

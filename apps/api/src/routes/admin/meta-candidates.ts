@@ -27,21 +27,13 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The write side's name for each column the wire's accept-field enum offers.
- *
- * The accept-field vocabulary is declared twice — here as
- * `META_EVENT_ACCEPT_FIELDS` in `services/meta-candidate-accept.ts`, and again
- * on the wire — because `packages/shared` cannot import from `apps/api`. These
- * two lookups are what holds the pair identical, in both directions and at
- * build time:
- *
- *   - a column the write side gains leaves a key missing from the literal, and
- *     `Record<MetaEventAcceptField, …>` rejects that;
- *   - a field the wire gains has no key here, and the handler's lookup on
- *     `input.field` rejects that.
- *
- * Without both, the first case is a button that never appears and the second is
- * an accept that writes an unknown column.
+ * The accept-field vocabulary is declared twice — as `META_EVENT_ACCEPT_FIELDS`
+ * in `services/meta-candidate-accept.ts` and again on the wire — because
+ * `packages/shared` cannot import from `apps/api`. This lookup (and its deck
+ * twin) holds the pair identical at build time: a column the write side gains
+ * leaves a key missing, which `Record<MetaEventAcceptField, …>` rejects; a
+ * field the wire gains has no key here, and the handler's lookup on
+ * `input.field` rejects that.
  */
 const EVENT_ACCEPT_COLUMN: Record<MetaEventAcceptField, MetaEventAcceptField> = {
   name: "name",
@@ -52,7 +44,7 @@ const EVENT_ACCEPT_COLUMN: Record<MetaEventAcceptField, MetaEventAcceptField> = 
   notes: "notes",
 };
 
-/** @see EVENT_ACCEPT_COLUMN */
+/** Same double-declaration contract as EVENT_ACCEPT_COLUMN. */
 const DECK_ACCEPT_COLUMN: Record<MetaDeckAcceptField, MetaDeckAcceptField> = {
   playerName: "playerName",
   finishTier: "finishTier",
@@ -61,11 +53,10 @@ const DECK_ACCEPT_COLUMN: Record<MetaDeckAcceptField, MetaDeckAcceptField> = {
 };
 
 /**
- * The candidate's resolved cards as diff entries. Unresolved rows are dropped,
- * and rows that landed on the same card and zone are summed — the accept path
- * folds them the same way before writing `deck_cards`, so without the collapse
- * an accepted deck would keep reading as changed against the row it just wrote.
- * @returns One entry per resolved card and zone.
+ * Unresolved rows are dropped, and rows that landed on the same card and zone
+ * are summed — the accept path folds them the same way before writing
+ * `deck_cards`, so without the collapse an accepted deck would keep reading as
+ * changed against the row it just wrote.
  */
 function resolvedEntries(deck: CandidateMetaDeckRow) {
   return collapseCardEntries(
@@ -76,15 +67,9 @@ function resolvedEntries(deck: CandidateMetaDeckRow) {
 }
 
 /**
- * Display names for whoever submitted the decks in a review screen's roster.
- *
  * One lookup per distinct submitter, not a join: a provider's decks carry no
  * submitter at all, and an event's roster holds a handful of contributors at
- * most, so the loop is bounded by the people who actually sent something.
- *
- * @param users The users repo.
- * @param decks The roster's candidate decks.
- * @returns Display name by user id, absent where the account is gone.
+ * most. Absent entries mean the account is gone.
  */
 async function resolveSubmitterNames(
   users: ApiContext["repos"]["users"],
@@ -101,20 +86,13 @@ async function resolveSubmitterNames(
 
 /**
  * Tells the multi-source overwrite refusal apart from the other 409 the accept
- * can produce (no free slug for a new event's name).
- *
- * Both arrive as `AppError(409, CONFLICT)` and the UI owes them opposite
- * responses: a slug collision is a dead end, while an unconfirmed overwrite is
- * a question the client answers by retrying with `overwriteAll`. The two cannot
- * both happen to one candidate — a slug is only minted on the unlinked path,
- * and only a linked candidate can overwrite another source — so the link is
- * what separates them. The read costs nothing in practice: it only runs when an
- * accept has already failed.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate the accept was for.
- * @param error Whatever the accept threw.
- * @returns The refusal to re-label, or null to rethrow the original.
+ * can produce (no free slug for a new event's name). Both arrive as
+ * `AppError(409, CONFLICT)` and the UI owes them opposite responses: a slug
+ * collision is a dead end, while an unconfirmed overwrite is answered by
+ * retrying with `overwriteAll`. The two cannot both happen to one candidate —
+ * a slug is only minted on the unlinked path, and only a linked candidate can
+ * overwrite another source — so the link is what separates them. Returns the
+ * refusal to re-label, or null to rethrow the original.
  */
 async function overwriteRefusal(
   repos: ApiContext["repos"],
@@ -134,10 +112,6 @@ async function overwriteRefusal(
   return error;
 }
 
-/**
- * Turns a repository's "did the row exist" boolean into the contract's 404.
- * @returns void — throws AppError(404) when the row was absent.
- */
 function assertExisted(existed: boolean, message: string): void {
   if (!existed) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, message);
@@ -145,7 +119,7 @@ function assertExisted(existed: boolean, message: string): void {
 }
 
 /**
- * The meta archive's candidate ingest and review queue (ADR-014), on the same
+ * The meta archive's candidate ingest and review queue, on the same
  * `/api/admin/v1/meta` prefix the Hono `requireAdmin` middleware gates. The
  * upload endpoint needs no extra auth work: an `x-api-key` from the maintainer's
  * tooling resolves to an admin session through better-auth, so the prefix check
@@ -156,10 +130,8 @@ function assertExisted(existed: boolean, message: string): void {
  * row matched live, and conflating the two would hide a live edit made after
  * the review.
  *
- * Admin events follow the neighbouring `meta.ts` router, which records none for
- * its CRUD — except the upload, which mirrors the card pipeline's
- * `candidates.upload` because it is the one action a non-interactive caller
- * performs.
+ * Admin events are recorded only for the upload, the one action a
+ * non-interactive caller performs.
  */
 export const adminMetaCandidatesRouter = {
   upload: os.upload.handler(async ({ input, context }) => {
@@ -234,16 +206,15 @@ export const adminMetaCandidatesRouter = {
     }
 
     // Every candidate describing the same live event, this one included, so the
-    // review screen renders one column per source from a single request. An
-    // unlinked candidate has no siblings by definition, and stands alone.
+    // review screen renders one column per source from a single request.
     const siblings =
       event.metaEventId === null
         ? [event]
         : await metaCandidates.eventsByMetaEventId(event.metaEventId);
     const parentById = new Map(siblings.map((row) => [row.id, row]));
 
-    // User submissions hang off the live event directly (ADR-036), so they join
-    // the deck roster while belonging to no source column.
+    // User submissions hang off the live event directly, so they join the deck
+    // roster while belonging to no source column.
     const [sourceDecks, submitted] = await Promise.all([
       metaCandidates.decksByCandidateEventIds(siblings.map((row) => row.id)),
       event.metaEventId === null
@@ -295,12 +266,6 @@ export const adminMetaCandidatesRouter = {
       resolveSubmitterNames(users, allDecks),
     ]);
 
-    /**
-     * The live event a candidate deck would land under: its own for a
-     * submission, its parent candidate's link for a provider's deck.
-     * @param deck The candidate deck.
-     * @returns The live event id, or null while the parent is unlinked.
-     */
     function targetEventId(deck: CandidateMetaDeckRow): string | null {
       if (deck.metaEventId !== null) {
         return deck.metaEventId;
@@ -310,11 +275,6 @@ export const adminMetaCandidatesRouter = {
       return parent?.metaEventId ?? null;
     }
 
-    /**
-     * @param deck One candidate deck of this event's roster.
-     * @returns The deck as the review screen reads it, diffed against the live
-     *   deck it points at.
-     */
     function presentDeck(deck: CandidateMetaDeckRow): MetaCandidateDeck {
       const liveDeck = deck.deckId === null ? undefined : liveDeckById.get(deck.deckId);
       let diff: MetaDeckDiff | null = null;
@@ -532,8 +492,7 @@ export const adminMetaCandidatesRouter = {
     assertExisted(removed, "Ignore entry not found");
   }),
 
-  // ── Linking ──────────────────────────────────────────────────────────────
-  // The services own the whole rule set: a link writes this provider's
+  // The link services own the whole rule set: a link writes this provider's
   // citation, a relink moves it, an unlink removes it and takes back the
   // contributor credit that link earned. None of them writes a field value.
 
@@ -561,7 +520,6 @@ export const adminMetaCandidatesRouter = {
     context.services.unlinkCandidateDeck(context.repos, input.id),
   ),
 
-  // ── Per-field accept ─────────────────────────────────────────────────────
   // The reviewing admin is passed along because a deck accept settles any
   // submission ledger row behind it, and that row records who resolved it.
   // The field name goes through the lookup above, which is what keeps the
@@ -588,9 +546,9 @@ export const adminMetaCandidatesRouter = {
     }),
   ),
 
-  // ── Match suggestions ────────────────────────────────────────────────────
-  // Hints, never actions: an empty list is a normal answer (already linked, or
-  // nothing close enough), so neither of these 404s on a missing candidate.
+  // Suggestions are hints, never actions: an empty list is a normal answer
+  // (already linked, or nothing close enough), so neither of these 404s on a
+  // missing candidate.
 
   eventMatchSuggestions: os.eventMatchSuggestions.handler(async ({ input, context }) => ({
     suggestions: await context.services.suggestMetaEventMatches(context.repos, input.id),

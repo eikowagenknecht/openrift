@@ -6,14 +6,11 @@ import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { deckCheckPlayerRouter } from "./deck-check-player.js";
 
-// This file covers the module-level "Mappers" preamble in deck-check-player.ts
-// (buildPlayerDetail, toPreviewCards, loadOwnEntry(ForTournament), withSettledEvent,
-// loadOpenSubmissionEvent, loadSubmissionEventForUser, persistSubmission) through
-// the router surface, using registerRouterForTest the same way
-// tournament-deck-check.test.ts and tournaments.test.ts do. It also exercises the
-// deck-check-player *service* helpers those handlers call (buildPlayerLines /
-// linesFromDeckCode / resolvePlayerCardRows) since they're only reachable this way
-// — services/deck-check-player.test.ts covers claimParticipantByToken alone.
+// Covers the module-level helpers in deck-check-player.ts through the router
+// surface, and thereby the deck-check-player *service* helpers those handlers
+// call (buildPlayerLines / linesFromDeckCode / resolvePlayerCardRows), which
+// are only reachable this way — services/deck-check-player.test.ts covers
+// claimParticipantByToken alone.
 
 vi.mock("@openrift/shared", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -33,10 +30,6 @@ const TOKEN = "submission-token-abc";
 const now = new Date("2026-06-01T00:00:00Z");
 const PAST = new Date("2026-01-01T00:00:00Z");
 
-/**
- * A stored deck-check entry row, the shape `DeckCheckEntry` extends.
- * @returns The fixture entry with the overrides applied.
- */
 // oxlint-disable-next-line typescript/no-explicit-any -- fixture kept loose; the repos double below is cast past `Repos` like services/deck-check-player.test.ts does
 function entryRow(overrides: Record<string, any> = {}) {
   return {
@@ -74,10 +67,6 @@ function entryRow(overrides: Record<string, any> = {}) {
   };
 }
 
-/**
- * A `PlayerDeckCheckEntryRow`: an entry row plus the event fields it's joined with.
- * @returns The fixture row with the overrides applied.
- */
 // oxlint-disable-next-line typescript/no-explicit-any -- see entryRow
 function playerRow(overrides: Record<string, any> = {}) {
   return {
@@ -92,10 +81,6 @@ function playerRow(overrides: Record<string, any> = {}) {
   };
 }
 
-/**
- * A `DeckCheckEvent` row.
- * @returns The fixture event with the overrides applied.
- */
 // oxlint-disable-next-line typescript/no-explicit-any -- see entryRow
 function deckEvent(overrides: Record<string, any> = {}) {
   return {
@@ -117,10 +102,6 @@ function deckEvent(overrides: Record<string, any> = {}) {
   };
 }
 
-/**
- * A persisted `deck_check_entry_cards` row.
- * @returns The fixture card row with the overrides applied.
- */
 // oxlint-disable-next-line typescript/no-explicit-any -- see entryRow
 function cardRow(overrides: Record<string, any> = {}) {
   return {
@@ -144,7 +125,6 @@ function cardRow(overrides: Record<string, any> = {}) {
  * value's literal type would otherwise pin it to), so a later
  * `.mockResolvedValue(...)` / `.mockImplementation(...)` in a test can hand it
  * any realistic fixture without fighting inference.
- * @returns A mock function resolving `defaultValue` until overridden.
  */
 // oxlint-disable-next-line typescript/no-explicit-any -- generic repo-method stub; call sites narrow via the fixture they pass in
 function stub<T = any>(defaultValue: T) {
@@ -155,7 +135,6 @@ function stub<T = any>(defaultValue: T) {
  * A repos double covering every method the player router (and the services it
  * delegates to) can call, all defaulting to "nothing found" / "no-op" so a test
  * only has to override what it cares about.
- * @returns The repos double, grouped the same way `Repos` groups them.
  */
 function makeRepos() {
   const deckCheck = {
@@ -202,7 +181,6 @@ function makeRepos() {
   return { deckCheck, tournaments, decks, enums, catalog, cardBans };
 }
 
-/** @returns A test app with the player router mounted over the given repos double. */
 function makeApp(repos: ReturnType<typeof makeRepos>) {
   const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {
@@ -215,7 +193,6 @@ function makeApp(repos: ReturnType<typeof makeRepos>) {
   return app;
 }
 
-/** @returns A JSON request for the deck-check player surface. */
 function req(method: string, path: string, body?: unknown): Request {
   return new Request(`http://test/api/v1/deck-check${path}`, {
     method,
@@ -226,7 +203,7 @@ function req(method: string, path: string, body?: unknown): Request {
 
 describe("GET /deck-check/mine/tournament/{tournamentId} (getMine)", () => {
   it("reports canUnlock, not canRequestUnlock, for a submitted at_deadline entry", async () => {
-    // TR 401.3 / ADR-027: at_deadline is the lenient mode — a submitted entry
+    // TR 401.3: at_deadline is the lenient mode — a submitted entry
     // can still self-unlock while the window is open, so no judge request is
     // needed. canUnlock and canRequestUnlock must never both be true.
     const { res, body } = await runGetMine(
@@ -261,7 +238,6 @@ describe("GET /deck-check/mine/tournament/{tournamentId} (getMine)", () => {
   });
 
   it("suppresses canRequestUnlock once a request is already pending", async () => {
-    // Idempotency guard: a second request should be a no-op, not offered again.
     const { res, body } = await runGetMine(
       playerRow({ state: "approved", unlockRequestedAt: now }),
       deckEvent(),
@@ -284,7 +260,7 @@ describe("GET /deck-check/mine/tournament/{tournamentId} (getMine)", () => {
   });
 
   it("auto-submits an editable entry once the window has closed, and reports the settled state", async () => {
-    // ADR-027's lazy deadline settle (settleExpiredEditable): an entry still
+    // The lazy deadline settle (settleExpiredEditable): an entry still
     // "editable" once submissionsCloseAt has passed auto-submits as-is. A
     // reader must see the settled state, not the stale "editable" row.
     const repos = makeRepos();
@@ -320,10 +296,6 @@ describe("GET /deck-check/mine/tournament/{tournamentId} (getMine)", () => {
     expect(body.message).toBe("Entry not found");
   });
 
-  /**
-   * Drives getMine and parses the response.
-   * @returns The raw response and its parsed JSON body.
-   */
   async function runGetMine(row: unknown, event: unknown) {
     const repos = makeRepos();
     repos.deckCheck.getEntryForPlayerByTournament.mockResolvedValue(row);
@@ -630,18 +602,18 @@ describe("deck-code decoding (linesFromDeckCode)", () => {
     ]);
   });
 
-  it("blows up the whole response instead of dropping a non-positive-quantity entry (latent risk, see report)", async () => {
+  it("blows up the whole response instead of dropping a non-positive-quantity entry", async () => {
     // parsePiltoverDeckCode's `quantity > 0` guard (packages/shared/src/deck-code.ts)
     // is applied only while consolidating mainDeck totals; sideboard entries are
     // pushed unconditionally. linesFromDeckCode itself applies no guard of its
     // own for any sourceSlot. This test mocks the parser to simulate that gap
     // directly (a real decode practically never produces it) and pins what the
-    // API actually does with such an entry today: it does NOT drop the line the
-    // way the old pushLine did — it passes it straight through to
-    // toPreviewCards, whose foundCopies is `Array.from({length: quantity}, ...)`
-    // (harmless at 0, but silently clamps a negative quantity to a 0-length
-    // array too). Either way the response then fails oRPC's own output
-    // validation, since deckCheckEntryCardResponseSchema requires
+    // API does with such an entry: it does NOT drop the line — it passes it
+    // straight through to toPreviewCards, whose foundCopies is
+    // `Array.from({length: quantity}, ...)` (harmless at 0, but silently clamps
+    // a negative quantity to a 0-length array too). Either way the response
+    // then fails oRPC's own output validation, since
+    // deckCheckEntryCardResponseSchema requires
     // `quantity: z.number().int().positive()` — so a decoder that ever emitted
     // this shape wouldn't render a "0 copies" placeholder, it would 500 the
     // whole request.

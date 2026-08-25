@@ -8,10 +8,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Repos, Transact } from "../deps.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function mockTransact(trxRepos: Repos): Transact {
   return (fn) => fn(trxRepos) as any;
 }
@@ -87,16 +83,10 @@ function makePrinting(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("ingestCandidates", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
-
-  // ── Validation ──────────────────────────────────────────────────────────
 
   it("throws when provider is empty", async () => {
     const repos = createMockRepos();
@@ -114,8 +104,6 @@ describe("ingestCandidates", () => {
     );
   });
 
-  // ── Empty input ─────────────────────────────────────────────────────────
-
   it("returns zeros when no cards provided", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -126,8 +114,6 @@ describe("ingestCandidates", () => {
     expect(result.unchanged).toBe(0);
     expect(result.errors).toEqual([]);
   });
-
-  // ── New card insertion ──────────────────────────────────────────────────
 
   it("inserts a new candidate card", async () => {
     const repos = createMockRepos();
@@ -189,8 +175,6 @@ describe("ingestCandidates", () => {
     const insertCall = (repos.ingest as any).insertCandidateCard.mock.calls[0][0];
     expect(insertCall.extraData).toBeNull();
   });
-
-  // ── Existing card update ────────────────────────────────────────────────
 
   it("updates existing candidate card when fields change", async () => {
     const repos = createMockRepos({
@@ -284,8 +268,6 @@ describe("ingestCandidates", () => {
     expect(updateCall.checkedAt).toBeNull();
   });
 
-  // ── Card validation errors ──────────────────────────────────────────────
-
   it("records validation error and skips card with invalid name", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -296,8 +278,6 @@ describe("ingestCandidates", () => {
     expect(result.errors[0]).toContain("name:");
     expect(result.newCards).toBe(0);
   });
-
-  // ── Ignored cards ───────────────────────────────────────────────────────
 
   it("skips ignored candidate cards", async () => {
     const repos = createMockRepos({
@@ -310,8 +290,6 @@ describe("ingestCandidates", () => {
     expect(result.newCards).toBe(0);
     expect(result.unchanged).toBe(0);
   });
-
-  // ── New printing insertion ──────────────────────────────────────────────
 
   it("inserts a new candidate printing", async () => {
     const repos = createMockRepos();
@@ -519,8 +497,6 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBeNull();
   });
 
-  // ── Printing validation errors ──────────────────────────────────────────
-
   it("records validation error for invalid printing and continues", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -536,8 +512,6 @@ describe("ingestCandidates", () => {
     expect(result.errors[0]).toContain("short_code:");
     expect(result.newPrintings).toBe(1);
   });
-
-  // ── Ignored printings ──────────────────────────────────────────────────
 
   it("skips all-finish ignored candidate printings", async () => {
     const repos = createMockRepos({
@@ -577,8 +551,6 @@ describe("ingestCandidates", () => {
 
     expect(result.newPrintings).toBe(1);
   });
-
-  // ── Existing printing update ────────────────────────────────────────────
 
   it("updates existing candidate printing when fields change", async () => {
     const repos = createMockRepos({
@@ -916,8 +888,6 @@ describe("ingestCandidates", () => {
     expect(updateCall).not.toHaveProperty("printingId");
   });
 
-  // ── Removal ─────────────────────────────────────────────────────────────
-
   it("removes candidate cards no longer in the upload", async () => {
     const repos = createMockRepos({
       allCandidateCardsForProvider: vi.fn().mockResolvedValue([
@@ -1061,10 +1031,6 @@ describe("ingestCandidates", () => {
     expect(result.removedPrintingDetails[0].name).toBe("unknown");
   });
 
-  // (promo type resolution removed — markers come from the upload payload directly)
-
-  // ── Empty rules_text normalization ──────────────────────────────────────
-
   it("normalizes empty rules_text to null", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -1086,8 +1052,6 @@ describe("ingestCandidates", () => {
     const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
     expect(insertCall.printedRulesText).toBeNull();
   });
-
-  // ── Multiple cards and printings ────────────────────────────────────────
 
   it("processes multiple cards with multiple printings", async () => {
     const repos = createMockRepos();
@@ -1113,8 +1077,6 @@ describe("ingestCandidates", () => {
     expect(result.newPrintings).toBe(3);
   });
 
-  // ── jsonOrNull edge cases ──────────────────────────────────────────────
-
   it("preserves non-empty extra_data object on insert", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -1134,8 +1096,6 @@ describe("ingestCandidates", () => {
     const insertCall = (repos.ingest as any).insertCandidateCard.mock.calls[0][0];
     expect(insertCall.extraData).toBeNull();
   });
-
-  // ── Printing with promo + card match builds correct key ────────────────
 
   it("builds promo printing key with is_promo", async () => {
     const repos = createMockRepos({
@@ -1173,8 +1133,6 @@ describe("ingestCandidates", () => {
     const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
     expect(insertCall.printingId).toBeNull();
   });
-
-  // ── Short_code and extra_data on update ────────────────────────────────
 
   it("includes shortCode in update when short_code is provided", async () => {
     const repos = createMockRepos({
@@ -1309,8 +1267,6 @@ describe("ingestCandidates", () => {
     expect(result.updates).toBe(1);
   });
 
-  // ── Link override takes priority ──────────────────────────────────────
-
   it("link override takes priority over auto-resolved printingId", async () => {
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
@@ -1342,8 +1298,6 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBe("override-uuid");
   });
 
-  // ── image_url handling ────────────────────────────────────────────────
-
   it("normalizes null image_url to null", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -1356,8 +1310,6 @@ describe("ingestCandidates", () => {
     expect(insertCall.imageUrl).toBeNull();
   });
 
-  // ── No removal when nothing is old ──────────────────────────────────────
-
   it("does not call delete when nothing to remove", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
@@ -1366,8 +1318,6 @@ describe("ingestCandidates", () => {
     expect((repos.ingest as any).deleteCandidateCards).not.toHaveBeenCalled();
     expect((repos.ingest as any).deleteCandidatePrintings).not.toHaveBeenCalled();
   });
-
-  // ── Duplicate incoming keys (deterministic guard) ───────────────────────
 
   it("dedupes duplicate incoming printing external_ids: first wins, drop surfaced", async () => {
     const repos = createMockRepos();

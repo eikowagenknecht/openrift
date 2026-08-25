@@ -7,18 +7,13 @@ import {
 } from "../../../test/integration-context.js";
 import { readJson } from "../../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Card-sources mutation routes
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix CSM- for entities it creates.
-// ---------------------------------------------------------------------------
+// Runs against the shared integration database; entities created here use
+// the CSM- prefix to stay clear of other files' seed data.
 
 const USER_ID = "a0000000-0018-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Seed IDs — assigned during setup
 let setId = "";
 let cardId = "";
 const cardSlug = "CSM-001";
@@ -31,13 +26,12 @@ let psUnlinkedId = "";
 let psForAcceptNewId = "";
 let csForAcceptNewId = "";
 
-// Generic 'promo' marker, seeded by migration 091.
+// The generic 'promo' marker seeded by migrations.
 const PROMO_MARKER_SLUG = "promo";
 
 if (ctx) {
   const { db } = ctx;
 
-  // Set
   const [setRow] = await db
     .insertInto("sets")
     .values({ slug: "CSM-TEST", name: "CSM Test Set", printedTotal: 2, sortOrder: 103 })
@@ -45,7 +39,6 @@ if (ctx) {
     .execute();
   setId = setRow.id;
 
-  // Card
   const [cardRow] = await db
     .insertInto("cards")
     .values({
@@ -66,7 +59,6 @@ if (ctx) {
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
-  // Printing 1
   const [printingRow] = await db
     .insertInto("printings")
     .values({
@@ -90,7 +82,6 @@ if (ctx) {
     .execute();
   printingId = printingRow.id;
 
-  // Printing 2 (for copy/link tests)
   const [printing2Row] = await db
     .insertInto("printings")
     .values({
@@ -114,7 +105,6 @@ if (ctx) {
     .execute();
   printing2Id = printing2Row.id;
 
-  // Card source (matched to card by name)
   const [csRow] = await db
     .insertInto("candidateCards")
     .values({
@@ -138,7 +128,6 @@ if (ctx) {
     .execute();
   cardShortCode = csRow.id;
 
-  // Card source (unmatched)
   const [csUnmatchedRow] = await db
     .insertInto("candidateCards")
     .values({
@@ -162,7 +151,6 @@ if (ctx) {
     .execute();
   csUnmatchedId = csUnmatchedRow.id;
 
-  // Printing source (linked to printing)
   const [psRow] = await db
     .insertInto("candidatePrintings")
     .values({
@@ -188,7 +176,6 @@ if (ctx) {
     .execute();
   psId = psRow.id;
 
-  // Printing source (unlinked)
   const [psUnlinkedRow] = await db
     .insertInto("candidatePrintings")
     .values({
@@ -214,7 +201,6 @@ if (ctx) {
     .execute();
   psUnlinkedId = psUnlinkedRow.id;
 
-  // Card source for accept-new tests (matched to existing card by name)
   const [csForAcceptNew] = await db
     .insertInto("candidateCards")
     .values({
@@ -238,7 +224,6 @@ if (ctx) {
     .execute();
   csForAcceptNewId = csForAcceptNew.id;
 
-  // Printing source for accept-new: valid, unlinked
   const [psAcceptNew] = await db
     .insertInto("candidatePrintings")
     .values({
@@ -265,21 +250,14 @@ if (ctx) {
   psForAcceptNewId = psAcceptNew.id;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 const P = "/cards";
 
 describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // ── Single card-source check ────────────────────────────────────────────
-
   describe("POST /:cardSourceId/check", () => {
     it("marks a card source as checked", async () => {
-      // Reset checkedAt so the test is meaningful
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: null })
@@ -297,11 +275,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Single printing-source check ────────────────────────────────────────
-
   describe("POST /candidate-printings/:id/check", () => {
     it("marks a printing source as checked", async () => {
-      // Reset checkedAt
       await db
         .updateTable("candidatePrintings")
         .set({ checkedAt: null })
@@ -319,11 +294,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Printing-sources check-all ──────────────────────────────────────────
-
   describe("POST /candidate-printings/check-all", () => {
     it("marks all printing sources for a printing as checked", async () => {
-      // Reset
       await db
         .updateTable("candidatePrintings")
         .set({ checkedAt: null })
@@ -340,7 +312,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("marks extra IDs alongside the printing", async () => {
-      // Reset both the printing-linked and an extra source
       await db
         .updateTable("candidatePrintings")
         .set({ checkedAt: null })
@@ -365,11 +336,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Card check-all by slug ──────────────────────────────────────────────
-
   describe("POST /:cardId/check-all", () => {
     it("marks all card sources for a card slug as checked", async () => {
-      // Reset
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: null })
@@ -391,8 +359,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── PATCH printing-source ───────────────────────────────────────────────
-
   describe("PATCH /candidate-printings/:id", () => {
     it("updates rarity on a printing source", async () => {
       const res = await app.fetch(
@@ -400,7 +366,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify update persisted
       const row = await db
         .selectFrom("candidatePrintings")
         .select("rarity")
@@ -431,7 +396,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(row.isSigned).toBe(true);
       expect(row.shortCode).toBe("CSM-PATCHED");
 
-      // Restore for subsequent tests
       await db
         .updateTable("candidatePrintings")
         .set({
@@ -459,8 +423,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Copy printing-source ────────────────────────────────────────────────
-
   describe("POST /candidate-printings/:id/copy", () => {
     it("copies a printing source to another printing", async () => {
       const res = await app.fetch(
@@ -470,7 +432,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify a new candidate_printing was created linked to printing2
       const copies = await db
         .selectFrom("candidatePrintings")
         .select("id")
@@ -509,8 +470,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Link / unlink candidate-printings ──────────────────────────────────────
-
   describe("POST /candidate-printings/link", () => {
     it("links candidate printings to a printing by UUID", async () => {
       const res = await app.fetch(
@@ -521,7 +480,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify link
       const row = await db
         .selectFrom("candidatePrintings")
         .select("printingId")
@@ -539,7 +497,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify unlinked
       const row = await db
         .selectFrom("candidatePrintings")
         .select("printingId")
@@ -571,8 +528,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Rename card slug ────────────────────────────────────────────────────
-
   describe("POST /:cardId/rename", () => {
     it("renames a card slug", async () => {
       const res = await app.fetch(
@@ -580,7 +535,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify
       const row = await db
         .selectFrom("cards")
         .select("slug")
@@ -605,8 +559,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Accept card field ───────────────────────────────────────────────────
-
   describe("POST /:cardId/accept-field", () => {
     it("updates card name and reconciles the self-alias, keeping alt-spelling aliases", async () => {
       // Seed the current-name self-alias plus a hand-added alt-spelling alias,
@@ -628,7 +580,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify
       const row = await db
         .selectFrom("cards")
         .select("name")
@@ -696,7 +647,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.energy).toBe(5);
 
-      // Restore
       await db.updateTable("cards").set({ energy: 2 }).where("slug", "=", cardSlug).execute();
     });
 
@@ -757,8 +707,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Accept printing field ───────────────────────────────────────────────
-
   describe("POST /printing/:printingId/accept-field", () => {
     it("updates artist on a printing", async () => {
       const res = await app.fetch(
@@ -769,7 +717,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify
       const row = await db
         .selectFrom("printings")
         .select("artist")
@@ -794,7 +741,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.rarity).toBe("rare");
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ rarity: "common" })
@@ -828,7 +774,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.finish).toBe("foil");
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ finish: "normal" })
@@ -862,7 +807,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.comment).toBe("Test comment");
 
-      // Clear
       await db
         .updateTable("printings")
         .set({ comment: null })
@@ -947,12 +891,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(updated.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
 
-      // Cleanup
       await db.deleteFrom("printings").where("id", "in", [enRow.id, scRow.id]).execute();
     });
   });
-
-  // ── Accept new card from unmatched sources ──────────────────────────────
 
   describe("POST /new/:name/accept", () => {
     it("creates a new card from unmatched source data", async () => {
@@ -969,7 +910,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify card was created
       const card = await db
         .selectFrom("cards")
         .select(["slug", "name", "type"])
@@ -991,11 +931,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Link unmatched sources to existing card ─────────────────────────────
-
   describe("POST /new/:name/link", () => {
     it("links unmatched sources to an existing card", async () => {
-      // Create another unmatched card source for this test
       await db
         .insertInto("candidateCards")
         .values({
@@ -1024,7 +961,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify alias was created
       const alias = await db
         .selectFrom("cardNameAliases")
         .select("cardId")
@@ -1045,11 +981,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Accept printing (create new printing from admin-selected fields) ────
-
   describe("POST /:cardId/accept-printing", () => {
     it("creates a new printing and links sources", async () => {
-      // Create a dedicated printing source for this test
       const [apPs] = await db
         .insertInto("candidatePrintings")
         .values({
@@ -1098,7 +1031,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
 
-      // Verify the printing was created
       const printing = await db
         .selectFrom("printings")
         .select(["id", "rarity", "artist"])
@@ -1108,7 +1040,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
       expect(printing!.rarity).toBe("uncommon");
 
-      // Verify the printing source was linked and checked
       const ps = await db
         .selectFrom("candidatePrintings")
         .select(["printingId", "checkedAt"])
@@ -1208,7 +1139,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const json = await readJson(res);
       expect(json.printingId).toBeTypeOf("string");
 
-      // Verify isSigned/markerSlugs on the printing
       const p = await db
         .selectFrom("printings")
         .select(["isSigned", "markerSlugs"])
@@ -1288,7 +1218,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(200);
 
-      // Verify the new set was created
       const setRow = await db
         .selectFrom("sets")
         .select("name")
@@ -1299,8 +1228,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(setRow!.name).toBe("CSM Brand New Set");
     });
   });
-
-  // ── Upload card sources ─────────────────────────────────────────────────
 
   describe("POST /upload", () => {
     it("uploads card sources and returns counts", async () => {
@@ -1374,16 +1301,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Delete printing-source ──────────────────────────────────────────────
-  // (placed near the end since it removes seed data)
-
+  // Placed near the end since it removes seed data.
   describe("DELETE /candidate-printings/:id", () => {
     it("deletes a printing source", async () => {
       // Use the unlinked one to avoid FK issues
       const res = await app.fetch(adminReq("DELETE", `${P}/candidate-printings/${psUnlinkedId}`));
       expect(res.status).toBe(204);
 
-      // Verify gone
       const row = await db
         .selectFrom("candidatePrintings")
         .select("id")
@@ -1399,11 +1323,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Uncheck card source ──────────────────────────────────────────────────
-
   describe("POST /:candidateCardId/uncheck", () => {
     it("unchecks a checked candidate card", async () => {
-      // Ensure the card is checked first
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: new Date() })
@@ -1413,7 +1334,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", `${P}/${cardShortCode}/uncheck`));
       expect(res.status).toBe(204);
 
-      // Verify unchecked
       const row = await db
         .selectFrom("candidateCards")
         .select("checkedAt")
@@ -1429,11 +1349,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Uncheck printing source ────────────────────────────────────────────
-
   describe("POST /candidate-printings/:id/uncheck", () => {
     it("unchecks a checked candidate printing", async () => {
-      // Ensure the printing is checked first
       await db
         .updateTable("candidatePrintings")
         .set({ checkedAt: new Date() })
@@ -1443,7 +1360,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("POST", `${P}/candidate-printings/${psId}/uncheck`));
       expect(res.status).toBe(204);
 
-      // Verify unchecked
       const row = await db
         .selectFrom("candidatePrintings")
         .select("checkedAt")
@@ -1458,8 +1374,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── Accept-field with provider source (typography fixes) ──────────────
 
   describe("POST /:cardId/accept-field (provider source)", () => {
     it("applies typography fixes when source is provider", async () => {
@@ -1480,7 +1394,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       // fixTypography converts straight quotes to curly quotes
       expect(row.name).toBeDefined();
 
-      // Restore
       await db
         .updateTable("cards")
         .set({ name: "CSM Test Card" })
@@ -1543,8 +1456,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Accept printing field (extended coverage) ─────────────────────────
-
   describe("POST /printing/:printingId/accept-field (extended)", () => {
     it("applies typography to printedRulesText from provider source", async () => {
       const res = await app.fetch(
@@ -1564,7 +1475,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.printedRulesText).toBeDefined();
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ printedRulesText: "Flash" })
@@ -1582,7 +1492,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ printedEffectText: null })
@@ -1600,7 +1509,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ flavorText: null })
@@ -1626,7 +1534,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirstOrThrow();
       expect(row.publicCode).toBeDefined();
 
-      // Restore
       await db
         .updateTable("printings")
         .set({ publicCode: "CSM" })
@@ -1691,11 +1598,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Delete printing ────────────────────────────────────────────────────
-
   describe("DELETE /printing/:printingId", () => {
     it("deletes a printing and cleans up related data", async () => {
-      // Create a disposable printing for this test
       const [disposablePrinting] = await db
         .insertInto("printings")
         .values({
@@ -1718,7 +1622,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .returning("id")
         .execute();
 
-      // Add an image to the printing (create card_image first, then link via printing_image)
       const [cardImage] = await db
         .insertInto("imageFiles")
         .values({ originalUrl: "https://example.com/delete-test.png" })
@@ -1734,7 +1637,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         })
         .execute();
 
-      // Create a candidate printing linked to this printing
       await db
         .insertInto("candidatePrintings")
         .values({
@@ -1761,7 +1663,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(adminReq("DELETE", `${P}/printing/${disposablePrinting.id}`));
       expect(res.status).toBe(204);
 
-      // Verify printing is gone
       const row = await db
         .selectFrom("printings")
         .select("id")
@@ -1771,17 +1672,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Check by provider ──────────────────────────────────────────────────
-
   describe("POST /by-provider/:provider/check", () => {
     it("marks all candidates for a provider as checked", async () => {
-      // Reset all csm-gallery candidates to unchecked
       await db
         .updateTable("candidateCards")
         .set({ checkedAt: null })
         .where("provider", "=", "csm-gallery")
         .execute();
-      // Also reset candidate printings for that provider
       const ccIds = await db
         .selectFrom("candidateCards")
         .select("id")
@@ -1813,8 +1710,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Link unmatched (extended) ──────────────────────────────────────────
-
   describe("POST /new/:name/link (extended)", () => {
     it("returns 400 for missing cardId", async () => {
       const res = await app.fetch(
@@ -1826,8 +1721,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Accept new card (extended) ─────────────────────────────────────────
-
   describe("POST /new/:name/accept (extended)", () => {
     it("returns 400 for missing cardFields", async () => {
       const res = await app.fetch(adminReq("POST", `${P}/new/somename/accept`, {}));
@@ -1835,9 +1728,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
   });
 
-  // ── Delete by source ────────────────────────────────────────────────────
-  // (last — removes all card_sources for a source, cascading to printing_sources)
-
+  // Last, since it removes all card_sources for a source, cascading to printing_sources.
   describe("DELETE /by-provider/:source", () => {
     it("deletes all card sources for a source name", async () => {
       const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/csm-spreadsheet`));

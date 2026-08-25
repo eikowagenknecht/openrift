@@ -16,7 +16,6 @@ import {
  * `groupId` is the owning group of the copy's collection (null for personal
  * collections); the client uses it to keep group-owned copies out of personal
  * "owned" totals while still showing them inside the group collection.
- * Carries the per-copy metadata (ADR-038) so the synced client store has it.
  */
 type CopyRow = Pick<
   Selectable<CopiesTable>,
@@ -33,17 +32,12 @@ type CopyRow = Pick<
   | "links"
 > & {
   groupId: string | null;
-  /** True when the copy is out on a live loan (ADR-039). */
+  /** True when the copy is out on a live loan. */
   onLoan: boolean;
-  /** True when the copy is pinned to a live outgoing trade (ADR-019): still owned, but reserved. */
+  /** True when the copy is pinned to a live outgoing trade: still owned, but reserved. */
   reserved: boolean;
 };
 
-/**
- * A copy's per-copy metadata (ADR-038) with the name of the collection holding
- * it. Feeds the trade-accept copy picker, which needs enough detail to tell two
- * physical copies of one printing apart.
- */
 type CopyMetadataRow = Pick<
   Selectable<CopiesTable>,
   | "id"
@@ -58,7 +52,6 @@ type CopyMetadataRow = Pick<
   | "links"
 > & { collectionName: string };
 
-/** The per-copy metadata columns (ADR-038), aliased for `cp`-joined queries. */
 const COPY_METADATA_COLUMNS = [
   "cp.condition",
   "cp.grader",
@@ -69,17 +62,9 @@ const COPY_METADATA_COLUMNS = [
   "cp.links",
 ] as const;
 
-/** Default page size, and hard maximum, for cursor-paginated copy listings. */
 const COPIES_PAGE_DEFAULT = 5000;
 const COPIES_PAGE_MAX = 5000;
 
-/**
- * Clamps a client-supplied page limit to at most {@link COPIES_PAGE_MAX},
- * defaulting to {@link COPIES_PAGE_DEFAULT} when absent. Replaces the per-route
- * `limit ?? 10_000` soft-cap so no single request pulls an oversized page;
- * clients page through with the returned cursor instead.
- * @returns The effective page limit to request.
- */
 export function clampCopiesLimit(limit?: number): number {
   return Math.min(limit ?? COPIES_PAGE_DEFAULT, COPIES_PAGE_MAX);
 }
@@ -90,7 +75,6 @@ export function clampCopiesLimit(limit?: number): number {
  * collections default on, group collections are opt-in per member. A deck's
  * home collection (`exemptCollectionId`) counts for that deck even when the
  * collection is excluded, because the deck physically lives in that box.
- * @returns The SQL boolean expression.
  */
 function deckbuildingAvailableSql(exemptCollectionId?: string) {
   const base = sql<boolean>`coalesce(pref.available, col.group_id is null)`;
@@ -101,25 +85,14 @@ function deckbuildingAvailableSql(exemptCollectionId?: string) {
 }
 
 /**
- * Read-only queries for user copy data.
- *
  * Copy ownership is derived from the collection (personal collections set
  * user_id, group collections set group_id) — copies carry no owner column of
  * their own. Visibility therefore keys off collection access: a viewer sees a
  * copy if they personally own its collection or are a member of its group.
- *
- * @returns An object with copy query methods bound to the given `db`.
  */
 export function copiesRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Copies across every collection the viewer can access — their personal
-     * collections plus the shared collections of every group they belong to.
-     * This is the source feed for the collection browser; group-owned copies
-     * (added by any member) appear to all members. When `limit` is provided,
-     * fetches `limit + 1` rows to detect `hasMore`.
-     * @returns Accessible copies, newest first.
-     */
+    /** When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
     listForAccessibleCollections(
       userId: string,
       limit?: number,
@@ -132,10 +105,10 @@ export function copiesRepo(db: Kysely<Database>) {
           join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
         )
         // A copy is pinned by at most one live loan (UNIQUE copy_id), so this
-        // join can't multiply rows (ADR-039).
+        // join can't multiply rows.
         .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
         // Likewise pinned by at most one live trade (UNIQUE copy_id) — its
-        // presence means the copy is reserved for an outgoing trade (ADR-019).
+        // presence means the copy is reserved for an outgoing trade.
         .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id",
@@ -165,11 +138,6 @@ export function copiesRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /**
-     * @returns Whether the user may reference this copy, or `undefined`. With
-     *   `personalOnly` the copy must be in one of the user's own collections;
-     *   otherwise shared group collections the user belongs to count too.
-     */
     existsForViewer(
       id: string,
       userId: string,
@@ -191,11 +159,6 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * @returns The subset of input IDs the user may reference. With
-     *   `personalOnly` only copies in the user's own collections qualify;
-     *   otherwise shared group collections the user belongs to count too.
-     */
     async filterAccessibleByViewer(
       ids: readonly string[],
       userId: string,
@@ -222,10 +185,9 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Copies in a specific collection. Authorization is the caller's
-     * responsibility (via `collections.getAccessForUser`). When `limit` is
-     * provided, fetches `limit + 1` rows to detect `hasMore`.
-     * @returns Copies in the collection, newest first.
+     * Authorization is the caller's responsibility (via
+     * `collections.getAccessForUser`). When `limit` is provided, fetches
+     * `limit + 1` rows to detect `hasMore`.
      */
     listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = db
@@ -261,7 +223,6 @@ export function copiesRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /** @returns The inserted copy rows including their metadata (ADR-038). */
     async insertBatch(
       values: Insertable<CopiesTable>[],
     ): Promise<Omit<CopyRow, "groupId" | "createdAt">[]> {
@@ -281,16 +242,15 @@ export function copiesRepo(db: Kysely<Database>) {
           "links",
         ])
         .execute();
-      // A freshly inserted copy is never out on a loan (ADR-039).
+      // A freshly inserted copy is never out on a loan.
       return rows.map((row) => ({ ...row, onLoan: false, reserved: false }));
     },
 
     /**
-     * Applies one metadata patch to all given copies (ADR-038); caller verified
-     * write access. Only defined keys are written, so absent patch fields stay
-     * untouched. `links` arrives as a plain `CopyLink[]` and is handed to the
-     * jsonb column as-is — postgres.js serializes jsonb parameters itself, and
-     * pre-stringifying one encodes it twice into a jsonb string scalar.
+     * Caller verified write access. `links` arrives as a plain `CopyLink[]`
+     * and is handed to the jsonb column as-is — postgres.js serializes jsonb
+     * parameters itself, and pre-stringifying one encodes it twice into a
+     * jsonb string scalar.
      */
     async updateMetadataBatchById(
       copyIds: string[],
@@ -317,10 +277,8 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Copies with their current collection name, for move/dispose operations.
      * Not user-scoped: the viewer's right to touch a copy comes from
      * collection-level access (checked by the caller), not copy ownership.
-     * @returns Matching copies with their current collection name.
      */
     listWithCollectionContext(copyIds: string[]): Promise<
       (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId"> & {
@@ -344,7 +302,6 @@ export function copiesRepo(db: Kysely<Database>) {
      * lock the same rows before acting so they serialize on a shared resource:
      * a dispose can't delete a copy a concurrent trade-accept is reserving, and
      * a reserve sees a copy already gone. Callers must pin/delete only survivors.
-     * @returns The subset of `copyIds` that currently exist, now locked.
      */
     async lockByIds(copyIds: string[]): Promise<string[]> {
       if (copyIds.length === 0) {
@@ -360,11 +317,9 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Per-copy metadata (ADR-038) for specific copies, with the name of the
-     * collection holding each. Not user-scoped: like the other id-list reads
-     * here, the caller has already established the right to see these copies
-     * (the trade paths derive the ids from the giver's own shared supply).
-     * @returns One row per id that still exists, in no particular order.
+     * Not user-scoped: like the other id-list reads here, the caller has
+     * already established the right to see these copies (the trade paths
+     * derive the ids from the giver's own shared supply).
      */
     listMetadataByIds(copyIds: readonly string[]): Promise<CopyMetadataRow[]> {
       if (copyIds.length === 0) {
@@ -385,17 +340,15 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The user's own free copies of one printing, with the same per-copy
-     * metadata as {@link listMetadataByIds}. Free means neither out on a live
-     * loan (ADR-039, physically absent) nor pinned to a live trade (ADR-019,
-     * committed elsewhere) — the two exclusions the buildable counts use.
+     * The user's own free copies of one printing. Free means neither out on a
+     * live loan (physically absent) nor pinned to a live trade (committed
+     * elsewhere) — the two exclusions the buildable counts use.
      *
      * Personal collections only (`col.userId`): a copy sitting in a group
      * collection is not the user's alone to dispose of. Group *sharing* is not
      * a filter here, unlike the trade supply this complements — the settle
      * picker records which copy physically left, and that can be one out of a
      * binder the group never saw.
-     * @returns One row per free copy, in no particular order.
      */
     listFreePersonalMetadataForPrinting(
       userId: string,
@@ -418,7 +371,7 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Moves copies to a target collection; caller verified write access. */
+    /** Caller verified write access. */
     async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
       if (copyIds.length === 0) {
         return;
@@ -430,7 +383,7 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Hard-deletes copies by IDs; caller verified write access. */
+    /** Caller verified write access. */
     async deleteBatchById(copyIds: string[]): Promise<void> {
       if (copyIds.length === 0) {
         return;
@@ -438,12 +391,6 @@ export function copiesRepo(db: Kysely<Database>) {
       await db.deleteFrom("copies").where("id", "in", copyIds).execute();
     },
 
-    /**
-     * Every copy in the user's personal collections (group collections
-     * excluded), with collection context for event logging. Feeds the
-     * danger-zone collection reset.
-     * @returns Matching copies with their current collection name.
-     */
     listInPersonalCollections(userId: string): Promise<
       (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId"> & {
         collectionName: string;
@@ -458,10 +405,8 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Hard-deletes every copy in the user's personal collections in one
-     * statement (no ID list, so it can't hit parameter limits). Group
+     * One statement with no ID list, so it can't hit parameter limits. Group
      * collections are untouched.
-     * @returns The number of deleted copies.
      */
     async deleteAllInPersonalCollections(userId: string): Promise<number> {
       const result = await db
@@ -473,17 +418,6 @@ export function copiesRepo(db: Kysely<Database>) {
       return Number(result.numDeletedRows);
     },
 
-    /**
-     * Owned count per card+printing from collections that feed the viewer's
-     * deck inventory. A collection counts when it's accessible to the viewer
-     * AND deck-building-available for them: `COALESCE(pref.available,
-     * group_id IS NULL)` — personal collections default on, group collections
-     * are opt-in per member.
-     *
-     * `exemptCollectionId` is a deck's home collection: the box that deck lives
-     * in counts for it even when it's excluded from deck building generally.
-     * @returns Count per card+printing across the viewer's deck-available collections.
-     */
     countByCardAndPrintingForDeckbuilding(
       userId: string,
       exemptCollectionId?: string,
@@ -506,8 +440,8 @@ export function copiesRepo(db: Kysely<Database>) {
           ])
           .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
           .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
-          // ADR-039: a copy out on a loan is physically absent, so it never
-          // counts toward deck-building inventory, whatever its collection says.
+          // A copy out on a loan is physically absent, so it never counts
+          // toward deck-building inventory, whatever its collection says.
           .where(notPinnedToLoan)
           .groupBy(["p.cardId", "cp.printingId"])
           .execute()
@@ -515,20 +449,13 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Buildable copy count per card for the viewer's deck inventory — the
-     * server-side mirror of the deck editor's `available` bucket, so the
-     * `/decks` overview's missing count matches the editor exactly. A copy
-     * counts when its collection is deck-building-available for the viewer
-     * (`COALESCE(pref.available, group_id IS NULL)`) AND it is neither out on a
-     * live loan (ADR-039, physically absent) nor reserved for a live outgoing
-     * trade (ADR-019). Borrowed-in copies are added separately (they aren't
-     * copy rows — see `loansRepo.borrowedCountByCard`).
+     * Buildable copy count per card — the server-side mirror of the deck
+     * editor's `available` bucket, so the `/decks` overview's missing count
+     * matches the editor exactly. Borrowed-in copies are added separately
+     * (they aren't copy rows — see `loansRepo.borrowedCountByCard`).
      *
-     * `exemptCollectionId` is a deck's home collection, which stays buildable
-     * for that deck even when excluded from deck building. The `/decks`
-     * overview computes many decks at once and uses
+     * The `/decks` overview computes many decks at once and uses
      * {@link buildableCountByCardForCollections} instead of calling this per deck.
-     * @returns Map from card id to buildable copy count.
      */
     async buildableCountByCard(
       userId: string,
@@ -550,9 +477,9 @@ export function copiesRepo(db: Kysely<Database>) {
         ])
         .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .where(deckbuildingAvailableSql(exemptCollectionId), "=", true)
-        // A copy out on a live loan is physically absent (ADR-039).
+        // A copy out on a live loan is physically absent.
         .where(notPinnedToLoan)
-        // A copy reserved for a live outgoing trade is committed elsewhere (ADR-019).
+        // A copy reserved for a live outgoing trade is committed elsewhere.
         .where(notReservedByTrade)
         .groupBy("p.cardId")
         .execute();
@@ -567,7 +494,6 @@ export function copiesRepo(db: Kysely<Database>) {
      * copies stay excluded — a home collection overrides the exclusion, not
      * physical absence. Lets the `/decks` overview resolve every deck's home
      * collection in one query instead of one query per deck.
-     * @returns Map from collection id to a per-card count map.
      */
     async buildableCountByCardForCollections(
       userId: string,
@@ -611,8 +537,7 @@ export function copiesRepo(db: Kysely<Database>) {
 
     /**
      * Copies in the user's own (personal) collections, with the metadata a
-     * dynamic trade rule needs (ADR-034): the underlying card and whether the
-     * copy is pinned to a live trade. Group-owned copies are excluded — a trade
+     * dynamic trade rule needs. Group-owned copies are excluded — a trade
      * list trades only what the user personally owns (mirrors the
      * `personalOnly` add path).
      *
@@ -621,10 +546,6 @@ export function copiesRepo(db: Kysely<Database>) {
      * *entire* collection on every rule expansion, which for a large collection
      * is tens of thousands of rows marshalled to be mostly discarded. An empty
      * array means the rules need no copies at all, so no query is issued.
-     *
-     * @param userId The owner whose personal collections to read.
-     * @param printingIds Optional printing allowlist; omit to load everything.
-     * @returns One {@link OwnedCopyRow} per matching personally-owned copy.
      */
     ownedRowsForUser(userId: string, printingIds?: readonly string[]): Promise<OwnedCopyRow[]> {
       if (printingIds?.length === 0) {
@@ -634,8 +555,9 @@ export function copiesRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .innerJoin("printings as p", "p.id", "cp.printingId")
-        // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
-        // join can't multiply rows. Its presence means the copy is reserved.
+        // A copy is pinned to at most one live trade (UNIQUE copy_id), so
+        // this join can't multiply rows. Its presence means the copy is
+        // reserved.
         .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id as copyId",
@@ -653,13 +575,11 @@ export function copiesRepo(db: Kysely<Database>) {
 
     /**
      * Aggregates a collection's copies into one tile-row per printing for the
-     * share image (ADR-024): summed quantity, card name, and the active front
-     * image. Ordered by quantity desc then name so the grid leads with the
-     * deepest holdings, and capped (`cap`) so an oversized collection can't force
-     * unbounded per-request work — only a dozen tiles are ever drawn. The total
-     * distinct-printing count is queried separately so the "+N more" tile stays
-     * accurate even when the row fetch is capped.
-     * @returns Capped per-printing render rows and the total distinct-printing count.
+     * share image. Ordered by quantity desc then name so the grid leads with
+     * the deepest holdings, and capped (`cap`) so an oversized collection
+     * can't force unbounded per-request work — only a dozen tiles are ever
+     * drawn. The total distinct-printing count is queried separately so the
+     * "+N more" tile stays accurate even when the row fetch is capped.
      */
     async collectionShareImageCards(
       collectionId: string,
@@ -702,14 +622,8 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Representative card art batched per collection: up to `limit` distinct
-     * printings each, most-copies-first (ties broken by newest copy). Feeds
-     * the shared-collection thumb stacks on the group pages; printings
-     * without a rehosted front image never surface, so a slot always renders.
-     *
-     * @param collectionIds The collections to collect covers for.
-     * @param limit Max distinct printings per collection.
-     * @returns Cover rows grouped by collection, in display order.
+     * Printings without a rehosted front image never surface, so a slot
+     * always renders.
      */
     coverPrintingsAcross(
       collectionIds: string[],

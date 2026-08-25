@@ -11,7 +11,6 @@ interface KeywordTranslationRow {
   label: string;
 }
 
-/** Text sources a card's keywords are derived from. */
 interface KeywordTextSources {
   errata: { correctedRulesText: string | null; correctedEffectText: string | null } | undefined;
   printings: { printedRulesText: string | null; printedEffectText: string | null }[];
@@ -22,8 +21,6 @@ interface KeywordTextSources {
  * printing's text, in that order, deduped by first occurrence. Exported so
  * `services/import-errata.ts` shares the exact derivation the recompute paths
  * use instead of carrying its own copy.
- *
- * @returns The card's keywords.
  */
 export function deriveKeywords({ errata, printings }: KeywordTextSources): string[] {
   return [
@@ -36,16 +33,8 @@ export function deriveKeywords({ errata, printings }: KeywordTextSources): strin
   ].filter((keyword, index, all) => all.indexOf(keyword) === index);
 }
 
-/**
- * Queries for keywords (canonical names with display styles), their
- * per-language translations, and the derivation that recomputes
- * `cards.keywords` from printing and errata text.
- *
- * @returns An object with keyword query methods bound to the given `db`.
- */
 export function keywordsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All keywords. */
     listAll(): Promise<Selectable<KeywordsTable>[]> {
       return db.selectFrom("keywords").selectAll().orderBy("name").execute();
     },
@@ -53,7 +42,6 @@ export function keywordsRepo(db: Kysely<Database>) {
     /**
      * Names of keywords flagged as cost keywords (glyph cost inside the bracket).
      * Fed to `fixTypography` so the cost-keyword set stays data-driven.
-     * @returns Sorted array of cost-keyword names.
      */
     async listCostKeywords(): Promise<string[]> {
       const rows = await db
@@ -65,7 +53,6 @@ export function keywordsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.name);
     },
 
-    /** @returns All keyword translations. */
     listAllTranslations(): Promise<KeywordTranslationRow[]> {
       return db
         .selectFrom("keywordTranslations")
@@ -75,10 +62,6 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Count how many cards have each keyword.
-     * @returns Array of { keyword, count } sorted by count descending.
-     */
     async getKeywordCounts(): Promise<{ keyword: string; count: number }[]> {
       const rows = await sql<{ keyword: string; count: string }>`
         SELECT kw AS keyword, COUNT(*)::text AS count
@@ -89,7 +72,6 @@ export function keywordsRepo(db: Kysely<Database>) {
       return rows.rows.map((row) => ({ keyword: row.keyword, count: Number(row.count) }));
     },
 
-    /** Insert or update a keyword. */
     async upsertStyle(values: {
       name: string;
       color: string;
@@ -109,7 +91,6 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Insert a new keyword. */
     async createStyle(values: {
       name: string;
       color: string;
@@ -122,12 +103,10 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete a keyword by name. */
     async deleteStyle(name: string): Promise<void> {
       await db.deleteFrom("keywords").where("name", "=", name).execute();
     },
 
-    /** Upsert a single keyword translation. */
     async upsertTranslation(values: {
       keywordName: string;
       language: string;
@@ -144,7 +123,6 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete a keyword translation. */
     async deleteTranslation(keywordName: string, language: string): Promise<void> {
       await db
         .deleteFrom("keywordTranslations")
@@ -156,8 +134,6 @@ export function keywordsRepo(db: Kysely<Database>) {
     /**
      * Bulk insert discovered translations, skipping rows that already exist
      * (preserving manual corrections).
-     *
-     * @returns Number of rows inserted.
      */
     async bulkInsertTranslations(
       rows: { keywordName: string; language: string; label: string }[],
@@ -176,8 +152,6 @@ export function keywordsRepo(db: Kysely<Database>) {
     /**
      * Fetches printing text pairs for keyword translation discovery.
      * Returns cards that have both EN and non-EN printings with rules/effect text.
-     *
-     * @returns Rows with card_id, EN text fields, and non-EN text fields + language.
      */
     getTranslationCandidates(): Promise<
       {
@@ -220,8 +194,6 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // ── Derivation (cards.keywords) ───────────────────────────────────────
-    //
     // `cards.keywords` is a derived cache, never a source of truth. Its only
     // input is card text: `extractKeywords` reads the `[...]` bracket spans out
     // of EN printing text and card-level errata text, so the cache goes stale
@@ -269,11 +241,6 @@ export function keywordsRepo(db: Kysely<Database>) {
       await db.updateTable("cards").set({ keywords }).where("id", "=", row.cardId).execute();
     },
 
-    /**
-     * Recompute keywords for all cards by scanning card-level and printing-level
-     * text fields. Only updates cards whose computed keywords differ.
-     * @returns Count of total cards scanned and cards actually updated.
-     */
     async recomputeAll(): Promise<{ totalCards: number; updated: number }> {
       const cards = await db.selectFrom("cards").select(["id", "keywords"]).execute();
 

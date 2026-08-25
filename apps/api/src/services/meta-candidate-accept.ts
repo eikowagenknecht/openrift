@@ -1,35 +1,18 @@
 /**
- * Turning reviewed meta-archive candidates into live rows, plus the linking and
- * per-field actions around that (ADR-014, amended 2026-08-18).
+ * Turns reviewed meta-archive candidates into live rows. Link/relink/unlink
+ * move only the FK, citation, and deck source keys — never field values — so
+ * crediting a source does not depend on taking any of its values.
  *
- * Since migration 255 the live tables carry no provider key: the link is
- * `candidate_meta_events.meta_event_id` / `candidate_meta_decks.deck_id`, both
- * many-to-one, so uvsgames and playriftbound can describe one tournament and an
- * admin reconciles them. That gives three tiers of write here, and the tier is
- * the whole point of the split:
- *
- *   - **link / relink / unlink** move the FK, this provider's citation and its
- *     deck source keys, and write no field values at all. A source whose values
- *     you rejected still contributed, usually its decks, so crediting it must
- *     not depend on taking any of them.
- *   - **accept** is unchanged for an *unlinked* candidate: one click creates the
- *     live row, links it, and cites the source. That path must not get slower —
- *     it is what a single-source event still uses.
- *   - **acceptMetaEventField / acceptMetaDeckField / acceptMetaDeckList** take
- *     exactly one source's version of one thing, which is what the compare grid
- *     needs once a second source is linked.
- *
- * Nothing here wraps the create and the link in one transaction, on purpose:
- * the retry inside `createArchivedDeck` re-runs the whole share-token mint on a
+ * The create and the link are deliberately not one transaction: the retry
+ * inside `createArchivedDeck` re-runs the whole share-token mint on a
  * collision, and a transaction would have to re-run itself from inside itself.
  * A crash between the two leaves a live row with no candidate pointing at it,
- * which an admin links by hand — the same repair the multi-source model already
- * has an action for.
+ * which the manual link action already repairs.
  *
- * The source *key* is a separate write from the link, in `meta_event_sources`
- * and `meta_deck_sources` (migration 256): ignoring a candidate deletes the row,
- * so a key held only there would make un-ignoring it archive a second copy of
- * everything that source already produced.
+ * The source key is a separate write from the link (`meta_event_sources` /
+ * `meta_deck_sources`): ignoring a candidate deletes its row, so a key held
+ * only there would make un-ignoring it archive a second copy of everything
+ * that source already produced.
  */
 import { ERROR_CODES, WellKnown } from "@openrift/shared";
 import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
@@ -49,17 +32,11 @@ import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createArchivedDeck, updateArchivedDeck } from "./create-archived-deck.js";
 
 /**
- * The live event columns one source's value can be taken into.
- *
- * Exported as the write side's own list. `packages/shared` cannot import from
- * `apps/api`, so the contract declares the same vocabulary and the route asserts
- * the two types are equal in both directions — a field name only one of them
- * knows is a 500 waiting to happen, and the assertion is what catches it at
- * build time rather than in review.
- *
- * `slug` is absent because it is minted once at accept and renaming it breaks
- * every published link. Attribution is absent because it is no longer a column:
- * a source's URL becomes its `meta_event_sources` row when it is linked.
+ * The live event columns one source's value can be taken into. The contract in
+ * `packages/shared` declares the same vocabulary (it cannot import this), and
+ * the route asserts the two types equal in both directions. `slug` is absent
+ * because it is minted once at accept and renaming breaks every published
+ * link.
  */
 export const META_EVENT_ACCEPT_FIELDS = [
   "name",
@@ -70,13 +47,9 @@ export const META_EVENT_ACCEPT_FIELDS = [
   "notes",
 ] as const;
 
-/** One column {@link acceptMetaEventField} can write. */
 export type MetaEventAcceptField = (typeof META_EVENT_ACCEPT_FIELDS)[number];
 
-/**
- * The archived-deck columns one source's value can be taken into. The card list
- * is not among them: it moves whole, through {@link acceptMetaDeckList}.
- */
+/** The card list is deliberately absent: it moves whole, via {@link acceptMetaDeckList}. */
 export const META_DECK_ACCEPT_FIELDS = [
   "playerName",
   "finishTier",
@@ -84,40 +57,31 @@ export const META_DECK_ACCEPT_FIELDS = [
   "listStatus",
 ] as const;
 
-/** One column {@link acceptMetaDeckField} can write. */
 export type MetaDeckAcceptField = (typeof META_DECK_ACCEPT_FIELDS)[number];
 
 /** `meta_event_sources.label` CHECK bound. */
 const MAX_CITATION_LABEL_LENGTH = 60;
 
-/** What accepting one candidate event did. */
 export interface AcceptedMetaEvent {
   metaEventId: string;
   slug: string;
-  /** False when the candidate was already linked and the accept applied a diff. */
   created: boolean;
 }
 
-/** What accepting one candidate deck did. */
 export interface AcceptedMetaDeck {
   deckId: string;
   created: boolean;
 }
 
-/** Where a link, relink or unlink left a candidate event. */
 export interface MetaEventLinkResult {
-  /** The live event the candidate now points at, or null after an unlink. */
   metaEventId: string | null;
   slug: string | null;
 }
 
-/** Where a link, relink or unlink left a candidate deck. */
 export interface MetaDeckLinkResult {
-  /** The archived deck the candidate now points at, or null after an unlink. */
   deckId: string | null;
 }
 
-/** A deck `acceptCandidateEventWithDecks` could not take, and why. */
 interface SkippedMetaDeck {
   candidateDeckId: string;
   externalId: string;
@@ -125,39 +89,29 @@ interface SkippedMetaDeck {
   reason: string;
 }
 
-/** The event accept plus the per-deck outcome of the same call. */
 export interface AcceptedMetaEventWithDecks extends AcceptedMetaEvent {
   acceptedDecks: AcceptedMetaDeck[];
   skippedDecks: SkippedMetaDeck[];
 }
 
-/** How much a rematch pass moved. */
 export interface MetaRematchResult {
-  /** Candidate decks that held at least one unresolved name before the pass. */
+  /** Decks that held at least one unresolved name before the pass. */
   examined: number;
   /** Decks whose card list gained at least one resolution. */
   updated: number;
-  /** Individual card rows that went from unresolved to a live card. */
+  /** Card rows (not decks) that went from unresolved to a live card. */
   resolved: number;
 }
 
-/** Who performed an accept, for the submission ledger's resolver column. */
 export interface MetaAcceptOptions {
-  /** The reviewing admin, when the caller knows one. */
   resolvedByUserId?: string;
 }
 
-/** The extra confirmation a whole-entity event accept needs. */
 export interface MetaEventAcceptOptions {
-  /**
-   * Confirms taking every field of this source over an event a second source
-   * also feeds. Required in that case and ignored otherwise — see
-   * {@link assertOverwriteAllowed}.
-   */
+  /** Confirms overwriting an event a second source also feeds; ignored otherwise. */
   overwriteAll?: boolean;
 }
 
-/** @returns The candidate event with that id. Throws 404 when it is gone. */
 async function requireEvent(repos: Repos, id: string): Promise<CandidateMetaEventRow> {
   const row = await repos.metaCandidates.eventById(id);
   if (row === undefined) {
@@ -166,7 +120,6 @@ async function requireEvent(repos: Repos, id: string): Promise<CandidateMetaEven
   return row;
 }
 
-/** @returns The candidate deck with that id. Throws 404 when it is gone. */
 async function requireDeck(repos: Repos, id: string): Promise<CandidateMetaDeckRow> {
   const row = await repos.metaCandidates.deckById(id);
   if (row === undefined) {
@@ -175,11 +128,6 @@ async function requireDeck(repos: Repos, id: string): Promise<CandidateMetaDeckR
   return row;
 }
 
-/**
- * @param repos The repositories.
- * @param id The live event id.
- * @returns The live event. Throws 404 when it is gone.
- */
 async function requireLiveEvent(repos: Repos, id: string) {
   const row = await repos.meta.eventById(id);
   if (row === undefined) {
@@ -189,17 +137,9 @@ async function requireLiveEvent(repos: Repos, id: string) {
 }
 
 /**
- * The live event a candidate deck belongs under, and the candidate event it
- * hangs off when it has one.
- *
- * A provider's deck sits under its own candidate event and inherits that
- * event's link. A user submission (ADR-036) targets a live event directly, so
- * it has no candidate parent and its own column is the answer. The table's
- * CHECK guarantees exactly one of the two, so this never has to pick.
- *
- * @param repos The repositories.
- * @param deck The candidate deck.
- * @returns The live event id (null while the parent is unlinked) and the parent.
+ * A provider's deck inherits its candidate event's link; a user submission
+ * targets a live event directly and has no candidate parent. The table's CHECK
+ * guarantees exactly one of the two, so this never has to pick.
  */
 async function deckTarget(
   repos: Repos,
@@ -213,16 +153,9 @@ async function deckTarget(
 }
 
 /**
- * The first slug from {@link metaEventSlugCandidates} no live event holds.
- *
- * Checked one at a time rather than in a batch because the first candidate is
- * free in the overwhelming majority of accepts, and a batch would read fifty
- * rows to learn that.
- *
- * @param meta The meta-archive repo.
- * @param name The event name.
- * @param eventDate The event's ISO date.
- * @returns A free, valid, non-reserved slug.
+ * Checked one at a time rather than in a batch: the first slug candidate is
+ * free in almost every accept, and a batch would read fifty rows to learn
+ * that.
  */
 async function resolveEventSlug(
   meta: Repos["meta"],
@@ -243,16 +176,9 @@ async function resolveEventSlug(
 }
 
 /**
- * Writes this provider's citation onto a live event, replacing whatever that
- * key cited before.
- *
- * The delete is what makes a relink work: `(provider, external_id)` is unique
- * across the whole table, so moving a source from one event to another has to
- * take its citation with it rather than leave a stale credit behind.
- *
- * @param repos The repositories.
- * @param candidate The candidate event being linked.
- * @param metaEventId The live event it now points at.
+ * The delete first is what makes a relink work: `(provider, external_id)` is
+ * unique across the whole table, so moving a source between events must take
+ * its citation with it rather than leave a stale credit behind.
  */
 async function writeEventCitation(
   repos: Repos,
@@ -264,22 +190,16 @@ async function writeEventCitation(
     metaEventId,
     provider: candidate.provider,
     externalId: candidate.externalId,
-    // The provider string is what the event page prints. There is no prettier
-    // name to reach for: providers are implicit here, a new string is a new
-    // provider, and nothing maps them to display names.
+    // Providers have no display names; the raw provider string is what the
+    // event page prints.
     label: candidate.provider.slice(0, MAX_CITATION_LABEL_LENGTH),
     sourceUrl: candidate.sourceUrl,
   });
 }
 
 /**
- * The `meta_deck_sources` key naming one candidate deck, or null when no
- * provider named it — a user submission hangs off a live event directly and has
- * no source event to scope a deck id to. Same reason it cannot be ignored.
- *
- * @param parent The candidate deck's parent event, null for a submission.
- * @param deck The candidate deck.
- * @returns The source key, or null.
+ * Null for a user submission: it has no source event to scope a deck id to,
+ * which is also why it cannot be ignored.
  */
 function deckSourceKey(
   parent: CandidateMetaEventRow | null,
@@ -295,16 +215,7 @@ function deckSourceKey(
   };
 }
 
-/**
- * Points an unlinked candidate event at a live event that already exists, and
- * cites it. Writes no field values: the admin picks those field by field
- * afterwards, or never.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate to link.
- * @param metaEventId The live event to link it to.
- * @returns The live event it now points at.
- */
+/** Writes the link and citation only — field values are taken separately, or never. */
 export async function linkCandidateEvent(
   repos: Repos,
   candidateEventId: string,
@@ -321,15 +232,6 @@ export async function linkCandidateEvent(
   return applyEventLink(repos, candidate, metaEventId);
 }
 
-/**
- * Moves an already-linked candidate event to a different live event, taking its
- * citation with it.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate to move.
- * @param metaEventId The live event to move it to.
- * @returns The live event it now points at.
- */
 export async function relinkCandidateEvent(
   repos: Repos,
   candidateEventId: string,
@@ -339,13 +241,6 @@ export async function relinkCandidateEvent(
   return applyEventLink(repos, candidate, metaEventId);
 }
 
-/**
- * The write behind link and relink.
- * @param repos The repositories.
- * @param candidate The candidate event.
- * @param metaEventId The live event to point at.
- * @returns The live event it now points at.
- */
 async function applyEventLink(
   repos: Repos,
   candidate: CandidateMetaEventRow,
@@ -358,13 +253,8 @@ async function applyEventLink(
 }
 
 /**
- * Detaches a candidate event from its live event and removes the citation that
- * link wrote. Every field on the live event stays exactly as it was — including
- * the ones this source contributed, which are the archive's values now.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate to detach.
- * @returns The (now empty) link.
+ * Every live-event field stays exactly as it was — including the ones this
+ * source contributed, which are the archive's values now.
  */
 export async function unlinkCandidateEvent(
   repos: Repos,
@@ -376,22 +266,6 @@ export async function unlinkCandidateEvent(
   return { metaEventId: null, slug: null };
 }
 
-/**
- * Creates the live event a candidate proposes, or overwrites the one it is
- * already linked to, then marks the candidate reviewed.
- *
- * The unlinked path is the one-click accept a single-source event still uses:
- * create, link, cite. The linked path is the blunt "take everything this source
- * says", which stays available because one source is still the common case;
- * picking values apart is {@link acceptMetaEventField}. Once a second source is
- * linked, the blunt path needs `overwriteAll` — see
- * {@link assertOverwriteAllowed}.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate to accept.
- * @param options Confirmation for a multi-source overwrite.
- * @returns The live event id and whether it was created.
- */
 export async function acceptCandidateEvent(
   repos: Repos,
   candidateEventId: string,
@@ -400,9 +274,9 @@ export async function acceptCandidateEvent(
   const { meta, metaCandidates, deckFormats } = repos;
   const candidate = await requireEvent(repos, candidateEventId);
 
-  // A candidate may carry any format string; the live column FKs to
-  // `deck_formats`, so an unknown one has to stop here with a usable message
-  // rather than at the insert.
+  // A candidate carries whatever format string its source used; the live
+  // column FKs to `deck_formats`, so an unknown one must stop here with a
+  // usable message rather than at the insert.
   await assertKnownFormat(deckFormats, candidate.format);
 
   const fields = {
@@ -431,22 +305,11 @@ export async function acceptCandidateEvent(
 }
 
 /**
- * Refuses a whole-entity accept that would overwrite another source's values
- * unless the admin said so.
- *
- * This is the bug the multi-source amendment exists to prevent: with uvsgames
- * and playriftbound both feeding one event, "accept" on either one silently
- * reverts whatever the maintainer curated from the other, and the next
- * re-publish does it again. So the blunt path stays, but only on purpose. A
- * single-source event has no other candidate to clobber and needs no flag, so
- * the one-click accept is unaffected.
- *
- * @param repos The repositories.
- * @param candidate The candidate being accepted whole.
- * @param metaEventId The live event it is linked to.
- * @param options The caller's confirmation, if any.
- * @returns void — throws AppError(409) naming the other sources when the
- *   overwrite is unconfirmed.
+ * With two sources feeding one event, a whole-entity accept on either would
+ * silently revert whatever was curated from the other — and the next
+ * re-publish would do it again. So the blunt path needs explicit confirmation.
+ * A single-source event has nothing to clobber, so the one-click accept is
+ * unaffected.
  */
 async function assertOverwriteAllowed(
   repos: Repos,
@@ -471,18 +334,6 @@ async function assertOverwriteAllowed(
   );
 }
 
-/**
- * Writes one source's value into one column of the live event it is linked to,
- * and touches nothing else.
- *
- * This is the compare grid's arrow: with two sources on one event, "accept"
- * cannot mean "take all of it" without one provider silently reverting the
- * other's name every time it re-publishes.
- *
- * @param repos The repositories.
- * @param input The candidate and which of its fields to take.
- * @returns The live event that was written.
- */
 export async function acceptMetaEventField(
   repos: Repos,
   input: { candidateEventId: string; field: MetaEventAcceptField },
@@ -498,8 +349,7 @@ export async function acceptMetaEventField(
   }
   const live = await requireLiveEvent(repos, candidate.metaEventId);
 
-  // Same gate as the whole-entity accept: the live column FKs to
-  // `deck_formats`, and a candidate carries whatever its source called it.
+  // Same gate as the whole-entity accept: the live column FKs to `deck_formats`.
   if (input.field === "format") {
     await assertKnownFormat(deckFormats, candidate.format);
   }
@@ -511,16 +361,9 @@ export async function acceptMetaEventField(
 }
 
 /**
- * Why this candidate deck cannot be accepted, or null when it can.
- *
- * An archetype-only deck carries the archive's whole claim about it in its
- * legend row, so it needs one that resolved. The general "every card matched"
- * gate below would pass a deck holding nothing but a champion, and that entry
- * would then sit in the legend play-rate under no legend at all.
- *
- * @param metaEventId The live event the deck would land under, or null.
- * @param deck The candidate deck.
- * @returns A reason string, or null.
+ * The archetype gate is separate because the general "every card resolved"
+ * gate would pass a deck with no legend at all, whose entry would then sit in
+ * the legend play-rates filed under nothing.
  */
 function deckBlockedReason(metaEventId: string | null, deck: CandidateMetaDeckRow): string | null {
   if (metaEventId === null) {
@@ -536,26 +379,15 @@ function deckBlockedReason(metaEventId: string | null, deck: CandidateMetaDeckRo
   return null;
 }
 
-/**
- * @param deck The candidate deck.
- * @returns Whether it holds a legend-zone card that resolved to a live card.
- */
 function hasResolvedLegend(deck: CandidateMetaDeckRow): boolean {
   return deck.cards.some((card) => card.zone === WellKnown.deckZone.LEGEND && card.cardId !== null);
 }
 
 /**
- * The candidate's cards as diff entries, one row per card and zone.
- *
- * Two rows can legitimately resolve to the same card and zone — a source that
- * splits a playset across lines, or an alias fix that maps two spellings onto
- * one card — and `deck_cards` is unique on `(deck, card, zone)`, so they are
- * summed here rather than 500-ing the accept on the second insert.
- *
- * Unresolved rows must be gone already; the caller gates on that.
- *
- * @param deck The candidate deck, fully resolved.
- * @returns Its cards, duplicates summed.
+ * Two source rows can legitimately resolve to the same card and zone — a
+ * playset split across lines, or an alias fix mapping two spellings onto one
+ * card — and `deck_cards` is unique on `(deck, card, zone)`, so duplicates are
+ * summed rather than failing the accept on the second insert.
  */
 function toCardEntries(deck: CandidateMetaDeckRow): MetaDeckCardEntry[] {
   return collapseCardEntries(
@@ -567,7 +399,6 @@ function toCardEntries(deck: CandidateMetaDeckRow): MetaDeckCardEntry[] {
   );
 }
 
-/** @returns The candidate's cards in the repo's insert shape. @see toCardEntries */
 function toDeckCardInputs(deck: CandidateMetaDeckRow): MetaDeckCardInput[] {
   return toCardEntries(deck).map((entry) => ({
     cardId: entry.cardId,
@@ -577,19 +408,6 @@ function toDeckCardInputs(deck: CandidateMetaDeckRow): MetaDeckCardInput[] {
   }));
 }
 
-/**
- * Points an unlinked candidate deck at an archived deck that already exists.
- *
- * A candidate deck may only link inside its own event: the deck it points at
- * has to sit under the live event its parent (or its own `meta_event_id`)
- * resolves to, or the archive would gain a deck filed under one event and
- * described by a source about another.
- *
- * @param repos The repositories.
- * @param candidateDeckId The candidate to link.
- * @param deckId The archived deck to link it to.
- * @returns The archived deck it now points at.
- */
 export async function linkCandidateDeck(
   repos: Repos,
   candidateDeckId: string,
@@ -606,13 +424,6 @@ export async function linkCandidateDeck(
   return applyDeckLink(repos, deck, deckId);
 }
 
-/**
- * Moves an already-linked candidate deck to a different archived deck.
- * @param repos The repositories.
- * @param candidateDeckId The candidate to move.
- * @param deckId The archived deck to move it to.
- * @returns The archived deck it now points at.
- */
 export async function relinkCandidateDeck(
   repos: Repos,
   candidateDeckId: string,
@@ -622,15 +433,6 @@ export async function relinkCandidateDeck(
   return applyDeckLink(repos, deck, deckId);
 }
 
-/**
- * The write behind linking and relinking a deck, including the same-event
- * check both owe.
- *
- * @param repos The repositories.
- * @param deck The candidate deck.
- * @param deckId The archived deck to point at.
- * @returns The archived deck it now points at.
- */
 async function applyDeckLink(
   repos: Repos,
   deck: CandidateMetaDeckRow,
@@ -660,15 +462,6 @@ async function applyDeckLink(
   return { deckId };
 }
 
-/**
- * Records the source key on the archived deck it now describes, so the pairing
- * outlives the candidate row. Skips a submission, which has no key.
- *
- * @param repos The repositories.
- * @param key The source's key, or null for a user submission.
- * @param deckId The archived deck.
- * @returns Nothing.
- */
 async function writeDeckSource(
   repos: Repos,
   key: MetaDeckSourceKey | null,
@@ -679,15 +472,6 @@ async function writeDeckSource(
   }
 }
 
-/**
- * Detaches a candidate deck from its archived deck. The archived deck keeps
- * every value this source gave it; only the link and this contributor's credit
- * for it go away.
- *
- * @param repos The repositories.
- * @param candidateDeckId The candidate to detach.
- * @returns The (now empty) link.
- */
 export async function unlinkCandidateDeck(
   repos: Repos,
   candidateDeckId: string,
@@ -698,9 +482,9 @@ export async function unlinkCandidateDeck(
     // archived deck, and detaching one of them must not silence the others.
     await repos.meta.deleteCreditsForDeck(deck.deckId, deck.submittedByUserId);
   }
-  // The source key goes with the link, exactly as an event's citation does:
-  // this provider no longer claims to describe that archived deck, so the next
-  // upload of the same key must stage as new rather than re-link.
+  // The source key goes with the link: this provider no longer claims to
+  // describe that archived deck, so the next upload of the same key must stage
+  // as new rather than re-link.
   const { parent } = await deckTarget(repos, deck);
   const key = deckSourceKey(parent, deck);
   if (key !== null) {
@@ -710,19 +494,6 @@ export async function unlinkCandidateDeck(
   return { deckId: null };
 }
 
-/**
- * Creates the live archived deck a candidate proposes, or applies its diff to
- * the one it is already linked to, then marks the candidate reviewed.
- *
- * Requires the parent to be linked and every card name to have resolved; both
- * refusals are BAD_REQUEST with the reason, because both are things the admin
- * fixes and retries rather than server faults.
- *
- * @param repos The repositories.
- * @param candidateDeckId The candidate deck to accept.
- * @param options Who is accepting, for any submission ledger this settles.
- * @returns The live deck id and whether it was created.
- */
 export async function acceptCandidateDeck(
   repos: Repos,
   candidateDeckId: string,
@@ -738,17 +509,8 @@ export async function acceptCandidateDeck(
 }
 
 /**
- * The accept itself, once the caller has established that the deck has a live
- * event to land in and that every card resolved. Split out so the whole-event
- * accept doesn't re-read the parent once per deck.
- *
- * @param repos The repositories.
- * @param metaEventId The live event the deck belongs under.
- * @param deck The candidate deck, fully resolved.
- * @param parent The deck's candidate event, null for a user submission. Passed
- *   in rather than re-read so the whole-event accept reads it once.
- * @param options Who is accepting, for any submission ledger this settles.
- * @returns The live deck id and whether it was created.
+ * Split from {@link acceptCandidateDeck} so the whole-event accept reads the
+ * parent once, not once per deck.
  */
 async function acceptResolvedDeck(
   repos: Repos,
@@ -766,8 +528,8 @@ async function acceptResolvedDeck(
     // actually moved — an untouched deck should not churn `decks.updated_at`.
     const liveCards = await metaCandidates.liveDeckCards([deck.deckId]);
     const cardsChanged = hasCardDiff(diffMetaDeckCards(liveCards, toCardEntries(deck)));
-    // Through the service: this is the path a source's archetype takes when it
-    // is finally published with a main deck, and that accept has to mint the
+    // Through the service, not the repo: this accept is how a source's
+    // archetype gets published with a main deck, and that has to mint the
     // permalink the deck never had.
     await updateArchivedDeck(meta, deck.deckId, {
       eventId: metaEventId,
@@ -791,8 +553,8 @@ async function acceptResolvedDeck(
   const created = await createArchivedDeck(meta, {
     eventId: metaEventId,
     name: deck.name ?? (await deriveDeckName(repos, deck, liveEvent.name)),
-    // The event's format is the archive's own vocabulary, already FK-valid.
-    // The candidate's format string was checked when its event was accepted.
+    // The event's format, not the candidate's: the archive's own vocabulary is
+    // already FK-valid.
     format: liveEvent.format,
     formatConfig: null,
     cards: toDeckCardInputs(deck),
@@ -812,16 +574,8 @@ async function acceptResolvedDeck(
 }
 
 /**
- * Writes one source's value into one column of the archived deck it is linked
- * to. @see acceptMetaEventField
- *
- * `listStatus` goes through `updateArchivedDeck` like every other write of it,
- * because promoting a deck out of `"archetype"` is what mints its permalink.
- *
- * @param repos The repositories.
- * @param input The candidate and which of its fields to take.
- * @param options Who is accepting, for any submission ledger this settles.
- * @returns The archived deck that was written.
+ * Must write through `updateArchivedDeck`: promoting a deck out of
+ * `"archetype"` via `listStatus` is what mints its permalink.
  */
 export async function acceptMetaDeckField(
   repos: Repos,
@@ -836,20 +590,10 @@ export async function acceptMetaDeckField(
 }
 
 /**
- * Replaces the archived deck's card list with this source's, along with the
- * completeness the source claims for it.
- *
- * The list moves whole rather than card by card: per-card accept would write
- * `deck_cards` one row at a time for a marginal gain over "take
- * playriftbound's list, then edit it in the deck editor". `listStatus` travels
- * with it because the two are one statement — a list and how much of a list it
- * is — and because promoting out of `"archetype"` is what gives the deck its
- * page.
- *
- * @param repos The repositories.
- * @param candidateDeckId The candidate whose list to take.
- * @param options Who is accepting, for any submission ledger this settles.
- * @returns The archived deck that was written.
+ * The list moves whole rather than card by card — per-card accept would be a
+ * marginal gain over "take the list, then edit it in the deck editor".
+ * `listStatus` travels with it: a list and how complete it is are one
+ * statement.
  */
 export async function acceptMetaDeckList(
   repos: Repos,
@@ -869,14 +613,6 @@ export async function acceptMetaDeckList(
   return { deckId: deck.deckId };
 }
 
-/**
- * The candidate deck a per-field or per-list accept works on, with the link
- * both of them require already established.
- *
- * @param repos The repositories.
- * @param candidateDeckId The candidate deck.
- * @returns The candidate, the archived deck it points at, and their event.
- */
 async function requireLinkedDeck(
   repos: Repos,
   candidateDeckId: string,
@@ -897,19 +633,9 @@ async function requireLinkedDeck(
 }
 
 /**
- * Credits the contributor behind an accepted candidate deck and settles their
- * ledger row, in one transaction so a person is never credited without their
- * submission saying so (or the reverse).
- *
- * Provider ingest and hand entry write nothing: `submitted_by_user_id` is set
- * only for the `usersubmission` provider, and a citation is what credits a
- * source.
- *
- * @param repos The repositories.
- * @param candidate The accepted candidate deck.
- * @param metaEventId The event the deck sits under.
- * @param deckId The archived deck.
- * @param options Who accepted it.
+ * Credit and ledger settle in one transaction (`recordAcceptance`), so a
+ * person is never credited without their submission saying so, or the
+ * reverse.
  */
 async function creditDeckAccept(
   repos: Repos,
@@ -933,26 +659,17 @@ async function creditDeckAccept(
 }
 
 /**
- * Credits the users whose submissions proposed an event, at the moment that
- * event becomes real.
- *
- * Candidate events carry no submitter of their own — a person submits a deck,
- * and the event they proposed alongside it is that candidate's parent — so the
- * proposers are the distinct submitters among its decks. Their ledger rows stay
- * pending: what they sent was a decklist, and that is settled when the deck is
- * accepted.
- *
- * @param repos The repositories.
- * @param candidate The candidate event just accepted.
- * @param metaEventId The live event it created.
+ * Candidate events carry no submitter of their own, so the proposers are the
+ * distinct submitters among their decks. Their ledger rows stay pending: what
+ * they sent was a decklist, and that settles when the deck is accepted.
  */
 async function creditEventProposers(
   repos: Repos,
   candidate: CandidateMetaEventRow,
   metaEventId: string,
 ): Promise<void> {
-  // Gated on the provider so the one-click accept a scraped event takes gains
-  // no read at all: only user submissions can carry a submitter.
+  // Gated on the provider so a scraped event's one-click accept gains no read
+  // at all: only user submissions can carry a submitter.
   if (candidate.provider !== META_USER_SUBMISSION_PROVIDER) {
     return;
   }
@@ -967,14 +684,6 @@ async function creditEventProposers(
   }
 }
 
-/**
- * Names a deck whose source shipped none, after the legend it plays.
- *
- * @param repos The repositories.
- * @param deck The candidate deck, fully resolved.
- * @param eventName The live event's name, the fallback when there is no legend.
- * @returns A display name for the archived deck.
- */
 async function deriveDeckName(
   repos: Repos,
   deck: CandidateMetaDeckRow,
@@ -991,18 +700,9 @@ async function deriveDeckName(
 }
 
 /**
- * Accepts a candidate event and then every deck under it that is ready.
- *
- * A deck that still has unmatched card names is skipped with its reason rather
- * than failing the call: the usual shape of a real event is "nine lists land,
- * one has a typo", and blocking the other nine on it would make the queue
- * useless.
- *
- * @param repos The repositories.
- * @param candidateEventId The candidate event to accept.
- * @param options Who is accepting, for any submission ledgers this settles,
- *   plus the confirmation a multi-source overwrite needs.
- * @returns The event outcome plus what happened to each deck.
+ * A blocked deck is skipped with its reason rather than failing the call: the
+ * usual shape of a real event is "nine lists land, one has a typo", and
+ * blocking the other nine on it would make the queue useless.
  */
 export async function acceptCandidateEventWithDecks(
   repos: Repos,
@@ -1011,8 +711,6 @@ export async function acceptCandidateEventWithDecks(
 ): Promise<AcceptedMetaEventWithDecks> {
   const event = await acceptCandidateEvent(repos, candidateEventId, options);
   const decks = await repos.metaCandidates.decksByCandidateEventIds([candidateEventId]);
-  // Read once for the whole batch: every deck under one candidate event shares
-  // its provider and event key, which is two thirds of each deck's source key.
   const parent = await requireEvent(repos, candidateEventId);
 
   const acceptedDecks: AcceptedMetaDeck[] = [];
@@ -1035,20 +733,10 @@ export async function acceptCandidateEventWithDecks(
 }
 
 /**
- * Re-runs card-name resolution over every candidate deck that still holds an
- * unmatched name.
- *
- * This is the second half of the alias-fix flow: an admin adds a
- * `card_name_aliases` row for a name a source spells differently, then rematches
- * so the decks already staged pick it up without waiting for the next upload.
- * Same idea as `relink-candidates.ts` does for candidate printings.
- *
- * Resolving a name is not a *source* change, so `checked_at` is deliberately
- * left alone — a deck an admin already reviewed does not re-enter the queue
- * just because we finally understand one of its cards.
- *
- * @param repos The repositories.
- * @returns How many decks were examined, updated, and card rows resolved.
+ * The second half of the alias-fix flow: an admin adds a `card_name_aliases`
+ * row, then rematches so already-staged decks pick it up without waiting for
+ * the next upload. `checked_at` is deliberately left alone — resolving a name
+ * is not a source change, so a reviewed deck does not re-enter the queue.
  */
 export async function rematchMetaCandidates(repos: Repos): Promise<MetaRematchResult> {
   const [decks, index] = await Promise.all([

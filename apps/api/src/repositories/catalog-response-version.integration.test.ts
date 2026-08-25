@@ -35,10 +35,6 @@ class RollbackError extends Error {
 describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
   const { db } = ctx!;
 
-  /**
-   * Runs `fn` in a transaction that is always rolled back.
-   * @returns Whatever `fn` returned.
-   */
   async function inRolledBackTx<T>(fn: (trx: Transaction<Database>) => Promise<T>): Promise<T> {
     let result!: T;
     try {
@@ -54,10 +50,6 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     return result;
   }
 
-  /**
-   * Token before and after `statements`, both read inside a rolled-back tx.
-   * @returns The token as it was and as it became.
-   */
   function tokenAround(statements: string[]): Promise<{ before: string; after: string }> {
     return inRolledBackTx(async (trx) => {
       const repo = catalogRepo(trx);
@@ -69,10 +61,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     });
   }
 
-  /**
-   * Rows affected by `statements`, so a vacuous no-op can't pass silently.
-   * @returns The total row count the statements touched.
-   */
+  /** Rows affected by `statements`, so a vacuous no-op can't pass silently. */
   function affectedRows(statements: string[]): Promise<number> {
     return inRolledBackTx(async (trx) => {
       let total = 0;
@@ -90,10 +79,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     `UPDATE ${table} SET ${column} = now() + interval '1 second'
      WHERE ctid = (SELECT ctid FROM ${table} LIMIT 1)`;
 
-  /**
-   * A delete, for tables the token covers by count or by content hash.
-   * @returns The statement.
-   */
+  /** A delete, for tables the token covers by count or by content hash. */
   const dropOne = (table: string) =>
     `DELETE FROM ${table} WHERE ctid = (SELECT ctid FROM ${table} LIMIT 1)`;
 
@@ -224,10 +210,6 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
   const AHEAD = "Pacific/Kiritimati"; // UTC+14
   const BEHIND = "Pacific/Midway"; // UTC-11
 
-  /**
-   * Reads a token with the session pinned to `zone`.
-   * @returns The token as computed on that zone's calendar date.
-   */
   function tokenInZone(zone: string, read: "response" | "rule"): Promise<string> {
     return inRolledBackTx(async (trx) => {
       await sql.raw(`SET LOCAL TIME ZONE '${zone}'`).execute(trx);
