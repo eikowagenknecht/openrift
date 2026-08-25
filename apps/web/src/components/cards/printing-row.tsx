@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
@@ -20,14 +19,11 @@ import { getFilterIconPath } from "@/lib/icons";
 export function PrintingVariantLine({
   printing,
   siblings,
-  codeLink = false,
   className,
 }: {
   printing: Printing;
   /** The rows the label disambiguates against; also decides the rarity icon. */
   siblings?: readonly Printing[];
-  /** Render the short code as a link to its set page. */
-  codeLink?: boolean;
   className?: string;
 }) {
   const hasMixedRarities = siblings ? new Set(siblings.map((p) => p.rarity)).size > 1 : false;
@@ -51,20 +47,7 @@ export function PrintingVariantLine({
               className="mr-1 inline size-3.5 align-text-bottom"
             />
           )}
-          {codeLink ? (
-            <Link
-              to="/sets/$setSlug"
-              params={{ setSlug: printing.setSlug }}
-              className="text-muted-foreground hover:text-foreground font-mono text-xs"
-              // The row around this is itself clickable, so following the set
-              // link must not also select the printing.
-              onClick={(event) => event.stopPropagation()}
-            >
-              {code}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground font-mono text-xs">{code}</span>
-          )}
+          <span className="text-muted-foreground font-mono text-xs">{code}</span>
         </>
       }
     />
@@ -89,7 +72,6 @@ export function PrintingRowContent({
   siblings,
   name,
   right,
-  codeLink,
   thumbClassName,
 }: {
   printing: Printing;
@@ -99,8 +81,6 @@ export function PrintingRowContent({
   name?: string;
   /** Trailing content — prices, steppers, popovers. The caller styles it. */
   right?: ReactNode;
-  /** Render the short code as a link to its set page. */
-  codeLink?: boolean;
   thumbClassName?: string;
 }) {
   return (
@@ -112,7 +92,7 @@ export function PrintingRowContent({
       <span className="flex min-w-0 flex-1 flex-col">
         {name ? <span className="truncate font-medium">{name}</span> : null}
         <span className="min-w-0 truncate text-xs">
-          <PrintingVariantLine printing={printing} siblings={siblings} codeLink={codeLink} />
+          <PrintingVariantLine printing={printing} siblings={siblings} />
         </span>
       </span>
       {right}

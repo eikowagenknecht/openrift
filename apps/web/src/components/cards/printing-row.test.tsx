@@ -3,24 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
 
-// The set link is the only router surface these rows touch; rendering it as a
-// real anchor keeps the "link vs plain code" assertion honest.
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    children,
-    className,
-    params,
-  }: {
-    children: React.ReactNode;
-    className?: string;
-    params?: { setSlug: string };
-  }) => (
-    <a href={`/sets/${params?.setSlug ?? ""}`} className={className}>
-      {children}
-    </a>
-  ),
-}));
-
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({
     orders: {
@@ -73,24 +55,13 @@ describe("PrintingVariantLine", () => {
     expect(screen.queryByAltText("rare")).not.toBeInTheDocument();
   });
 
-  it("renders the code as plain text by default", () => {
-    const printing = stubPrinting();
+  it("renders the code as plain text, never a link", () => {
+    const printing = stubPrinting({ setSlug: "OGN" });
 
     render(<PrintingVariantLine printing={printing} />);
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.getByText(printing.shortCode)).toBeInTheDocument();
-  });
-
-  it("renders the code as a set link when asked", () => {
-    const printing = stubPrinting({ setSlug: "OGN" });
-
-    render(<PrintingVariantLine printing={printing} codeLink />);
-
-    expect(screen.getByRole("link", { name: printing.shortCode })).toHaveAttribute(
-      "href",
-      "/sets/OGN",
-    );
   });
 });
 

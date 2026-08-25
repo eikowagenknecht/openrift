@@ -92,7 +92,6 @@ function PrintingList({
             <PrintingRowContent
               printing={p}
               siblings={printings}
-              codeLink
               right={
                 <>
                   <OwnedCollectionsPopover

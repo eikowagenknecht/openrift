@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-25
+
+### Other
+
+- fix(Cards): **Printing rows select on any click** — clicking a printing's code in the card detail list no longer jumps to the set page, so the whole row picks that printing.
+
 ## 2026-08-24
 
 ### Other
