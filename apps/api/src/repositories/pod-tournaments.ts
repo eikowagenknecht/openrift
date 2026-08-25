@@ -1,18 +1,13 @@
 import {
   arrangeSeating,
   assignTableNumbers,
-  ERROR_CODES,
   foldSeatingHistory,
   placementsFromGamePoints,
-  pointsForPlacements,
-  swissPointsForPlacements,
 } from "@openrift/shared";
 import type {
   PairingPlayer,
   PairingResult,
   PodPlayerStatus,
-  PodResponse,
-  PodRoundResponse,
   PodScoringScheme,
   PodSnapshotPlayer,
   PodStandingRow,
@@ -26,7 +21,13 @@ import type {
   PodsTable,
   TournamentParticipantsTable,
 } from "../db/index.js";
-import { AppError } from "../errors.js";
+import type { PodRoundRows } from "../lib/pod-tournament-presenters.js";
+import {
+  podSizeOf,
+  pointsForPod,
+  pointsForTeamPod,
+  teamsOf,
+} from "../lib/pod-tournament-presenters.js";
 import type { Tournament } from "./tournaments.js";
 
 export type PodPlayer = Selectable<TournamentParticipantsTable>;
@@ -80,50 +81,6 @@ export function scoringOf(tournament: Tournament): PodScoring {
     drawPoints: tournament.drawPoints,
     playMode: tournament.playMode,
   };
-}
-
-// Narrow a stored pod size to the literal union (the CHECK guarantees 2/3/4).
-function podSizeOf(value: number): 2 | 3 | 4 {
-  return value === 2 ? 2 : value === 3 ? 3 : 4;
-}
-
-function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring): number[] {
-  if (size === 2) {
-    return swissPointsForPlacements(placements, scoring.winPoints, scoring.drawPoints);
-  }
-  return pointsForPlacements(placements, size, scoring.scheme);
-}
-
-/**
- * The two team ids of a 2v2 team match, or null when the members don't form
- * exactly two full teams (a 1v1 pod, or pre-teams data — those fall back to
- * the per-player scoring paths).
- */
-function teamsOf(members: { teamId: string | null }[]): [string, string] | null {
-  if (members.length !== 4 || members.some((member) => member.teamId === null)) {
-    return null;
-  }
-  const distinct = [...new Set(members.map((member) => member.teamId as string))];
-  return distinct.length === 2 ? [distinct[0], distinct[1]] : null;
-}
-
-function pointsForTeamPod(
-  members: { teamId: string | null; placement: number | null }[],
-  teams: [string, string],
-  scoring: PodScoring,
-): number[] {
-  const placementOf = (teamId: string): number =>
-    Math.min(
-      ...members
-        .filter((member) => member.teamId === teamId)
-        .map((member) => member.placement ?? 0),
-    );
-  const teamPoints = swissPointsForPlacements(
-    [placementOf(teams[0]), placementOf(teams[1])],
-    scoring.winPoints,
-    scoring.drawPoints,
-  );
-  return members.map((member) => teamPoints[member.teamId === teams[0] ? 0 : 1] ?? 0);
 }
 
 /** Per-player aggregate, derived from the finalized rounds (the lean model's source of truth). */
@@ -361,82 +318,11 @@ function sortedStandingRows(
   );
 }
 
-interface PodMemberRow {
-  podId: string;
-  playerId: string;
-  displayName: string;
-  teamId: string | null;
-  placement: number | null;
-  gamePoints: number | null;
-}
-
-function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring): PodResponse {
-  const size = podSizeOf(pod.size);
-  const reported =
-    pod.resultStatus === "reported" && memberRows.every((member) => member.placement !== null);
-  const teams = scoring.playMode === "2v2" ? teamsOf(memberRows) : null;
-  const points = reported
-    ? teams
-      ? pointsForTeamPod(memberRows, teams, scoring)
-      : pointsForPod(
-          memberRows.map((member) => member.placement ?? 0),
-          size,
-          scoring,
-        )
-    : null;
-  const breakdown = pod.penaltyBreakdown;
-  return {
-    id: pod.id,
-    podNumber: pod.podNumber,
-    size,
-    resultStatus: pod.resultStatus,
-    members: memberRows.map((member, index) => ({
-      playerId: member.playerId,
-      displayName: member.displayName,
-      teamId: member.teamId,
-      gamePoints: member.gamePoints,
-      placement: member.placement,
-      points: points ? (points[index] ?? null) : null,
-    })),
-    penalty: {
-      total: breakdown.total,
-      rematchPairs: breakdown.rematchPairs,
-      spread: breakdown.spread,
-      scoreSpread: breakdown.scoreSpread,
-      imbalance: breakdown.imbalance,
-      float: breakdown.float,
-      threePodRepeat: breakdown.threePodRepeat,
-      // Breakdowns stored before the region features lack these keys.
-      sameRegion: breakdown.sameRegion ?? 0,
-      repeatedRegion: breakdown.repeatedRegion ?? 0,
-    },
-  };
-}
-
-interface PodByeRow {
-  roundId: string;
-  playerId: string;
-  displayName: string;
-}
-
-function toRoundResponse(
-  round: PodRound,
-  podRows: Pod[],
-  membersByPod: Map<string, PodMemberRow[]>,
-  byeRows: PodByeRow[],
-  scoring: PodScoring,
-): PodRoundResponse {
-  return {
-    id: round.id,
-    roundNumber: round.roundNumber,
-    status: round.status,
-    pairingStrategy: round.pairingStrategy,
-    penaltyTotal: round.penaltyTotal,
-    createdAt: round.createdAt.toISOString(),
-    finalizedAt: round.finalizedAt ? round.finalizedAt.toISOString() : null,
-    pods: podRows.map((pod) => toPodResponse(pod, membersByPod.get(pod.id) ?? [], scoring)),
-    byes: byeRows.map((bye) => ({ playerId: bye.playerId, displayName: bye.displayName })),
-  };
+// Rolls the createTeam transaction back (Kysely commits unless the callback
+// throws) without the repo raising a transport-level AppError; the caller maps
+// it to a null return.
+class TeamRaceLostError extends Error {
+  override name = "TeamRaceLostError";
 }
 
 /**
@@ -630,35 +516,42 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     /**
      * Create a team from two participants, atomically. Eligibility (2v2
      * tournament, both active and unteamed) is the service's job.
+     * @returns The new team id, or null when a participant was taken meanwhile.
      */
-    createTeam(tournamentId: string, participantIds: [string, string]): Promise<string> {
-      return db.transaction().execute(async (trx) => {
-        const team = await trx
-          .insertInto("tournamentTeams")
-          .values({ tournamentId })
-          .returning("id")
-          .executeTakeFirstOrThrow();
-        // The teamId IS NULL guard makes concurrent creates sharing a
-        // participant safe: the loser updates fewer than two rows, throws, and
-        // its team row rolls back with the transaction — no half-team remains.
-        // Scoping to the tournament also backstops a cross-tournament id mixup
-        // (the composite team FK rejects those outright).
-        const updated = await trx
-          .updateTable("tournamentParticipants")
-          .set({ teamId: team.id })
-          .where("id", "in", participantIds)
-          .where("tournamentId", "=", tournamentId)
-          .where("teamId", "is", null)
-          .executeTakeFirst();
-        if (updated.numUpdatedRows !== 2n) {
-          throw new AppError(
-            409,
-            ERROR_CODES.CONFLICT,
-            "A player is already on a team or no longer in this tournament.",
-          );
+    async createTeam(
+      tournamentId: string,
+      participantIds: [string, string],
+    ): Promise<string | null> {
+      try {
+        return await db.transaction().execute(async (trx) => {
+          const team = await trx
+            .insertInto("tournamentTeams")
+            .values({ tournamentId })
+            .returning("id")
+            .executeTakeFirstOrThrow();
+          // The teamId IS NULL guard makes concurrent creates sharing a
+          // participant safe: the loser updates fewer than two rows, throws, and
+          // its team row rolls back with the transaction — no half-team remains.
+          // Scoping to the tournament also backstops a cross-tournament id mixup
+          // (the composite team FK rejects those outright).
+          const updated = await trx
+            .updateTable("tournamentParticipants")
+            .set({ teamId: team.id })
+            .where("id", "in", participantIds)
+            .where("tournamentId", "=", tournamentId)
+            .where("teamId", "is", null)
+            .executeTakeFirst();
+          if (updated.numUpdatedRows !== 2n) {
+            throw new TeamRaceLostError();
+          }
+          return team.id;
+        });
+      } catch (error) {
+        if (error instanceof TeamRaceLostError) {
+          return null;
         }
-        return team.id;
-      });
+        throw error;
+      }
     },
 
     findTeam(teamId: string): Promise<{ id: string; tournamentId: string } | undefined> {
@@ -1087,7 +980,8 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return winners;
     },
 
-    async loadRounds(tournamentId: string, scoring: PodScoring): Promise<PodRoundResponse[]> {
+    /** Rounds with their pods, members and byes; `toRoundResponse` scores them. */
+    async loadRounds(tournamentId: string): Promise<PodRoundRows[]> {
       const rounds = await db
         .selectFrom("podRounds")
         .selectAll()
@@ -1133,15 +1027,14 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       const membersByPod = Map.groupBy(memberRows, (row) => row.podId);
       const byesByRound = Map.groupBy(byeRows, (row) => row.roundId);
       const podsByRound = Map.groupBy(pods, (pod) => pod.roundId);
-      return rounds.map((round) =>
-        toRoundResponse(
-          round,
-          podsByRound.get(round.id) ?? [],
-          membersByPod,
-          byesByRound.get(round.id) ?? [],
-          scoring,
-        ),
-      );
+      return rounds.map((round) => ({
+        round,
+        pods: (podsByRound.get(round.id) ?? []).map((pod) => ({
+          pod,
+          members: membersByPod.get(pod.id) ?? [],
+        })),
+        byes: byesByRound.get(round.id) ?? [],
+      }));
     },
   };
 }

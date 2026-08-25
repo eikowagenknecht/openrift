@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
 import type { LiveCardTrade } from "../repositories/card-trades.js";
 import {
   acceptTrade,
@@ -28,6 +29,39 @@ const TRADE = {
   quantity: 1,
   status: "pending",
 } as unknown as LiveCardTrade;
+
+/** What the mutations reload through the presenter; no test reads past the id. */
+const DTO_ROW: CardTradeDtoRow = {
+  id: TRADE.id,
+  groupId: "group-1",
+  groupSlug: "summoner-skirmish",
+  groupLiveName: "Summoner Skirmish",
+  groupSnapshotName: null,
+  giverUserId: "giver-1",
+  receiverUserId: "receiver-1",
+  initiator: "giver",
+  printingId: "printing-1",
+  cardId: "card-1",
+  quantity: 1,
+  status: "pending",
+  giverSyncAppliedAt: null,
+  receiverSyncAppliedAt: null,
+  createdAt: new Date("2026-03-17T00:00:00.000Z"),
+  updatedAt: new Date("2026-03-17T00:00:00.000Z"),
+  acceptedAt: null,
+  completedAt: null,
+  closedAt: null,
+  expiresAt: null,
+  giverName: "Ekko",
+  giverImage: null,
+  giverEmail: "ekko@example.com",
+  giverSnapshotName: null,
+  receiverName: "Jinx",
+  receiverImage: null,
+  receiverEmail: "jinx@example.com",
+  receiverSnapshotName: null,
+  counterpartyContacts: [],
+};
 
 describe("acceptTrade cross-claim with a concurrent loan", () => {
   it("409s and never pins when the locked copy was pinned to a loan after the supply read", async () => {
@@ -119,7 +153,7 @@ function supplyRepos(supplyByGroup: Record<string, string[]>, pending: Pending[]
       create,
       setPendingQuantity,
       getById: vi.fn(async () => OFFER),
-      getDtoByIdForUser: vi.fn(async () => ({ id: "trade-new" })),
+      getDtoRowByIdForUser: vi.fn(async () => ({ ...DTO_ROW, id: "trade-new" })),
     },
     lists: {
       raiseEntryQuantityTo: vi.fn(async () => undefined),
@@ -443,7 +477,7 @@ function acceptRepos(trade: LiveCardTrade, candidates: ReturnType<typeof candida
       pinCopies,
       markReserved,
       listPendingForGiverPrinting: vi.fn(async () => []),
-      getDtoByIdForUser: vi.fn(async () => ({ id: trade.id })),
+      getDtoRowByIdForUser: vi.fn(async () => ({ ...DTO_ROW, id: trade.id })),
     },
     friendGroupMatches: {
       giverPrintingSupply: vi.fn(async () => ({

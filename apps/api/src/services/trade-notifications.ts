@@ -15,6 +15,7 @@ import {
   buildTradeRequestEmail,
 } from "../emails/trade-emails.js";
 import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
+import { toCardTradeResponse } from "../lib/card-trade-presenters.js";
 import type { LiveCardTrade } from "../repositories/card-trades.js";
 import type { EmailNotificationContext } from "../repositories/user-preferences.js";
 
@@ -114,10 +115,11 @@ export async function sendTradeRequestEmail(
 
     // The recipient-oriented DTO carries the initiator as `counterparty` (name,
     // user id, revealed contact methods) — no extra user query.
-    const dto = await repos.cardTrades.getDtoByIdForUser(trade.id, recipientUserId);
-    if (dto === undefined) {
+    const row = await repos.cardTrades.getDtoRowByIdForUser(trade.id, recipientUserId);
+    if (row === undefined) {
       return;
     }
+    const dto = toCardTradeResponse(row, recipientUserId);
     const initiatorName = dto.counterparty.name;
     const initiatorContact = formatContactMethodsSummary(dto.counterparty.contactMethods);
 

@@ -7,6 +7,7 @@ import type {
 import { loansContract } from "@openrift/shared/contracts/loans";
 import { implement } from "@orpc/server";
 
+import { toLoanResponse } from "../../lib/loan-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
@@ -35,8 +36,8 @@ export const loansRouter = {
 
   list: os.list.handler(async ({ context }): Promise<LoanListResponse> => {
     const { loans } = context.repos;
-    const items = await loans.listForUser(context.userId);
-    return { items };
+    const rows = await loans.listDtoRowsForUser(context.userId);
+    return { items: rows.map((row) => toLoanResponse(row, context.userId)) };
   }),
 
   actionCounts: os.actionCounts.handler(async ({ context }): Promise<LoanActionCountsResponse> => {

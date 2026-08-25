@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { toCardTradeResponse } from "../lib/card-trade-presenters.js";
 import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { cardTradesRepo } from "./card-trades.js";
@@ -177,7 +178,8 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
   it("still shows the finished trade to both members, named", async () => {
     const seen = await Promise.all(
       ALL_IDS.map(async (userId) => {
-        const listed = await trades.listForUser(userId, {});
+        const rows = await trades.listDtoRowsForUser(userId, {});
+        const listed = rows.map((row) => toCardTradeResponse(row, userId));
         return listed.find((trade) => trade.id === completedTradeId);
       }),
     );

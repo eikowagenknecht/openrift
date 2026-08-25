@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
 import type { MatchRow } from "../repositories/friend-group-matches.js";
-import type { TradeCopyRow } from "./card-trade-presenters.js";
+import type { CardTradeDtoRow, TradeCopyRow } from "./card-trade-presenters.js";
 import {
   cardTradeChoiceMatters,
   copyHasRecordedDetails,
@@ -14,6 +14,7 @@ import {
   toCardTradeCounterparty,
   toCardTradeLiveAnnotation,
   toCardTradeLiveByPrinting,
+  toCardTradeResponse,
   toCardTradeSheetRows,
 } from "./card-trade-presenters.js";
 import { gravatarHashForEmail } from "./gravatar.js";
@@ -485,9 +486,9 @@ describe("toCardTradeLiveByPrinting", () => {
 describe("toCardTradeCounterparty", () => {
   const member = {
     userId: "user-b",
-    userName: "Ekko",
-    userEmail: " Ekko@Example.COM ",
-    userImage: "https://cdn.example/avatar.png",
+    name: "Ekko",
+    email: " Ekko@Example.COM ",
+    image: "https://cdn.example/avatar.png",
   };
 
   it("maps the profile and hashes the normalised email", () => {
@@ -527,9 +528,151 @@ describe("toCardTradeCounterparty", () => {
   });
 
   it("carries a missing name and image through as null", () => {
-    const result = toCardTradeCounterparty({ ...member, userName: null, userImage: null }, []);
+    const result = toCardTradeCounterparty({ ...member, name: null, image: null }, []);
     expect(result.name).toBeNull();
     expect(result.image).toBeNull();
+  });
+
+  it("hashes the empty address for a party with no email left", () => {
+    const result = toCardTradeCounterparty({ ...member, userId: null, email: null }, []);
+    expect(result.userId).toBeNull();
+    expect(result.gravatarHash).toBe(gravatarHashForEmail(""));
+  });
+});
+
+const VIEWER_ID = "user-a";
+const OTHER_ID = "user-b";
+
+function tradeRow(overrides: Partial<CardTradeDtoRow> = {}): CardTradeDtoRow {
+  return {
+    id: "trade-1",
+    groupId: "group-a",
+    groupSlug: "arcane-nights",
+    groupLiveName: "Arcane Nights",
+    groupSnapshotName: null,
+    giverUserId: VIEWER_ID,
+    receiverUserId: OTHER_ID,
+    initiator: "receiver",
+    printingId: "printing-a",
+    cardId: "OGS-001",
+    quantity: 2,
+    status: "pending",
+    giverSyncAppliedAt: null,
+    receiverSyncAppliedAt: null,
+    createdAt: new Date("2026-03-17T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-18T11:30:00.000Z"),
+    acceptedAt: null,
+    completedAt: null,
+    closedAt: null,
+    expiresAt: new Date("2026-03-24T10:00:00.000Z"),
+    giverName: "Ekko",
+    giverImage: null,
+    giverEmail: "ekko@example.com",
+    giverSnapshotName: null,
+    receiverName: "Jinx",
+    receiverImage: "https://cdn.example/jinx.png",
+    receiverEmail: "jinx@example.com",
+    receiverSnapshotName: null,
+    counterpartyContacts: [],
+    ...overrides,
+  };
+}
+
+describe("toCardTradeResponse", () => {
+  it("shows the giver the receiver, and converts the dates", () => {
+    const result = toCardTradeResponse(tradeRow(), VIEWER_ID);
+    expect(result.role).toBe("giver");
+    expect(result.counterparty).toEqual({
+      userId: OTHER_ID,
+      name: "Jinx",
+      image: "https://cdn.example/jinx.png",
+      gravatarHash: gravatarHashForEmail("jinx@example.com"),
+      contactMethods: [],
+    });
+    expect(result.createdAt).toBe("2026-03-17T10:00:00.000Z");
+    expect(result.updatedAt).toBe("2026-03-18T11:30:00.000Z");
+    expect(result.expiresAt).toBe("2026-03-24T10:00:00.000Z");
+    expect(result.completedAt).toBeNull();
+  });
+
+  it("shows the receiver the giver", () => {
+    const result = toCardTradeResponse(tradeRow(), OTHER_ID);
+    expect(result.role).toBe("receiver");
+    expect(result.counterparty.userId).toBe(VIEWER_ID);
+    expect(result.counterparty.name).toBe("Ekko");
+  });
+
+  it("carries the row's contacts onto the counterparty", () => {
+    const row = tradeRow({
+      counterpartyContacts: [{ id: "cm-1", type: "discord", value: "jinx#1" }],
+    });
+    expect(toCardTradeResponse(row, VIEWER_ID).counterparty.contactMethods).toEqual([
+      { id: "cm-1", type: "discord", value: "jinx#1" },
+    ]);
+  });
+
+  it("falls back to the snapshots of a deleted counterparty and group", () => {
+    const row = tradeRow({
+      groupId: null,
+      groupSlug: null,
+      groupLiveName: null,
+      groupSnapshotName: "Arcane Nights",
+      receiverUserId: null,
+      receiverName: null,
+      receiverEmail: null,
+      receiverImage: null,
+      receiverSnapshotName: "Jinx",
+    });
+    const result = toCardTradeResponse(row, VIEWER_ID);
+    expect(result.groupName).toBe("Arcane Nights");
+    expect(result.counterparty).toEqual({
+      userId: null,
+      name: "Jinx",
+      image: null,
+      gravatarHash: gravatarHashForEmail(""),
+      contactMethods: [],
+    });
+  });
+
+  it("orients the settle timestamps to the viewer", () => {
+    const row = tradeRow({
+      status: "reserved",
+      giverSyncAppliedAt: new Date("2026-03-19T10:00:00.000Z"),
+      receiverSyncAppliedAt: null,
+    });
+    const giverView = toCardTradeResponse(row, VIEWER_ID);
+    expect(giverView.viewerSyncAppliedAt).toBe("2026-03-19T10:00:00.000Z");
+    expect(giverView.counterpartySyncAppliedAt).toBeNull();
+
+    const receiverView = toCardTradeResponse(row, OTHER_ID);
+    expect(receiverView.viewerSyncAppliedAt).toBeNull();
+    expect(receiverView.counterpartySyncAppliedAt).toBe("2026-03-19T10:00:00.000Z");
+  });
+
+  it("asks the pending initiator to cancel and the other party to answer", () => {
+    const row = tradeRow({ initiator: "receiver" });
+    expect(toCardTradeResponse(row, OTHER_ID).actionNeeded).toBe("cancel");
+    expect(toCardTradeResponse(row, VIEWER_ID).actionNeeded).toBe("accept-or-decline");
+  });
+
+  it("asks each side of a reserved trade to settle until they have", () => {
+    const row = tradeRow({
+      status: "reserved",
+      giverSyncAppliedAt: new Date("2026-03-19T10:00:00.000Z"),
+    });
+    expect(toCardTradeResponse(row, VIEWER_ID).actionNeeded).toBeNull();
+    expect(toCardTradeResponse(row, OTHER_ID).actionNeeded).toBe("settle");
+  });
+
+  it("keeps the settle action on a completed trade with an unsettled side", () => {
+    const row = tradeRow({ status: "completed" });
+    expect(toCardTradeResponse(row, VIEWER_ID).actionNeeded).toBe("settle");
+  });
+
+  it("leaves a closed trade with nothing to do", () => {
+    for (const status of ["declined", "cancelled", "expired"] as const) {
+      expect(toCardTradeResponse(tradeRow({ status }), VIEWER_ID).actionNeeded).toBeNull();
+    }
   });
 });
 

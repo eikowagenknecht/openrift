@@ -14,6 +14,7 @@ import { AppError } from "../../errors.js";
 import {
   toCardTradeCounterparty,
   toCardTradeLiveByPrinting,
+  toCardTradeResponse,
   toCardTradeSheetRows,
 } from "../../lib/card-trade-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
@@ -41,11 +42,11 @@ export const cardTradesRouter = {
 
   list: os.list.handler(async ({ input, context }): Promise<CardTradeListResponse> => {
     const { cardTrades } = context.repos;
-    const items = await cardTrades.listForUser(context.userId, {
+    const rows = await cardTrades.listDtoRowsForUser(context.userId, {
       groupId: input.groupId,
       status: input.status,
     });
-    return { items };
+    return { items: rows.map((row) => toCardTradeResponse(row, context.userId)) };
   }),
 
   actionCounts: os.actionCounts.handler(
@@ -108,7 +109,12 @@ export const cardTradesRouter = {
 
     return {
       counterparty: toCardTradeCounterparty(
-        member,
+        {
+          userId: member.userId,
+          name: member.userName,
+          email: member.userEmail,
+          image: member.userImage,
+        },
         contactsByGroup.map((contacts) => contacts.get(counterpartyUserId)),
       ),
       groups: groups.map((group) => ({ id: group.id, slug: group.slug, name: group.name })),

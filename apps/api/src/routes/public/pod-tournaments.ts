@@ -3,6 +3,7 @@ import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
+import { toRoundResponse } from "../../lib/pod-tournament-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { scoringOf } from "../../repositories/pod-tournaments.js";
@@ -20,9 +21,9 @@ async function buildReport(
   canSubmit: boolean,
 ): Promise<PodReportResponse> {
   const scoring = scoringOf(tournament);
-  const [standings, rounds] = await Promise.all([
+  const [standings, roundRows] = await Promise.all([
     repos.podTournaments.computeStandings(tournament.id, scoring),
-    repos.podTournaments.loadRounds(tournament.id, scoring),
+    repos.podTournaments.loadRounds(tournament.id),
   ]);
   return {
     tournamentName: tournament.name,
@@ -37,11 +38,14 @@ async function buildReport(
     drawPoints: tournament.drawPoints,
     regionsEnabled: tournament.regionsEnabled,
     standings,
-    rounds: rounds.map((round) => ({
-      ...round,
-      penaltyTotal: null,
-      pods: round.pods.map((pod) => ({ ...pod, penalty: null })),
-    })),
+    rounds: roundRows.map((rows) => {
+      const round = toRoundResponse(rows, scoring);
+      return {
+        ...round,
+        penaltyTotal: null,
+        pods: round.pods.map((pod) => ({ ...pod, penalty: null })),
+      };
+    }),
     canSubmit,
   };
 }

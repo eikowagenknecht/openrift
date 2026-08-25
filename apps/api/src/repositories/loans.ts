@@ -1,9 +1,10 @@
-import type { LoanCounterparty, LoanResponse, LoanRole } from "@openrift/shared/types";
+import type { LoanCounterparty } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, LoansTable } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
+import type { LoanDtoRow } from "../lib/loan-presenters.js";
 import { notPinnedToLoan, notReservedByTrade } from "./query-helpers.js";
 
 /** Raw loan row, for the service layer's authorization / state checks. */
@@ -18,10 +19,6 @@ export interface NewLoan {
   printingId: string;
   cardId: string;
   quantity: number;
-}
-
-function isoOrNull(value: Date | null): string | null {
-  return value === null ? null : value.toISOString();
 }
 
 /**
@@ -57,59 +54,6 @@ function loanDtoBaseQuery(db: Kysely<Database>) {
     ]);
 }
 
-type LoanDtoRow = Awaited<ReturnType<ReturnType<typeof loanDtoBaseQuery>["execute"]>>[number];
-
-/**
- * Orient a raw joined row to the viewer. The lender sees the borrower (a user,
- * a free-text name, or neither after the borrower deleted their account); a
- * member borrower always sees the lender.
- */
-function mapLoanRow(row: LoanDtoRow, userId: string): LoanResponse {
-  const role: LoanRole = row.lenderUserId === userId ? "lender" : "borrower";
-
-  let counterparty: LoanCounterparty | null = null;
-  if (role === "borrower") {
-    counterparty = {
-      userId: row.lenderUserId,
-      name: row.lenderName,
-      image: row.lenderImage,
-      gravatarHash: gravatarHashForEmail(row.lenderEmail),
-    };
-  } else if (row.borrowerUserId !== null) {
-    counterparty = {
-      userId: row.borrowerUserId,
-      name: row.borrowerUserName,
-      image: row.borrowerUserImage,
-      // Non-null join match by FK; fall back defensively for the SET NULL race.
-      gravatarHash: gravatarHashForEmail(row.borrowerUserEmail ?? ""),
-    };
-  }
-
-  const needsAcknowledge =
-    role === "borrower" &&
-    row.status === "active" &&
-    row.acknowledgedAt === null &&
-    row.rejectedAt === null;
-
-  return {
-    id: row.id,
-    role,
-    counterparty,
-    counterpartyName: role === "lender" ? row.borrowerName : null,
-    printingId: row.printingId,
-    cardId: row.cardId,
-    quantity: row.quantity,
-    returnedQuantity: row.returnedQuantity,
-    status: row.status,
-    acknowledgedAt: isoOrNull(row.acknowledgedAt),
-    rejectedAt: isoOrNull(row.rejectedAt),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    closedAt: isoOrNull(row.closedAt),
-    actionNeeded: needsAcknowledge ? "acknowledge" : null,
-  };
-}
-
 /**
  * Card lending data access. Validation and the pin/dispose orchestration live
  * in the loans *service*. As with trades, `updated_at` is maintained
@@ -137,24 +81,22 @@ export function loansRepo(db: Kysely<Database>) {
       return db.selectFrom("loans").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    async listForUser(userId: string): Promise<LoanResponse[]> {
-      const rows = await loanDtoBaseQuery(db)
+    listDtoRowsForUser(userId: string): Promise<LoanDtoRow[]> {
+      return loanDtoBaseQuery(db)
         .where((eb) =>
           eb.or([eb("l.lenderUserId", "=", userId), eb("l.borrowerUserId", "=", userId)]),
         )
         .orderBy("l.updatedAt", "desc")
         .execute();
-      return rows.map((row) => mapLoanRow(row, userId));
     },
 
-    async getDtoByIdForUser(id: string, userId: string): Promise<LoanResponse | undefined> {
-      const row = await loanDtoBaseQuery(db)
+    getDtoRowByIdForUser(id: string, userId: string): Promise<LoanDtoRow | undefined> {
+      return loanDtoBaseQuery(db)
         .where("l.id", "=", id)
         .where((eb) =>
           eb.or([eb("l.lenderUserId", "=", userId), eb("l.borrowerUserId", "=", userId)]),
         )
         .executeTakeFirst();
-      return row === undefined ? undefined : mapLoanRow(row, userId);
     },
 
     /**

@@ -12,7 +12,7 @@ import { cardTradesRouter } from "./card-trades";
 // ---------------------------------------------------------------------------
 
 const mockCardTradesRepo = {
-  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  listDtoRowsForUser: vi.fn(() => Promise.resolve([] as object[])),
   actionNeededCountsForUser: vi.fn(() => Promise.resolve([] as object[])),
   liveAnnotationsForUser: vi.fn(() => Promise.resolve([] as object[])),
 };
@@ -108,6 +108,39 @@ const tradeResponse = {
   viewerSyncAppliedAt: null,
   counterpartySyncAppliedAt: null,
   actionNeeded: null,
+};
+
+/** A trade as the DTO query hands it to the list handler, before presenting. */
+const tradeRow = {
+  id: TRADE_ID,
+  groupId: "a0000000-0001-4000-a000-000000000040",
+  groupSlug: "friday-night",
+  groupLiveName: "Friday Night",
+  groupSnapshotName: null,
+  giverUserId: USER_ID,
+  receiverUserId: COUNTERPARTY_ID,
+  initiator: "giver" as const,
+  printingId: PRINTING_ID,
+  cardId: "OGS-001",
+  quantity: 2,
+  status: "pending" as const,
+  giverSyncAppliedAt: null,
+  receiverSyncAppliedAt: null,
+  createdAt: new Date("2026-03-17T00:00:00.000Z"),
+  updatedAt: new Date("2026-03-17T00:00:00.000Z"),
+  acceptedAt: null,
+  completedAt: null,
+  closedAt: null,
+  expiresAt: null,
+  giverName: "Alice",
+  giverImage: null,
+  giverEmail: "alice@example.com",
+  giverSnapshotName: null,
+  receiverName: "Bob",
+  receiverImage: null,
+  receiverEmail: "bob@example.com",
+  receiverSnapshotName: null,
+  counterpartyContacts: [],
 };
 
 const GROUP_A = {
@@ -227,24 +260,26 @@ describe("POST /api/v1/trades", () => {
 });
 
 describe("GET /api/v1/trades", () => {
-  it("returns 200 with the user's trades", async () => {
-    mockCardTradesRepo.listForUser.mockResolvedValue([tradeResponse]);
+  it("returns 200 with the user's trades, oriented to them", async () => {
+    mockCardTradesRepo.listDtoRowsForUser.mockResolvedValue([tradeRow]);
     const res = await app.request("/api/v1/trades");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(TRADE_ID);
-    expect(mockCardTradesRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+    expect(json.items[0].role).toBe("giver");
+    expect(json.items[0].counterparty.userId).toBe(COUNTERPARTY_ID);
+    expect(mockCardTradesRepo.listDtoRowsForUser).toHaveBeenCalledWith(USER_ID, {
       groupId: undefined,
       status: undefined,
     });
   });
 
   it("forwards groupId and status filters to the repo", async () => {
-    mockCardTradesRepo.listForUser.mockResolvedValue([]);
+    mockCardTradesRepo.listDtoRowsForUser.mockResolvedValue([]);
     const groupId = "a0000000-0001-4000-a000-000000000040";
     await app.request(`/api/v1/trades?groupId=${groupId}&status=pending`);
-    expect(mockCardTradesRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+    expect(mockCardTradesRepo.listDtoRowsForUser).toHaveBeenCalledWith(USER_ID, {
       groupId,
       status: "pending",
     });

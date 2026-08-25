@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos, createTransact } from "../deps.js";
+import { toLoanResponse } from "../lib/loan-presenters.js";
 import { acceptTrade, createTrade } from "../services/card-trades.js";
 import { disposeCopies } from "../services/copies.js";
 import {
@@ -243,7 +244,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
       contextCollectionId: collectionId,
     });
 
-    const borrowerView = await repos.loans.getDtoByIdForUser(loan.id, BORROWER_ID);
+    const borrowerRow = await repos.loans.getDtoRowByIdForUser(loan.id, BORROWER_ID);
+    const borrowerView = borrowerRow && toLoanResponse(borrowerRow, BORROWER_ID);
     expect(borrowerView?.role).toBe("borrower");
     expect(borrowerView?.counterparty?.userId).toBe(LENDER_ID);
     expect(borrowerView?.actionNeeded).toBe("acknowledge");
@@ -262,7 +264,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(rejected.rejectedAt).not.toBeNull();
     expect(rejected.acknowledgedAt).toBeNull();
 
-    const lenderView = await repos.loans.getDtoByIdForUser(loan.id, LENDER_ID);
+    const lenderRow = await repos.loans.getDtoRowByIdForUser(loan.id, LENDER_ID);
+    const lenderView = lenderRow && toLoanResponse(lenderRow, LENDER_ID);
     expect(lenderView?.status).toBe("active");
     expect(lenderView?.rejectedAt).not.toBeNull();
   });

@@ -1,11 +1,8 @@
 import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared";
 import type {
   CardTradeActionCountsResponse,
-  CardTradeActionNeeded,
-  CardTradeCounterparty,
   CardTradeInitiator,
   CardTradeLivePhase,
-  CardTradeResponse,
   CardTradeRole,
   CardTradeStatus,
   ContactMethod,
@@ -14,7 +11,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CardTradesTable, Database } from "../db/index.js";
-import { gravatarHashForEmail } from "../lib/gravatar.js";
+import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
 
 export type CardTrade = Selectable<CardTradesTable>;
 
@@ -142,43 +139,16 @@ export interface LiveTradeAnnotationRow {
   quantity: number;
 }
 
-function isoOrNull(value: Date | null): string | null {
-  return value === null ? null : value.toISOString();
-}
-
-function deriveActionNeeded(
-  status: CardTradeStatus,
-  role: CardTradeRole,
-  initiator: CardTradeInitiator,
-  viewerSyncAppliedAt: Date | null,
-): CardTradeActionNeeded | null {
-  if (status === "pending") {
-    return role === initiator ? "cancel" : "accept-or-decline";
-  }
-  // One action covers both the physical claim and its data change: the viewer
-  // settles their own half ("handed over" / "got them"), and the second settle
-  // promotes the trade. A side that has already settled has nothing left to do
-  // and waits on the other party.
-  if (status === "reserved") {
-    return viewerSyncAppliedAt === null ? "settle" : null;
-  }
-  // Only legacy rows that finished before partial settles existed can be
-  // `completed` with a side still outstanding; they keep their settle action.
-  if (status === "completed") {
-    return viewerSyncAppliedAt === null ? "settle" : null;
-  }
-  return null;
-}
-
 /**
  * Base DTO query: trade + group slug + both parties' user columns. The
  * counterparty's revealed contact methods are loaded separately (per group) by
- * {@link loadCounterpartyContacts} and merged in {@link mapTradeRow}.
+ * {@link loadCounterpartyContacts} and attached by
+ * {@link withCounterpartyContacts}.
  *
  * Every join is outer, for the same reason each time: a deleted account or
  * friend group leaves its id NULL and its display name snapshotted on the
  * trade row, and the trade stays visible to whoever else took part in it. Both
- * the live and the snapshotted name come back for each, so {@link mapTradeRow}
+ * the live and the snapshotted name come back for each, so `toCardTradeResponse`
  * can prefer the live one.
  */
 function tradeDtoBaseQuery(db: Kysely<Database>) {
@@ -220,13 +190,13 @@ function tradeDtoBaseQuery(db: Kysely<Database>) {
     ]);
 }
 
-type TradeDtoRow = Awaited<ReturnType<ReturnType<typeof tradeDtoBaseQuery>["execute"]>>[number];
+type TradeJoinedRow = Awaited<ReturnType<ReturnType<typeof tradeDtoBaseQuery>["execute"]>>[number];
 
 function contactsKey(groupId: string, userId: string): string {
   return `${groupId}:${userId}`;
 }
 
-function counterpartyIdOf(row: TradeDtoRow, userId: string): string | null {
+function counterpartyIdOf(row: TradeJoinedRow, userId: string): string | null {
   return row.giverUserId === userId ? row.receiverUserId : row.giverUserId;
 }
 
@@ -240,7 +210,7 @@ function counterpartyIdOf(row: TradeDtoRow, userId: string): string | null {
  */
 async function loadCounterpartyContacts(
   db: Kysely<Database>,
-  rows: TradeDtoRow[],
+  rows: readonly TradeJoinedRow[],
   userId: string,
 ): Promise<Map<string, ContactMethod[]>> {
   const pairs: { groupId: string; counterpartyUserId: string }[] = [];
@@ -288,70 +258,24 @@ async function loadCounterpartyContacts(
   return lookup;
 }
 
-function mapTradeRow(
-  row: TradeDtoRow,
+/**
+ * Attaches each row's own contacts out of the pooled lookup, so a DTO row
+ * carries everything the presenter needs.
+ */
+async function withCounterpartyContacts(
+  db: Kysely<Database>,
+  rows: readonly TradeJoinedRow[],
   userId: string,
-  contactsLookup: Map<string, ContactMethod[]>,
-): CardTradeResponse {
-  const viewerIsGiver = row.giverUserId === userId;
-  const role: CardTradeRole = viewerIsGiver ? "giver" : "receiver";
-
-  const counterpartyUserId = counterpartyIdOf(row, userId);
-  const contactMethods =
-    counterpartyUserId === null || row.groupId === null
-      ? []
-      : (contactsLookup.get(contactsKey(row.groupId, counterpartyUserId)) ?? []);
-  // A deleted counterparty keeps a name and nothing else: the snapshot on the
-  // trade row stands in for the user row that is gone. Their gravatar hash is
-  // taken over an empty address, which is a stable hash Gravatar answers with
-  // its placeholder avatar.
-  const counterparty: CardTradeCounterparty = viewerIsGiver
-    ? {
-        userId: row.receiverUserId,
-        name: row.receiverName ?? row.receiverSnapshotName,
-        image: row.receiverImage,
-        gravatarHash: gravatarHashForEmail(row.receiverEmail ?? ""),
-        contactMethods,
-      }
-    : {
-        userId: row.giverUserId,
-        name: row.giverName ?? row.giverSnapshotName,
-        image: row.giverImage,
-        gravatarHash: gravatarHashForEmail(row.giverEmail ?? ""),
-        contactMethods,
-      };
-
-  const viewerSyncAppliedAt = viewerIsGiver ? row.giverSyncAppliedAt : row.receiverSyncAppliedAt;
-  const counterpartySyncAppliedAt = viewerIsGiver
-    ? row.receiverSyncAppliedAt
-    : row.giverSyncAppliedAt;
-
-  return {
-    id: row.id,
-    groupId: row.groupId,
-    groupSlug: row.groupSlug,
-    // `chk_card_trades_group_shape` allows exactly one of the group id and the
-    // name snapshot, and `friend_groups.name` is NOT NULL, so one of these two
-    // is always there. The empty string is unreachable; it exists so a bad row
-    // would render an unlabelled chip rather than break a history page.
-    groupName: row.groupLiveName ?? row.groupSnapshotName ?? "",
-    role,
-    initiator: row.initiator,
-    counterparty,
-    printingId: row.printingId,
-    cardId: row.cardId,
-    quantity: row.quantity,
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    acceptedAt: isoOrNull(row.acceptedAt),
-    completedAt: isoOrNull(row.completedAt),
-    closedAt: isoOrNull(row.closedAt),
-    expiresAt: isoOrNull(row.expiresAt),
-    viewerSyncAppliedAt: isoOrNull(viewerSyncAppliedAt),
-    counterpartySyncAppliedAt: isoOrNull(counterpartySyncAppliedAt),
-    actionNeeded: deriveActionNeeded(row.status, role, row.initiator, viewerSyncAppliedAt),
-  };
+): Promise<CardTradeDtoRow[]> {
+  const contactsLookup = await loadCounterpartyContacts(db, rows, userId);
+  return rows.map((row) => {
+    const counterpartyUserId = counterpartyIdOf(row, userId);
+    const counterpartyContacts =
+      counterpartyUserId === null || row.groupId === null
+        ? []
+        : (contactsLookup.get(contactsKey(row.groupId, counterpartyUserId)) ?? []);
+    return { ...row, counterpartyContacts };
+  });
 }
 
 /**
@@ -554,10 +478,10 @@ export function cardTradesRepo(db: Kysely<Database>) {
       return rows.map((row) => row.printingId);
     },
 
-    async listForUser(
+    async listDtoRowsForUser(
       userId: string,
       filters: TradeListFilters = {},
-    ): Promise<CardTradeResponse[]> {
+    ): Promise<CardTradeDtoRow[]> {
       let query = tradeDtoBaseQuery(db).where((eb) =>
         eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
       );
@@ -568,8 +492,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
         query = query.where("t.status", "=", filters.status);
       }
       const rows = await query.orderBy("t.updatedAt", "desc").execute();
-      const contactsLookup = await loadCounterpartyContacts(db, rows, userId);
-      return rows.map((row) => mapTradeRow(row, userId, contactsLookup));
+      return withCounterpartyContacts(db, rows, userId);
     },
 
     /**
@@ -698,7 +621,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
       }));
     },
 
-    async getDtoByIdForUser(id: string, userId: string): Promise<CardTradeResponse | undefined> {
+    async getDtoRowByIdForUser(id: string, userId: string): Promise<CardTradeDtoRow | undefined> {
       const rows = await tradeDtoBaseQuery(db)
         .where("t.id", "=", id)
         .where((eb) =>
@@ -709,8 +632,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
       if (row === undefined) {
         return undefined;
       }
-      const contactsLookup = await loadCounterpartyContacts(db, [row], userId);
-      return mapTradeRow(row, userId, contactsLookup);
+      const [withContacts] = await withCounterpartyContacts(db, [row], userId);
+      return withContacts;
     },
 
     /**

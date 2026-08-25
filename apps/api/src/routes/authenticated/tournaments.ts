@@ -651,7 +651,14 @@ export const tournamentsRouter = {
           throw errors.CONFLICT({ message: `${member.displayName} is already on a team` });
         }
       }
-      await repos.podTournaments.createTeam(input.id, [firstId, secondId]);
+      const teamId = await repos.podTournaments.createTeam(input.id, [firstId, secondId]);
+      if (teamId === null) {
+        throw new AppError(
+          409,
+          ERROR_CODES.CONFLICT,
+          "A player is already on a team or no longer in this tournament.",
+        );
+      }
       return buildParticipantList(repos, input.id);
     },
   ),

@@ -3,6 +3,7 @@ import type { LoanResponse } from "@openrift/shared/types";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
+import { toLoanResponse } from "../lib/loan-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 
@@ -22,11 +23,11 @@ function tooFewAvailable(count: number): AppError {
 }
 
 async function reloadDto(repos: Repos, loanId: string, userId: string): Promise<LoanResponse> {
-  const dto = await repos.loans.getDtoByIdForUser(loanId, userId);
-  if (dto === undefined) {
+  const row = await repos.loans.getDtoRowByIdForUser(loanId, userId);
+  if (row === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Loan not found");
   }
-  return dto;
+  return toLoanResponse(row, userId);
 }
 
 /**

@@ -1,14 +1,18 @@
 import type { ContactMethod, CopyLink } from "@openrift/shared";
 import type {
+  CardTradeActionNeeded,
   CardTradeCopyOption,
   CardTradeCopyOptionsResponse,
   CardTradeCounterparty,
+  CardTradeInitiator,
   CardTradeLiveAnnotation,
   CardTradeLiveByPrintingResponse,
   CardTradeLivePhase,
+  CardTradeResponse,
   CardTradeRole,
   CardTradeSheetGroup,
   CardTradeSheetMatchRow,
+  CardTradeStatus,
 } from "@openrift/shared/types";
 
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
@@ -276,11 +280,16 @@ export function toCardTradeLiveByPrinting(
   return { annotations: ordered.map((row) => toCardTradeLiveAnnotation(row)) };
 }
 
-export interface TradeSheetMemberRow {
-  userId: string;
-  userName: string | null;
-  userEmail: string;
-  userImage: string | null;
+/**
+ * The other party as a caller can supply them: a group member read from the
+ * roster, or a trade row's counterparty columns. Everything is nullable because
+ * a deleted account leaves nothing but the name snapshotted on the trade.
+ */
+export interface TradeCounterpartyRow {
+  userId: string | null;
+  name: string | null;
+  email: string | null;
+  image: string | null;
 }
 
 /** One shared group's match rows, in the order the groups are presented. */
@@ -301,7 +310,7 @@ export interface TradeSheetGroupRows {
  * owner's sort order within a group.
  */
 export function toCardTradeCounterparty(
-  member: TradeSheetMemberRow,
+  member: TradeCounterpartyRow,
   contactMethodsByGroup: readonly (readonly ContactMethod[] | undefined)[],
 ): CardTradeCounterparty {
   const seen = new Set<string>();
@@ -316,9 +325,11 @@ export function toCardTradeCounterparty(
   }
   return {
     userId: member.userId,
-    name: member.userName,
-    image: member.userImage,
-    gravatarHash: gravatarHashForEmail(member.userEmail),
+    name: member.name,
+    image: member.image,
+    // A deleted account leaves no address; the hash of the empty string is
+    // stable and Gravatar answers it with its placeholder avatar.
+    gravatarHash: gravatarHashForEmail(member.email ?? ""),
     contactMethods,
   };
 }
@@ -365,4 +376,131 @@ export function toCardTradeSheetRows(
     }
   }
   return pooled;
+}
+
+/**
+ * A trade as the DTO query reads it, with the counterparty's revealed contact
+ * methods already attached by the repository.
+ *
+ * Both parties and the group carry a live column and a snapshot: each join is
+ * outer, and a deleted account or friend group leaves its id NULL with its
+ * display name snapshotted on the trade row, so the trade stays readable to
+ * whoever else took part in it.
+ */
+export interface CardTradeDtoRow {
+  id: string;
+  groupId: string | null;
+  groupSlug: string | null;
+  groupLiveName: string | null;
+  groupSnapshotName: string | null;
+  giverUserId: string | null;
+  receiverUserId: string | null;
+  initiator: CardTradeInitiator;
+  printingId: string;
+  cardId: string;
+  quantity: number;
+  status: CardTradeStatus;
+  giverSyncAppliedAt: Date | null;
+  receiverSyncAppliedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  acceptedAt: Date | null;
+  completedAt: Date | null;
+  closedAt: Date | null;
+  expiresAt: Date | null;
+  giverName: string | null;
+  giverImage: string | null;
+  giverEmail: string | null;
+  giverSnapshotName: string | null;
+  receiverName: string | null;
+  receiverImage: string | null;
+  receiverEmail: string | null;
+  receiverSnapshotName: string | null;
+  counterpartyContacts: readonly ContactMethod[];
+}
+
+function isoOrNull(value: Date | null): string | null {
+  return value === null ? null : value.toISOString();
+}
+
+function deriveActionNeeded(
+  status: CardTradeStatus,
+  role: CardTradeRole,
+  initiator: CardTradeInitiator,
+  viewerSyncAppliedAt: Date | null,
+): CardTradeActionNeeded | null {
+  if (status === "pending") {
+    return role === initiator ? "cancel" : "accept-or-decline";
+  }
+  // One action covers both the physical claim and its data change: the viewer
+  // settles their own half ("handed over" / "got them"), and the second settle
+  // promotes the trade. A side that has already settled has nothing left to do
+  // and waits on the other party.
+  if (status === "reserved") {
+    return viewerSyncAppliedAt === null ? "settle" : null;
+  }
+  // Only legacy rows that finished before partial settles existed can be
+  // `completed` with a side still outstanding; they keep their settle action.
+  if (status === "completed") {
+    return viewerSyncAppliedAt === null ? "settle" : null;
+  }
+  return null;
+}
+
+/**
+ * Orients a trade row to one viewer: which side they are on, who the other
+ * party is, and what the trade is waiting on from them.
+ *
+ * The row's contacts are already scoped to the counterparty and the trade's
+ * group, so they go through the one counterparty builder as a single group.
+ */
+export function toCardTradeResponse(row: CardTradeDtoRow, userId: string): CardTradeResponse {
+  const viewerIsGiver = row.giverUserId === userId;
+  const role: CardTradeRole = viewerIsGiver ? "giver" : "receiver";
+
+  const counterpartyRow: TradeCounterpartyRow = viewerIsGiver
+    ? {
+        userId: row.receiverUserId,
+        name: row.receiverName ?? row.receiverSnapshotName,
+        email: row.receiverEmail,
+        image: row.receiverImage,
+      }
+    : {
+        userId: row.giverUserId,
+        name: row.giverName ?? row.giverSnapshotName,
+        email: row.giverEmail,
+        image: row.giverImage,
+      };
+
+  const viewerSyncAppliedAt = viewerIsGiver ? row.giverSyncAppliedAt : row.receiverSyncAppliedAt;
+  const counterpartySyncAppliedAt = viewerIsGiver
+    ? row.receiverSyncAppliedAt
+    : row.giverSyncAppliedAt;
+
+  return {
+    id: row.id,
+    groupId: row.groupId,
+    groupSlug: row.groupSlug,
+    // `chk_card_trades_group_shape` allows exactly one of the group id and the
+    // name snapshot, and `friend_groups.name` is NOT NULL, so one of these two
+    // is always there. The empty string is unreachable; it exists so a bad row
+    // would render an unlabelled chip rather than break a history page.
+    groupName: row.groupLiveName ?? row.groupSnapshotName ?? "",
+    role,
+    initiator: row.initiator,
+    counterparty: toCardTradeCounterparty(counterpartyRow, [row.counterpartyContacts]),
+    printingId: row.printingId,
+    cardId: row.cardId,
+    quantity: row.quantity,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    acceptedAt: isoOrNull(row.acceptedAt),
+    completedAt: isoOrNull(row.completedAt),
+    closedAt: isoOrNull(row.closedAt),
+    expiresAt: isoOrNull(row.expiresAt),
+    viewerSyncAppliedAt: isoOrNull(viewerSyncAppliedAt),
+    counterpartySyncAppliedAt: isoOrNull(counterpartySyncAppliedAt),
+    actionNeeded: deriveActionNeeded(row.status, role, row.initiator, viewerSyncAppliedAt),
+  };
 }

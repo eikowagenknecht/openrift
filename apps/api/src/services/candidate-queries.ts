@@ -1,19 +1,16 @@
 import type {
   AdminMarketplaceName,
   AdminPrintingMarketplaceMappingResponse,
-  CandidateCardResponse,
   CandidateCardSummaryResponse,
   CandidatePrintingGroupResponse,
-  CandidatePrintingResponse,
 } from "@openrift/shared";
 import { WellKnown, ERROR_CODES } from "@openrift/shared";
 import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
-import type { Selectable } from "kysely";
 
-import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
 import { AppError } from "../errors.js";
+import { formatCandidateCard, formatCandidatePrinting } from "../lib/candidate-presenters.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
 
@@ -34,72 +31,6 @@ function toMarketplaceName(marketplace: string): AdminMarketplaceName | null {
     return marketplace;
   }
   return null;
-}
-
-function formatCandidateCard(
-  s: Pick<
-    Selectable<CandidateCardsTable>,
-    | "id"
-    | "provider"
-    | "name"
-    | "types"
-    | "superTypes"
-    | "domains"
-    | "might"
-    | "energy"
-    | "power"
-    | "mightBonus"
-    | "rulesText"
-    | "effectText"
-    | "tags"
-    | "shortCode"
-    | "externalId"
-    | "extraData"
-    | "checkedAt"
-    | "submittedByUserId"
-    | "submissionNote"
-  > & { submittedByName: string | null },
-): CandidateCardResponse {
-  return {
-    ...s,
-    checkedAt: s.checkedAt?.toISOString() ?? null,
-  };
-}
-
-function formatCandidatePrinting(
-  ps: Pick<
-    Selectable<CandidatePrintingsTable>,
-    | "id"
-    | "candidateCardId"
-    | "printingId"
-    | "shortCode"
-    | "setId"
-    | "setName"
-    | "rarity"
-    | "artVariant"
-    | "isSigned"
-    | "markerSlugs"
-    | "distributionChannelSlugs"
-    | "finish"
-    | "size"
-    | "artist"
-    | "publicCode"
-    | "printedRulesText"
-    | "printedEffectText"
-    | "imageUrl"
-    | "flavorText"
-    | "language"
-    | "printedName"
-    | "printedYear"
-    | "externalId"
-    | "extraData"
-    | "checkedAt"
-  >,
-): CandidatePrintingResponse {
-  return {
-    ...ps,
-    checkedAt: ps.checkedAt?.toISOString() ?? null,
-  };
 }
 
 function deriveExpectedCardId(displayName: string, currentSlug?: string): string {

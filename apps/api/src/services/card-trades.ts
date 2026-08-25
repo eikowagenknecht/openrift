@@ -12,6 +12,7 @@ import {
   selectSplitPins,
   sortCopiesForPinning,
   toCardTradeCopyOptions,
+  toCardTradeResponse,
 } from "../lib/card-trade-presenters.js";
 import { isUniqueViolation } from "../lib/pg-errors.js";
 import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
@@ -53,11 +54,11 @@ async function reloadDto(
   tradeId: string,
   userId: string,
 ): Promise<CardTradeResponse> {
-  const dto = await repos.cardTrades.getDtoByIdForUser(tradeId, userId);
-  if (dto === undefined) {
+  const row = await repos.cardTrades.getDtoRowByIdForUser(tradeId, userId);
+  if (row === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
   }
-  return dto;
+  return toCardTradeResponse(row, userId);
 }
 
 /**
