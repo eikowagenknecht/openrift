@@ -94,12 +94,6 @@ export interface DeckBoxSlot {
    */
   copy?: DeckBoxCopy;
   /**
-   * Identifies the outstanding copy for a swap (card plus its index among that
-   * card's outstanding copies), so a hand-picked source sticks even as the
-   * ranking around it changes. Available slots only.
-   */
-  slotKey?: string;
-  /**
    * The other choices this slot could take, best first. Copies the card's own
    * other slots already hold are left out, and so is a choice that matches what
    * the slot holds — swapping for an identical copy changes nothing.
@@ -165,11 +159,13 @@ export interface DeckBoxInput {
   /** Condition slugs best first (mint → poor), as `/init` orders them. */
   conditionOrder: readonly string[];
   /**
-   * Per-slot copy choices the viewer made by hand, keyed by
-   * {@link DeckBoxSlot.slotKey}. A choice that no longer applies (the copy
-   * moved, was lent out, or is already in the box) is ignored.
+   * Copies the viewer picked by hand, by copy id. They are taken ahead of the
+   * ranking, and a pick that no longer applies (the copy moved, was lent out,
+   * or is already in the box) is ignored. Held per card rather than per row
+   * because a card's rows are interchangeable: ticking one off shortens the
+   * list, and a pick tied to a row's place in it would be lost with it.
    */
-  overrides?: ReadonlyMap<string, string>;
+  pinnedCopyIds?: ReadonlySet<string>;
 }
 
 /**
@@ -339,7 +335,7 @@ export function computeDeckBoxPlan({
   otherDeckNeeds,
   languageOrder,
   conditionOrder,
-  overrides,
+  pinnedCopyIds,
 }: DeckBoxInput): DeckBoxPlan {
   // Copies of cards this deck doesn't run are none of this plan's business, so
   // index only the printings the deck can use.
@@ -478,32 +474,17 @@ export function computeDeckBoxPlan({
     }
 
     const ranked = (candidatesByCard.get(cardId) ?? []).toSorted(comparator);
-    // Hand-picked copies claim their own slot first, so a swap sticks to the row
-    // it was made on even as the ranking around it changes.
-    const chosen: (CopyResponse | undefined)[] = Array.from({ length: shortfall });
-    const taken = new Set<string>();
-    for (let slot = 0; slot < shortfall; slot++) {
-      const overrideId = overrides?.get(`${cardId}:${slot}`);
-      const override = overrideId
-        ? ranked.find((copy) => copy.id === overrideId && !taken.has(copy.id))
-        : undefined;
-      if (override) {
-        chosen[slot] = override;
-        taken.add(override.id);
-      }
-    }
-    // The rest take the best copies still going, in row order.
-    const spare = ranked.filter((copy) => !taken.has(copy.id));
-    let next = 0;
-    for (let slot = 0; slot < shortfall; slot++) {
-      if (chosen[slot] || next >= spare.length) {
-        continue;
-      }
-      const copy = spare[next];
-      next += 1;
-      chosen[slot] = copy;
-      taken.add(copy.id);
-    }
+    // Hand-picked copies come along whatever the ranking says; the best of the
+    // rest fill what is left. The result is listed in ranking order all the
+    // same, so the rows read the way every other list of copies here does.
+    const isPinned = (copy: CopyResponse) => pinnedCopyIds?.has(copy.id) === true;
+    const chosen = [
+      ...ranked.filter((copy) => isPinned(copy)),
+      ...ranked.filter((copy) => !isPinned(copy)),
+    ]
+      .slice(0, shortfall)
+      .toSorted(comparator);
+    const taken = new Set(chosen.map((copy) => copy.id));
 
     // Only copies no slot of this card has claimed: offering one slot the copy
     // another is already holding is offering nothing.
@@ -511,15 +492,14 @@ export function computeDeckBoxPlan({
       ranked.filter((copy) => !taken.has(copy.id)),
       asBoxCopy,
     );
-    for (const [slot, copy] of chosen.entries()) {
-      const boxCopy = copy && asBoxCopy(copy);
-      if (!copy || !boxCopy) {
+    for (const copy of chosen) {
+      const boxCopy = asBoxCopy(copy);
+      if (!boxCopy) {
         continue;
       }
       const held = alternativeKey(copy);
       fills.push({
         state: "available",
-        slotKey: `${cardId}:${slot}`,
         copy: boxCopy,
         alternatives: free.filter((candidate) => candidate.key !== held),
       });

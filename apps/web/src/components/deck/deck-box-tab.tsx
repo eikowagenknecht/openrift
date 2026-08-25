@@ -111,15 +111,15 @@ export function DeckBoxTab({
   onCardClick,
   onHoverCard,
 }: DeckBoxTabProps) {
-  // Per-slot copy choices, kept for as long as the tab is open. They are a
+  // Copies picked by hand, kept for as long as the tab is open. They are a
   // preference for this pull run, not something worth persisting.
-  const [overrides, setOverrides] = useState<ReadonlyMap<string, string>>(new Map());
+  const [pinnedCopyIds, setPinnedCopyIds] = useState<ReadonlySet<string>>(new Set());
   // Where each copy came from, remembered while the tab stays open so taking a
   // card back out returns it to its shelf. Once that memory is gone (a reload,
   // another session) the move dialog asks where it should go instead.
   const [originById, setOriginById] = useState<ReadonlyMap<string, string>>(new Map());
   const [movingOut, setMovingOut] = useState<string[] | null>(null);
-  const plan = useDeckBox(deckId, cards, homeCollectionId, overrides);
+  const plan = useDeckBox(deckId, cards, homeCollectionId, pinnedCopyIds);
   const moveCopies = useMoveCopies();
   const { data: collections } = useCollections();
   const { labels: enumLabels } = useEnumOrders();
@@ -194,8 +194,11 @@ export function DeckBoxTab({
     moveCopies.mutate({ copyIds: [copyId], toCollectionId: origin });
   };
 
-  const swap = (slotKey: string, copyId: string) => {
-    setOverrides(new Map([...overrides, [slotKey, copyId]]));
+  const swap = (fromCopyId: string, toCopyId: string) => {
+    const next = new Set(pinnedCopyIds);
+    next.delete(fromCopyId);
+    next.add(toCopyId);
+    setPinnedCopyIds(next);
   };
 
   const complete = plan.neededTotal > 0 && plan.inBoxTotal === plan.neededTotal;
@@ -471,7 +474,7 @@ function SlotRow({
   disabled: boolean;
   onTick: () => void;
   onTakeOut: () => void;
-  onSwap: (slotKey: string, copyId: string) => void;
+  onSwap: (fromCopyId: string, toCopyId: string) => void;
   onHoverCard?: HoverHandler;
   onOpen?: () => void;
 }) {
@@ -521,7 +524,7 @@ function SlotRow({
             slot={slot}
             labels={labels}
             siblings={siblings}
-            onSwap={(copyId) => slot.slotKey && onSwap(slot.slotKey, copyId)}
+            onSwap={(copyId) => slot.copy && onSwap(slot.copy.copyId, copyId)}
           />
         }
       />
@@ -633,6 +636,7 @@ function SourcePicker({
   siblings: readonly VariantLabelPrinting[];
   onSwap: (copyId: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState("");
   const source = slot.copy?.collectionName ?? "";
   if (slot.alternatives.length === 0) {
@@ -640,8 +644,14 @@ function SourcePicker({
       <span className="text-muted-foreground max-w-24 shrink-0 truncate text-xs">{source}</span>
     );
   }
+
+  const pick = (copyId: string) => {
+    setOpen(false);
+    onSwap(copyId);
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
           <Button
@@ -673,7 +683,7 @@ function SourcePicker({
             <PickerRow
               key={alternative.key}
               value={alternative.key}
-              onSelect={() => onSwap(alternative.copy.copyId)}
+              onSelect={() => pick(alternative.copy.copyId)}
             >
               <BoxCardThumb card={card} copy={alternative.copy} labels={labels} />
               <CopyDetails copy={alternative.copy} labels={labels} siblings={siblings} />

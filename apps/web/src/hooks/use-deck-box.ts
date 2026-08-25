@@ -26,7 +26,7 @@ export function useDeckBox(
   deckId: string,
   cards: readonly DeckBuilderCard[],
   homeCollectionId: string | null | undefined,
-  overrides?: ReadonlyMap<string, string>,
+  pinnedCopyIds?: ReadonlySet<string>,
 ): DeckBoxPlan | undefined {
   const userId = useUserId();
   const enabled = Boolean(userId) && Boolean(homeCollectionId);
@@ -82,6 +82,6 @@ export function useDeckBox(
     otherDeckNeeds,
     languageOrder,
     conditionOrder: conditions.map((condition) => condition.slug),
-    overrides,
+    pinnedCopyIds,
   });
 }

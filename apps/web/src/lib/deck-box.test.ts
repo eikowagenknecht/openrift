@@ -35,7 +35,7 @@ function inputFor({
   cardName = "Fire Dragon",
   preferredPrintingId = null,
   zone = "main",
-  overrides,
+  pinnedCopyIds,
   otherDeckNeeds,
 }: {
   printings: Printing[];
@@ -45,7 +45,7 @@ function inputFor({
   cardName?: string;
   preferredPrintingId?: string | null;
   zone?: string;
-  overrides?: ReadonlyMap<string, string>;
+  pinnedCopyIds?: ReadonlySet<string>;
   otherDeckNeeds?: ReadonlyMap<string, number>;
 }): DeckBoxInput {
   return {
@@ -66,7 +66,7 @@ function inputFor({
     otherDeckNeeds,
     languageOrder: ["EN", "DE"],
     conditionOrder: CONDITIONS,
-    overrides,
+    pinnedCopyIds,
   };
 }
 
@@ -276,7 +276,7 @@ describe("computeDeckBoxPlan", () => {
     expect(plan.missingCount).toBe(0);
   });
 
-  it("honours a hand-picked copy for its slot", () => {
+  it("honours a hand-picked copy over the ranking", () => {
     const printing = stubPrinting({ cardId: "card-1" });
     const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
     const mint = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "mint" });
@@ -284,11 +284,10 @@ describe("computeDeckBoxPlan", () => {
       inputFor({
         printings: [printing],
         copies: [worn, mint],
-        overrides: new Map([["card-1:0", mint.id]]),
+        pinnedCopyIds: new Set([mint.id]),
       }),
     );
     expect(plan.slots[0]?.copy?.copyId).toBe(mint.id);
-    expect(plan.slots[0]?.slotKey).toBe("card-1:0");
   });
 
   it("falls back to the ranking when a hand-picked copy is gone", () => {
@@ -298,7 +297,7 @@ describe("computeDeckBoxPlan", () => {
       inputFor({
         printings: [printing],
         copies: [worn],
-        overrides: new Map([["card-1:0", "a-copy-that-moved-away"]]),
+        pinnedCopyIds: new Set(["a-copy-that-moved-away"]),
       }),
     );
     expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
@@ -390,7 +389,7 @@ describe("computeDeckBoxPlan", () => {
     expect(plan.slots.flatMap((slot) => slot.alternatives)).toEqual([]);
   });
 
-  it("keeps a hand-picked copy on the row it was picked on", () => {
+  it("takes a hand-picked copy alongside the best of the rest", () => {
     const printing = stubPrinting({ cardId: "card-1" });
     const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
     const good = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" });
@@ -400,12 +399,30 @@ describe("computeDeckBoxPlan", () => {
         quantity: 2,
         printings: [printing],
         copies: [worn, good, mint],
-        // A swap made on the second row moves that row, not the first.
-        overrides: new Map([["card-1:1", mint.id]]),
+        pinnedCopyIds: new Set([mint.id]),
       }),
     );
+    // The pick displaces the copy the ranking would have taken second, and the
+    // two that come are still listed worn-first.
     expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([worn.id, mint.id]);
-    expect(plan.slots.map((slot) => slot.slotKey)).toEqual(["card-1:0", "card-1:1"]);
+  });
+
+  it("keeps a hand-picked copy once another copy of the card is in the box", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const worn = stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" });
+    const good = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" });
+    const mint = stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "mint" });
+    const boxed = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "good" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        quantity: 3,
+        printings: [printing],
+        copies: [worn, good, mint, boxed],
+        pinnedCopyIds: new Set([mint.id]),
+      }),
+    );
+    expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "available", "available"]);
+    expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([boxed.id, worn.id, mint.id]);
   });
 
   it("ignores a box holding more copies than the deck runs", () => {

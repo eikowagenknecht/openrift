@@ -6,6 +6,7 @@
 
 - feat(Decks): **Card art in the box copy picker** — picking a different copy now shows each one's art, rarity and code, and the list takes the arrow keys.
 - feat(Decks): **Card details from the Box tab** — clicking a row in a deck's Box tab now opens the card, showing the exact printing you're about to pull off the shelf.
+- fix(Decks): **Box copy picks stick** — picking a different copy now closes the picker, and the pick survives ticking another copy of the same card into the box.
 - fix(Decks): **Quieter deck box rows** — the box names a copy's language, finish or art variant only where it tells two of your copies apart.
 - fix(Cards): **Printing rows select on any click** — clicking a printing's code in the card detail list no longer jumps to the set page, so the whole row picks that printing.
 
