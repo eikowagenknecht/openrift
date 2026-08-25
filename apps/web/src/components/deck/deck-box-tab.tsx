@@ -17,7 +17,7 @@ import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { PickerGroup, PickerList, PickerRow } from "@/components/ui/picker-list";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollections } from "@/hooks/use-collections";
@@ -639,6 +639,12 @@ function SourcePicker({
   const [open, setOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState("");
   const source = slot.copy?.collectionName ?? "";
+  // Shelves in the order their best copy ranks, so the list still reads as the
+  // order a pull run would visit them in.
+  const byCollection = Map.groupBy(
+    slot.alternatives,
+    (alternative) => alternative.copy.collectionName,
+  );
   if (slot.alternatives.length === 0) {
     return (
       <span className="text-muted-foreground max-w-24 shrink-0 truncate text-xs">{source}</span>
@@ -671,31 +677,30 @@ function SourcePicker({
         <PickerList
           highlightedId={highlightedId}
           onHighlightChange={setHighlightedId}
+          // Plain sentence case, not the small-caps the group labels use: two
+          // small-caps lines stacked read as two shelf names, not a title.
           header={
-            <div className="px-2.5 pt-2 pb-0.5">
-              <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-                Take this copy instead
-              </p>
-            </div>
+            <p className="text-muted-foreground px-2.5 pt-2 text-xs">Take this copy instead</p>
           }
         >
-          {slot.alternatives.map((alternative) => (
-            <PickerRow
-              key={alternative.key}
-              value={alternative.key}
-              onSelect={() => pick(alternative.copy.copyId)}
-            >
-              <BoxCardThumb card={card} copy={alternative.copy} labels={labels} />
-              <CopyDetails copy={alternative.copy} labels={labels} siblings={siblings} />
-              {alternative.count > 1 && (
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  ×{alternative.count}
-                </span>
-              )}
-              <span className="text-muted-foreground ml-auto truncate text-xs">
-                {alternative.copy.collectionName}
-              </span>
-            </PickerRow>
+          {[...byCollection].map(([collectionName, alternatives]) => (
+            <PickerGroup key={collectionName} label={collectionName}>
+              {alternatives.map((alternative) => (
+                <PickerRow
+                  key={alternative.key}
+                  value={alternative.key}
+                  onSelect={() => pick(alternative.copy.copyId)}
+                >
+                  <BoxCardThumb card={card} copy={alternative.copy} labels={labels} />
+                  <CopyDetails copy={alternative.copy} labels={labels} siblings={siblings} />
+                  {alternative.count > 1 && (
+                    <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                      ×{alternative.count}
+                    </span>
+                  )}
+                </PickerRow>
+              ))}
+            </PickerGroup>
           ))}
         </PickerList>
       </PopoverContent>

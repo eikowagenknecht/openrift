@@ -2,7 +2,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import type { KeyboardEvent, ReactNode, Ref } from "react";
 import { useLayoutEffect, useRef } from "react";
 
-import { Command, CommandInput, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandInput, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 interface PickerListProps {
@@ -159,5 +159,37 @@ export function PickerRow({ value, keywords, onSelect, className, ref, children 
     >
       {children}
     </CommandPrimitive.Item>
+  );
+}
+
+/**
+ * A labelled band of related rows inside a {@link PickerList}. The heading is a
+ * cmdk group heading, so it labels its rows for assistive tech and keyboard nav
+ * skips straight over it — unlike a styled `PickerRow`, which arrow keys land on.
+ *
+ * `p-0` because `PickerList`'s own list already carries the inset that a plain
+ * Command palette gets from its group.
+ *
+ * @returns The group, or nothing when it holds no rows.
+ */
+export function PickerGroup({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <CommandGroup
+      heading={label}
+      className={cn(
+        "**:[[cmdk-group-heading]]:text-2xs p-0 **:[[cmdk-group-heading]]:px-1.5 **:[[cmdk-group-heading]]:pt-2 **:[[cmdk-group-heading]]:pb-0.5 **:[[cmdk-group-heading]]:tracking-wide **:[[cmdk-group-heading]]:uppercase",
+        className,
+      )}
+    >
+      {children}
+    </CommandGroup>
   );
 }

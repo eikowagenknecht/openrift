@@ -165,7 +165,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
-import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { PickerGroup, PickerList, PickerRow } from "@/components/ui/picker-list";
 import type { PodiumSeat } from "@/components/ui/podium";
 import { Podium } from "@/components/ui/podium";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1726,6 +1726,7 @@ const CHAMPIONS = ["Ahri", "Jinx", "Teemo", "Viktor", "Yasuo"];
 function PickersSection() {
   const [champions, setChampions] = useState<string[]>(["Jinx"]);
   const [highlighted, setHighlighted] = useState("");
+  const [groupHighlighted, setGroupHighlighted] = useState("");
   const [searchableHighlighted, setSearchableHighlighted] = useState("");
   return (
     <DemoSection
@@ -1788,6 +1789,29 @@ function PickersSection() {
                   {name}
                 </PickerRow>
               ))}
+            </PickerList>
+          </div>
+        </Demo>
+        <Demo
+          name="PickerGroup"
+          hint="Labels a band of related rows. Keyboard nav skips the heading."
+        >
+          <div className="w-full max-w-56 rounded-lg border">
+            <PickerList highlightedId={groupHighlighted} onHighlightChange={setGroupHighlighted}>
+              <PickerGroup label="Binder A">
+                {CHAMPIONS.slice(0, 2).map((name) => (
+                  <PickerRow key={name} value={name} onSelect={() => toast(`Picked ${name}`)}>
+                    {name}
+                  </PickerRow>
+                ))}
+              </PickerGroup>
+              <PickerGroup label="Shoebox">
+                {CHAMPIONS.slice(2, 4).map((name) => (
+                  <PickerRow key={name} value={name} onSelect={() => toast(`Picked ${name}`)}>
+                    {name}
+                  </PickerRow>
+                ))}
+              </PickerGroup>
             </PickerList>
           </div>
         </Demo>
