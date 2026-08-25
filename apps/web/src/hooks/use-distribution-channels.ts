@@ -1,29 +1,12 @@
 import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
 import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts/admin/distribution-channels";
 import { adminDistributionChannelsContract } from "@openrift/shared/contracts/admin/distribution-channels";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
-import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
-
-const fetchChannels = createServerFn({ method: "GET" })
-  .middleware([withCookies])
-  .handler(({ context }): Promise<AdminDistributionChannelsResponse> =>
-    apiOrpcClient(adminDistributionChannelsContract, context.cookie).list(),
-  );
-
-export const adminDistributionChannelsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.distributionChannels,
-  queryFn: () => fetchChannels(),
-  staleTime: 30 * 60 * 1000,
-});
-
-export function useDistributionChannels() {
-  return useSuspenseQuery(adminDistributionChannelsQueryOptions);
-}
 
 interface CreateChannelInput {
   slug: string;
@@ -33,6 +16,22 @@ interface CreateChannelInput {
   parentId?: string | null;
   childrenLabel?: string | null;
 }
+
+interface UpdateChannelInput {
+  id: string;
+  slug?: string;
+  label?: string;
+  description?: string | null;
+  kind?: DistributionChannelKind;
+  parentId?: string | null;
+  childrenLabel?: string | null;
+}
+
+const fetchChannels = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<AdminDistributionChannelsResponse> =>
+    apiOrpcClient(adminDistributionChannelsContract, context.cookie).list(),
+  );
 
 const createChannelFn = createServerFn({ method: "POST" })
   .validator((input: CreateChannelInput) => input)
@@ -47,23 +46,6 @@ const createChannelFn = createServerFn({ method: "POST" })
     return distributionChannel;
   });
 
-export function useCreateDistributionChannel() {
-  return useMutationWithInvalidation({
-    mutationFn: (vars: CreateChannelInput) => createChannelFn({ data: vars }),
-    invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
-  });
-}
-
-interface UpdateChannelInput {
-  id: string;
-  slug?: string;
-  label?: string;
-  description?: string | null;
-  kind?: DistributionChannelKind;
-  parentId?: string | null;
-  childrenLabel?: string | null;
-}
-
 const updateChannelFn = createServerFn({ method: "POST" })
   .validator((input: UpdateChannelInput) => input)
   .middleware([withCookies])
@@ -71,12 +53,14 @@ const updateChannelFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminDistributionChannelsContract, context.cookie).update(data);
   });
 
-export function useUpdateDistributionChannel() {
-  return useMutationWithInvalidation({
-    mutationFn: (vars: UpdateChannelInput) => updateChannelFn({ data: vars }),
-    invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
+const reorderChannelsFn = createServerFn({ method: "POST" })
+  .validator((input: { ids: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminDistributionChannelsContract, context.cookie).reorder({
+      ids: data.ids,
+    });
   });
-}
 
 const deleteChannelFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; force?: boolean }) => input)
@@ -88,25 +72,20 @@ const deleteChannelFn = createServerFn({ method: "POST" })
     });
   });
 
-export function useDeleteDistributionChannel() {
-  return useMutationWithInvalidation({
-    mutationFn: (vars: { id: string; force?: boolean }) => deleteChannelFn({ data: vars }),
-    invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
-  });
-}
+const channelHooks = createAdminEnumHooks({
+  queryKey: queryKeys.admin.distributionChannels,
+  list: () => fetchChannels(),
+  invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
+  staleTime: 30 * 60 * 1000,
+  create: (vars: CreateChannelInput) => createChannelFn({ data: vars }),
+  update: (vars: UpdateChannelInput) => updateChannelFn({ data: vars }),
+  reorder: (ids: string[]) => reorderChannelsFn({ data: { ids } }),
+  remove: (vars: { id: string; force?: boolean }) => deleteChannelFn({ data: vars }),
+});
 
-const reorderChannelsFn = createServerFn({ method: "POST" })
-  .validator((input: { ids: string[] }) => input)
-  .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    await apiOrpcClient(adminDistributionChannelsContract, context.cookie).reorder({
-      ids: data.ids,
-    });
-  });
-
-export function useReorderDistributionChannels() {
-  return useMutationWithInvalidation({
-    mutationFn: (ids: string[]) => reorderChannelsFn({ data: { ids } }),
-    invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
-  });
-}
+export const adminDistributionChannelsQueryOptions = channelHooks.queryOptions;
+export const useDistributionChannels = channelHooks.useList;
+export const useCreateDistributionChannel = channelHooks.useCreate;
+export const useUpdateDistributionChannel = channelHooks.useUpdate;
+export const useDeleteDistributionChannel = channelHooks.useDelete;
+export const useReorderDistributionChannels = channelHooks.useReorder;
