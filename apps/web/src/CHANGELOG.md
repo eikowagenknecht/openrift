@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Decks): **Box and Plan tabs say what they do** — each tab now opens with a line explaining it, including what happens when you tick a card into the box.
 - feat(Decks): **Card art in the box copy picker** — picking a different copy now shows each one's art and code, grouped under the collection it sits in, and the list takes the arrow keys.
 - feat(Decks): **Card details from the Box tab** — clicking a row in a deck's Box tab now opens the card, showing the exact printing you're about to pull off the shelf.
 - fix(Decks): **More room in box rows** — box rows drop the energy and power costs, so the collection each copy comes from can show its full name.

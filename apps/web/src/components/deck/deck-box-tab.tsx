@@ -238,6 +238,10 @@ export function DeckBoxTab({
     // The overview column already spaces and pads its children, so this only
     // sets the rhythm between the box's own sections.
     <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground max-w-prose">
+        Tick cards off as you put them in the box. Each tick moves that copy into this deck&apos;s
+        collection.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <BoxIcon className="text-muted-foreground size-4" />

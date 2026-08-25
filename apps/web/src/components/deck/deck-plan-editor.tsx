@@ -489,9 +489,8 @@ export function DeckPlanEditor({
       {actionsSlot === undefined && <div className="flex items-center gap-2">{actions}</div>}
       {actionsSlot ? createPortal(actions, actionsSlot) : null}
 
-      <p className="text-muted-foreground">
-        An optional plan for piloting this deck: your gameplan, mulligan priorities, battlefield
-        choices, and how to sideboard against specific opponents.
+      <p className="text-muted-foreground max-w-prose">
+        Optional notes on how to pilot this deck. They show up on the deck&apos;s share page.
       </p>
 
       <section className="space-y-2">
