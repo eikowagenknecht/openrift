@@ -43,6 +43,7 @@ export function FeatureSection({
   action,
   vignette,
   flip,
+  emphasis,
 }: {
   id: string;
   title: string;
@@ -51,27 +52,32 @@ export function FeatureSection({
   vignette: ReactNode;
   /** Puts the vignette on the left from `lg` up, so sections alternate. */
   flip?: boolean;
+  /** Widens the vignette column for the one or two showpiece sections. */
+  emphasis?: boolean;
 }) {
   return (
-    <Reveal>
-      {/* content-visibility keeps the 19 sections' looping vignette animations
-          from rendering while offscreen; the intrinsic size stops the scrollbar
-          from jumping as sections enter. Anchor jumps force rendering on their
-          own, so the TOC links still land correctly. */}
-      <section
-        id={id}
-        className="grid items-center gap-8 py-14 [contain-intrinsic-size:auto_640px] [content-visibility:auto] sm:py-20 lg:min-h-[70svh] lg:grid-cols-2 lg:gap-16"
-      >
-        <div className={cn("flex flex-col items-start gap-4", flip && "lg:order-2")}>
-          <Heading level={1} as="h2" className={FEATURE_HEADING_CLASS}>
-            {title}
-          </Heading>
-          <SectionRule />
-          <p className="text-muted-foreground max-w-prose">{description}</p>
-          {action}
-        </div>
-        <div className={cn("min-w-0", flip && "lg:order-1")}>{vignette}</div>
-      </section>
-    </Reveal>
+    // content-visibility keeps the looping vignette animations from rendering
+    // while offscreen; the intrinsic size stops the scrollbar from jumping as
+    // sections enter. Anchor jumps force rendering on their own, so the TOC
+    // links still land correctly.
+    <section
+      id={id}
+      className={cn(
+        "grid scroll-mt-12 items-center gap-8 py-10 [contain-intrinsic-size:auto_640px] [content-visibility:auto] max-xl:scroll-mt-28 sm:py-14 lg:min-h-[60svh] lg:gap-16",
+        emphasis ? (flip ? "lg:grid-cols-[3fr_2fr]" : "lg:grid-cols-[2fr_3fr]") : "lg:grid-cols-2",
+      )}
+    >
+      <Reveal className={cn("flex flex-col items-start gap-4", flip && "lg:order-2")}>
+        <Heading level={1} as="h2" className={FEATURE_HEADING_CLASS}>
+          {title}
+        </Heading>
+        <SectionRule />
+        <p className="text-muted-foreground max-w-prose">{description}</p>
+        {action}
+      </Reveal>
+      <Reveal delayMs={150} className={cn("min-w-0", flip && "lg:order-1")}>
+        {vignette}
+      </Reveal>
+    </section>
   );
 }

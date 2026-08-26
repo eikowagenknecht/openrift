@@ -9,7 +9,16 @@ import { cn } from "@/lib/utils";
  * hidden content, and above-the-fold sections must not flash. The effect
  * hides the element only when it is below the viewport, motion allowed.
  */
-export function Reveal({ children, className }: { children: ReactNode; className?: string }) {
+export function Reveal({
+  children,
+  className,
+  delayMs,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** Staggers the rise-in behind a sibling Reveal. Only delays the entrance. */
+  delayMs?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [offscreen, setOffscreen] = useState(false);
 
@@ -46,6 +55,7 @@ export function Reveal({ children, className }: { children: ReactNode; className
         offscreen && "translate-y-6 opacity-0",
         className,
       )}
+      style={delayMs ? { transitionDelay: `${delayMs}ms` } : undefined}
     >
       {children}
     </div>

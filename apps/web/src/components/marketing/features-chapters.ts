@@ -1,0 +1,129 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowDownUpIcon,
+  BookOpenIcon,
+  BoxIcon,
+  FlaskConicalIcon,
+  GitBranchIcon,
+  HandHeartIcon,
+  LayersIcon,
+  LayoutGridIcon,
+  LibraryIcon,
+  ListChecksIcon,
+  MessageSquareIcon,
+  MonitorPlayIcon,
+  PackageIcon,
+  PaintbrushIcon,
+  ScanLineIcon,
+  Share2Icon,
+  SparklesIcon,
+  SwordsIcon,
+  TicketIcon,
+  TrendingUpIcon,
+  TrophyIcon,
+  UsersIcon,
+} from "lucide-react";
+
+import { getDomainColor } from "@/lib/domain";
+
+export interface ChapterFeatureLink {
+  /** Anchor of the feature's section on the page, without the `#`. */
+  hash: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+export interface FeatureChapter {
+  /** Chapter anchor id is `chapter-${id}`. */
+  id: string;
+  number: string;
+  title: string;
+  tagline: string;
+  /** Domain hex driving the chapter's ambient glow. */
+  glowColor: string;
+  icon: LucideIcon;
+  features: ChapterFeatureLink[];
+}
+
+export function chapterAnchor(id: string): string {
+  return `chapter-${id}`;
+}
+
+/**
+ * The five acts of the features tour. Section content (copy, vignettes,
+ * weights) lives in features-page.tsx; this is the shared structure the hero
+ * TOC, the scroll-spy rail, and the chapter dividers all render from.
+ */
+export const FEATURE_CHAPTERS: FeatureChapter[] = [
+  {
+    id: "collect",
+    number: "01",
+    title: "Collect",
+    tagline: "Every printing in the catalog, and every card you own.",
+    glowColor: getDomainColor("order"),
+    icon: LibraryIcon,
+    features: [
+      { hash: "catalog", label: "Catalog", icon: LayoutGridIcon },
+      { hash: "scan", label: "Scanner", icon: ScanLineIcon },
+      { hash: "collections", label: "Collections", icon: LibraryIcon },
+      { hash: "lists", label: "Lists", icon: ListChecksIcon },
+      { hash: "import", label: "Import", icon: ArrowDownUpIcon },
+      { hash: "prices", label: "Prices", icon: TrendingUpIcon },
+      { hash: "promos", label: "Promos", icon: TicketIcon },
+      { hash: "products", label: "Products", icon: PackageIcon },
+    ],
+  },
+  {
+    id: "build",
+    number: "02",
+    title: "Build",
+    tagline: "Draft a deck, try variants, and test hands before you sleeve up.",
+    glowColor: getDomainColor("mind"),
+    icon: LayersIcon,
+    features: [
+      { hash: "decks", label: "Decks", icon: LayersIcon },
+      { hash: "variants", label: "Variants", icon: GitBranchIcon },
+      { hash: "test", label: "Test bench", icon: FlaskConicalIcon },
+      { hash: "box", label: "Deck box", icon: BoxIcon },
+    ],
+  },
+  {
+    id: "together",
+    number: "03",
+    title: "Play together",
+    tagline: "Trade with your playgroup and keep track of what you lend.",
+    glowColor: getDomainColor("calm"),
+    icon: UsersIcon,
+    features: [
+      { hash: "groups", label: "Groups", icon: UsersIcon },
+      { hash: "loans", label: "Loans", icon: HandHeartIcon },
+      { hash: "share", label: "Share", icon: Share2Icon },
+      { hash: "discord", label: "Discord", icon: MessageSquareIcon },
+    ],
+  },
+  {
+    id: "table",
+    number: "04",
+    title: "At the table",
+    tagline: "Run tournaments, look up rulings, keep score.",
+    glowColor: getDomainColor("fury"),
+    icon: TrophyIcon,
+    features: [
+      { hash: "tournaments", label: "Tournaments", icon: TrophyIcon },
+      { hash: "rules", label: "Rules", icon: BookOpenIcon },
+      { hash: "tracker", label: "Match tracker", icon: SwordsIcon },
+    ],
+  },
+  {
+    id: "create",
+    number: "05",
+    title: "Create",
+    tagline: "Put cards on stream, or design your own.",
+    glowColor: getDomainColor("chaos"),
+    icon: SparklesIcon,
+    features: [
+      { hash: "stage", label: "Stage", icon: MonitorPlayIcon },
+      { hash: "designer", label: "Card designer", icon: PaintbrushIcon },
+    ],
+  },
+];
