@@ -443,6 +443,11 @@ export function TradeSettleCopyPickerDialog({
       <DialogContent className="sm:max-w-lg">
         {choice === null ? null : (
           <CopyPickerBody
+            // A settle session queues one choice per row and the dialog stays
+            // open across them, so without this the second row inherits the
+            // first row's selection: ids that match none of its checkboxes,
+            // and a confirm button that never enables.
+            key={choice.options.tradeId}
             title={quantity === 1 ? "Which copy did you hand over?" : `Which ${quantity} copies?`}
             description={`Pick the ${noun} of ${cardName} that changed hands. ${quantity === 1 ? "It leaves" : "They leave"} your collection for good, and the rest stay yours.`}
             confirmLabel={`Remove ${noun}`}

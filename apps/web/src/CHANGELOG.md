@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-26
+
+### Other
+
+- fix(Trades): **Copy picker per card while settling** — settling several cards in one go now asks about each card fresh, instead of carrying the previous card's pick over and leaving the confirm button stuck.
+
 ## 2026-08-25
 
 ### Other

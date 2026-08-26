@@ -313,6 +313,36 @@ function SettleHarness() {
   );
 }
 
+/**
+ * The settle session's shape: several rows held back at once, answered one
+ * after another in the same dialog, which never closes in between.
+ * @returns The picker plus a button that starts the queue.
+ */
+function SettleQueueHarness({ choices }: { choices: TradeSettleChoice[] }) {
+  const [index, setIndex] = useState<number | null>(null);
+  const choice = index === null ? null : (choices[index] ?? null);
+  const flow: TradeSettleChoiceControl = {
+    choice,
+    settling: false,
+    confirm: (copyIds) => {
+      confirmed(copyIds);
+      setIndex((prev) => (prev === null ? null : prev + 1));
+    },
+    cancel: () => {
+      cancelled();
+      setIndex((prev) => (prev === null ? null : prev + 1));
+    },
+  };
+  return (
+    <>
+      <button type="button" onClick={() => setIndex(0)}>
+        Start settling
+      </button>
+      <TradeSettleCopyPickerDialog flow={flow} cardName="Fury Rune" />
+    </>
+  );
+}
+
 function renderSettleFlow() {
   return render(<SettleHarness />);
 }
@@ -373,6 +403,48 @@ describe("TradeSettleCopyPickerDialog", () => {
     expect(screen.getByRole("button", { name: "Remove copy" })).toBeDisabled();
     expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();
     expect(confirmed).not.toHaveBeenCalled();
+  });
+
+  it("starts the next queued row on its own copies, not the last row's picks", async () => {
+    const user = userEvent.setup();
+    render(
+      <SettleQueueHarness
+        choices={[
+          {
+            options: {
+              tradeId: "trade-1",
+              quantity: 1,
+              choiceMatters: true,
+              copies: [{ ...GRADED, pinned: true }, PLAIN_A],
+            },
+            quantity: 1,
+          },
+          {
+            options: {
+              tradeId: "trade-2",
+              quantity: 1,
+              choiceMatters: true,
+              copies: [{ ...PLAIN_B, pinned: true }, makeCopy("copy-c")],
+            },
+            quantity: 1,
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start settling" }));
+    await screen.findByRole("dialog");
+    await user.click(screen.getByRole("button", { name: "Remove copy" }));
+
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(2));
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes[0]).toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
+    expect(screen.getByText("1 copy picked.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove copy" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Remove copy" }));
+    expect(confirmed).toHaveBeenNthCalledWith(2, ["copy-b"]);
   });
 
   it("drops the choice without confirming when the picker is dismissed", async () => {
