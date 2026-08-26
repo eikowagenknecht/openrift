@@ -13,10 +13,12 @@ import {
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  ListOrderedIcon,
   LockIcon,
   LogOutIcon,
   MenuIcon,
   MessageSquareIcon,
+  MonitorPlayIcon,
   MoonIcon,
   PackageIcon,
   PackagePlusIcon,
@@ -127,7 +129,14 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 // Nav entries that require an account. Signed out, these still show in the nav
 // (with a lock glyph) so a new visitor can see what an account unlocks; clicking
 // one opens SignInRequiredDialog instead of navigating. Copy mirrors the README.
-type LockedFeatureKey = "collections" | "scan" | "groups" | "loans" | "tournaments" | "contribute";
+type LockedFeatureKey =
+  | "collections"
+  | "scan"
+  | "groups"
+  | "loans"
+  | "tournaments"
+  | "tierLists"
+  | "contribute";
 
 const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -166,6 +175,12 @@ const LOCKED_FEATURES: Record<
     description: "Run tournaments with pods, deck check, and judges all under one event.",
     to: "/tournaments",
     icon: TrophyIcon,
+  },
+  tierLists: {
+    title: "Tier lists",
+    description: "Rank a set on a drag-and-drop board, then share it as a link or an image.",
+    to: "/tier-lists",
+    icon: ListOrderedIcon,
   },
   contribute: {
     title: "Contribute",
@@ -274,6 +289,26 @@ const MORE_NAV_SECTIONS: NavSectionConfig[] = [
     ],
   },
   {
+    label: "Create",
+    items: [
+      {
+        label: "Stage",
+        to: "/stage",
+        icon: MonitorPlayIcon,
+        platform: "desktop",
+        description: "A full-screen card show, or an overlay for OBS",
+      },
+      {
+        label: "Tier lists",
+        to: "/tier-lists",
+        icon: ListOrderedIcon,
+        lockedKey: "tierLists",
+        platform: "desktop",
+        description: "Rank a set on a board and share it",
+      },
+    ],
+  },
+  {
     label: "Explore",
     items: [
       {
@@ -322,6 +357,22 @@ function navItemVisible(item: NavItemConfig, opts: { flags: NavFlags; mobile: bo
     return false;
   }
   return true;
+}
+
+/**
+ * The More sections paired with the items visible in the current menu.
+ * @returns Sections that still have at least one item, so an all-desktop
+ * section (Create) leaves no empty heading behind in the mobile sheet.
+ */
+export function visibleMoreSections(opts: {
+  flags: NavFlags;
+  mobile: boolean;
+}): { label: string; items: NavItemConfig[] }[] {
+  const sections = MORE_NAV_SECTIONS.map((section) => ({
+    label: section.label,
+    items: section.items.filter((item) => navItemVisible(item, opts)),
+  }));
+  return sections.filter((section) => section.items.length > 0);
 }
 
 /**
@@ -518,24 +569,22 @@ function DesktopNav({
             {/* CSS columns pack the sections side by side; break-inside-avoid
                 keeps each section whole so a group never splits mid-column. */}
             <div className="w-[34rem] columns-2 gap-2 p-2">
-              {MORE_NAV_SECTIONS.map((section) => (
+              {visibleMoreSections({ flags, mobile: false }).map((section) => (
                 <section key={section.label} className="mb-3 break-inside-avoid last:mb-0">
                   <div className="text-muted-foreground px-2 pb-1 text-xs font-semibold tracking-wide uppercase">
                     {section.label}
                   </div>
                   <ul className="grid gap-1">
-                    {section.items
-                      .filter((item) => navItemVisible(item, { flags, mobile: false }))
-                      .map((item) => (
-                        <li key={item.to}>
-                          <DesktopMoreItem
-                            item={item}
-                            isLoggedIn={isLoggedIn}
-                            badges={badges}
-                            onLockedClick={onLockedClick}
-                          />
-                        </li>
-                      ))}
+                    {section.items.map((item) => (
+                      <li key={item.to}>
+                        <DesktopMoreItem
+                          item={item}
+                          isLoggedIn={isLoggedIn}
+                          badges={badges}
+                          onLockedClick={onLockedClick}
+                        />
+                      </li>
+                    ))}
                   </ul>
                 </section>
               ))}
@@ -777,23 +826,21 @@ function MobileNav({
               />
             ),
           )}
-          {MORE_NAV_SECTIONS.map((section) => (
+          {visibleMoreSections({ flags, mobile: true }).map((section) => (
             <Fragment key={section.label}>
               <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
                 {section.label}
               </div>
-              {section.items
-                .filter((item) => navItemVisible(item, { flags, mobile: true }))
-                .map((item) => (
-                  <MobileNavItem
-                    key={item.to}
-                    item={item}
-                    compact
-                    isLoggedIn={isLoggedIn}
-                    badges={badges}
-                    onLockedClick={onLockedClick}
-                  />
-                ))}
+              {section.items.map((item) => (
+                <MobileNavItem
+                  key={item.to}
+                  item={item}
+                  compact
+                  isLoggedIn={isLoggedIn}
+                  badges={badges}
+                  onLockedClick={onLockedClick}
+                />
+              ))}
             </Fragment>
           ))}
         </nav>
