@@ -33,7 +33,8 @@ export interface OddsGroupRow {
   earlyChance: number;
 }
 
-type GroupCard = Pick<
+/** The card fields a group condition can read. */
+export type GroupCard = Pick<
   DeckBuilderCard,
   "zone" | "quantity" | "cardTypes" | "keywords" | "tags" | "energy" | "might" | "power"
 >;

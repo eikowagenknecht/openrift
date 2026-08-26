@@ -28,6 +28,13 @@ import {
   MULLIGAN_LIMIT,
   OPENING_HAND_SIZE,
 } from "@/lib/deck-draw-odds";
+import type { HandOddsGroup, LibraryHitChance } from "@/lib/deck-hand-odds";
+import {
+  buildExchangePreview,
+  buildInHandGroupCounts,
+  buildLibraryHitChances,
+  shortGroupLabel,
+} from "@/lib/deck-hand-odds";
 import { applyMulligan, shuffle } from "@/lib/deck-mulligan";
 import type { OddsGroupDef, OddsGroupTheme } from "@/lib/deck-odds-groups";
 import {
@@ -239,6 +246,65 @@ function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
   );
 }
 
+/**
+ * @returns The odds-table row title, flagging what of it sits in the hand.
+ */
+function oddsRowTitle(label: string, inHand: number): string {
+  if (inHand > 1) {
+    return `${label} (${inHand} in your hand)`;
+  }
+  if (inHand === 1) {
+    return `${label} (in your hand)`;
+  }
+  return label;
+}
+
+/**
+ * Ties an odds row to the hand on the left: this row is one you are holding.
+ * @returns The marker, or null for a row the hand does not cover.
+ */
+function InHandDot({ inHand }: { inHand: number }) {
+  if (inHand === 0) {
+    return null;
+  }
+  return (
+    <span aria-hidden className="bg-primary mr-1 inline-block size-1.5 rounded-full align-middle" />
+  );
+}
+
+/**
+ * A muted line of "chance to hit each group in the next few cards", counted off
+ * the live library rather than the deck list.
+ * @returns The line, or null when there is nothing to say.
+ */
+function LibraryOddsLine({
+  lead,
+  rows,
+  emptyLabel,
+}: {
+  lead: string;
+  rows: readonly LibraryHitChance[];
+  emptyLabel?: string;
+}) {
+  if (rows.length === 0 && emptyLabel === undefined) {
+    return null;
+  }
+  return (
+    <p className="text-muted-foreground text-2xs">
+      {lead}{" "}
+      {rows.length === 0
+        ? emptyLabel
+        : rows.map((row, index) => (
+            <span key={row.key}>
+              {index > 0 && " · "}
+              <span className="tabular-nums">{formatChancePct(row.chance)}</span>{" "}
+              {shortGroupLabel(row.label)}
+            </span>
+          ))}
+    </p>
+  );
+}
+
 interface PoolCard {
   /** Unique per physical copy so two copies of one card select independently. */
   key: string;
@@ -323,6 +389,11 @@ export function DeckTestBench({
     );
 
   const printingByCardId = new Map(pool.map((copy) => [copy.cardId, copy.preferredPrintingId]));
+  const cardById = new Map(
+    testCards
+      .filter((card) => card.zone === WellKnown.deckZone.MAIN)
+      .map((card) => [card.cardId, card] as const),
+  );
 
   const oddsRows = buildDrawOddsRows(testCards);
   const hasRunes = cards.some((card) => card.zone === WellKnown.deckZone.RUNES);
@@ -402,11 +473,44 @@ export function DeckTestBench({
       : localSelection;
   const hasOverride = explicitSelection !== undefined;
   const selectedSet = new Set(explicitSelection ?? suggestedKeys);
-  const groupRows = allDefs
-    .filter((def) => selectedSet.has(def.key))
-    .map((def) => rowsByKey.get(def.key))
-    .filter((row) => row !== undefined)
-    .filter((row) => isInformativeGroupRow(row, mainDeckSize));
+  const visibleGroups = allDefs.flatMap((def) => {
+    const row = rowsByKey.get(def.key);
+    if (
+      row === undefined ||
+      !selectedSet.has(def.key) ||
+      !isInformativeGroupRow(row, mainDeckSize)
+    ) {
+      return [];
+    }
+    return [{ def, row }];
+  });
+  const groupRows = visibleGroups.map((group) => group.row);
+  const handGroups: HandOddsGroup[] = visibleGroups.map((group) => ({
+    def: group.def,
+    copies: group.row.copies,
+  }));
+
+  const handCardIds = bench?.hand.map((card) => card.cardId) ?? [];
+  const libraryCardIds = bench?.library.map((card) => card.cardId) ?? [];
+  const inHandCounts = Map.groupBy(handCardIds, (cardId) => cardId);
+  const inHandGroupCounts = buildInHandGroupCounts({
+    hand: handCardIds,
+    cards: cardById,
+    groups: handGroups,
+  });
+  const exchangeRows = buildExchangePreview({
+    kept: bench?.hand.filter((card) => !selected.has(card.key)).map((card) => card.cardId) ?? [],
+    library: libraryCardIds,
+    cards: cardById,
+    groups: handGroups,
+    draws: selected.size,
+  });
+  const nextCardRows = buildLibraryHitChances({
+    library: libraryCardIds,
+    cards: cardById,
+    groups: handGroups,
+    draws: 1,
+  });
 
   const persistSelection = (keys: string[] | null) => {
     if (canEditServer) {
@@ -692,6 +796,19 @@ export function DeckTestBench({
             Draw a sample hand to see how the deck opens.
           </div>
         )}
+        {/* Both lines sit below the cards, never above them: a line that
+            appears on a card click must not shove the cards out from under the
+            cursor mid-mulligan. */}
+        {bench && selected.size > 0 && (
+          <LibraryOddsLine
+            lead={`Exchanging ${selected.size}:`}
+            rows={exchangeRows}
+            emptyLabel="nothing left to look for, this hand covers every group."
+          />
+        )}
+        {bench && selected.size === 0 && bench.library.length > 0 && (
+          <LibraryOddsLine lead="Next card:" rows={nextCardRows} />
+        )}
         {sideboardRows.length > 0 && (
           <div>
             <div className="mb-1.5 flex items-center gap-2">
@@ -903,22 +1020,32 @@ export function DeckTestBench({
                   <tbody>
                     {/* Role rows first: "will I see *something of this kind*",
                     built from structured card data (types, energy). */}
-                    {groupRows.map((row) => (
-                      <tr key={row.key} className="bg-muted/40 border-t">
-                        <td className="max-w-0 truncate px-2 py-1" title={row.label}>
-                          {row.label}{" "}
-                          <span className="text-muted-foreground tabular-nums">· {row.copies}</span>
-                        </td>
-                        <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
-                          {pct(row.openingChance)}
-                        </td>
-                        <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
-                          {pct(row.earlyChance)}
-                        </td>
-                      </tr>
-                    ))}
+                    {groupRows.map((row) => {
+                      const inHand = inHandGroupCounts.get(row.key) ?? 0;
+                      return (
+                        <tr key={row.key} className="bg-muted/40 border-t">
+                          <td
+                            className="max-w-0 truncate px-2 py-1"
+                            title={oddsRowTitle(row.label, inHand)}
+                          >
+                            <InHandDot inHand={inHand} />
+                            {row.label}{" "}
+                            <span className="text-muted-foreground tabular-nums">
+                              · {row.copies}
+                            </span>
+                          </td>
+                          <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
+                            {pct(row.openingChance)}
+                          </td>
+                          <td className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums">
+                            {pct(row.earlyChance)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {oddsRows.map((row) => {
                       const preferredPrintingId = printingByCardId.get(row.cardId) ?? null;
+                      const inHand = inHandCounts.get(row.cardId)?.length ?? 0;
                       const openCard = onCardClick
                         ? () =>
                             onCardClick({
@@ -934,7 +1061,11 @@ export function DeckTestBench({
                           {...cardHoverProps(onHoverCard, row.cardId, preferredPrintingId)}
                           {...rowActivateProps(openCard)}
                         >
-                          <td className="max-w-0 truncate px-2 py-1" title={row.cardName}>
+                          <td
+                            className="max-w-0 truncate px-2 py-1"
+                            title={oddsRowTitle(row.cardName, inHand)}
+                          >
+                            <InHandDot inHand={inHand} />
                             <span className="text-muted-foreground tabular-nums">
                               {row.copies}×
                             </span>{" "}
@@ -956,6 +1087,11 @@ export function DeckTestBench({
                 Chance of at least one copy in your opening hand, and anywhere in your first 7
                 cards.
               </p>
+              {handCardIds.length > 0 && (
+                <p className="text-muted-foreground text-2xs">
+                  Dots show what you hit in the sample hand.
+                </p>
+              )}
             </div>
           )}
           {/* Runes are a separate shuffled deck, so this reads the real deck

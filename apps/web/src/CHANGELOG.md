@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Decks): **Odds for the hand you drew** — the Test tab now says what an exchange could still find and what the next card could be, and marks the odds rows your hand already covers.
 - fix(App): **Match tracker and Scan in the menu** — the match tracker is now reachable on desktop under More, and scanning moves out of the top bar into More on desktop while staying top level on phones.
 - fix(Cards): **Art in the printing fan** — printings without their own scan now borrow the card's standard artwork in the hover fan, the same way the card in front of them does.
 - fix(Trades): **Copy picker per card while settling** — settling several cards in one go now asks about each card fresh, instead of carrying the previous card's pick over and leaving the confirm button stuck.
