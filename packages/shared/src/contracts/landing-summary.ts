@@ -12,20 +12,68 @@ export const landingSummaryResponseSchema = z
     thumbnailIds: z.array(z.string()).openapi({
       example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
     }),
-    // Same sample as thumbnailIds, tagged for the /features catalog demo. The
-    // ids stay as their own field so bundles from before this field keep
-    // working against the edge-cached payload.
+    // Same sample as thumbnailIds, carrying each printing's identity so the
+    // marketing vignettes can label the card they show. The ids stay as their
+    // own field so bundles from before this field keep working against the
+    // edge-cached payload.
     thumbnails: z
       .array(
         z.object({
           imageId: z.string(),
           rarity: z.string(),
           domains: z.array(z.string()),
+          name: z.string(),
+          shortCode: z.string(),
+          variantLabel: z.string().nullable(),
+          priceCents: z.number().nullable(),
         }),
       )
       .openapi({
         example: [
-          { imageId: "019d02f1-d14f-769f-9295-9852db692dbe", rarity: "epic", domains: ["fury"] },
+          {
+            imageId: "019d02f1-d14f-769f-9295-9852db692dbe",
+            rarity: "epic",
+            domains: ["fury"],
+            name: "Jinx, Rebel",
+            shortCode: "OGN-202",
+            variantLabel: null,
+            priceCents: 420,
+          },
+        ],
+      }),
+    // Real distribution channels for the promos vignette, so the miniature's
+    // "Promo" chips sit on printings that were actually handed out that way.
+    promoSections: z
+      .array(
+        z.object({
+          path: z.array(z.string()),
+          printingCount: z.number(),
+          printings: z.array(
+            z.object({
+              imageId: z.string(),
+              name: z.string(),
+              shortCode: z.string(),
+              rarity: z.string(),
+              markers: z.array(z.string()),
+            }),
+          ),
+        }),
+      )
+      .openapi({
+        example: [
+          {
+            path: ["Nexus Night", "Spiritforged"],
+            printingCount: 40,
+            printings: [
+              {
+                imageId: "019d02f1-d14f-769f-9295-9852db692dbe",
+                name: "Navori Scout",
+                shortCode: "SFD-037",
+                rarity: "common",
+                markers: ["Promo"],
+              },
+            ],
+          },
         ],
       }),
   })

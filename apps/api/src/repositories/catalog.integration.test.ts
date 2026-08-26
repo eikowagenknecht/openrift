@@ -128,6 +128,79 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       expect(typeof thumb.rarity).toBe("string");
       expect(thumb.rarity.length).toBeGreaterThan(0);
       expect(Array.isArray(thumb.domains)).toBe(true);
+      expect(thumb.name.length).toBeGreaterThan(0);
+      expect(thumb.shortCode.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("landingSummary names the card each sampled image belongs to", async () => {
+    const summary = await repo.landingSummary(36);
+    if (summary.thumbnails.length === 0) {
+      return;
+    }
+    const rows = await db
+      .selectFrom("printingImages")
+      .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("cards", "cards.id", "printings.cardId")
+      .select(["ci.id as imageId", "cards.name as name", "printings.shortCode as shortCode"])
+      .execute();
+    const byImageId = new Map(rows.map((r) => [r.imageId, r]));
+    for (const thumb of summary.thumbnails) {
+      const row = byImageId.get(thumb.imageId);
+      expect(row).toBeDefined();
+      expect(thumb.name).toBe(row!.name);
+      expect(thumb.shortCode).toBe(row!.shortCode);
+    }
+  });
+
+  it("landingPromoSections samples real channels the printings belong to", async () => {
+    const sections = await repo.landingPromoSections(2, 2);
+    if (sections.length === 0) {
+      return;
+    }
+    for (const section of sections) {
+      expect(section.path.length).toBeGreaterThan(0);
+      expect(section.path.length).toBeLessThanOrEqual(2);
+      expect(section.printings).toHaveLength(2);
+      expect(section.printingCount).toBeGreaterThanOrEqual(section.printings.length);
+      // Leaf labels repeat across branches ("Origins" sits under two parents),
+      // so the link only has to land on one channel carrying that label.
+      const channels = await db
+        .selectFrom("distributionChannels")
+        .select("id")
+        .where("label", "=", section.path.at(-1)!)
+        .execute();
+      expect(channels.length).toBeGreaterThan(0);
+      const channelIds = channels.map((c) => c.id);
+      for (const printing of section.printings) {
+        const link = await db
+          .selectFrom("printingDistributionChannels as pdc")
+          .innerJoin("printings as p", "p.id", "pdc.printingId")
+          .select("p.shortCode")
+          .where("pdc.channelId", "in", channelIds)
+          .where("p.shortCode", "=", printing.shortCode)
+          .executeTakeFirst();
+        expect(link).toBeDefined();
+        expect(printing.name.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("landingPromoSections returns the same sample within a single day", async () => {
+    const a = await repo.landingPromoSections(2, 2);
+    const b = await repo.landingPromoSections(2, 2);
+    expect(b).toEqual(a);
+  });
+
+  it("landingSummary sorts priced printings ahead of unpriced ones", async () => {
+    const summary = await repo.landingSummary(500);
+    const firstUnpriced = summary.thumbnails.findIndex((t) => t.priceCents === null);
+    if (firstUnpriced === -1) {
+      return;
+    }
+    for (const thumb of summary.thumbnails.slice(firstUnpriced)) {
+      expect(thumb.priceCents).toBeNull();
     }
   });
 

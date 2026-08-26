@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
+import { landingThumbnailCards } from "@/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
 
 import { CardFan } from "./card-fan";
@@ -81,6 +82,7 @@ export function LandingPage() {
   }
 
   const thumbnailUrls = (data?.thumbnailIds ?? []).map((id) => imageUrl(id, "400w"));
+  const thumbnailCards = landingThumbnailCards(data?.thumbnails);
 
   return (
     <HeroBackground>
@@ -148,7 +150,7 @@ export function LandingPage() {
       </div>
       {/* The fan uses thumbnails 0-4; the scanner vignette takes the next
           three so no card appears twice on screen. */}
-      <FeatureShowcase thumbnailUrls={thumbnailUrls.slice(5)} />
+      <FeatureShowcase scanCards={thumbnailCards.slice(5, 8)} />
       <LandingClosing />
     </HeroBackground>
   );

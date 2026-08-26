@@ -6,15 +6,40 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { landingSummaryRouter } from "./landing-summary";
 
+const thumbnail = (imageId: string, rarity: string, domains: string[]) => ({
+  imageId,
+  rarity,
+  domains,
+  name: "Jinx, Rebel",
+  shortCode: "OGN-202",
+  variantLabel: null,
+  priceCents: 420,
+});
+
+const promoSection = () => ({
+  path: ["Nexus Night", "Spiritforged"],
+  printingCount: 40,
+  printings: [
+    {
+      imageId: "ghi-003",
+      name: "Navori Scout",
+      shortCode: "SFD-037",
+      rarity: "common",
+      markers: ["Promo"],
+    },
+  ],
+});
+
 const mockCatalogRepo = {
   landingSummary: vi.fn(() =>
     Promise.resolve({
       cardCount: 0,
       printingCount: 0,
       copyCount: 0,
-      thumbnails: [] as { imageId: string; rarity: string; domains: string[] }[],
+      thumbnails: [] as ReturnType<typeof thumbnail>[],
     }),
   ),
+  landingPromoSections: vi.fn(() => Promise.resolve([] as ReturnType<typeof promoSection>[])),
 };
 
 // Mounts the oRPC handler exactly as production does, with the repos injected.
@@ -34,10 +59,12 @@ describe("GET /api/v1/landing-summary", () => {
       printingCount: 468,
       copyCount: 142,
       thumbnails: [
-        { imageId: "abc-001", rarity: "epic", domains: ["fury"] },
-        { imageId: "def-002", rarity: "common", domains: ["order", "calm"] },
+        thumbnail("abc-001", "epic", ["fury"]),
+        thumbnail("def-002", "common", ["order", "calm"]),
       ],
     });
+    mockCatalogRepo.landingPromoSections.mockReset();
+    mockCatalogRepo.landingPromoSections.mockResolvedValue([promoSection()]);
   });
 
   it("returns 200 with the landing summary shape", async () => {
@@ -50,15 +77,21 @@ describe("GET /api/v1/landing-summary", () => {
       copyCount: 142,
       thumbnailIds: ["abc-001", "def-002"],
       thumbnails: [
-        { imageId: "abc-001", rarity: "epic", domains: ["fury"] },
-        { imageId: "def-002", rarity: "common", domains: ["order", "calm"] },
+        thumbnail("abc-001", "epic", ["fury"]),
+        thumbnail("def-002", "common", ["order", "calm"]),
       ],
+      promoSections: [promoSection()],
     });
   });
 
   it("requests at most 36 thumbnails so the desktop scatter is fully populated", async () => {
     await app.request("/api/v1/landing-summary");
     expect(mockCatalogRepo.landingSummary).toHaveBeenCalledWith(36);
+  });
+
+  it("asks for two promo sections of two printings each", async () => {
+    await app.request("/api/v1/landing-summary");
+    expect(mockCatalogRepo.landingPromoSections).toHaveBeenCalledWith(2, 2);
   });
 
   it("returns an empty thumbnailIds array when the catalog has none", async () => {
@@ -68,6 +101,7 @@ describe("GET /api/v1/landing-summary", () => {
       copyCount: 0,
       thumbnails: [],
     });
+    mockCatalogRepo.landingPromoSections.mockResolvedValue([]);
     const res = await app.request("/api/v1/landing-summary");
     const json = await readJson(res);
     expect(json.thumbnailIds).toEqual([]);

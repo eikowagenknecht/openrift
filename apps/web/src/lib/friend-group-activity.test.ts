@@ -22,7 +22,7 @@ function trade(overrides: Partial<TradeCompletedEvent> = {}): TradeCompletedEven
     cardId: `card-${tradeSeq}`,
     quantity: 1,
     giverUserId: "giver-1",
-    giverName: "Thogrim",
+    giverName: "Mira",
     receiverUserId: "receiver-1",
     receiverName: "EPA",
     ...overrides,
@@ -70,7 +70,7 @@ describe("aggregateActivityEvents", () => {
     }
     expect(batch.at).toBe(first.at);
     expect(batch.totalQuantity).toBe(6);
-    expect(batch.giverName).toBe("Thogrim");
+    expect(batch.giverName).toBe("Mira");
     expect(batch.receiverName).toBe("EPA");
     expect(batch.events).toEqual([first, second, third]);
   });
@@ -99,7 +99,7 @@ describe("aggregateActivityEvents", () => {
       giverUserId: "receiver-1",
       giverName: "EPA",
       receiverUserId: "giver-1",
-      receiverName: "Thogrim",
+      receiverName: "Mira",
     });
     const rows = aggregateActivityEvents([give, receive]);
     expect(rows.map((row) => row.kind)).toEqual(["event", "event"]);

@@ -549,7 +549,7 @@ const GROUP_MEMBERS = [
     footer: "4 trades done · +2 in other groups",
   },
   {
-    name: "Thogrim",
+    name: "Mira",
     action: null,
     suggestions: "1 possible trade in another group",
     facts: "shares 2 lists",
@@ -742,7 +742,7 @@ const PAIRINGS = [
     status: "Reported",
     sides: [
       { name: "Alice", score: "2", points: "+3" },
-      { name: "Thogrim", score: "1", points: "+0" },
+      { name: "Mira", score: "1", points: "+0" },
     ],
   },
   {

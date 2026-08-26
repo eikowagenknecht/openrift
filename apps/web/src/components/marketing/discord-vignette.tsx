@@ -21,7 +21,7 @@ const PRICE_FIELDS = [
 const HOLDERS = [
   { name: "Alice", quantity: "2×", detail: "OGN-202/298 2× (Binder)" },
   {
-    name: "Thogrim",
+    name: "Mira",
     quantity: "2×",
     detail: "OGN-202/298 Standard 1× (Binder) · Alt Art 1× (Trades)",
   },

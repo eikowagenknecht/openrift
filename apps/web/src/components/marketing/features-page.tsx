@@ -38,6 +38,7 @@ import {
 } from "@/components/layout/page-top-bar";
 import { useSession } from "@/lib/auth-session";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
+import { landingThumbnailCards } from "@/lib/landing-thumbnails";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
@@ -221,6 +222,7 @@ export function FeaturesPage() {
     rarity: thumb.rarity,
     domains: thumb.domains,
   }));
+  const thumbnailCards = landingThumbnailCards(data?.thumbnails);
 
   // Same idle-time /cards warm-up the landing page does: fetch the lazy chunk
   // and run its loader while the visitor reads, so the catalog links land on a
@@ -260,7 +262,7 @@ export function FeaturesPage() {
           <ActionArrow />
         </Link>
       ),
-      vignette: <ScanVignette thumbnailUrls={thumbnailUrls.slice(8, 11)} />,
+      vignette: <ScanVignette cards={thumbnailCards.slice(8, 11)} />,
     },
     {
       id: "collections",
@@ -325,7 +327,7 @@ export function FeaturesPage() {
           <ActionArrow />
         </Link>
       ),
-      vignette: <PromosVignette thumbnailUrls={thumbnailUrls.slice(14, 18)} />,
+      vignette: <PromosVignette sections={data?.promoSections} />,
     },
     {
       id: "groups",

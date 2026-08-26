@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { Heading } from "@/components/heading";
 import { Reveal } from "@/components/marketing/reveal";
 import { ScanVignette } from "@/components/marketing/scan-vignette";
+import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
 
 import { DeckVignette, GroupsVignette, ListsVignette } from "./landing-vignettes";
@@ -17,10 +18,10 @@ import { DeckVignette, GroupsVignette, ListsVignette } from "./landing-vignettes
  * @returns The feature showcase section.
  */
 export function FeatureShowcase({
-  thumbnailUrls,
+  scanCards,
 }: {
-  /** Card thumbnails for the scanner vignette (reuse the landing-summary payload). */
-  thumbnailUrls?: string[];
+  /** The three sampled printings the scanner vignette scans (landing-summary payload). */
+  scanCards: LandingThumbnailCard[];
 }) {
   const features = [
     {
@@ -29,7 +30,7 @@ export function FeatureShowcase({
         "Point your phone at a card and OpenRift recognizes the exact printing. Sort a fresh box into your collection in one sitting.",
       cta: "Open the scanner",
       to: "/scan",
-      vignette: <ScanVignette thumbnailUrls={thumbnailUrls?.slice(0, 3) ?? []} />,
+      vignette: <ScanVignette cards={scanCards} />,
     },
     {
       title: "A collection that keeps itself current",

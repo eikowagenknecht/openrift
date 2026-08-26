@@ -22,7 +22,30 @@ const SUMMARY: LandingSummaryResponse = {
   copyCount: 142,
   thumbnailIds: ["019d02f1-d14f-769f-9295-9852db692dbe"],
   thumbnails: [
-    { imageId: "019d02f1-d14f-769f-9295-9852db692dbe", rarity: "epic", domains: ["fury"] },
+    {
+      imageId: "019d02f1-d14f-769f-9295-9852db692dbe",
+      rarity: "epic",
+      domains: ["fury"],
+      name: "Jinx, Rebel",
+      shortCode: "OGN-202",
+      variantLabel: null,
+      priceCents: 420,
+    },
+  ],
+  promoSections: [
+    {
+      path: ["Nexus Night", "Spiritforged"],
+      printingCount: 40,
+      printings: [
+        {
+          imageId: "019d02f1-d14f-769f-9295-9852db692dbe",
+          name: "Navori Scout",
+          shortCode: "SFD-037",
+          rarity: "common",
+          markers: ["Promo"],
+        },
+      ],
+    },
   ],
 };
 

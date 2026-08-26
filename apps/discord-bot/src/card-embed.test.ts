@@ -333,7 +333,7 @@ describe("buildCardEmbed", () => {
         groupName: "Summoner Skirmish",
         holders: [
           {
-            userName: "Thogrim",
+            userName: "Mira",
             quantity: 2,
             // Deliberately out of canonical order: the breakdown re-sorts.
             printings: [
@@ -346,7 +346,7 @@ describe("buildCardEmbed", () => {
     });
     const field = embed.fields?.find((f) => f.name.startsWith("On tradelists"));
     expect(field?.value).toBe(
-      "Thogrim · 2×\n-# OGN-202/298 Standard 1× (Binder) · Alt Art 1× (Trades)",
+      "Mira · 2×\n-# OGN-202/298 Standard 1× (Binder) · Alt Art 1× (Trades)",
     );
   });
 
@@ -361,7 +361,7 @@ describe("buildCardEmbed", () => {
         groupName: null,
         holders: [
           {
-            userName: "Thogrim",
+            userName: "Mira",
             quantity: 7,
             printings: [
               { printingId: "printing-1", quantity: 1, listNames: ["Binder"] },
@@ -377,7 +377,7 @@ describe("buildCardEmbed", () => {
     });
     const field = embed.fields?.find((f) => f.name === "On tradelists");
     expect(field?.value).toBe(
-      "Thogrim · 7×\n-# OGN-202/298 1× (Binder) · Unknown printing 1× · " +
+      "Mira · 7×\n-# OGN-202/298 1× (Binder) · Unknown printing 1× · " +
         "Unknown printing 1× · Unknown printing 1× · Unknown printing 1× · +2 more",
     );
   });

@@ -15,6 +15,42 @@ import type {
 } from "../db/index.js";
 import { fallbackImageId, imageId } from "./query-helpers.js";
 
+// The landing thumbnails' price. Cardmarket is the euro feed with the widest
+// printing coverage, and the vignettes that show a price render it in euros.
+const PRICE_MARKETPLACE = "cardmarket";
+
+// Printings priced inside this band sort ahead of the rest of the sample. Most
+// of the catalog sits at two cents, and a scanner tray totalling six of them
+// reads as a broken price feed; the chase printings above the band read as a
+// staged flex instead of a session anyone could have.
+const PRICE_BAND_CENTS = { min: 50, max: 2000 };
+
+// How many channel labels a sampled promo section may carry. The deep tournament
+// branches spend a whole line on their breadcrumb alone.
+const PROMO_MAX_CHANNEL_DEPTH = 2;
+
+/** One sampled printing inside a {@link LandingPromoSection}. */
+export interface LandingPromoPrinting {
+  imageId: string;
+  name: string;
+  shortCode: string;
+  rarity: string;
+  /** Marker labels, in the markers' own display order. Empty for most channels. */
+  markers: string[];
+}
+
+/** A distribution channel and a few of the printings handed out through it. */
+export interface LandingPromoSection {
+  /** Channel labels from the root down to the channel itself. */
+  path: string[];
+  /** Printings in the channel, not the number sampled here. */
+  printingCount: number;
+  printings: LandingPromoPrinting[];
+}
+
+type PromoSectionRow = Omit<LandingPromoSection, "printings"> &
+  LandingPromoPrinting & { sortKey: string };
+
 export type CatalogCardRow = Omit<
   Selectable<CardsTable>,
   "normName" | "createdAt" | "updatedAt"
@@ -506,12 +542,26 @@ export function catalogRepo(db: Kysely<Database>) {
      * deterministic per UTC day — `md5(printing_id || current_date)` — so an
      * edge cache can serve the same payload to every visitor for the day,
      * with the scatter rotating once at midnight.
+     *
+     * Each thumbnail carries the printing's own identity (name, code, variant
+     * label, Cardmarket price) so the marketing vignettes can label the card
+     * they are showing instead of inventing one. Printings priced inside
+     * {@link PRICE_BAND_CENTS} sort first, since the vignettes that show a
+     * price read the head of the sample.
      */
     async landingSummary(sampleSize: number): Promise<{
       cardCount: number;
       printingCount: number;
       copyCount: number;
-      thumbnails: { imageId: string; rarity: string; domains: string[] }[];
+      thumbnails: {
+        imageId: string;
+        rarity: string;
+        domains: string[];
+        name: string;
+        shortCode: string;
+        variantLabel: string | null;
+        priceCents: number | null;
+      }[];
     }> {
       const [cardCountRow, printingCountRow, copyCountRow, thumbnailRows] = await Promise.all([
         db
@@ -531,14 +581,32 @@ export function catalogRepo(db: Kysely<Database>) {
           .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
           .innerJoin("printings", "printings.id", "printingImages.printingId")
           .innerJoin("cards", "cards.id", "printings.cardId")
+          .leftJoin("finishes as fin", "fin.slug", "printings.finish")
+          .leftJoin("artVariants as av", "av.slug", "printings.artVariant")
+          .leftJoin("mvLatestPrintingPrices as pr", (join) =>
+            join
+              .onRef("pr.printingId", "=", "printings.id")
+              .on("pr.marketplace", "=", PRICE_MARKETPLACE),
+          )
           .select([
             imageId("ci").as("imageId"),
             "printings.rarity as rarity",
+            "cards.name as name",
+            "printings.shortCode as shortCode",
+            "pr.headlineCents as priceCents",
             sql<
               string[]
             >`coalesce((select array_agg(cd.domain_slug order by cd.ordinal) from card_domains cd where cd.card_id = cards.id), '{}')`.as(
               "domains",
             ),
+            sql<string | null>`nullif(
+              concat_ws(
+                ' · ',
+                case when printings.art_variant <> ${WellKnown.artVariant.NORMAL} then av.label end,
+                case when printings.finish <> ${WellKnown.finish.NORMAL} then fin.label end
+              ),
+              ''
+            )`.as("variantLabel"),
           ])
           .where("printingImages.face", "=", "front")
           .where("printingImages.isActive", "=", true)
@@ -547,6 +615,9 @@ export function catalogRepo(db: Kysely<Database>) {
           // EN only: the landing hero shows these large, and mixed-language
           // card faces read as noise to first-time visitors.
           .where("printings.language", "=", WellKnown.language.EN)
+          .orderBy(
+            sql`coalesce(pr.headline_cents, 0) not between ${PRICE_BAND_CENTS.min} and ${PRICE_BAND_CENTS.max}`,
+          )
           .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
           .limit(sampleSize)
           .$narrowType<{ imageId: NotNull }>()
@@ -560,8 +631,101 @@ export function catalogRepo(db: Kysely<Database>) {
           imageId: r.imageId,
           rarity: r.rarity,
           domains: r.domains,
+          name: r.name,
+          shortCode: r.shortCode,
+          variantLabel: r.variantLabel,
+          priceCents: r.priceCents,
         })),
       };
+    },
+
+    /**
+     * A per-UTC-day sample of real distribution channels for the promos
+     * vignette: the channel's breadcrumb, how many printings it holds, and a
+     * few of those printings with their markers. Channels deeper than
+     * {@link PROMO_MAX_CHANNEL_DEPTH} are skipped, because their breadcrumb is
+     * longer than the miniature's section divider can carry.
+     *
+     * The sample leads with printings that carry markers, and a channel needs
+     * enough of them to fill its section, since the marker chips are what the
+     * vignette is demonstrating. `printingCount` still counts the whole
+     * channel, markers or not.
+     */
+    async landingPromoSections(
+      sectionCount: number,
+      perSection: number,
+    ): Promise<LandingPromoSection[]> {
+      const result = await sql<PromoSectionRow>`
+        WITH RECURSIVE channel_paths AS (
+          SELECT id, ARRAY[label] AS path, 1 AS depth
+          FROM distribution_channels
+          WHERE parent_id IS NULL
+          UNION ALL
+          SELECT c.id, cp.path || c.label, cp.depth + 1
+          FROM distribution_channels c
+          JOIN channel_paths cp ON cp.id = c.parent_id
+        ),
+        channel_printings AS (
+          SELECT pdc.channel_id, p.id AS printing_id, f.id AS image_id,
+                 c.name, p.short_code, p.rarity, p.marker_slugs
+          FROM printing_distribution_channels pdc
+          JOIN printings p ON p.id = pdc.printing_id
+          JOIN cards c ON c.id = p.card_id
+          JOIN printing_images pi
+            ON pi.printing_id = p.id AND pi.face = 'front' AND pi.is_active
+          JOIN image_files f ON f.id = pi.image_file_id AND f.rehosted_url IS NOT NULL
+          WHERE p.language = ${WellKnown.language.EN}
+            AND c.type <> ${WellKnown.cardType.BATTLEFIELD}
+        ),
+        sections AS (
+          SELECT cp.id, cp.path, count(*)::int AS printing_count,
+                 md5(cp.id::text || current_date::text) AS sort_key
+          FROM channel_printings chp
+          JOIN channel_paths cp
+            ON cp.id = chp.channel_id AND cp.depth <= ${PROMO_MAX_CHANNEL_DEPTH}
+          GROUP BY cp.id, cp.path
+          HAVING count(*) FILTER (WHERE chp.marker_slugs <> '{}') >= ${perSection}
+          ORDER BY sort_key
+          LIMIT ${sectionCount}
+        ),
+        ranked AS (
+          SELECT s.sort_key, s.path, s.printing_count, chp.image_id, chp.name,
+                 chp.short_code, chp.rarity,
+                 coalesce((
+                   SELECT array_agg(m.label ORDER BY m.sort_order)
+                   FROM markers m WHERE m.slug = ANY(chp.marker_slugs)
+                 ), '{}') AS markers,
+                 row_number() OVER (
+                   PARTITION BY s.id
+                   ORDER BY chp.marker_slugs = '{}',
+                            md5(chp.printing_id::text || current_date::text)
+                 ) AS rn
+          FROM sections s
+          JOIN channel_printings chp ON chp.channel_id = s.id
+        )
+        SELECT sort_key AS "sortKey", path, printing_count AS "printingCount",
+               image_id AS "imageId", name, short_code AS "shortCode", rarity, markers
+        FROM ranked
+        WHERE rn <= ${perSection}
+        ORDER BY sort_key, rn
+      `.execute(db);
+
+      const sections = new Map<string, LandingPromoSection>();
+      for (const row of result.rows) {
+        let section = sections.get(row.sortKey);
+        if (!section) {
+          section = { path: row.path, printingCount: row.printingCount, printings: [] };
+          sections.set(row.sortKey, section);
+        }
+        section.printings.push({
+          imageId: row.imageId,
+          name: row.name,
+          shortCode: row.shortCode,
+          rarity: row.rarity,
+          markers: row.markers,
+        });
+      }
+      return [...sections.values()];
     },
 
     cardById(id: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {

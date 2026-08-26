@@ -40,9 +40,9 @@ describe("Podium", () => {
       seat(1, "DerVuk", 12),
       seat(2, "Poppy", 10),
       seat(3, "Fenix", 9),
-      seat(4, "Thogrim", 8),
+      seat(4, "Mira", 8),
     ]);
-    expect(screen.queryByText("Thogrim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mira")).not.toBeInTheDocument();
     expect(seatNames()).toHaveLength(3);
   });
 

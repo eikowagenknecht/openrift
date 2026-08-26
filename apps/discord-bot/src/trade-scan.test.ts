@@ -168,12 +168,12 @@ describe("tradeLine", () => {
           groupName: "Summoner Skirmish",
           holders: [
             { userName: "Alice", quantity: 2, printings: [] },
-            { userName: "Thogrim", quantity: 1, printings: [] },
+            { userName: "Mira", quantity: 1, printings: [] },
           ],
         },
         SITE,
       ),
-    ).toBe(`**[Jinx, Rebel](${SITE}/cards/jinx-rebel)** · Alice 2× · Thogrim 1×`);
+    ).toBe(`**[Jinx, Rebel](${SITE}/cards/jinx-rebel)** · Alice 2× · Mira 1×`);
   });
 
   it("copes with a holder whose display name is gone", () => {

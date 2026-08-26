@@ -99,7 +99,7 @@ function activityKey(event: FriendGroupActivityEvent): string {
 
 /**
  * A collapsed run of completed trades between the same two members: one line
- * of text ("Thogrim traded 20 cards to you") over an overlapping stack of the
+ * of text ("Mira traded 20 cards to you") over an overlapping stack of the
  * traded cards' art. Links to the Trades page like the single-trade row.
  * @returns The batch row.
  */
