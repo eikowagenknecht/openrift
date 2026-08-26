@@ -359,6 +359,55 @@ describe("CardThumbnail standard-art fallback", () => {
     expect(container.textContent).toContain("Signed");
   });
 
+  it("borrows standard art for an imageless sibling when the fan opens", () => {
+    const front = makePrintingWithImage("RB1-050");
+    const sibling = stubPrinting({ card: { slug: "RB1-050" }, images: [] });
+    const { container } = render(
+      <CardThumbnail
+        printing={front}
+        onClick={() => {}}
+        showImages
+        siblings={[front, sibling]}
+        display={{
+          ...baseDisplay,
+          coarsePointer: false,
+          getFallbackArt: () => fallbackTo("fan-fallback-image-id", "EN"),
+        }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    hoverTile(container);
+    expect(container.querySelector('img[src*="fan-fallback-image-id"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+
+  it("advances a fanned sibling from a failed image to the borrowed art", () => {
+    const front = makePrintingWithImage("RB1-051");
+    const sibling = makePrintingWithImage("RB1-051-foil");
+    const { container } = render(
+      <CardThumbnail
+        printing={front}
+        onClick={() => {}}
+        showImages
+        siblings={[front, sibling]}
+        display={{
+          ...baseDisplay,
+          coarsePointer: false,
+          getFallbackArt: () => fallbackTo("fan-fallback-image-id", "EN"),
+        }}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    hoverTile(container);
+    const siblingImg = container.querySelector('img[src*="RB1-051-foil"]');
+    if (!siblingImg) {
+      throw new Error("sibling image not found");
+    }
+    fireEvent.error(siblingImg);
+    expect(container.querySelector('img[src*="fan-fallback-image-id"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+
   it("keeps the drawn placeholder (with the notice) when no fallback art resolves", () => {
     const printing = stubPrinting({ card: { slug: "RB1-041" }, images: [] });
     const { container } = render(

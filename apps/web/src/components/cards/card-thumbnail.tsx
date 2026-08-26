@@ -1,5 +1,12 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
+import type {
+  Domain,
+  Marketplace,
+  PriceLookup,
+  Printing,
+  Rarity,
+  StandardArtFallback,
+} from "@openrift/shared";
 import {
   WellKnown,
   getOrientation,
@@ -318,6 +325,7 @@ function CardImageContent({
   card,
   showFoil,
   fallbackArt,
+  spacerClassName,
 }: {
   thumbnailUrl: string | null;
   srcSet: string | undefined;
@@ -350,6 +358,7 @@ function CardImageContent({
    * doesn't depict.
    */
   fallbackArt: { imageId: string; overlay: ReactNode } | null;
+  spacerClassName: string;
 }) {
   // Failed loads (missing on the server, network error) accumulate here so the
   // chain can advance: printing image → standard-art fallback → placeholder.
@@ -364,6 +373,31 @@ function CardImageContent({
     artUrl === null && fallbackCandidate !== null && !failedUrls.includes(fallbackCandidate.url)
       ? fallbackCandidate
       : null;
+  const drawnPlaceholder = (
+    <CardPlaceholderImage
+      name={card.name}
+      domain={card.domains}
+      energy={card.energy}
+      might={card.might}
+      power={card.power}
+      types={card.types}
+      superTypes={card.superTypes}
+      tags={card.tags}
+      rulesText={card.rulesText}
+      effectText={card.effectText}
+      mightBonus={card.mightBonus}
+      flavorText={card.flavorText}
+      rarity={rarity}
+      publicCode={publicCode}
+      artist={artist}
+      promoLabel={promoLabel}
+    />
+  );
+  // An empty alt marks decorative art — the fanned sibling faces, which sit
+  // inside the front card's button, where the placeholder's role="img" label
+  // would pollute the button's accessible name.
+  const placeholder =
+    alt === "" ? <div aria-hidden="true">{drawnPlaceholder}</div> : drawnPlaceholder;
   return (
     <>
       {artUrl ? (
@@ -377,7 +411,7 @@ function CardImageContent({
           fetchPriority={priority ? "high" : undefined}
           fade={!priority}
           onError={() => markFailed(artUrl)}
-          spacerClassName="bg-muted/40"
+          spacerClassName={spacerClassName}
         />
       ) : shownFallback ? (
         <>
@@ -391,68 +425,38 @@ function CardImageContent({
             fetchPriority={priority ? "high" : undefined}
             fade={!priority}
             onError={() => markFailed(shownFallback.url)}
-            spacerClassName="bg-muted/40"
+            spacerClassName={spacerClassName}
           />
           {shownFallback.overlay}
         </>
       ) : (
-        <CardPlaceholderImage
-          name={card.name}
-          domain={card.domains}
-          energy={card.energy}
-          might={card.might}
-          power={card.power}
-          types={card.types}
-          superTypes={card.superTypes}
-          tags={card.tags}
-          rulesText={card.rulesText}
-          effectText={card.effectText}
-          mightBonus={card.mightBonus}
-          flavorText={card.flavorText}
-          rarity={rarity}
-          publicCode={publicCode}
-          artist={artist}
-          promoLabel={promoLabel}
-        />
+        placeholder
       )}
       {showFoil && <FoilOverlay active />}
     </>
   );
 }
 
-// Renders a fanned sibling's art, swapping to the given placeholder when the
-// image fails to load (missing on the server, network error). Owns the failure
-// state so one broken sibling doesn't re-render the whole thumbnail.
-function SiblingArt({
-  src,
-  srcSet,
-  sizes,
-  rotated,
-  fallback,
-}: {
-  src: string;
-  srcSet: string | undefined;
-  sizes: string | undefined;
-  rotated: boolean;
-  fallback: ReactNode;
-}) {
-  // Keyed by URL so a changed image on a reused instance gets a fresh attempt.
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  if (src === failedSrc) {
-    return fallback;
+/** @returns The card as this printing prints it (its own name and texts). */
+function displayCard(printing: Printing) {
+  return {
+    ...printing.card,
+    name: printing.printedName ?? printing.card.name,
+    rulesText: printing.printedRulesText,
+    effectText: printing.printedEffectText,
+    flavorText: printing.flavorText,
+  };
+}
+
+/** @returns The substitute art step of {@link CardImageContent}'s chain. */
+function fallbackArtStep(printing: Printing, fallback: StandardArtFallback | null) {
+  if (fallback === null) {
+    return null;
   }
-  return (
-    <CardArtImage
-      thumbnailUrl={src}
-      srcSet={srcSet}
-      sizes={sizes}
-      alt=""
-      rotated={rotated}
-      loading="lazy"
-      spacerClassName="bg-black"
-      onError={() => setFailedSrc(src)}
-    />
-  );
+  return {
+    imageId: fallback.image.imageId,
+    overlay: <FallbackArtBadges printing={printing} artPrinting={fallback.printing} />,
+  };
 }
 
 interface CardThumbnailProps {
@@ -572,13 +576,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   belowLabel,
   imageOverlay,
 }: CardThumbnailProps) {
-  const card = {
-    ...printing.card,
-    name: printing.printedName ?? printing.card.name,
-    rulesText: printing.printedRulesText,
-    effectText: printing.printedEffectText,
-    flavorText: printing.flavorText,
-  };
+  const card = displayCard(printing);
   // Legends read as "Azir, Emperor of the Sands" — the champion tag is prepended
   // for display only (read printing.card.types/tags directly so `card` stays
   // memoizable, mirroring the orientation note below).
@@ -597,16 +595,10 @@ export const CardThumbnail = memo(function CardThumbnail({
   const srcSet = showImages && frontImage ? cardSrcSet(frontImage.imageId) : undefined;
   // Resolved for every cell (cheap map lookup + small scan) because the image
   // chain also falls back on runtime load errors, not just missing images.
-  const standardArtFallback = showImages ? display.getFallbackArt(printing) : null;
-  const fallbackArt =
-    standardArtFallback === null
-      ? null
-      : {
-          imageId: standardArtFallback.image.imageId,
-          overlay: (
-            <FallbackArtBadges printing={printing} artPrinting={standardArtFallback.printing} />
-          ),
-        };
+  const fallbackArt = fallbackArtStep(
+    printing,
+    showImages ? display.getFallbackArt(printing) : null,
+  );
   const rotated = needsCssRotation(orientation);
 
   const {
@@ -726,38 +718,8 @@ export const CardThumbnail = memo(function CardThumbnail({
         // them entirely on coarse-pointer devices, where the fan never opens.
         // Until then a black stand-in card renders the edges.
         const showSiblingFaces = fancyFan && !coarsePointer && fanHovered;
-        const siblingImageId =
-          showSiblingFaces && showImages ? (sibling.images[0]?.imageId ?? null) : null;
-        const siblingSrc = siblingImageId === null ? null : imageUrl(siblingImageId, "400w");
-        const siblingSrcSet = siblingImageId === null ? undefined : cardSrcSet(siblingImageId);
+        const siblingImageId = showImages ? (sibling.images[0]?.imageId ?? null) : null;
         const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride;
-        // Imageless (and failed-image) printings get the same placeholder art
-        // the front card uses, so the fan doesn't open onto bare gray
-        // rectangles. aria-hidden: the stack sits inside the front card's
-        // button, and the placeholder's role="img" label would pollute the
-        // button's accessible name.
-        const siblingPlaceholder = showSiblingFaces ? (
-          <div aria-hidden="true">
-            <CardPlaceholderImage
-              name={sibling.printedName ?? sibling.card.name}
-              domain={sibling.card.domains}
-              energy={sibling.card.energy}
-              might={sibling.card.might}
-              power={sibling.card.power}
-              types={sibling.card.types}
-              superTypes={sibling.card.superTypes}
-              tags={sibling.card.tags}
-              rulesText={sibling.printedRulesText}
-              effectText={sibling.printedEffectText}
-              mightBonus={sibling.card.mightBonus}
-              flavorText={sibling.flavorText}
-              rarity={sibling.rarity}
-              publicCode={sibling.publicCode}
-              artist={sibling.artist}
-              promoLabel={promoMarkerLabel(sibling)}
-            />
-          </div>
-        ) : null;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div
@@ -790,16 +752,28 @@ export const CardThumbnail = memo(function CardThumbnail({
               }}
             >
               <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-                {siblingSrc ? (
-                  <SiblingArt
-                    src={siblingSrc}
-                    srcSet={siblingSrcSet}
+                {showSiblingFaces ? (
+                  <CardImageContent
+                    thumbnailUrl={siblingImageId === null ? null : imageUrl(siblingImageId, "400w")}
+                    srcSet={siblingImageId === null ? undefined : cardSrcSet(siblingImageId)}
                     sizes={siblingSizes}
+                    alt=""
+                    priority={false}
                     rotated={rotated}
-                    fallback={siblingPlaceholder}
+                    rarity={sibling.rarity}
+                    publicCode={sibling.publicCode}
+                    artist={sibling.artist}
+                    promoLabel={promoMarkerLabel(sibling)}
+                    card={displayCard(sibling)}
+                    showFoil={false}
+                    fallbackArt={fallbackArtStep(
+                      sibling,
+                      showImages ? display.getFallbackArt(sibling) : null,
+                    )}
+                    spacerClassName="bg-black"
                   />
                 ) : (
-                  (siblingPlaceholder ?? <div className="aspect-card bg-black" />)
+                  <div className="aspect-card bg-black" />
                 )}
                 {showSiblingFaces && (
                   // With the fan closed, re-cover the mounted face in black so
@@ -843,6 +817,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             card={card}
             showFoil={isFoilCard && gridFoil}
             fallbackArt={fallbackArt}
+            spacerClassName="bg-muted/40"
           />
         </div>
         {banDim}
