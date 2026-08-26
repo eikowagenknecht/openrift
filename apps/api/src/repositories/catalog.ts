@@ -511,7 +511,7 @@ export function catalogRepo(db: Kysely<Database>) {
       cardCount: number;
       printingCount: number;
       copyCount: number;
-      thumbnailIds: string[];
+      thumbnails: { imageId: string; rarity: string; domains: string[] }[];
     }> {
       const [cardCountRow, printingCountRow, copyCountRow, thumbnailRows] = await Promise.all([
         db
@@ -531,7 +531,15 @@ export function catalogRepo(db: Kysely<Database>) {
           .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
           .innerJoin("printings", "printings.id", "printingImages.printingId")
           .innerJoin("cards", "cards.id", "printings.cardId")
-          .select(imageId("ci").as("imageId"))
+          .select([
+            imageId("ci").as("imageId"),
+            "printings.rarity as rarity",
+            sql<
+              string[]
+            >`coalesce((select array_agg(cd.domain_slug order by cd.ordinal) from card_domains cd where cd.card_id = cards.id), '{}')`.as(
+              "domains",
+            ),
+          ])
           .where("printingImages.face", "=", "front")
           .where("printingImages.isActive", "=", true)
           .where(sql`${imageId("ci")}`, "is not", null)
@@ -548,7 +556,11 @@ export function catalogRepo(db: Kysely<Database>) {
         cardCount: Number(cardCountRow.count),
         printingCount: Number(printingCountRow.count),
         copyCount: Number(copyCountRow.count),
-        thumbnailIds: thumbnailRows.map((r) => r.imageId),
+        thumbnails: thumbnailRows.map((r) => ({
+          imageId: r.imageId,
+          rarity: r.rarity,
+          domains: r.domains,
+        })),
       };
     },
 

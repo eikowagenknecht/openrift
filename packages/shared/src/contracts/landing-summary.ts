@@ -12,6 +12,22 @@ export const landingSummaryResponseSchema = z
     thumbnailIds: z.array(z.string()).openapi({
       example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
     }),
+    // Same sample as thumbnailIds, tagged for the /features catalog demo. The
+    // ids stay as their own field so bundles from before this field keep
+    // working against the edge-cached payload.
+    thumbnails: z
+      .array(
+        z.object({
+          imageId: z.string(),
+          rarity: z.string(),
+          domains: z.array(z.string()),
+        }),
+      )
+      .openapi({
+        example: [
+          { imageId: "019d02f1-d14f-769f-9295-9852db692dbe", rarity: "epic", domains: ["fury"] },
+        ],
+      }),
   })
   .openapi("LandingSummaryResponse");
 

@@ -1,6 +1,7 @@
 import { imageUrl } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
+import { ChevronDownIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,42 +12,13 @@ import { cn } from "@/lib/utils";
 import { CardFan } from "./card-fan";
 import { FeatureShowcase } from "./feature-showcase";
 import { HeroBackground } from "./hero-background";
+import { HeroCtas } from "./hero-ctas";
+import { LandingClosing } from "./landing-closing";
 
 // How long the logo "tap to play" hint stays visible after a tap.
 const HINT_DURATION_MS = 400;
 // How long the celebratory logo spin runs before the fan re-deals.
 const SPIN_DURATION_MS = 1000;
-
-// Hextech-style 45° corner cut for the hero CTAs. Applied via clip-path,
-// so the outline variant needs the wrapper trick below for its border.
-const CTA_CLIP = "polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)";
-
-function HeroCtas({ className }: { className?: string }) {
-  return (
-    <div className={cn("my-3 flex flex-wrap items-center justify-center gap-3", className)}>
-      <Link
-        to="/cards"
-        // ring-inset because the clip-path would cut off an outset focus ring.
-        className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring font-heading inline-flex h-11 items-center px-7 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
-        style={{ clipPath: CTA_CLIP }}
-      >
-        Browse cards
-      </Link>
-      {/* clip-path clips the border off the diagonal edge, so the gold hairline
-          is a clipped wrapper showing through 1px of padding. */}
-      <span className="bg-border-accent inline-block p-px" style={{ clipPath: CTA_CLIP }}>
-        <Link
-          to="/signup"
-          search={{ redirect: undefined, email: undefined }}
-          className="bg-background hover:bg-secondary focus-visible:ring-ring font-heading inline-flex h-11 items-center px-7 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
-          style={{ clipPath: CTA_CLIP }}
-        >
-          Sign up free
-        </Link>
-      </span>
-    </div>
-  );
-}
 
 function HeroStats({
   cardCount,
@@ -164,10 +136,20 @@ export function LandingPage() {
             onAllCollected={handleAllCollected}
           />
         </div>
+        {/* Inside the 100svh hero, so it reads as "there is more below" rather
+            than as a divider between two sections. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1"
+        >
+          <span className="text-muted-foreground/60 text-sm">See it in action</span>
+          <ChevronDownIcon className="text-muted-foreground/40 size-6 motion-safe:animate-bounce" />
+        </span>
       </div>
-      {/* The fan uses thumbnails 0-4; the catalog vignette takes the next
-          four so no card appears twice on screen. */}
-      <FeatureShowcase thumbnailUrls={thumbnailUrls.slice(5)} cardCount={data?.cardCount} />
+      {/* The fan uses thumbnails 0-4; the scanner vignette takes the next
+          three so no card appears twice on screen. */}
+      <FeatureShowcase thumbnailUrls={thumbnailUrls.slice(5)} />
+      <LandingClosing />
     </HeroBackground>
   );
 }

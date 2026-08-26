@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(App): **Feature tour at /features** — a new page walks through everything the app does, from the scanner to tournaments, with a shortcut into each feature.
 - feat(Cards): **Related cards on every card page** — each card page now ends with the cards closest to it: the tokens it creates, its champion's other cards, and similar cards from the same domain.
 
 ### Other

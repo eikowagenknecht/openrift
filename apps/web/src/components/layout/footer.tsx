@@ -11,6 +11,10 @@ export function Footer({ className }: { className?: string }) {
   return (
     <footer className={cn("text-2xs text-muted-foreground/60 mx-auto text-center", className)}>
       <p>
+        <Link to="/features" className="hover:text-muted-foreground">
+          Features
+        </Link>
+        <span aria-hidden="true"> · </span>
         <Link to="/legal-notice" className="hover:text-muted-foreground">
           Legal Notice
         </Link>

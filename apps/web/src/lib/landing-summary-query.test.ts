@@ -21,6 +21,9 @@ const SUMMARY: LandingSummaryResponse = {
   printingCount: 468,
   copyCount: 142,
   thumbnailIds: ["019d02f1-d14f-769f-9295-9852db692dbe"],
+  thumbnails: [
+    { imageId: "019d02f1-d14f-769f-9295-9852db692dbe", rarity: "epic", domains: ["fury"] },
+  ],
 };
 
 // The oRPC OpenAPI link may call fetch with a Request object or a (url, init)

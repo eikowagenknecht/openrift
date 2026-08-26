@@ -12,7 +12,7 @@ const mockCatalogRepo = {
       cardCount: 0,
       printingCount: 0,
       copyCount: 0,
-      thumbnailIds: [] as string[],
+      thumbnails: [] as { imageId: string; rarity: string; domains: string[] }[],
     }),
   ),
 };
@@ -33,7 +33,10 @@ describe("GET /api/v1/landing-summary", () => {
       cardCount: 312,
       printingCount: 468,
       copyCount: 142,
-      thumbnailIds: ["abc-001", "def-002"],
+      thumbnails: [
+        { imageId: "abc-001", rarity: "epic", domains: ["fury"] },
+        { imageId: "def-002", rarity: "common", domains: ["order", "calm"] },
+      ],
     });
   });
 
@@ -46,6 +49,10 @@ describe("GET /api/v1/landing-summary", () => {
       printingCount: 468,
       copyCount: 142,
       thumbnailIds: ["abc-001", "def-002"],
+      thumbnails: [
+        { imageId: "abc-001", rarity: "epic", domains: ["fury"] },
+        { imageId: "def-002", rarity: "common", domains: ["order", "calm"] },
+      ],
     });
   });
 
@@ -59,7 +66,7 @@ describe("GET /api/v1/landing-summary", () => {
       cardCount: 0,
       printingCount: 0,
       copyCount: 0,
-      thumbnailIds: [],
+      thumbnails: [],
     });
     const res = await app.request("/api/v1/landing-summary");
     const json = await readJson(res);

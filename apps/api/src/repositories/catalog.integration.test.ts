@@ -120,28 +120,31 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(typeof summary.copyCount).toBe("number");
     expect(summary.cardCount).toBeGreaterThan(0);
     expect(summary.printingCount).toBeGreaterThan(0);
-    expect(Array.isArray(summary.thumbnailIds)).toBe(true);
-    expect(summary.thumbnailIds.length).toBeLessThanOrEqual(36);
-    for (const imageId of summary.thumbnailIds) {
-      expect(typeof imageId).toBe("string");
-      expect(imageId.length).toBeGreaterThan(0);
+    expect(Array.isArray(summary.thumbnails)).toBe(true);
+    expect(summary.thumbnails.length).toBeLessThanOrEqual(36);
+    for (const thumb of summary.thumbnails) {
+      expect(typeof thumb.imageId).toBe("string");
+      expect(thumb.imageId.length).toBeGreaterThan(0);
+      expect(typeof thumb.rarity).toBe("string");
+      expect(thumb.rarity.length).toBeGreaterThan(0);
+      expect(Array.isArray(thumb.domains)).toBe(true);
     }
   });
 
   it("landingSummary respects the sampleSize cap", async () => {
     const summary = await repo.landingSummary(3);
-    expect(summary.thumbnailIds.length).toBeLessThanOrEqual(3);
+    expect(summary.thumbnails.length).toBeLessThanOrEqual(3);
   });
 
   it("landingSummary returns the same thumbnail sample within a single day", async () => {
     const a = await repo.landingSummary(36);
     const b = await repo.landingSummary(36);
-    expect(b.thumbnailIds).toEqual(a.thumbnailIds);
+    expect(b.thumbnails).toEqual(a.thumbnails);
   });
 
   it("landingSummary excludes battlefield printings from the thumbnail sample", async () => {
     const summary = await repo.landingSummary(500);
-    if (summary.thumbnailIds.length === 0) {
+    if (summary.thumbnails.length === 0) {
       return;
     }
     const battlefieldRows = await db
@@ -156,14 +159,14 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       .where("cards.type", "=", "battlefield")
       .execute();
     const battlefieldImageIds = new Set(battlefieldRows.map((r) => r.imageId));
-    for (const imageId of summary.thumbnailIds) {
-      expect(battlefieldImageIds.has(imageId)).toBe(false);
+    for (const thumb of summary.thumbnails) {
+      expect(battlefieldImageIds.has(thumb.imageId)).toBe(false);
     }
   });
 
   it("landingSummary only samples EN printings for thumbnails", async () => {
     const summary = await repo.landingSummary(500);
-    if (summary.thumbnailIds.length === 0) {
+    if (summary.thumbnails.length === 0) {
       return;
     }
     const nonEnglishRows = await db
@@ -177,8 +180,8 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       .where("printings.language", "!=", "EN")
       .execute();
     const nonEnglishImageIds = new Set(nonEnglishRows.map((r) => r.imageId));
-    for (const imageId of summary.thumbnailIds) {
-      expect(nonEnglishImageIds.has(imageId)).toBe(false);
+    for (const thumb of summary.thumbnails) {
+      expect(nonEnglishImageIds.has(thumb.imageId)).toBe(false);
     }
   });
 

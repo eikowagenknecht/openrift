@@ -25,7 +25,8 @@ export const landingSummaryRouter = {
       cardCount: summary.cardCount,
       printingCount: summary.printingCount,
       copyCount: summary.copyCount,
-      thumbnailIds: summary.thumbnailIds,
+      thumbnailIds: summary.thumbnails.map((t) => t.imageId),
+      thumbnails: summary.thumbnails,
     };
   }),
 };

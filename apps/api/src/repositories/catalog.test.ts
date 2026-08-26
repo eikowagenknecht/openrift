@@ -73,12 +73,16 @@ describe("catalogRepo", () => {
     expect(await catalogRepo(db).printingById("p-1")).toEqual({ id: "p-1" });
   });
 
-  it("landingSummary returns numeric counts and image_files.id values", async () => {
-    const db = createMockDb([{ count: "5", imageId: "image-uuid-1" }]);
+  it("landingSummary returns numeric counts and tagged thumbnails", async () => {
+    const db = createMockDb([
+      { count: "5", imageId: "image-uuid-1", rarity: "epic", domains: ["fury"] },
+    ]);
     const summary = await catalogRepo(db).landingSummary(36);
     expect(summary.cardCount).toBe(5);
     expect(summary.printingCount).toBe(5);
     expect(summary.copyCount).toBe(5);
-    expect(summary.thumbnailIds).toEqual(["image-uuid-1"]);
+    expect(summary.thumbnails).toEqual([
+      { imageId: "image-uuid-1", rarity: "epic", domains: ["fury"] },
+    ]);
   });
 });

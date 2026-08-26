@@ -136,7 +136,7 @@ export default function WhyOpenRiftArticle() {
             data plus a steady stream of articles and guides, which OpenRift doesn&apos;t have.
           </li>
           <li>
-            <span className="text-foreground font-medium">Riftcore</span> has AI-powered tools and
+            <span className="text-foreground font-medium">RiftCore</span> has AI-powered tools and
             an Android app in the Play Store.
           </li>
         </ul>
@@ -193,8 +193,8 @@ export default function WhyOpenRiftArticle() {
                 </th>
                 <th className="px-3 py-2.5 text-center font-medium">Piltover Archive</th>
                 <th className="px-3 py-2.5 text-center font-medium">Riftbound.gg</th>
-                <th className="px-3 py-2.5 text-center font-medium">Riftmana</th>
-                <th className="px-3 py-2.5 text-center font-medium">Riftcore</th>
+                <th className="px-3 py-2.5 text-center font-medium">RiftMana</th>
+                <th className="px-3 py-2.5 text-center font-medium">RiftCore</th>
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
@@ -373,7 +373,7 @@ export default function WhyOpenRiftArticle() {
 
 type CellValue = "yes" | "no" | "partial" | "unknown" | number;
 
-const SITE_NAMES = ["OpenRift", "Piltover Archive", "Riftbound.gg", "Riftmana", "Riftcore"];
+const SITE_NAMES = ["OpenRift", "Piltover Archive", "Riftbound.gg", "RiftMana", "RiftCore"];
 
 interface RowDetail {
   general?: string;
@@ -826,8 +826,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   //   OpenRift: 0 trackers, 0 third-party cookies (first-party Umami only)
   //   Piltover Archive: 1 tracker (Alphabet), 0 third-party cookies
   //   Riftbound.gg: 43 trackers (Sovrn, YieldMo, and 38 others), 50 third-party cookies
-  //   Riftmana: 24 trackers (Verizon Media, Criteo, and 20 others), 21 third-party cookies
-  //   Riftcore: 3 trackers (Alphabet), 1 third-party cookie
+  //   RiftMana: 24 trackers (Verizon Media, Criteo, and 20 others), 21 third-party cookies
+  //   RiftCore: 3 trackers (Alphabet), 1 third-party cookie
   {
     kind: "row",
     feature: "Ad-free, no third-party trackers",
@@ -851,7 +851,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   //     deck image exports), $9.99/mo (unlimited binders), $99.99/mo
   //     (exclusive Discord)
   //   Riftbound.gg: DotGG Premium $4.99/mo or $19.99/yr (ad removal)
-  //   Riftcore: $5-$20/mo (AI deck builder / judge / card scanner, voice
+  //   RiftCore: $5-$20/mo (AI deck builder / judge / card scanner, voice
   //     input, early access to new features)
   {
     kind: "row",
