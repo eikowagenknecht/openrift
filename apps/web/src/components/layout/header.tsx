@@ -198,8 +198,8 @@ interface NavItemConfig {
   badge?: keyof NavBadgeCounts;
   /** Only rendered while this feature flag is on. */
   flag?: "glossary" | "meta";
-  /** Phone feature: shown in the mobile sheet only, never in the desktop nav. */
-  mobileOnly?: boolean;
+  /** Restricts the entry to one nav: the mobile sheet, or the desktop nav. */
+  platform?: "mobile" | "desktop";
 }
 
 interface NavSectionConfig {
@@ -210,7 +210,7 @@ interface NavSectionConfig {
 const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { label: "Cards", to: "/cards", icon: LayersIcon, keepSearch: true },
   { label: "Collection", to: "/collections", icon: LibraryIcon, lockedKey: "collections" },
-  { label: "Scan", to: "/scan", icon: CameraIcon, lockedKey: "scan" },
+  { label: "Scan", to: "/scan", icon: CameraIcon, lockedKey: "scan", platform: "mobile" },
   // Decks are available logged out (ADR-035: build local decks without an
   // account), so this entry is a plain link for everyone.
   { label: "Decks", to: "/decks", icon: BookOpenIcon },
@@ -237,13 +237,25 @@ const MORE_NAV_SECTIONS: NavSectionConfig[] = [
         flag: "glossary",
         description: "Symbols, keywords, and shorthand",
       },
-      // Match tracker is a phone feature: mobile menu only, not in the desktop nav.
-      { label: "Match tracker", to: "/match-tracker", icon: SwordsIcon, mobileOnly: true },
+      {
+        label: "Match tracker",
+        to: "/match-tracker",
+        icon: SwordsIcon,
+        description: "Points and XP for 2–4 players during a game",
+      },
     ],
   },
   {
     label: "Organize",
     items: [
+      {
+        label: "Scan",
+        to: "/scan",
+        icon: CameraIcon,
+        lockedKey: "scan",
+        platform: "desktop",
+        description: "Add cards to a collection with your camera",
+      },
       {
         label: "Tournaments",
         to: "/tournaments",
@@ -303,7 +315,10 @@ function navItemVisible(item: NavItemConfig, opts: { flags: NavFlags; mobile: bo
   if (item.flag !== undefined && !opts.flags[item.flag]) {
     return false;
   }
-  if (item.mobileOnly && !opts.mobile) {
+  if (item.platform === "mobile" && !opts.mobile) {
+    return false;
+  }
+  if (item.platform === "desktop" && opts.mobile) {
     return false;
   }
   return true;

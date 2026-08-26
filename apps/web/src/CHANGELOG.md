@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(App): **Match tracker and Scan in the menu** — the match tracker is now reachable on desktop under More, and scanning moves out of the top bar into More on desktop while staying top level on phones.
 - fix(Trades): **Copy picker per card while settling** — settling several cards in one go now asks about each card fresh, instead of carrying the previous card's pick over and leaving the confirm button stuck.
 
 ## 2026-08-25
