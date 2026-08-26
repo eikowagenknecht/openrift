@@ -12,6 +12,10 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(cardsContract).$context<ApiContext>().use(requireUser);
 
+// Enough for a two-row strip on desktop without turning the section into a
+// second card browser.
+const RELATED_CARDS_LIMIT = 8;
+
 /**
  * The public card-detail contract. An unknown slug returns a typed NOT_FOUND.
  * Prices are NOT inlined — they are served separately by `/prices` (CACHE-1).
@@ -26,12 +30,13 @@ export const cardsRouter = {
       throw errors.NOT_FOUND({ message: `Card not found: ${input.cardSlug}` });
     }
 
-    const [printingRows, imageRows, banRows, errataRow, products] = await Promise.all([
+    const [printingRows, imageRows, banRows, errataRow, products, related] = await Promise.all([
       catalog.printingsByCardId(card.id),
       catalog.printingImagesByCardId(card.id),
       catalog.cardBansByCardId(card.id),
       catalog.cardErrataByCardId(card.id),
       repos.products.productsForCard(card.id),
+      catalog.relatedCards(card.id, RELATED_CARDS_LIMIT),
     ]);
 
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
@@ -68,6 +73,6 @@ export const cardsRouter = {
       decorations,
     );
 
-    return { card: cardResponse, printings, sets, products };
+    return { card: cardResponse, printings, sets, products, related };
   }),
 };

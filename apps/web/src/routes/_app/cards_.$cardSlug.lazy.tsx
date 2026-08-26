@@ -1,4 +1,10 @@
-import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
+import type {
+  CardDetailRelatedCard,
+  CardErrata,
+  Marketplace,
+  Printing,
+  TimeRange,
+} from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
   formatMonth,
@@ -9,7 +15,6 @@ import {
   legendDisplayName,
   MARKETPLACE_CURRENCY,
   marketplaceLabel,
-  preferredPrinting,
   snapshotHeadline,
   WellKnown,
 } from "@openrift/shared";
@@ -17,6 +22,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
+  PackageIcon,
   PaletteIcon,
   PencilLineIcon,
   Share2Icon,
@@ -50,6 +56,7 @@ import {
 import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card as CardPanel } from "@/components/ui/card";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Pressable } from "@/components/ui/pressable";
@@ -62,6 +69,8 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
+import { useSession } from "@/lib/auth-session";
+import { resolveCardMetaPrinting } from "@/lib/card-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
@@ -94,22 +103,21 @@ function CardDetailPage() {
     const bRank = rankByLang.get(b.language) ?? unlistedRank;
     return aRank - bRank || a.canonicalRank - b.canonicalRank;
   });
-  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(() => {
-    if (linkedPrintingId) {
-      const match = printings.find((p) => p.id === linkedPrintingId);
-      if (match) {
-        return match;
-      }
-    }
-    return preferredPrinting(printings, effectiveLanguageOrder) ?? printings[0];
-  });
+  // Derived from `?printingId=`, never held in state: the route component
+  // stays mounted when only `$cardSlug` changes (e.g. following a related-card
+  // link), so a useState here kept showing the previous card's printing. The
+  // same helper drives the SSR meta tags, so page and unfurl always agree.
+  const selectedPrinting = resolveCardMetaPrinting(
+    printings,
+    linkedPrintingId,
+    effectiveLanguageOrder,
+  );
 
   // Mirror the selected printing into `?printingId=` so the URL is shareable
   // (deep-link unfurls read this in the route's `head()`). The canonical tag
   // still points at `/cards/$cardSlug`, so search engines don't see variants
   // as duplicates.
   const selectPrinting = (printing: Printing) => {
-    setSelectedPrinting(printing);
     void navigate({
       to: ".",
       search: (prev) => ({ ...prev, printingId: printing.id }),
@@ -458,6 +466,8 @@ function CardDetailPage() {
           </CardPanel>
         </div>
 
+        <TrackCollectionNudge cardSlug={cardSlug} />
+
         {/* Printings grouped by language */}
         {printings.length > 0 &&
           [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
@@ -484,6 +494,8 @@ function CardDetailPage() {
 
         {/* Price history section for selected printing */}
         {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
+
+        <RelatedCardsSection related={data.related} />
       </div>
     </>
   );
@@ -1077,6 +1089,73 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Signup pitch for logged-out visitors, most of whom land here from a search
+ * engine and would otherwise never learn the site is more than a card
+ * database. Renders nothing for signed-in users; the session is resolved
+ * during SSR, so there is no flash either way.
+ */
+function TrackCollectionNudge({ cardSlug }: { cardSlug: string }) {
+  const { data: session, isPending } = useSession();
+  if (isPending || session?.user) {
+    return null;
+  }
+  return (
+    <CardPanel className="flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <PackageIcon className="text-primary size-5 shrink-0" aria-hidden="true" />
+        <p className="text-muted-foreground text-sm">
+          Keep count of your copies of this card, with wishlists and tradelists that update
+          themselves.
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="self-start sm:self-auto"
+        render={<Link to="/signup" search={{ redirect: `/cards/${cardSlug}`, email: undefined }} />}
+      >
+        Sign up free
+      </Button>
+    </CardPanel>
+  );
+}
+
+function RelatedCardsSection({ related }: { related: CardDetailRelatedCard[] }) {
+  if (related.length === 0) {
+    return null;
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <Heading level={2}>Related cards</Heading>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        {related.map((relatedCard) => (
+          <Link
+            key={relatedCard.slug}
+            to="/cards/$cardSlug"
+            params={{ cardSlug: relatedCard.slug }}
+            className="group flex flex-col gap-1.5"
+          >
+            <CardArtThumb
+              imageId={relatedCard.imageId}
+              variant="240w"
+              alt=""
+              rarity={relatedCard.rarity}
+              domains={relatedCard.domains}
+              landscape={getOrientation(relatedCard.types) === "landscape"}
+              loading="lazy"
+              className="w-full transition-transform group-hover:scale-[1.02]"
+            />
+            <span className="group-hover:text-primary truncate text-center text-sm transition-colors">
+              {relatedCard.name}
+            </span>
+          </Link>
+        ))}
       </div>
     </div>
   );

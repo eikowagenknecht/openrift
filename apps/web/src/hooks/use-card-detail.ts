@@ -38,6 +38,7 @@ interface EnrichedCardDetail {
   sets: CardDetailResponse["sets"];
   /** Products keyed by printing id, for the selected printing's "Found in" row. */
   productsByPrinting: ReadonlyMap<string, CardDetailResponse["products"]>;
+  related: CardDetailResponse["related"];
 }
 
 function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
@@ -64,6 +65,7 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
     // The API sends products flat (one row per printing+product) already
     // ordered by product name; grouping preserves that order per printing.
     productsByPrinting: Map.groupBy(response.products, (p) => p.printingId),
+    related: response.related,
   };
 }
 

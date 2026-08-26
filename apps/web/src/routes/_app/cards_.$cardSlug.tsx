@@ -1,5 +1,10 @@
-import type { CardDetailResponse, Marketplace, PricesResponse } from "@openrift/shared";
-import { MARKETPLACE_CURRENCY, priceLookupFromMap } from "@openrift/shared";
+import type { CardDetailResponse, PricesResponse } from "@openrift/shared";
+import {
+  ALL_MARKETPLACES,
+  MARKETPLACE_CURRENCY,
+  marketplaceLabel,
+  priceLookupFromMap,
+} from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -9,6 +14,7 @@ import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
 import { fetchPricesForSeo, pricesQueryOptions } from "@/hooks/use-prices";
+import type { CardMarketplaceOffer } from "@/lib/card-meta";
 import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
@@ -22,14 +28,6 @@ const cardDetailSearchSchema = z.object({
   printingId: z.string().optional(),
 });
 
-interface MarketplaceOffer {
-  seller: string;
-  currency: string;
-  priceLow: number;
-  priceHigh: number;
-  offerCount: number;
-}
-
 interface CardDetailLoaderData {
   data: CardDetailResponse;
   languageOrder: readonly string[];
@@ -37,17 +35,19 @@ interface CardDetailLoaderData {
   cardTypeLabels: Record<string, string>;
   // Precomputed in the loader from the /prices resource: prices are no
   // longer inlined on CardDetailResponse, so the SSR head can't derive these.
-  marketplaceOffers: MarketplaceOffer[];
+  marketplaceOffers: CardMarketplaceOffer[];
 }
 
 // Currency is sourced from the shared MARKETPLACE_CURRENCY map so the
 // JSON-LD offer currency stays in lockstep with how the rest of the app labels
 // each marketplace's cents.
-const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: string }[] = [
-  { key: "tcgplayer", seller: "TCGplayer", currency: MARKETPLACE_CURRENCY.tcgplayer },
-  { key: "cardmarket", seller: "Cardmarket", currency: MARKETPLACE_CURRENCY.cardmarket },
-  { key: "cardtrader", seller: "CardTrader", currency: MARKETPLACE_CURRENCY.cardtrader },
-];
+// ALL_MARKETPLACES puts CardTrader first, so the meta description's price
+// line (built from the first offer) quotes the app's preferred marketplace.
+const MARKETPLACE_OFFER_CONFIG = ALL_MARKETPLACES.map((key) => ({
+  key,
+  seller: marketplaceLabel(key),
+  currency: MARKETPLACE_CURRENCY[key],
+}));
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   validateSearch: cardDetailSearchSchema,
@@ -80,16 +80,25 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       loaded.languageOrder,
     );
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
-    const description = buildCardMetaDescription(data.card, metaPrinting, {
-      domains: loaded.domainLabels,
-      cardTypes: loaded.cardTypeLabels,
-    });
+    const description = buildCardMetaDescription(
+      data.card,
+      metaPrinting,
+      {
+        domains: loaded.domainLabels,
+        cardTypes: loaded.cardTypeLabels,
+      },
+      loaded.marketplaceOffers,
+    );
     // Canonical always points at the query-less card URL so search engines
     // consolidate rankings for all variants onto one page.
     const cardPath = `/cards/${data.card.slug}`;
+    // "Price & Data" only when there are real offers backing it — a priceless
+    // card advertising prices would earn clicks it can't serve.
+    const titleSuffix =
+      loaded.marketplaceOffers.length > 0 ? "Riftbound Card Price & Data" : "Riftbound Card";
     const head = seoHead({
       siteUrl,
-      title: `${data.card.name} - Riftbound Card`,
+      title: `${data.card.name} - ${titleSuffix}`,
       description,
       path: cardPath,
       ogImage: imageUrl,

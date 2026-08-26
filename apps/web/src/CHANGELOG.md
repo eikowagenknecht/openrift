@@ -2,6 +2,10 @@
 
 ## 2026-08-26
 
+### Highlights
+
+- feat(Cards): **Related cards on every card page** — each card page now ends with the cards closest to it: the tokens it creates, its champion's other cards, and similar cards from the same domain.
+
 ### Other
 
 - fix(App): **Match tracker and Scan in the menu** — the match tracker is now reachable on desktop under More, and scanning moves out of the top bar into More on desktop while staying top level on phones.

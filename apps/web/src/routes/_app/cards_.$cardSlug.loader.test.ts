@@ -102,11 +102,13 @@ describe("/cards/$cardSlug loader — prices stay out of the SSR payload", () =>
     it("still computes the JSON-LD marketplace offers", async () => {
       const { marketplaceOffers } = await runLoader(makeContext());
 
-      // 250 / 199 / 300 cents on the single printing, converted to major units.
+      // 300 / 250 / 199 cents on the single printing, converted to major
+      // units, in the app's marketplace order (CardTrader first) so the meta
+      // description's price line quotes the preferred marketplace.
       expect(marketplaceOffers).toEqual([
+        { seller: "CardTrader", currency: "EUR", priceLow: 3, priceHigh: 3, offerCount: 1 },
         { seller: "TCGplayer", currency: "USD", priceLow: 2.5, priceHigh: 2.5, offerCount: 1 },
         { seller: "Cardmarket", currency: "EUR", priceLow: 1.99, priceHigh: 1.99, offerCount: 1 },
-        { seller: "CardTrader", currency: "EUR", priceLow: 3, priceHigh: 3, offerCount: 1 },
       ]);
     });
 

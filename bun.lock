@@ -208,6 +208,7 @@
     "packages/e2e": {
       "name": "e2e",
       "devDependencies": {
+        "@openrift/shared": "workspace:*",
         "@piltoverarchive/riftbound-deck-codes": "1.4.0",
         "@playwright/test": "1.62.1",
         "postgres": "3.4.9",

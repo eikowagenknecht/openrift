@@ -1,8 +1,10 @@
 import type { CardDetailResponse, CatalogPrintingResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import type { CardMarketplaceOffer } from "./card-meta";
 import {
   buildCardMetaDescription,
+  buildCardPriceLine,
   frontImageId,
   getCardFrontImageFullUrl,
   pickCardMetaPrinting,
@@ -117,9 +119,50 @@ describe("buildCardMetaDescription", () => {
     expect(result.endsWith("...")).toBe(true);
   });
 
+  it("inserts the price line between the type sentence and the rules text", () => {
+    const offers: CardMarketplaceOffer[] = [
+      { seller: "TCGplayer", currency: "USD", priceLow: 3.42, priceHigh: 5.1, offerCount: 2 },
+    ];
+    const result = buildCardMetaDescription(
+      baseCard,
+      makePrinting("Deal 2 damage."),
+      labels,
+      offers,
+    );
+    expect(result).toBe(
+      "Brazen Buccaneer is a Fury Unit card from Riftbound. Prices from $3.42 (TCGplayer). Deal 2 damage.",
+    );
+  });
+
+  it("omits the price line when there are no offers", () => {
+    const result = buildCardMetaDescription(baseCard, makePrinting(null), labels, []);
+    expect(result).toBe("Brazen Buccaneer is a Fury Unit card from Riftbound.");
+  });
+
   it("omits the rules-text segment entirely when it strips down to nothing", () => {
     const result = buildCardMetaDescription(baseCard, makePrinting(":rb_energy_2:"), labels);
     expect(result).toBe("Brazen Buccaneer is a Fury Unit card from Riftbound.");
+  });
+});
+
+describe("buildCardPriceLine", () => {
+  it("formats the first offer's low price in its currency", () => {
+    const offers: CardMarketplaceOffer[] = [
+      { seller: "TCGplayer", currency: "USD", priceLow: 3.42, priceHigh: 5.1, offerCount: 2 },
+      { seller: "Cardmarket", currency: "EUR", priceLow: 2.95, priceHigh: 4, offerCount: 3 },
+    ];
+    expect(buildCardPriceLine(offers)).toBe("Prices from $3.42 (TCGplayer).");
+  });
+
+  it("formats EUR marketplaces with the EUR shape", () => {
+    const offers: CardMarketplaceOffer[] = [
+      { seller: "Cardmarket", currency: "EUR", priceLow: 2.95, priceHigh: 4, offerCount: 3 },
+    ];
+    expect(buildCardPriceLine(offers)).toBe("Prices from 2,95 € (Cardmarket).");
+  });
+
+  it("returns null with no offers", () => {
+    expect(buildCardPriceLine([])).toBeNull();
   });
 });
 

@@ -1,7 +1,37 @@
 import type { CardDetailResponse, CatalogPrintingResponse, Printing } from "@openrift/shared";
 import { imageUrl, preferredPrinting } from "@openrift/shared";
 
+import { formatPrice, formatPriceEur } from "@/lib/format";
+
 const META_DESCRIPTION_LIMIT = 155;
+
+/** Per-marketplace price aggregate precomputed by the card-detail loader for SSR meta tags. */
+export interface CardMarketplaceOffer {
+  seller: string;
+  currency: string;
+  priceLow: number;
+  priceHigh: number;
+  offerCount: number;
+}
+
+/**
+ * One compact price sentence for the card page's meta description, e.g.
+ * `Prices from 3,10 € (CardTrader).` — searchers who queried "<card> price"
+ * see a concrete number in the snippet. Uses the first offer in the loader's
+ * marketplace order (CardTrader first, mirroring ALL_MARKETPLACES), since
+ * cross-currency minimums aren't comparable.
+ *
+ * @returns The sentence, or null when the card has no marketplace offers.
+ */
+export function buildCardPriceLine(offers: readonly CardMarketplaceOffer[]): string | null {
+  const offer = offers[0];
+  if (!offer) {
+    return null;
+  }
+  const formatted =
+    offer.currency === "EUR" ? formatPriceEur(offer.priceLow) : formatPrice(offer.priceLow);
+  return `Prices from ${formatted} (${offer.seller}).`;
+}
 
 /**
  * Picks the printing whose metadata (rules text, front art) should drive
@@ -15,25 +45,32 @@ const META_DESCRIPTION_LIMIT = 155;
  *   fetched alongside the card via `initQueryOptions`.
  * @returns The preferred printing, or `undefined` when there are none.
  */
-export function pickCardMetaPrinting(
-  printings: CatalogPrintingResponse[],
+export function pickCardMetaPrinting<T extends CatalogPrintingResponse>(
+  printings: readonly T[],
   languageOrder: readonly string[],
-): CatalogPrintingResponse | undefined {
+): T | undefined {
   if (printings.length === 0) {
     return undefined;
   }
   // preferredPrinting only reads fields that exist on CatalogPrintingResponse
   // (language, canonicalRank) — never the Printing-only `setSlug` / `card`
-  // fields — so this structural cast is safe.
-  return preferredPrinting(printings as unknown as Printing[], languageOrder) ?? printings[0];
+  // fields — so this structural cast is safe, and the result is one of the
+  // input elements, so casting back to T is too.
+  return (
+    (preferredPrinting(printings as unknown as Printing[], languageOrder) as T | undefined) ??
+    printings[0]
+  );
 }
 
 /**
- * Resolves which printing drives a card-detail page's SSR meta tags. When the
- * URL pins a specific printing (`?printingId=`) and it exists on the card, that
- * variant wins so shared-link unfurls show the matching art and rules text;
- * otherwise it falls back to the language-preferred printing a fresh visitor
- * would land on.
+ * Resolves which printing a card-detail page shows — both the SSR meta tags
+ * and the live page derive their selection from it, so the URL is the single
+ * source of truth and the two can't disagree. When the URL pins a specific
+ * printing (`?printingId=`) and it exists on the card, that variant wins so
+ * shared-link unfurls show the matching art and rules text; otherwise it
+ * falls back to the language-preferred printing a fresh visitor would land
+ * on. A pinned id from a different card (e.g. left over after navigating to
+ * a related card) misses the `find` and falls back the same way.
  *
  * @param printingId The `?printingId=` search value, or `undefined` when the
  *   URL carries no variant.
@@ -42,11 +79,11 @@ export function pickCardMetaPrinting(
  * @returns The pinned printing when `printingId` matches one, otherwise the
  *   preferred printing, or `undefined` when there are none.
  */
-export function resolveCardMetaPrinting(
-  printings: CatalogPrintingResponse[],
+export function resolveCardMetaPrinting<T extends CatalogPrintingResponse>(
+  printings: readonly T[],
   printingId: string | undefined,
   languageOrder: readonly string[],
-): CatalogPrintingResponse | undefined {
+): T | undefined {
   const linked = printingId ? printings.find((printing) => printing.id === printingId) : undefined;
   return linked ?? pickCardMetaPrinting(printings, languageOrder);
 }
@@ -64,6 +101,7 @@ export function buildCardMetaDescription(
   card: CardDetailResponse["card"],
   printing: CatalogPrintingResponse | undefined,
   labels?: { domains?: Record<string, string>; cardTypes?: Record<string, string> },
+  offers?: readonly CardMarketplaceOffer[],
 ): string {
   const parts: string[] = [];
 
@@ -74,6 +112,11 @@ export function buildCardMetaDescription(
   const typeLabel = card.types.map((slug) => labels?.cardTypes?.[slug] ?? slug).join(" ");
   const typeLine = domainLabels ? `${domainLabels} ${typeLabel}` : typeLabel;
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
+
+  const priceLine = offers ? buildCardPriceLine(offers) : null;
+  if (priceLine) {
+    parts.push(priceLine);
+  }
 
   const rulesText = printing?.printedRulesText;
   if (rulesText) {

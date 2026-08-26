@@ -93,6 +93,7 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     return (select as (r: unknown) => ReturnType<typeof Object>)(response) as {
       printings: { id: string; setSlug: string; setReleased: boolean }[];
       productsByPrinting: ReadonlyMap<string, { slug: string; quantity: number }[]>;
+      related: { slug: string }[];
     };
   };
 
@@ -161,6 +162,19 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     expect(result.printings[0]).toMatchObject({ setSlug: "ogn", setReleased: false });
     // An unknown set falls back rather than throwing.
     expect(result.printings[1]).toMatchObject({ setSlug: "", setReleased: true });
+  });
+
+  it("passes related cards through unchanged", () => {
+    const related = [{ slug: "yasuo-windrider" }, { slug: "yasuo-remorseful" }];
+    const result = runSelect({
+      card,
+      printings: [],
+      sets: [],
+      products: [],
+      related,
+    });
+
+    expect(result.related).toEqual(related);
   });
 
   it("resolves setReleased per printing language", () => {

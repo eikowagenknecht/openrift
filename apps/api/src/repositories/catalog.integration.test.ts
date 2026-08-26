@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 import { catalogRepo } from "./catalog.js";
@@ -204,5 +204,125 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     const printings = await repo.printingsByCardId(multiLangCardId);
     expect(printings.length).toBeGreaterThan(1);
     expect(printings[0].language).toBe("EN");
+  });
+
+  describe("relatedCards", () => {
+    const seededIds: string[] = [];
+
+    async function seedCard(input: {
+      slug: string;
+      name: string;
+      type: string;
+      energy: number | null;
+      tags: string[];
+      domain?: string;
+    }): Promise<string> {
+      const row = await db
+        .insertInto("cards")
+        .values({
+          slug: input.slug,
+          name: input.name,
+          type: input.type,
+          might: null,
+          energy: input.energy,
+          power: null,
+          mightBonus: null,
+          keywords: [],
+          tags: input.tags,
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      seededIds.push(row.id);
+      if (input.domain) {
+        await db
+          .insertInto("cardDomains")
+          .values({ cardId: row.id, domainSlug: input.domain, ordinal: 0 })
+          .execute();
+      }
+      return row.id;
+    }
+
+    let baseId: string;
+
+    beforeAll(async () => {
+      baseId = await seedCard({
+        slug: "reltest-base",
+        name: "Reltest Zed, Master",
+        type: "unit",
+        energy: 3,
+        tags: ["ReltestZed"],
+        domain: "fury",
+      });
+      const tokenId = await seedCard({
+        slug: "reltest-token",
+        name: "Reltest Shadow Clone",
+        type: "unit",
+        energy: 0,
+        tags: [],
+      });
+      await seedCard({
+        slug: "reltest-mate",
+        name: "Reltest Zed, Shadow",
+        type: "unit",
+        energy: 5,
+        tags: ["ReltestZed"],
+        domain: "fury",
+      });
+      await seedCard({
+        slug: "reltest-filler",
+        name: "Reltest Fury Grunt",
+        type: "unit",
+        energy: 3,
+        tags: [],
+        domain: "fury",
+      });
+      await seedCard({
+        slug: "reltest-stranger",
+        name: "Reltest Calm Rune",
+        type: "rune",
+        energy: null,
+        tags: [],
+        domain: "calm",
+      });
+      await db
+        .insertInto("cardTokens")
+        .values({ cardId: baseId, tokenCardId: tokenId, source: "manual" })
+        .execute();
+      await repo.refreshCardAggregates();
+    });
+
+    afterAll(async () => {
+      await db.deleteFrom("cards").where("id", "in", seededIds).execute();
+      await repo.refreshCardAggregates();
+    });
+
+    it("ranks the token link first and the shared-tag card second", async () => {
+      const related = await repo.relatedCards(baseId, 8);
+      expect(related.map((r) => r.slug).slice(0, 2)).toEqual(["reltest-token", "reltest-mate"]);
+      expect(related.length).toBeLessThanOrEqual(8);
+    });
+
+    it("includes same-domain same-type cards as filler and excludes unrelated cards", async () => {
+      // A large limit so the assertion doesn't depend on how many other
+      // fury units the shared seed catalog happens to contain.
+      const related = await repo.relatedCards(baseId, 10_000);
+      const slugs = related.map((r) => r.slug);
+      expect(slugs).toContain("reltest-filler");
+      expect(slugs).not.toContain("reltest-stranger");
+      expect(slugs).not.toContain("reltest-base");
+    });
+
+    it("returns shaped rows with types, domains, and nullable art fields", async () => {
+      const related = await repo.relatedCards(baseId, 8);
+      const mate = related.find((r) => r.slug === "reltest-mate");
+      expect(mate).toMatchObject({
+        name: "Reltest Zed, Shadow",
+        types: ["unit"],
+        domains: ["fury"],
+      });
+      // These cards were seeded without printings, so there is no art to carry.
+      expect(mate!.rarity).toBeNull();
+      expect(mate!.imageId).toBeNull();
+    });
   });
 });

@@ -16,6 +16,7 @@ const mockCatalogRepo = {
   ),
   setsByIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   markersList: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+  relatedCards: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
 
 const mockDistributionChannelsRepo = {
@@ -113,6 +114,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     mockCatalogRepo.cardErrataByCardId.mockResolvedValue(undefined);
     mockCatalogRepo.setsByIds.mockResolvedValue([]);
     mockCatalogRepo.markersList.mockResolvedValue([]);
+    mockCatalogRepo.relatedCards.mockResolvedValue([]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
     mockPrintingCitationsRepo.listForPrintingIds.mockResolvedValue([]);
@@ -138,6 +140,26 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     expect(json.printings[0].images).toEqual([]);
     expect(json.sets).toHaveLength(1);
     expect(json.sets[0].id).toBe(SET_ID);
+  });
+
+  it("passes related cards through to the response", async () => {
+    mockCatalogRepo.cardBySlug.mockResolvedValue(dbCard);
+    mockCatalogRepo.printingsByCardId.mockResolvedValue([dbPrinting]);
+    mockCatalogRepo.setsByIds.mockResolvedValue([dbSet]);
+    const relatedRow = {
+      slug: "yasuo-windrider",
+      name: "Yasuo, Windrider",
+      types: ["unit"],
+      domains: ["calm"],
+      rarity: "epic",
+      imageId: null,
+    };
+    mockCatalogRepo.relatedCards.mockResolvedValue([relatedRow]);
+
+    const res = await app.request("/api/v1/cards/jinx-rebel");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.related).toEqual([relatedRow]);
   });
 
   it("maps bans onto the card response", async () => {

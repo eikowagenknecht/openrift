@@ -9,6 +9,7 @@
     "test:e2e:debug": "set -a && source ../../.env 2>/dev/null && set +a && bunx playwright test --debug"
   },
   "devDependencies": {
+    "@openrift/shared": "workspace:*",
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
     "@playwright/test": "1.62.1",
     "postgres": "3.4.9"

@@ -1,3 +1,4 @@
+import { ALL_MARKETPLACES, EUR_MARKETPLACES, marketplaceLabel } from "@openrift/shared";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
@@ -91,7 +92,30 @@ async function fetchCardDetail(slug: string): Promise<CardDetailFixture> {
 
 // Mirrors apps/web/src/lib/card-meta.ts so we can compare the head's
 // rendered description against what the helper would produce.
-function buildExpectedDescription(detail: CardDetailFixture): string {
+// Follows card-meta's buildCardPriceLine: the first marketplace (in
+// ALL_MARKETPLACES order, CardTrader first) with any positive price wins, and
+// the wire's integer cents convert to major units. Only the currency
+// formatting is restated here — those formatters live in apps/web, not shared.
+function buildExpectedPriceLine(
+  detail: CardDetailFixture,
+  prices: Record<string, MarketplacePrices | undefined>,
+): string | null {
+  for (const marketplace of ALL_MARKETPLACES) {
+    const cents = detail.printings
+      .map((p) => prices[p.id]?.[marketplace])
+      .filter((value): value is number => typeof value === "number" && value > 0);
+    if (cents.length > 0) {
+      const low = Math.min(...cents) / 100;
+      const formatted = EUR_MARKETPLACES.has(marketplace)
+        ? `${low.toFixed(2).replace(".", ",")} €`
+        : `$${low.toFixed(2)}`;
+      return `Prices from ${formatted} (${marketplaceLabel(marketplace)}).`;
+    }
+  }
+  return null;
+}
+
+function buildExpectedDescription(detail: CardDetailFixture, priceLine: string | null): string {
   const META = 155;
   const card = detail.card;
   const parts: string[] = [];
@@ -103,6 +127,9 @@ function buildExpectedDescription(detail: CardDetailFixture): string {
   const domains = card.domains.length > 0 ? card.domains.map(capitalize).join("/") : null;
   const typeLine = domains ? `${domains} ${capitalize(card.type)}` : capitalize(card.type);
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
+  if (priceLine) {
+    parts.push(priceLine);
+  }
   const rules = detail.printings[0]?.printedRulesText;
   if (rules) {
     const cleaned = rules
@@ -226,15 +253,24 @@ test.describe("card detail route — essentials", () => {
 });
 
 test.describe("card detail route — head / SEO / JSON-LD", () => {
-  test("title follows the '<name> - Riftbound Card' template", async ({ page }) => {
+  test("title follows the '<name> - Riftbound Card' template, advertising prices when offers exist", async ({
+    page,
+  }) => {
+    const detail = await fetchCardDetail(SEED_CARD_SLUG);
+    const prices = await fetchPrices();
+    const suffix = buildExpectedPriceLine(detail, prices)
+      ? "Riftbound Card Price & Data"
+      : "Riftbound Card";
+
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    await expect(page).toHaveTitle(`${SEED_CARD_NAME} - Riftbound Card - OpenRift`);
+    await expect(page).toHaveTitle(`${SEED_CARD_NAME} - ${suffix} - OpenRift`);
   });
 
   test("meta description matches buildCardMetaDescription output", async ({ page }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
-    const expected = buildExpectedDescription(detail);
+    const prices = await fetchPrices();
+    const expected = buildExpectedDescription(detail, buildExpectedPriceLine(detail, prices));
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
@@ -292,6 +328,38 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
     expect(breadcrumb.itemListElement[0].item).toBe(`${WEB_BASE_URL}/cards`);
     expect(breadcrumb.itemListElement[1].name).toBe(SEED_CARD_NAME);
     expect(breadcrumb.itemListElement[1].item).toBe(`${WEB_BASE_URL}/cards/${SEED_CARD_SLUG}`);
+  });
+});
+
+test.describe("card detail route — related cards", () => {
+  // Regression: the selected printing used to live in component state, which
+  // survives a $cardSlug-only navigation (the route component stays mounted),
+  // so following a related-card link kept showing the previous card's
+  // printing in the info panel. The selection is now derived from the URL.
+  test("following a related-card link resets the selected printing to the new card's", async ({
+    page,
+  }) => {
+    const detail = await fetchCardDetail(SEED_CARD_SLUG);
+    const oldCode = detail.printings[0].publicCode;
+
+    await page.goto(`/cards/${SEED_CARD_SLUG}`);
+    const heading = page.getByRole("heading", { name: "Related cards" });
+    await expect(heading).toBeVisible();
+
+    const firstRelated = heading.locator("..").getByRole("link").first();
+    const href = await firstRelated.getAttribute("href");
+    expect(href).toMatch(/^\/cards\//u);
+    const relatedSlug = (href ?? "").split("/").pop() ?? "";
+    const relatedDetail = await fetchCardDetail(relatedSlug);
+
+    await firstRelated.click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: relatedDetail.card.name }),
+    ).toBeVisible();
+    // The info panel now shows the new card's preferred printing, and the old
+    // card's code is gone from the page entirely.
+    await expect(page.getByText(relatedDetail.printings[0].publicCode).first()).toBeVisible();
+    await expect(page.getByText(oldCode, { exact: true })).toHaveCount(0);
   });
 });
 

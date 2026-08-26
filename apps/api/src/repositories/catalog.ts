@@ -37,6 +37,16 @@ interface CardAggregateNarrowing {
   types: CardType[];
 }
 
+/** One row of `relatedCards`, already shaped for the card-detail `related` strip. */
+export interface RelatedCardRow {
+  slug: string;
+  name: string;
+  types: CardType[];
+  domains: Domain[];
+  rarity: string | null;
+  imageId: string | null;
+}
+
 type CatalogCardBanRow = Pick<
   Selectable<CardBansTable>,
   "cardId" | "formatId" | "bannedAt" | "reason"
@@ -624,6 +634,90 @@ export function catalogRepo(db: Kysely<Database>) {
         .innerJoin("printings", "printings.id", "printingImages.printingId")
         .where("printings.cardId", "=", cardId)
         .execute();
+    },
+
+    /**
+     * Scored related cards for the card page's "Related cards" strip.
+     * Signals, strongest first: token links in either direction (a card and
+     * the token it creates), then shared `cards.tags` weighted by how rare
+     * the tag is (a champion tag shared by 3 cards outranks a region tag
+     * shared by 80), then a same-domain/same-type filler ranked by energy
+     * proximity so a vanilla card still gets a populated strip. The filler
+     * caps at 0.9 — below 80/n for even the most common tag — so any real
+     * shared tag always outranks a mere same-cost neighbor; a last 0.05
+     * same-type-only term keeps domainless siblings (the six runes, tokens)
+     * from producing an empty strip. Fully
+     * deterministic (name tiebreak) — the result is embedded in the cached
+     * card-detail response, so it must not shuffle between requests. Each
+     * result carries the art of its canonical printing (EN-first, preferring
+     * one with a rehosted image).
+     */
+    async relatedCards(cardId: string, limit: number): Promise<RelatedCardRow[]> {
+      const result = await sql<RelatedCardRow>`
+        WITH me AS (
+          SELECT c.id, c.tags, c.energy, mca.domains, mca.types
+          FROM cards c
+          JOIN mv_card_aggregates mca ON mca.card_id = c.id
+          WHERE c.id = ${cardId}
+        ),
+        tag_freq AS (
+          SELECT t AS tag, count(*)::float8 AS n
+          FROM cards, LATERAL unnest(cards.tags) AS t
+          GROUP BY t
+        ),
+        token_links AS (
+          SELECT token_card_id AS other_id FROM card_tokens WHERE card_id = ${cardId}
+          UNION
+          SELECT card_id FROM card_tokens WHERE token_card_id = ${cardId}
+        ),
+        scored AS (
+          SELECT
+            c.id, c.slug, c.name, mca.types, mca.domains,
+            (CASE WHEN EXISTS (SELECT 1 FROM token_links tl WHERE tl.other_id = c.id)
+              THEN 100.0 ELSE 0.0 END)
+            + COALESCE((
+                SELECT SUM(80.0 / f.n)
+                FROM unnest(c.tags) AS t
+                JOIN tag_freq f ON f.tag = t
+                WHERE t = ANY(me.tags)
+              ), 0.0)
+            + (CASE WHEN mca.domains && me.domains AND mca.types && me.types
+                THEN GREATEST(0.1, 0.9 - ABS(COALESCE(c.energy, 0) - COALESCE(me.energy, 0)) * 0.1)
+                ELSE 0.0 END)
+            + (CASE WHEN mca.types && me.types THEN 0.05 ELSE 0.0 END) AS score
+          FROM cards c
+          JOIN mv_card_aggregates mca ON mca.card_id = c.id
+          CROSS JOIN me
+          WHERE c.id <> me.id
+        ),
+        top_cards AS (
+          SELECT * FROM scored WHERE score > 0 ORDER BY score DESC, name LIMIT ${limit}
+        )
+        SELECT
+          top_cards.slug,
+          top_cards.name,
+          top_cards.types,
+          top_cards.domains,
+          art.rarity,
+          art.image_id AS "imageId"
+        FROM top_cards
+        LEFT JOIN LATERAL (
+          SELECT
+            p.rarity,
+            CASE WHEN imgf.rehosted_url IS NOT NULL THEN imgf.id ELSE NULL END AS image_id
+          FROM printings p
+          JOIN languages l ON l.code = p.language
+          JOIN sets s ON s.id = p.set_id
+          LEFT JOIN printing_images pi
+            ON pi.printing_id = p.id AND pi.face = 'front' AND pi.is_active
+          LEFT JOIN image_files imgf ON imgf.id = pi.image_file_id
+          WHERE p.card_id = top_cards.id
+          ORDER BY (imgf.rehosted_url IS NOT NULL) DESC, l.sort_order, s.sort_order, p.short_code
+          LIMIT 1
+        ) art ON TRUE
+        ORDER BY top_cards.score DESC, top_cards.name
+      `.execute(db);
+      return result.rows;
     },
 
     cardBansByCardId(cardId: string): Promise<CatalogCardBanRow[]> {

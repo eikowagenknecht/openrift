@@ -77,7 +77,13 @@ type HeadFn = (ctx: { loaderData: unknown; match: { search: { printingId?: strin
 
 function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] = []) {
   const loaderData = {
-    data: { card, printings: [en, ja], sets: [], products: [] } satisfies CardDetailResponse,
+    data: {
+      card,
+      printings: [en, ja],
+      sets: [],
+      products: [],
+      related: [],
+    } satisfies CardDetailResponse,
     languageOrder: ["EN", "DE", "JA"] as const,
     domainLabels: { fury: "Fury" },
     cardTypeLabels: { unit: "Unit" },
@@ -141,5 +147,23 @@ describe("/cards/$cardSlug SSR head", () => {
     const product = scripts?.find((script) => script.children.includes('"@type":"Product"'));
     expect(product).toBeDefined();
     expect(product?.children).toContain('"offerCount":2');
+  });
+
+  it("advertises the price in title and description only when offers exist", () => {
+    const withOffers = runHeadFull(undefined, [
+      { seller: "TCGplayer", currency: "USD", priceLow: 3.42, priceHigh: 5.1, offerCount: 2 },
+    ]).meta;
+    expect(withOffers.find((entry) => entry.title)?.title).toContain("Riftbound Card Price & Data");
+    expect(withOffers.find((entry) => entry.name === "description")?.content).toContain(
+      "Prices from $3.42 (TCGplayer).",
+    );
+
+    const withoutOffers = runHeadFull(undefined, []).meta;
+    const title = withoutOffers.find((entry) => entry.title)?.title;
+    expect(title).toContain("Riftbound Card");
+    expect(title).not.toContain("Price");
+    expect(withoutOffers.find((entry) => entry.name === "description")?.content).not.toContain(
+      "Prices from",
+    );
   });
 });
