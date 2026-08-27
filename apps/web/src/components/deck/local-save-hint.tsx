@@ -12,13 +12,15 @@ import { cn } from "@/lib/utils";
 
 /**
  * Shared login link for the local-save hints, matching the deck builder's sign-in link.
+ * Both hints render on /decks, which is also the only page that mounts the
+ * claim prompt, so signing in has to come back here for the decks to be claimed.
  * @returns The sign-in link element.
  */
 function SignInLink({ className }: { className?: string }) {
   return (
     <Link
       to="/login"
-      search={{ redirect: undefined, email: undefined }}
+      search={{ redirect: "/decks", email: undefined }}
       className={cn("hover:text-foreground font-medium underline", className)}
     >
       Sign in

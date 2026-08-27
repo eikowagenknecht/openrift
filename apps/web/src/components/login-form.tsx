@@ -135,7 +135,7 @@ function PasswordSignIn({
     // are keyed by userId, so once the new session lands every consumer
     // attaches to the new user's data automatically.
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
-    void navigate({ to: (redirectTo as "/") ?? "/" });
+    void navigate({ to: (redirectTo as "/collections") ?? "/collections" });
   }
 
   async function handleResend() {
@@ -284,7 +284,7 @@ function OtpSignIn({
       return;
     }
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
-    void navigate({ to: (redirectTo as "/") ?? "/" });
+    void navigate({ to: (redirectTo as "/collections") ?? "/collections" });
   }
 
   return (

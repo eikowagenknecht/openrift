@@ -59,7 +59,7 @@ export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
           onClick={() =>
             authClient.signIn.social({
               provider: "google",
-              callbackURL: redirectTo ?? "/",
+              callbackURL: redirectTo ?? "/collections",
             })
           }
         >
@@ -75,7 +75,7 @@ export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
           onClick={() =>
             authClient.signIn.social({
               provider: "discord",
-              callbackURL: redirectTo ?? "/",
+              callbackURL: redirectTo ?? "/collections",
             })
           }
         >

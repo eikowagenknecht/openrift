@@ -128,7 +128,7 @@ export function SignupForm({
           </Field>
         </FieldGroup>
       </form>
-      <SocialAuthButtons redirectTo={redirectTo ?? "/collections"} />
+      <SocialAuthButtons redirectTo={redirectTo} />
       <FieldDescription className="text-center">
         Already have an account? <LoginLink control={form.control} redirectTo={redirectTo} />
       </FieldDescription>

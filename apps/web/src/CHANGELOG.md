@@ -10,7 +10,10 @@
 
 ### Other
 
+- feat(App): **Navigation on the front page** — the front page now carries the app header, so cards, decks and the menu are one click away.
 - feat(Collection): **Scanner rows match the app** — the scanner's card rows and its two pickers now lead with the shared art strip, domain bar, rarity and code, and the owned count sits at the right.
+- fix(Account): **Sign in returns you to your page** — signing in from the header now comes back to the page you were on, and otherwise lands in your collection rather than the marketing page.
+- fix(Decks): **Local decks claimed after signing in** — the "saved only on this device" prompts now return to your deck list, which is where the decks are offered for claiming.
 - fix(Collection): **Add all stays after picking a collection** — scanned cards you only identified can still be added in one go once you switch the scanner to a real destination, which now comes preselected.
 - fix(Account): **Honest codes on the sign-in page** — asking for an email code no longer moves to the code box when the send failed, and the verification resend now takes you where the code can be typed.
 - fix(Account): **Working resend when changing your email** — resend now really sends another code, and both it and the first send tell you when they fail.

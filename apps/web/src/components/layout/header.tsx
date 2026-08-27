@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useMatch, useRouter } from "@tanstack/react-router";
+import { Link, useLocation, useMatch, useRouter } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   BookTextIcon,
@@ -689,6 +689,27 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   );
 }
 
+// Signing in from one of these would either bounce through an auth page or
+// land back on the marketing page, so they carry no redirect and fall through
+// to the post-sign-in default.
+const NO_SIGN_IN_REDIRECT: ReadonlySet<string> = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/reset-password",
+  "/verify-email",
+]);
+
+/** Picks the `redirect` the header's Sign in button carries from the current location.
+ * @returns The href to return to after signing in, or `undefined` to use the default.
+ */
+export function signInRedirectFor(location: {
+  pathname: string;
+  href: string;
+}): string | undefined {
+  return NO_SIGN_IN_REDIRECT.has(location.pathname) ? undefined : location.href;
+}
+
 function UserMenu({
   session,
   isPending,
@@ -697,6 +718,7 @@ function UserMenu({
   isPending: boolean;
 }) {
   const isLoggedIn = Boolean(session?.user);
+  const signInRedirect = useLocation({ select: signInRedirectFor });
 
   if (isPending) {
     return <div className="size-8" />;
@@ -709,7 +731,7 @@ function UserMenu({
       {!user && (
         <Link
           to="/login"
-          search={{ redirect: undefined, email: undefined }}
+          search={{ redirect: signInRedirect, email: undefined }}
           className={buttonVariants({ variant: "default", size: "sm" })}
         >
           Sign in

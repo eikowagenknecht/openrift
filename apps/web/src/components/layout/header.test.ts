@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { visibleMoreSections } from "./header";
+import { signInRedirectFor, visibleMoreSections } from "./header";
 
 const flagsOn = { glossary: true, meta: true };
 const flagsOff = { glossary: false, meta: false };
@@ -39,5 +39,28 @@ describe("visibleMoreSections", () => {
         ?.items.map((i) => i.to);
     expect(organize(false)).toContain("/scan");
     expect(organize(true)).not.toContain("/scan");
+  });
+});
+
+describe("signInRedirectFor", () => {
+  it("returns to the page the user was on, search included", () => {
+    expect(signInRedirectFor({ pathname: "/cards", href: "/cards?q=vi" })).toBe("/cards?q=vi");
+  });
+
+  it("carries no redirect from the marketing page", () => {
+    expect(signInRedirectFor({ pathname: "/", href: "/" })).toBeUndefined();
+  });
+
+  it("carries no redirect from an auth page", () => {
+    expect(signInRedirectFor({ pathname: "/login", href: "/login" })).toBeUndefined();
+    expect(signInRedirectFor({ pathname: "/signup", href: "/signup?email=a" })).toBeUndefined();
+    expect(signInRedirectFor({ pathname: "/verify-email", href: "/verify-email" })).toBeUndefined();
+    expect(
+      signInRedirectFor({ pathname: "/reset-password", href: "/reset-password" }),
+    ).toBeUndefined();
+  });
+
+  it("keeps a nested path under an excluded prefix", () => {
+    expect(signInRedirectFor({ pathname: "/decks/abc", href: "/decks/abc" })).toBe("/decks/abc");
   });
 });
