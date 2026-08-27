@@ -1,7 +1,9 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
+import { useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -13,7 +15,12 @@ import {
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
+import { PrintingCountActions } from "@/components/cards/printing-count-actions";
+import { WishlistButton } from "@/components/cards/wishlist-heart";
+import { AnnotatedDisposeDialog } from "@/components/collection/annotated-dispose-dialog";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
+import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
+import { WishlistPickerHost } from "@/components/list/wishlist-picker-host";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { Toggle } from "@/components/ui/toggle";
@@ -28,12 +35,15 @@ import { useFilterCountsVisible } from "@/hooks/use-filter-counts-visible";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
+import { useWishEntries } from "@/hooks/use-wish-entries";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -70,9 +80,10 @@ function CatalogActionsCell({ printing, view, printingsByCardId }: CatalogAction
 
 /**
  * Standalone catalog browser for the /cards route.
- * Provides filters, search, and a card detail pane. The grid itself is a
- * read-only reference (no per-cell add controls); the quick-add palette, from
- * the command palette's first row, is the add path to the user's Inbox.
+ * Provides filters, search, a card detail pane, and — for a signed-in viewer
+ * with the owned-count toggle on — the +/- that record a copy where they found
+ * it. Adds land in the Inbox; the count pill's variant×collection popover is
+ * how a copy reaches any other collection.
  * @returns The catalog browser view.
  */
 export function CardBrowser() {
@@ -94,16 +105,36 @@ export function CardBrowser() {
   const userId = useUserId();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
+  // One membership feed for the whole grid: per-cell subscriptions would fetch
+  // every wishlist's detail once per visible cell.
+  const wish = useWishEntries(isLoggedIn);
+  const [wishTarget, setWishTarget] = useState<Printing | null>(null);
 
-  // Quick add targets the user's Inbox. The catalog stays a read-only
-  // reference grid — this palette is the only add path here. Use the
-  // login-gated query (not useCollections, which subscribes to the live copies
-  // collection and requires a user) so logged-out visitors don't trip it.
+  // Both add paths here — the per-cell +/- and the quick-add palette — target
+  // the user's Inbox. Use the login-gated query (not useCollections, which
+  // subscribes to the live copies collection and requires a user) so
+  // logged-out visitors don't trip it.
   const { data: collections } = useQuery({
     ...collectionsQueryOptions(userId ?? ""),
     enabled: isLoggedIn,
   });
-  const inboxId = collections?.find((collection) => collection.isInbox)?.id;
+  const inbox = collections?.find((collection) => collection.isInbox);
+  const inboxId = inbox?.id;
+  // No viewCollectionId: the catalog is not scoped to a collection, so a `-`
+  // looks across all of them and escalates to the popover when the copies span
+  // more than one (the same shape /collections uses on All Cards).
+  const {
+    handleQuickAdd,
+    handleAddToCollection,
+    tryUndoAdd,
+    handleOpenVariants,
+    handleDisposeFromCollection,
+    closeVariants,
+    pendingAnnotatedDispose,
+    confirmAnnotatedDispose,
+    cancelAnnotatedDispose,
+    disposeIsPending,
+  } = useQuickAddActions(inboxId);
   const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
   const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
   // Ctrl+K stays the global palette here: this page is already a card search,
@@ -264,9 +295,52 @@ export function CardBrowser() {
     useSiblingOverrideStore.getState().setOverride("cards", printing.cardId, printing.id);
   };
 
+  // The owned-count toggle governs what the tiles show, not whether a viewer
+  // can record a card: the right-click menu and the grid's +/- keys keep
+  // working with counts hidden, and say so through the add toast.
+  const showStrip = isLoggedIn && cardsShowCounts;
+  const hasAddTarget = handleQuickAdd !== undefined;
+  const canAdd = showStrip && hasAddTarget;
+
+  // The popover scopes to the tile the click came from: by set when the
+  // grouping splits a card per set, to the one printing outside cards view.
+  const openVariantsForTile = handleOpenVariants
+    ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
+        handleOpenVariants(printing, anchorEl, intent, groupBy === "set", !inCardsView)
+    : undefined;
+
+  // A `-` removes silently when there is exactly one place the copy could come
+  // from, and otherwise opens the popover so the viewer picks the row. The two
+  // ambiguities are several owned variants behind one tile (resolved here) and
+  // one variant whose copies span collections (reported by tryUndoAdd). The
+  // owned variants are counted on click rather than pre-bucketed into a map:
+  // that map would rebuild on every +/- and bust the grid's memoization for a
+  // lookup only a click ever reads.
+  const handleDecrement = (printing: Printing, anchorEl?: HTMLElement) => {
+    const tile = inCardsView
+      ? tileSiblings(printing, printingsByCardId.get(printing.cardId), groupBy)
+      : undefined;
+    const ownedVariantCount =
+      tile?.filter((sibling) => (ownedCountByPrinting?.[sibling.id] ?? 0) > 0).length ?? 0;
+    if (ownedVariantCount > 1 && openVariantsForTile && anchorEl) {
+      openVariantsForTile(printing, anchorEl, "remove");
+      return;
+    }
+    void (async () => {
+      const result = await tryUndoAdd?.(printing);
+      if (result === "ambiguous" && openVariantsForTile && anchorEl) {
+        openVariantsForTile(printing, anchorEl, "remove");
+      }
+    })();
+  };
+
   useRowActionHandlers("catalog", {
     onRowClick: handleGridCardClick,
     onSiblingClick: handleSiblingClick,
+    onIncrement: handleQuickAdd,
+    onDecrement: hasAddTarget ? handleDecrement : undefined,
+    onOpenVariants: openVariantsForTile,
+    onAddToWishlist: isLoggedIn ? setWishTarget : undefined,
   });
 
   const searchAndClose = (query: string) => {
@@ -275,8 +349,6 @@ export function CardBrowser() {
       useSelectionStore.getState().closeDetail();
     }
   };
-
-  const showStrip = isLoggedIn && cardsShowCounts;
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
@@ -287,6 +359,15 @@ export function CardBrowser() {
     const siblings = inCardsView
       ? tileSiblings(item.printing, allCardSiblings, groupBy)
       : allCardSiblings;
+
+    // Wish entries are looked up against the tile's representative printing,
+    // not the cell's overridden one: a card-kind wish matches any printing, and
+    // scoping the heart to the tile keeps it steady while the viewer cycles
+    // variants. Undefined rather than [] when nothing matches, so an unwished
+    // cell's props stay reference-stable.
+    const cardWishEntries = isLoggedIn
+      ? wish.entriesForPrinting(cardId, item.printing.id)
+      : undefined;
 
     // The cell resolves its own override against the sibling-override store
     // (see useSiblingOverrideStore). The renderCard closure stays stable
@@ -303,6 +384,11 @@ export function CardBrowser() {
         display={display}
         priceRange={priceRangeByCardId?.get(cardId)}
         showStrip={showStrip}
+        canAdd={canAdd}
+        canMenuAdd={hasAddTarget}
+        canWish={isLoggedIn}
+        addTargetName={inbox?.name ?? "Inbox"}
+        wishEntries={cardWishEntries?.length ? cardWishEntries : undefined}
         inCardsView={inCardsView}
       />
     );
@@ -335,12 +421,41 @@ export function CardBrowser() {
     />
   );
 
+  // The overlay covers the tile it was opened from, so it carries the same
+  // controls. Its wish lookup uses the printing on screen rather than the
+  // tile's representative: the overlay names one variant, and its printing
+  // picker is how the reader changes which. Siblings for the owned total come
+  // from the pane's own printing list (language-scoped only), so the total
+  // agrees with that picker.
+  const detailActions = isLoggedIn
+    ? (printing: Printing) => (
+        <div className="flex items-center gap-2">
+          {canAdd && (
+            <div className="w-28">
+              <PrintingCountActions
+                printing={printing}
+                siblingIds={detailPanePrintingsByCardId
+                  .get(printing.cardId)
+                  ?.map((sibling) => sibling.id)}
+              />
+            </div>
+          )}
+          <WishlistButton
+            entries={wish.entriesForPrinting(printing.cardId, printing.id)}
+            cardName={legendDisplayName(printing.card)}
+            onAdd={() => setWishTarget(printing)}
+          />
+        </div>
+      )
+    : undefined;
+
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
       items={items}
       printingsByCardId={detailPanePrintingsByCardId}
       showImages={showImages}
       onSearchAndClose={searchAndClose}
+      actions={detailActions}
     />
   );
 
@@ -368,7 +483,7 @@ export function CardBrowser() {
           rightPane={rightPane}
           addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
           table={{
-            actionsColumn: showStrip ? "narrow" : "none",
+            actionsColumn: showStrip ? (canAdd ? "stepper" : "narrow") : "none",
             actionsCell: showStrip ? (
               <CatalogActionsCell view={view} printingsByCardId={printingsByCardId} />
             ) : undefined,
@@ -379,9 +494,29 @@ export function CardBrowser() {
             printingsByCardId={detailPanePrintingsByCardId}
             showImages={showImages}
             onSearchAndClose={searchAndClose}
+            actions={detailActions}
           />
         </BrowserCardViewer>
+
+        {/* Variant×collection popover. Self-subscribes to the add-mode store so
+          opening it never re-renders this grid. */}
+        <VariantLocationsPopoverHost
+          catalogPrintingsByCardId={printingsByCardId}
+          languageScopedPrintingsByCardId={detailPanePrintingsByCardId}
+          onQuickAdd={handleQuickAdd}
+          defaultTargetCollectionId={inboxId}
+          onAddToCollection={handleAddToCollection}
+          onRemoveFromCollection={handleDisposeFromCollection}
+          closeVariants={closeVariants}
+        />
       </CardBrowserFilterProvider>
+      <WishlistPickerHost target={wishTarget} onClose={() => setWishTarget(null)} />
+      <AnnotatedDisposeDialog
+        pending={pendingAnnotatedDispose}
+        onConfirm={() => void confirmAnnotatedDispose()}
+        onCancel={cancelAnnotatedDispose}
+        isPending={disposeIsPending}
+      />
       {inboxId && (
         <QuickAddPalette
           open={quickAddOpen}

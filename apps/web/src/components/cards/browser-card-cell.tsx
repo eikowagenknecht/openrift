@@ -8,10 +8,22 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CatalogCardContextMenu } from "@/components/cards/catalog-card-context-menu";
+import { WishlistButton } from "@/components/cards/wishlist-heart";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
-import { dispatchRowClick, dispatchSiblingClick } from "@/stores/card-row-actions-store";
+import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import {
+  dispatchAddToWishlist,
+  dispatchDecrement,
+  dispatchIncrement,
+  dispatchOpenVariants,
+  dispatchRowClick,
+  dispatchSiblingClick,
+} from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
+
+const EMPTY_WISH_ENTRIES: readonly WishEntryFlat[] = [];
 
 interface BrowserCardCellProps {
   /** The item's underlying printing (pre-override-resolution). */
@@ -30,6 +42,24 @@ interface BrowserCardCellProps {
   priceRange: { min: number; max: number } | undefined;
   /** True when owned counts should be visible (logged-in + cardsShowCounts on). */
   showStrip: boolean;
+  /** True when the browser has an add target, so the strip carries +/- as well as the count. */
+  canAdd: boolean;
+  /**
+   * True when the context menu may offer the add shortcut. Wider than
+   * {@link canAdd}: the menu stays useful with the owned-count toggle off,
+   * where the strip it lives beside is not rendered at all.
+   */
+  canMenuAdd: boolean;
+  /** True when the viewer can put the card on a wishlist (signed in). */
+  canWish: boolean;
+  /** Collection an add lands in, named in the context menu. */
+  addTargetName: string;
+  /**
+   * The viewer's wish entries matching this card, for the filled heart and its
+   * popover. Undefined — not an empty array — when the card is on no wishlist,
+   * so an unwished cell's props stay reference-stable and its memo holds.
+   */
+  wishEntries?: readonly WishEntryFlat[];
   inCardsView: boolean;
 }
 
@@ -58,6 +88,11 @@ export const BrowserCardCell = memo(function BrowserCardCell({
   display,
   priceRange,
   showStrip,
+  canAdd,
+  canMenuAdd,
+  canWish,
+  addTargetName,
+  wishEntries,
   inCardsView,
 }: BrowserCardCellProps) {
   // Per-cell subscription: when the user pins a different variant on this
@@ -85,21 +120,70 @@ export const BrowserCardCell = memo(function BrowserCardCell({
       : false;
   const totalCount = hasMultipleOwnedVariants ? cardTotal : undefined;
 
+  // Once the cell can write, the pill opens the variant×collection popover
+  // instead of the read-only breakdown: that popover is how a copy reaches a
+  // collection other than the add target, and in cards view it doubles as the
+  // variant chooser. With nothing owned and a single variant there is nothing
+  // to manage there, so the pill keeps the read-only breakdown.
+  const openLocations =
+    canAdd && (ownedCount > 0 || (inCardsView && (siblings?.length ?? 0) > 1))
+      ? (event: { currentTarget: HTMLElement }) =>
+          dispatchOpenVariants(displayPrinting, event.currentTarget, "add")
+      : undefined;
+
+  const cardName = legendDisplayName(displayPrinting.card);
+  // The heart rides the strip when there is one; the context menu carries the
+  // same action for viewers browsing with counts turned off.
+  const wishSlot = canWish ? (
+    <WishlistButton
+      entries={wishEntries ?? EMPTY_WISH_ENTRIES}
+      cardName={cardName}
+      onAdd={() => dispatchAddToWishlist(displayPrinting)}
+    />
+  ) : undefined;
+
   let strip: ReactNode | undefined;
   if (showStrip) {
     strip = (
       <CardCountStrip
+        extras={wishSlot}
         count={ownedCount}
         totalCount={totalCount}
         pillOverride={
-          <OwnedCollectionsPopover
-            printingId={displayPrinting.id}
-            cardName={legendDisplayName(displayPrinting.card)}
-            shortCode={displayPrinting.shortCode}
-            count={ownedCount}
-            totalCount={totalCount}
-            siblings={inCardsView ? siblings : undefined}
-          />
+          openLocations ? undefined : (
+            <OwnedCollectionsPopover
+              printingId={displayPrinting.id}
+              cardName={cardName}
+              shortCode={displayPrinting.shortCode}
+              count={ownedCount}
+              totalCount={totalCount}
+              siblings={inCardsView ? siblings : undefined}
+            />
+          )
+        }
+        onPillClick={openLocations}
+        pillAriaLabel={
+          openLocations
+            ? ownedCount > 0
+              ? `Variants and collections for ${cardName}`
+              : `Choose variant for ${cardName}`
+            : undefined
+        }
+        decrement={
+          canAdd && ownedCount > 0
+            ? {
+                onClick: (event) => dispatchDecrement(displayPrinting, event.currentTarget),
+                ariaLabel: `Remove ${cardName}`,
+              }
+            : undefined
+        }
+        increment={
+          canAdd
+            ? {
+                onClick: () => dispatchIncrement(displayPrinting),
+                ariaLabel: `Add ${cardName}`,
+              }
+            : undefined
         }
       />
     );
@@ -128,6 +212,14 @@ export const BrowserCardCell = memo(function BrowserCardCell({
       priceRange={priceRange}
       dimmed={showStrip && cardTotal === 0}
       strip={strip}
+      contextMenu={
+        <CatalogCardContextMenu
+          printing={displayPrinting}
+          canAdd={canMenuAdd}
+          canWish={canWish}
+          addTargetName={addTargetName}
+        />
+      }
     />
   );
 });

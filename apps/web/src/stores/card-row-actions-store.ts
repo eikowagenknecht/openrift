@@ -66,6 +66,12 @@ interface BaseRowHandlers {
   onItemClick?: (itemId: string, printing: Printing, modifiers: CardRowClickModifiers) => void;
   /** Toggle the cell's stack in select mode (used by the cell's checkbox). */
   onItemToggle?: (itemId: string) => void;
+  /**
+   * Open the wishlist picker for `printing`. A wish is a card- or
+   * printing-kind entry, so the picker shapes it to the list the user lands
+   * on rather than the surface deciding up front.
+   */
+  onAddToWishlist?: (printing: Printing) => void;
 }
 
 /** Handlers only /collections registers. */
@@ -189,6 +195,10 @@ export function dispatchDecrement(
   modifiers?: CardRowClickModifiers,
 ): void {
   useCardRowActionsStore.getState().handlers.onDecrement?.(printing, anchorEl, modifiers);
+}
+
+export function dispatchAddToWishlist(printing: Printing): void {
+  useCardRowActionsStore.getState().handlers.onAddToWishlist?.(printing);
 }
 
 export function dispatchOpenVariants(

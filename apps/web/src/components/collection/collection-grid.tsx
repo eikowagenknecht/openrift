@@ -24,7 +24,7 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { CollectionDetailActions } from "@/components/collection/collection-detail-actions";
+import { PrintingCountActions } from "@/components/cards/printing-count-actions";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { CollectionGridOverlays } from "@/components/collection/collection-grid-overlays";
 import { CollectionIntroBanner } from "@/components/collection/collection-intro-banner";
@@ -875,7 +875,7 @@ export function CollectionGrid({
   const detailActions =
     mode === "browse"
       ? (printing: Printing) => (
-          <CollectionDetailActions printing={printing} collectionId={collectionId} />
+          <PrintingCountActions printing={printing} collectionId={collectionId} />
         )
       : undefined;
 

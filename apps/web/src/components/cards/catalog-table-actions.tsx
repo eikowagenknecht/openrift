@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 
+import { CountWithAddControls } from "@/components/cards/count-with-add-controls";
 import { useOwnedCountFor, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 
 interface CatalogTableActionsProps {
@@ -14,9 +15,10 @@ interface CatalogTableActionsProps {
 const EMPTY_SIBLING_IDS: readonly string[] = [];
 
 /**
- * Actions cell for the /cards catalog table. Renders a read-only owned count:
- * `×N` for a single printing, `×N (M)` in cards view when the user owns more
- * than one variant of the card (M = per-card sum). Empty when nothing owned.
+ * Actions cell for the /cards catalog table: the owned count plus +/-. The
+ * primary count is the row's own printing; the `(M)` hint is the per-card sum
+ * in cards view, shown only when more than one variant has copies (owning a
+ * single variant would otherwise render `2 (2)`).
  *
  * @returns The catalog actions content (no wrapper — CardTableRow renders that).
  */
@@ -36,11 +38,11 @@ export function CatalogTableActions({ printing, siblingIds }: CatalogTableAction
       : 0;
   const cardTotal = hasSiblings ? (siblings?.total ?? 0) : ownedCount;
 
-  if (cardTotal === 0) {
-    return "";
-  }
-  if (hasSiblings && ownedVariantCount > 1) {
-    return `×${ownedCount} (${cardTotal})`;
-  }
-  return `×${ownedCount}`;
+  return (
+    <CountWithAddControls
+      printing={printing}
+      ownedCount={ownedCount}
+      totalOwnedCount={ownedVariantCount > 1 ? cardTotal : undefined}
+    />
+  );
 }

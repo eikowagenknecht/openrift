@@ -2,14 +2,18 @@ import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { PackageIcon } from "lucide-react";
+import { useState } from "react";
 
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
+import { WishlistButton } from "@/components/cards/wishlist-heart";
 import { AnnotatedDisposeDialog } from "@/components/collection/annotated-dispose-dialog";
 import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
+import { WishlistPickerHost } from "@/components/list/wishlist-picker-host";
 import { Card as CardPanel } from "@/components/ui/card";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useWishEntries } from "@/hooks/use-wish-entries";
 import { useUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 
@@ -35,8 +39,9 @@ export function ownedSummary(ownedCount: number, cardTotal: number): string {
 }
 
 /**
- * Owned count and +/- for the printing the card page is showing, so a signed-in
- * visitor can record the card here instead of detouring to /collections.
+ * Owned count, +/- and the wishlist heart for the printing the card page is
+ * showing, so a signed-in visitor can record the card here — owned or wanted —
+ * instead of detouring to /collections.
  *
  * Adds go to the inbox, the same default target the catalog's quick-add palette
  * uses. A minus removes the newest bare copy; when the copies span several
@@ -75,6 +80,9 @@ export function CardPageCollectionActions({
     disposeIsPending,
   } = useQuickAddActions(inbox?.id);
 
+  const wish = useWishEntries(enabled);
+  const [wishTarget, setWishTarget] = useState<Printing | null>(null);
+
   const siblingIds = siblings.map((sibling) => sibling.id);
   const { data: counts } = useOwnedCountsForPrintings(siblingIds, enabled);
   const ownedCount = counts?.totals[printing.id] ?? 0;
@@ -106,36 +114,44 @@ export function CardPageCollectionActions({
           <PackageIcon className="text-primary size-5 shrink-0" aria-hidden="true" />
           <p className="text-muted-foreground text-sm">{ownedSummary(ownedCount, cardTotal)}</p>
         </div>
-        <div className="w-28 shrink-0 self-start sm:self-auto">
-          <CardCountStrip
-            count={ownedCount}
-            totalCount={cardTotal}
-            pillOverride={
-              ownedCount > 0 ? (
-                <OwnedCollectionsPopover
-                  printingId={printing.id}
-                  cardName={cardName}
-                  shortCode={printing.shortCode}
-                  count={ownedCount}
-                  totalCount={cardTotal}
-                  siblings={siblings.length > 1 ? siblings : undefined}
-                />
-              ) : undefined
-            }
-            decrement={
-              ownedCount > 0
-                ? {
-                    onClick: (event) => removeCopy(event.currentTarget),
-                    ariaLabel: `Remove ${cardName}`,
-                  }
-                : undefined
-            }
-            increment={{
-              onClick: addCopy,
-              disabled: !handleQuickAdd,
-              ariaLabel: inbox ? `Add ${cardName} to ${inbox.name}` : `Add ${cardName}`,
-            }}
+        <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
+          <WishlistButton
+            entries={wish.entriesForPrinting(printing.cardId, printing.id)}
+            cardName={cardName}
+            onAdd={() => setWishTarget(printing)}
+            align="end"
           />
+          <div className="w-28">
+            <CardCountStrip
+              count={ownedCount}
+              totalCount={cardTotal}
+              pillOverride={
+                ownedCount > 0 ? (
+                  <OwnedCollectionsPopover
+                    printingId={printing.id}
+                    cardName={cardName}
+                    shortCode={printing.shortCode}
+                    count={ownedCount}
+                    totalCount={cardTotal}
+                    siblings={siblings.length > 1 ? siblings : undefined}
+                  />
+                ) : undefined
+              }
+              decrement={
+                ownedCount > 0
+                  ? {
+                      onClick: (event) => removeCopy(event.currentTarget),
+                      ariaLabel: `Remove ${cardName}`,
+                    }
+                  : undefined
+              }
+              increment={{
+                onClick: addCopy,
+                disabled: !handleQuickAdd,
+                ariaLabel: inbox ? `Add ${cardName} to ${inbox.name}` : `Add ${cardName}`,
+              }}
+            />
+          </div>
         </div>
       </CardPanel>
       <VariantLocationsPopoverHost
@@ -147,6 +163,7 @@ export function CardPageCollectionActions({
         onRemoveFromCollection={handleDisposeFromCollection}
         closeVariants={closeVariants}
       />
+      <WishlistPickerHost target={wishTarget} onClose={() => setWishTarget(null)} />
       <AnnotatedDisposeDialog
         pending={pendingAnnotatedDispose}
         onConfirm={() => void confirmAnnotatedDispose()}

@@ -33,6 +33,18 @@ vi.mock("@/hooks/use-quick-add-actions", () => ({
   useQuickAddActions: () => quickAddMock(),
 }));
 
+vi.mock("@/hooks/use-wish-entries", () => ({
+  useWishEntries: () => ({
+    entriesForPrinting: () => [],
+    matches: () => false,
+    wishedQuantity: () => 0,
+  }),
+}));
+
+vi.mock("@/components/list/wishlist-picker-host", () => ({
+  WishlistPickerHost: () => null,
+}));
+
 vi.mock("@/components/cards/card-detail/owned-collections-popover", () => ({
   OwnedCollectionsPopover: ({ count, totalCount }: { count: number; totalCount: number }) => (
     <span>{`breakdown ${count}/${totalCount}`}</span>
@@ -167,7 +179,7 @@ describe("CardPageCollectionActions", () => {
     quickAddMock.mockReturnValue(stubActions({ handleQuickAdd: undefined }));
     render(<CardPageCollectionActions printing={printing} siblings={[printing]} />);
 
-    expect(screen.getByRole("button", { name: /^Add/u })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Add (?!.*wishlist)/u })).toBeDisabled();
   });
 
   it("hands the variant popover only this card's printings", () => {

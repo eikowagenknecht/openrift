@@ -6,7 +6,8 @@
 
 - feat(App): **Search anything from anywhere** — a search button in the header (or Ctrl+K, or just `/`) opens a palette that finds any card, jumps to any page, and opens help articles, from whichever page you are on.
 - feat(App): **Invite links work before you sign in** — a group, tournament, or staff invite link now shows what it leads to up front, and brings you back to it after you sign in.
-- feat(Cards): **Add a card from its own page** — every card page now shows how many copies you own and lets you add or remove one on the spot, with a breakdown of which collections they sit in.
+- feat(Cards): **Record a card where you find it** — the card browser and every card page now show how many copies you own and which collections hold them, with plus and minus to add or remove one.
+- feat(Cards): **Wishlist a card while you browse** — a heart on every card, in the browser and on its page, puts it on a wishlist and shows which lists already want it.
 - fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
 - fix(Account): **Set a password on a social account** — the profile page now offers to add one to a Google or Discord account, instead of a change form that could never work.
 
