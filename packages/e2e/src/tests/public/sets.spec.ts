@@ -132,16 +132,29 @@ test.describe("sets", () => {
   });
 
   test.describe("/sets/:setSlug", () => {
-    test("renders the heading, 'All sets' back link, and counts summary", async ({ page }) => {
+    test("renders the heading, back link, and counts summary", async ({ page }) => {
       await page.goto(`/sets/${knownSet.slug}`);
 
       await expect(page.getByRole("heading", { level: 1, name: knownSet.name })).toBeVisible();
 
-      const backLink = page.getByRole("link", { name: /all sets/iu });
+      const backLink = page.getByRole("link", { name: /back to sets/iu });
       await expect(backLink).toBeVisible();
       await expect(backLink).toHaveAttribute("href", "/sets");
 
       await expect(page.getByText(/\d+ cards?, \d+ printings?/u).first()).toBeVisible();
+    });
+
+    test("links into the card browser pre-filtered to this set", async ({ page }) => {
+      await page.goto(`/sets/${knownSet.slug}`);
+
+      const cta = page.getByRole("link", { name: /open in card browser/iu });
+      await expect(cta).toBeVisible();
+
+      const href = await cta.getAttribute("href");
+      expect(href).not.toBeNull();
+      const target = new URL(String(href), WEB_BASE_URL);
+      expect(target.pathname).toBe("/cards");
+      expect(target.searchParams.get("sets")).toContain(knownSet.slug);
     });
 
     test("title and description meta match the set detail SEO format", async ({ page }) => {
