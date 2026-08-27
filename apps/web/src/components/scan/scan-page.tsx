@@ -1045,7 +1045,7 @@ export function ScanPage() {
         onRemoveOne={handleRemoveOne}
         onChangePrinting={setSwapRow}
         onRemoveAll={() => void handleRemoveAll()}
-        onAddAll={identifyOnly ? () => setAddAllOpen(true) : undefined}
+        onAddAll={() => setAddAllOpen(true)}
         unidentified={unidentified}
         onIdentifyMissed={handleIdentifyMissed}
         onDismissMissed={dismissUnidentified}
@@ -1130,6 +1130,7 @@ export function ScanPage() {
         onOpenChange={setAddAllOpen}
         collections={collections}
         count={identifiedCards}
+        targetId={targetId ?? undefined}
         onConfirm={(collectionId) => void handleAddAll(collectionId)}
       />
       <TakeWishlistFollowUpDialog

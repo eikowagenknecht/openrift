@@ -1,5 +1,5 @@
 import type { CollectionResponse } from "@openrift/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -24,15 +24,21 @@ interface ScanAddAllDialogProps {
   collections: CollectionResponse[];
   /** How many identify-only cards the commit would add. */
   count: number;
+  /**
+   * The collection the scanner is already adding to, preselected so a session
+   * that switched out of identify-only commits its leftovers to the same
+   * place. Absent while the session only identifies.
+   */
+  targetId?: string;
   /** Commit the session to the chosen collection. */
   onConfirm: (collectionId: string) => void;
 }
 
 /**
- * The "scan first, decide later" commit step: an identify-only session has
- * counted the cards, and this dialog turns the whole list into real copies in
- * one go. The collection choice defaults to the inbox, matching where an
- * undecided scan would have landed anyway.
+ * The "scan first, decide later" commit step: readings the session only
+ * identified turn into real copies in one go. The collection choice defaults
+ * to the scanner's current target, or to the inbox while there is none, which
+ * is where an undecided scan would have landed anyway.
  *
  * @returns The add-all confirmation dialog.
  */
@@ -41,19 +47,37 @@ export function ScanAddAllDialog({
   onOpenChange,
   collections,
   count,
+  targetId,
   onConfirm,
 }: ScanAddAllDialogProps) {
+  const preselected = collections.some((collection) => collection.id === targetId)
+    ? targetId
+    : undefined;
   const defaultId =
-    collections.find((collection) => collection.isInbox)?.id ?? collections[0]?.id ?? "";
-  const [collectionId, setCollectionId] = useState(defaultId);
-  const chosen = collections.some((collection) => collection.id === collectionId)
-    ? collectionId
-    : defaultId;
+    preselected ??
+    collections.find((collection) => collection.isInbox)?.id ??
+    collections[0]?.id ??
+    "";
+  // Null until the user picks one, so the default above wins on every open.
+  const [collectionId, setCollectionId] = useState<string | null>(null);
+  const chosen =
+    collectionId !== null && collections.some((collection) => collection.id === collectionId)
+      ? collectionId
+      : defaultId;
   const items = collections.map((collection) => ({
     value: collection.id,
     label: collection.name,
   }));
   const cardWord = count === 1 ? "card" : "cards";
+
+  // BaseUI's dialog only fires onOpenChange for user-initiated changes, and
+  // the scan page keeps this mounted for the whole session, so a stale pick
+  // would otherwise outlive the target the user switched to in between.
+  useEffect(() => {
+    if (open) {
+      setCollectionId(null);
+    }
+  }, [open]);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -91,7 +115,7 @@ export function ScanAddAllDialog({
           </Select>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Keep just identifying
+              {targetId === undefined ? "Keep just identifying" : "Cancel"}
             </Button>
             <Button type="submit" disabled={chosen === "" || count === 0}>
               Add {count} {cardWord}

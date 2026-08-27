@@ -54,10 +54,11 @@ interface ScanSessionTrayProps {
   /** Undo the whole session: every copy it added goes back out again. */
   onRemoveAll: () => void;
   /**
-   * Commit the identify-only readings to a collection ("scan first, decide
-   * later"). Absent while the session already adds as it scans.
+   * Commit the readings the session only identified to a collection ("scan
+   * first, decide later"). Offered whenever such readings exist, including
+   * after the session switched to a real target mid-scan.
    */
-  onAddAll?: () => void;
+  onAddAll: () => void;
   /**
    * Cards the scanner watched land and could not name, after the second look.
    * Each carries the picture of how it lay, which is usually enough for the
@@ -189,7 +190,7 @@ export function ScanSessionTray({
           last thing anyone reaches for, and a destructive button under the
           user's thumb while they scan is not what the tray is for. */}
       <div className="flex flex-wrap items-center gap-2">
-        {onAddAll !== undefined && identifiedCards > 0 && (
+        {identifiedCards > 0 && (
           <Button onClick={onAddAll}>
             <FolderPlusIcon />
             Add all to a collection

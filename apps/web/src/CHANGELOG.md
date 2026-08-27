@@ -10,6 +10,7 @@
 ### Other
 
 - feat(Collection): **Scanner rows match the app** — the scanner's card rows and its two pickers now lead with the shared art strip, domain bar, rarity and code, and the owned count sits at the right.
+- fix(Collection): **Add all stays after picking a collection** — scanned cards you only identified can still be added in one go once you switch the scanner to a real destination, which now comes preselected.
 - fix(Account): **Honest codes on the sign-in page** — asking for an email code no longer moves to the code box when the send failed, and the verification resend now takes you where the code can be typed.
 - fix(Account): **Working resend when changing your email** — resend now really sends another code, and both it and the first send tell you when they fail.
 - fix(App): **Cleaner email subject lines** — notification and sign-in emails no longer repeat "OpenRift" at the end of every subject, since the sender already says it.
