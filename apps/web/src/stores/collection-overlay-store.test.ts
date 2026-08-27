@@ -22,7 +22,6 @@ afterEach(() => {
 describe("useCollectionOverlayStore", () => {
   it("starts with every overlay closed", () => {
     const state = useCollectionOverlayStore.getState();
-    expect(state.quickAddOpen).toBe(false);
     expect(state.deleteOpen).toBe(false);
     expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);
@@ -30,15 +29,6 @@ describe("useCollectionOverlayStore", () => {
     expect(state.copyDetailsTarget).toBeNull();
     expect(state.takeConfirm).toBeNull();
     expect(state.takeFollowUp).toBeNull();
-  });
-
-  it("toggles the quick-add palette", () => {
-    // The Cmd+K handler toggles rather than opens, so it has to read through
-    // the store rather than close over a boolean.
-    useCollectionOverlayStore.getState().toggleQuickAdd();
-    expect(useCollectionOverlayStore.getState().quickAddOpen).toBe(true);
-    useCollectionOverlayStore.getState().toggleQuickAdd();
-    expect(useCollectionOverlayStore.getState().quickAddOpen).toBe(false);
   });
 
   it("keeps the take confirm and follow-up slots independent", () => {
@@ -70,7 +60,6 @@ describe("useCollectionOverlayStore", () => {
 
   it("reset closes everything, so a collection switch can't leave a stale dialog", () => {
     const printing = stubPrinting();
-    useCollectionOverlayStore.getState().setQuickAddOpen(true);
     useCollectionOverlayStore.getState().setDeleteOpen(true);
     useCollectionOverlayStore.getState().setClearInboxOpen(true);
     useCollectionOverlayStore.getState().setEditOpen(true);
@@ -85,7 +74,6 @@ describe("useCollectionOverlayStore", () => {
     useCollectionOverlayStore.getState().reset();
 
     const state = useCollectionOverlayStore.getState();
-    expect(state.quickAddOpen).toBe(false);
     expect(state.deleteOpen).toBe(false);
     expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);
@@ -100,7 +88,6 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
   /** Opens one slot of each kind — boolean, and the two object-valued targets. */
   function openEverything() {
     const printing = stubPrinting();
-    useCollectionOverlayStore.getState().setQuickAddOpen(true);
     useCollectionOverlayStore.getState().setDeleteOpen(true);
     useCollectionOverlayStore.getState().setClearInboxOpen(true);
     useCollectionOverlayStore.getState().setEditOpen(true);
@@ -130,7 +117,6 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
     unmount();
 
     const state = useCollectionOverlayStore.getState();
-    expect(state.quickAddOpen).toBe(false);
     expect(state.deleteOpen).toBe(false);
     expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);

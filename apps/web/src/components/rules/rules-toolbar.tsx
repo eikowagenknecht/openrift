@@ -1,6 +1,6 @@
 import type { RuleKind } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronsDownUpIcon, ChevronsUpDownIcon, FileClockIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -102,7 +102,9 @@ export function KindTabs({ kind }: { kind: RuleKind }) {
         if (value === kind) {
           return;
         }
-        navigate({ to: "/rules/$kind", params: { kind: value } });
+        // Keeps ?q= across the switch: looking the same term up in the other
+        // document is the reason you press this.
+        navigate({ to: "/rules/$kind", params: { kind: value }, search: (prev) => prev });
       }}
     >
       <TabsList variant="line">
@@ -116,10 +118,36 @@ export function KindTabs({ kind }: { kind: RuleKind }) {
 export function RulesSearchBar({ trailing }: { trailing: string }) {
   // Local draft state keeps each keystroke's re-render scoped to this component
   // instead of bubbling up and re-rendering the entire rules list.
-  const [draft, setDraft] = useState("");
+  const urlQuery = useSearch({ strict: false, select: (search) => search.q });
+  const [draft, setDraft] = useState(typeof urlQuery === "string" ? urlQuery : "");
   const setQuery = useRulesSearchStore((state) => state.setQuery);
   const resetSignal = useRulesSearchStore((state) => state.resetSignal);
-  const debouncedSetQuery = useDebouncedCallback(setQuery, { wait: 150 });
+  const navigate = useNavigate();
+  const debouncedApply = useDebouncedCallback(
+    (next: string) => {
+      setQuery(next);
+      // Mirrored to the URL so a rules search is a link. Debounced with the
+      // store update and replacing rather than pushing, so typing one query
+      // leaves one history entry.
+      void navigate({
+        to: ".",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next === "" ? undefined : next }),
+        replace: true,
+      });
+    },
+    { wait: 150 },
+  );
+
+  // Arriving with ?q= (a shared link, the command palette's rules row) seeds
+  // both the store and the input. Typing cannot loop back through here: by the
+  // time the URL carries the new query the store already holds it, so the
+  // guard is false and the draft is left alone mid-keystroke.
+  useEffect(() => {
+    if (typeof urlQuery === "string" && urlQuery !== useRulesSearchStore.getState().query) {
+      setDraft(urlQuery);
+      setQuery(urlQuery);
+    }
+  }, [urlQuery, setQuery]);
 
   // Programmatic resets (e.g. an anchor click that needs to reveal a hidden
   // rule) bump resetSignal — clear the local draft so the input mirrors the
@@ -137,11 +165,11 @@ export function RulesSearchBar({ trailing }: { trailing: string }) {
       value={draft}
       onValueChange={(next) => {
         setDraft(next);
-        debouncedSetQuery(next);
+        debouncedApply(next);
       }}
       onClear={() => {
         setDraft("");
-        debouncedSetQuery("");
+        debouncedApply("");
       }}
       placeholder="Search rules..."
       trailing={trailing}

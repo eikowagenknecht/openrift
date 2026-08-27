@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useLocation, useMatches } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { CommandPalette } from "@/components/command-palette/command-palette";
 import { AppBackground } from "@/components/layout/app-background";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
@@ -38,6 +39,7 @@ function AppLayout() {
     <>
       <AppBackground />
       <Header />
+      <CommandPalette />
       <main className={cn("flex min-h-0 flex-1 flex-col", CONTAINER_WIDTH)}>
         <div className="flex min-h-0 flex-1 flex-col">
           <Outlet />

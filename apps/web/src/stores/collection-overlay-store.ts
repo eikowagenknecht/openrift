@@ -36,7 +36,6 @@ interface TakeFollowUpTarget {
  * a single slot would make that handoff a state race.
  */
 interface CollectionOverlayState {
-  quickAddOpen: boolean;
   deleteOpen: boolean;
   clearInboxOpen: boolean;
   editOpen: boolean;
@@ -45,8 +44,6 @@ interface CollectionOverlayState {
   takeConfirm: TakeConfirmTarget | null;
   takeFollowUp: TakeFollowUpTarget | null;
 
-  setQuickAddOpen: (open: boolean) => void;
-  toggleQuickAdd: () => void;
   setDeleteOpen: (open: boolean) => void;
   setClearInboxOpen: (open: boolean) => void;
   setEditOpen: (open: boolean) => void;
@@ -59,7 +56,6 @@ interface CollectionOverlayState {
 }
 
 const CLOSED = {
-  quickAddOpen: false,
   deleteOpen: false,
   clearInboxOpen: false,
   editOpen: false,
@@ -72,8 +68,6 @@ const CLOSED = {
 export const useCollectionOverlayStore = create<CollectionOverlayState>()((set) => ({
   ...CLOSED,
 
-  setQuickAddOpen: (open) => set({ quickAddOpen: open }),
-  toggleQuickAdd: () => set((state) => ({ quickAddOpen: !state.quickAddOpen })),
   setDeleteOpen: (open) => set({ deleteOpen: open }),
   setClearInboxOpen: (open) => set({ clearInboxOpen: open }),
   setEditOpen: (open) => set({ editOpen: open }),

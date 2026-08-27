@@ -4,10 +4,12 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { rulesAtVersionQueryOptions, ruleVersionsQueryOptions } from "@/hooks/use-rules";
 import { ruleKindTitle, VALID_RULE_KINDS } from "@/lib/rules-kinds";
+import { rulesSearchSchema } from "@/lib/rules-search-schema";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/rules_/$kind_/$version")({
+  validateSearch: rulesSearchSchema,
   head: ({ params }) => {
     if (!VALID_RULE_KINDS.has(params.kind as RuleKind)) {
       return {};

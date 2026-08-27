@@ -2,6 +2,7 @@ import type { CollectionResponse, Printing } from "@openrift/shared";
 
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
 import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
 import { AnnotatedDisposeDialog } from "./annotated-dispose-dialog";
 import { ClearInboxDialog } from "./clear-inbox-dialog";
@@ -66,7 +67,7 @@ export function CollectionGridOverlays({
   performTake,
   moveIsPending,
 }: CollectionGridOverlaysProps) {
-  const quickAddOpen = useCollectionOverlayStore((state) => state.quickAddOpen);
+  const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
   const deleteOpen = useCollectionOverlayStore((state) => state.deleteOpen);
   const clearInboxOpen = useCollectionOverlayStore((state) => state.clearInboxOpen);
   const editOpen = useCollectionOverlayStore((state) => state.editOpen);
@@ -75,7 +76,7 @@ export function CollectionGridOverlays({
   const takeConfirm = useCollectionOverlayStore((state) => state.takeConfirm);
   const takeFollowUp = useCollectionOverlayStore((state) => state.takeFollowUp);
 
-  const setQuickAddOpen = useCollectionOverlayStore((state) => state.setQuickAddOpen);
+  const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
   const setDeleteOpen = useCollectionOverlayStore((state) => state.setDeleteOpen);
   const setClearInboxOpen = useCollectionOverlayStore((state) => state.setClearInboxOpen);
   const setEditOpen = useCollectionOverlayStore((state) => state.setEditOpen);

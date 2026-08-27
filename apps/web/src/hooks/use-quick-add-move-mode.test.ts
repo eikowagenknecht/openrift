@@ -27,17 +27,19 @@ const BINDER = collection("binder", "Binder");
 const DECKBOX = collection("deckbox", "Deckbox");
 const ALL = [INBOX, BINDER, DECKBOX];
 
-function renderMoveMode(collections: CollectionResponse[] = ALL, collectionId = DECKBOX.id) {
+/**
+ * The verb defaults to "move" because that is what these tests are about. It
+ * arrives as a prop: the palette commits to add or move before opening, so
+ * there is no in-palette switch to drive here.
+ */
+function renderMoveMode(
+  collections: CollectionResponse[] = ALL,
+  collectionId = DECKBOX.id,
+  verb: "add" | "move" = "move",
+) {
   return renderHook(() =>
-    useQuickAddMoveMode({ collectionId, collections, selectionKey: "card:0" }),
+    useQuickAddMoveMode({ verb, collectionId, collections, selectionKey: "card:0" }),
   );
-}
-
-/** Puts the hook into move mode, which the palette's Move tab does. */
-async function enterMoveMode(result: { current: { setMode: (mode: "add" | "move") => void } }) {
-  await act(async () => {
-    result.current.setMode("move");
-  });
 }
 
 describe("resolveSwapDirection", () => {
@@ -114,7 +116,7 @@ describe("useQuickAddMoveMode", () => {
     const { result } = renderMoveMode([INBOX], INBOX.id);
 
     expect(result.current.canMove).toBe(false);
-    // Even after switching the tab, one collection has nowhere to move to.
+    // Asked for move, but one collection has nowhere to move to.
     expect(result.current.inMoveMode).toBe(false);
   });
 
@@ -129,7 +131,6 @@ describe("useQuickAddMoveMode", () => {
       stubCopy({ id: "c4", printingId: printing.id, collectionId: BINDER.id, reserved: true }),
     ];
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     expect(result.current.movableCounts?.[printing.id]).toBe(2);
     // Inbox first, then the rest by size — that ordering is what sourceIndex 0 means.
@@ -146,7 +147,6 @@ describe("useQuickAddMoveMode", () => {
       stubCopy({ id: "c2", printingId: printing.id, collectionId: BINDER.id }),
     ];
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       await result.current.moveOne(printing);
@@ -166,7 +166,6 @@ describe("useQuickAddMoveMode", () => {
       stubCopy({ id: "c2", printingId: printing.id, collectionId: BINDER.id }),
     ];
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       await result.current.moveOne(printing, BINDER.id);
@@ -183,7 +182,6 @@ describe("useQuickAddMoveMode", () => {
     copies = [stubCopy({ id: "c1", printingId: printing.id, collectionId: INBOX.id })];
     moveMutateAsync.mockRejectedValue(new Error("This card is reserved in an active trade."));
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       await result.current.moveOne(printing);
@@ -196,7 +194,6 @@ describe("useQuickAddMoveMode", () => {
     const printing = stubPrinting();
     copies = [stubCopy({ id: "c1", printingId: printing.id, collectionId: BINDER.id })];
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       await result.current.moveOne(printing);
@@ -226,7 +223,6 @@ describe("useQuickAddMoveMode", () => {
   it("does nothing when there is no copy to move or nothing left to undo", async () => {
     const printing = stubPrinting();
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       await result.current.moveOne(printing);
@@ -238,7 +234,6 @@ describe("useQuickAddMoveMode", () => {
 
   it("clears the swap-undo pair when either dropdown is picked by hand", async () => {
     const { result } = renderMoveMode();
-    await enterMoveMode(result);
 
     await act(async () => {
       result.current.handleSwapDirection();
@@ -261,10 +256,14 @@ describe("useQuickAddMoveMode", () => {
   it("resets the active source when the direction or the selected row changes", async () => {
     const { result, rerender } = renderHook(
       ({ selectionKey }) =>
-        useQuickAddMoveMode({ collectionId: DECKBOX.id, collections: ALL, selectionKey }),
+        useQuickAddMoveMode({
+          verb: "move",
+          collectionId: DECKBOX.id,
+          collections: ALL,
+          selectionKey,
+        }),
       { initialProps: { selectionKey: "card-a:0" } },
     );
-    await enterMoveMode(result);
 
     await act(async () => {
       result.current.setSourceIndex(1);

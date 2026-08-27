@@ -35,6 +35,7 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { asDragData } from "@/lib/dnd-data";
+import { isTypingTarget } from "@/lib/keyboard-target";
 import { describeListAdd } from "@/lib/list-toast";
 import { parseMoveDigit } from "@/lib/parse-digit-key";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -88,15 +89,8 @@ function CollectionLayout() {
   // card (useGridKeyboardNav), so accepting them here too would make
   // "press 3, then grab" add three copies *and* move three.
   useEffect(() => {
-    const isEditableTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-      const tag = target.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
-    };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) {
+      if (isTypingTarget(event.target)) {
         return;
       }
       if (event.key === "Shift") {

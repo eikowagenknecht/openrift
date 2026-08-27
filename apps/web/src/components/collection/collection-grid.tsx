@@ -55,6 +55,7 @@ import {
   useDeleteCollection,
   useSetCollectionDeckbuilding,
 } from "@/hooks/use-collections";
+import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
 import { useCopyListMemberships, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
@@ -77,6 +78,7 @@ import {
   useCloseCollectionOverlaysOnUnmount,
   useCollectionOverlayStore,
 } from "@/stores/collection-overlay-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -295,6 +297,14 @@ export function CollectionGrid({
   // are defined above (near the owned-filter wiring).
   const sourceCollectionIsGroup = isGroupCollection;
   const addTarget = collectionId ?? inboxId;
+  const quickAddCollectionName = currentCollection?.name ?? "Collection";
+  useRegisterQuickAdd({
+    key: addTarget ? `collection:${addTarget}` : null,
+    label: `Add to ${quickAddCollectionName}`,
+    // Moving needs somewhere to move from, so it is offered only once the
+    // viewer has a second collection.
+    moveLabel: (collections?.length ?? 0) >= 2 ? `Move to ${quickAddCollectionName}` : null,
+  });
 
   // A collection that loads empty opens straight in library mode, so a first
   // visit shows a page full of addable cards instead of an empty grid. This is
@@ -381,17 +391,6 @@ export function CollectionGrid({
   }, [collectionId, clearSelection]);
 
   useCloseCollectionOverlaysOnUnmount();
-
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        useCollectionOverlayStore.getState().toggleQuickAdd();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, []);
 
   // ── Mutation handlers ───────────────────────────────────────────────
   // All three bulk actions operate on `actionCopyIds` (set when the dialog is
@@ -753,7 +752,7 @@ export function CollectionGrid({
       // Scan and Quick add. An empty collection that auto-opened into library
       // mode is not the empty state, and it still needs both.
       showAddActions={!isEmpty}
-      onQuickAdd={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
+      onQuickAdd={() => useCommandPaletteStore.getState().openQuickAdd("add")}
       onSelectAll={() => toggleSelectAll(selectableCopyIds)}
       onEnterSelect={enterSelectMode}
       onExitSelect={exitSelectMode}
@@ -957,7 +956,7 @@ export function CollectionGrid({
                   </Link>
                   <Button
                     variant="ghost"
-                    onClick={() => useCollectionOverlayStore.getState().setQuickAddOpen(true)}
+                    onClick={() => useCommandPaletteStore.getState().openQuickAdd("add")}
                   >
                     <SquarePlusIcon />
                     Quick add

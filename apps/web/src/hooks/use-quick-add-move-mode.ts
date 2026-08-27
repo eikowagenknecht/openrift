@@ -11,6 +11,7 @@ import {
   MOVE_FROM_ANYWHERE,
   movableCountsByPrinting,
 } from "@/lib/move-sources";
+import type { QuickAddVerb } from "@/stores/command-palette-store";
 
 /** One palette-session move, kept so Shift+Enter / the minus button can send the copy back where it came from. */
 interface MoveRecord {
@@ -32,6 +33,12 @@ interface SelectOption {
 }
 
 interface MoveModeOptions {
+  /**
+   * The verb the palette was opened with. Chosen in the command palette rather
+   * than toggled here: a mode you pick before entering is visible without being
+   * advertised, which is what the Add/Move tab row used to cost.
+   */
+  verb: QuickAddVerb;
   /** The collection the palette opened on — the initial move target. */
   collectionId: string;
   /** The viewer's collections. Move mode needs at least two to be useful. */
@@ -89,13 +96,13 @@ export function resolveSwapDirection(
  * @returns The move-mode state and actions.
  */
 export function useQuickAddMoveMode({
+  verb,
   collectionId,
   collections,
   selectionKey,
   onMoved,
 }: MoveModeOptions) {
   const canMove = (collections?.length ?? 0) >= 2;
-  const [mode, setMode] = useState<"add" | "move">("add");
   const [direction, setDirection] = useState<MoveDirection>({
     from: MOVE_FROM_ANYWHERE,
     to: collectionId,
@@ -110,7 +117,7 @@ export function useQuickAddMoveMode({
   // it is open, so the subscription doesn't outlive it.
   const { data: allCopies } = useCopies();
 
-  const inMoveMode = mode === "move" && canMove;
+  const inMoveMode = verb === "move" && canMove;
   const inboxId = collections?.find((col) => col.isInbox)?.id;
   const { from: moveFrom, to: moveTo } = direction;
 
@@ -217,9 +224,6 @@ export function useQuickAddMoveMode({
   return {
     canMove,
     inMoveMode,
-    mode,
-    setMode,
-    toggleMode: () => setMode((prev) => (prev === "add" ? "move" : "add")),
     moveFrom,
     moveTo,
     chooseMoveFrom,

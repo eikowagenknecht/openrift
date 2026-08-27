@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { useIdle } from "@/hooks/use-idle";
-import { isTypingTarget } from "@/lib/presentation-keys";
+import { isTypingTarget } from "@/lib/keyboard-target";
 import { cn } from "@/lib/utils";
 import { TIER_TILE_WIDTHS, useDisplayStore } from "@/stores/display-store";
 import { usePresentationStore } from "@/stores/presentation-store";

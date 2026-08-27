@@ -2,7 +2,6 @@ import type { Printing } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -23,6 +22,7 @@ import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
+import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useFilterCountsVisible } from "@/hooks/use-filter-counts-visible";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -34,6 +34,7 @@ import { useSession, useUserId } from "@/lib/auth-session";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
@@ -70,8 +71,8 @@ function CatalogActionsCell({ printing, view, printingsByCardId }: CatalogAction
 /**
  * Standalone catalog browser for the /cards route.
  * Provides filters, search, and a card detail pane. The grid itself is a
- * read-only reference (no per-cell add controls); Ctrl/Cmd+K opens the
- * quick-add palette to add cards to the user's Inbox.
+ * read-only reference (no per-cell add controls); the quick-add palette, from
+ * the command palette's first row, is the add path to the user's Inbox.
  * @returns The catalog browser view.
  */
 export function CardBrowser() {
@@ -94,8 +95,8 @@ export function CardBrowser() {
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
 
-  // Quick add (Ctrl/Cmd+K) targets the user's Inbox. The catalog stays a
-  // read-only reference grid — this palette is the only add path here. Use the
+  // Quick add targets the user's Inbox. The catalog stays a read-only
+  // reference grid — this palette is the only add path here. Use the
   // login-gated query (not useCollections, which subscribes to the live copies
   // collection and requires a user) so logged-out visitors don't trip it.
   const { data: collections } = useQuery({
@@ -103,20 +104,16 @@ export function CardBrowser() {
     enabled: isLoggedIn,
   });
   const inboxId = collections?.find((collection) => collection.isInbox)?.id;
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  useEffect(() => {
-    if (!inboxId) {
-      return;
-    }
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setQuickAddOpen((prev) => !prev);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [inboxId]);
+  const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
+  const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
+  // Ctrl+K stays the global palette here: this page is already a card search,
+  // so the chord is better spent on what it cannot do. Quick add is the
+  // palette's first row instead.
+  useRegisterQuickAdd({
+    key: inboxId ? `catalog:${inboxId}` : null,
+    label: "Add to Inbox",
+    claimsShortcut: false,
+  });
 
   const {
     filters,

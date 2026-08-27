@@ -5,16 +5,15 @@ import {
   ArrowRightLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-  SearchIcon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PrintingRowContent } from "@/components/cards/printing-row";
+import { PaletteFrame } from "@/components/command-palette/palette-frame";
+import { PaletteScopeToken } from "@/components/command-palette/palette-scope-token";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import {
   InputGroup,
   InputGroupAddon,
@@ -30,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
@@ -40,6 +38,8 @@ import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import type { QuickAddVerb } from "@/stores/command-palette-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { AnnotatedDisposeDialog } from "./annotated-dispose-dialog";
@@ -80,54 +80,37 @@ export function QuickAddPalette({
   collections,
 }: QuickAddPaletteProps) {
   const isMobile = useIsMobile();
-
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle>
-        <DrawerContent>
-          <DrawerTitle className="sr-only">Quick add to {collectionName}</DrawerTitle>
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            {open && (
-              <PaletteInner
-                collectionId={collectionId}
-                collectionName={collectionName}
-                printingsByCardId={printingsByCardId}
-                ownedCountByPrinting={ownedCountByPrinting}
-                preferredLanguages={preferredLanguages}
-                collections={collections}
-                isMobile
-              />
-            )}
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
-  }
+  const verb = useCommandPaletteStore((state) => state.quickAddVerb);
+  // Move states both endpoints in its direction row, so its token only has to
+  // name the mode. Add has no such row, which makes the token the one place its
+  // destination can be written down.
+  const scopeLabel = verb === "move" ? "Move" : `Add to ${collectionName}`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="max-w-md gap-0 overflow-visible p-0 sm:max-w-md"
-      >
-        <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
-        {open && (
-          <PaletteInner
-            collectionId={collectionId}
-            collectionName={collectionName}
-            printingsByCardId={printingsByCardId}
-            ownedCountByPrinting={ownedCountByPrinting}
-            preferredLanguages={preferredLanguages}
-            collections={collections}
-            isMobile={false}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <PaletteFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Quick ${verb} to ${collectionName}`}
+    >
+      <PaletteInner
+        verb={verb}
+        scopeLabel={scopeLabel}
+        collectionId={collectionId}
+        collectionName={collectionName}
+        printingsByCardId={printingsByCardId}
+        ownedCountByPrinting={ownedCountByPrinting}
+        preferredLanguages={preferredLanguages}
+        collections={collections}
+        isMobile={isMobile}
+      />
+    </PaletteFrame>
   );
 }
 
 interface PaletteInnerProps {
+  verb: QuickAddVerb;
+  /** The search box's leading token, e.g. "Add to My Binder". */
+  scopeLabel: string;
   collectionId: string;
   collectionName: string;
   printingsByCardId: Map<string, Printing[]>;
@@ -138,6 +121,8 @@ interface PaletteInnerProps {
 }
 
 function PaletteInner({
+  verb,
+  scopeLabel,
   collectionId,
   collectionName,
   printingsByCardId,
@@ -178,6 +163,7 @@ function PaletteInner({
   });
 
   const move = useQuickAddMoveMode({
+    verb,
     collectionId,
     collections,
     selectionKey: `${expandedCardId ?? ""}:${expandedIndex}`,
@@ -279,18 +265,6 @@ function PaletteInner({
       : (addedItems.get(selectedPrinting.id)?.quantity ?? 0) > 0
     : false;
 
-  // Handled on the palette root, not the input: after clicking a tab (or any
-  // other control) focus leaves the input, and the shortcut should keep
-  // working from anywhere inside the palette. React synthetic events bubble
-  // here even from portaled popups.
-  const handleModeShortcut = (event: React.KeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m" && move.canMove) {
-      event.preventDefault();
-      move.toggleMode();
-      inputRef.current?.focus();
-    }
-  };
-
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       scrollOnChange.current = true;
@@ -382,12 +356,16 @@ function PaletteInner({
         clearSearch();
       }
       // When nothing to clear, let the dialog/drawer handle Escape
+    } else if (event.key === "Backspace" && query.length === 0 && !expandedCardId) {
+      // Nothing left to delete, so Backspace steps out of the collection scope
+      // and into the global palette — the scope chip's × by another route.
+      event.preventDefault();
+      useCommandPaletteStore.getState().exitQuickAddScope();
     }
   };
 
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- bubbling keyboard shortcut listener, not an interactive element
-    <div className="relative" onKeyDown={handleModeShortcut}>
+    <div className="relative">
       {/* Card image preview — at the top of the drawer on mobile, where there's
           no off-canvas space for the desktop side pane. It renders at a fixed
           160px, so a lighter variant is plenty (400w covers it at DPR 2). */}
@@ -413,98 +391,10 @@ function PaletteInner({
         </div>
       )}
 
-      {/* Mode toggle + move direction. The drawer already pads its content
-          (p-4), so the horizontal inset applies on desktop only. */}
-      {move.canMove && (
-        <div className={cn("flex flex-col gap-2 pb-1", !isMobile && "px-3 pt-3")}>
-          <Tabs
-            value={move.mode}
-            onValueChange={(value) => {
-              move.setMode(value as "add" | "move");
-              // Hand focus back to the search input so typing (and Ctrl+M)
-              // keep working after a mouse click on a tab.
-              inputRef.current?.focus();
-            }}
-          >
-            <TabsList className="w-full">
-              {/* The shortcut hint sits on the inactive tab — the one Ctrl+M
-                  would switch to. Keyboard-only, so hidden on mobile. */}
-              <TabsTrigger value="add">
-                Add
-                {!isMobile && move.mode === "move" && (
-                  <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="move">
-                Move
-                {!isMobile && move.mode === "add" && (
-                  <Kbd className="pointer-events-none opacity-60">Ctrl+M</Kbd>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          {inMoveMode && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-xs">from</span>
-              <Select
-                items={move.fromItems}
-                value={moveFrom}
-                onValueChange={(value) => {
-                  if (value) {
-                    move.chooseMoveFrom(value);
-                  }
-                }}
-              >
-                <SelectTrigger aria-label="Move from" className="min-w-0 flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {move.fromItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={move.handleSwapDirection}
-                aria-label="Swap move direction"
-              >
-                <ArrowRightLeftIcon />
-              </Button>
-              <span className="text-muted-foreground text-xs">to</span>
-              <Select
-                items={move.toItems}
-                value={moveTo}
-                onValueChange={(value) => {
-                  if (value) {
-                    move.chooseMoveTo(value);
-                  }
-                }}
-              >
-                <SelectTrigger aria-label="Move to" className="min-w-0 flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {move.toItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* SearchIcon input */}
       <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
         <InputGroupAddon align="inline-start">
-          <SearchIcon className="text-muted-foreground size-4" />
+          <PaletteScopeToken label={scopeLabel} />
         </InputGroupAddon>
         <InputGroupInput
           ref={inputRef}
@@ -517,11 +407,9 @@ function PaletteInner({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={
-            inMoveMode
-              ? `Move to "${move.collectionDisplayName(moveTo)}"...`
-              : `Add to "${collectionName}"...`
-          }
+          // The destination rides on the token, which survives typing; a
+          // placeholder repeating it would vanish at the first keystroke.
+          placeholder="Search cards..."
           className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
         />
@@ -533,6 +421,66 @@ function PaletteInner({
           </InputGroupAddon>
         )}
       </InputGroup>
+
+      {/* Move direction, under the search box so the bands read as one
+          sentence: Move <card>, from <here> to <there>. Above it, the token
+          naming the mode landed after the endpoints that mode governs. The
+          drawer already pads its content (p-4), so the inset is desktop-only. */}
+      {inMoveMode && (
+        <div className={cn("flex items-center gap-1.5 pt-1 pb-2", !isMobile && "px-3")}>
+          <span className="text-muted-foreground text-xs">from</span>
+          <Select
+            items={move.fromItems}
+            value={moveFrom}
+            onValueChange={(value) => {
+              if (value) {
+                move.chooseMoveFrom(value);
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Move from" className="min-w-0 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {move.fromItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={move.handleSwapDirection}
+            aria-label="Swap move direction"
+          >
+            <ArrowRightLeftIcon />
+          </Button>
+          <span className="text-muted-foreground text-xs">to</span>
+          <Select
+            items={move.toItems}
+            value={moveTo}
+            onValueChange={(value) => {
+              if (value) {
+                move.chooseMoveTo(value);
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Move to" className="min-w-0 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {move.toItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="border-border border-t" />
 
@@ -732,17 +680,23 @@ function PaletteInner({
         })}
       </div>
 
-      {/* Footer hints — keyboard only, hidden on mobile */}
-      {!isMobile && results.length > 0 && (
+      {/* Footer hints — keyboard only, hidden on mobile. Shown with an empty
+          result list too, because that is exactly when the Backspace hint is
+          the one worth reading. */}
+      {!isMobile && (
         <>
           <div className="border-border border-t" />
           <div className="text-muted-foreground flex items-center gap-3 px-3 py-2 text-xs">
-            <span>
-              <Kbd>↑↓</Kbd> navigate
-            </span>
-            <span>
-              <Kbd>↵</Kbd> {expandedCardId ? (inMoveMode ? "move" : "add") : "select"}
-            </span>
+            {results.length > 0 && (
+              <>
+                <span>
+                  <Kbd>↑↓</Kbd> navigate
+                </span>
+                <span>
+                  <Kbd>↵</Kbd> {expandedCardId ? (inMoveMode ? "move" : "add") : "select"}
+                </span>
+              </>
+            )}
             {expandedCardId && canUndoSelected && (
               <span>
                 <Kbd>⇧↵</Kbd> undo
@@ -756,6 +710,11 @@ function PaletteInner({
             {expandedCardId && selectedSourceCount > 1 && (
               <span>
                 <Kbd>→</Kbd> source
+              </span>
+            )}
+            {query.length === 0 && !expandedCardId && (
+              <span>
+                <Kbd>⌫</Kbd> search everything
               </span>
             )}
             <span>

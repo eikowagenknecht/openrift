@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(App): **Search anything from anywhere** — a search button in the header (or Ctrl+K, or just `/`) opens a palette that finds any card, jumps to any page, and opens help articles, from whichever page you are on.
 - feat(App): **Invite links work before you sign in** — a group, tournament, or staff invite link now shows what it leads to up front, and brings you back to it after you sign in.
 - feat(Cards): **Add a card from its own page** — every card page now shows how many copies you own and lets you add or remove one on the spot, with a breakdown of which collections they sit in.
 - fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
@@ -14,6 +15,9 @@
 - feat(Collection): **A way in from a shared list** — a shared collection, wishlist, or tradelist now offers a visitor without an account the chance to start their own.
 - feat(Groups): **Group address fills itself in** — creating a group derives its web address from the name, and says up front when the address is too short or reserved.
 - feat(App): **Navigation on the front page** — the front page now carries the app header, so cards, decks and the menu are one click away.
+- feat(Rules): **Shareable rules searches** — a rules search now lives in the address bar, so you can link straight to it or come back to it later.
+- feat(Collection): **Quick add and quick move are separate** — the Add/Move tabs are gone; both are now entries in the command palette, so moving copies between collections is visible instead of hidden behind a shortcut.
+- fix(Decks): **Take a card back out of quick add** — every zone in the deck's quick add now has a minus button, so a miscount is one click to fix instead of an undo shortcut that only reversed the very last change.
 - feat(Collection): **Scanner rows match the app** — the scanner's card rows and its two pickers now lead with the shared art strip, domain bar, rarity and code, and the owned count sits at the right.
 - fix(Groups): **Email invites removed** — the field only worked for people who already had an account and never sent any email, and a leftover invite could silently swallow your later attempt to join by code.
 - fix(Account): **Sign in returns you to your page** — signing in from the header now comes back to the page you were on, and otherwise lands in your collection rather than the marketing page.

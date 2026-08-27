@@ -160,24 +160,6 @@ export function resolvePresentationKey(event: KeyEventLike): PresentationAction 
 }
 
 /**
- * Whether a keydown landed in a field the user is typing into. The queue
- * builder shares the page with the show, so `f` must type an "f" in the search
- * box rather than flipping the filmstrip.
- *
- * @returns True when the event target takes text input.
- */
-export function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-  if (target.isContentEditable) {
-    return true;
-  }
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-}
-
-/**
  * Whether the focused element already owns the space bar.
  *
  * Space is "next card" here, but it is also how a keyboard user activates a

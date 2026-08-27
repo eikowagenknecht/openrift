@@ -773,7 +773,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     feature: "Keyboard shortcuts",
     values: ["yes", "yes", "no", "no", "no"],
     detail: {
-      general: "Cmd+K / Ctrl+K command palette for quick navigation and search.",
+      general:
+        "Ctrl+K opens a command palette that searches cards, jumps to any page, and adds cards to a collection or deck.",
     },
   },
   {

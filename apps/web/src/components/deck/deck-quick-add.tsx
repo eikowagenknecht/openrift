@@ -1,12 +1,13 @@
 import type { DeckFormat, DeckZone } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
-import { ChevronRightIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { QuickAddPreview } from "@/components/collection/quick-add-preview";
+import { QuickAddStepper } from "@/components/collection/quick-add-stepper";
+import { PaletteFrame } from "@/components/command-palette/palette-frame";
+import { PaletteScopeToken } from "@/components/command-palette/palette-scope-token";
 import { useDeckUndo } from "@/components/deck/deck-undo-controls";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import {
   InputGroup,
   InputGroupAddon,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/deck-builder-card";
 import { ZONE_LABELS, zoneExpected } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
 /** One place a result card can go, with the state the row needs to render. */
 interface AddTarget {
@@ -126,29 +128,10 @@ interface DeckQuickAddProps {
 export function DeckQuickAdd({ open, onOpenChange, deckId, format, cards }: DeckQuickAddProps) {
   const isMobile = useIsMobile();
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle>
-        <DrawerContent>
-          <DrawerTitle className="sr-only">Add cards to the deck</DrawerTitle>
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            {open && <QuickAddInner deckId={deckId} format={format} cards={cards} isMobile />}
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="max-w-md gap-0 overflow-visible p-0 sm:max-w-md"
-      >
-        <DialogTitle className="sr-only">Add cards to the deck</DialogTitle>
-        {open && <QuickAddInner deckId={deckId} format={format} cards={cards} isMobile={false} />}
-      </DialogContent>
-    </Dialog>
+    <PaletteFrame open={open} onOpenChange={onOpenChange} title="Add cards to the deck">
+      <QuickAddInner deckId={deckId} format={format} cards={cards} isMobile={isMobile} />
+    </PaletteFrame>
   );
 }
 
@@ -158,18 +141,52 @@ function keepInputFocus(event: React.MouseEvent) {
 }
 
 /**
- * The count readout on a target row: its fill against the zone target, a bare
- * ×N where the zone has none, or "Full" when the zone rejects the card.
- * @returns The row's count text.
+ * A result row, as a button when the whole row is the action and as a plain
+ * container when it holds a stepper.
+ *
+ * The split is a markup constraint, not a style choice: {@link Pressable} is a
+ * native `<button>`, so a row that contains the stepper's own buttons cannot be
+ * one. Keyboard users are unaffected either way, since both palettes are driven
+ * from the search input rather than by tabbing through rows.
+ *
+ * @returns The row element.
  */
-function targetCountText(target: AddTarget): string {
-  if (target.disabled) {
-    return "Full";
+function CardRowShell({
+  selected,
+  pressable,
+  onPress,
+  onMouseEnter,
+  children,
+}: {
+  selected: boolean;
+  pressable: boolean;
+  onPress: () => void;
+  onMouseEnter: () => void;
+  children: React.ReactNode;
+}) {
+  const className = cn(
+    "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
+    selected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+  );
+  if (!pressable) {
+    return (
+      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- hover only tracks the highlighted row; every action inside is its own control
+      <div data-selected={selected} className={className} onMouseEnter={onMouseEnter}>
+        {children}
+      </div>
+    );
   }
-  if (target.expected === undefined) {
-    return target.count > 0 ? `×${target.count}` : "";
-  }
-  return `${target.count}/${target.expected}`;
+  return (
+    <Pressable
+      data-selected={selected}
+      className={className}
+      onMouseDown={keepInputFocus}
+      onClick={onPress}
+      onMouseEnter={onMouseEnter}
+    >
+      {children}
+    </Pressable>
+  );
 }
 
 function QuickAddInner({
@@ -184,7 +201,7 @@ function QuickAddInner({
   isMobile: boolean;
 }) {
   const { printingsByCardId } = useCards();
-  const { addCard, setLegend } = useDeckBuilderActions(deckId);
+  const { addCard, removeCard, setLegend } = useDeckBuilderActions(deckId);
   const { canUndo, undo } = useDeckUndo(deckId);
 
   const [query, setQuery] = useState("");
@@ -194,7 +211,6 @@ function QuickAddInner({
   // Session-scoped undo depth: Shift+Enter only rolls back adds made from
   // this palette, never edits that predate opening it.
   const [addsSinceOpen, setAddsSinceOpen] = useState(0);
-  const [lastAction, setLastAction] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -233,7 +249,7 @@ function QuickAddInner({
   const defaultTarget = (targets: AddTarget[]): AddTarget | undefined =>
     targets.find((target) => !target.disabled) ?? targets[0];
 
-  const performAdd = (cardId: string, cardName: string, target: AddTarget) => {
+  const performAdd = (cardId: string, target: AddTarget) => {
     const builderCard = toBuilderCard(cardId);
     if (!builderCard || target.disabled) {
       return;
@@ -242,12 +258,20 @@ function QuickAddInner({
       // Constructed legends replace: prunes off-domain runes and auto-fills
       // the rune deck, exactly like the zone browser's Choose button.
       setLegend(builderCard);
-      setLastAction(`Legend set to ${cardName}`);
     } else {
       addCard(builderCard, target.zone, 1);
-      setLastAction(`Added ${cardName} to ${target.label}`);
     }
     setAddsSinceOpen((count) => count + 1);
+  };
+
+  // The stepper's minus. Takes one copy out of the zone the stepper sits on,
+  // which is not what Shift+Enter does: that pops the deck's undo stack, so it
+  // reverses the last edit rather than the row you are looking at.
+  const performRemove = (cardId: string, target: AddTarget) => {
+    if (target.kind === "legend" || target.count === 0) {
+      return;
+    }
+    removeCard(cardId, target.zone);
   };
 
   const undoLastAdd = () => {
@@ -256,7 +280,6 @@ function QuickAddInner({
     }
     undo();
     setAddsSinceOpen((count) => count - 1);
-    setLastAction("Undid the last add");
   };
 
   const selectedTargets = selected ? targetsFor(selected.cardId) : [];
@@ -307,14 +330,14 @@ function QuickAddInner({
         const targets = targetsFor(expanded.cardId);
         const target = targets[Math.min(targetIndex, targets.length - 1)];
         if (target) {
-          performAdd(expanded.cardId, expanded.cardName, target);
+          performAdd(expanded.cardId, target);
         }
         return;
       }
       if (selected) {
         const target = defaultTarget(selectedTargets);
         if (target) {
-          performAdd(selected.cardId, selected.cardName, target);
+          performAdd(selected.cardId, target);
         }
       }
       return;
@@ -331,6 +354,13 @@ function QuickAddInner({
         event.stopPropagation();
         setQuery("");
       }
+      return;
+    }
+    // Backspace with nothing left to delete steps out of the deck scope and
+    // into the global palette, the same gesture the scope chip's × performs.
+    if (event.key === "Backspace" && query.length === 0 && !expanded) {
+      event.preventDefault();
+      useCommandPaletteStore.getState().exitQuickAddScope();
     }
   };
 
@@ -377,7 +407,7 @@ function QuickAddInner({
 
       <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
         <InputGroupAddon align="inline-start">
-          <SearchIcon className="text-muted-foreground size-4" />
+          <PaletteScopeToken label="Add to this deck" />
         </InputGroupAddon>
         <InputGroupInput
           ref={inputRef}
@@ -390,7 +420,9 @@ function QuickAddInner({
             collapse();
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Add a card to the deck…"
+          // The destination rides on the token, which survives typing; a
+          // placeholder repeating it would vanish at the first keystroke.
+          placeholder="Search cards..."
           className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
         />
@@ -434,23 +466,17 @@ function QuickAddInner({
           const rowDefault = defaultTarget(targets);
           return (
             <div key={card.cardId}>
-              <Pressable
-                data-selected={isSelected || isExpanded}
-                className={cn(
-                  "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
-                  isSelected || isExpanded ? "bg-accent text-accent-foreground" : "hover:bg-muted",
-                )}
-                onMouseDown={keepInputFocus}
-                onClick={() => {
+              {/* A row carrying a stepper is a container, not a Pressable:
+                  Pressable is a native button, and the stepper's own buttons
+                  cannot nest inside one. Rows without a stepper stay pressable,
+                  since clicking them is the only way to open their zones. */}
+              <CardRowShell
+                selected={isSelected || isExpanded}
+                pressable={targets.length > 1}
+                onPress={() => {
                   setSelectedIndex(index);
-                  if (targets.length > 1) {
-                    setExpandedCardId(isExpanded ? null : card.cardId);
-                    setTargetIndex(0);
-                    return;
-                  }
-                  if (rowDefault) {
-                    performAdd(card.cardId, card.cardName, rowDefault);
-                  }
+                  setExpandedCardId(isExpanded ? null : card.cardId);
+                  setTargetIndex(0);
                 }}
                 onMouseEnter={() => {
                   if (!expandedCardId) {
@@ -470,7 +496,7 @@ function QuickAddInner({
                       : "No printings"}
                   </div>
                 </div>
-                {inDeck > 0 && (
+                {targets.length > 1 && inDeck > 0 && (
                   <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 shrink-0 text-xs tabular-nums">
                     ×{inDeck} in deck
                   </span>
@@ -482,39 +508,81 @@ function QuickAddInner({
                       isExpanded && "rotate-90",
                     )}
                   />
+                ) : rowDefault && rowDefault.kind === "add" ? (
+                  // One zone to choose from, so the row carries the stepper
+                  // itself. With several, the counts live on the zone rows in
+                  // the expansion, where taking a copy out names its zone.
+                  <QuickAddStepper
+                    count={rowDefault.count}
+                    changed={rowDefault.count > 0}
+                    incrementIcon={<PlusIcon />}
+                    incrementLabel={`Add ${card.cardName} to ${rowDefault.label}`}
+                    decrementLabel={`Remove ${card.cardName} from ${rowDefault.label}`}
+                    onIncrement={() => performAdd(card.cardId, rowDefault)}
+                    onDecrement={() => performRemove(card.cardId, rowDefault)}
+                    incrementDisabled={rowDefault.disabled}
+                    decrementDisabled={rowDefault.count === 0}
+                    onMouseDown={keepInputFocus}
+                  />
                 ) : (
                   <PlusIcon className="text-muted-foreground group-data-[selected=true]:text-accent-foreground size-4 shrink-0" />
                 )}
-              </Pressable>
+              </CardRowShell>
 
               {isExpanded && (
                 <div className="bg-muted/50 px-1 py-1">
                   {targets.map((target, index2) => {
                     const isTargetSelected = index2 === Math.min(targetIndex, targets.length - 1);
+                    const zoneClassName = cn(
+                      "group flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors",
+                      isTargetSelected && !target.disabled
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-muted",
+                      target.disabled && "text-muted-foreground opacity-60",
+                    );
+                    // A Legend replaces rather than accumulates, so it has no
+                    // count to step and the whole row stays the action.
+                    if (target.kind === "legend") {
+                      return (
+                        <Pressable
+                          key={target.zone}
+                          data-selected={isTargetSelected}
+                          className={zoneClassName}
+                          onMouseDown={keepInputFocus}
+                          onClick={() => performAdd(card.cardId, target)}
+                          onMouseEnter={() => setTargetIndex(index2)}
+                        >
+                          <span className="min-w-0 flex-1 truncate text-left">{target.label}</span>
+                          <PlusIcon className="size-3.5 shrink-0" />
+                        </Pressable>
+                      );
+                    }
                     return (
-                      <Pressable
+                      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- hover only tracks the highlighted zone; the stepper carries the actions
+                      <div
                         key={target.zone}
                         data-selected={isTargetSelected}
-                        disabled={target.disabled}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors",
-                          isTargetSelected && !target.disabled
-                            ? "bg-accent text-accent-foreground"
-                            : "hover:bg-muted",
-                          target.disabled && "text-muted-foreground opacity-60",
-                        )}
-                        onMouseDown={keepInputFocus}
-                        onClick={() => performAdd(card.cardId, card.cardName, target)}
+                        className={zoneClassName}
                         onMouseEnter={() => setTargetIndex(index2)}
                       >
-                        <PlusIcon className="size-3.5 shrink-0" />
                         <span className="min-w-0 flex-1 truncate text-left">{target.label}</span>
-                        {target.kind === "add" && (
-                          <span className="shrink-0 text-xs tabular-nums">
-                            {targetCountText(target)}
-                          </span>
-                        )}
-                      </Pressable>
+                        {/* Only the fact the stepper cannot carry. How many
+                            copies sit in this zone is the number between its
+                            buttons. */}
+                        {target.disabled && <span className="shrink-0 text-xs">Full</span>}
+                        <QuickAddStepper
+                          count={target.count}
+                          changed={target.count > 0}
+                          incrementIcon={<PlusIcon />}
+                          incrementLabel={`Add ${card.cardName} to ${target.label}`}
+                          decrementLabel={`Remove ${card.cardName} from ${target.label}`}
+                          onIncrement={() => performAdd(card.cardId, target)}
+                          onDecrement={() => performRemove(card.cardId, target)}
+                          incrementDisabled={target.disabled}
+                          decrementDisabled={target.count === 0}
+                          onMouseDown={keepInputFocus}
+                        />
+                      </div>
                     );
                   })}
                 </div>
@@ -523,14 +591,6 @@ function QuickAddInner({
           );
         })}
       </div>
-
-      {/* Last-action confirmation, in place of toasts. */}
-      {lastAction && (
-        <>
-          <div className="border-border border-t" />
-          <div className="text-muted-foreground px-3 py-1.5 text-xs">{lastAction}</div>
-        </>
-      )}
 
       {!isMobile && (
         <>
@@ -555,6 +615,11 @@ function QuickAddInner({
             {addsSinceOpen > 0 && (
               <span>
                 <Kbd>⇧↵</Kbd> undo
+              </span>
+            )}
+            {query.length === 0 && !expanded && (
+              <span>
+                <Kbd>⌫</Kbd> search everything
               </span>
             )}
             <span>

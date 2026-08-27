@@ -2,7 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 /** Flag an overlay writes into the history state to recognize its own entry. */
-export type OverlayHistoryKey = "cardDetail" | "missingCardDetail";
+export type OverlayHistoryKey = "cardDetail" | "missingCardDetail" | "paletteCardDetail";
 
 interface OverlayHistoryEntryOptions {
   /** Push the entry while true, and drop the popstate listener when it clears. */

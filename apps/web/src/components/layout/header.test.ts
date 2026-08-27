@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { signInRedirectFor, visibleMoreSections } from "./header";
+import { signInRedirectFor } from "./header";
+import { visibleMoreSections } from "./nav-items";
 
 const flagsOn = { glossary: true, meta: true };
 const flagsOff = { glossary: false, meta: false };

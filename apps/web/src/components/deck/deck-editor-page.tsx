@@ -97,6 +97,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useIncomingTradeCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
+import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
@@ -121,6 +122,7 @@ import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collecti
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
@@ -192,7 +194,6 @@ function DeckEditorContent({
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
@@ -283,18 +284,12 @@ function DeckEditorContent({
   // conditional subtree) so the shortcuts survive zone and tab switches.
   useDeckUndoShortcuts(deckId);
 
-  // Ctrl/Cmd+K opens the quick-add omnibar. Free on this route: the two
-  // existing Ctrl+K handlers are scoped to /cards and /collections.
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k" && !event.repeat) {
-        event.preventDefault();
-        setQuickAddOpen((open) => !open);
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  // Ctrl/Cmd+K reaches the quick-add omnibar through the command palette,
+  // which resolves the chord to whichever quick-add the route registered.
+  const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
+  const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
+  const openQuickAdd = useCommandPaletteStore((state) => state.openQuickAdd);
+  useRegisterQuickAdd({ key: `deck:${deckId}`, label: "Add cards to this deck" });
   const ownershipData = useDeckOwnership(
     deckCards,
     allPrintings,
@@ -644,7 +639,7 @@ function DeckEditorContent({
                 <PageTopBarIconButton
                   className="md:hidden"
                   aria-label="Add a card"
-                  onClick={() => setQuickAddOpen(true)}
+                  onClick={() => openQuickAdd("add")}
                 >
                   <PlusIcon className="size-4" />
                 </PageTopBarIconButton>
@@ -654,7 +649,7 @@ function DeckEditorContent({
                       <PageTopBarButton
                         className="hidden md:inline-flex"
                         aria-keyshortcuts="Control+K"
-                        onClick={() => setQuickAddOpen(true)}
+                        onClick={() => openQuickAdd("add")}
                       />
                     }
                   >

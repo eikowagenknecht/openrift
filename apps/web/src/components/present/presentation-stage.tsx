@@ -30,9 +30,9 @@ import { useOverlayChannel, usePushOverlayCard, useSetOverlayHidden } from "@/ho
 import { useOverlayBoardSync } from "@/hooks/use-overlay-board-sync";
 import { useCreateStagePreset, useStagePresets } from "@/hooks/use-stage-presets";
 import { useUserId } from "@/lib/auth-session";
+import { isTypingTarget } from "@/lib/keyboard-target";
 import {
   BOARD_ACTIONS,
-  isTypingTarget,
   ownsSpaceKey,
   resolvePresentationKey,
   WALK_ACTIONS,
