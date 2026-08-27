@@ -84,7 +84,9 @@ export function PrintingRowContent({
   thumbClassName?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
+    // A span, not a div: the scan sheets nest this inside a Pressable, and a
+    // flow element inside a button is invalid markup.
+    <span className="flex min-w-0 flex-1 items-center gap-2">
       <PrintingThumbnail
         printing={printing}
         className={thumbClassName ?? (name ? "h-10" : "h-8")}
@@ -96,6 +98,6 @@ export function PrintingRowContent({
         </span>
       </span>
       {right}
-    </div>
+    </span>
   );
 }

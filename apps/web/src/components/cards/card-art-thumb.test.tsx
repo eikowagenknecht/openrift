@@ -18,6 +18,24 @@ describe("CardArtThumb", () => {
     expect(img?.className).toContain("object-cover");
   });
 
+  it("rings the frame and washes the art when the printing is a foil", () => {
+    const { container } = render(<CardArtThumb src="/x.webp" foil />);
+
+    const frame = container.querySelector("span");
+    expect(frame?.className).toContain("ring-amber-400/60");
+    // The still rainbow, not the shimmer keyframe: these frames lead list rows.
+    const wash = container.querySelector(".bg-foil");
+    expect(wash).not.toBeNull();
+    expect(wash?.className).not.toContain("animate-foil-shimmer");
+  });
+
+  it("leaves the ring and the wash off a normal printing", () => {
+    const { container } = render(<CardArtThumb src="/x.webp" />);
+
+    expect(container.querySelector("span")?.className).not.toContain("ring-amber");
+    expect(container.querySelector(".bg-foil")).toBeNull();
+  });
+
   it("resolves an imageId through imageUrl at the requested variant", () => {
     const { container } = render(<CardArtThumb imageId="0123456789abcdef" variant="400w" />);
 

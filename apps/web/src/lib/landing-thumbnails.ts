@@ -10,6 +10,8 @@ export interface LandingThumbnailCard {
   name: string;
   shortCode: string;
   variantLabel: string | null;
+  rarity: string;
+  domains: string[];
   /** Cardmarket headline price in euros, or null when the printing has none. */
   price: number | null;
 }
@@ -30,6 +32,8 @@ export function landingThumbnailCards(
     name: thumb.name ?? "",
     shortCode: thumb.shortCode ?? "",
     variantLabel: thumb.variantLabel ?? null,
+    rarity: thumb.rarity ?? "",
+    domains: thumb.domains ?? [],
     price: centsToDollars(thumb.priceCents ?? null),
   }));
 }

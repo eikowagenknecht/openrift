@@ -4,6 +4,7 @@ import { ImageOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
@@ -67,6 +68,12 @@ interface CardArtThumbProps {
    * already the landscape-card ratio and the art fills it exactly.
    */
   landscape?: boolean;
+  /**
+   * Foil printing: an amber ring on the frame and a static rainbow wash over
+   * the art. Never the shimmer keyframe — the surfaces that show a foil this
+   * small are lists, and an animated gradient per row is not worth the paint.
+   */
+  foil?: boolean;
 }
 
 /**
@@ -138,10 +145,11 @@ function ThumbPlaceholder({
  * missing on the server) all land in the same domain-tinted placeholder instead
  * of the browser's broken-image glyph.
  *
- * For the full grid thumbnail (foil, pricing, sibling fan-out) use
- * `CardThumbnail` instead — this is the lightweight, image-only frame for
- * lists, tooltips, and stats. To lead a list row with art plus the card's
- * domain / rarity / short code, use `CardMiniRow`, which wraps this.
+ * For the full grid thumbnail (pricing, sibling fan-out, the shimmering foil)
+ * use `CardThumbnail` instead — this is the lightweight, image-only frame for
+ * lists, tooltips, and stats, and its `foil` is the still version. To lead a
+ * list row with art plus the card's domain / rarity / short code, use
+ * `CardMiniRow`, which wraps this.
  *
  * @returns The framed card thumbnail element.
  */
@@ -157,6 +165,7 @@ export function CardArtThumb({
   domains,
   fallback,
   landscape = false,
+  foil = false,
 }: CardArtThumbProps) {
   const strip = shape === "strip";
   const resolved = src ?? (imageId ? imageUrl(imageId, variant) : null);
@@ -186,6 +195,7 @@ export function CardArtThumb({
       className={cn(
         "relative inline-block shrink-0 overflow-hidden align-top",
         strip ? "bg-muted/40 aspect-[88/63] h-6 rounded-sm border" : "bg-muted aspect-card",
+        foil && "ring-1 ring-amber-400/60",
         className,
       )}
       style={strip ? undefined : { borderRadius: CARD_BORDER_RADIUS }}
@@ -206,6 +216,9 @@ export function CardArtThumb({
       ) : (
         emptyFrame
       )}
+      {/* Radius and clipping stay on the frame and the overlay's transform two
+          levels in. Combining them on one element mis-sizes it in Firefox. */}
+      {foil && <FoilOverlay active shimmer={false} />}
     </span>
   );
 }

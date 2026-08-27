@@ -1,11 +1,11 @@
 import type { Printing } from "@openrift/shared";
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 
 import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";
-import { PrintingVariantLine } from "@/components/cards/printing-row";
-import { ScanCandidateRow } from "@/components/scan/scan-candidate-row";
+import { PrintingRowContent } from "@/components/cards/printing-row";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
+import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 
@@ -63,18 +63,19 @@ export function ScanPrintingPicker({
   const renderList = (items: Printing[]) => (
     <div className="flex min-h-0 flex-col gap-1 overflow-y-auto">
       {items.map((candidate) => (
-        <ScanCandidateRow
+        <Pressable
           key={candidate.id}
-          imageId={candidate.images[0]?.imageId}
-          landscape={getOrientation(candidate.card.types) === "landscape"}
-          rarity={candidate.rarity}
-          domains={candidate.card.domains}
-          title={legendDisplayName(candidate.card)}
-          // The full candidate set, not the tab's: the variant label needs
-          // every sibling to know what distinguishes this printing.
-          detail={<PrintingVariantLine printing={candidate} siblings={candidates} />}
+          className="hover:bg-muted flex w-full items-center rounded-md px-2 py-1.5"
           onClick={() => onPick(candidate)}
-        />
+        >
+          <PrintingRowContent
+            printing={candidate}
+            // The full candidate set, not the tab's: the variant label needs
+            // every sibling to know what distinguishes this printing.
+            siblings={candidates}
+            name={legendDisplayName(candidate.card)}
+          />
+        </Pressable>
       ))}
     </div>
   );

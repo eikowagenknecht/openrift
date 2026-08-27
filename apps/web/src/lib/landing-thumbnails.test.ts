@@ -34,6 +34,14 @@ describe("landingThumbnailCards", () => {
     expect(card.url).toContain("019d02f1-d14f-769f-9295-9852db692dbe");
   });
 
+  it("carries the rarity and domains the vignette rows lead with", () => {
+    const [card] = landingThumbnailCards([
+      thumbnail({ rarity: "epic", domains: ["fury", "calm"] }),
+    ]);
+    expect(card.rarity).toBe("epic");
+    expect(card.domains).toEqual(["fury", "calm"]);
+  });
+
   it("converts the price from cents to euros", () => {
     expect(landingThumbnailCards([thumbnail({ priceCents: 420 })])[0].price).toBe(4.2);
   });
@@ -52,11 +60,13 @@ describe("landingThumbnailCards", () => {
   });
 
   it("survives an edge-cached payload from before the identity fields", () => {
-    const legacy = { imageId: "img-1", rarity: "common", domains: [] } as unknown as Thumbnail;
+    const legacy = { imageId: "img-1" } as unknown as Thumbnail;
     expect(landingThumbnailCards([legacy])[0]).toMatchObject({
       name: "",
       shortCode: "",
       variantLabel: null,
+      rarity: "",
+      domains: [],
       price: null,
     });
   });

@@ -32,6 +32,8 @@ interface CardMiniRowProps {
   domainColors?: Record<string, string>;
   /** Rarity slug. Shows a rarity icon in the meta column, and watermarks the placeholder. */
   rarity?: string | null;
+  /** Foil printing: an amber ring on the art and a static rainbow wash over it. */
+  foil?: boolean;
   /** Live rarity labels from `useEnumOrders().labels.rarities`, for the icon's tooltip. */
   rarityLabels?: Record<string, string>;
   /** Set / collector code, shown in the meta column. */
@@ -80,6 +82,7 @@ export function CardMiniRow({
   domains,
   domainColors,
   rarity,
+  foil = false,
   rarityLabels,
   shortCode,
   loading,
@@ -103,6 +106,7 @@ export function CardMiniRow({
         landscape={landscape}
         rarity={rarity}
         domains={domains}
+        foil={foil}
         loading={loading}
         className={artClassName}
       />

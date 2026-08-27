@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { formatPriceEur } from "@/lib/format";
 import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,8 @@ const PENDING_CARDS: LandingThumbnailCard[] = OWNED_BEFORE.map(() => ({
   name: "",
   shortCode: "",
   variantLabel: null,
+  rarity: "",
+  domains: [],
   price: null,
 }));
 
@@ -58,43 +61,55 @@ function TrayRow({
   ownedBefore: number;
   arriving?: boolean;
 }) {
+  // The tray's PrintingVariantLabel falls back to "Standard" rather than
+  // leaving the line blank; the payload's null means the same thing. Pending
+  // rows keep it empty, since they name no card to describe.
+  const variant = card.name ? (card.variantLabel ?? "Standard") : "";
   return (
     <li
       className={cn(
-        "-mx-2 flex items-center gap-2 rounded-md px-2 py-2",
+        "-mx-2 flex items-center gap-3 rounded-md px-2 py-2",
         arriving && "bg-muted/50 motion-safe:animate-scan-tray-row",
       )}
     >
-      {card.url ? (
-        <img
-          src={card.url}
-          alt=""
-          loading="lazy"
-          draggable={false}
-          className="h-14 w-10 shrink-0 overflow-hidden rounded object-cover"
-        />
-      ) : (
-        <span className="bg-muted h-14 w-10 shrink-0 rounded" />
-      )}
+      {/* No `domainColors`: the seed colors keep the vignette a pure component,
+          so the landing page never suspends on /init to paint a miniature. */}
+      <CardMiniRow
+        className="self-stretch"
+        src={card.url}
+        rarity={card.rarity}
+        domains={card.domains}
+        shortCode={card.shortCode}
+        loading="lazy"
+        artClassName="h-10"
+        hideMetaOnMobile
+      />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">{card.name}</span>
-        <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-          <span className="font-mono">{card.shortCode}</span>
-          {card.variantLabel && <span className="truncate">{card.variantLabel}</span>}
-          {ownedBefore === 0 ? (
-            <span
-              className="text-emerald-600 dark:text-emerald-400"
-              title="None in your collection before this session"
-            >
-              New
-            </span>
-          ) : (
-            <span title="Copies in your collection before this session">owned {ownedBefore}</span>
-          )}
+        <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
+          {/* Below sm the lead's meta column stands down, exactly as in the
+              tray, so the code moves onto the line with room to spare. */}
+          <span className="font-mono sm:hidden">{card.shortCode}</span>
+          <span className="truncate">{variant}</span>
         </span>
       </span>
+      {ownedBefore === 0 ? (
+        <span
+          className="shrink-0 text-sm text-emerald-600 dark:text-emerald-400"
+          title="None in your collection before this session"
+        >
+          New
+        </span>
+      ) : (
+        <span
+          className="text-muted-foreground shrink-0 text-sm tabular-nums"
+          title="Copies in your collection before this session"
+        >
+          {ownedBefore} owned
+        </span>
+      )}
       {card.price !== null && (
-        <span className="shrink-0 text-emerald-600 tabular-nums dark:text-emerald-400">
+        <span className="shrink-0 text-sm text-emerald-600 tabular-nums dark:text-emerald-400">
           {formatPriceEur(card.price)}
         </span>
       )}

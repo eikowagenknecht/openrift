@@ -108,6 +108,14 @@ describe("CardMiniRow", () => {
     expect(placeholder?.querySelector("img")?.className).toContain("opacity-25");
   });
 
+  it("forwards the foil treatment to the art frame", () => {
+    const { container } = render(<CardMiniRow src="/x.webp" foil />);
+
+    const frame = container.querySelector("span span");
+    expect(frame?.className).toContain("ring-amber-400/60");
+    expect(container.querySelector(".bg-foil")).not.toBeNull();
+  });
+
   it("forwards sizing overrides to the cluster and the art separately", () => {
     const { container } = render(
       <CardMiniRow src="/x.webp" className="self-stretch" artClassName="h-9" />,

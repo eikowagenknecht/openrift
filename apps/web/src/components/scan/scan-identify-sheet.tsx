@@ -1,8 +1,9 @@
 import { Loader2Icon } from "lucide-react";
 
-import { ScanCandidateRow } from "@/components/scan/scan-candidate-row";
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
+import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 /** One artwork from the identified frame's embedding shortlist. */
@@ -62,16 +63,27 @@ export function ScanIdentifySheet({
         const name = candidate.label.split(" (")[0];
         const detail = candidate.label.slice(name.length).replaceAll(/^\s*\(|\)$/gu, "");
         return (
-          <ScanCandidateRow
+          <Pressable
             key={candidate.key}
-            imageId={candidate.key}
-            landscape={candidate.landscape}
-            title={name}
-            // The bank's label already reads as a code, so it keeps the mono
-            // face the printing picker's variant line gets from its code slot.
-            detail={<span className="font-mono">{detail}</span>}
+            className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5"
             onClick={() => onPick(candidate)}
-          />
+          >
+            {/* The bank knows the artwork, not the printing: no rarity, no
+                domains, so the lead is the art strip alone. */}
+            <CardMiniRow
+              imageId={candidate.key}
+              landscape={candidate.landscape}
+              artClassName="h-10"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{name}</span>
+              {/* The bank's label already reads as a code, so it keeps the mono
+                  face the printing picker's variant line gets from its code slot. */}
+              <span className="text-muted-foreground block truncate font-mono text-xs">
+                {detail}
+              </span>
+            </span>
+          </Pressable>
         );
       })}
     </div>

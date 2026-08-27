@@ -13,9 +13,8 @@ import {
 } from "lucide-react";
 import { useId } from "react";
 
-import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { useOpenCardDetail } from "@/components/cards/card-detail-opener";
-import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { CountPill } from "@/components/ui/count-pill";
 import { Pressable } from "@/components/ui/pressable";
 import type { UnidentifiedCard } from "@/hooks/use-card-scanner";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
@@ -30,7 +30,8 @@ import { pricesQueryOptions } from "@/hooks/use-prices";
 import { useScanTrayDisclosure } from "@/hooks/use-scan-tray-disclosure";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useWishEntries } from "@/hooks/use-wish-entries";
-import { formatCardId, formatterForMarketplace, priceColorClass } from "@/lib/format";
+import { frontImageId } from "@/lib/card-meta";
+import { formatterForMarketplace, priceColorClass } from "@/lib/format";
 import type { ScanPrintingIndex } from "@/lib/scan-resolve";
 import { finishSiblingsOf } from "@/lib/scan-resolve";
 import type { ScanSessionSummaryData } from "@/lib/scan-session-summary";
@@ -99,6 +100,7 @@ export function ScanSessionTray({
   // Read once here, not per row: the hook rebuilds every enum's label map on
   // each call, and the camera pipeline wants that CPU.
   const { labels } = useEnumOrders();
+  const domainColors = useDomainColors();
   const newestFirst = [...rows.values()].toReversed();
   // Tray order, which is also the order the detail overlay's prev/next steps
   // through once a row opens it.
@@ -168,6 +170,8 @@ export function ScanSessionTray({
             sequence={sequence}
             siblings={index ? finishSiblingsOf(row.printing, index) : []}
             finishLabels={labels.finishes}
+            rarityLabels={labels.rarities}
+            domainColors={domainColors}
             open={openId === row.printing.id}
             onToggle={toggle}
             onSwitchFinish={onSwitchFinish}
@@ -207,6 +211,10 @@ interface TrayRowProps {
   /** Same-card printings that differ only in finish, for the switch buttons. */
   siblings: Printing[];
   finishLabels: Record<string, string>;
+  /** Live rarity labels, read once at the list — see {@link CardMiniRow}. */
+  rarityLabels: Record<string, string>;
+  /** Live domain colors, likewise lifted to the list. */
+  domainColors: Record<string, string>;
   open: boolean;
   onToggle: (printingId: string) => void;
   onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
@@ -236,6 +244,8 @@ function TrayRow({
   sequence,
   siblings,
   finishLabels,
+  rarityLabels,
+  domainColors,
   open,
   onToggle,
   onSwitchFinish,
@@ -267,25 +277,19 @@ function TrayRow({
           aria-controls={open ? actionsId : undefined}
           onClick={() => onToggle(printing.id)}
         >
-          {/* Radius and clipping stay on this wrapper; the foil overlay's
-              3D transform lives two levels in. Combining them on one
-              element mis-sizes the overlay in Firefox. */}
-          <span
-            className={cn(
-              "relative block h-14 w-10 shrink-0 overflow-hidden rounded",
-              isFoil && "ring-1 ring-amber-400/60",
-            )}
-          >
-            <CardArtThumb
-              imageId={printing.images[0]?.imageId}
-              variant="120w"
-              className="size-full"
-              landscape={getOrientation(printing.card.types) === "landscape"}
-            />
-            {/* Static rainbow, never the shimmer keyframe — the camera
-                pipeline needs every frame of CPU it can get. */}
-            {isFoil && <FoilOverlay active shimmer={false} />}
-          </span>
+          <CardMiniRow
+            className="self-stretch"
+            imageId={frontImageId(printing)}
+            landscape={getOrientation(printing.card.types) === "landscape"}
+            domains={printing.card.domains}
+            domainColors={domainColors}
+            rarity={printing.rarity}
+            rarityLabels={rarityLabels}
+            shortCode={printing.shortCode}
+            foil={isFoil}
+            artClassName="h-10"
+            hideMetaOnMobile
+          />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="flex items-center gap-2">
               <span className="truncate font-medium">{name}</span>
@@ -293,29 +297,32 @@ function TrayRow({
                   than a name that does, because nothing else states it. */}
               {count > 1 && <CountPill className="shrink-0">×{count}</CountPill>}
             </span>
-            <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <span className="font-mono">{formatCardId(printing)}</span>
+            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
+              {/* The lead's meta column stands down below sm (the name needs
+                  its width back), so the code takes the room line two has
+                  going spare there rather than dropping off the row. */}
+              <span className="font-mono sm:hidden">{printing.shortCode}</span>
               <PrintingVariantLabel printing={printing} siblings={siblings} />
-              {ownedBefore === 0 && (
-                <span
-                  className="shrink-0 text-emerald-600 dark:text-emerald-400"
-                  title="None in your collection before this session"
-                >
-                  New
-                </span>
-              )}
-              {ownedBefore !== null && ownedBefore > 0 && (
-                <span
-                  className="shrink-0 tabular-nums"
-                  title="Copies in your collection before this session"
-                >
-                  owned {ownedBefore}
-                </span>
-              )}
             </span>
           </span>
         </Pressable>
         <WishlistHeart entries={wishEntries} align="end" />
+        {ownedBefore === 0 && (
+          <span
+            className="shrink-0 text-sm text-emerald-600 dark:text-emerald-400"
+            title="None in your collection before this session"
+          >
+            New
+          </span>
+        )}
+        {ownedBefore !== null && ownedBefore > 0 && (
+          <span
+            className="text-muted-foreground shrink-0 text-sm tabular-nums"
+            title="Copies in your collection before this session"
+          >
+            {ownedBefore} owned
+          </span>
+        )}
         {price !== undefined && (
           <span className={cn("shrink-0 text-sm tabular-nums", priceColorClass(price))}>
             {formatValue(price)}
