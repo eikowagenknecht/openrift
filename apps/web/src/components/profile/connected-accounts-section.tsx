@@ -12,7 +12,7 @@ const SOCIAL_PROVIDERS = [
 ] as const;
 
 export function ConnectedAccountsSection() {
-  const [accounts, setAccounts] = useState<{ providerId: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; providerId: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,9 +40,13 @@ export function ConnectedAccountsSection() {
   }
 
   async function handleUnlink(providerId: string) {
+    const account = accounts.find((a) => a.providerId === providerId);
+    if (!account) {
+      return;
+    }
     setActionLoading(providerId);
     setError(null);
-    const { error: unlinkError } = await authClient.unlinkAccount({ providerId });
+    const { error: unlinkError } = await authClient.unlinkAccount({ accountId: account.id });
     setActionLoading(null);
     if (unlinkError) {
       setError(unlinkError.message ?? "Failed to unlink account.");
