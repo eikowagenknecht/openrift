@@ -1,5 +1,5 @@
 # ─── Stage 1: Install dependencies & build ────────────────────────────────────
-FROM oven/bun:1.3.14 AS build
+FROM oven/bun:1.4.0 AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
@@ -48,7 +48,7 @@ RUN --mount=type=secret,id=sentry_auth_token \
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
 # Debian (glibc), not alpine: onnxruntime-node (scan bank) ships glibc-only
 # binaries — on musl they fail at load with a missing ld-linux-x86-64.so.2
-FROM oven/bun:1.3.14 AS api
+FROM oven/bun:1.4.0 AS api
 
 # wget for the compose healthcheck (busybox provided it on alpine; debian slim has neither wget nor curl)
 RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
@@ -73,7 +73,7 @@ EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
 # ─── Stage 3: Web (TanStack Start SSR server) ───────────────────────────────
-FROM oven/bun:1.3.14-alpine AS web
+FROM oven/bun:1.4.0-alpine AS web
 
 WORKDIR /app
 COPY --from=build /app/apps/web/.output .output
@@ -86,7 +86,7 @@ ENTRYPOINT ["wait-for-api"]
 CMD ["bun", "run", ".output/server/index.mjs"]
 
 # ─── Stage 4: Discord bot (card lookups over the public API) ────────────────
-FROM oven/bun:1.3.14-alpine AS bot
+FROM oven/bun:1.4.0-alpine AS bot
 
 WORKDIR /app
 
