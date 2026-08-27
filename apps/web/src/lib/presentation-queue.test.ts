@@ -5,7 +5,6 @@ import { stubPrinting } from "@/test/factories";
 
 import {
   MAX_QUEUE_LENGTH,
-  appendToQueue,
   clampIndex,
   resolveQueuePrintings,
   stepIndex,
@@ -52,62 +51,6 @@ describe("resolveQueuePrintings", () => {
 
   it("returns nothing for an empty queue", () => {
     expect(resolveQueuePrintings([], catalog())).toEqual([]);
-  });
-});
-
-describe("appendToQueue", () => {
-  it("appends in order and reports what landed", () => {
-    expect(appendToQueue(["a"], ["b", "c"])).toEqual({
-      ids: ["a", "b", "c"],
-      added: 2,
-      dropped: 0,
-    });
-  });
-
-  it("keeps a card the queue already holds", () => {
-    // Filling from a list after queueing a card by hand is a real sequence, and
-    // the queue allows repeats anyway.
-    expect(appendToQueue(["a"], ["a", "b"]).ids).toEqual(["a", "a", "b"]);
-  });
-
-  it("takes what fits and counts the rest as dropped", () => {
-    const result = appendToQueue(["a", "b"], ["c", "d", "e"], 4);
-
-    expect(result).toEqual({ ids: ["a", "b", "c", "d"], added: 2, dropped: 1 });
-  });
-
-  it("adds nothing once the queue is at the cap", () => {
-    const result = appendToQueue(["a", "b"], ["c"], 2);
-
-    expect(result).toEqual({ ids: ["a", "b"], added: 0, dropped: 1 });
-  });
-
-  it("adds nothing when the source is empty", () => {
-    expect(appendToQueue(["a"], [])).toEqual({ ids: ["a"], added: 0, dropped: 0 });
-  });
-
-  it("treats an over-full queue as having no room rather than negative room", () => {
-    const result = appendToQueue(["a", "b", "c"], ["d"], 2);
-
-    expect(result).toEqual({ ids: ["a", "b", "c"], added: 0, dropped: 1 });
-  });
-
-  it("defaults the cap to MAX_QUEUE_LENGTH", () => {
-    const incoming = Array.from({ length: MAX_QUEUE_LENGTH + 5 }, (_unused, at) => `p-${at}`);
-
-    const result = appendToQueue([], incoming);
-
-    expect(result.ids).toHaveLength(MAX_QUEUE_LENGTH);
-    expect(result.added).toBe(MAX_QUEUE_LENGTH);
-    expect(result.dropped).toBe(5);
-  });
-
-  it("does not mutate the queue it was given", () => {
-    const current = ["a"];
-
-    appendToQueue(current, ["b"]);
-
-    expect(current).toEqual(["a"]);
   });
 });
 

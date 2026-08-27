@@ -2,12 +2,7 @@ import type { CardTradeLivePhase, CardTradeRole } from "@openrift/shared";
 import { ArrowDownLeftIcon, ArrowUpRightIcon } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
-import {
-  SHARED_RESERVED_STATUS,
-  liveTradeStatus,
-  liveTradeStatusLabel,
-  tradeStatusTitle,
-} from "./trade-status-labels";
+import { SHARED_RESERVED_STATUS, liveTradeStatus, tradeStatusTitle } from "./trade-status-labels";
 
 const PHASES: CardTradeLivePhase[] = ["asked", "offered", "reserved"];
 const ROLES: CardTradeRole[] = ["giver", "receiver"];
@@ -20,7 +15,6 @@ describe("liveTradeStatus", () => {
   ] as [CardTradeLivePhase, string][])("labels the %s phase as %s", (phase, label) => {
     for (const role of ROLES) {
       expect(liveTradeStatus({ role, phase }).label).toBe(label);
-      expect(liveTradeStatusLabel({ role, phase })).toBe(label);
     }
   });
 
@@ -58,11 +52,11 @@ describe("liveTradeStatus", () => {
   // always pins the phase down.
   it("uses one word per phase across the two sides", () => {
     for (const phase of PHASES) {
-      expect(liveTradeStatusLabel({ role: "giver", phase })).toBe(
-        liveTradeStatusLabel({ role: "receiver", phase }),
+      expect(liveTradeStatus({ role: "giver", phase }).label).toBe(
+        liveTradeStatus({ role: "receiver", phase }).label,
       );
     }
-    const labels = PHASES.map((phase) => liveTradeStatusLabel({ role: "giver", phase }));
+    const labels = PHASES.map((phase) => liveTradeStatus({ role: "giver", phase }).label);
     expect(new Set(labels).size).toBe(labels.length);
   });
 
@@ -76,7 +70,7 @@ describe("liveTradeStatus", () => {
 describe("SHARED_RESERVED_STATUS", () => {
   it("is the giver-side reservation, the one status a share link may show", () => {
     expect(SHARED_RESERVED_STATUS).toEqual({ role: "giver", phase: "reserved" });
-    expect(liveTradeStatusLabel(SHARED_RESERVED_STATUS)).toBe("Reserved");
+    expect(liveTradeStatus(SHARED_RESERVED_STATUS).label).toBe("Reserved");
   });
 });
 

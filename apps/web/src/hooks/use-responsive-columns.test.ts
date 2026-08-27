@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { gridGapCss } from "@/components/cards/card-grid-metrics";
 
 import {
-  SSR_BANDS,
+  COLUMN_BANDS,
   SSR_RESPONSIVE_GRID_COLS,
   SSR_RESPONSIVE_GRID_GAP,
   useResponsiveColumns,
@@ -103,7 +103,7 @@ describe("SSR_RESPONSIVE_GRID_GAP", () => {
   // comparing here is what stops them drifting from the live gap rule after
   // someone retunes the gutter constants.
   it("matches gridGapCss for every band's column count", () => {
-    const expected = SSR_BANDS.map((band) => {
+    const expected = COLUMN_BANDS.map((band) => {
       const value = gridGapCss(band.columns).replaceAll(" ", "_");
       return band.minWidth === 0
         ? `gap-[${value}]`
@@ -113,8 +113,8 @@ describe("SSR_RESPONSIVE_GRID_GAP", () => {
   });
 
   it("pairs one gap class with each column class", () => {
-    expect(SSR_RESPONSIVE_GRID_GAP.split(" ")).toHaveLength(SSR_BANDS.length);
-    expect(SSR_RESPONSIVE_GRID_COLS.split(" ")).toHaveLength(SSR_BANDS.length);
+    expect(SSR_RESPONSIVE_GRID_GAP.split(" ")).toHaveLength(COLUMN_BANDS.length);
+    expect(SSR_RESPONSIVE_GRID_COLS.split(" ")).toHaveLength(COLUMN_BANDS.length);
   });
 
   it("declares the same breakpoints as the column classes", () => {
@@ -127,6 +127,6 @@ describe("SSR_RESPONSIVE_GRID_GAP", () => {
     const cols = SSR_RESPONSIVE_GRID_COLS.split(" ").map((c) =>
       Number(/grid-cols-(?<n>\d+)$/u.exec(c)?.groups?.n),
     );
-    expect(cols).toEqual(SSR_BANDS.map((band) => band.columns));
+    expect(cols).toEqual(COLUMN_BANDS.map((band) => band.columns));
   });
 });

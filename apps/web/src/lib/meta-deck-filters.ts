@@ -22,16 +22,6 @@ export interface MetaDeckFilterValues {
   dateTo: string | null;
 }
 
-/** Every axis empty — the browser's default, which keeps the whole archive. */
-export const EMPTY_META_DECK_FILTERS: MetaDeckFilterValues = {
-  formats: [],
-  events: [],
-  legends: [],
-  maxFinishTier: null,
-  dateFrom: null,
-  dateTo: null,
-};
-
 /** The finish buckets offered in the browser, best first. */
 export const META_FINISH_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: "Winner" },

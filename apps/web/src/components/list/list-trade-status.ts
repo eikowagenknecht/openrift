@@ -32,12 +32,6 @@ export interface ListTradeIndex {
   byCard: ReadonlyMap<string, CardTradeLiveAnnotation[]>;
 }
 
-/** Stable empty index, for callers with no session or no annotations loaded yet. */
-export const EMPTY_LIST_TRADE_INDEX: ListTradeIndex = {
-  byPrinting: new Map(),
-  byCard: new Map(),
-};
-
 /**
  * Indexes the viewer's live-trade annotations by printing and by card.
  *

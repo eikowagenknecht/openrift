@@ -1,11 +1,10 @@
 import type { DeckFormat } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, ZONE_EXPECTED } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
   requiredZoneProgress,
   ZONE_EMPTY_HINTS,
-  ZONE_EXPECTED,
   ZONE_LABELS,
   zoneEmptyHint,
   zoneEmptyReadOnlyLabel,

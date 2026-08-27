@@ -8,7 +8,6 @@ import { useDisplayStore } from "@/stores/display-store";
 import { createStoreResetter } from "@/test/store-helpers";
 
 import {
-  catalogPendingTailLangs,
   catalogQueryOptions,
   hasPrintingsOutside,
   loadCatalogTail,
@@ -115,14 +114,12 @@ describe("split fetch + tail merge", () => {
     expect(data).toBeDefined();
     expect(calls[0]).toContain("langs=EN");
     expect(calls[0]).toContain("v=v-test-1");
-    expect(catalogPendingTailLangs(raw as CatalogResponse)).toEqual(["EN"]);
 
     await loadCatalogTail(queryClient);
     expect(calls[1]).toContain("exceptLangs=EN");
     const merged = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
     expect(merged).toBeDefined();
     expect(Object.keys((merged as CatalogResponse).printings).toSorted()).toEqual(["p1", "p2"]);
-    expect(catalogPendingTailLangs(merged as CatalogResponse)).toBeNull();
 
     // A second tail call is a no-op (already complete).
     await loadCatalogTail(queryClient);
@@ -138,8 +135,6 @@ describe("split fetch + tail merge", () => {
 
     const queryClient = new QueryClient();
     await queryClient.fetchQuery(catalogQueryOptions);
-    const raw = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
-    expect(catalogPendingTailLangs(raw as CatalogResponse)).toBeNull();
 
     await loadCatalogTail(queryClient);
     // No tail request went out: the "primary" already contained everything.

@@ -240,14 +240,6 @@ export function hasPrintingsOutside(catalog: CatalogResponse, langs: readonly st
   return false;
 }
 
-/**
- * Whether `catalog` is a primary variant still missing its tail languages.
- * @returns The languages the tail fetch must exclude, or null when complete.
- */
-export function catalogPendingTailLangs(catalog: CatalogResponse): readonly string[] | null {
-  return catalogPartsMeta.get(catalog)?.pendingTailLangs ?? null;
-}
-
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
 // would re-enter origin for every VU, which is exactly what we're avoiding.

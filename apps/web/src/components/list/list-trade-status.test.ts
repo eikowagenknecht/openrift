@@ -1,12 +1,11 @@
 import type { CardTradeLiveAnnotation, ListEntryDetailResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import {
-  buildListTradeIndex,
-  EMPTY_LIST_TRADE_INDEX,
-  listEntryTradeStatus,
-} from "@/components/list/list-trade-status";
+import type { ListTradeIndex } from "@/components/list/list-trade-status";
+import { buildListTradeIndex, listEntryTradeStatus } from "@/components/list/list-trade-status";
 import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
+
+const EMPTY_INDEX: ListTradeIndex = { byPrinting: new Map(), byCard: new Map() };
 
 // Two printings of one card, plus a printing of a different card, so the card
 // index has something to fold together and something to leave out.
@@ -110,9 +109,9 @@ describe("buildListTradeIndex", () => {
 
 describe("listEntryTradeStatus", () => {
   it("returns null when nothing is in flight", () => {
-    expect(listEntryTradeStatus(printingEntry(alphaOne.id), EMPTY_LIST_TRADE_INDEX)).toBeNull();
-    expect(listEntryTradeStatus(cardEntry("card-a"), EMPTY_LIST_TRADE_INDEX)).toBeNull();
-    expect(listEntryTradeStatus(copyEntry(alphaOne.id, false), EMPTY_LIST_TRADE_INDEX)).toBeNull();
+    expect(listEntryTradeStatus(printingEntry(alphaOne.id), EMPTY_INDEX)).toBeNull();
+    expect(listEntryTradeStatus(cardEntry("card-a"), EMPTY_INDEX)).toBeNull();
+    expect(listEntryTradeStatus(copyEntry(alphaOne.id, false), EMPTY_INDEX)).toBeNull();
   });
 
   // The feed's annotation wins over the bare `reserved` boolean, and carries the
@@ -126,7 +125,7 @@ describe("listEntryTradeStatus", () => {
   });
 
   it("falls back to a reserved marker for a pinned copy the feed has no annotation for", () => {
-    expect(listEntryTradeStatus(copyEntry(alphaOne.id, true), EMPTY_LIST_TRADE_INDEX)).toEqual({
+    expect(listEntryTradeStatus(copyEntry(alphaOne.id, true), EMPTY_INDEX)).toEqual({
       printingId: alphaOne.id,
       role: "giver",
       phase: "reserved",

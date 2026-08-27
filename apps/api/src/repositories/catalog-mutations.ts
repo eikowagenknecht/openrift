@@ -465,8 +465,8 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Records the alias so resolveCardId() can match candidate_cards with this
-     * normalized name to the card dynamically.
+     * Records the alias so `resolveCardIdByName` can match a candidate card
+     * with this normalized name to the card.
      */
     async createNameAliases(normalizedName: string, cardId: string): Promise<void> {
       await db

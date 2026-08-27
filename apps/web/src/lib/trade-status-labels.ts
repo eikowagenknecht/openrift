@@ -79,15 +79,6 @@ export function liveTradeStatus(annotation: LiveTradeStatusInput): LiveTradeStat
 }
 
 /**
- * The label alone, for surfaces that lay the word out themselves.
- * @param annotation The viewer's side and the trade's phase.
- * @returns The user-facing word.
- */
-export function liveTradeStatusLabel(annotation: LiveTradeStatusInput): string {
-  return liveTradeStatus(annotation).label;
-}
-
-/**
  * The one status a public surface may show. A share link already exposes the
  * reserved flag, which reads as "not claimable"; every other phase is live
  * negotiation and stays off a page anyone can open.

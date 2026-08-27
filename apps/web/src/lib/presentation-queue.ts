@@ -59,40 +59,6 @@ export function resolveQueuePrintings(
   return resolved;
 }
 
-/** The outcome of filling a queue from a source, for the caller's message. */
-export interface QueueAppendResult {
-  /** The queue after the append, truncated at the cap. */
-  ids: string[];
-  /** How many of `incoming` landed. */
-  added: number;
-  /** How many the queue had no room for. */
-  dropped: number;
-}
-
-/**
- * Appends a batch of printing ids to a queue, stopping at the cap.
- *
- * Duplicates are kept: a source may legitimately contribute a card the creator
- * already queued by hand, and the queue allows repeats anyway. The counts come
- * back with the new list so the caller can say what happened — a partial add is
- * the one outcome a creator must not discover mid-stream.
- *
- * @returns The new queue and how many ids landed versus were dropped.
- */
-export function appendToQueue(
-  current: readonly string[],
-  incoming: readonly string[],
-  cap: number = MAX_QUEUE_LENGTH,
-): QueueAppendResult {
-  const room = Math.max(cap - current.length, 0);
-  const taken = incoming.slice(0, room);
-  return {
-    ids: [...current, ...taken],
-    added: taken.length,
-    dropped: incoming.length - taken.length,
-  };
-}
-
 /**
  * Clamps a URL-supplied index into the queue's bounds. An out-of-range `i`
  * (deck edited since the link was made, hand-typed number) lands on the

@@ -1,14 +1,23 @@
 import type { MetaDeckSummary } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import type { MetaDeckFilterValues } from "./meta-deck-filters";
 import {
-  EMPTY_META_DECK_FILTERS,
   filterMetaDecks,
   hasActiveMetaDeckFilters,
   metaDeckFilterCounts,
   metaDeckFilterOptions,
   sortMetaDecks,
 } from "./meta-deck-filters";
+
+const EMPTY: MetaDeckFilterValues = {
+  formats: [],
+  events: [],
+  legends: [],
+  maxFinishTier: null,
+  dateFrom: null,
+  dateTo: null,
+};
 
 function makeDeck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
   const event = {
@@ -66,60 +75,55 @@ const ids = (result: MetaDeckSummary[]) => result.map((deck) => deck.deckId);
 
 describe("filterMetaDecks", () => {
   it("keeps everything when no axis is set", () => {
-    expect(ids(filterMetaDecks(decks, EMPTY_META_DECK_FILTERS))).toEqual(["a", "b", "c"]);
+    expect(ids(filterMetaDecks(decks, EMPTY))).toEqual(["a", "b", "c"]);
   });
 
   it("returns nothing for an empty archive", () => {
-    expect(filterMetaDecks([], EMPTY_META_DECK_FILTERS)).toEqual([]);
+    expect(filterMetaDecks([], EMPTY)).toEqual([]);
   });
 
   it("filters by format", () => {
-    const result = filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, formats: ["legacy"] });
+    const result = filterMetaDecks(decks, { ...EMPTY, formats: ["legacy"] });
     expect(ids(result)).toEqual(["c"]);
   });
 
   it("treats several values on one axis as a union", () => {
     const result = filterMetaDecks(decks, {
-      ...EMPTY_META_DECK_FILTERS,
+      ...EMPTY,
       formats: ["legacy", "standard"],
     });
     expect(ids(result)).toEqual(["a", "b", "c"]);
   });
 
   it("filters by event slug", () => {
-    const result = filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, events: ["rift-open"] });
+    const result = filterMetaDecks(decks, { ...EMPTY, events: ["rift-open"] });
     expect(ids(result)).toEqual(["c"]);
   });
 
   it("filters by legend and drops decks with no legend", () => {
-    const result = filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, legends: ["card-jinx"] });
+    const result = filterMetaDecks(decks, { ...EMPTY, legends: ["card-jinx"] });
     expect(ids(result)).toEqual(["a"]);
   });
 
   it("treats the finish bound as inclusive", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, maxFinishTier: 4 }))).toEqual([
-      "a",
-      "b",
-    ]);
-    expect(ids(filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, maxFinishTier: 1 }))).toEqual([
-      "a",
-    ]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxFinishTier: 4 }))).toEqual(["a", "b"]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxFinishTier: 1 }))).toEqual(["a"]);
   });
 
   it("treats both date bounds as inclusive", () => {
     const exact = filterMetaDecks(decks, {
-      ...EMPTY_META_DECK_FILTERS,
+      ...EMPTY,
       dateFrom: "2026-06-15",
       dateTo: "2026-06-15",
     });
     expect(ids(exact)).toEqual(["c"]);
-    const open = filterMetaDecks(decks, { ...EMPTY_META_DECK_FILTERS, dateFrom: "2026-07-01" });
+    const open = filterMetaDecks(decks, { ...EMPTY, dateFrom: "2026-07-01" });
     expect(ids(open)).toEqual(["a", "b"]);
   });
 
   it("intersects across axes", () => {
     const result = filterMetaDecks(decks, {
-      ...EMPTY_META_DECK_FILTERS,
+      ...EMPTY,
       formats: ["standard"],
       maxFinishTier: 4,
       legends: ["card-lux"],
@@ -129,7 +133,7 @@ describe("filterMetaDecks", () => {
 
   it("returns nothing when the axes cannot overlap", () => {
     const result = filterMetaDecks(decks, {
-      ...EMPTY_META_DECK_FILTERS,
+      ...EMPTY,
       formats: ["legacy"],
       maxFinishTier: 1,
     });
@@ -154,7 +158,7 @@ describe("sortMetaDecks", () => {
 
 describe("metaDeckFilterCounts", () => {
   it("counts every value when nothing is filtered", () => {
-    const counts = metaDeckFilterCounts(decks, EMPTY_META_DECK_FILTERS);
+    const counts = metaDeckFilterCounts(decks, EMPTY);
     expect(counts.formats.get("standard")).toBe(2);
     expect(counts.formats.get("legacy")).toBe(1);
     expect(counts.events.get("rift-open")).toBe(1);
@@ -167,7 +171,7 @@ describe("metaDeckFilterCounts", () => {
 
   it("counts an axis with the other axes already applied", () => {
     const counts = metaDeckFilterCounts(decks, {
-      ...EMPTY_META_DECK_FILTERS,
+      ...EMPTY,
       formats: ["standard"],
     });
     // The legacy event is filtered out of every other axis...
@@ -200,16 +204,12 @@ describe("metaDeckFilterOptions", () => {
 
 describe("hasActiveMetaDeckFilters", () => {
   it("is false for the default state", () => {
-    expect(hasActiveMetaDeckFilters(EMPTY_META_DECK_FILTERS)).toBe(false);
+    expect(hasActiveMetaDeckFilters(EMPTY)).toBe(false);
   });
 
   it("is true once any axis is populated", () => {
-    expect(hasActiveMetaDeckFilters({ ...EMPTY_META_DECK_FILTERS, formats: ["standard"] })).toBe(
-      true,
-    );
-    expect(hasActiveMetaDeckFilters({ ...EMPTY_META_DECK_FILTERS, maxFinishTier: 8 })).toBe(true);
-    expect(hasActiveMetaDeckFilters({ ...EMPTY_META_DECK_FILTERS, dateTo: "2026-01-01" })).toBe(
-      true,
-    );
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, formats: ["standard"] })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, maxFinishTier: 8 })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, dateTo: "2026-01-01" })).toBe(true);
   });
 });

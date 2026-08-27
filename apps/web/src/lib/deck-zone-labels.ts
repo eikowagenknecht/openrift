@@ -10,7 +10,6 @@ import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
  */
 export {
   REQUIRED_ZONES,
-  ZONE_EXPECTED,
   ZONE_LABELS,
   requiredZoneProgress,
   zoneExpected,

@@ -22,18 +22,6 @@ import type {
 import { AppError } from "../errors.js";
 
 /**
- * Resolves card_id dynamically — candidate_cards deliberately stores none, so
- * matching is always derived from the card name or a card_name_alias. The
- * equality lookups ride the indexed norm_name columns.
- */
-export const resolveCardId = (alias: string): RawBuilder<string | null> =>
-  sql<string | null>`COALESCE(
-    (SELECT c_res.id FROM cards c_res WHERE c_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
-    (SELECT cna_res.card_id FROM card_name_aliases cna_res WHERE cna_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1),
-    (SELECT p_res.card_id FROM candidate_printings ps_res JOIN printings p_res ON p_res.short_code = ps_res.short_code JOIN candidate_cards cs_res ON cs_res.id = ps_res.candidate_card_id WHERE cs_res.norm_name = ${sql.ref(`${alias}.normName`)} LIMIT 1)
-  )`;
-
-/**
  * Resolves the image_files.id for a self-hosted image. NULL when the row
  * hasn't been rehosted yet, so callers can filter `IS NOT NULL` to exclude
  * external-only entries from public pages. The client constructs variant URLs

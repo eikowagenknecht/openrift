@@ -2,15 +2,20 @@ import { useLayoutEffect, useState } from "react";
 
 import { GRID_GAP_MAX, GRID_GAP_MIN } from "@/components/cards/card-grid-metrics";
 
-const breakpoints = [
-  { minWidth: 1920, cols: 8 },
-  { minWidth: 1600, cols: 7 },
-  { minWidth: 1280, cols: 6 },
-  { minWidth: 1024, cols: 5 },
-  { minWidth: 768, cols: 4 },
-  { minWidth: 640, cols: 3 },
-  { minWidth: 0, cols: 2 },
-];
+/**
+ * The column count per container width. Drives the measured grid below and the
+ * `SSR_RESPONSIVE_GRID_COLS` / `SSR_RESPONSIVE_GRID_GAP` class strings, which
+ * `use-responsive-columns.test.ts` regenerates from it.
+ */
+export const COLUMN_BANDS = [
+  { minWidth: 0, columns: 2 },
+  { minWidth: 640, columns: 3 },
+  { minWidth: 768, columns: 4 },
+  { minWidth: 1024, columns: 5 },
+  { minWidth: 1280, columns: 6 },
+  { minWidth: 1600, columns: 7 },
+  { minWidth: 1920, columns: 8 },
+] as const;
 
 const MIN_CARD_WIDTH = 100;
 const MAX_CARD_WIDTH = 500;
@@ -73,8 +78,8 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       );
       const pMin = Math.max(1, Math.ceil((width + GRID_GAP_MAX) / (MAX_CARD_WIDTH + GRID_GAP_MAX)));
 
-      const match = breakpoints.find((bp) => width >= bp.minWidth);
-      const auto = match?.cols ?? 2;
+      const match = COLUMN_BANDS.findLast((band) => width >= band.minWidth);
+      const auto = match?.columns ?? SSR_SAFE_COLUMNS;
 
       const cols =
         maxColumns !== undefined && maxColumns !== null
@@ -134,7 +139,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
   };
 }
 
-// Tailwind container-query classes mirroring the JS breakpoints above. Apply
+// Tailwind container-query classes spelling out `COLUMN_BANDS`. Apply
 // these on a grid container nested inside `@container/grid` (set in
 // card-browser-layout) when `measured` is still false — i.e. during SSR and
 // the pre-hydration paint. The browser then renders the right column count
@@ -155,14 +160,3 @@ export const SSR_RESPONSIVE_GRID_COLS =
 // rather than silently desyncing SSR from the live grid.
 export const SSR_RESPONSIVE_GRID_GAP =
   "gap-[clamp(4px,calc(4.9881cqw_-_5.7007px),22px)] @min-[640px]/grid:gap-[clamp(4px,calc(3.271cqw_-_5.6075px),22px)] @min-[768px]/grid:gap-[clamp(4px,calc(2.4334cqw_-_5.562px),22px)] @min-[1024px]/grid:gap-[clamp(4px,calc(1.9373cqw_-_5.5351px),22px)] @min-[1280px]/grid:gap-[clamp(4px,calc(1.6092cqw_-_5.5172px),22px)] @min-[1600px]/grid:gap-[clamp(4px,calc(1.3761cqw_-_5.5046px),22px)] @min-[1920px]/grid:gap-[clamp(4px,calc(1.2021cqw_-_5.4951px),22px)]";
-
-/** Column counts `SSR_RESPONSIVE_GRID_COLS` / `SSR_RESPONSIVE_GRID_GAP` pair with, per band. */
-export const SSR_BANDS = [
-  { minWidth: 0, columns: 2 },
-  { minWidth: 640, columns: 3 },
-  { minWidth: 768, columns: 4 },
-  { minWidth: 1024, columns: 5 },
-  { minWidth: 1280, columns: 6 },
-  { minWidth: 1600, columns: 7 },
-  { minWidth: 1920, columns: 8 },
-] as const;

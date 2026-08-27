@@ -18,7 +18,6 @@ import {
   joinFrontImage,
   keysetCursorPredicate,
   requireFrontImage,
-  resolveCardId,
   selectCopyWithCard,
 } from "./query-helpers.js";
 
@@ -41,13 +40,6 @@ function compileWhere(predicate: Expression<SqlBool>) {
     parameters: compiled.parameters,
   };
 }
-
-describe("resolveCardId", () => {
-  it("returns a raw builder expression", () => {
-    const result = resolveCardId("cs");
-    expect(result).toBeDefined();
-  });
-});
 
 describe("imageId", () => {
   it("returns a raw builder expression", () => {
