@@ -78,7 +78,6 @@ import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { isAdmin } from "./friend-group-shell";
-import { InviteByEmailForm } from "./invite-by-email-form";
 
 const INTENT_LABEL: Record<ListIntent, string> = {
   wish: "Wishlist",
@@ -281,7 +280,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-sm">
-                Code-based joining is disabled. Direct invites only.
+                Code-based joining is disabled, so nobody can join this group right now.
               </span>
               <Button
                 size="sm"
@@ -294,10 +293,6 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             </div>
           )}
         </div>
-
-        <Separator />
-
-        <InviteByEmailForm slug={slug} />
       </CardContent>
     </Card>
   );

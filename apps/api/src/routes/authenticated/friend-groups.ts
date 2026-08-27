@@ -465,26 +465,6 @@ export const friendGroupsRouter = {
     return toGroup(updated, true);
   }),
 
-  inviteByEmail: os.inviteByEmail.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = context.userId;
-    const { friendGroups, users } = context.repos;
-
-    const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
-    requireRole(ctx.membership, "admin");
-
-    const target = await users.getByEmail(input.email);
-    if (!target) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "No user with that email");
-    }
-
-    const existingMembership = await friendGroups.getMembership(ctx.group.id, target.id);
-    if (existingMembership) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "User is already a member");
-    }
-
-    await friendGroups.createInvite(ctx.group.id, target.id, "invite");
-  }),
-
   acceptInvite: os.acceptInvite.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;
     const { friendGroups } = context.repos;

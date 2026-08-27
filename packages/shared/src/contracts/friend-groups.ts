@@ -60,10 +60,6 @@ export const friendGroupJoinByCodeSchema = z.object({
   code: z.string().min(8).max(64),
 });
 
-export const friendGroupInviteByEmailSchema = z.object({
-  email: z.email().max(320),
-});
-
 export const friendGroupUpdateRoleSchema = z.object({
   role: z.enum(["admin", "member"]),
 });
@@ -520,7 +516,7 @@ const FG = "/api/v1/friend-groups";
  * `remove`, `rotateCode`, `disableCode`, `enableCode`, `shareableLists`,
  * `shareableCollections`, `matches`, `activity` → NOT_FOUND (group); `join`
  * also adds CONFLICT (already a member); `update` also adds CONFLICT (slug
- * taken); `inviteByEmail` → NOT_FOUND + CONFLICT (member exists);
+ * taken);
  * `acceptInvite`, `declineInvite` → NOT_FOUND (group or invite); `leave` →
  * NOT_FOUND + CONFLICT (owner must transfer first); `transferOwnership` →
  * NOT_FOUND + BAD_REQUEST (invalid target); `updateRole` → NOT_FOUND +
@@ -597,13 +593,6 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupResponseSchema),
-  inviteByEmail: authedRoute
-    .route({ method: "POST", path: `${FG}/{slug}/invites`, tags: [TAG], successStatus: 201 })
-    .errors({
-      NOT_FOUND: { message: "User or group not found" },
-      CONFLICT: { message: "User is already a member" },
-    })
-    .input(withParams(friendGroupSlugParamSchema, friendGroupInviteByEmailSchema)),
   acceptInvite: authedRoute
     .route({
       method: "POST",

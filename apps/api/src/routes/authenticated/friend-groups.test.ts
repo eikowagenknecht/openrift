@@ -50,7 +50,6 @@ function makeApp(overrides: {
   copies?: Record<string, unknown>;
   marketplace?: Record<string, unknown>;
   userPreferences?: Record<string, unknown>;
-  users?: Record<string, unknown>;
   cardTrades?: Record<string, unknown>;
   user?: { id: string };
 }) {
@@ -123,10 +122,6 @@ function makeApp(overrides: {
     getByUserId: vi.fn(() => Promise.resolve(undefined)),
     ...overrides.userPreferences,
   };
-  const users = {
-    getByEmail: vi.fn(),
-    ...overrides.users,
-  };
   const cardTrades = {
     countCompletedCardsInGroup: vi.fn(() => Promise.resolve(0)),
     countTradedCardsWithViewerInGroup: vi.fn(() => Promise.resolve(new Map())),
@@ -143,7 +138,6 @@ function makeApp(overrides: {
       copies,
       marketplace,
       userPreferences,
-      users,
       cardTrades,
     };
     c.set("user", (overrides.user ?? { id: USER_ID }) as never);
@@ -169,7 +163,6 @@ function makeApp(overrides: {
     copies,
     marketplace,
     userPreferences,
-    users,
   };
 }
 
@@ -767,22 +760,6 @@ describe("friend-groups route", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
-  });
-
-  it("POST /{slug}/invites by email rejects unknown emails with 404", async () => {
-    const { app } = makeApp({
-      friendGroups: {
-        getBySlug: vi.fn(() => Promise.resolve(group)),
-        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
-      },
-      users: { getByEmail: vi.fn(() => Promise.resolve(undefined)) },
-    });
-    const res = await app.request("/api/v1/friend-groups/playgroup/invites", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "missing@example.com" }),
-    });
-    expect(res.status).toBe(404);
   });
 
   it("POST /{slug}/invites/{userId}/accept on invite requires the invitee", async () => {

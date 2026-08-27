@@ -1,3 +1,4 @@
+import type { PublicTournamentLandingResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
@@ -5,14 +6,71 @@ import { toast } from "sonner";
 
 import { PlayerSubmitDeckSection } from "@/components/deck-check/player-submit-page";
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { SignedOutAuthButtons } from "@/components/signed-out-cta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRequestJoinTournament, useTournamentSubmitLanding } from "@/hooks/use-tournaments";
+import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+
+const CLAIM_LINK_HINT =
+  "The organizer adds players directly. Open the personal claim link they sent you to take your spot.";
+
+function SignedOutJoinState({ data }: { data: PublicTournamentLandingResponse }) {
+  if (!data.selfRegistrationOpen) {
+    return <p className="text-muted-foreground text-sm">{CLAIM_LINK_HINT}</p>;
+  }
+  return (
+    <>
+      <p className="text-muted-foreground text-sm">
+        {data.deckExpected
+          ? "Sign in to request a spot and hand in your decklist."
+          : "Sign in to request a spot."}
+      </p>
+      <SignedOutAuthButtons signInLabel="Sign in to request a spot" />
+    </>
+  );
+}
+
+function SignedInJoinState({
+  data,
+  joined,
+  pending,
+  onJoin,
+}: {
+  data: PublicTournamentLandingResponse;
+  joined: boolean;
+  pending: boolean;
+  onJoin: () => void;
+}) {
+  if (joined) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <CheckIcon className="size-4" /> Your request was sent. The host will review it.
+      </div>
+    );
+  }
+  if (data.selfRegistrationOpen) {
+    return (
+      <Button onClick={onJoin} disabled={pending}>
+        Request to join
+      </Button>
+    );
+  }
+  if (data.viewerIsParticipant) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <CheckIcon className="size-4" /> You have a spot in this event.
+      </div>
+    );
+  }
+  return <p className="text-muted-foreground text-sm">{CLAIM_LINK_HINT}</p>;
+}
 
 export function TournamentSubmitPage({ token }: { token: string }) {
   const { data } = useTournamentSubmitLanding(token);
   const requestJoin = useRequestJoinTournament();
+  const userId = useUserId();
   const [joined, setJoined] = useState(false);
 
   async function handleJoin() {
@@ -29,9 +87,10 @@ export function TournamentSubmitPage({ token }: { token: string }) {
 
   // When self-registration is closed, the link only takes a deck from someone
   // who already holds a spot (claimed via the personal link). A stranger is
-  // pointed at their claim link instead of a dead "not open" message.
+  // pointed at their claim link instead of a dead "not open" message. Handing
+  // in a deck is account-scoped, so it never shows to a signed-out visitor.
   const canSubmitDeck =
-    data.deckExpected && (data.selfRegistrationOpen || data.viewerIsParticipant);
+    Boolean(userId) && data.deckExpected && (data.selfRegistrationOpen || data.viewerIsParticipant);
 
   // Widen the column only when the deck submission form is shown; the
   // join/claim-only landing stays narrow.
@@ -58,27 +117,21 @@ export function TournamentSubmitPage({ token }: { token: string }) {
                   : "Submit your deck for this event below."}
               </p>
             ) : null}
-            {joined ? (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckIcon className="size-4" /> Your request was sent. The host will review it.
-              </div>
-            ) : data.selfRegistrationOpen ? (
-              <Button onClick={handleJoin} disabled={requestJoin.isPending}>
-                Request to join
-              </Button>
-            ) : data.viewerIsParticipant ? (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckIcon className="size-4" /> You have a spot in this event.
-              </div>
+            {userId ? (
+              <>
+                <SignedInJoinState
+                  data={data}
+                  joined={joined}
+                  pending={requestJoin.isPending}
+                  onJoin={() => void handleJoin()}
+                />
+                <Button variant="ghost" render={<Link to="/tournaments" />} className="w-fit">
+                  Go to my tournaments
+                </Button>
+              </>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                The organizer adds players directly. Open the personal claim link they sent you to
-                take your spot.
-              </p>
+              <SignedOutJoinState data={data} />
             )}
-            <Button variant="ghost" render={<Link to="/tournaments" />} className="w-fit">
-              Go to my tournaments
-            </Button>
           </CardContent>
         </Card>
 

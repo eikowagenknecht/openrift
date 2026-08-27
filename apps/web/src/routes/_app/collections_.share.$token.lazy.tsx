@@ -2,6 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { SharedCollectionAccessNotice } from "@/components/collection/shared-collection-access-notice";
 import { SharedCollectionView } from "@/components/collection/shared-collection-view";
+import { PublicShareCta } from "@/components/signed-out-cta";
 import { usePublicCollection } from "@/hooks/use-collections";
 
 export const Route = createLazyFileRoute("/_app/collections_/share/$token")({
@@ -17,7 +18,14 @@ function SharedCollectionPage() {
     <SharedCollectionView
       data={data}
       search={search}
-      notice={<SharedCollectionAccessNotice collectionId={data.collection.id} />}
+      notice={
+        <>
+          <SharedCollectionAccessNotice collectionId={data.collection.id} />
+          <PublicShareCta title="Keep track of your own cards">
+            Log what you own, see what a binder is worth, and share it with a link like this one.
+          </PublicShareCta>
+        </>
+      }
     />
   );
 }

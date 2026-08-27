@@ -42,6 +42,7 @@ import {
   useFriendGroups,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { deriveGroupSlug, groupSlugError } from "@/lib/group-slug";
 import { countTradeSuggestionsBySlug } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
@@ -65,20 +66,21 @@ function CreateGroupDialog({
   const createGroup = useCreateFriendGroup();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState("");
   const [generateCode, setGenerateCode] = useState(true);
-  const slugError =
-    slug.length > 0 && !/^[a-z0-9][a-z0-9-]+$/u.test(slug)
-      ? "Lowercase letters, digits, and dashes, starting with a letter or digit"
-      : null;
+  // The address follows the name until someone types their own; clearing the
+  // field hands it back to the name.
+  const effectiveSlug = slugEdited ? slug : deriveGroupSlug(name);
+  const slugError = groupSlugError(effectiveSlug);
 
   async function handleCreate() {
-    if (!name.trim() || !slug.trim() || slugError) {
+    if (!name.trim() || !effectiveSlug || slugError) {
       return;
     }
     const group = await createGroup.mutateAsync({
       name: name.trim(),
-      slug: slug.trim(),
+      slug: effectiveSlug,
       description: description.trim() || null,
       generateCode,
     });
@@ -110,11 +112,15 @@ function CreateGroupDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fg-slug">URL slug</Label>
+              <Label htmlFor="fg-slug">Web address</Label>
               <Input
                 id="fg-slug"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase())}
+                value={effectiveSlug}
+                onChange={(e) => {
+                  const next = e.target.value.toLowerCase();
+                  setSlugEdited(next.length > 0);
+                  setSlug(next);
+                }}
                 maxLength={30}
                 placeholder="tuesday-crew"
               />
@@ -122,7 +128,7 @@ function CreateGroupDialog({
                 <span className="text-destructive text-xs">{slugError}</span>
               ) : (
                 <span className="text-muted-foreground text-xs">
-                  Used in the URL: /groups/{slug || "your-slug"}
+                  Used in the URL: /groups/{effectiveSlug || "your-group"}
                 </span>
               )}
             </div>
@@ -149,7 +155,9 @@ function CreateGroupDialog({
           <DialogFooter>
             <Button
               type="submit"
-              disabled={!name.trim() || !slug.trim() || Boolean(slugError) || createGroup.isPending}
+              disabled={
+                !name.trim() || !effectiveSlug || Boolean(slugError) || createGroup.isPending
+              }
             >
               Create
             </Button>

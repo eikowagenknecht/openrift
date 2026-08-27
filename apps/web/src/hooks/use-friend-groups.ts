@@ -508,13 +508,6 @@ const joinByCodeFn = createServerFn({ method: "POST" })
     await apiOrpcClient(friendGroupsContract, context.cookie).join({ code });
   });
 
-const inviteByEmailFn = createServerFn({ method: "POST" })
-  .validator((input: { slug: string; email: string }) => input)
-  .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    await apiOrpcClient(friendGroupsContract, context.cookie).inviteByEmail(data);
-  });
-
 const acceptInviteFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
@@ -662,14 +655,6 @@ export function useJoinFriendGroupByCode() {
   return useMutationWithInvalidation({
     mutationFn: (code: string) => joinByCodeFn({ data: code }),
     invalidates: () => [queryKeys.friendGroups.all(userId)],
-  });
-}
-
-export function useInviteFriendByEmail() {
-  const userId = useRequiredUserId();
-  return useMutationWithInvalidation<unknown, { slug: string; email: string }>({
-    mutationFn: (data) => inviteByEmailFn({ data }),
-    invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],
   });
 }
 

@@ -106,6 +106,8 @@ interface SharedListContentProps {
   data: PublicListDetailResponse;
   /** Back arrow rendered as the first slot inside the list header. */
   backLink?: React.ReactNode;
+  /** Callout rendered above the grid, e.g. the signed-out signup prompt. */
+  notice?: React.ReactNode;
   /**
    * Enables the per-card friend-group exchange (Want on a tradelist, Offer on a
    * wishlist). Passed only by the friend-group shared-list route, and only for a
@@ -122,7 +124,7 @@ interface SharedListContentProps {
  *
  * @returns The full page body.
  */
-export function SharedListContent({ data, backLink, exchange }: SharedListContentProps) {
+export function SharedListContent({ data, backLink, exchange, notice }: SharedListContentProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const { list, owner, entries } = data;
@@ -139,6 +141,7 @@ export function SharedListContent({ data, backLink, exchange }: SharedListConten
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
+          {notice}
           <SharedListBody data={data} exchange={exchange} />
         </div>
       </div>

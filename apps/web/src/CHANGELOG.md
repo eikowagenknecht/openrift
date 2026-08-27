@@ -4,14 +4,18 @@
 
 ### Highlights
 
+- feat(Tournaments): **Invite links work before you sign in** — a join or staff-invite link now shows the event and its host up front, and brings you back to it after you sign in.
 - feat(Cards): **Add a card from its own page** — every card page now shows how many copies you own and lets you add or remove one on the spot, with a breakdown of which collections they sit in.
 - fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
 - fix(Account): **Set a password on a social account** — the profile page now offers to add one to a Google or Discord account, instead of a change form that could never work.
 
 ### Other
 
+- feat(Collection): **A way in from a shared list** — a shared collection, wishlist, or tradelist now offers a visitor without an account the chance to start their own.
+- feat(Groups): **Group address fills itself in** — creating a group derives its web address from the name, and says up front when the address is too short or reserved.
 - feat(App): **Navigation on the front page** — the front page now carries the app header, so cards, decks and the menu are one click away.
 - feat(Collection): **Scanner rows match the app** — the scanner's card rows and its two pickers now lead with the shared art strip, domain bar, rarity and code, and the owned count sits at the right.
+- fix(Groups): **Email invites removed** — the field only worked for people who already had an account and never sent any email, so the join link and code are now the way in.
 - fix(Account): **Sign in returns you to your page** — signing in from the header now comes back to the page you were on, and otherwise lands in your collection rather than the marketing page.
 - fix(Decks): **Local decks claimed after signing in** — the "saved only on this device" prompts now return to your deck list, which is where the decks are offered for claiming.
 - fix(Collection): **Add all stays after picking a collection** — scanned cards you only identified can still be added in one go once you switch the scanner to a real destination, which now comes preselected.

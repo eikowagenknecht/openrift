@@ -80,8 +80,8 @@ export default function GroupsArticle() {
             with the person who created the group until they hand it off.
           </DefinitionRow>
           <DefinitionRow icon={<ShieldIcon className="size-3.5" />} label="Admin">
-            Invite by email, approve or deny join requests, rotate or disable the join code, edit
-            the group&apos;s name and description, promote members, and remove members.
+            Approve or deny join requests, rotate or disable the join code, edit the group&apos;s
+            name and description, promote members, and remove members.
           </DefinitionRow>
           <DefinitionRow icon={<UserIcon className="size-3.5" />} label="Member">
             Share their own lists, create shared collections, choose which contact methods to share,
