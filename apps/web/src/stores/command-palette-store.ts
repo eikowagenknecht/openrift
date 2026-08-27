@@ -11,7 +11,7 @@ export type QuickAddVerb = "add" | "move";
  * labels and the open flag live here, so the shortcut and the global palette
  * can reach a quick-add without knowing which one it is.
  */
-export interface RegisteredQuickAdd {
+interface RegisteredQuickAdd {
   /** Distinguishes one registration from the next; the route's own id. */
   key: string;
   /** The add row and its scope chip, e.g. "Add to My Binder". */

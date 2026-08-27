@@ -25,7 +25,7 @@ import {
 
 import { getDomainColor } from "@/lib/domain";
 
-export interface ChapterFeatureLink {
+interface ChapterFeatureLink {
   /** Anchor of the feature's section on the page, without the `#`. */
   hash: string;
   label: string;

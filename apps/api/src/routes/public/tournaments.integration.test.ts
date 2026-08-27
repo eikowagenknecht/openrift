@@ -170,11 +170,15 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       const inviteToken = ((await readJson(enabled)) as { judgeInviteToken: string })
         .judgeInviteToken;
 
-      // The landing requires a session, so a link scanner gets a 401, not a grant.
+      // The landing is public so a signed-out visitor can see what the link
+      // leads to, and reports no grant to a viewer it cannot identify.
       const anonLanding = await anon.app.fetch(
         req("GET", `/tournaments/staff-invite/${inviteToken}`),
       );
-      expect(anonLanding.status).toBe(401);
+      expect(anonLanding.status).toBe(200);
+      expect(
+        (await readJson(anonLanding)) as { role: string; alreadyStaff: boolean },
+      ).toMatchObject({ role: "judge", alreadyStaff: false });
 
       // Opening the landing (a GET) reveals the role but must NOT grant it.
       const landing = await joiner.app.fetch(

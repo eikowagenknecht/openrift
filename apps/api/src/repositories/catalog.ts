@@ -23,14 +23,14 @@ const PRICE_MARKETPLACE = "cardmarket";
 // of the catalog sits at two cents, and a scanner tray totalling six of them
 // reads as a broken price feed; the chase printings above the band read as a
 // staged flex instead of a session anyone could have.
-const PRICE_BAND_CENTS = { min: 50, max: 2000 };
+export const PRICE_BAND_CENTS = { min: 50, max: 2000 };
 
 // How many channel labels a sampled promo section may carry. The deep tournament
 // branches spend a whole line on their breadcrumb alone.
 const PROMO_MAX_CHANNEL_DEPTH = 2;
 
 /** One sampled printing inside a {@link LandingPromoSection}. */
-export interface LandingPromoPrinting {
+interface LandingPromoPrinting {
   imageId: string;
   name: string;
   shortCode: string;

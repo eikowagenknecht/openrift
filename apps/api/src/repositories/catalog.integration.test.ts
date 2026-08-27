@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
-import { catalogRepo } from "./catalog.js";
+import { catalogRepo, PRICE_BAND_CENTS } from "./catalog.js";
 
 const ctx = createDbContext("a0000000-0041-4000-a000-000000000001");
 
@@ -193,14 +193,16 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(b).toEqual(a);
   });
 
-  it("landingSummary sorts priced printings ahead of unpriced ones", async () => {
+  it("landingSummary sorts printings priced inside the vignette band first", async () => {
     const summary = await repo.landingSummary(500);
-    const firstUnpriced = summary.thumbnails.findIndex((t) => t.priceCents === null);
-    if (firstUnpriced === -1) {
+    const inBand = (cents: number | null) =>
+      cents !== null && cents >= PRICE_BAND_CENTS.min && cents <= PRICE_BAND_CENTS.max;
+    const firstOutOfBand = summary.thumbnails.findIndex((t) => !inBand(t.priceCents));
+    if (firstOutOfBand === -1) {
       return;
     }
-    for (const thumb of summary.thumbnails.slice(firstUnpriced)) {
-      expect(thumb.priceCents).toBeNull();
+    for (const thumb of summary.thumbnails.slice(firstOutOfBand)) {
+      expect(inBand(thumb.priceCents)).toBe(false);
     }
   });
 

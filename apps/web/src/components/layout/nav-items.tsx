@@ -42,7 +42,7 @@ export type LockedFeatureKey =
   | "tierLists"
   | "contribute";
 
-export const LOCKED_FEATURES: Record<
+const LOCKED_FEATURES: Record<
   LockedFeatureKey,
   { title: string; description: string; to: string; icon: typeof LibraryIcon }
 > = {

@@ -4,7 +4,7 @@ import type { QuickAddCardResult } from "@/hooks/use-quick-add-search";
 import type { QuickAddVerb } from "@/stores/command-palette-store";
 
 /** Shortest query that earns the help, page-search and rules-search rows. */
-export const PALETTE_MIN_QUERY_LENGTH = 2;
+const PALETTE_MIN_QUERY_LENGTH = 2;
 
 const CARD_LIMIT = 6;
 const NAV_LIMIT = 5;
