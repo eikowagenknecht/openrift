@@ -155,17 +155,17 @@ export const publicTournamentsRouter = {
   staffInviteLanding: os.staffInviteLanding.handler(
     async ({ input, context, errors }): Promise<TournamentStaffInviteLandingResponse> => {
       const repos = context.repos;
-      const user = context.user;
-      if (!user) {
-        throw errors.UNAUTHORIZED({ message: "Unauthorized" });
-      }
       const match = await repos.tournaments.findByStaffInviteToken(input.token);
       if (!match) {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
-      const alreadyStaff = await repos.tournaments.isHostOrStaff(match.tournament.id, user.id, [
-        match.role,
-      ]);
+      // Public, so the session is resolved lazily and only to answer "do you
+      // already hold this role" — false for an anonymous viewer, the same way
+      // the submit landing reports `viewerIsParticipant`.
+      const viewer = await context.loadUser();
+      const alreadyStaff = viewer
+        ? await repos.tournaments.isHostOrStaff(match.tournament.id, viewer.id, [match.role])
+        : false;
       return {
         name: match.tournament.name,
         hostDisplayName: await hostDisplayName(repos, match.tournament),

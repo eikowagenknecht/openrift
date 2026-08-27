@@ -466,6 +466,16 @@ export function createApp(deps: AppDeps) {
   app.use("/api/admin/v1/*", requireAdmin);
   app.use("/api/v1/feature-flags", loadSession);
   app.use("/api/v1/users/share/*", loadSession);
+  // Token-gated landings that return a different body per auth state on the
+  // same URL (`viewerStatus`, `viewerIsParticipant`, `alreadyStaff`). They
+  // resolve the viewer themselves via `context.loadUser()`, so this is here for
+  // the other half of what `loadSession` does: `Vary: Cookie`, so a shared
+  // cache can never key on the URL alone. They set no `Cache-Control` today and
+  // so fall through to Cloudflare's default heuristic (ADR-016), which is
+  // exactly the case `Vary` has to survive.
+  app.use("/api/v1/friend-groups/preview", loadSession);
+  app.use("/api/v1/tournaments/submit/*", loadSession);
+  app.use("/api/v1/tournaments/staff-invite/*", loadSession);
   mountDeckCheckIngestMiddleware(app);
   mountCardSubmissionsMiddleware(app);
   mountMetaSubmissionsMiddleware(app);

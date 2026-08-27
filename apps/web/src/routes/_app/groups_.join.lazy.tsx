@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { GroupsJoinPage } from "@/components/friend-groups/groups-join-page";
 
-export const Route = createLazyFileRoute("/_app/_authenticated/groups/join")({
+export const Route = createLazyFileRoute("/_app/groups_/join")({
   component: JoinRoute,
 });
 

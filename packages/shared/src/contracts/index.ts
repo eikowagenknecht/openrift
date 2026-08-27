@@ -81,6 +81,7 @@ export * from "./products.js";
 export * from "./promos.js";
 export * from "./public-collections.js";
 export * from "./public-decks.js";
+export * from "./public-friend-groups.js";
 export * from "./public-lists.js";
 export * from "./public-overlay.js";
 export * from "./public-pod-tournaments.js";

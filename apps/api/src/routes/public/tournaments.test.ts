@@ -1,7 +1,11 @@
+import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../deps.js";
-import { participantDisplayName, resolveSelfJoin } from "./tournaments.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import { readJson } from "../../test/read-json.js";
+import type { Variables } from "../../types.js";
+import { participantDisplayName, publicTournamentsRouter, resolveSelfJoin } from "./tournaments.js";
 
 const USER = { id: "user-1", name: "Ashe", email: "ashe@example.com" };
 const TOURNAMENT_ID = "tournament-1";
@@ -93,5 +97,89 @@ describe("resolveSelfJoin", () => {
       },
     });
     await expect(resolveSelfJoin(repos, TOURNAMENT_ID, USER)).rejects.toBe(boom);
+  });
+});
+
+const INVITE_TOKEN = "staffinvite01";
+const HOST_USER_ID = "host-1";
+
+/**
+ * Mounts the public router with `user` pre-set, which short-circuits
+ * `resolveSession` so `loadUser()` returns exactly what the test asked for.
+ * @returns The test app.
+ */
+function makeStaffInviteApp(overrides: {
+  user?: { id: string } | null;
+  tournaments?: Record<string, unknown>;
+}) {
+  const app = new Hono<{ Variables: Variables }>();
+  app.use("*", async (c, next) => {
+    c.set("user", (overrides.user ?? null) as never);
+    c.set("repos", {
+      tournaments: {
+        findByStaffInviteToken: vi.fn(() =>
+          Promise.resolve({
+            tournament: {
+              id: TOURNAMENT_ID,
+              name: "Summoner Skirmish",
+              hostType: "user",
+              hostUserId: HOST_USER_ID,
+              hostOrgId: null,
+            },
+            role: "judge",
+          }),
+        ),
+        getUserNames: vi.fn(() => Promise.resolve(new Map([[HOST_USER_ID, "Rift Warden"]]))),
+        isHostOrStaff: vi.fn(() => Promise.resolve(false)),
+        ...overrides.tournaments,
+      },
+    } as never);
+    await next();
+  });
+  registerRouterForTest(app, publicTournamentsRouter);
+  return app;
+}
+
+describe("staffInviteLanding", () => {
+  it("tells a signed-out invitee which event and role the link is for", async () => {
+    const app = makeStaffInviteApp({ user: null });
+    const res = await app.request(`/api/v1/tournaments/staff-invite/${INVITE_TOKEN}`);
+    expect(res.status).toBe(200);
+    const body = (await readJson(res)) as {
+      name: string;
+      hostDisplayName: string;
+      role: string;
+      alreadyStaff: boolean;
+    };
+    expect(body.name).toBe("Summoner Skirmish");
+    expect(body.hostDisplayName).toBe("Rift Warden");
+    expect(body.role).toBe("judge");
+    expect(body.alreadyStaff).toBe(false);
+  });
+
+  it("never checks staff membership without a session", async () => {
+    const isHostOrStaff = vi.fn(() => Promise.resolve(false));
+    const app = makeStaffInviteApp({ user: null, tournaments: { isHostOrStaff } });
+    await app.request(`/api/v1/tournaments/staff-invite/${INVITE_TOKEN}`);
+    expect(isHostOrStaff).not.toHaveBeenCalled();
+  });
+
+  it("reports the role a signed-in viewer already holds", async () => {
+    const app = makeStaffInviteApp({
+      user: { id: "judge-1" },
+      tournaments: { isHostOrStaff: vi.fn(() => Promise.resolve(true)) },
+    });
+    const res = await app.request(`/api/v1/tournaments/staff-invite/${INVITE_TOKEN}`);
+    const body = (await readJson(res)) as { alreadyStaff: boolean };
+    expect(body.alreadyStaff).toBe(true);
+  });
+
+  it("returns 404 for a token that matches nothing", async () => {
+    const app = makeStaffInviteApp({
+      user: null,
+      tournaments: { findByStaffInviteToken: vi.fn(() => Promise.resolve(undefined)) },
+    });
+    const res = await app.request(`/api/v1/tournaments/staff-invite/${INVITE_TOKEN}`);
+    expect(res.status).toBe(404);
   });
 });

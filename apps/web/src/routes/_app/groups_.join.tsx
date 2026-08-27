@@ -9,7 +9,11 @@ const searchSchema = z.object({
   code: z.string().optional(),
 });
 
-export const Route = createFileRoute("/_app/_authenticated/groups/join")({
+// Outside `_authenticated` on purpose: a code link has to say which group it
+// leads to before asking anyone to sign in, mirroring the participant claim
+// landing. Requesting to join still needs an account.
+export const Route = createFileRoute("/_app/groups_/join")({
+  ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Join group", noIndex: true }),
   validateSearch: (search) => searchSchema.parse(search),
   errorComponent: RouteErrorFallback,

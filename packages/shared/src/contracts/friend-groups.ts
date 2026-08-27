@@ -511,7 +511,7 @@ const FG = "/api/v1/friend-groups";
  * oRPC contract for the friend-groups endpoints (mounted at
  * `/api/v1/friend-groups`). All require a session, so they share the
  * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Domain codes per route:
- * `create` → CONFLICT (slug taken); `preview`, `join`, `get`, `update`,
+ * `create` → CONFLICT (slug taken); `join`, `get`, `update`,
  * `remove`, `rotateCode`, `disableCode`, `enableCode`, `shareableLists`,
  * `shareableCollections`, `matches`, `activity` → NOT_FOUND (group); `join`
  * also adds CONFLICT (already a member); `update` also adds CONFLICT (slug
@@ -526,8 +526,8 @@ const FG = "/api/v1/friend-groups";
  * `shareCollection`, `unshareCollection`, `getSharedCollection` → NOT_FOUND
  * (group or collection); `createDiscordLinkCode`, `listDiscordLinks` →
  * NOT_FOUND (group); `deleteDiscordLink` → NOT_FOUND (group or link). The
- * static single-segment paths (pending-*-count, preview, join) take
- * precedence over `{slug}`.
+ * static single-segment paths (pending-requests-count, join, and `preview`
+ * over on the public contract) take precedence over `{slug}`.
  *
  * `update` uses the detailed input structure because the path `slug`
  * (current) and the optional body `slug` (rename target) would otherwise
@@ -545,11 +545,6 @@ export const friendGroupsContract = {
     .input(createFriendGroupSchema)
     .errors({ CONFLICT: { message: "Slug already in use" } })
     .output(friendGroupResponseSchema),
-  preview: authedRoute
-    .route({ method: "GET", path: `${FG}/preview`, tags: [TAG] })
-    .input(friendGroupCodeQuerySchema)
-    .errors({ NOT_FOUND: { message: "Group not found" } })
-    .output(friendGroupJoinPreviewResponseSchema),
   join: authedRoute
     .route({ method: "POST", path: `${FG}/join`, tags: [TAG], successStatus: 202 })
     .errors({

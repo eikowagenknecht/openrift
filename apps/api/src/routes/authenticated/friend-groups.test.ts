@@ -292,31 +292,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(400);
   });
 
-  it("GET /preview returns viewerStatus=available for non-members", async () => {
-    const { app } = makeApp({
-      friendGroups: {
-        getByCode: vi.fn(() => Promise.resolve(group)),
-        getMembership: vi.fn(() => Promise.resolve(undefined)),
-        getInvite: vi.fn(() => Promise.resolve(undefined)),
-        listMembers: vi.fn(() => Promise.resolve([enrichedOwner])),
-      },
-    });
-    const res = await app.request("/api/v1/friend-groups/preview?code=ABCDEFGHIJKL");
-    expect(res.status).toBe(200);
-    const body = (await readJson(res)) as { viewerStatus: string };
-    expect(body.viewerStatus).toBe("available");
-    // The owner's name must not leak in the join preview (shown to non-members).
-    expect(body).not.toHaveProperty("ownerName");
-  });
-
-  it("GET /preview returns 404 on unknown code", async () => {
-    const { app } = makeApp({
-      friendGroups: { getByCode: vi.fn(() => Promise.resolve(undefined)) },
-    });
-    const res = await app.request("/api/v1/friend-groups/preview?code=DOESNOTEXIST");
-    expect(res.status).toBe(404);
-  });
-
   it("POST /join queues a request", async () => {
     const createInvite = vi.fn(() => Promise.resolve());
     const { app } = makeApp({

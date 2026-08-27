@@ -7,7 +7,6 @@ import type {
   FriendGroupDetailResponse,
   FriendGroupDiscordLinkCodeResponse,
   FriendGroupDiscordLinksResponse,
-  FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
   FriendGroupMatchesResponse,
   FriendGroupMemberPreview,
@@ -235,35 +234,6 @@ export const friendGroupsRouter = {
     );
     return toGroup(group, true);
   }),
-
-  preview: os.preview.handler(
-    async ({ input, context }): Promise<FriendGroupJoinPreviewResponse> => {
-      const viewerId = context.userId;
-      const { friendGroups } = context.repos;
-
-      const group = await friendGroups.getByCode(input.code);
-      if (!group) {
-        throw new AppError(404, ERROR_CODES.NOT_FOUND, "No group matches that code");
-      }
-
-      const [members, existingMembership, existingInvite] = await Promise.all([
-        friendGroups.listMembers(group.id),
-        friendGroups.getMembership(group.id, viewerId),
-        friendGroups.getInvite(group.id, viewerId),
-      ]);
-
-      const viewerStatus = existingMembership ? "member" : existingInvite ? "pending" : "available";
-
-      return {
-        id: group.id,
-        slug: group.slug,
-        name: group.name,
-        description: group.description,
-        memberCount: members.length,
-        viewerStatus,
-      };
-    },
-  ),
 
   join: os.join.handler(async ({ input, context }): Promise<void> => {
     const viewerId = context.userId;

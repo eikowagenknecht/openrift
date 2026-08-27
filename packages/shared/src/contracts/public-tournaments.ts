@@ -72,15 +72,15 @@ export const publicTournamentsContract = {
     .input(z.object({ token: z.string().min(1) }))
     .output(publicTournamentJoinResponseSchema),
 
-  // Staff-invite link. The landing is read-only (a session is required, so link
-  // scanners get a 401, not a grant); `claimStaffInvite` is the explicit confirm
-  // POST that actually grants the role. Reusable until the host rotates the link.
+  // Staff-invite link. The landing is read-only and public, so a signed-out
+  // invitee reads which event and role the link is for before creating an
+  // account; nothing is granted by opening it. `claimStaffInvite` is the
+  // explicit confirm POST that grants the role, and that one needs a session,
+  // so a link scanner still gets no grant. Reusable until the host rotates it.
   staffInviteLanding: oc
     .route({ method: "GET", path: "/api/v1/tournaments/staff-invite/{token}", tags: [TAG] })
-    .errors({
-      UNAUTHORIZED: { message: "Unauthorized" },
-      NOT_FOUND: { message: "Not found" },
-    })
+    .meta({ auth: "public" })
+    .errors({ NOT_FOUND: { message: "Not found" } })
     .input(z.object({ token: z.string().min(1) }))
     .output(tournamentStaffInviteLandingResponseSchema),
   claimStaffInvite: oc

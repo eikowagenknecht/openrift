@@ -1,8 +1,10 @@
+import type { FriendGroupJoinPreviewResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Heading } from "@/components/heading";
+import { SignedOutAuthButtons } from "@/components/signed-out-cta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,33 +13,67 @@ import {
   friendGroupJoinPreviewQueryOptions,
   useJoinFriendGroupByCode,
 } from "@/hooks/use-friend-groups";
+import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 interface GroupsJoinPageProps {
   initialCode?: string;
 }
 
-export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
-  const [code, setCode] = useState(initialCode ?? "");
+/**
+ * The request button, split out because `useJoinFriendGroupByCode` requires a
+ * signed-in user and this page is reachable without one.
+ *
+ * @returns The join action.
+ */
+function JoinAction({
+  code,
+  preview,
+  previewLoading,
+}: {
+  code: string;
+  preview?: FriendGroupJoinPreviewResponse;
+  previewLoading: boolean;
+}) {
   const navigate = useNavigate();
   const joinByCode = useJoinFriendGroupByCode();
-  const preview = useQuery(friendGroupJoinPreviewQueryOptions(code));
 
   async function handleSubmit() {
     if (!code) {
       return;
     }
-    if (preview.data?.viewerStatus === "member") {
-      void navigate({ to: "/groups/$slug", params: { slug: preview.data.slug } });
+    if (preview?.viewerStatus === "member") {
+      void navigate({ to: "/groups/$slug", params: { slug: preview.slug } });
       return;
     }
     await joinByCode.mutateAsync(code);
-    if (preview.data?.slug) {
-      void navigate({ to: "/groups/$slug", params: { slug: preview.data.slug } });
+    if (preview?.slug) {
+      void navigate({ to: "/groups/$slug", params: { slug: preview.slug } });
     } else {
       void navigate({ to: "/groups" });
     }
   }
+
+  return (
+    <div className="flex justify-between gap-3">
+      <Button variant="ghost" render={<Link to="/groups" />}>
+        Cancel
+      </Button>
+      <Button onClick={handleSubmit} disabled={!code || previewLoading || joinByCode.isPending}>
+        {preview?.viewerStatus === "member"
+          ? "Open group"
+          : preview?.viewerStatus === "pending"
+            ? "Already requested"
+            : "Request to join"}
+      </Button>
+    </div>
+  );
+}
+
+export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
+  const [code, setCode] = useState(initialCode ?? "");
+  const userId = useUserId();
+  const preview = useQuery(friendGroupJoinPreviewQueryOptions(code));
 
   return (
     <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6", PAGE_PADDING)}>
@@ -84,21 +120,16 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
         </Card>
       ) : null}
 
-      <div className="flex justify-between gap-3">
-        <Button variant="ghost" render={<Link to="/groups" />}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!code || preview.isLoading || joinByCode.isPending}
-        >
-          {preview.data?.viewerStatus === "member"
-            ? "Open group"
-            : preview.data?.viewerStatus === "pending"
-              ? "Already requested"
-              : "Request to join"}
-        </Button>
-      </div>
+      {userId ? (
+        <JoinAction code={code} preview={preview.data} previewLoading={preview.isLoading} />
+      ) : preview.data ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-muted-foreground text-sm">
+            Sign in to send your request. The group&apos;s admins approve it from there.
+          </p>
+          <SignedOutAuthButtons signInLabel="Sign in to request" />
+        </div>
+      ) : null}
     </div>
   );
 }

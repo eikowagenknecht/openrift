@@ -86,6 +86,7 @@ import { deckCheckIngestRouter } from "../routes/public/deck-check-ingest.js";
 import { publicDecksRouter } from "../routes/public/decks.js";
 import { discordBotRouter } from "../routes/public/discord-bot.js";
 import { featureFlagsRouter } from "../routes/public/feature-flags.js";
+import { publicFriendGroupsRouter } from "../routes/public/friend-groups.js";
 import { initRouter } from "../routes/public/init.js";
 import { landingSummaryRouter } from "../routes/public/landing-summary.js";
 import { publicListsRouter } from "../routes/public/lists.js";
@@ -196,6 +197,7 @@ const apiRouter = {
   initRouter,
   landingSummaryRouter,
   metaRouter,
+  publicFriendGroupsRouter,
   publicListsRouter,
   publicOverlayRouter,
   publicPodTournamentsRouter,

@@ -17,6 +17,7 @@ import type {
   FriendGroupSharedListDetailResponse,
 } from "@openrift/shared";
 import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
+import { publicFriendGroupsContract } from "@openrift/shared/contracts/public-friend-groups";
 import { isDefinedError, safe } from "@orpc/client";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -106,7 +107,7 @@ const fetchJoinPreview = createServerFn({ method: "GET" })
   .handler(async ({ context, data: code }): Promise<FriendGroupJoinPreviewResponse> => {
     // 404 (no group matches the code) maps to the NOT_FOUND sentinel.
     const { error, data } = await safe(
-      apiOrpcClient(friendGroupsContract, context.cookie).preview({ code }),
+      apiOrpcClient(publicFriendGroupsContract, context.cookie).joinPreview({ code }),
     );
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {

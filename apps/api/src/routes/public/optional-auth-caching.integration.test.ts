@@ -12,15 +12,25 @@ import { readJson } from "../../test/read-json.js";
 
 // Optional-auth coupling guard.
 //
-// Exactly two public reads branch on the viewer (`context.user`) instead of
-// being fully anonymous: `GET /api/v1/feature-flags` and
-// `GET /api/v1/users/share/{token}`. Both rely on app.ts wiring the
-// `loadSession` middleware onto their path — that middleware resolves the
-// session into `context.user` AND appends `Vary: Cookie` so a shared/edge cache
-// keys on the cookie (and never serves an anonymous body to a signed-in viewer,
-// or vice-versa). A *future* viewer-reading public route added without its
-// `app.use(path, loadSession)` line would silently treat a signed-in user as
-// anonymous. These tests fail closed if that wiring is dropped for either route:
+// Every public read that returns a different body per auth state on the same
+// URL relies on app.ts wiring the `loadSession` middleware onto its path. That
+// middleware does two things: it resolves the session into `context.user`, and
+// it appends `Vary: Cookie` so a shared/edge cache keys on the cookie and can
+// never serve an anonymous body to a signed-in viewer or vice-versa.
+//
+// Two of them read `context.user` directly and so need both halves:
+// `GET /api/v1/feature-flags` and `GET /api/v1/users/share/{token}`. Without the
+// wiring they would silently treat a signed-in user as anonymous.
+//
+// The token-gated landings resolve the viewer themselves via
+// `context.loadUser()`, so for them only the `Vary` half is load-bearing:
+// `friend-groups/preview` (`viewerStatus`), `tournaments/submit/{token}`
+// (`viewerIsParticipant`) and `tournaments/staff-invite/{token}`
+// (`alreadyStaff`). None of them set `Cache-Control`, which per ADR-016 means
+// they fall through to Cloudflare's default heuristic rather than to a
+// guaranteed no-store — `Vary` is what keeps that fall-through safe.
+//
+// These tests fail closed if the wiring is dropped for any of them:
 //   - the `Vary: Cookie` header disappears, and
 //   - feature-flags stops honouring the signed-in viewer's per-user override.
 //
@@ -82,6 +92,29 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
   describe("GET /users/share/{token}", () => {
     it("runs loadSession (Vary: Cookie) even when the token is unknown", async () => {
       const res = await anon.app.request(req("GET", "/users/share/nonexistent-token"));
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Vary")).toContain("Cookie");
+    });
+  });
+
+  // The token-gated landings, checked against an unknown token so they need no
+  // fixtures: the wiring is on the path, so it applies before the handler
+  // decides the token matches nothing.
+  describe("token-gated landings", () => {
+    it("runs loadSession on the group join preview", async () => {
+      const res = await anon.app.request(req("GET", "/friend-groups/preview?code=NOSUCHCODE12"));
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Vary")).toContain("Cookie");
+    });
+
+    it("runs loadSession on the tournament submit landing", async () => {
+      const res = await anon.app.request(req("GET", "/tournaments/submit/nonexistent-token"));
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Vary")).toContain("Cookie");
+    });
+
+    it("runs loadSession on the staff-invite landing", async () => {
+      const res = await anon.app.request(req("GET", "/tournaments/staff-invite/nonexistent-token"));
       expect(res.status).toBe(404);
       expect(res.headers.get("Vary")).toContain("Cookie");
     });

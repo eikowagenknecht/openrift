@@ -4,7 +4,7 @@
 
 ### Highlights
 
-- feat(Tournaments): **Invite links work before you sign in** — a join or staff-invite link now shows the event and its host up front, and brings you back to it after you sign in.
+- feat(App): **Invite links work before you sign in** — a group, tournament, or staff invite link now shows what it leads to up front, and brings you back to it after you sign in.
 - feat(Cards): **Add a card from its own page** — every card page now shows how many copies you own and lets you add or remove one on the spot, with a breakdown of which collections they sit in.
 - fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
 - fix(Account): **Set a password on a social account** — the profile page now offers to add one to a Google or Discord account, instead of a change form that could never work.
