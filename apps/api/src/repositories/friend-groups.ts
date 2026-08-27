@@ -504,17 +504,22 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     /**
      * UNIQUE(group_id, user_id) means at most one row per (group, user);
      * ON CONFLICT DO NOTHING swallows duplicate clicks without erroring.
+     *
+     * The return value distinguishes the two: a repeated click leaves the row
+     * untouched and must not re-notify the group's admins.
+     * @returns Whether a new invite row was written.
      */
     async createInvite(
       groupId: string,
       userId: string,
       direction: FriendGroupInviteDirection,
-    ): Promise<void> {
-      await db
+    ): Promise<boolean> {
+      const result = await db
         .insertInto("friendGroupInvites")
         .values({ groupId, userId, direction })
         .onConflict((oc) => oc.columns(["groupId", "userId"]).doNothing())
-        .execute();
+        .executeTakeFirst();
+      return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
     },
 
     async deleteInvite(groupId: string, userId: string): Promise<void> {

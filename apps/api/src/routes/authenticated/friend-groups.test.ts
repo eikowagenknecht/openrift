@@ -126,6 +126,8 @@ function makeApp(overrides: {
     ...overrides.cardTrades,
   };
 
+  const notifyAdminsOfGroupJoinRequest = vi.fn(() => Promise.resolve());
+
   const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {
     const repos = {
@@ -140,6 +142,7 @@ function makeApp(overrides: {
     };
     c.set("user", (overrides.user ?? { id: USER_ID }) as never);
     c.set("repos", repos as never);
+    c.set("services", { notifyAdminsOfGroupJoinRequest } as never);
     // Test transact just runs the callback against the same mock repos.
     c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
     await next();
@@ -161,6 +164,7 @@ function makeApp(overrides: {
     copies,
     marketplace,
     userPreferences,
+    notifyAdminsOfGroupJoinRequest,
   };
 }
 
@@ -292,9 +296,9 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /join queues a request", async () => {
-    const createInvite = vi.fn(() => Promise.resolve());
-    const { app } = makeApp({
+  it("POST /join queues a request and emails the group's admins", async () => {
+    const createInvite = vi.fn(() => Promise.resolve(true));
+    const { app, notifyAdminsOfGroupJoinRequest } = makeApp({
       friendGroups: {
         getByCode: vi.fn(() => Promise.resolve(group)),
         getMembership: vi.fn(() => Promise.resolve(undefined)),
@@ -308,6 +312,29 @@ describe("friend-groups route", () => {
     });
     expect(res.status).toBe(202);
     expect(createInvite).toHaveBeenCalledWith(GROUP_ID, USER_ID, "request");
+    expect(notifyAdminsOfGroupJoinRequest).toHaveBeenCalledWith(expect.anything(), {
+      groupId: GROUP_ID,
+      groupSlug: "playgroup",
+      groupName: "Tuesday Crew",
+      requesterUserId: USER_ID,
+    });
+  });
+
+  it("POST /join re-sent for an existing request emails nobody again", async () => {
+    const { app, notifyAdminsOfGroupJoinRequest } = makeApp({
+      friendGroups: {
+        getByCode: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(undefined)),
+        createInvite: vi.fn(() => Promise.resolve(false)),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/join", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: "ABCDEFGHIJKL" }),
+    });
+    expect(res.status).toBe(202);
+    expect(notifyAdminsOfGroupJoinRequest).not.toHaveBeenCalled();
   });
 
   it("POST /join rejects existing members with 409", async () => {

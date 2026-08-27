@@ -27,6 +27,10 @@ export const emailNotificationPreferenceSchema = z
     // hold the admin role, so a stray `true` on a normal account delivers
     // nothing.
     cardSubmissions: z.boolean().optional(),
+    // Group-admin channel: someone asked to join a group you own or administer.
+    // Stored for anyone — the send side only reads it for the admins of the
+    // group the request landed in.
+    groupJoinRequests: z.boolean().optional(),
   })
   .openapi("EmailNotificationPreference");
 

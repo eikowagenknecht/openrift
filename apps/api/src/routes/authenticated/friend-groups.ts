@@ -249,7 +249,20 @@ export const friendGroupsRouter = {
       throw new AppError(409, ERROR_CODES.CONFLICT, "You are already a member of that group");
     }
 
-    await friendGroups.createInvite(group.id, viewerId, "request");
+    const created = await friendGroups.createInvite(group.id, viewerId, "request");
+
+    // Only a genuinely new row notifies: a repeat request on an existing invite
+    // is a no-op insert, and mailing on it would let one person re-alert the
+    // admins at will. Best-effort (the service swallows its own errors) so a
+    // mail failure can never fail a request the visitor already made.
+    if (created) {
+      await context.services.notifyAdminsOfGroupJoinRequest(context.repos, {
+        groupId: group.id,
+        groupSlug: group.slug,
+        groupName: group.name,
+        requesterUserId: viewerId,
+      });
+    }
   }),
 
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {

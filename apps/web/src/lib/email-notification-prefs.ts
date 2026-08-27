@@ -6,6 +6,7 @@ import type {
 import {
   getTradeRequestEmailCadence,
   isCardSubmissionEmailEnabled,
+  isGroupJoinRequestEmailEnabled,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   isTradeStatusEmailEnabled,
@@ -23,6 +24,8 @@ export interface EmailNotificationGates {
   tradeRequestCadence: TradeRequestEmailCadence;
   /** Admin card-submission alert (ADR-036) — opt-in, so off unless enabled. */
   cardSubmissions: boolean;
+  /** Group join-request alert — opt-out, so on unless explicitly disabled. */
+  groupJoinRequests: boolean;
 }
 
 /**
@@ -40,6 +43,7 @@ export function resolveEmailNotificationGates(
     tradeStatus: isTradeStatusEmailEnabled(prefs),
     tradeRequestCadence: getTradeRequestEmailCadence(prefs),
     cardSubmissions: isCardSubmissionEmailEnabled(prefs),
+    groupJoinRequests: isGroupJoinRequestEmailEnabled(prefs),
   };
 }
 

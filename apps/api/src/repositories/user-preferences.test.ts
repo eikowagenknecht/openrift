@@ -71,4 +71,17 @@ describe("userPreferencesRepo", () => {
 
     expect(parameters[0]).toEqual(["u1", {}, []]);
   });
+
+  // The channel is opt-out, so an admin who has never opened the profile page
+  // has no preferences row at all and must still be mailed. An inner join (what
+  // the two opt-in recipient queries use) would silently drop exactly them.
+  it("listGroupJoinRequestRecipients left-joins preferences and excludes only an explicit false", async () => {
+    const { db, queries, parameters } = createRecordingDb([[]]);
+
+    await userPreferencesRepo(db).listGroupJoinRequestRecipients("g1");
+
+    expect(queries[0]).toContain('left join "user_preferences"');
+    expect(queries[0]).toContain("IS DISTINCT FROM 'false'");
+    expect(parameters[0]).toEqual(["g1", "owner", "admin", true]);
+  });
 });

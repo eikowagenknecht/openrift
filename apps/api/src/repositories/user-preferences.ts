@@ -14,6 +14,9 @@ export interface MatchDigestRecipient {
 /** An admin who has opted into the card-submission alert. */
 export type CardSubmissionRecipient = MatchDigestRecipient;
 
+/** A group owner/admin who has not opted out of the join-request alert. */
+export type GroupJoinRequestRecipient = MatchDigestRecipient;
+
 /** The data needed to gate + address a transactional email to one user. */
 export interface EmailNotificationContext {
   email: string;
@@ -108,6 +111,30 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .select(["u.id as userId", "u.email as email", "u.name as name"])
         .where("u.emailVerified", "=", true)
         .where(sql<boolean>`(up.data -> 'emailNotifications' ->> 'cardSubmissions') = 'true'`)
+        .execute();
+      return rows;
+    },
+
+    /**
+     * The owners and admins of one group who still receive its join-request
+     * alerts. Opt-out, so the join to preferences is a LEFT one and the filter
+     * excludes only an explicit `false`: a member who has never opened the
+     * profile page has no preferences row at all and must still be mailed.
+     * Membership is the real gate, so a demoted admin stops receiving these
+     * without their stored preference having to change.
+     */
+    async listGroupJoinRequestRecipients(groupId: string): Promise<GroupJoinRequestRecipient[]> {
+      const rows = await db
+        .selectFrom("friendGroupMembers as m")
+        .innerJoin("users as u", "u.id", "m.userId")
+        .leftJoin("userPreferences as up", "up.userId", "u.id")
+        .select(["u.id as userId", "u.email as email", "u.name as name"])
+        .where("m.groupId", "=", groupId)
+        .where("m.role", "in", ["owner", "admin"])
+        .where("u.emailVerified", "=", true)
+        .where(
+          sql<boolean>`(up.data -> 'emailNotifications' ->> 'groupJoinRequests') IS DISTINCT FROM 'false'`,
+        )
         .execute();
       return rows;
     },

@@ -11,6 +11,7 @@ import { ConnectedAccountsSection } from "@/components/profile/connected-account
 import { ContactMethodsSection } from "@/components/profile/contact-methods-section";
 import { DangerZoneSection } from "@/components/profile/danger-zone-section";
 import { DisplaySection } from "@/components/profile/display-section";
+import { GroupNotificationsSection } from "@/components/profile/group-notifications-section";
 import { LanguagesSection } from "@/components/profile/languages-section";
 import { MarketplacesSection } from "@/components/profile/marketplaces-section";
 import { MetaCreditSection } from "@/components/profile/meta-credit-section";
@@ -37,6 +38,7 @@ const NAV_SECTIONS: PageTocItem[] = [
   { id: "languages", label: "Languages", level: 1 },
   { id: "trading", label: "Trading", level: 1 },
   { id: "contacts", label: "Trade contacts", level: 1 },
+  { id: "groups", label: "Groups", level: 1 },
   { id: "integrations", label: "Integrations" },
   { id: "account", label: "Account" },
   { id: "security", label: "Security" },
@@ -109,6 +111,9 @@ function ProfilePage() {
           </div>
           <div id="contacts" className="scroll-mt-16">
             <ContactMethodsSection />
+          </div>
+          <div id="groups" className="scroll-mt-16">
+            <GroupNotificationsSection />
           </div>
         </SettingsGroup>
 

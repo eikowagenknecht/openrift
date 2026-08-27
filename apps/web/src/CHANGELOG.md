@@ -13,6 +13,7 @@
 ### Other
 
 - feat(Groups): **Invite by link or QR** — the typed join code is gone, so inviting someone is handing them one link or letting them scan the code on your screen.
+- feat(Groups): **Join requests reach you by email** — group owners and admins get a mail when someone asks to join, with a link straight to the approve buttons (switchable off in your profile).
 - feat(Cards): **Set pages open in the card browser** — a set page now keeps its title bar in view while you scroll, with a button that carries the whole set into the card browser for search, sorting and filters.
 - feat(Collection): **A way in from a shared list** — a shared collection, wishlist, or tradelist now offers a visitor without an account the chance to start their own.
 - feat(Groups): **Group address fills itself in** — creating a group derives its web address from the name, and says up front when the address is too short or reserved.

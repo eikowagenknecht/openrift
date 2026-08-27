@@ -196,10 +196,22 @@ describe("friendGroupsRepo", () => {
     expect(await repo.pendingRequestsCountForUser("u-owner")).toBe(0);
   });
 
-  it("createInvite and deleteInvite resolve without throwing", async () => {
+  it("deleteInvite resolves without throwing", async () => {
     const repo = friendGroupsRepo(createMockDb([]));
-    await expect(repo.createInvite("grp-1", "u2", "invite")).resolves.toBeUndefined();
     await expect(repo.deleteInvite("grp-1", "u2")).resolves.toBeUndefined();
+  });
+
+  // The ON CONFLICT DO NOTHING makes a repeat request indistinguishable from a
+  // first one unless the affected-row count is read back, and the caller mails
+  // the group's admins off exactly that answer.
+  it("createInvite reports whether a row was actually inserted", async () => {
+    const inserted = createRecordingDb([{ numAffectedRows: 1n }]);
+    expect(await friendGroupsRepo(inserted.db).createInvite("grp-1", "u2", "request")).toBe(true);
+
+    const conflicted = createRecordingDb([{ numAffectedRows: 0n }]);
+    expect(await friendGroupsRepo(conflicted.db).createInvite("grp-1", "u2", "request")).toBe(
+      false,
+    );
   });
 
   // ── Shares ────────────────────────────────────────────────────────────────

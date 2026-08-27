@@ -140,7 +140,8 @@ export type EmailNotificationChannel =
   | "tradeMatches"
   | "tradeRequests"
   | "tradeStatus"
-  | "cardSubmissions";
+  | "cardSubmissions"
+  | "groupJoinRequests";
 
 /**
  * Human-readable label per channel, phrased to slot into "You'll no longer
@@ -152,6 +153,7 @@ export const EMAIL_NOTIFICATION_CHANNEL_LABELS: Record<EmailNotificationChannel,
   tradeRequests: "trade-request emails",
   tradeStatus: "trade status updates",
   cardSubmissions: "card submission alerts",
+  groupJoinRequests: "group join requests",
 };
 
 /** @returns Whether the daily match digest is enabled (opt-in: default off). */
@@ -181,6 +183,18 @@ export function isCardSubmissionEmailEnabled(
   prefs: EmailNotificationPreference | undefined,
 ): boolean {
   return prefs?.cardSubmissions === true;
+}
+
+/**
+ * Whether the group join-request alert is enabled (opt-out: default on).
+ * Default-on unlike {@link isCardSubmissionEmailEnabled}, because you become a
+ * group admin by creating the group, and the request is addressed to you.
+ * @returns Whether the alert is enabled.
+ */
+export function isGroupJoinRequestEmailEnabled(
+  prefs: EmailNotificationPreference | undefined,
+): boolean {
+  return prefs?.groupJoinRequests !== false;
 }
 
 /** @returns The recipient's trade-request email cadence (default when unset). */
