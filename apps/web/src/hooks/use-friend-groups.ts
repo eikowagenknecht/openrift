@@ -9,7 +9,6 @@ import type {
   FriendGroupMatchRow,
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
-  FriendGroupPendingInvitesCountResponse,
   FriendGroupPendingRequestsCountResponse,
   FriendGroupResponse,
   FriendGroupShareableCollectionsResponse,
@@ -40,12 +39,6 @@ const fetchGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<FriendGroupListResponse> =>
     apiOrpcClient(friendGroupsContract, context.cookie).list(),
-  );
-
-const fetchPendingInvitesCount = createServerFn({ method: "GET" })
-  .middleware([withCookies])
-  .handler(({ context }): Promise<FriendGroupPendingInvitesCountResponse> =>
-    apiOrpcClient(friendGroupsContract, context.cookie).pendingInvitesCount(),
   );
 
 const fetchPendingRequestsCount = createServerFn({ method: "GET" })
@@ -415,30 +408,15 @@ export function useFriendGroupSharedCollection(slug: string, collectionId: strin
 }
 
 /**
- * Polls the pending-invite count for the avatar badge. Uses `useQuery`
- * (non-suspense) so it can sit in the header without requiring an
- * authenticated route boundary.
- * @returns The query result; `count` is 0 when the viewer isn't logged in.
- */
-export function useFriendGroupPendingInvitesCount(opts?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: ["friend-groups", "pending-invites-count"],
-    queryFn: () => fetchPendingInvitesCount(),
-    staleTime: 60 * 1000,
-    enabled: opts?.enabled ?? true,
-  });
-}
-
-/**
  * Polls the count of pending join requests across all groups the viewer
  * owns or administers (the requests awaiting their approval). Drives the
- * header "Groups" badge alongside pending invites. Non-suspense so it can
- * sit in the header without an authenticated route boundary.
+ * header "Groups" badge. Non-suspense so it can sit in the header without an
+ * authenticated route boundary.
  * @returns The query result; `count` is 0 when the viewer isn't logged in.
  */
 export function useFriendGroupPendingRequestsCount(opts?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ["friend-groups", "pending-requests-count"],
+    queryKey: queryKeys.friendGroups.pendingRequestsCount(),
     queryFn: () => fetchPendingRequestsCount(),
     staleTime: 60 * 1000,
     enabled: opts?.enabled ?? true,
@@ -665,7 +643,7 @@ export function useAcceptFriendGroupInvite() {
     invalidates: (variables) => [
       queryKeys.friendGroups.all(userId),
       queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.pendingInvitesCount(userId),
+      queryKeys.friendGroups.pendingRequestsCount(),
     ],
   });
 }
@@ -677,7 +655,7 @@ export function useDeclineFriendGroupInvite() {
     invalidates: (variables) => [
       queryKeys.friendGroups.all(userId),
       queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.pendingInvitesCount(userId),
+      queryKeys.friendGroups.pendingRequestsCount(),
     ],
   });
 }

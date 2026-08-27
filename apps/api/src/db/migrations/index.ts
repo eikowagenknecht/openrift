@@ -204,6 +204,7 @@ import * as m255 from "./255-meta-multi-source.js";
 import * as m256 from "./256-meta-deck-sources.js";
 import * as m257 from "./257-printing-fallback-art.js";
 import * as m258 from "./258-printing-citations.js";
+import * as m259 from "./259-drop-group-email-invites.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -467,4 +468,5 @@ export const migrations: Record<string, Migration> = {
   "256-meta-deck-sources": m256,
   "257-printing-fallback-art": m257,
   "258-printing-citations": m258,
+  "259-drop-group-email-invites": m259,
 };

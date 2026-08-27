@@ -179,21 +179,24 @@ export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
   })
   .openapi("FriendGroupSummaryResponse");
 
-const friendGroupPendingInviteEntrySchema = z.object({
+/**
+ * A join request the viewer has sent and is still waiting on. Only the member
+ * count is exposed: a group doesn't reveal its roster to someone it hasn't
+ * accepted yet.
+ */
+const friendGroupOutgoingRequestSchema = z.object({
   id: z.string(),
   groupId: z.string(),
   groupSlug: z.string(),
   groupName: z.string(),
   createdAt: z.string(),
   memberCount: z.number().int().nonnegative(),
-  memberPreviews: z.array(friendGroupMemberPreviewSchema),
 });
 
 export const friendGroupListResponseSchema = z
   .object({
     items: z.array(friendGroupSummaryResponseSchema),
-    pendingInvites: z.array(friendGroupPendingInviteEntrySchema),
-    outgoingRequests: z.array(friendGroupPendingInviteEntrySchema),
+    outgoingRequests: z.array(friendGroupOutgoingRequestSchema),
   })
   .openapi("FriendGroupListResponse");
 
@@ -463,10 +466,6 @@ export const friendGroupActivityResponseSchema = z
   .object({ events: z.array(friendGroupActivityEventSchema) })
   .openapi("FriendGroupActivityResponse");
 
-export const friendGroupPendingInvitesCountResponseSchema = z
-  .object({ count: z.number().int().nonnegative() })
-  .openapi("FriendGroupPendingInvitesCountResponse");
-
 export const friendGroupPendingRequestsCountResponseSchema = z
   .object({ count: z.number().int().nonnegative() })
   .openapi("FriendGroupPendingRequestsCountResponse");
@@ -538,9 +537,6 @@ export const friendGroupsContract = {
   list: authedRoute
     .route({ method: "GET", path: FG, tags: [TAG] })
     .output(friendGroupListResponseSchema),
-  pendingInvitesCount: authedRoute
-    .route({ method: "GET", path: `${FG}/pending-invites-count`, tags: [TAG] })
-    .output(friendGroupPendingInvitesCountResponseSchema),
   pendingRequestsCount: authedRoute
     .route({ method: "GET", path: `${FG}/pending-requests-count`, tags: [TAG] })
     .output(friendGroupPendingRequestsCountResponseSchema),

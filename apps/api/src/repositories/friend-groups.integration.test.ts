@@ -231,21 +231,16 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(b.code).toBeNull();
   });
 
-  it("listOwnRequestsForUser returns the user's own join requests, not invites to them", async () => {
+  it("listOwnRequestsForUser returns only the requests the user made themselves", async () => {
     const group = await createGroup(VIEWER_ID);
-    // SELLER_ID requested to join; ADMIN_ID was invited by an admin.
     await repo.createInvite(group.id, SELLER_ID, "request");
-    await repo.createInvite(group.id, ADMIN_ID, "invite");
 
     const requests = await repo.listOwnRequestsForUser(SELLER_ID);
     expect(requests).toHaveLength(1);
     expect(requests[0]?.groupId).toBe(group.id);
     expect(requests[0]?.groupSlug).toBe(group.slug);
     expect(requests[0]?.groupName).toBe(group.name);
-    expect(requests[0]?.direction).toBe("request");
 
-    // The requester has no incoming invites; the invitee has no outgoing requests.
-    expect(await repo.listInvitesForUser(SELLER_ID)).toHaveLength(0);
     expect(await repo.listOwnRequestsForUser(ADMIN_ID)).toHaveLength(0);
 
     // Requesters see the group's size but never its roster.
@@ -296,20 +291,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .where("id", "in", [SELLER_ID, OUTSIDER_ID])
       .execute();
     await db.deleteFrom("users").where("id", "in", [extraA.id, extraB.id]).execute();
-  });
-
-  it("listInvitesForUser carries the group's member count and previews", async () => {
-    const group = await createGroup(VIEWER_ID);
-    await repo.addMember(group.id, ADMIN_ID, "admin");
-    await repo.createInvite(group.id, SELLER_ID, "invite");
-
-    const invites = await repo.listInvitesForUser(SELLER_ID);
-    expect(invites).toHaveLength(1);
-    expect(invites[0]?.memberCount).toBe(2);
-    expect(invites[0]?.memberPreviews.map((preview) => preview.userId)).toEqual([
-      VIEWER_ID,
-      ADMIN_ID,
-    ]);
   });
 
   it("rotates the code and invalidates the prior value", async () => {

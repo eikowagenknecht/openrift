@@ -28,7 +28,7 @@ const INVITE = {
   id: "inv-1",
   groupId: "grp-1",
   userId: "u2",
-  direction: "invite" as const,
+  direction: "request" as const,
   createdAt: new Date(),
 };
 
@@ -163,29 +163,6 @@ describe("friendGroupsRepo", () => {
     expect(await repo.getInvite("grp-1", "u2")).toEqual(INVITE);
   });
 
-  it("listInvitesForUser returns enriched rows with member previews", async () => {
-    // The mock feeds the same row to the preview query, so the profile fields
-    // double as the expected preview entry.
-    const enriched = {
-      ...INVITE,
-      groupName: "Tuesday Night Crew",
-      groupSlug: "playgroup",
-      userName: "Invitee",
-      userEmail: "invitee@example.com",
-      userImage: null,
-    };
-    const repo = friendGroupsRepo(createMockDb([enriched]));
-    expect(await repo.listInvitesForUser("u2")).toEqual([
-      {
-        ...enriched,
-        memberCount: 0,
-        memberPreviews: [
-          { userId: "u2", userName: "Invitee", userEmail: "invitee@example.com", userImage: null },
-        ],
-      },
-    ]);
-  });
-
   it("listOwnRequestsForUser returns enriched rows without previews", async () => {
     const enriched = {
       ...INVITE,
@@ -207,11 +184,6 @@ describe("friendGroupsRepo", () => {
     };
     const repo = friendGroupsRepo(createMockDb([enriched]));
     expect(await repo.listRequestsForGroup("grp-1")).toEqual([enriched]);
-  });
-
-  it("pendingInvitesCountForUser returns the count", async () => {
-    const repo = friendGroupsRepo(createMockDb([{ count: 3 }]));
-    expect(await repo.pendingInvitesCountForUser("u2")).toBe(3);
   });
 
   it("pendingRequestsCountForUser returns the count", async () => {

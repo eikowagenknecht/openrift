@@ -20,10 +20,9 @@ const { groupsMock, groupSharesMock } = vi.hoisted(() => ({
     (): {
       data: {
         items: { id: string; slug: string; name: string }[];
-        pendingInvites: unknown[];
         outgoingRequests: unknown[];
       };
-    } => ({ data: { items: [], pendingInvites: [], outgoingRequests: [] } }),
+    } => ({ data: { items: [], outgoingRequests: [] } }),
   ),
   groupSharesMock: vi.fn((): { data: { items: { groupId: string }[] } } => ({
     data: { items: [] },
@@ -75,7 +74,7 @@ describe("CollectionShareDialog", () => {
     // leak, and so call counts start empty for the assertions that check the
     // panel's query never ran.
     groupsMock.mockReset();
-    groupsMock.mockReturnValue({ data: { items: [], pendingInvites: [], outgoingRequests: [] } });
+    groupsMock.mockReturnValue({ data: { items: [], outgoingRequests: [] } });
     groupSharesMock.mockReset();
     groupSharesMock.mockReturnValue({ data: { items: [] } });
     vi.restoreAllMocks();
@@ -122,7 +121,6 @@ describe("CollectionShareDialog", () => {
     groupsMock.mockReturnValue({
       data: {
         items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
-        pendingInvites: [],
         outgoingRequests: [],
       },
     });
@@ -138,7 +136,6 @@ describe("CollectionShareDialog", () => {
     groupsMock.mockReturnValue({
       data: {
         items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
-        pendingInvites: [],
         outgoingRequests: [],
       },
     });
@@ -186,7 +183,6 @@ describe("CollectionShareDialog", () => {
     groupsMock.mockReturnValue({
       data: {
         items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
-        pendingInvites: [],
         outgoingRequests: [],
       },
     });

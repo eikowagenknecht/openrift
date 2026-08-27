@@ -75,10 +75,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useAdminAccess } from "@/hooks/use-admin";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import {
-  useFriendGroupPendingInvitesCount,
-  useFriendGroupPendingRequestsCount,
-} from "@/hooks/use-friend-groups";
+import { useFriendGroupPendingRequestsCount } from "@/hooks/use-friend-groups";
 import { useLoanActionCounts } from "@/hooks/use-loans";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
@@ -995,19 +992,15 @@ export function Header() {
   const [lockedFeature, setLockedFeature] = useState<LockedFeatureKey | null>(null);
   const navFlags: NavFlags = { glossary: glossaryEnabled, meta: metaEnabled };
   const isLoggedIn = Boolean(session?.user);
-  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
   // Loans awaiting the viewer's acknowledgment as borrower (ADR-039), shown on
   // the Lending entries in the More menus.
   const { data: loanActionCounts } = useLoanActionCounts();
   const loansBadge = loanActionCounts?.total ?? 0;
-  // One "Groups need your attention" badge: pending invites to you + join
-  // requests awaiting your approval + trades awaiting action.
-  const groupsBadge =
-    (pendingInvitesData?.count ?? 0) +
-    (pendingRequestsData?.count ?? 0) +
-    (tradeActionCounts?.total ?? 0);
+  // One "Groups need your attention" badge: join requests awaiting your
+  // approval + trades awaiting action.
+  const groupsBadge = (pendingRequestsData?.count ?? 0) + (tradeActionCounts?.total ?? 0);
 
   return (
     <header

@@ -1,6 +1,6 @@
 import type { FriendGroupRole } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CheckIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
+import { PlusIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CoverBand } from "@/components/cover-band";
@@ -35,7 +35,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useTradeActionCounts, useUserTrades } from "@/hooks/use-card-trades";
 import {
-  useAcceptFriendGroupInvite,
   useCreateFriendGroup,
   useDeclineFriendGroupInvite,
   useFriendGroupMatchPanels,
@@ -191,7 +190,6 @@ export function GroupsIndexPage() {
     name: string;
     navigateOnClose: boolean;
   } | null>(null);
-  const acceptInvite = useAcceptFriendGroupInvite();
   const declineInvite = useDeclineFriendGroupInvite();
   const viewerId = useRequiredUserId();
 
@@ -217,69 +215,6 @@ export function GroupsIndexPage() {
         </PageTopBar>
       </PageTopBarSticky>
       <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
-        {data.pendingInvites.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <SectionHeading>Pending invites</SectionHeading>
-            <div className="flex flex-col gap-2">
-              {data.pendingInvites.map((invite) => (
-                <Card
-                  key={invite.id}
-                  className="ring-border-accent/50 bg-border-accent/10 flex-row items-center gap-3 p-3"
-                >
-                  {invite.memberPreviews.length > 0 && (
-                    <UserAvatarStack
-                      members={invite.memberPreviews}
-                      totalCount={invite.memberCount}
-                      size="sm"
-                      className="max-sm:hidden"
-                    />
-                  )}
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-medium">{invite.groupName}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {invite.memberCount} {invite.memberCount === 1 ? "member" : "members"}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        acceptInvite.mutate(
-                          { slug: invite.groupSlug, userId: viewerId },
-                          {
-                            onSuccess: () =>
-                              setShareWithGroup({
-                                slug: invite.groupSlug,
-                                name: invite.groupName,
-                                navigateOnClose: false,
-                              }),
-                          },
-                        )
-                      }
-                      disabled={acceptInvite.isPending}
-                    >
-                      <CheckIcon className="size-4" />
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        declineInvite.mutate({ slug: invite.groupSlug, userId: viewerId })
-                      }
-                      disabled={declineInvite.isPending}
-                    >
-                      <XIcon className="size-4" />
-                      Decline
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
-
         {data.outgoingRequests.length > 0 && (
           <section className="flex flex-col gap-3">
             <SectionHeading>Awaiting approval</SectionHeading>

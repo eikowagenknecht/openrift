@@ -74,10 +74,8 @@ function makeApp(overrides: {
     setRevealedContacts: vi.fn(),
     transferOwnership: vi.fn(),
     getInvite: vi.fn(),
-    listInvitesForUser: vi.fn(() => Promise.resolve([])),
     listOwnRequestsForUser: vi.fn(() => Promise.resolve([])),
     listRequestsForGroup: vi.fn(() => Promise.resolve([])),
-    pendingInvitesCountForUser: vi.fn(() => Promise.resolve(0)),
     pendingRequestsCountForUser: vi.fn(() => Promise.resolve(0)),
     createInvite: vi.fn(),
     deleteInvite: vi.fn(),
@@ -167,7 +165,7 @@ function makeApp(overrides: {
 }
 
 describe("friend-groups route", () => {
-  it("GET / returns groups and pending invites", async () => {
+  it("GET / returns groups with public-shaped member previews", async () => {
     const { app } = makeApp({
       friendGroups: {
         listGroupsForUser: vi.fn(() =>
@@ -189,28 +187,6 @@ describe("friend-groups route", () => {
             },
           ]),
         ),
-        listInvitesForUser: vi.fn(() =>
-          Promise.resolve([
-            {
-              id: "inv-1",
-              groupId: GROUP_ID,
-              userId: USER_ID,
-              direction: "invite",
-              createdAt: now,
-              groupName: "Other",
-              groupSlug: "other",
-              memberCount: 2,
-              memberPreviews: [
-                {
-                  userId: "u-other",
-                  userName: "Other Owner",
-                  userEmail: "other@example.com",
-                  userImage: null,
-                },
-              ],
-            },
-          ]),
-        ),
       },
     });
     const res = await app.request("/api/v1/friend-groups");
@@ -220,7 +196,6 @@ describe("friend-groups route", () => {
         sharedListCount: number;
         memberPreviews: { userId: string; gravatarHash: string; userEmail?: string }[];
       }[];
-      pendingInvites: { memberCount: number; memberPreviews: unknown[] }[];
       outgoingRequests: unknown[];
     };
     expect(body.items).toHaveLength(1);
@@ -230,9 +205,6 @@ describe("friend-groups route", () => {
     expect(body.items[0].memberPreviews[0].userId).toBe(USER_ID);
     expect(body.items[0].memberPreviews[0].gravatarHash).toBeTruthy();
     expect(body.items[0].memberPreviews[0].userEmail).toBeUndefined();
-    expect(body.pendingInvites).toHaveLength(1);
-    expect(body.pendingInvites[0].memberCount).toBe(2);
-    expect(body.pendingInvites[0].memberPreviews).toHaveLength(1);
     expect(body.outgoingRequests).toHaveLength(0);
   });
 
@@ -268,18 +240,8 @@ describe("friend-groups route", () => {
         groupName: "Allerlei Spielerei",
         createdAt: now.toISOString(),
         memberCount: 4,
-        memberPreviews: [],
       },
     ]);
-  });
-
-  it("GET /pending-invites-count returns the count", async () => {
-    const { app } = makeApp({
-      friendGroups: { pendingInvitesCountForUser: vi.fn(() => Promise.resolve(3)) },
-    });
-    const res = await app.request("/api/v1/friend-groups/pending-invites-count");
-    expect(res.status).toBe(200);
-    expect(await readJson(res)).toEqual({ count: 3 });
   });
 
   it("GET /pending-requests-count returns the count", async () => {
@@ -762,41 +724,19 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(409);
   });
 
-  it("POST /{slug}/invites/{userId}/accept on invite requires the invitee", async () => {
-    // viewer is the owner, target is OTHER_ID, direction is "invite" — owner cannot accept
-    const { app } = makeApp({
-      friendGroups: {
-        getBySlug: vi.fn(() => Promise.resolve(group)),
-        getInvite: vi.fn(() =>
-          Promise.resolve({
-            id: "inv",
-            groupId: GROUP_ID,
-            userId: OTHER_ID,
-            direction: "invite",
-            createdAt: now,
-          }),
-        ),
-      },
-    });
-    const res = await app.request(`/api/v1/friend-groups/playgroup/invites/${OTHER_ID}/accept`, {
-      method: "POST",
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it("POST /{slug}/invites/{userId}/accept adds the member and consumes the invite (204)", async () => {
+  it("POST /{slug}/invites/{userId}/accept adds the member and consumes the request (204)", async () => {
     const addMember = vi.fn();
     const deleteInvite = vi.fn();
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
-        // viewer (USER_ID) accepts their own invite
+        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
         getInvite: vi.fn(() =>
           Promise.resolve({
-            id: "inv",
+            id: "req",
             groupId: GROUP_ID,
-            userId: USER_ID,
-            direction: "invite",
+            userId: OTHER_ID,
+            direction: "request",
             createdAt: now,
           }),
         ),
@@ -804,15 +744,15 @@ describe("friend-groups route", () => {
         deleteInvite,
       },
     });
-    const res = await app.request(`/api/v1/friend-groups/playgroup/invites/${USER_ID}/accept`, {
+    const res = await app.request(`/api/v1/friend-groups/playgroup/invites/${OTHER_ID}/accept`, {
       method: "POST",
     });
     expect(res.status).toBe(204);
-    expect(addMember).toHaveBeenCalledWith(group.id, USER_ID, "member");
-    expect(deleteInvite).toHaveBeenCalledWith(group.id, USER_ID);
+    expect(addMember).toHaveBeenCalledWith(group.id, OTHER_ID, "member");
+    expect(deleteInvite).toHaveBeenCalledWith(group.id, OTHER_ID);
   });
 
-  it("POST /{slug}/invites/{userId}/accept on request requires admin/owner", async () => {
+  it("POST /{slug}/invites/{userId}/accept requires admin/owner", async () => {
     // viewer is the requester themselves; they cannot self-approve a request
     const { app } = makeApp({
       friendGroups: {

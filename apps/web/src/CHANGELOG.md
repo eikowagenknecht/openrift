@@ -15,7 +15,7 @@
 - feat(Groups): **Group address fills itself in** — creating a group derives its web address from the name, and says up front when the address is too short or reserved.
 - feat(App): **Navigation on the front page** — the front page now carries the app header, so cards, decks and the menu are one click away.
 - feat(Collection): **Scanner rows match the app** — the scanner's card rows and its two pickers now lead with the shared art strip, domain bar, rarity and code, and the owned count sits at the right.
-- fix(Groups): **Email invites removed** — the field only worked for people who already had an account and never sent any email, so the join link and code are now the way in.
+- fix(Groups): **Email invites removed** — the field only worked for people who already had an account and never sent any email, and a leftover invite could silently swallow your later attempt to join by code.
 - fix(Account): **Sign in returns you to your page** — signing in from the header now comes back to the page you were on, and otherwise lands in your collection rather than the marketing page.
 - fix(Decks): **Local decks claimed after signing in** — the "saved only on this device" prompts now return to your deck list, which is where the decks are offered for claiming.
 - fix(Collection): **Add all stays after picking a collection** — scanned cards you only identified can still be added in one go once you switch the scanner to a real destination, which now comes preselected.

@@ -13,7 +13,6 @@ import type {
   FriendGroupMemberPreview,
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
-  FriendGroupPendingInvitesCountResponse,
   FriendGroupPendingRequestsCountResponse,
   FriendGroupRequestResponse,
   FriendGroupResponse,
@@ -184,20 +183,10 @@ export const friendGroupsRouter = {
   list: os.list.handler(async ({ context }): Promise<FriendGroupListResponse> => {
     const userId = context.userId;
     const { friendGroups } = context.repos;
-    const [groups, invites, requests] = await Promise.all([
+    const [groups, requests] = await Promise.all([
       friendGroups.listGroupsForUser(userId),
-      friendGroups.listInvitesForUser(userId),
       friendGroups.listOwnRequestsForUser(userId),
     ]);
-    const toInviteEntry = (row: (typeof requests)[number], memberPreviews: MemberPreviewRow[]) => ({
-      id: row.id,
-      groupId: row.groupId,
-      groupSlug: row.groupSlug,
-      groupName: row.groupName,
-      createdAt: row.createdAt.toISOString(),
-      memberCount: row.memberCount,
-      memberPreviews: memberPreviews.map((preview) => toMemberPreview(preview)),
-    });
     return {
       items: groups.map((row): FriendGroupSummaryResponse => ({
         ...toGroup(row, canSeeCode(row.viewerRole)),
@@ -207,20 +196,16 @@ export const friendGroupsRouter = {
         sharedListCount: row.sharedListCount,
         memberPreviews: row.memberPreviews.map((preview) => toMemberPreview(preview)),
       })),
-      pendingInvites: invites.map((row) => toInviteEntry(row, row.memberPreviews)),
-      // Requesters haven't been accepted yet, so no roster previews for them.
-      outgoingRequests: requests.map((row) => toInviteEntry(row, [])),
+      outgoingRequests: requests.map((row) => ({
+        id: row.id,
+        groupId: row.groupId,
+        groupSlug: row.groupSlug,
+        groupName: row.groupName,
+        createdAt: row.createdAt.toISOString(),
+        memberCount: row.memberCount,
+      })),
     };
   }),
-
-  pendingInvitesCount: os.pendingInvitesCount.handler(
-    async ({ context }): Promise<FriendGroupPendingInvitesCountResponse> => {
-      const userId = context.userId;
-      const { friendGroups } = context.repos;
-      const count = await friendGroups.pendingInvitesCountForUser(userId);
-      return { count };
-    },
-  ),
 
   pendingRequestsCount: os.pendingRequestsCount.handler(
     async ({ context }): Promise<FriendGroupPendingRequestsCountResponse> => {
@@ -480,15 +465,12 @@ export const friendGroupsRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "No pending invite");
     }
 
-    if (invite.direction === "invite") {
-      if (targetUserId !== viewerId) {
-        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the invitee can accept");
-      }
-    } else {
-      const membership = await friendGroups.getMembership(group.id, viewerId);
-      if (!membership || !hasRole(membership.role, "admin")) {
-        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Admin only");
-      }
+    // Every pending row is now a join request (migration 259 cleared the last
+    // of the invite-by-email rows), so accepting is always an admin acting on
+    // someone else's request.
+    const membership = await friendGroups.getMembership(group.id, viewerId);
+    if (!membership || !hasRole(membership.role, "admin")) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Admin only");
     }
 
     // Add the member and consume the invite atomically so a failure can't

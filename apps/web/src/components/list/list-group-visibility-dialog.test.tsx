@@ -11,7 +11,7 @@ let groupShareItems: { groupId: string }[] = [];
 
 vi.mock("@/hooks/use-friend-groups", () => ({
   useFriendGroups: () => ({
-    data: { items: groupItems, pendingInvites: [], outgoingRequests: [] },
+    data: { items: groupItems, outgoingRequests: [] },
   }),
   useShareListWithFriendGroup: () => ({ mutate: groupShareMutate, isPending: false }),
   useUnshareListFromFriendGroup: () => ({ mutate: groupUnshareMutate, isPending: false }),

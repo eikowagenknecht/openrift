@@ -196,8 +196,9 @@ export const queryKeys = {
       ["friend-groups", userId, slug, "shareable-lists"] as const,
     shareableCollections: (userId: string, slug: string) =>
       ["friend-groups", userId, slug, "shareable-collections"] as const,
-    pendingInvitesCount: (userId: string) =>
-      ["friend-groups", userId, "pending-invites-count"] as const,
+    // Not user-scoped: the header polls it without an authenticated route
+    // boundary, and the server answers for whoever the cookie identifies.
+    pendingRequestsCount: () => ["friend-groups", "pending-requests-count"] as const,
     joinPreview: (code: string) => ["friend-groups", "join-preview", code] as const,
     sharedList: (userId: string, slug: string, listId: string) =>
       ["friend-groups", userId, slug, "lists", listId] as const,

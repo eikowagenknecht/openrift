@@ -437,43 +437,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    async listInvitesForUser(userId: string): Promise<
-      (GroupInvite & {
-        groupName: string;
-        groupSlug: string;
-        memberCount: number;
-        memberPreviews: MemberPreviewRow[];
-      })[]
-    > {
-      const rows = await db
-        .selectFrom("friendGroupInvites as i")
-        .innerJoin("friendGroups as g", "g.id", "i.groupId")
-        .selectAll("i")
-        .select(["g.name as groupName", "g.slug as groupSlug"])
-        .select((eb) =>
-          eb
-            .selectFrom("friendGroupMembers as mc")
-            .select(eb.fn.countAll<number>().as("count"))
-            .whereRef("mc.groupId", "=", "g.id")
-            .as("memberCount"),
-        )
-        .where("i.userId", "=", userId)
-        .where("i.direction", "=", "invite")
-        .orderBy("i.createdAt", "asc")
-        .execute();
-
-      const previews = await memberPreviewsByGroup(
-        db,
-        rows.map((row) => row.groupId),
-      );
-
-      return rows.map((row) => ({
-        ...row,
-        memberCount: Number(row.memberCount ?? 0),
-        memberPreviews: previews.get(row.groupId) ?? [],
-      }));
-    },
-
     /**
      * Only the member count is exposed (no profile previews): a group doesn't
      * reveal its roster to someone it hasn't accepted yet.
@@ -520,16 +483,6 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .where("i.direction", "=", "request")
         .orderBy("i.createdAt", "asc")
         .execute();
-    },
-
-    async pendingInvitesCountForUser(userId: string): Promise<number> {
-      const row = await db
-        .selectFrom("friendGroupInvites")
-        .select((eb) => eb.fn.countAll<number>().as("count"))
-        .where("userId", "=", userId)
-        .where("direction", "=", "invite")
-        .executeTakeFirstOrThrow();
-      return Number(row.count);
     },
 
     async pendingRequestsCountForUser(userId: string): Promise<number> {
