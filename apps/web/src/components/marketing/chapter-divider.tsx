@@ -15,7 +15,12 @@ export function ChapterDivider({ chapter }: { chapter: FeatureChapter }) {
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full sm:-inset-x-10 lg:-inset-x-24"
+        // The glow is the chapter's only backdrop, so it has to reach the
+        // physical viewport edge rather than stopping at the page gutter and
+        // drawing a hard vertical edge down the tint. Below `sm` the column is
+        // the viewport, so the gutter is cancelled with a negative margin; from
+        // `sm` up there is room to spill outwards instead.
+        className="max-sm:mx-safe-neg pointer-events-none absolute inset-x-0 top-0 -z-10 h-full sm:-inset-x-10 lg:-inset-x-24"
         style={{
           backgroundImage: `radial-gradient(60% 90% at 18% 0%, ${chapter.glowColor}26 0%, transparent 65%)`,
         }}

@@ -40,7 +40,9 @@
 
 ### Other
 
-- feat(Decks): **Odds for the hand you drew** — the Test tab now says what an exchange could still find and what the next card could be, and marks the odds rows your hand already covers.
+- feat(Decks): **Odds for the hand you drew** — the Test tab now says what a mulligan could still find and what the next card could be, and marks the odds rows your hand already covers.
+- feat(Decks): **Mulligan, not exchange** — the Test tab's button now says Mulligan and sits on the M key, matching the word the rules and the odds table already use.
+- fix(App): **Logo beside the menu on phones** — a third icon on the right left the centred logo looking off, so it now sits next to the menu button instead.
 - feat(App): **Stage and tier lists in the menu** — the creator tools now have their own Create section in the desktop More menu.
 - fix(App): **Feature previews show real cards** — the scanner and promo previews on the home and features pages now take their names, codes, prices and channels from the catalog, instead of labelling live artwork with cards that weren't shown.
 - fix(App): **Match tracker and Scan in the menu** — the match tracker is now reachable on desktop under More, and scanning moves out of the top bar into More on desktop while staying top level on phones.

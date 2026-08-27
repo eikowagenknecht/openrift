@@ -46,7 +46,6 @@ import { FEATURE_CHAPTERS } from "./features-chapters";
 import { FeaturesHero } from "./features-hero";
 import { FeaturesChipNav, FeaturesRail } from "./features-nav";
 import { LoansVignette } from "./loans-vignette";
-import { ProductsVignette } from "./products-vignette";
 import { PromosVignette } from "./promos-vignette";
 import { Reveal } from "./reveal";
 import { RulesVignette } from "./rules-vignette";
@@ -89,7 +88,7 @@ function ClosingBlock({ signedOut }: { signedOut: boolean }) {
     <Reveal>
       <section className="flex flex-col items-start gap-4 py-14 sm:py-20">
         <Heading level={1} as="h2" className={FEATURE_HEADING_CLASS}>
-          Free. No ads. Open source.
+          Fast. Free. No ads. Open source.
         </Heading>
         <SectionRule />
         <p className="text-muted-foreground max-w-prose">
@@ -177,48 +176,49 @@ export function FeaturesPage() {
       fulls: [
         {
           id: "catalog",
-          title: "Every card, every printing",
+          title: "All the cards, easy to browse",
           description:
-            "The whole catalog: English, Chinese, French, and Korean printings, promos included. Filter by set, rarity, domain, finish, or language, and search full card text.",
+            "OpenRift aims to have all cards and promos catalogued in all available languages. Currently that means English, Chinese, French, and Korean printings and around 800 promos. We have exhaustive filtering and sorting options, so you can easily find the cards you're looking for.",
           action: sectionAction("Open the catalog", "/cards"),
           vignette: <CatalogVignette thumbnails={taggedThumbnails} cardCount={data?.cardCount} />,
         },
         {
           id: "scan",
-          title: "Scan cards with your camera",
+          title: "Scan cards with your phone",
           description:
-            "The scanner recognizes the exact printing, not just the name. Add a whole box to your collection in one sitting.",
+            "Look up prices or add cards to your collection by just pointing your camera at them. The scanner works offline, is not fooled easily by bad lighting, and takes less than a second to recognize cards on modern phones. Works with desktop webcams as well. No usage limits and completely free.",
           action: sectionAction("Open the scanner", "/scan"),
-          vignette: <ScanVignette cards={thumbnailCards.slice(8, 11)} />,
+          vignette: <ScanVignette cards={thumbnailCards.slice(8, 12)} />,
           emphasis: true,
           flip: true,
         },
         {
           id: "collections",
-          title: "Track what you own",
+          title: "Unlimited collections, organized your way",
           description:
-            "Any number of collections: a binder, a deck box, cards lent out. Counts, conditions, languages, and finishes per copy.",
-          action: sectionAction("Open your collections", "/collections"),
-          vignette: <CollectionsVignette />,
+            "Create as many as you like: binders, storage drawers, shoe boxes, deck boxes. View them separately, or all together. Never lose track of where you put that card again.",
+          action: sectionAction("Open collections", "/collections"),
+          vignette: <CollectionsVignette thumbnailUrls={thumbnailUrls.slice(4, 7)} />,
         },
-      ],
-      cards: [
+        {
+          id: "import",
+          title: "Import from anywhere, export anytime",
+          description:
+            "Moving in from another tool, or just want to try things out? You can start your OpenRift collection by pasting a plain text list or uploading a CSV from Piltover Archive, RiftCore, or RiftMana. Nothing to convert, nothing to retype. If you ever want to leave, you can export your collection back to those formats (and more).",
+          action: sectionAction("Import now", "/collections/import"),
+          vignette: <ImportVignette />,
+          flip: true,
+        },
         {
           id: "lists",
           title: "Lists that maintain themselves",
           description:
-            "Wishlists and tradelists driven by rules. Write 'every card missing for a playset' once and the list stays current as your collection changes.",
+            'Fill a list by hand, by rule, or both. A rule is the card browser\'s entire filter language pointed at a list, and every dimension can exclude as well as include. A rule could be "A playset of every Origins printing I\'m still missing, in English, no metal printings". Lists can combine multiple rules as well. Tradelists run the same machinery in reverse, e.g. "Keep three of each card and offer the surplus."',
           action: sectionAction("Open your lists", "/collections"),
           vignette: <ListsVignette />,
         },
-        {
-          id: "import",
-          title: "Switch in minutes, leave anytime",
-          description:
-            "Import a Piltover Archive, RiftCore, or RiftMana CSV. Export your whole collection back out whenever you like.",
-          action: sectionAction("Open import and export", "/collections/import"),
-          vignette: <ImportVignette />,
-        },
+      ],
+      cards: [
         {
           id: "prices",
           title: "Three marketplaces, side by side",
@@ -229,18 +229,11 @@ export function FeaturesPage() {
         },
         {
           id: "promos",
-          title: "Every promo, mapped",
+          title: "Every promo stamp, every source",
           description:
-            "Promos grouped by how they were given out, year by year, in every language they were printed in.",
-          action: sectionAction("Open the promos", "/promos"),
+            "Stamps like Promo, Judge and Prerelease are tracked per printing. Where the card was handed out is a separate axis, a channel tree four levels deep. You can group the page by either.",
+          action: sectionAction("See all promos", "/promos"),
           vignette: <PromosVignette sections={data?.promoSections} />,
-        },
-        {
-          id: "products",
-          title: "Every sealed product",
-          description: "Boosters, bundles, and starter decks, with what's inside each one.",
-          action: sectionAction("Open the products", "/products"),
-          vignette: <ProductsVignette />,
         },
       ],
     },
@@ -249,10 +242,10 @@ export function FeaturesPage() {
       fulls: [
         {
           id: "decks",
-          title: "Deck building with guardrails",
+          title: "Deck building, strict or freeform",
           description:
-            "Legality checking against the official rules, or fully freeform. Energy curves, matchup plans, a test bench, and Piltover-compatible deck codes.",
-          action: sectionAction("Open your decks", "/decks"),
+            "Legality checked against the official rules as you build, or switched off entirely. Energy curves, matchup plans, and deck codes that other tools can read.",
+          action: sectionAction("Build a deck", "/decks"),
           vignette: <DecksVignette />,
           flip: true,
         },
@@ -270,7 +263,7 @@ export function FeaturesPage() {
           id: "test",
           title: "Test a deck before you sleeve it",
           description:
-            "Draw sample hands and exchange the ones you wouldn't keep. The odds table shows every card's chance to be in hand or in the first seven draws.",
+            "Deal sample opening hands and try the mulligan. The odds table gives every card's chance of landing in the opening four, and anywhere in your first seven.",
           action: sectionAction("Open your decks", "/decks"),
           vignette: <TestVignette thumbnailUrls={thumbnailUrls.slice(18, 23)} />,
         },
@@ -278,22 +271,53 @@ export function FeaturesPage() {
           id: "box",
           title: "From decklist to deck box",
           description:
-            "Tick cards into the box as you sleeve them. Pick the exact copy to pull, down to the binder it sits in.",
+            "Link a deck to the box you keep it in, then tick each card off as it goes in. Missing and surplus are counted for you, and each row names which copy to pull and which collection it's sitting in.",
           action: sectionAction("Open your decks", "/decks"),
           vignette: <BoxVignette />,
         },
       ],
     },
     {
-      chapterId: "together",
+      chapterId: "play",
+      fulls: [
+        {
+          id: "tournaments",
+          title: "From pod night to store event",
+          description:
+            "Swiss pairings for 1v1, pods for three or four players, and fixed teams for 2v2. Deck submission, judges, and deck checks are optional per tournament. Players report their own results from a link, and spectators can follow the standings.",
+          action: sectionAction("Open tournaments", "/tournaments"),
+          vignette: <TournamentsVignette />,
+        },
+      ],
+      cards: [
+        {
+          id: "rules",
+          title: "The rules, down to the paragraph",
+          description:
+            "Every core and tournament rule, filtered as you type. Game terms and cross-references are jump links, so you land on the exact ruling instead of scrolling a PDF. Older versions stay online with the changes since the last one marked up.",
+          action: sectionAction("Open the rules", "/rules"),
+          vignette: <RulesVignette />,
+        },
+        {
+          id: "tracker",
+          title: "Keep score at the table",
+          description: "Track points and XP in 1v1, 2v2 and FFA games, on one phone.",
+          action: sectionAction("Open the match tracker", "/match-tracker"),
+          vignette: <TrackerVignette thumbnailUrls={thumbnailUrls.slice(12, 14)} />,
+        },
+      ],
+    },
+    {
+      chapterId: "community",
       fulls: [
         {
           id: "groups",
           title: "Trade inside your playgroup",
           description:
-            "Private groups match your wishlist against your friends' spares. Loans track the cards you have lent out and to whom.",
+            "Private groups match your wishlist against everyone's spares and show you which trades are possible. Each member page tracks whose move it is, what you have already traded, and which lists they share with you.",
           action: sectionAction("Open your groups", "/groups"),
           vignette: <GroupsVignette />,
+          flip: true,
         },
       ],
       cards: [
@@ -301,7 +325,7 @@ export function FeaturesPage() {
           id: "loans",
           title: "Know where your cards are",
           description:
-            "Lend a deck to a friend and stop wondering. Loans track who has what until it comes back.",
+            "Lend cards to a friend and mark them returned when they come back. A lent copy stays in your collection, flagged as on loan, and stops counting for deck building and trades until it's back.",
           action: sectionAction("Open your loans", "/loans"),
           vignette: <LoansVignette />,
         },
@@ -309,7 +333,7 @@ export function FeaturesPage() {
           id: "share",
           title: "Share anything with one link",
           description:
-            "Decks, collections, lists, and tier lists share one dialog: the link and its QR on one tab, the export image on the other. Pasted in a chat, the link unfurls into a preview.",
+            "Paste a deck link into a chat and it turns into a preview with the cards, the format, and who built it. Decks, collections, lists, and tier lists all work this way. Download the image for a post or a vertical story, up to 4K, free.",
           action: sectionAction("Open your decks", "/decks"),
           vignette: <ShareVignette />,
         },
@@ -317,7 +341,7 @@ export function FeaturesPage() {
           id: "discord",
           title: "A bot for your Discord server",
           description:
-            "Type [[card name]] and the bot answers with the card. Slash commands look up decks and rules.",
+            "Type [[card name]] and the bot replies with the art, prices from all three marketplaces, and a link. Link the server to your group and it also shows who there has the card on their tradelist. Slash commands unfurl deck codes and find rulings.",
           action: (
             <a
               href={SOCIAL_LINKS.discordBotInvite}
@@ -329,39 +353,7 @@ export function FeaturesPage() {
               <ActionArrow />
             </a>
           ),
-          vignette: <DiscordVignette thumbnailUrl={thumbnailUrls[11]} />,
-        },
-      ],
-    },
-    {
-      chapterId: "table",
-      fulls: [
-        {
-          id: "tournaments",
-          title: "Run the whole tournament",
-          description:
-            "Swiss pairings, 2v2, judge tools, and deck checks against the official rules.",
-          action: sectionAction("Open tournaments", "/tournaments"),
-          vignette: <TournamentsVignette />,
-          flip: true,
-        },
-      ],
-      cards: [
-        {
-          id: "rules",
-          title: "The rules, down to the paragraph",
-          description:
-            "Every numbered rule, searchable and linked. Find the exact ruling mid-game instead of scrolling a PDF.",
-          action: sectionAction("Open the rules", "/rules"),
-          vignette: <RulesVignette />,
-        },
-        {
-          id: "tracker",
-          title: "Keep score at the table",
-          description:
-            "Points and XP for two to four players on one phone, with controls sized for mid-game taps.",
-          action: sectionAction("Open the match tracker", "/match-tracker"),
-          vignette: <TrackerVignette thumbnailUrls={thumbnailUrls.slice(12, 14)} />,
+          vignette: <DiscordVignette card={thumbnailCards[14]} />,
         },
       ],
     },
@@ -372,7 +364,7 @@ export function FeaturesPage() {
           id: "stage",
           title: "Put cards on stream",
           description:
-            "Queue up cards and show them two ways: a full-screen show for window capture, or a transparent overlay you push cards to in OBS. Tier lists and chat commands complete the creator kit.",
+            "Queue up cards and show them two ways: a full-screen view for window capture, or a transparent overlay you paste into OBS as a browser source. Viewers can look up cards in chat with !card, and tier lists rank a set on a board you can share as a link or an image.",
           action: sectionAction("Open the creator tools", "/creators"),
           vignette: <StageVignette thumbnailUrls={thumbnailUrls.slice(23, 24)} />,
         },
@@ -381,7 +373,8 @@ export function FeaturesPage() {
         {
           id: "designer",
           title: "Design your own cards",
-          description: "Put your own art, stats, and text on a real card frame.",
+          description:
+            "Fill in the name, type, domains, stats, and rules text, add your own art, and the card renders as you type. Download it as a PNG or copy it straight to the clipboard.",
           action: sectionAction("Open the card designer", "/card-designer"),
           vignette: <DesignerVignette />,
         },

@@ -30,7 +30,7 @@ import {
 } from "@/lib/deck-draw-odds";
 import type { HandOddsGroup, LibraryHitChance } from "@/lib/deck-hand-odds";
 import {
-  buildExchangePreview,
+  buildMulliganPreview,
   buildInHandGroupCounts,
   buildLibraryHitChances,
   shortGroupLabel,
@@ -323,7 +323,7 @@ interface BenchState {
 
 /**
  * The Test tab: sample opening hands with the real Riftbound rule (4 cards,
- * exchange up to 2 once) plus a hypergeometric draw-odds table for every
+ * mulligan up to 2 once) plus a hypergeometric draw-odds table for every
  * main-deck card. All client-side math — no server involvement.
  * @returns The test bench.
  */
@@ -498,7 +498,7 @@ export function DeckTestBench({
     cards: cardById,
     groups: handGroups,
   });
-  const exchangeRows = buildExchangePreview({
+  const mulliganRows = buildMulliganPreview({
     kept: bench?.hand.filter((card) => !selected.has(card.key)).map((card) => card.cardId) ?? [],
     library: libraryCardIds,
     cards: cardById,
@@ -627,7 +627,7 @@ export function DeckTestBench({
     }
     // Real procedure (rule 118): set the chosen cards aside, draw that many,
     // then Recycle the set-aside cards to the bottom of the deck — so a later
-    // "Draw a card" can still reach the exchanged copies.
+    // "Draw a card" can still reach the mulliganed copies.
     const result = applyMulligan(bench.hand, bench.library, selected, shuffle);
     setBench({
       hand: result.hand,
@@ -652,7 +652,7 @@ export function DeckTestBench({
   };
 
   // Single-letter shortcuts while the Test tab is mounted: N new hand,
-  // E exchange the selected cards, D draw a card. Modifier chords stay with
+  // M mulligan the selected cards, D draw a card. Modifier chords stay with
   // the browser and the editor's own Ctrl+K / Ctrl+Z handlers. No dependency
   // array on purpose: the handlers close over fresh state each render, so the
   // listener re-binds per render instead of chasing their identities.
@@ -670,7 +670,7 @@ export function DeckTestBench({
       if (key === "n") {
         event.preventDefault();
         drawHand();
-      } else if (key === "e") {
+      } else if (key === "m") {
         event.preventDefault();
         mulliganSelected();
       } else if (key === "d") {
@@ -723,17 +723,17 @@ export function DeckTestBench({
               N
             </Kbd>
           </Button>
-          {/* The exchange happens before any extra draw, so drawing a card
+          {/* The mulligan happens before any extra draw, so drawing a card
               locks the button. */}
           <Button
             type="button"
             variant="outline"
             onClick={mulliganSelected}
             disabled={!bench || bench.mulliganUsed || bench.hasDrawn || selected.size === 0}
-            aria-keyshortcuts="E"
+            aria-keyshortcuts="M"
           >
-            Exchange
-            <Kbd className="max-sm:hidden">E</Kbd>
+            Mulligan
+            <Kbd className="max-sm:hidden">M</Kbd>
           </Button>
           <Button
             type="button"
@@ -756,18 +756,18 @@ export function DeckTestBench({
             {bench.hand.map((card) => {
               const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
               const isSelected = selected.has(card.key);
-              const canExchange = !bench.mulliganUsed && !bench.hasDrawn;
+              const canMulligan = !bench.mulliganUsed && !bench.hasDrawn;
               return (
                 <Pressable
                   key={card.key}
                   {...cardHoverProps(onHoverCard, card.cardId, card.preferredPrintingId)}
                   onClick={() => toggleSelected(card.key)}
                   aria-pressed={isSelected}
-                  aria-label={canExchange ? `${card.cardName} — select to exchange` : card.cardName}
+                  aria-label={canMulligan ? `${card.cardName} — select to mulligan` : card.cardName}
                   style={{ borderRadius: CARD_BORDER_RADIUS }}
                   className={cn(
                     "transition-transform",
-                    canExchange && "hover:-translate-y-1",
+                    canMulligan && "hover:-translate-y-1",
                     isSelected && "ring-primary ring-offset-background ring-2 ring-offset-2",
                   )}
                 >
@@ -802,7 +802,7 @@ export function DeckTestBench({
         {bench && selected.size > 0 && (
           <LibraryOddsLine
             lead={`Exchanging ${selected.size}:`}
-            rows={exchangeRows}
+            rows={mulliganRows}
             emptyLabel="nothing left to look for, this hand covers every group."
           />
         )}

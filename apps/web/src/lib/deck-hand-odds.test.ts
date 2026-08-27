@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { chanceToDraw } from "@/lib/deck-draw-odds";
 import type { HandCardLookup, HandOddsGroup } from "@/lib/deck-hand-odds";
 import {
-  buildExchangePreview,
+  buildMulliganPreview,
   buildInHandGroupCounts,
   buildLibraryHitChances,
   shortGroupLabel,
@@ -100,9 +100,9 @@ describe("buildLibraryHitChances", () => {
   });
 });
 
-describe("buildExchangePreview", () => {
+describe("buildMulliganPreview", () => {
   it("reports only the groups the kept cards miss", () => {
-    const rows = buildExchangePreview({
+    const rows = buildMulliganPreview({
       kept: ["u3"],
       library: ["u1", "s5", "s5", "s5"],
       cards,
@@ -114,7 +114,7 @@ describe("buildExchangePreview", () => {
   });
 
   it("is empty when the kept cards already cover every group", () => {
-    const rows = buildExchangePreview({
+    const rows = buildMulliganPreview({
       kept: ["u1"],
       library: ["u3", "s5"],
       cards,
@@ -125,7 +125,7 @@ describe("buildExchangePreview", () => {
   });
 
   it("reports every group when nothing is kept", () => {
-    const rows = buildExchangePreview({
+    const rows = buildMulliganPreview({
       kept: [],
       library: ["u1", "s5"],
       cards,

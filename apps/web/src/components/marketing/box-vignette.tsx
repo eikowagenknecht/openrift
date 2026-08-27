@@ -87,6 +87,21 @@ function Swap({ before, after }: { before: ReactNode; after: ReactNode }) {
   );
 }
 
+/**
+ * The same pair for a run of text sitting inline with more text. An inline-grid
+ * takes its baseline from the grid box rather than from the digits, which sets
+ * the counter a few pixels off the words beside it; keeping the "before" layer
+ * in normal flow and floating the "after" one over it keeps one baseline.
+ */
+function TextSwap({ before, after }: { before: ReactNode; after: ReactNode }) {
+  return (
+    <span className="relative inline-block">
+      <span className="motion-safe:animate-box-before">{before}</span>
+      <span className="motion-safe:animate-box-after absolute inset-0 opacity-0">{after}</span>
+    </span>
+  );
+}
+
 function PickerRow({
   shortCode,
   rarity,
@@ -136,9 +151,9 @@ export function BoxVignette() {
         <BoxIcon className="text-muted-foreground size-4" aria-hidden="true" />
         <span className="font-medium">
           <span className="tabular-nums">
-            <Swap before="12 / 40" after="13 / 40" />
+            <TextSwap before="12 / 40" after="13 / 40" />
           </span>{" "}
-          in Binder
+          in Azir Order
         </span>
       </div>
 
@@ -148,7 +163,7 @@ export function BoxVignette() {
             Main Deck
           </span>
           <span className="ml-auto text-xs tabular-nums">
-            <Swap
+            <TextSwap
               before={<span className="text-muted-foreground">2/4</span>}
               after={<span className="text-green-600 dark:text-green-500">3/4</span>}
             />
@@ -166,6 +181,16 @@ export function BoxVignette() {
             thumb={<Thumb shortCode="OGN-213" rarity="common" />}
             name="Hidden Blade"
           />
+          <Row
+            leading={<span aria-hidden="true" className="size-4 shrink-0" />}
+            thumb={<Thumb shortCode="SFD-049" rarity="rare" domain="calm" />}
+            name="Aphelios, Exalted"
+            muted
+            trailing={<Detail>not owned</Detail>}
+          />
+          {/* The picker hangs off the last row, so it opens upward over the
+              list the way a real popover flips when the row is near the bottom.
+              Downward it would run past the frame's clipped edge. */}
           <div className="relative">
             <Row
               leading={<Swap before={<Tick checked={false} />} after={<Tick checked />} />}
@@ -178,13 +203,15 @@ export function BoxVignette() {
               name="Azir, Sovereign"
               details={<Detail className="motion-safe:animate-box-before">Showcase</Detail>}
               trailing={
-                <span className="text-muted-foreground motion-safe:animate-box-before flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-xs">
-                  <span>Binder</span>
+                <span className="text-muted-foreground flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-xs">
+                  {/* The shelf the row's own copy sits on, so a pull run reads
+                      as a list of places to visit. */}
+                  <Swap before={<span>Bulk box</span>} after={<span>Binder</span>} />
                   <span>+2</span>
                 </span>
               }
             />
-            <div className="bg-popover text-popover-foreground ring-foreground/10 motion-safe:animate-box-picker absolute top-full right-0 z-10 mt-1 w-72 rounded-lg text-sm opacity-0 shadow-md ring-1">
+            <div className="bg-popover text-popover-foreground ring-foreground/10 motion-safe:animate-box-picker absolute right-0 bottom-full z-10 mb-1 w-72 rounded-lg text-sm opacity-0 shadow-md ring-1">
               <p className="text-muted-foreground px-2.5 pt-2 text-xs">Take this copy instead</p>
               <div className="p-1">
                 <PickerGroupLabel>Binder</PickerGroupLabel>
@@ -194,13 +221,6 @@ export function BoxVignette() {
               </div>
             </div>
           </div>
-          <Row
-            leading={<span aria-hidden="true" className="size-4 shrink-0" />}
-            thumb={<Thumb shortCode="OGN-030" rarity="rare" domain="fury" />}
-            name="Jinx, Demolitionist"
-            muted
-            trailing={<Detail>not owned</Detail>}
-          />
         </div>
       </div>
     </ClipFrame>

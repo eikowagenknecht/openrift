@@ -2,7 +2,7 @@ import type { DeckZone } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 /**
- * Riftbound opening hand size. The mulligan lets you exchange up to
+ * Riftbound opening hand size. The mulligan lets you swap up to
  * {@link MULLIGAN_LIMIT} of these once.
  */
 export const OPENING_HAND_SIZE = 4;

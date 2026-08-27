@@ -20,7 +20,7 @@ import { DeckVignette, GroupsVignette, ListsVignette } from "./landing-vignettes
 export function FeatureShowcase({
   scanCards,
 }: {
-  /** The three sampled printings the scanner vignette scans (landing-summary payload). */
+  /** The sampled printings the scanner vignette logs (landing-summary payload). */
   scanCards: LandingThumbnailCard[];
 }) {
   const features = [

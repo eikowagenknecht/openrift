@@ -345,6 +345,8 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-scan-lock: scan-lock 6s ease-out infinite;
   --animate-scan-flight: scan-flight 6s cubic-bezier(0.34, 1.24, 0.64, 1) infinite;
   --animate-scan-tray-row: scan-tray-row 6s ease-out infinite;
+  --animate-scan-count-was: scan-count-was 6s ease-out infinite;
+  --animate-scan-count-now: scan-count-now 6s ease-out infinite;
   /* Marketing vignettes. Every before/after swap shares one 9s cycle so two
      sections in view never beat against each other, and every base state is
      the finished one — reduced motion drops the animation and keeps it. */
@@ -389,9 +391,6 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-tracker-tap: tracker-tap 7s ease-in-out infinite;
   --animate-tracker-before: tracker-before 7s ease-in-out infinite;
   --animate-tracker-after: tracker-after 7s ease-in-out infinite;
-  --animate-promos-off: promos-off 8s ease-in-out infinite;
-  --animate-promos-on: promos-on 8s ease-in-out infinite;
-  --animate-promos-dim: promos-dim 8s ease-in-out infinite;
   --animate-loans-press: loans-press 9s ease-in-out infinite;
   --animate-loans-out: loans-out 9s ease-in-out infinite;
   --animate-loans-in: loans-in 9s ease-in-out infinite;
@@ -405,6 +404,23 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-stage-push: stage-push 8s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
   --animate-stage-idle: stage-idle 8s ease-in-out infinite;
   --animate-stage-live: stage-live 8s ease-in-out infinite;
+  --animate-collect-fly-a: collect-fly-a 12s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
+  --animate-collect-fly-b: collect-fly-b 12s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
+  --animate-collect-drop-a: collect-drop-a 12s ease-out infinite;
+  --animate-collect-drop-b: collect-drop-b 12s ease-out infinite;
+  --animate-collect-until-a: collect-until-a 12s ease-out infinite;
+  --animate-collect-from-a: collect-from-a 12s ease-out infinite;
+  --animate-collect-until-b: collect-until-b 12s ease-out infinite;
+  --animate-collect-from-b: collect-from-b 12s ease-out infinite;
+  --animate-collect-between: collect-between 12s ease-out infinite;
+  /* Marketing lists vignette: the last copy lands on a row, its owned pill
+     fills to the wanted count, and the completed row drops off the list. */
+  --animate-lists-land: lists-land 10s ease-out infinite;
+  --animate-lists-owned-was: lists-owned-was 10s ease-out infinite;
+  --animate-lists-owned-now: lists-owned-now 10s ease-out infinite;
+  --animate-lists-row: lists-row 10s ease-in-out infinite;
+  --animate-lists-count-was: lists-count-was 10s ease-out infinite;
+  --animate-lists-count-now: lists-count-now 10s ease-out infinite;
 }
 
 @layer base {
@@ -490,8 +506,11 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
   }
 
-  /* The snapshot leaves the guide rect and lands on the tray's first row, and
-     like the real flight layer it is gone before it gets there. */
+  /* The snapshot leaves the guide rect and drops straight down into the tray,
+     shrinking to about a row's height on the way. planFlight aims at the
+     centre of the tray box, so the real card travels down the middle rather
+     than off to a corner, and like the real flight layer it is gone before it
+     gets there. */
   @keyframes scan-flight {
     0%,
     50% {
@@ -504,27 +523,57 @@ html.hide-scrollbar::-webkit-scrollbar {
       translate: -50% -50%;
       scale: 1;
     }
-    68% {
+    64% {
       opacity: 0.55;
+    }
+    70% {
+      opacity: 0;
     }
     76%,
     100% {
       opacity: 0;
-      translate: -170% 34%;
-      scale: 0.22;
+      translate: -50% 42%;
+      scale: 0.3;
     }
   }
 
+  /* The scanned row does not exist until the flight lands: it opens from zero
+     height and pushes the older rows down inside a tray of fixed height, so
+     the oldest one leaves at the bottom instead of the section resizing.
+     4.5rem is the row's own height, the h-14 art plus py-2. */
   @keyframes scan-tray-row {
     0%,
     70% {
+      height: 0;
       opacity: 0;
-      translate: 0 -8px;
+    }
+    80%,
+    100% {
+      height: 4.5rem;
+      opacity: 1;
+    }
+  }
+
+  /* The session totals count the scanned card only once it has landed. */
+  @keyframes scan-count-was {
+    0%,
+    70% {
+      opacity: 1;
+    }
+    80%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes scan-count-now {
+    0%,
+    70% {
+      opacity: 0;
     }
     80%,
     100% {
       opacity: 1;
-      translate: 0 0;
     }
   }
 
@@ -663,13 +712,15 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
   }
 
-  /* Deck box: pick a different copy of a card, then tick it into the box. */
+  /* Deck box: pick a different copy of a card, then tick it into the box. The
+     picker hangs above its row, so it rises out of the row rather than dropping
+     onto it. */
   @keyframes box-picker {
     0%,
     30% {
       opacity: 0;
       scale: 0.95;
-      translate: 0 -8px;
+      translate: 0 8px;
     }
     38%,
     52% {
@@ -681,7 +732,7 @@ html.hide-scrollbar::-webkit-scrollbar {
     100% {
       opacity: 0;
       scale: 0.95;
-      translate: 0 -8px;
+      translate: 0 8px;
     }
   }
 
@@ -722,7 +773,9 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
   }
 
-  /* Deck variants: the open deck moves from the lane-0 head to the fork. */
+  /* Deck variants: the open deck moves from the lane-0 head to the fork one
+     slot along and one lane down, so the offsets are the vignette's SLOT_WIDTH
+     and LANE_GAP. */
   @keyframes variant-slide {
     0%,
     38% {
@@ -730,7 +783,7 @@ html.hide-scrollbar::-webkit-scrollbar {
     }
     50%,
     88% {
-      translate: 0 52px;
+      translate: 132px 52px;
     }
     100% {
       translate: 0 0;
@@ -870,54 +923,6 @@ html.hide-scrollbar::-webkit-scrollbar {
       opacity: 0;
     }
     52%,
-    100% {
-      opacity: 1;
-    }
-  }
-
-  /* Promos: the owned-counts toggle reveals the count strips and dims what the
-     viewer does not own. Unlike the earlier vignettes these return to their
-     opening state before the loop wraps, so the cycle has no visible snap. */
-  @keyframes promos-off {
-    0%,
-    26% {
-      opacity: 1;
-    }
-    34%,
-    88% {
-      opacity: 0;
-    }
-    96%,
-    100% {
-      opacity: 1;
-    }
-  }
-
-  @keyframes promos-on {
-    0%,
-    26% {
-      opacity: 0;
-    }
-    34%,
-    88% {
-      opacity: 1;
-    }
-    96%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes promos-dim {
-    0%,
-    26% {
-      opacity: 1;
-    }
-    34%,
-    88% {
-      opacity: 0.5;
-    }
-    96%,
     100% {
       opacity: 1;
     }
@@ -1134,6 +1139,228 @@ html.hide-scrollbar::-webkit-scrollbar {
     97%,
     100% {
       opacity: 0;
+    }
+  }
+
+  /* Sorting the inbox. A drag ghost lifts off the inbox row and drops toward
+     the collection it is headed for, fading out before it lands — the target
+     row's drop ring and its count are what say it arrived, the same trick
+     scan-flight uses. The distances are the sidebar row pitch (2.25rem: a h-5
+     badge inside py-1.5, plus the list's gap-1), so a ghost aimed one row down
+     travels 2.25rem and one aimed four rows down travels 9rem. Because both
+     fade mid-flight, neither has to land on the pixel. */
+  @keyframes collect-fly-a {
+    0%,
+    8% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 1;
+    }
+    12% {
+      opacity: 1;
+      translate: 0 0.2rem;
+      scale: 1;
+    }
+    26% {
+      opacity: 0.45;
+    }
+    32%,
+    100% {
+      opacity: 0;
+      translate: 0 2.25rem;
+      scale: 0.82;
+    }
+  }
+
+  @keyframes collect-fly-b {
+    0%,
+    40% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 1;
+    }
+    44% {
+      opacity: 1;
+      translate: 0 0.2rem;
+      scale: 1;
+    }
+    58% {
+      opacity: 0.45;
+    }
+    64%,
+    100% {
+      opacity: 0;
+      translate: 0 9rem;
+      scale: 0.82;
+    }
+  }
+
+  /* DroppableCollection's hover ring, flashed on the row taking the drop. */
+  @keyframes collect-drop-a {
+    0%,
+    24% {
+      opacity: 0;
+    }
+    30%,
+    34% {
+      opacity: 1;
+    }
+    42%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes collect-drop-b {
+    0%,
+    56% {
+      opacity: 0;
+    }
+    62%,
+    66% {
+      opacity: 1;
+    }
+    74%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* The counts either side of each drop. The end state is the base one (every
+     card sorted, the inbox badge gone), so reduced motion and the server render
+     show a tidy sidebar rather than a half-finished sort. */
+  @keyframes collect-until-a {
+    0%,
+    30% {
+      opacity: 1;
+    }
+    33%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes collect-from-a {
+    0%,
+    30% {
+      opacity: 0;
+    }
+    33%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes collect-until-b {
+    0%,
+    62% {
+      opacity: 1;
+    }
+    65%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes collect-from-b {
+    0%,
+    62% {
+      opacity: 0;
+    }
+    65%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes collect-between {
+    0%,
+    30% {
+      opacity: 0;
+    }
+    33%,
+    62% {
+      opacity: 1;
+    }
+    65%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* The copy landing: DroppableCollection's hover ring, flashed on the row that
+     is about to complete. */
+  @keyframes lists-land {
+    0%,
+    38% {
+      opacity: 0;
+    }
+    44%,
+    56% {
+      opacity: 1;
+    }
+    64%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes lists-owned-was {
+    0%,
+    42% {
+      opacity: 1;
+    }
+    48%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes lists-owned-now {
+    0%,
+    42% {
+      opacity: 0;
+    }
+    48%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  /* Wanted count met, so the rule drops the row and the list closes up. The
+     resting state is the collapsed one: motion-reduce keeps the finished list. */
+  @keyframes lists-row {
+    0%,
+    64% {
+      height: 1.625rem;
+      opacity: 1;
+    }
+    76%,
+    100% {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes lists-count-was {
+    0%,
+    70% {
+      opacity: 1;
+    }
+    76%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes lists-count-now {
+    0%,
+    70% {
+      opacity: 0;
+    }
+    76%,
+    100% {
+      opacity: 1;
     }
   }
 }

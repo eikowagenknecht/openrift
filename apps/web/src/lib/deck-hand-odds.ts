@@ -84,11 +84,11 @@ export function buildLibraryHitChances(options: {
 }
 
 /**
- * What exchanging the selected cards could find: the groups the kept cards
+ * What mulliganing the selected cards could find: the groups the kept cards
  * miss, with the chance the replacements cover them.
  * @returns One row per missed group; empty when the kept cards cover them all.
  */
-export function buildExchangePreview(options: {
+export function buildMulliganPreview(options: {
   kept: readonly string[];
   library: readonly string[];
   cards: HandCardLookup;

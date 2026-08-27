@@ -89,9 +89,9 @@ describe("GET /api/v1/landing-summary", () => {
     expect(mockCatalogRepo.landingSummary).toHaveBeenCalledWith(36);
   });
 
-  it("asks for two promo sections of two printings each", async () => {
+  it("asks for one promo section of two printings", async () => {
     await app.request("/api/v1/landing-summary");
-    expect(mockCatalogRepo.landingPromoSections).toHaveBeenCalledWith(2, 2);
+    expect(mockCatalogRepo.landingPromoSections).toHaveBeenCalledWith(1, 2);
   });
 
   it("returns an empty thumbnailIds array when the catalog has none", async () => {

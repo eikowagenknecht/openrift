@@ -25,7 +25,11 @@ export function FeatureCard({
   vignette?: ReactNode;
 }) {
   return (
-    <Reveal className="h-full">
+    // min-w-0: the section below is size-contained while offscreen, so its
+    // intrinsic width (420px) is what a grid item reports as its automatic
+    // minimum. Left at `auto` that number, not the viewport, sizes the column
+    // and the card grid runs off the side of a phone.
+    <Reveal className="h-full min-w-0">
       <section
         id={id}
         className="flex h-full scroll-mt-12 flex-col items-start gap-3 [contain-intrinsic-size:auto_420px] [content-visibility:auto] max-xl:scroll-mt-28"

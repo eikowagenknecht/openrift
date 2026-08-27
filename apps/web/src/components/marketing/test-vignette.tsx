@@ -12,8 +12,10 @@ const DEAL_DELAYS = [0, 130, 260, 390];
 
 const HAND_CARD_CLASS = "aspect-card h-24 object-cover shadow-sm sm:h-28";
 
+// The same calm-and-order list the deck and box vignettes build, so no card
+// here is one an Emperor of the Sands legend would rule out.
 const ODDS_ROWS = [
-  { copies: 3, name: "Jinx, Rebel", hand: "28%", early: "46%" },
+  { copies: 3, name: "Soul Sword", hand: "28%", early: "46%" },
   { copies: 3, name: "Guards!", hand: "28%", early: "46%" },
   { copies: 2, name: "Hidden Blade", hand: "20%", early: "33%" },
 ];
@@ -26,9 +28,9 @@ function HandCard({
 }: {
   art?: string;
   delay: number;
-  /** Ringed while the exchange window is open. */
+  /** Ringed while the mulligan window is open. */
   selected?: boolean;
-  /** The replacement art this card exchanges into. */
+  /** The replacement art this card mulligans into. */
   swap?: string;
 }) {
   return (
@@ -78,7 +80,7 @@ function HandCard({
 /**
  * The deck test bench: four cards dealt flat and upright, the three controls
  * that never move between states, and the hypergeometric odds for every card in
- * the list. The animation deals the hand, then exchanges one card.
+ * the list. The animation deals the hand, then mulligans one card.
  */
 export function TestVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] }) {
   return (
@@ -90,8 +92,8 @@ export function TestVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] 
           <Kbd className="max-sm:hidden">N</Kbd>
         </span>
         <span aria-hidden="true" className={cn(buttonVariants({ variant: "outline" }))}>
-          Exchange
-          <Kbd className="max-sm:hidden">E</Kbd>
+          Mulligan
+          <Kbd className="max-sm:hidden">M</Kbd>
         </span>
         <span aria-hidden="true" className={cn(buttonVariants({ variant: "outline" }))}>
           Draw a card

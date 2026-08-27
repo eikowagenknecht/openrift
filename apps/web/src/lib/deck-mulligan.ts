@@ -33,10 +33,10 @@ export function applyMulligan<Card extends KeyedCard>(
   randomize: (cards: readonly Card[]) => Card[],
 ): { hand: Card[]; library: Card[] } {
   const kept = hand.filter((card) => !selectedKeys.has(card.key));
-  const exchanged = hand.filter((card) => selectedKeys.has(card.key));
-  const drawn = library.slice(0, exchanged.length);
+  const returned = hand.filter((card) => selectedKeys.has(card.key));
+  const drawn = library.slice(0, returned.length);
   return {
     hand: [...kept, ...drawn],
-    library: [...library.slice(exchanged.length), ...randomize(exchanged)],
+    library: [...library.slice(returned.length), ...randomize(returned)],
   };
 }

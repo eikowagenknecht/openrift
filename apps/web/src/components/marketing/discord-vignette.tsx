@@ -1,6 +1,7 @@
 import { siDiscord } from "simple-icons";
 
 import { Badge } from "@/components/ui/badge";
+import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 
 import { Vignette } from "./vignette-parts";
 
@@ -16,16 +17,26 @@ const PRICE_FIELDS = [
   { name: "CardTrader", value: "€3.65" },
 ] as const;
 
-// Two lines per holder: the name and count, then a Discord "-#" subtext line
-// of printings. A repeated public code drops off the second entry.
-const HOLDERS = [
-  { name: "Alice", quantity: "2×", detail: "OGN-202/298 2× (Binder)" },
-  {
-    name: "Mira",
-    quantity: "2×",
-    detail: "OGN-202/298 Standard 1× (Binder) · Alt Art 1× (Trades)",
-  },
-] as const;
+// Shown when the sample has no identity for its art — the payload is edge
+// cached for a day, so a bundle can be served a body that predates those
+// fields. The embed then names a card it cannot show, so the art drops out.
+const UNNAMED = { name: "Jinx, Rebel", shortCode: "OGN-202" };
+
+/**
+ * Two lines per holder: the name and count, then a Discord "-#" subtext line
+ * of printings. A repeated public code drops off the second entry.
+ * @returns The holders the tradelist field lists.
+ */
+function holders(shortCode: string) {
+  return [
+    { name: "Alice", quantity: "2×", detail: `${shortCode} 2× (Binder)` },
+    {
+      name: "Mira",
+      quantity: "2×",
+      detail: `${shortCode} Standard 1× (Binder) · Alt Art 1× (Trades)`,
+    },
+  ];
+}
 
 function EmbedField({ name, value }: { name: string; value: string }) {
   return (
@@ -41,9 +52,18 @@ function EmbedField({ name, value }: { name: string; value: string }) {
  * first, then the inline price fields, the card art large at the bottom, and
  * one `Details` button. There is no stat line on a card embed — the stats are
  * printed on the artwork the embed already shows.
+ *
+ * Every name in the reply comes off the sampled printing, so the embed names
+ * the card whose art it shows. Passing art without its identity would have the
+ * bot answer `[[Jinx, Rebel]]` with whatever the day's sample happened to be.
  * @returns The Discord vignette.
  */
-export function DiscordVignette({ thumbnailUrl }: { thumbnailUrl?: string }) {
+export function DiscordVignette({ card }: { card?: LandingThumbnailCard }) {
+  const named = card?.name ? card : undefined;
+  const name = named?.name ?? UNNAMED.name;
+  const shortCode = named?.shortCode ?? UNNAMED.shortCode;
+  const reference = `[[${name}]]`;
+  const footer = [shortCode, named?.variantLabel].filter(Boolean).join(" · ");
   return (
     <Vignette>
       <div className="flex gap-3">
@@ -53,7 +73,14 @@ export function DiscordVignette({ thumbnailUrl }: { thumbnailUrl?: string }) {
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-medium">riftcaptain</span>
           <p className="text-primary text-sm font-medium">
-            <span className="motion-safe:animate-vignette-type inline-block">[[Jinx, Rebel]]</span>
+            {/* One step per character, since the card the sample names sets
+                the length. */}
+            <span
+              className="motion-safe:animate-vignette-type inline-block"
+              style={{ animationTimingFunction: `steps(${reference.length}, end)` }}
+            >
+              {reference}
+            </span>
           </p>
         </div>
       </div>
@@ -72,10 +99,10 @@ export function DiscordVignette({ thumbnailUrl }: { thumbnailUrl?: string }) {
             className="bg-background/40 flex flex-col gap-2.5 rounded-md border-l-4 px-3 py-2.5"
             style={{ borderLeftColor: EMBED_ACCENT }}
           >
-            <span className="text-primary font-medium">Jinx, Rebel</span>
+            <span className="text-primary font-medium">{name}</span>
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold">On tradelists in Thursday store crew</span>
-              {HOLDERS.map((holder) => (
+              {holders(shortCode).map((holder) => (
                 <div key={holder.name} className="flex flex-col">
                   <span className="text-sm">
                     {holder.name} · {holder.quantity}
@@ -89,19 +116,18 @@ export function DiscordVignette({ thumbnailUrl }: { thumbnailUrl?: string }) {
                 <EmbedField key={field.name} name={field.name} value={field.value} />
               ))}
             </div>
-            {thumbnailUrl && (
+            {named && (
               // Cropped to the artwork: the embed image is the card the footer
-              // names, and the daily thumbnail sample cannot be asked for a
-              // specific one.
+              // names, and a whole card face would run taller than the reply.
               <img
-                src={thumbnailUrl}
+                src={named.url}
                 alt=""
                 loading="lazy"
                 draggable={false}
                 className="aspect-[16/9] w-full rounded object-cover object-top"
               />
             )}
-            <span className="text-muted-foreground text-xs">OGN-202/298 · Origins</span>
+            <span className="text-muted-foreground text-xs">{footer}</span>
           </div>
           <div className="bg-muted text-muted-foreground w-fit rounded px-3 py-1 text-xs font-medium">
             Details

@@ -8,8 +8,8 @@ import type { ApiContext } from "../../orpc/context.js";
 // Cap the scatter at desktop's full deck (36 cards) — mobile uses fewer.
 const THUMBNAIL_SAMPLE_SIZE = 36;
 
-// What the promos vignette renders: two channel sections of two printings each.
-const PROMO_SECTION_COUNT = 2;
+// What the promos vignette renders: one channel section of two printings.
+const PROMO_SECTION_COUNT = 1;
 const PROMO_PRINTINGS_PER_SECTION = 2;
 
 const os = implement(landingSummaryContract).$context<ApiContext>().use(requireUser);

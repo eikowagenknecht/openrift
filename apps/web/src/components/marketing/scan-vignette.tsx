@@ -38,10 +38,15 @@ function Brackets({ className, style }: { className: string; style?: CSSProperti
 // How many copies of each row's card the visitor is supposed to already own.
 // The card identities come from the live sample, but a collection to compare
 // them against is the one thing a signed-out visitor has none of.
-const OWNED_BEFORE = [0, 2, 0] as const;
+const OWNED_BEFORE = [0, 2, 0, 1] as const;
 
-// Stands in until the landing summary lands, so the tray keeps its height
-// instead of growing three rows under the visitor mid-scroll.
+// The tray shows three rows and clips the rest, so the row the scan adds on
+// top pushes the oldest one out of view instead of growing the section under
+// a visitor mid-scroll. 4.5rem a row, matching the scan-tray-row keyframes.
+const VISIBLE_ROWS = "h-54";
+
+// Stands in until the landing summary lands, so the tray shows its rows as
+// empty placeholders rather than an empty box.
 const PENDING_CARDS: LandingThumbnailCard[] = OWNED_BEFORE.map(() => ({
   url: "",
   name: "",
@@ -68,7 +73,7 @@ function TrayRow({
   return (
     <li
       className={cn(
-        "-mx-2 flex items-center gap-3 rounded-md px-2 py-2",
+        "-mx-2 flex items-center gap-3 overflow-hidden rounded-md px-2 py-2",
         arriving && "bg-muted/50 motion-safe:animate-scan-tray-row",
       )}
     >
@@ -117,20 +122,58 @@ function TrayRow({
   );
 }
 
+/** The tray's headline: how much of the session is logged so far. */
+function TrayTotals({
+  rows,
+  from,
+  className,
+}: {
+  rows: LandingThumbnailCard[];
+  /** First row to count, so the pre-scan state can leave out the arriving one. */
+  from: number;
+  className?: string;
+}) {
+  const counted = rows.slice(from);
+  const total = counted.reduce((sum, card) => sum + (card.price ?? 0), 0);
+  const newCount = counted.filter((_, index) => OWNED_BEFORE[from + index] === 0).length;
+  return (
+    <p className={cn("flex flex-wrap items-baseline gap-x-2 text-sm", className)}>
+      <span className="font-medium tabular-nums">{counted.length} cards</span>
+      {total > 0 && (
+        <>
+          <span className="text-muted-foreground" aria-hidden="true">
+            ·
+          </span>
+          <span className="tabular-nums">{formatPriceEur(total)}</span>
+        </>
+      )}
+      <span className="text-muted-foreground" aria-hidden="true">
+        ·
+      </span>
+      <span
+        className="text-emerald-600 dark:text-emerald-400"
+        title="Cards with no copy in your collection before this session"
+      >
+        {newCount} new
+      </span>
+    </p>
+  );
+}
+
 /**
  * The scanner: a card under the viewfinder, swept, locked, and flown into the
  * session tray as a row. That flight is the app's entire "added" feedback —
  * there is no success toast and no confirmation pill anywhere in the flow.
  *
- * The three cards are real printings from the landing sample, so the row the
- * scan produces names the card the viewfinder is holding.
+ * The cards are real printings from the landing sample, so the row the scan
+ * produces names the card the viewfinder is holding. Nothing of that card is on
+ * screen before it lands: the row opens from nothing and the totals count it
+ * only then.
  * @returns The scanner vignette.
  */
 export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
   const rows = cards.length > 0 ? cards : PENDING_CARDS;
   const scanned = rows[0];
-  const total = rows.reduce((sum, card) => sum + (card.price ?? 0), 0);
-  const newCount = rows.filter((_, index) => OWNED_BEFORE[index] === 0).length;
   return (
     <ClipFrame className="flex flex-col p-0">
       {/* Dark in both themes: the plate stands in for the camera picture,
@@ -168,27 +211,22 @@ export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
         )}
       </div>
       <div className="flex flex-col gap-1 px-4 py-3">
-        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-          <span className="font-medium tabular-nums">{rows.length} cards</span>
-          {total > 0 && (
-            <>
-              <span className="text-muted-foreground" aria-hidden="true">
-                ·
-              </span>
-              <span className="tabular-nums">{formatPriceEur(total)}</span>
-            </>
-          )}
-          <span className="text-muted-foreground" aria-hidden="true">
-            ·
-          </span>
-          <span
-            className="text-emerald-600 dark:text-emerald-400"
-            title="Cards with no copy in your collection before this session"
-          >
-            {newCount} new
-          </span>
-        </p>
-        <ul className="flex flex-col">
+        {/* Both states share one grid cell, like Swap: the landed one is the
+            base, so reduced motion and the server render show the finished
+            tray. */}
+        <div className="grid">
+          <TrayTotals
+            rows={rows}
+            from={1}
+            className="motion-safe:animate-scan-count-was col-start-1 row-start-1 opacity-0"
+          />
+          <TrayTotals
+            rows={rows}
+            from={0}
+            className="motion-safe:animate-scan-count-now col-start-1 row-start-1"
+          />
+        </div>
+        <ul className={cn("overflow-hidden", VISIBLE_ROWS)}>
           {rows.map((card, index) => (
             <TrayRow
               key={card.shortCode || `pending-${index}`}

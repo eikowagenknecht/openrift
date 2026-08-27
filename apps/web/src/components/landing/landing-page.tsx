@@ -149,8 +149,8 @@ export function LandingPage() {
         </span>
       </div>
       {/* The fan uses thumbnails 0-4; the scanner vignette takes the next
-          three so no card appears twice on screen. */}
-      <FeatureShowcase scanCards={thumbnailCards.slice(5, 8)} />
+          four so no card appears twice on screen. */}
+      <FeatureShowcase scanCards={thumbnailCards.slice(5, 9)} />
       <LandingClosing />
     </HeroBackground>
   );

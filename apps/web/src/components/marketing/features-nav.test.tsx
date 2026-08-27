@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { smoothAnchorClick, useActiveChapter } from "./features-nav";
 
-const CHAPTER_IDS = ["collect", "build", "together"];
+const CHAPTER_IDS = ["collect", "build", "play"];
 
 // jsdom's viewport, so the reading line sits at 256px.
 const VIEWPORT_HEIGHT = 768;
@@ -112,9 +112,9 @@ describe("useActiveChapter", () => {
     mountDividers(CHAPTER_IDS);
     const { result } = renderHook(() => useActiveChapter(CHAPTER_IDS));
 
-    scroll({ collect: -2000, build: -1000, together: ABOVE_LINE });
+    scroll({ collect: -2000, build: -1000, play: ABOVE_LINE });
 
-    expect(result.current).toBe("together");
+    expect(result.current).toBe("play");
   });
 
   it("ignores chapter ids that have no divider on the page", () => {

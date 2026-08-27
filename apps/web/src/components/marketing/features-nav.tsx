@@ -173,8 +173,11 @@ export function FeaturesRail({ chapters }: { chapters: FeatureChapter[] }) {
 }
 
 /**
- * Phone and tablet chapter chips, stuck below the page top bar. Sits at `z-20`
- * so the bar above keeps painting over it.
+ * Phone and tablet chapter chips, stuck below the page top bar. Sits at `z-20`,
+ * so the bar above keeps painting over it, which also hides the 1px the chips
+ * tuck up under it. The bar pins at `--header-height - 1px`. Without the same
+ * -1px here the two layers pin a pixel apart and scrolling content shows
+ * through the seam.
  * @returns The chip navigation.
  */
 export function FeaturesChipNav({ chapters }: { chapters: FeatureChapter[] }) {
@@ -200,7 +203,7 @@ export function FeaturesChipNav({ chapters }: { chapters: FeatureChapter[] }) {
   return (
     <div
       className={cn(STICKY_SURFACE, "sticky z-20 py-2 xl:hidden")}
-      style={{ top: `calc(var(--header-height) + ${topBarHeight}px)` }}
+      style={{ top: `calc(var(--header-height) - 1px + ${topBarHeight}px)` }}
     >
       <nav
         aria-label="Chapters"

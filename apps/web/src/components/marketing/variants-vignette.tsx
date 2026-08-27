@@ -1,14 +1,15 @@
-import { PlusIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";
 
 // Rail geometry from deck-variant-rail.tsx. The vertical rhythm is verbatim —
 // it is what makes the graph read as one. Only the slot narrows (168 → 132), so
-// two generations fit a marketing column without the rail's own scroller.
+// three generations fit a marketing column without the rail's own scroller.
+// SLOT_WIDTH and LANE_GAP are also the marker's travel, so `variant-slide` in
+// index.css carries them as literals.
 const SLOT_WIDTH = 132;
 const DOT_SIZE = 8;
 const LABEL_WIDTH = SLOT_WIDTH - 12;
@@ -16,17 +17,61 @@ const PAD_X = LABEL_WIDTH / 2;
 const LANE_TOP_Y = 28;
 const LANE_GAP = 52;
 const COUNTS_GAP_Y = 13;
-const RAIL_WIDTH = PAD_X + SLOT_WIDTH + PAD_X;
+const RAIL_WIDTH = PAD_X + SLOT_WIDTH * 2 + PAD_X;
 const RAIL_HEIGHT = LANE_TOP_Y + LANE_GAP + 24;
 
 const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
 const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
 const CUT_CHIP = "bg-destructive/10 text-destructive";
+const CHANGE_CHIP = "bg-amber-500/10 text-amber-700 dark:text-amber-500";
 
 const ROOT_X = PAD_X;
 const HEAD_X = PAD_X + SLOT_WIDTH;
+const FORK_X = PAD_X + SLOT_WIDTH * 2;
 const LANE_0_Y = LANE_TOP_Y;
 const LANE_1_Y = LANE_TOP_Y + LANE_GAP;
+
+type DiffKind = "add" | "cut" | "change";
+
+const CHIP_STYLES: Record<DiffKind, string> = {
+  add: ADD_CHIP,
+  cut: CUT_CHIP,
+  change: CHANGE_CHIP,
+};
+
+interface DiffEntry {
+  name: string;
+  kind: DiffKind;
+  /** The chip text the real diff renders: "+1", "−2", or "3→1". */
+  chip: string;
+}
+
+/**
+ * One step of the Azir family the deck vignette builds, card for card. The chip
+ * totals on the rail are these entries summed, and both count copies rather
+ * than rows, so a `2→3` change is worth one add.
+ *
+ * Every card is real and legal in the list: an Emperor of the Sands legend puts
+ * the deck in calm and order, so nothing from the other four domains can appear
+ * here. Rebuilding for Unleashed pulls in that set's cards; the budget branch
+ * off it fills the holes with commons and drops the two carrying the price.
+ *
+ * The counts also have to fit the deck vignette's energy curve, since both
+ * describe the same 39-card list. Nothing here claims three copies at an energy
+ * whose column is already spoken for.
+ */
+const UNLEASHED_DIFF: DiffEntry[] = [
+  { name: "Vi, Peacekeeper", kind: "add", chip: "+1" },
+  { name: "Soul Sword", kind: "change", chip: "2→3" },
+  { name: "Xin Zhao, Vigilant", kind: "cut", chip: "−1" },
+];
+
+const BUDGET_DIFF: DiffEntry[] = [
+  { name: "Trusty Ramhound", kind: "add", chip: "+3" },
+  { name: "Honest Broker", kind: "add", chip: "+1" },
+  { name: "Tactical Retreat", kind: "change", chip: "3→1" },
+  { name: "Poppy, Defender of the Meek", kind: "cut", chip: "−2" },
+];
 
 function NodeLabel({
   label,
@@ -114,75 +159,49 @@ function EdgeCounts({
   );
 }
 
-function VariantRow({
-  name,
-  lane,
-  fork,
-  last,
-  updated,
-  draft,
+/**
+ * The card-by-card body the numbers on a connector open, for one step. Both
+ * panels share a grid cell so the frame measures the taller of the two and the
+ * switch never reflows the column. Panel "a" is the one showing at rest, which
+ * is what reduced motion and the server render get.
+ */
+function StepDiff({
+  from,
+  to,
+  entries,
   emphasis,
 }: {
-  name: string;
-  lane: 0 | 1;
-  /** Draws the elbow that peels this row off lane 0. */
-  fork?: boolean;
-  last?: boolean;
-  updated: string;
-  draft?: boolean;
-  emphasis?: "a" | "b";
+  from: string;
+  to: string;
+  entries: DiffEntry[];
+  emphasis: "a" | "b";
 }) {
   return (
-    <li className="flex min-w-0 items-stretch gap-2">
-      <span aria-hidden="true" className="relative w-8 shrink-0">
-        {!fork && !last && <span className="bg-border absolute inset-y-0 left-[7px] w-px" />}
-        {!fork && last && <span className="bg-border absolute top-0 bottom-1/2 left-[7px] w-px" />}
-        {fork && (
-          <span
-            className="border-border absolute top-0 bottom-1/2 rounded-bl-sm border-b border-l"
-            style={{ left: 7, width: 14 }}
-          />
-        )}
-        <span
-          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: lane * 14 + 7 }}
-        >
-          <span className="bg-muted-foreground block size-2 rounded-full" />
-          <span
-            className={cn(
-              "bg-primary ring-primary/25 absolute inset-0 block size-2 rounded-full ring-4",
-              emphasis === undefined && "hidden",
-              emphasis === "a" && "motion-safe:animate-variant-a",
-              emphasis === "b" && "motion-safe:animate-variant-b opacity-0",
-            )}
-          />
+    <div
+      className={cn(
+        "col-start-1 row-start-1 flex min-w-0 flex-col gap-2",
+        emphasis === "a"
+          ? "motion-safe:animate-variant-a"
+          : "motion-safe:animate-variant-b opacity-0",
+      )}
+    >
+      <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+        <span className="truncate">{from}</span>
+        <ArrowRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{to}</span>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1 text-sm">
+        <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          Main Deck
         </span>
-      </span>
-      <span className="flex min-w-0 flex-1 items-center gap-1.5 py-1">
-        <span className="truncate font-medium">{name}</span>
-        {emphasis !== undefined && (
-          <span className="grid shrink-0">
-            <Badge
-              variant="subtle"
-              className={cn(
-                "col-start-1 row-start-1",
-                emphasis === "a"
-                  ? "motion-safe:animate-variant-a"
-                  : "motion-safe:animate-variant-b opacity-0",
-              )}
-            >
-              Current
-            </Badge>
-          </span>
-        )}
-        {draft && (
-          <Badge variant="warning" className="shrink-0">
-            Draft
-          </Badge>
-        )}
-        <span className="text-muted-foreground text-2xs ml-auto shrink-0">Updated {updated}</span>
-      </span>
-    </li>
+        {entries.map((entry) => (
+          <div key={entry.name} className="flex items-baseline gap-2">
+            <span className={cn(CHIP_BASE, CHIP_STYLES[entry.kind])}>{entry.chip}</span>
+            <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -190,95 +209,83 @@ function VariantRow({
  * The deck-variant rail: a branch of the same deck drawn as a commit graph,
  * with each hop's added and cut copies floating over its connector. The
  * animation opens the fork and hands it the current marker, the way switching
- * variants moves it on the real page.
+ * variants moves it on the real page, and the panel below follows to the step
+ * the marker lands on.
  */
 export function VariantsVignette() {
   return (
-    <ClipFrame className="flex flex-col gap-5 p-5">
-      <div className="flex items-start gap-2 px-1">
-        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="relative" style={{ width: RAIL_WIDTH, height: RAIL_HEIGHT }}>
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-              width={RAIL_WIDTH}
-              height={RAIL_HEIGHT}
-              viewBox={`0 0 ${RAIL_WIDTH} ${RAIL_HEIGHT}`}
-              fill="none"
-            >
-              <path
-                d={`M ${ROOT_X} ${LANE_0_Y} L ${HEAD_X} ${LANE_0_Y}`}
-                className="stroke-border"
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-              <path
-                d={`M ${ROOT_X} ${LANE_0_Y} C ${ROOT_X + SLOT_WIDTH / 2} ${LANE_0_Y} ${HEAD_X - SLOT_WIDTH / 2} ${LANE_1_Y} ${HEAD_X} ${LANE_1_Y}`}
-                className="stroke-border"
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-            </svg>
-
-            <EdgeCounts x={(ROOT_X + HEAD_X) / 2} y={LANE_0_Y} added={2} cut={1} />
-            <EdgeCounts x={(ROOT_X + HEAD_X) / 2} y={LANE_1_Y} added={4} cut={4} pulse />
-
-            <RailNode x={ROOT_X} y={LANE_0_Y}>
-              <NodeLabel label="Yasuo Aggro" />
-              <span className="bg-muted-foreground block size-2 rounded-full" />
-              <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
-                2026-08-11
-              </span>
-            </RailNode>
-
-            <RailNode x={HEAD_X} y={LANE_0_Y}>
-              <NodeLabel label="tuned" emphasis="a" />
-              <span className="bg-muted-foreground block size-2 rounded-full" />
-              <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
-                2026-08-15
-              </span>
-            </RailNode>
-
-            <RailNode x={HEAD_X} y={LANE_1_Y}>
-              <NodeLabel label="budget" draft emphasis="b" />
-              <span className="bg-muted-foreground block size-2 rounded-full" />
-              <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
-                2026-08-14
-              </span>
-            </RailNode>
-
-            <span
-              aria-hidden="true"
-              className="bg-primary ring-primary/25 motion-safe:animate-variant-slide absolute block size-2 rounded-full ring-4"
-              style={{ left: HEAD_X - DOT_SIZE / 2, top: LANE_0_Y - DOT_SIZE / 2 }}
+    <ClipFrame className="flex flex-col gap-4 p-5">
+      <div className="min-w-0 overflow-x-auto overflow-y-hidden px-1">
+        <div className="relative" style={{ width: RAIL_WIDTH, height: RAIL_HEIGHT }}>
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            width={RAIL_WIDTH}
+            height={RAIL_HEIGHT}
+            viewBox={`0 0 ${RAIL_WIDTH} ${RAIL_HEIGHT}`}
+            fill="none"
+          >
+            <path
+              d={`M ${ROOT_X} ${LANE_0_Y} L ${HEAD_X} ${LANE_0_Y}`}
+              className="stroke-border"
+              strokeWidth={2}
+              strokeLinecap="round"
             />
-          </div>
-        </div>
+            <path
+              d={`M ${HEAD_X} ${LANE_0_Y} C ${HEAD_X + SLOT_WIDTH / 2} ${LANE_0_Y} ${FORK_X - SLOT_WIDTH / 2} ${LANE_1_Y} ${FORK_X} ${LANE_1_Y}`}
+              className="stroke-border"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </svg>
 
-        <div className="flex shrink-0 items-center gap-1" style={{ height: LANE_TOP_Y * 2 }}>
+          <EdgeCounts x={(ROOT_X + HEAD_X) / 2} y={LANE_0_Y} added={2} cut={1} />
+          <EdgeCounts x={(HEAD_X + FORK_X) / 2} y={LANE_1_Y} added={4} cut={4} pulse />
+
+          <RailNode x={ROOT_X} y={LANE_0_Y}>
+            <NodeLabel label="Spiritforged" />
+            <span className="bg-muted-foreground block size-2 rounded-full" />
+            <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
+              2026-08-11
+            </span>
+          </RailNode>
+
+          <RailNode x={HEAD_X} y={LANE_0_Y}>
+            <NodeLabel label="Unleashed" emphasis="a" />
+            <span className="bg-muted-foreground block size-2 rounded-full" />
+            <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
+              2026-08-15
+            </span>
+          </RailNode>
+
+          <RailNode x={FORK_X} y={LANE_1_Y}>
+            <NodeLabel label="budget" draft emphasis="b" />
+            <span className="bg-muted-foreground block size-2 rounded-full" />
+            <span className="text-muted-foreground text-2xs absolute top-full left-1/2 mt-1 -translate-x-1/2 tabular-nums">
+              2026-08-16
+            </span>
+          </RailNode>
+
           <span
             aria-hidden="true"
-            className="border-border grid size-8 place-items-center rounded-full border border-dashed"
-          >
-            <PlusIcon className="size-4" />
-          </span>
-          <span className="text-muted-foreground px-2 text-sm font-medium">Variants</span>
+            className="bg-primary ring-primary/25 motion-safe:animate-variant-slide absolute block size-2 rounded-full ring-4"
+            style={{
+              left: HEAD_X - DOT_SIZE / 2,
+              top: LANE_0_Y - DOT_SIZE / 2,
+            }}
+          />
         </div>
       </div>
 
-      <ul className="border-border/60 flex flex-col border-t pt-2 text-sm">
-        <VariantRow name="Yasuo Aggro" lane={0} updated="2026-08-11" />
-        <VariantRow name="Yasuo Aggro (tuned)" lane={0} updated="2026-08-15" emphasis="a" />
-        <VariantRow
-          name="Yasuo Aggro (budget)"
-          lane={1}
-          fork
-          last
-          updated="2026-08-14"
-          draft
-          emphasis="b"
+      <div className="border-border/60 grid border-t pt-3">
+        <StepDiff
+          from="Azir (Spiritforged)"
+          to="Azir (Unleashed)"
+          entries={UNLEASHED_DIFF}
+          emphasis="a"
         />
-      </ul>
+        <StepDiff from="Azir (Unleashed)" to="Azir (budget)" entries={BUDGET_DIFF} emphasis="b" />
+      </div>
     </ClipFrame>
   );
 }
