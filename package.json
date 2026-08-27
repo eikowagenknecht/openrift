@@ -54,10 +54,10 @@
     "@commitlint/cli": "21.2.2",
     "@commitlint/config-conventional": "21.2.2",
     "@commitlint/types": "21.2.0",
-    "@tanstack/devtools-vite": "0.8.3",
-    "@tanstack/react-devtools": "0.10.10",
+    "@tanstack/devtools-vite": "0.8.5",
+    "@tanstack/react-devtools": "0.10.12",
     "@tanstack/react-pacer-devtools": "0.14.0",
-    "@tanstack/react-query-devtools": "5.101.4",
+    "@tanstack/react-query-devtools": "5.102.2",
     "@techstark/opencv-js": "5.0.0-release.1",
     "knip": "6.32.2",
     "lcov-result-merger": "6.0.0",
@@ -67,7 +67,7 @@
     "oxlint": "1.80.0",
     "sharp": "0.35.3",
     "syncpack": "15.3.3",
-    "turbo": "2.10.10"
+    "turbo": "2.10.11"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
