@@ -68,6 +68,7 @@ import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { useSession } from "@/lib/auth-session";
 import { resolveCardMetaPrinting } from "@/lib/card-meta";
@@ -80,6 +81,13 @@ import { useDisplayStore } from "@/stores/display-store";
 const PriceHistoryChart = lazy(async () => {
   const m = await import("@/components/cards/price-history-chart");
   return { default: m.PriceHistoryChart };
+});
+
+// Split out so the logged-out SEO path never downloads the copies collection
+// and its live-query machinery.
+const CardPageCollectionActions = lazy(async () => {
+  const m = await import("@/components/cards/card-page-collection-actions");
+  return { default: m.CardPageCollectionActions };
 });
 
 export const Route = createLazyFileRoute("/_app/cards_/$cardSlug")({
@@ -466,7 +474,7 @@ function CardDetailPage() {
           </CardPanel>
         </div>
 
-        <TrackCollectionNudge cardSlug={cardSlug} />
+        <CollectionSlot cardSlug={cardSlug} printing={selectedPrinting} siblings={printings} />
 
         {/* Printings grouped by language */}
         {printings.length > 0 &&
@@ -1095,16 +1103,49 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
 }
 
 /**
- * Signup pitch for logged-out visitors, most of whom land here from a search
- * engine and would otherwise never learn the site is more than a card
- * database. Renders nothing for signed-in users; the session is resolved
- * during SSR, so there is no flash either way.
+ * The record-this-card slot: a signup pitch when logged out, the owned count
+ * and its +/- when signed in.
+ *
+ * The panel's counts come from a live query, which has no server snapshot, so
+ * it mounts only after hydration. This is a full-SSR route, so the server keeps
+ * rendering what it rendered before (the nudge for anonymous visitors and
+ * crawlers, nothing for signed-in ones), and so does the first client render.
+ * @returns The nudge, the panel, or nothing while either is still resolving.
  */
-function TrackCollectionNudge({ cardSlug }: { cardSlug: string }) {
+function CollectionSlot({
+  cardSlug,
+  printing,
+  siblings,
+}: {
+  cardSlug: string;
+  printing: Printing;
+  siblings: readonly Printing[];
+}) {
   const { data: session, isPending } = useSession();
-  if (isPending || session?.user) {
+  const hydrated = useHydrated();
+  if (isPending) {
     return null;
   }
+  if (!session?.user) {
+    return <TrackCollectionNudge cardSlug={cardSlug} />;
+  }
+  if (!hydrated) {
+    return null;
+  }
+  return (
+    <Suspense fallback={null}>
+      <CardPageCollectionActions printing={printing} siblings={siblings} />
+    </Suspense>
+  );
+}
+
+/**
+ * Signup pitch for logged-out visitors, most of whom land here from a search
+ * engine and would otherwise never learn the site is more than a card
+ * database.
+ * @returns The signup pitch.
+ */
+function TrackCollectionNudge({ cardSlug }: { cardSlug: string }) {
   return (
     <CardPanel className="flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">

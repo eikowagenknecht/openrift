@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **Add a card from its own page** — every card page now shows how many copies you own and lets you add or remove one on the spot, with a breakdown of which collections they sit in.
 - fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
 - fix(Account): **Set a password on a social account** — the profile page now offers to add one to a Google or Discord account, instead of a change form that could never work.
 
