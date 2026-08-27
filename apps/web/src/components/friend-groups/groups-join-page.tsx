@@ -1,14 +1,11 @@
 import type { FriendGroupJoinPreviewResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { SignedOutAuthButtons } from "@/components/signed-out-cta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   friendGroupJoinPreviewQueryOptions,
   useJoinFriendGroupByCode,
@@ -17,7 +14,7 @@ import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 interface GroupsJoinPageProps {
-  initialCode?: string;
+  code?: string;
 }
 
 /**
@@ -70,10 +67,17 @@ function JoinAction({
   );
 }
 
-export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
-  const [code, setCode] = useState(initialCode ?? "");
+/**
+ * The landing page for an invite link. The code only ever arrives in the URL,
+ * so a missing one means a mangled link rather than a typo, and reads the same
+ * to the visitor as a code that has since been rotated away.
+ *
+ * @returns The join page.
+ */
+export function GroupsJoinPage({ code = "" }: GroupsJoinPageProps) {
   const userId = useUserId();
   const preview = useQuery(friendGroupJoinPreviewQueryOptions(code));
+  const deadLink = !code || preview.isError;
 
   return (
     <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6", PAGE_PADDING)}>
@@ -84,23 +88,14 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
         </p>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="fg-join-code">Invite code</Label>
-        <Input
-          id="fg-join-code"
-          value={code}
-          onChange={(e) => setCode(e.target.value.trim())}
-          placeholder="XXXXXXXXXXXX"
-          // oxlint-disable-next-line jsx-a11y/no-autofocus -- the join page exists for one purpose: paste a code. Auto-focus is the right behavior.
-          autoFocus
-        />
-      </div>
-
-      {preview.isError ? (
+      {deadLink ? (
         <Card>
           <CardHeader>
-            <CardTitle>No group found</CardTitle>
-            <CardDescription>That code doesn&apos;t match any group.</CardDescription>
+            <CardTitle>This invite link doesn&apos;t work</CardTitle>
+            <CardDescription>
+              It may have been cut short on its way to you, or the group&apos;s admins may have
+              rotated it since. Ask them for a fresh link.
+            </CardDescription>
           </CardHeader>
         </Card>
       ) : preview.data ? (
@@ -120,7 +115,13 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
         </Card>
       ) : null}
 
-      {userId ? (
+      {deadLink ? (
+        <div className="flex justify-start">
+          <Button variant="ghost" render={<Link to="/groups" />}>
+            Back to groups
+          </Button>
+        </div>
+      ) : userId ? (
         <JoinAction code={code} preview={preview.data} previewLoading={preview.isLoading} />
       ) : preview.data ? (
         <div className="flex flex-col gap-3">

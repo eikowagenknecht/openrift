@@ -8,5 +8,5 @@ export const Route = createLazyFileRoute("/_app/groups_/join")({
 
 function JoinRoute() {
   const { code } = Route.useSearch();
-  return <GroupsJoinPage initialCode={code} />;
+  return <GroupsJoinPage code={code} />;
 }

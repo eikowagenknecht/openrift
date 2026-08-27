@@ -9,7 +9,6 @@ import { Heading } from "@/components/heading";
 import {
   PageTopBar,
   PageTopBarActions,
-  PageTopBarButton,
   PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
@@ -143,12 +142,12 @@ function CreateGroupDialog({
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="flex flex-col gap-0.5">
-                <Label htmlFor="fg-code">Join code</Label>
+                <Label htmlFor="fg-invite">Invite link</Label>
                 <span className="text-muted-foreground text-xs">
-                  Admins can share an invite link.
+                  Admins get a link and QR code to invite people.
                 </span>
               </div>
-              <Switch id="fg-code" checked={generateCode} onCheckedChange={setGenerateCode} />
+              <Switch id="fg-invite" checked={generateCode} onCheckedChange={setGenerateCode} />
             </div>
           </div>
           <DialogFooter>
@@ -199,7 +198,6 @@ export function GroupsIndexPage() {
         <PageTopBar>
           <PageTopBarTitle>Groups</PageTopBarTitle>
           <PageTopBarActions>
-            <PageTopBarButton render={<Link to="/groups/join" />}>Join with code</PageTopBarButton>
             <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
               <PlusIcon className="size-4" />
               New group

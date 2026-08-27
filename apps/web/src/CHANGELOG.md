@@ -12,6 +12,7 @@
 
 ### Other
 
+- feat(Groups): **Invite by link or QR** — the typed join code is gone, so inviting someone is handing them one link or letting them scan the code on your screen.
 - feat(Collection): **A way in from a shared list** — a shared collection, wishlist, or tradelist now offers a visitor without an account the chance to start their own.
 - feat(Groups): **Group address fills itself in** — creating a group derives its web address from the name, and says up front when the address is too short or reserved.
 - feat(App): **Navigation on the front page** — the front page now carries the app header, so cards, decks and the menu are one click away.

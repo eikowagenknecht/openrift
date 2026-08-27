@@ -273,14 +273,14 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
         <div className="flex flex-col gap-2">
           <Label className="flex items-center gap-2">
             <KeyIcon className="size-4" />
-            Join code
+            Invite link
           </Label>
           {data.group.code ? (
-            <JoinCodePanel slug={slug} code={data.group.code} />
+            <InviteLinkPanel slug={slug} code={data.group.code} />
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-sm">
-                Code-based joining is disabled, so nobody can join this group right now.
+                Invites are turned off, so nobody can join this group right now.
               </span>
               <Button
                 size="sm"
@@ -288,7 +288,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
                 onClick={() => enableCode.mutate(slug)}
                 disabled={enableCode.isPending}
               >
-                Enable code
+                Enable invites
               </Button>
             </div>
           )}
@@ -299,13 +299,12 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
 }
 
 /**
- * The join code and its share link, for a group that still has code-based
- * joining switched on. Both forms are here on purpose: people paste the bare
- * code into a Discord message, and the link is what they hand to someone who
- * would otherwise have to find the group first.
- * @returns The join-code panel.
+ * The invite link for a group that still accepts new members. The bare code is
+ * deliberately not shown: nothing anywhere accepts a typed one, so displaying
+ * it only invites someone to read out twelve case-sensitive characters.
+ * @returns The invite-link panel.
  */
-function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
+function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
   const rotateCode = useRotateFriendGroupCode();
   const disableCode = useDisableFriendGroupCode();
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
@@ -315,14 +314,10 @@ function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {/* The code is the headline of this block, not a field label: people read
-          it aloud and type it into Discord, so it gets the section tier. */}
-      <code className="bg-muted rounded px-2 py-1 text-center font-mono text-lg font-semibold tracking-widest">
-        {code}
-      </code>
       <ShareLinkRow
         url={joinUrl}
-        label="Group join link"
+        label="Group invite link"
+        defaultQrOpen
         actions={
           <>
             <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
@@ -335,9 +330,9 @@ function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
                   }}
                 >
                   <DialogHeader>
-                    <DialogTitle>Rotate the join code?</DialogTitle>
+                    <DialogTitle>Rotate the invite link?</DialogTitle>
                     <DialogDescription>
-                      The current code stops working immediately.
+                      The current link stops working immediately.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
@@ -361,9 +356,9 @@ function JoinCodePanel({ slug, code }: { slug: string; code: string }) {
                   }}
                 >
                   <DialogHeader>
-                    <DialogTitle>Disable code-based joining?</DialogTitle>
+                    <DialogTitle>Turn off invites?</DialogTitle>
                     <DialogDescription>
-                      The current code stops working immediately.
+                      The current link stops working immediately.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>

@@ -270,7 +270,7 @@ export function MembersTradedAction({ slug }: { slug: string }) {
 
 /**
  * The Members page's top-bar action: an Invite button for admins/owners that
- * copies the join link (or routes to Manage when the group has no join code).
+ * copies the invite link (or routes to Manage when the group has invites off).
  * Hidden for everyone else. Reads the (already-loaded) group from the cache so
  * the route can pass it as a plain element.
  * @returns The invite action, or null.
@@ -298,7 +298,7 @@ export function MembersInviteAction({ slug }: { slug: string }) {
         if (await copy(joinUrl)) {
           toast.success("Invite link copied. Send it to whoever you want to join");
         } else {
-          // No clipboard (denied, insecure context): hand the code over on the
+          // No clipboard (denied, insecure context): hand the link over on the
           // Manage page instead, where it is on screen and selectable.
           void navigate({ to: "/groups/$slug/manage", params: { slug } });
         }

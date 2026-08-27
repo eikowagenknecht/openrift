@@ -5,7 +5,6 @@ import {
   HandshakeIcon,
   HeartIcon,
   KeyIcon,
-  MailIcon,
   ShieldIcon,
   UserIcon,
   UsersIcon,
@@ -80,7 +79,7 @@ export default function GroupsArticle() {
             with the person who created the group until they hand it off.
           </DefinitionRow>
           <DefinitionRow icon={<ShieldIcon className="size-3.5" />} label="Admin">
-            Approve or deny join requests, rotate or disable the join code, edit the group&apos;s
+            Approve or deny join requests, rotate or turn off the invite link, edit the group&apos;s
             name and description, promote members, and remove members.
           </DefinitionRow>
           <DefinitionRow icon={<UserIcon className="size-3.5" />} label="Member">
@@ -110,8 +109,8 @@ export default function GroupsArticle() {
           />
           <StepRow
             step={3}
-            title="Decide on a join code"
-            description="Leave the join code on if you want to share an invite link. Turn it off if you only want to invite people one at a time by email. You can rotate or disable it later either way."
+            title="Decide on an invite link"
+            description="Leave invites on to get a link and QR code you can hand out. Turn them off to close the group to newcomers. You can rotate or turn off the link later either way."
           />
         </div>
       </section>
@@ -120,19 +119,19 @@ export default function GroupsArticle() {
       <section>
         <Heading className="mb-2">Joining a group</Heading>
         <p className="text-muted-foreground">
-          There are two ways to end up in someone else&apos;s group. Both require an admin to let
-          you in.
+          You join someone else&apos;s group through their invite link, and an admin has to let you
+          in.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FeatureCard
             icon={<KeyIcon className="size-4" />}
-            title="Invite code"
-            description="Paste a code on /groups/join. The page previews the group before you commit. Submitting sends a join request to its admins. You're a member once one of them approves."
+            title="Invite link"
+            description="Open the link an admin sent you, or scan their QR code. The page previews the group before you commit, and sends a join request to its admins."
           />
           <FeatureCard
-            icon={<MailIcon className="size-4" />}
-            title="Email invite"
-            description="An admin sends an invite to your account email. It shows up under 'Pending invites' on the Groups page with Accept and Decline buttons."
+            icon={<ShieldIcon className="size-4" />}
+            title="Approval"
+            description="Your request waits under 'Awaiting approval' on the Groups page. You're a member once an admin approves it, and you can cancel it before then."
           />
         </div>
       </section>
