@@ -68,10 +68,7 @@ if (!root) {
   process.exit(1);
 }
 
-const overrides = Object.entries(root.overrides ?? {}).filter(
-  // Keys starting with "//" are the comment lines that document each override.
-  ([name]) => !name.startsWith("//"),
-);
+const overrides = Object.entries(root.overrides ?? {});
 
 /** Every workspace package.json, keyed by its path relative to the repo root. */
 const workspaces = new Map<string, PackageJson>();
@@ -150,7 +147,7 @@ if (problems.length > 0) {
   for (const problem of problems) {
     console.error(`  ${problem}\n`);
   }
-  console.error("Rationale for each override is in the `//` comments in package.json.");
+  console.error("Rationale for each override is in the `//overrides` block in package.json.");
   process.exit(1);
 }
 
