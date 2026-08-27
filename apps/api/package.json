@@ -35,7 +35,7 @@
     "hono": "4.13.2",
     "hono-rate-limiter": "0.5.3",
     "kysely": "0.29.5",
-    "kysely-postgres-js": "3.0.0",
+    "kysely-postgres-js": "4.0.0",
     "nodemailer": "9.0.5",
     "onnxruntime-node": "1.27.0",
     "postgres": "3.4.9",
