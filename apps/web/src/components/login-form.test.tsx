@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const shellRenders = { card: 0, social: 0 };
+const navigate = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -29,7 +30,7 @@ vi.mock("@tanstack/react-router", () => ({
       </a>
     );
   },
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigate,
 }));
 
 vi.mock("@/lib/auth-client", () => ({
@@ -55,12 +56,13 @@ vi.mock("@/components/auth-form-shell", () => ({
 }));
 
 const { LoginForm } = await import("./login-form");
+const { signIn, authClient } = await import("@/lib/auth-client");
 
-function renderLoginForm() {
+function renderLoginForm(props?: { redirectTo?: string }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <LoginForm emailPlaceholder="summoner@example.com" />
+      <LoginForm emailPlaceholder="summoner@example.com" redirectTo={props?.redirectTo} />
     </QueryClientProvider>,
   );
 }
@@ -78,10 +80,16 @@ function activeEmailInput() {
   return active;
 }
 
+const sendVerificationOtp = vi.mocked(authClient.emailOtp.sendVerificationOtp);
+const signInEmail = vi.mocked(signIn.email);
+
 describe("LoginForm", () => {
   beforeEach(() => {
     shellRenders.card = 0;
     shellRenders.social = 0;
+    navigate.mockReset();
+    sendVerificationOtp.mockReset();
+    signInEmail.mockReset();
   });
 
   it("does not re-render the surrounding card while typing an email", async () => {
@@ -131,6 +139,71 @@ describe("LoginForm", () => {
     await user.click(screen.getByRole("tab", { name: "Password" }));
 
     expect(activeEmailInput()).toHaveValue("ekko@example.com");
+  });
+
+  it("stays on the email step when the sign-in code could not be sent", async () => {
+    const user = userEvent.setup();
+    sendVerificationOtp.mockResolvedValue({ error: { status: 429 } });
+    renderLoginForm();
+
+    await user.click(screen.getByRole("tab", { name: "Email code" }));
+    await user.type(activeEmailInput(), "jinx@example.com");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    expect(screen.getByText(/Too many requests/u)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send code" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Verify" })).not.toBeInTheDocument();
+  });
+
+  it("advances to the code step once the sign-in code is sent", async () => {
+    const user = userEvent.setup();
+    sendVerificationOtp.mockResolvedValue({ error: null });
+    renderLoginForm();
+
+    await user.click(screen.getByRole("tab", { name: "Email code" }));
+    await user.type(activeEmailInput(), "jinx@example.com");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    expect(screen.getByRole("button", { name: "Verify" })).toBeInTheDocument();
+  });
+
+  it("sends a verification code and routes to the page that can take it", async () => {
+    const user = userEvent.setup();
+    signInEmail.mockResolvedValue({ error: { code: "EMAIL_NOT_VERIFIED" } });
+    sendVerificationOtp.mockResolvedValue({ error: null });
+    renderLoginForm({ redirectTo: "/collections" });
+
+    await user.type(activeEmailInput(), "vi@example.com");
+    await user.type(screen.getByLabelText("Password", { selector: "input" }), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: "Login" }));
+
+    await user.click(screen.getByRole("button", { name: "Send a verification code" }));
+
+    // /login has no OTP field, so sending in place left the user with a code
+    // and nowhere to type it.
+    expect(sendVerificationOtp).toHaveBeenCalledWith({
+      email: "vi@example.com",
+      type: "email-verification",
+    });
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/verify-email",
+      search: { email: "vi@example.com", redirect: "/collections" },
+    });
+  });
+
+  it("reports a failed verification send instead of navigating", async () => {
+    const user = userEvent.setup();
+    signInEmail.mockResolvedValue({ error: { code: "EMAIL_NOT_VERIFIED" } });
+    sendVerificationOtp.mockResolvedValue({ error: { status: 429 } });
+    renderLoginForm();
+
+    await user.type(activeEmailInput(), "vi@example.com");
+    await user.type(screen.getByLabelText("Password", { selector: "input" }), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Send a verification code" }));
+
+    expect(screen.getByText(/Too many requests/u)).toBeInTheDocument();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("does not re-render the card while typing in the email-code tab", async () => {

@@ -2,8 +2,15 @@
 
 ## 2026-08-27
 
+### Highlights
+
+- fix(Account): **Password reset sends the code** — "Forgot your password?" now asks you to send the code first, so you are no longer waiting on an email that nothing had sent.
+- fix(Account): **Set a password on a social account** — the profile page now offers to add one to a Google or Discord account, instead of a change form that could never work.
+
 ### Other
 
+- fix(Account): **Honest codes on the sign-in page** — asking for an email code no longer moves to the code box when the send failed, and the verification resend now takes you where the code can be typed.
+- fix(Account): **Working resend when changing your email** — resend now really sends another code, and both it and the first send tell you when they fail.
 - fix(App): **Cleaner email subject lines** — notification and sign-in emails no longer repeat "OpenRift" at the end of every subject, since the sender already says it.
 
 ## 2026-08-26

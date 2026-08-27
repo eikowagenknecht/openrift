@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
-import { otpErrorMessage, setServerError } from "@/lib/auth-errors";
+import { otpErrorMessage, requestOtpErrorMessage, setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 const displayNameSchema = z.object({
@@ -220,11 +220,15 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     }
     setError("");
     setLoading(true);
-    await authClient.emailOtp.sendVerificationOtp({
+    const result = await authClient.emailOtp.sendVerificationOtp({
       email: currentEmail,
       type: "email-verification",
     });
     setLoading(false);
+    if (result.error) {
+      setError(requestOtpErrorMessage(result.error));
+      return;
+    }
     setStep("verify-current");
   }
 
@@ -269,21 +273,20 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     setOtp("");
   }
 
+  // Only the current-email step can resend. The new address's code is minted by
+  // `requestEmailChange`, which needs a fresh current-email OTP, and that one
+  // was consumed getting here, so that step offers Cancel instead.
   async function handleResend() {
     setResending(true);
     setError("");
-    if (step === "verify-current") {
-      await authClient.emailOtp.sendVerificationOtp({
-        email: currentEmail,
-        type: "email-verification",
-      });
-    } else if (step === "verify-new") {
-      await authClient.emailOtp.requestEmailChange({
-        newEmail: newEmail.trim(),
-        otp: "",
-      });
-    }
+    const result = await authClient.emailOtp.sendVerificationOtp({
+      email: currentEmail,
+      type: "email-verification",
+    });
     setResending(false);
+    if (result.error) {
+      setError(requestOtpErrorMessage(result.error));
+    }
   }
 
   return (

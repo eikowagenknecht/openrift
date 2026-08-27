@@ -1,4 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -23,7 +25,79 @@ const passwordSchema = z
 
 type PasswordValues = z.infer<typeof passwordSchema>;
 
-export function PasswordSection() {
+/**
+ * @returns The change-password card, or the set-a-password card for an account
+ * that only signs in through a social provider.
+ */
+export function PasswordSection({ currentEmail }: { currentEmail: string }) {
+  const { data: accounts, isPending } = useQuery({
+    queryKey: ["auth", "accounts"],
+    queryFn: async () => {
+      const { data, error } = await authClient.listAccounts();
+      if (error) {
+        throw new Error(error.message ?? "Failed to load connected accounts.");
+      }
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isPending) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-sm">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // A social-only account has no credential row, so `changePassword` can only
+  // ever fail on it. A failed query is not evidence either way, so that falls
+  // through to the change form rather than claiming there is no password.
+  if (accounts && !accounts.some((account) => account.providerId === "credential")) {
+    return <SetPasswordCard currentEmail={currentEmail} />;
+  }
+
+  return <ChangePasswordCard />;
+}
+
+/**
+ * @returns The card offered to an account with no credential provider linked.
+ */
+function SetPasswordCard({ currentEmail }: { currentEmail: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Password</CardTitle>
+        <CardDescription>
+          You sign in with a connected account, so this account has no password yet.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup>
+          <FieldDescription>
+            Set one and you can sign in with your email address as well. We&apos;ll send a code to{" "}
+            <strong>{currentEmail}</strong> to confirm it&apos;s you.
+          </FieldDescription>
+          <Field>
+            <Button render={<Link to="/reset-password" search={{ email: currentEmail }} />}>
+              Set a password
+            </Button>
+          </Field>
+        </FieldGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * @returns The card for an account that already has a password.
+ */
+function ChangePasswordCard() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const form = useForm<PasswordValues>({

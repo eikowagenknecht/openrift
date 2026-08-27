@@ -133,7 +133,7 @@ function ProfilePage() {
         </SettingsGroup>
 
         <SettingsGroup id="security" title="Security">
-          <PasswordSection />
+          <PasswordSection currentEmail={user.email} />
         </SettingsGroup>
 
         <SettingsGroup id="danger-zone" title="Danger Zone">

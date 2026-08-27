@@ -20,7 +20,9 @@ function ResetPasswordPage() {
   const { emailPlaceholder } = Route.useLoaderData();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<"email" | "code">(initialEmail ? "code" : "email");
+  // A prefilled email does not skip to the code step: that step says a code was
+  // sent, which only `handleSendCode` can make true.
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState(initialEmail);
   const [emailError, setEmailError] = useState("");
 

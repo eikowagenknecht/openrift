@@ -13,7 +13,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient, signIn } from "@/lib/auth-client";
-import { otpErrorMessage, setServerError } from "@/lib/auth-errors";
+import { otpErrorMessage, requestOtpErrorMessage, setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 const signInSchema = z.object({
@@ -139,12 +139,21 @@ function PasswordSignIn({
   }
 
   async function handleResend() {
+    const email = form.getValues("email").trim();
     setResending(true);
-    await authClient.sendVerificationEmail({
-      email: form.getValues("email"),
-      callbackURL: "/",
+    // `sendVerificationEmail` would mail a 6-digit code (the emailOTP plugin
+    // runs with `overrideDefaultEmailVerification`), and /login has no field to
+    // type one into. Send the code and hand the user to the page that does.
+    const result = await authClient.emailOtp.sendVerificationOtp({
+      email,
+      type: "email-verification",
     });
     setResending(false);
+    if (result.error) {
+      form.setError("root", { message: requestOtpErrorMessage(result.error) });
+      return;
+    }
+    void navigate({ to: "/verify-email", search: { email, redirect: redirectTo } });
   }
 
   return (
@@ -161,7 +170,7 @@ function PasswordSignIn({
               disabled={resending}
               onClick={handleResend}
             >
-              {resending ? "Sending..." : "Resend verification email"}
+              {resending ? "Sending..." : "Send a verification code"}
             </Button>
           )}
         </RootFormError>
@@ -250,8 +259,12 @@ function OtpSignIn({
     }
     setEmailError("");
     setLoading(true);
-    await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+    const result = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
     setLoading(false);
+    if (result.error) {
+      setEmailError(requestOtpErrorMessage(result.error));
+      return;
+    }
     setStep("code");
   }
 

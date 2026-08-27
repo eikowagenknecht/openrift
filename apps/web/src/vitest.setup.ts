@@ -37,6 +37,19 @@ if (
   (globalThis.Element.prototype as { getAnimations?: () => unknown[] }).getAnimations = () => [];
 }
 
+// jsdom doesn't implement Document.elementFromPoint — input-otp (the six-digit
+// code field) polls it on a timer and throws as an uncaught exception otherwise.
+interface PartialElementFromPoint {
+  elementFromPoint?: (x: number, y: number) => Element | null;
+}
+
+if (
+  globalThis.Document &&
+  (globalThis.Document.prototype as PartialElementFromPoint).elementFromPoint === undefined
+) {
+  (globalThis.Document.prototype as PartialElementFromPoint).elementFromPoint = () => null;
+}
+
 afterEach(() => {
   cleanup();
 });
