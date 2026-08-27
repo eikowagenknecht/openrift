@@ -57,6 +57,8 @@ interface DraftEntry {
   lastAppliedSeq: number;
   /** While true, mutation handlers skip scheduling a save (used during hydration). */
   suppressSave: boolean;
+  /** True once server state has been loaded into the draft for this deck. */
+  hydrated: boolean;
 }
 
 interface CacheEntry {
@@ -188,6 +190,7 @@ function createEntry(queryClient: QueryClient, userId: string, deckId: string): 
     saveSeq: 0,
     lastAppliedSeq: 0,
     suppressSave: false,
+    hydrated: false,
   };
 
   entry.collection = createCollection(
@@ -332,9 +335,45 @@ export function hydrateDeckDraft(
 
   setStatus(entry, { isSaving: false, isDirty: false, error: null });
 
+  if (!entry.hydrated) {
+    entry.hydrated = true;
+    notify(entry);
+  }
+
   // Server state just replaced the draft (deck load, import-replace), so any
   // undo history recorded against the previous contents is meaningless.
   useDeckUndoStore.getState().reset(deckId);
+}
+
+/**
+ * Whether the draft for `deckId` has been seeded from server state. The editor
+ * holds its content back until it has, so a deck never paints empty on the way
+ * in. Subscribed rather than mirrored into component state: the hydration
+ * happens outside React, in {@link hydrateDeckDraft}.
+ *
+ * @returns True once the draft carries the loaded deck.
+ */
+export function useDeckDraftHydrated(
+  queryClient: QueryClient,
+  userId: string,
+  deckId: string,
+): boolean {
+  return useSyncExternalStore(
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- external-store subscribe signature
+    (listener) => {
+      const entry = getOrCreateEntry(queryClient, userId, deckId);
+      entry.subscribers.add(listener);
+      return () => entry.subscribers.delete(listener);
+    },
+    () => {
+      const cached = cache.get(queryClient);
+      if (!cached || cached.userId !== userId) {
+        return false;
+      }
+      return cached.drafts.get(deckId)?.hydrated ?? false;
+    },
+    () => false,
+  );
 }
 
 /**

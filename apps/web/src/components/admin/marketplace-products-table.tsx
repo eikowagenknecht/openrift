@@ -64,6 +64,10 @@ const MARKETPLACE_CONFIGS: Record<AdminMarketplaceName, SourceMappingConfig> = {
 
 const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000;
 
+function isStaleRecord(recordedAt: Date): boolean {
+  return Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
+}
+
 export interface MarketplaceHandlers {
   onIgnoreVariant: (externalId: number, finish: string, language: string | null) => void;
   onIgnoreProduct: (externalId: number) => void;
@@ -538,7 +542,7 @@ function MarketplaceProductRow({
   );
 
   const recordedAt = new Date(product.recordedAt);
-  const isStale = Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
+  const isStale = isStaleRecord(recordedAt);
 
   const priceCents = product.marketCents ?? product.lowCents;
   const priceDisplay =

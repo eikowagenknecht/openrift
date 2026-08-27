@@ -9,7 +9,7 @@ import {
   MinusIcon,
   PlusIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
@@ -231,11 +231,13 @@ export function VariantLocationsPopover({
 
   // Reset the sub-page highlight after leaving it so the next visit lands on the
   // first candidate rather than the previously-picked collection.
-  useEffect(() => {
+  const [wasAddPage, setWasAddPage] = useState(isAddPage);
+  if (wasAddPage !== isAddPage) {
+    setWasAddPage(isAddPage);
     if (!isAddPage) {
       setAddHighlightedId("");
     }
-  }, [isAddPage]);
+  }
 
   if (isAddPage && addGroup) {
     return (

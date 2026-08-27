@@ -12,7 +12,7 @@ import {
   LoaderIcon,
   RefreshCwIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useAdminJobRuns } from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
 import { getPageItems } from "@/lib/paginate";
@@ -113,7 +114,6 @@ export function JobRunsPage() {
   const [statusFilter, setStatusFilter] = useState(ANY);
   const [activityFilter, setActivityFilter] = useState(ANY);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [lastUpdated, setLastUpdated] = useState("");
 
   const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns({
     page,
@@ -123,11 +123,11 @@ export function JobRunsPage() {
     activity: filterValue(JOB_RUN_ACTIVITIES, activityFilter),
   });
 
-  useEffect(() => {
-    if (dataUpdatedAt > 0) {
-      setLastUpdated(formatDayTimeLocal(new Date(dataUpdatedAt)));
-    }
-  }, [dataUpdatedAt]);
+  // The stamp is on the viewer's clock, so it stays blank until hydration —
+  // formatting it during the SSR pass would mismatch every non-UTC visitor.
+  const hydrated = useHydrated();
+  const lastUpdated =
+    hydrated && dataUpdatedAt > 0 ? formatDayTimeLocal(new Date(dataUpdatedAt)) : "";
 
   // A filter change reframes the whole result set, so jump back to page 1.
   function changeFilter(setFilter: (value: string) => void, value: string) {

@@ -1,6 +1,6 @@
 import type { TournamentDeckSubmission, TournamentPlayMode } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { SettingsGroup } from "@/components/layout/settings-group";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useFriendGroups } from "@/hooks/use-friend-groups";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useMyOrganizations } from "@/hooks/use-organizations";
 import { useCreateTournament } from "@/hooks/use-tournaments";
 import type { TournamentRoundsChoice } from "@/lib/tournament-display";
@@ -77,13 +78,16 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const [closeTime, setCloseTime] = useState("");
   const [lockMode, setLockMode] = useState<"on_submit" | "at_deadline">("at_deadline");
 
-  // Prefill the start to the current local time on mount (client-only so the
-  // SSR clock never mismatches the hydrated one).
-  useEffect(() => {
+  // Prefill the start to the current local time, once, on the first hydrated
+  // render — reading the clock during the SSR pass would mismatch the client's.
+  const hydrated = useHydrated();
+  const [startPrefilled, setStartPrefilled] = useState(false);
+  if (hydrated && !startPrefilled) {
     const nowLocal = splitUtcToLocalDateTime(new Date().toISOString());
+    setStartPrefilled(true);
     setStartDate(nowLocal.date);
     setStartTime(nowLocal.time);
-  }, []);
+  }
 
   const hostItems = [
     { value: "user", label: "You (personal)" },

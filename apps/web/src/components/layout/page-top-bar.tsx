@@ -50,9 +50,15 @@ export function usePageTopBarHeight(): number {
  */
 export function useMeasuredHeight(el: HTMLElement | null) {
   const [height, setHeight] = useState(0);
-  useLayoutEffect(() => {
+  const [measuredEl, setMeasuredEl] = useState(el);
+  if (measuredEl !== el) {
+    setMeasuredEl(el);
     if (!el) {
       setHeight(0);
+    }
+  }
+  useLayoutEffect(() => {
+    if (!el) {
       return;
     }
     const observer = new ResizeObserver(([entry]) => {

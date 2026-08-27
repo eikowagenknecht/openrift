@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
@@ -192,9 +193,9 @@ export function usePreferencesSync(enabled: boolean) {
   // order, and someone signing back in inside the query's gcTime is handed
   // their cached payload in the very render the identity flips, so the
   // re-baseline has to land before that payload is judged against it.
-  useEffect(() => {
+  useScopeEffect(userId, () => {
     lastSynced.current = serializePrefs();
-  }, [userId]);
+  });
 
   // Hydrate stores when server data arrives.
   useEffect(() => {

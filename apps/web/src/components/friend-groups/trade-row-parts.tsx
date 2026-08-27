@@ -15,6 +15,10 @@ import { useDisplayStore } from "@/stores/display-store";
 /** A pending trade slips into the danger zone this long before it auto-expires. */
 const EXPIRY_URGENT_MS = 24 * 60 * 60 * 1000;
 
+function expiresWithinUrgentWindow(expiresAt: string): boolean {
+  return new Date(expiresAt).getTime() - Date.now() < EXPIRY_URGENT_MS;
+}
+
 /**
  * The round direction badge shared by match rows and trade rows: green arrow in
  * when the card comes to you, amber arrow out when it goes to them.
@@ -283,7 +287,7 @@ export function TradeExpiry({
   if (label === "") {
     return null;
   }
-  const urgent = new Date(expiresAt).getTime() - Date.now() < EXPIRY_URGENT_MS;
+  const urgent = expiresWithinUrgentWindow(expiresAt);
   return (
     <span
       className={cn(

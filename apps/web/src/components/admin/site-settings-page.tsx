@@ -1,6 +1,6 @@
 import type { SiteSettingResponse } from "@openrift/shared";
 import { PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type {
@@ -342,9 +342,13 @@ function AnalyticsExclusionPanel() {
   const hydrated = useHydrated();
   const [excluded, setExcluded] = useState(false);
 
-  useEffect(() => {
+  // The switch renders on the server too, so the stored value can only be read
+  // once the client has hydrated.
+  const [readStored, setReadStored] = useState(false);
+  if (hydrated && !readStored) {
+    setReadStored(true);
     setExcluded(localStorage.getItem(UMAMI_DISABLED_KEY) === "1");
-  }, []);
+  }
 
   function handleToggle(next: boolean) {
     if (next) {

@@ -2,13 +2,14 @@ import type { RuleKind } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronsDownUpIcon, ChevronsUpDownIcon, FileClockIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { SearchInput } from "@/components/filters/search-input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
 import { useRulesShowChangesStore } from "@/stores/rules-show-changes-store";
@@ -139,26 +140,34 @@ export function RulesSearchBar({ trailing }: { trailing: string }) {
   );
 
   // Arriving with ?q= (a shared link, the command palette's rules row) seeds
-  // both the store and the input. Typing cannot loop back through here: by the
-  // time the URL carries the new query the store already holds it, so the
-  // guard is false and the draft is left alone mid-keystroke.
-  useEffect(() => {
-    if (typeof urlQuery === "string" && urlQuery !== useRulesSearchStore.getState().query) {
+  // both the input and the store. Typing cannot loop back through here: by the
+  // time the URL carries the new query the draft and the store already hold
+  // it, so both guards are false and the input is left alone mid-keystroke.
+  const [seenUrlQuery, setSeenUrlQuery] = useState(urlQuery);
+  if (seenUrlQuery !== urlQuery) {
+    setSeenUrlQuery(urlQuery);
+    if (typeof urlQuery === "string" && urlQuery !== draft) {
       setDraft(urlQuery);
-      setQuery(urlQuery);
     }
-  }, [urlQuery, setQuery]);
+  }
+  useScopeEffect(urlQuery, (query) => {
+    if (typeof query === "string" && query !== useRulesSearchStore.getState().query) {
+      setQuery(query);
+    }
+  });
 
   // Programmatic resets (e.g. an anchor click that needs to reveal a hidden
   // rule) bump resetSignal — clear the local draft so the input mirrors the
   // store. We deliberately gate on resetSignal rather than the query value:
   // during normal typing the store is briefly empty until the debounce fires,
   // which would otherwise wipe the draft mid-keystroke.
-  useEffect(() => {
+  const [handledSignal, setHandledSignal] = useState(resetSignal);
+  if (handledSignal !== resetSignal) {
+    setHandledSignal(resetSignal);
     if (resetSignal > 0) {
       setDraft("");
     }
-  }, [resetSignal]);
+  }
 
   return (
     <SearchInput

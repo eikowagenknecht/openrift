@@ -17,9 +17,9 @@ import {
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { CreateListDialog, listKindIcon } from "@/components/list/create-list-dialog";
+import { CreateListDialog, LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { DroppableSidebarList } from "@/components/list/droppable-sidebar-list";
 import { ListRowMenu } from "@/components/list/list-row-menu";
 import {
@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useCollections, useReorderCollections } from "@/hooks/use-collections";
 import { useLists, useReorderLists } from "@/hooks/use-lists";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { deckBoxLabel } from "@/lib/deck-box-label";
 import { asDragData } from "@/lib/dnd-data";
 import { splitSidebarRows } from "@/lib/sidebar-visibility";
@@ -234,7 +235,7 @@ function ListIntentGroup({
     >
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
         {rows.map((list) => {
-          const KindIcon = listKindIcon(list.kind);
+          const KindIcon = LIST_KIND_ICON[list.kind];
           const dragData: SidebarReorderListDragData = {
             type: "sidebar-reorder-list",
             listId: list.id,
@@ -665,11 +666,12 @@ export function CollectionSidebar() {
   const { data: collections } = useCollections();
   const { data: lists } = useLists();
 
-  useEffect(() => {
+  // Any navigation closes the mobile sidebar, so the route is the scope.
+  useScopeEffect(`${currentPath} ${collectionId ?? ""} ${listId ?? ""}`, () => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [currentPath, collectionId, listId, isMobile, setOpenMobile]);
+  });
 
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
   const [createInGroup, setCreateInGroup] = useState<{ slug: string; name: string } | null>(null);

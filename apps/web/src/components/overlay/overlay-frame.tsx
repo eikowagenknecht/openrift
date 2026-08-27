@@ -267,20 +267,19 @@ export function OverlayFrame({
       return;
     }
     const image = printing.images[0];
-    if (!image) {
-      // No art to wait for — the text fallback renders immediately.
-      setDisplayed(printing);
-      return;
-    }
     let cancelled = false;
-    const loader = new Image();
-    loader.src = imageUrl(image.imageId, "full");
+    // One swap point for both paths: art waits for the decode, a card with no
+    // art (the text fallback) goes straight through.
     const swapWhenDecoded = async () => {
-      try {
-        await loader.decode();
-      } catch {
-        // decode() rejects for undecodable images; the swap still has to
-        // happen, or the overlay wedges on the previous card.
+      if (image) {
+        const loader = new Image();
+        loader.src = imageUrl(image.imageId, "full");
+        try {
+          await loader.decode();
+        } catch {
+          // decode() rejects for undecodable images; the swap still has to
+          // happen, or the overlay wedges on the previous card.
+        }
       }
       if (!cancelled) {
         setDisplayed(printing);
@@ -293,25 +292,32 @@ export function OverlayFrame({
   }, [printing, displayed]);
 
   const pushedBoard = payload.board;
-  useEffect(() => {
-    if (pushedBoard === null || board === undefined) {
-      // Nothing up, or the caller hasn't resolved it yet — either way the last
-      // board stays put and slides out.
-      return;
+  // Null until the first pass, so a frame that mounts with a board already up
+  // paints it rather than waiting for the next push.
+  const [shownFor, setShownFor] = useState<{
+    pushedBoard: typeof pushedBoard;
+    board: typeof board;
+  } | null>(null);
+  if (shownFor === null || shownFor.pushedBoard !== pushedBoard || shownFor.board !== board) {
+    setShownFor({ pushedBoard, board });
+    // A null push, or a caller that hasn't resolved the scene yet, leaves the
+    // last board put so it slides out.
+    if (pushedBoard !== null && board !== undefined) {
+      setShownBoard({ title: pushedBoard.title, scene: board });
     }
-    setShownBoard({ title: pushedBoard.title, scene: board });
-  }, [pushedBoard, board]);
+  }
 
   const pushedPrintingId = payload.printingId;
-  useEffect(() => {
-    if (pushedPrintingId === null) {
-      return;
-    }
+  const [clearedFor, setClearedFor] = useState<{ id: typeof pushedPrintingId } | null>(null);
+  if (clearedFor === null || clearedFor.id !== pushedPrintingId) {
+    setClearedFor({ id: pushedPrintingId });
     // A card push clears the board server-side, so the retained one has to go
     // as well. Without this, clearing that card afterwards would slide a board
     // the creator already moved on from back into the scene.
-    setShownBoard(undefined);
-  }, [pushedPrintingId]);
+    if (pushedPrintingId !== null) {
+      setShownBoard(undefined);
+    }
+  }
 
   // Which of the two the frame is painting. The board wins while one is
   // retained, since a card push is what drops the retained board.

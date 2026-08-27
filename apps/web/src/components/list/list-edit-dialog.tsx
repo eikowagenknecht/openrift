@@ -1,5 +1,5 @@
 import type { Currency, ListIntent, TradePreference } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { TradePreferenceEditor } from "@/components/trade-preferences/trade-preference-editor";
 import { Button } from "@/components/ui/button";
@@ -53,13 +53,27 @@ export function ListEditDialog({
   // Reset draft state whenever the dialog opens — covers the user opening
   // it for a different list (or after a prior cancel) and finding stale
   // values from the last edit.
-  useEffect(() => {
+  const [seed, setSeed] = useState({
+    open,
+    currentName,
+    currentTradeDefaults,
+    currentCurrency,
+    defaultCurrency,
+  });
+  if (
+    seed.open !== open ||
+    seed.currentName !== currentName ||
+    seed.currentTradeDefaults !== currentTradeDefaults ||
+    seed.currentCurrency !== currentCurrency ||
+    seed.defaultCurrency !== defaultCurrency
+  ) {
+    setSeed({ open, currentName, currentTradeDefaults, currentCurrency, defaultCurrency });
     if (open) {
       setName(currentName);
       setTradeDefaults(currentTradeDefaults);
       setCurrency(currentCurrency ?? defaultCurrency);
     }
-  }, [open, currentName, currentTradeDefaults, currentCurrency, defaultCurrency]);
+  }
 
   const absoluteNeedsAmount =
     tradeDefaults.pricePref === "absolute" && tradeDefaults.priceAbsoluteCents === null;

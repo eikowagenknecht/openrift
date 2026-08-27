@@ -116,7 +116,8 @@ export function aggregateBorrowedLendersByCard(
       continue;
     }
     const name = loanCounterpartyLabel(loan);
-    const names = (lenders[loan.cardId] ??= []);
+    lenders[loan.cardId] ??= [];
+    const names = lenders[loan.cardId];
     if (!names.includes(name)) {
       names.push(name);
     }

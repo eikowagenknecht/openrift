@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FilterPanelContentProps } from "@/components/filters/filter-panel-content";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -285,7 +286,7 @@ function RangeFilterSection({
   const pendingCommitRef = useRef<[number, number] | null>(null);
 
   // Drop the local mirror only when the URL has caught up AND no further input is queued — otherwise a keystroke arriving during commit propagation would briefly snap the thumb back to the previously-committed value.
-  useEffect(() => {
+  useScopeEffect(`${urlMin} ${urlMax} ${dragValue?.join(",") ?? ""}`, () => {
     if (
       dragValue !== null &&
       !isDraggingRef.current &&
@@ -294,7 +295,7 @@ function RangeFilterSection({
     ) {
       setDragValue(null);
     }
-  }, [urlMin, urlMax, dragValue]);
+  });
 
   useEffect(
     () => () => {

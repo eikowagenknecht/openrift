@@ -14,7 +14,7 @@ import {
   MessageSquareIcon,
   PlusIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
@@ -180,10 +180,10 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     .map(([name]) => name);
 
   // --- State ---
-  const [activeCard, setActiveCard] = useState<Record<string, unknown>>({});
-  // Once the admin edits the Active column the pre-seed stops re-applying and the
-  // "Pre-filled" marker clears. From then on the selection is their explicit choice.
-  const [touched, setTouched] = useState(false);
+  // Null until the admin edits the Active column. Until then the column is the
+  // pre-seed, derived below; from the first edit on it is their explicit
+  // choice and the pre-seed stops applying.
+  const [edits, setEdits] = useState<Record<string, unknown> | null>(null);
   const [newCardId, setNewCardId] = useState<string | null>(null);
   const [linkCardId, setLinkCardId] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
@@ -195,18 +195,18 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     mode: "reject" | "reply";
   } | null>(null);
 
-  // Pre-seed the Active column from the highest-priority source so the admin
-  // reviews a filled-in candidate instead of an empty grid. Re-runs while
-  // untouched so it converges once the enum/provider lists finish loading.
-  useEffect(() => {
-    if (touched || !unmatchedData) {
-      return;
-    }
-    const seed = buildPreseededActiveCard(unmatchedData.sources, newCardFields, providerSettings);
-    // Bail out when the seed is unchanged so an unstable dep reference can't spin
-    // the effect into a render loop (React skips the update when we return `prev`).
-    setActiveCard((prev) => (JSON.stringify(prev) === JSON.stringify(seed) ? prev : seed));
-  }, [touched, unmatchedData, newCardFields, providerSettings]);
+  // The Active column starts as a pre-seed from the highest-priority source, so
+  // the admin reviews a filled-in candidate instead of an empty grid. Derived
+  // rather than stored, so it converges on its own as the enum and provider
+  // lists finish loading.
+  const preseeded = unmatchedData
+    ? buildPreseededActiveCard(unmatchedData.sources, newCardFields, providerSettings)
+    : {};
+  const activeCard = edits ?? preseeded;
+  /** Applies one edit, taking over from the pre-seed on the first one. */
+  const editActiveCard = (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => {
+    setEdits((prev) => updater(prev ?? preseeded));
+  };
 
   // --- Loading state ---
   if (isLoading || !unmatchedData) {
@@ -226,7 +226,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const newModeCardId = newCardId ?? defaultCardId;
   const hasRequiredFields = hasRequiredActiveFields(activeCard);
   // Active values came from the pre-seed and the admin hasn't touched them yet.
-  const isPreseeded = !touched && Object.keys(activeCard).length > 0;
+  const isPreseeded = edits === null && Object.keys(activeCard).length > 0;
 
   const {
     labels: sourceLabels,
@@ -314,12 +314,10 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
             ) : null
           }
           onCellClick={(field, value) => {
-            setTouched(true);
-            setActiveCard((prev) => ({ ...prev, [field]: value }));
+            editActiveCard((prev) => ({ ...prev, [field]: value }));
           }}
           onActiveChange={(field, value) => {
-            setTouched(true);
-            setActiveCard((prev) =>
+            editActiveCard((prev) =>
               value === null || value === undefined
                 ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== field))
                 : { ...prev, [field]: value },
@@ -332,10 +330,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           columnActions={
             <NewCardColumnActions
               newCardFields={newCardFields}
-              setActiveCard={(updater) => {
-                setTouched(true);
-                setActiveCard(updater);
-              }}
+              setActiveCard={editActiveCard}
               onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
               onResolveSubmission={(candidateCardId, mode) =>
                 setResolution({ candidateCardId, mode })

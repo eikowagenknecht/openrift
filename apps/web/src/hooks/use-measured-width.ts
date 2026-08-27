@@ -9,9 +9,15 @@ import { useLayoutEffect, useState } from "react";
  */
 export function useMeasuredWidth(el: HTMLElement | null): number {
   const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
+  const [measuredEl, setMeasuredEl] = useState(el);
+  if (measuredEl !== el) {
+    setMeasuredEl(el);
     if (!el) {
       setWidth(0);
+    }
+  }
+  useLayoutEffect(() => {
+    if (!el) {
       return;
     }
     const observer = new ResizeObserver(([entry]) => {

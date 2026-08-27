@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,11 +40,13 @@ export function EditCollectionDialog({
   // controlled `open` prop. The dialog stays mounted across collection
   // navigations, so useState seeds would otherwise stick to whichever
   // collection was current when the component first mounted.
-  useEffect(() => {
+  const [seed, setSeed] = useState({ open, currentName });
+  if (seed.open !== open || seed.currentName !== currentName) {
+    setSeed({ open, currentName });
     if (open) {
       setName(currentName);
     }
-  }, [open, currentName]);
+  }
 
   const handleSubmit = () => {
     const trimmed = name.trim();

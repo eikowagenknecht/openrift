@@ -23,7 +23,7 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -539,7 +539,7 @@ function ShareableListRow({
 }) {
   const isShared = row.sharedAt !== null;
   const IntentIcon = INTENT_ICON[row.listIntent];
-  const KindIcon = listKindIcon(row.listKind);
+  const KindIcon = LIST_KIND_ICON[row.listKind];
   const kindNoun =
     row.entryCount === 1 ? KIND_NOUN[row.listKind].singular : KIND_NOUN[row.listKind].plural;
   return (

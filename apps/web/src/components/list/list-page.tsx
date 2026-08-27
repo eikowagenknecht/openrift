@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
 import { emptyStateCopy, listCopyIds } from "@/components/list/list-entries";
@@ -84,7 +84,7 @@ export function ListPage({ listId }: ListPageProps) {
   const updateEntry = useUpdateListEntry();
   const updateList = useUpdateList();
 
-  const KindIcon = listKindIcon(data.list.kind);
+  const KindIcon = LIST_KIND_ICON[data.list.kind];
   const empty = emptyStateCopy(data.list.kind);
 
   // Per-session library toggle: when on, the grid renders the whole catalog

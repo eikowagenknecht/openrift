@@ -384,9 +384,13 @@ export function CreateListDialog({
 }
 
 /**
- * Compact preview of a list's kind for sidebar rows and badges.
- * @returns The {icon, label} pair for a given kind.
+ * Glyph for a list's kind, for sidebar rows and badges. A record rather than a
+ * lookup function so call sites index it: the React Compiler cannot prove a
+ * function returns a stable component and treats the result as created during
+ * render.
  */
-export function listKindIcon(kind: ListKind): IconComponent {
-  return KIND_OPTIONS[kind].icon;
-}
+export const LIST_KIND_ICON: Record<ListKind, IconComponent> = {
+  card: KIND_OPTIONS.card.icon,
+  printing: KIND_OPTIONS.printing.icon,
+  copy: KIND_OPTIONS.copy.icon,
+};

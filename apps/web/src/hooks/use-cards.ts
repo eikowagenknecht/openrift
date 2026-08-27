@@ -1,7 +1,7 @@
 import { sortByLanguageAndCanonicalRank } from "@openrift/shared";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
 
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import type { UseCardsResult } from "@/lib/catalog-query";
 import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { useDisplayStore } from "@/stores/display-store";
@@ -25,7 +25,7 @@ export function useCards(): UseCardsResult {
   // paint. Re-runs whenever the catalog entry changes (a version refetch gets
   // a fresh tail); loadCatalogTail itself no-ops when nothing is missing.
   // requestIdleCallback is missing on iOS Safari, hence the timeout fallback.
-  useEffect(() => {
+  useScopeEffect(data, () => {
     const start = () => void loadCatalogTail(queryClient);
     if (typeof requestIdleCallback === "function") {
       const handle = requestIdleCallback(start, { timeout: 5000 });
@@ -33,7 +33,7 @@ export function useCards(): UseCardsResult {
     }
     const timer = setTimeout(start, 1500);
     return () => clearTimeout(timer);
-  }, [data, queryClient]);
+  });
 
   if (userLanguages.length === 0) {
     return data;

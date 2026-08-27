@@ -1,6 +1,8 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 
+import { useScopeEffect } from "@/hooks/use-scope-effect";
+
 import type { VRow } from "./card-grid-types";
 
 interface UseStickyHeaderParams {
@@ -41,9 +43,12 @@ export function useStickyHeader({
     stickyOffsetRef.current = stickyOffset;
   });
 
-  useEffect(() => {
+  if (!multipleGroups && activeHeaderRow !== null) {
+    setActiveHeaderRow(null);
+  }
+
+  useScopeEffect(`${multipleGroups} ${scrollMargin}`, () => {
     if (!multipleGroups) {
-      setActiveHeaderRow(null);
       return;
     }
 
@@ -110,7 +115,7 @@ export function useStickyHeader({
       cancelAnimationFrame(frame);
       globalThis.removeEventListener("scroll", update);
     };
-  }, [multipleGroups, scrollMargin]);
+  });
 
   return activeHeaderRow;
 }

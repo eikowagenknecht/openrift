@@ -4,7 +4,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { ListValueLabel } from "@/components/list/list-value-label";
 import { useHydrated } from "@/hooks/use-hydrated";
 
@@ -65,7 +65,7 @@ export function ListHeader({
 }: ListHeaderProps) {
   const hydrated = useHydrated();
   const IntentIcon = INTENT_ICON[list.intent];
-  const KindIcon = listKindIcon(list.kind);
+  const KindIcon = LIST_KIND_ICON[list.kind];
   const count = entries.length;
   const kindNoun = count === 1 ? KIND_NOUN[list.kind].singular : KIND_NOUN[list.kind].plural;
 

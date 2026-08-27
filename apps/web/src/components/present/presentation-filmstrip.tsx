@@ -23,12 +23,16 @@ export function PresentationFilmstrip({
   index: number;
   onSelect: (index: number) => void;
 }) {
-  const activeRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Keep the current card in view as the queue is walked. A long queue
   // otherwise scrolls off and the strip stops telling you where you are.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    itemRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
   }, [index]);
 
   return (
@@ -43,7 +47,9 @@ export function PresentationFilmstrip({
           return (
             <Pressable
               key={item.id}
-              ref={isCurrent ? activeRef : undefined}
+              ref={(node) => {
+                itemRefs.current[itemIndex] = node;
+              }}
               onClick={() => onSelect(itemIndex)}
               aria-label={`Show ${legendDisplayName(item.printing.card)}`}
               aria-current={isCurrent ? "true" : undefined}

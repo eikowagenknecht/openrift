@@ -42,7 +42,7 @@ const GROUP_ZONES: Record<string, DeckZone> = {
 };
 
 /**
- * Normalizes a group heading like "  battlefields (3)" to its bare label.
+ * Normalizes a group heading like "\u00A0 battlefields (3)" to its bare label.
  * @returns The lowercased label with the count suffix removed.
  */
 function normalizeGroupLabel(text: string): string {

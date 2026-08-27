@@ -266,9 +266,11 @@ export function useCollectionGridData({
   // grid briefly flashes grayed out on every +/- click.
   const stalePending = deferredSortedCards !== sortedCards;
   const [isGridStale, setIsGridStale] = useState(false);
+  if (!stalePending && isGridStale) {
+    setIsGridStale(false);
+  }
   useEffect(() => {
     if (!stalePending) {
-      setIsGridStale(false);
       return;
     }
     const timer = globalThis.setTimeout(() => setIsGridStale(true), 150);

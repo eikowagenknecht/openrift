@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -84,12 +84,14 @@ export function DeckVariantCreateForm({
   // One form instance per surface outlives any single use of it, so the fields
   // are re-seeded on every open rather than at mount: the deck (and so the
   // default name) may have changed since the last time it was shown.
-  useEffect(() => {
+  const [seed, setSeed] = useState({ open, deckId, deckName });
+  if (seed.open !== open || seed.deckId !== deckId || seed.deckName !== deckName) {
+    setSeed({ open, deckId, deckName });
     if (open) {
       setSourceId(deckId);
       setDraft(defaultVariantName(deckName));
     }
-  }, [open, deckId, deckName]);
+  }
 
   const handleSourceChange = (value: string | null) => {
     const nextId = value ?? deckId;

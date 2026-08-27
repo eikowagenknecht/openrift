@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { TagMultiSelect } from "@/components/deck/format-tag-multi-select";
 import { Button } from "@/components/ui/button";
@@ -47,11 +47,13 @@ export function EditFormatTagsDialog({ deckId, format, currentSlugs, open, onOpe
   // outside click); when the parent flips `open=true` via the Edit button
   // it doesn't get called. Driving the reset off the `open` prop directly
   // means unsaved edits never leak across opens.
-  useEffect(() => {
+  const [seed, setSeed] = useState({ open, currentSlugs });
+  if (seed.open !== open || seed.currentSlugs !== currentSlugs) {
+    setSeed({ open, currentSlugs });
     if (open) {
       setSelected(currentSlugs);
     }
-  }, [open, currentSlugs]);
+  }
 
   if (!config) {
     return null;

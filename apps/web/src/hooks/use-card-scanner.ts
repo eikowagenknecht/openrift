@@ -19,7 +19,8 @@ import { cameraErrorMessage } from "@/lib/camera-error";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
 import { errorText } from "@/lib/error-text";
-import { areaFractionOfGuide } from "@/lib/scan-aim-hint";
+import type { AimHint } from "@/lib/scan-aim-hint";
+import { areaFractionOfGuide, createAimHintSmoother, deriveAimHint } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";
 import { acquireScannerStream } from "@/lib/scan-camera";
@@ -255,6 +256,12 @@ export interface ScannerReadout {
    * leaving the reticle looking stuck.
    */
   settling: boolean;
+  /**
+   * One line of aim coaching, or null when there is nothing to say. Smoothed
+   * across frames so a single unlucky one never flashes a message, which is
+   * why it rides along with the readout instead of being derived from it.
+   */
+  aimHint: AimHint | null;
 }
 
 const EMPTY_READOUT: ScannerReadout = {
@@ -279,6 +286,7 @@ const EMPTY_READOUT: ScannerReadout = {
   missedPlacements: 0,
   missedSinceNamed: 0,
   settling: false,
+  aimHint: null,
 };
 
 /**
@@ -351,6 +359,7 @@ export function useCardScanner(
   const watchCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const placementRef = useRef<PlacementDetector | null>(null);
   const placementTallyRef = useRef(createPlacementTally());
+  const aimHintSmootherRef = useRef(createAimHintSmoother());
   // Single mode's own copy counting, which replaces the watcher's (see
   // scan-relock.ts). Fed on every processed frame in every mode, so flipping
   // to single mid-session finds it already up to date.
@@ -569,7 +578,7 @@ export function useCardScanner(
    *
    * @returns Nothing; the detector's state and the session are updated.
    */
-  function watchPlacement(video: HTMLVideoElement): void {
+  function watchPlacement(video: HTMLVideoElement, now: number): void {
     const detector = placementRef.current;
     const { videoWidth, videoHeight } = video;
     if (!detector || videoWidth === 0 || videoHeight === 0) {
@@ -605,7 +614,6 @@ export function useCardScanner(
     // A card that came to rest and was never identified is counted here rather
     // than when the next one arrives, so the last card of a session is not
     // silently forgiven.
-    const now = performance.now();
     settlingRef.current = { disturbed: signal.disturbed, at: now };
     // Single mode keeps only the blur gate above: handheld, "a card came to
     // rest" fires on hand tremor, and everything downstream of it (the copy
@@ -750,6 +758,20 @@ export function useCardScanner(
       return;
     }
     lastPublishRef.current = now;
+    const aimHint = aimHintSmootherRef.current.update(
+      deriveAimHint({
+        active: true,
+        hasCandidate: outcome.candidate !== null,
+        candidateAreaFraction,
+        bestInliers: outcome.bestInliers,
+        focus: outcome.focus,
+        topDistance: outcome.ranked[0]?.distance,
+        refused: outcome.refused,
+        isWinner: outcome.winner !== null,
+        settling: settlingRef.current.disturbed,
+      }),
+      now,
+    );
     setReadout({
       candidate: outcome.candidate,
       ranked: outcome.ranked.slice(0, 5),
@@ -772,6 +794,7 @@ export function useCardScanner(
       missedPlacements: placementTallyRef.current.missedTotal(),
       missedSinceNamed: placementTallyRef.current.missedSinceNamed(),
       settling: settlingRef.current.disturbed,
+      aimHint,
     });
   }
 
@@ -1363,11 +1386,14 @@ export function useCardScanner(
     settlingRef.current = { disturbed: false, at: 0 };
     if (video && settingsRef.current.mode !== "pan") {
       const watched = video;
-      const watch = () => {
+      // Both schedulers hand the callback a DOMHighResTimeStamp on the
+      // performance.now() timeline, so the watcher is clocked on the frame it
+      // is looking at rather than on when the work got round to running.
+      const watch = (frameTime: number) => {
         if (generation !== runGenerationRef.current) {
           return;
         }
-        watchPlacement(watched);
+        watchPlacement(watched, frameTime);
         if (watched.requestVideoFrameCallback) {
           watched.requestVideoFrameCallback(watch);
         } else {
@@ -1507,6 +1533,7 @@ export function useCardScanner(
     runningRef.current = false;
     capturingRef.current = false;
     setActive(false);
+    aimHintSmootherRef.current.reset();
     // The bumped generation has already ended the paint loop, so the canvas
     // has to be cleared here; dropping the target keeps a restart from
     // painting the old run's geometry before its first frame lands.

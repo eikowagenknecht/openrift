@@ -34,7 +34,7 @@ import {
   PageTopBarHeightContext,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { collectListPrintings, kindToView } from "@/components/list/list-entries";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
@@ -509,7 +509,7 @@ function SharedListGrid({
   );
 
   if (listPrintings.length === 0) {
-    const KindIcon = listKindIcon(list.kind);
+    const KindIcon = LIST_KIND_ICON[list.kind];
     return (
       <Empty className="flex-1">
         <EmptyHeader>

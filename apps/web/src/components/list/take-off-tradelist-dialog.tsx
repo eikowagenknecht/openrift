@@ -1,6 +1,6 @@
 import type { CopyListMembershipsResponse } from "@openrift/shared";
 import { LoaderIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -76,12 +76,14 @@ export function TakeOffTradelistDialog({
   const [outcome, setOutcome] = useState<Outcome>("keep");
   const [confirmText, setConfirmText] = useState("");
   // Reset to the safe default and clear any typed value on every reopen.
-  useEffect(() => {
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (seededOpen !== open) {
+    setSeededOpen(open);
     if (!open) {
       setOutcome("keep");
       setConfirmText("");
     }
-  }, [open]);
+  }
 
   const sold = outcome === "sold";
   // Hold the sold confirm while the membership check resolves: until then we

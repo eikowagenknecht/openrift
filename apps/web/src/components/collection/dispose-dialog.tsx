@@ -1,6 +1,6 @@
 import type { CopyListMembershipsResponse } from "@openrift/shared";
 import { LoaderIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -75,9 +75,11 @@ export function DisposeDialog({
   const [confirmText, setConfirmText] = useState("");
   // Start blank on every reopen so an earlier typed value can't carry over, and
   // on every quantity change — the typed number has to match what is removed.
-  useEffect(() => {
+  const [blankedFor, setBlankedFor] = useState({ open, quantity });
+  if (blankedFor.open !== open || blankedFor.quantity !== quantity) {
+    setBlankedFor({ open, quantity });
     setConfirmText("");
-  }, [open, quantity]);
+  }
 
   // Hold the button while the membership check resolves: until then we don't
   // know whether this is a cross-list dispose, so we can't show the right

@@ -1,6 +1,6 @@
 import { legendDisplayName } from "@openrift/shared";
 import { XIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
@@ -208,11 +208,13 @@ export function CardPicker({
   const results = usePickerResults(candidates, query, listAllWhenEmpty);
   // The combobox fires onInputValueChange with the picked label as it fills the
   // input on selection, which would leave `query` stuck on that card and filter
-  // the next open down to just it. Clearing here, after the remount, wins over
-  // that late update.
-  useEffect(() => {
+  // the next open down to just it. Clearing on the resetKey bump wins over that
+  // late update.
+  const [clearedFor, setClearedFor] = useState(resetKey);
+  if (clearedFor !== resetKey) {
+    setClearedFor(resetKey);
     setQuery("");
-  }, [resetKey]);
+  }
   return (
     <CardSearchDropdown
       key={resetKey}

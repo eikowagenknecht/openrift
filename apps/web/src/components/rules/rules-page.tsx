@@ -1,6 +1,6 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import {
   buildChangeKindMap,
   computeAncestorsByRule,
@@ -129,11 +130,11 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const expandAll = useRulesFoldStore((state) => state.expandAll);
   const resetSearch = useRulesSearchStore((state) => state.reset);
   const resetDiffExpands = useRulesDiffExpandStore((state) => state.reset);
-  useEffect(() => {
+  useScopeEffect(`${kind} ${version}`, () => {
     expandAll();
     resetSearch();
     resetDiffExpands();
-  }, [kind, version, expandAll, resetSearch, resetDiffExpands]);
+  });
 
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;

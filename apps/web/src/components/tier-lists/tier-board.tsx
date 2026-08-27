@@ -183,6 +183,9 @@ export function TierBoard({
   const focusRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
+    if (!focusCardId) {
+      return;
+    }
     focusRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [focusCardId]);
 

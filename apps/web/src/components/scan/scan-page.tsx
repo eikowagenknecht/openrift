@@ -49,12 +49,11 @@ import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useCollections } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useLanguageLabels } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useScanLayout } from "@/hooks/use-scan-layout";
 import { useScanServing } from "@/hooks/use-scan-serving";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useWishEntries } from "@/hooks/use-wish-entries";
-import type { AimHint } from "@/lib/scan-aim-hint";
-import { createAimHintSmoother, deriveAimHint } from "@/lib/scan-aim-hint";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
 import { ghostConfidence } from "@/lib/scan-confidence";
@@ -82,6 +81,16 @@ const AIM_SUGGEST_SECONDS = 3;
  * days ago should not silently pass as today's pulls.
  */
 const RESUME_PROMPT_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether a restored session is old enough to lead with the resume banner
+ * rather than picking up silently.
+ *
+ * @returns True when the banner should show.
+ */
+function shouldPromptResume(lastScanAt: number | null): boolean {
+  return lastScanAt === null || Date.now() - lastScanAt >= RESUME_PROMPT_AFTER_MS;
+}
 
 /**
  * When the restored session last scanned, in banner words.
@@ -159,37 +168,33 @@ export function ScanPage() {
   // from the catalog on arrival. A recent session resumes silently (a reload
   // mid-scan should feel like nothing happened); an old one leads with a
   // banner so yesterday's pulls cannot pass as today's.
-  const [resumeNotice, setResumeNotice] = useState<{ cards: number; when: string } | null>(null);
   useEffect(() => {
     if (allPrintings.length === 0) {
       return;
     }
     const byId = new Map(allPrintings.map((printing) => [printing.id, printing]));
-    const restored = useScanSessionStore.getState().restore((printingId) => byId.get(printingId));
-    if (
-      restored !== null &&
-      (restored.lastScanAt === null || Date.now() - restored.lastScanAt >= RESUME_PROMPT_AFTER_MS)
-    ) {
-      setResumeNotice({ cards: restored.cards, when: describeLastScan(restored.lastScanAt) });
-    }
+    useScanSessionStore.getState().restore((printingId) => byId.get(printingId));
   }, [allPrintings]);
+
+  const resumed = useScanSessionStore((state) => state.resumed);
+  const resumeNotice =
+    resumed !== null && shouldPromptResume(resumed.lastScanAt)
+      ? { cards: resumed.cards, when: describeLastScan(resumed.lastScanAt) }
+      : null;
 
   function handleStartFresh() {
     // Start fresh discards the log only: copies an old session added were
     // added on purpose and stay in the collection.
     useScanSessionStore.getState().reset();
-    setResumeNotice(null);
   }
 
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ScannerSettings>(DEFAULT_SCANNER_SETTINGS);
-  // See the admin harness: navigator is read in an effect so the server and
-  // an https client cannot render different markup.
-  const [cameraAvailable, setCameraAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    setCameraAvailable(navigator.mediaDevices?.getUserMedia !== undefined);
-  }, []);
+  // Null until hydration: reading navigator during the SSR pass would make the
+  // server and an https client render different markup.
+  const hydrated = useHydrated();
+  const cameraAvailable = hydrated ? navigator.mediaDevices?.getUserMedia !== undefined : null;
 
   const serving = useScanServing();
   const assets = serving.assets;
@@ -381,38 +386,18 @@ export function ScanPage() {
 
   // Aim coaching. The engine already knows why a scan is stalling — the card
   // is too small, the frame is soft, verification is a couple of inliers
-  // short — and until now none of it reached the user. One line at a time,
-  // smoothed so a single unlucky frame never flashes a message.
-  const [aimHint, setAimHint] = useState<AimHint | null>(null);
-  const aimHintSmootherRef = useRef(createAimHintSmoother());
-  useEffect(() => {
-    if (!active) {
-      aimHintSmootherRef.current.reset();
-      setAimHint(null);
-      return;
-    }
-    const derived = deriveAimHint({
-      active: true,
-      hasCandidate: readout.candidate !== null,
-      candidateAreaFraction: readout.candidateAreaFraction,
-      bestInliers: readout.bestInliers,
-      focus: readout.focus,
-      topDistance: readout.ranked[0]?.distance,
-      refused: readout.refused,
-      isWinner: readout.winnerKey !== null,
-      settling: readout.settling,
-    });
-    setAimHint(aimHintSmootherRef.current.update(derived, performance.now()));
-  }, [active, readout]);
+  // short — and it rides along with the readout, smoothed frame to frame in
+  // the scanner so a single unlucky frame never flashes a message.
+  const aimHint = active ? readout.aimHint : null;
 
   // Tap-to-scan IS the slow-device path (see the admin harness) and outranks
   // the toggle; otherwise auto-scan is what decides whether a card that stays
   // in shot keeps counting. Both guide modes share one session plan, so this
   // can change mid-run without rebuilding anything.
   const mode: ScannerMode = deviceTooSlow ? "capture" : autoScan ? "auto" : "single";
-  useEffect(() => {
-    setSettings((previous) => (previous.mode === mode ? previous : { ...previous, mode }));
-  }, [mode]);
+  if (settings.mode !== mode) {
+    setSettings((previous) => ({ ...previous, mode }));
+  }
 
   // The manual identify sheet and the automatic "Is it X?" chip both funnel
   // into handleLock with an unresolved lock, so the language preference, the
@@ -431,13 +416,11 @@ export function ScanPage() {
   const aim = readout.aim;
   const dismissalStale =
     aim !== null && dismissedSuggestion !== null && aim.artKey !== dismissedSuggestion;
-  useEffect(() => {
-    // A dismissal holds only while the same artwork stays aimed at; once the
-    // user aims at something else, the dismissed card may suggest again later.
-    if (dismissalStale) {
-      setDismissedSuggestion(null);
-    }
-  }, [dismissalStale]);
+  // A dismissal holds only while the same artwork stays aimed at; once the
+  // user aims at something else, the dismissed card may suggest again later.
+  if (dismissalStale) {
+    setDismissedSuggestion(null);
+  }
 
   const suggestion =
     active &&
@@ -1029,7 +1012,11 @@ export function ScanPage() {
             {resumeNotice.when}.
           </span>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setResumeNotice(null)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => useScanSessionStore.getState().dismissResumed()}
+            >
               Keep going
             </Button>
             <Button size="sm" variant="ghost" onClick={handleStartFresh}>

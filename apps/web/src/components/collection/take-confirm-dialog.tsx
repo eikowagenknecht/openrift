@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -36,9 +36,11 @@ export function TakeConfirmDialog({
   const [quantity, setQuantity] = useState(initialQuantity);
 
   // Re-arm the stepper whenever the dialog opens for a fresh take.
-  useEffect(() => {
+  const [armedFor, setArmedFor] = useState({ printing, initialQuantity });
+  if (armedFor.printing !== printing || armedFor.initialQuantity !== initialQuantity) {
+    setArmedFor({ printing, initialQuantity });
     setQuantity(initialQuantity);
-  }, [initialQuantity, printing]);
+  }
 
   const canStep = maxQuantity > 1;
 

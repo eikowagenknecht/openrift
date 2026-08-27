@@ -62,6 +62,7 @@ import {
   SSR_RESPONSIVE_GRID_GAP,
   useResponsiveColumns,
 } from "@/hooks/use-responsive-columns";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
 import { buildGroups } from "@/lib/card-groups";
@@ -450,7 +451,9 @@ function PromosPage() {
   // Hash-scroll: TanStack Router navigations land before the lazy route's
   // content is in the DOM, so the native browser scroll-to-hash misses the
   // target. Re-run whenever the hash changes or the active language switches.
-  useEffect(() => {
+  // A language switch re-renders the sections the hash points into, so the
+  // scroll has to run again for the same hash.
+  useScopeEffect(`${activeLanguage} ${location.hash}`, () => {
     if (!location.hash) {
       return;
     }
@@ -459,7 +462,7 @@ function PromosPage() {
     if (element) {
       element.scrollIntoView({ behavior: "auto", block: "start" });
     }
-  }, [location.hash, activeLanguage]);
+  });
 
   const currentSearch = Route.useSearch();
   function handleLanguageChange(next: string | null) {

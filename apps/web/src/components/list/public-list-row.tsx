@@ -3,7 +3,7 @@ import type { ListIntent, ListKind } from "@openrift/shared";
 import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { CardLink } from "@/components/ui/card-link";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,7 @@ export function PublicListRow({
   ...props
 }: PublicListRowProps & useRender.ComponentProps<"a">) {
   const IntentIcon = INTENT_ICON[intent];
-  const KindIcon = listKindIcon(kind);
+  const KindIcon = LIST_KIND_ICON[kind];
   const noun = entryCount === 1 ? KIND_NOUN[kind].singular : KIND_NOUN[kind].plural;
   return (
     <CardLink

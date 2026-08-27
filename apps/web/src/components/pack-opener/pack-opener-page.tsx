@@ -10,7 +10,7 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -369,9 +369,11 @@ function SinglePackResult({
   // Reset the stats gate whenever a new single-pack result arrives, so the
   // user starts each pack with the reveal flow again (unless auto-reveal is
   // on, in which case there's nothing to gate).
-  useEffect(() => {
+  const [gateArmedFor, setGateArmedFor] = useState({ pack, autoReveal });
+  if (gateArmedFor.pack !== pack || gateArmedFor.autoReveal !== autoReveal) {
+    setGateArmedFor({ pack, autoReveal });
     setStatsVisible(autoReveal);
-  }, [pack, autoReveal]);
+  }
   return (
     <section className="space-y-6">
       <PackReveal
@@ -402,9 +404,11 @@ function BulkPackResult({
   // Track which packs have been fully revealed. Stats only show once every
   // pack is flipped (auto-reveal skips the gate entirely).
   const [revealedCount, setRevealedCount] = useState(autoReveal ? packs.length : 0);
-  useEffect(() => {
+  const [countArmedFor, setCountArmedFor] = useState({ packs, autoReveal });
+  if (countArmedFor.packs !== packs || countArmedFor.autoReveal !== autoReveal) {
+    setCountArmedFor({ packs, autoReveal });
     setRevealedCount(autoReveal ? packs.length : 0);
-  }, [packs, autoReveal]);
+  }
   const statsVisible = revealedCount >= packs.length;
 
   if (autoReveal) {

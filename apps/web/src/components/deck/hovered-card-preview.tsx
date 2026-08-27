@@ -92,21 +92,18 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
     card: NonNullable<HoveredCardPreviewProps["hoveredCard"]>;
     origin: HoverOrigin;
   } | null>(null);
+  // Guard against re-setting an identical value — a fresh object every render
+  // would loop.
+  if (hoveredCard && (linger?.card !== hoveredCard || linger.origin !== origin)) {
+    setLinger({ card: hoveredCard, origin });
+  }
   useEffect(() => {
-    if (hoveredCard) {
-      // Guard against re-setting an identical value — a fresh object every
-      // run would retrigger this effect forever.
-      if (linger?.card !== hoveredCard || linger.origin !== origin) {
-        setLinger({ card: hoveredCard, origin });
-      }
-      return;
-    }
-    if (!linger) {
+    if (hoveredCard || !linger) {
       return;
     }
     const timer = setTimeout(() => setLinger(null), 150);
     return () => clearTimeout(timer);
-  }, [hoveredCard, origin, linger]);
+  }, [hoveredCard, linger]);
   const shownCard = hoveredCard ?? linger?.card ?? null;
   const shownOrigin = hoveredCard ? origin : (linger?.origin ?? origin);
 
@@ -115,9 +112,11 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
   // Reset the crossfade whenever the hovered card changes so the next
   // hover starts from the cached thumbnail and only fades in once the
   // new full-resolution image has finished loading.
-  useEffect(() => {
+  const [loadedUrl, setLoadedUrl] = useState(fullUrl);
+  if (fullUrl !== loadedUrl) {
+    setLoadedUrl(fullUrl);
     setFullLoaded(false);
-  }, [fullUrl]);
+  }
 
   // Position imperatively — doing it via state would re-render the entire
   // host on every frame of a sidebar hover. Main hovers are placed once, at

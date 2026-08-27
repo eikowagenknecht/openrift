@@ -50,7 +50,14 @@ export function useCopyToClipboard(): UseCopyToClipboard {
     }
   };
 
-  useEffect(() => clearTimer, []);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) {
+        globalThis.clearTimeout(timer.current);
+      }
+    },
+    [],
+  );
 
   const copy = async (text: string): Promise<boolean> => {
     try {

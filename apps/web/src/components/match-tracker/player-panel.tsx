@@ -106,17 +106,18 @@ export function PlayerPanel({
   const setScore = useMatchTrackerStore((state) => state.setScore);
   const domainColors = useDomainColors();
 
-  // The correction steppers time out so they never become permanent chrome;
-  // `nudge` restarts the clock on every press.
-  const [correcting, setCorrecting] = useState(false);
-  const [nudge, setNudge] = useState(0);
+  // The correction steppers time out so they never become permanent chrome. One
+  // counter both opens them and dates the current window, so every press lands
+  // a new value and restarts the clock.
+  const [correctionTick, setCorrectionTick] = useState(0);
+  const correcting = correctionTick > 0;
   useEffect(() => {
-    if (!correcting) {
+    if (correctionTick === 0) {
       return;
     }
-    const timer = setTimeout(() => setCorrecting(false), CORRECT_TIMEOUT_MS);
+    const timer = setTimeout(() => setCorrectionTick(0), CORRECT_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [correcting, nudge]);
+  }, [correctionTick]);
 
   if (!player) {
     return null;
@@ -128,7 +129,7 @@ export function PlayerPanel({
   const glowStyle = deckGlowStyle(player.legend?.domains ?? [], domainColors);
 
   const correct = (delta: number) => {
-    setNudge((value) => value + 1);
+    setCorrectionTick((value) => value + 1);
     setScore(player.id, player.points + delta);
   };
 
@@ -192,10 +193,7 @@ export function PlayerPanel({
           )}
           <Pressable
             aria-label={`Correct ${player.name}'s score, currently ${player.points}`}
-            onClick={() => {
-              setNudge((value) => value + 1);
-              setCorrecting(true);
-            }}
+            onClick={() => setCorrectionTick((value) => value + 1)}
             className={cn("font-heading leading-none font-bold tabular-nums", scoreClass)}
           >
             {player.points}

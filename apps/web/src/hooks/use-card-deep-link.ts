@@ -37,7 +37,7 @@ export function useCardDeepLink({ linkedPrintingId, printingsById, items }: Opti
     useSelectionStore.getState().selectCard(printing, items, "printing");
     void navigate({
       to: ".",
-      search: ({ printingId: _, ...rest }) => rest,
+      search: ({ printingId: _printingId, ...rest }) => rest,
       replace: true,
       resetScroll: false,
     });

@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -47,9 +47,11 @@ export function VariantLocationsPopoverHost({
   // Clear the in-popover "add to another collection" page whenever the popover
   // closes or switches to a different card — otherwise the next time it opens,
   // it would still be showing the stale collection picker sub-page.
-  useEffect(() => {
+  const [lastPopoverCardId, setLastPopoverCardId] = useState(variantPopover?.cardId);
+  if (variantPopover?.cardId !== lastPopoverCardId) {
+    setLastPopoverCardId(variantPopover?.cardId);
     setAddCollectionTarget(null);
-  }, [variantPopover?.cardId]);
+  }
 
   const variantPrintings = resolveVariantPopoverPrintings(
     catalogPrintingsByCardId,

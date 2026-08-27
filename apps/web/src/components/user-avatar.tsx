@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { gravatarUrlFromHash } from "@/lib/gravatar";
@@ -24,10 +24,11 @@ interface UserAvatarProps {
  */
 export function UserAvatar({ image, name, gravatarHash, email, size, className }: UserAvatarProps) {
   const [imageBroken, setImageBroken] = useState(false);
-
-  useEffect(() => {
+  const [lastImage, setLastImage] = useState(image);
+  if (image !== lastImage) {
+    setLastImage(image);
     setImageBroken(false);
-  }, [image]);
+  }
 
   const primary =
     image && !imageBroken ? image : gravatarHash ? gravatarUrlFromHash(gravatarHash) : undefined;

@@ -7,7 +7,7 @@ import type {
 } from "@openrift/shared";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftIcon, HandHeartIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { copyHasRecordedDetails, copyMarkers } from "@/components/collection/copy-indicators";
@@ -88,15 +88,19 @@ export function CopyDetailsDialog({
 }) {
   const { data: allCopies } = useCopies();
   const { data: liveTrades } = useLiveTradesByPrinting();
-  const [editingCopyId, setEditingCopyId] = useState<string | null>(null);
+  const [editingCopyId, setEditingCopyId] = useState<string | null>(
+    target && target.copyIds.length === 1 ? target.copyIds[0] : null,
+  );
 
   // Seed the editor when a new target arrives: a single-copy tile skips the
-  // list and opens its one copy directly. (Effect, not render-phase: BaseUI
-  // only fires onOpenChange for user-initiated closes, so the dialog stays
-  // mounted across targets and state would otherwise stick.)
-  useEffect(() => {
+  // list and opens its one copy directly. Keyed off the target rather than a
+  // useState seed, because BaseUI only fires onOpenChange for user-initiated
+  // closes, so the dialog stays mounted across targets.
+  const [seededTarget, setSeededTarget] = useState(target);
+  if (seededTarget !== target) {
+    setSeededTarget(target);
     setEditingCopyId(target && target.copyIds.length === 1 ? target.copyIds[0] : null);
-  }, [target]);
+  }
 
   if (!target) {
     return (

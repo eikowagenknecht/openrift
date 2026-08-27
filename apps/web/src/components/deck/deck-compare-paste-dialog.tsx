@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -111,14 +111,15 @@ export function DeckComparePasteDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      return;
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (seededOpen !== open) {
+    setSeededOpen(open);
+    if (!open) {
+      setText("");
+      setPending(false);
+      setError(null);
     }
-    setText("");
-    setPending(false);
-    setError(null);
-  }, [open]);
+  }
 
   const handleCompare = async () => {
     const trimmed = text.trim();

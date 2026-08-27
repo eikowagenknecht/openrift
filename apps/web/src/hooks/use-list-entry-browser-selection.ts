@@ -22,6 +22,7 @@ import {
   useUpdateListEntry,
 } from "@/hooks/use-lists";
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
@@ -87,17 +88,19 @@ export function useListEntryBrowserSelection({
   // ── Select mode (bulk move / remove) ────────────────────────────────
   // Selection is keyed by entry id (one tile = one entry), reusing the shared
   // grid-selection store and the same chrome as /collections.
-  const [selectMode, setSelectMode] = useState(false);
-  const mode: "browse" | "select" = selectMode ? "select" : "browse";
   const {
     selected,
+    selectMode,
+    setSelectMode,
     toggleSelect,
     toggleSelectAll,
     clearSelection,
+    resetSelection,
     getLastSelectedItemId,
     setLastSelectedItemId,
     addToSelection,
   } = useCardSelection();
+  const mode: "browse" | "select" = selectMode ? "select" : "browse";
   // What the Move / Remove dialogs act on — the selection from the float bar,
   // or the selection-or-single resolution from the right-click menu.
   const [actionEntryIds, setActionEntryIds] = useState<string[]>([]);
@@ -163,16 +166,12 @@ export function useListEntryBrowserSelection({
   // Drop any in-progress selection when the list changes, and force browse
   // mode in the catalog (library) view where most tiles have no entry to act
   // on. Mirrors the collection grid's resets.
-  useEffect(() => {
-    setSelectMode(false);
-    clearSelection();
-  }, [listId, clearSelection]);
-  useEffect(() => {
-    if (showLibrary) {
-      setSelectMode(false);
-      clearSelection();
+  useScopeEffect(listId, () => resetSelection());
+  useScopeEffect(showLibrary, (library) => {
+    if (library) {
+      resetSelection();
     }
-  }, [showLibrary, clearSelection]);
+  });
 
   const bulkAddEntries = useBulkAddListEntries();
   const updateEntryMutation = useUpdateListEntry();

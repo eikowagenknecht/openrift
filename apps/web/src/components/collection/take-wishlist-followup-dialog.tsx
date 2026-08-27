@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -38,13 +38,17 @@ export function TakeWishlistFollowUpDialog({
   const open = printing !== null;
   const removeEntry = useRemoveListEntry();
   const updateEntry = useUpdateListEntry();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(entries.map((entry) => entry.entryId)),
+  );
 
   // Re-arm the selection (everything checked) whenever the dialog opens for a
   // freshly-taken card.
-  useEffect(() => {
+  const [armedFor, setArmedFor] = useState(entries);
+  if (armedFor !== entries) {
+    setArmedFor(entries);
     setSelectedIds(new Set(entries.map((entry) => entry.entryId)));
-  }, [entries]);
+  }
 
   const isPending = removeEntry.isPending || updateEntry.isPending;
   const single = entries.length === 1;

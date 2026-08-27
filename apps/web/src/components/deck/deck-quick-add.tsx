@@ -1,7 +1,7 @@
 import type { DeckFormat, DeckZone } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { QuickAddPreview } from "@/components/collection/quick-add-preview";
 import { QuickAddStepper } from "@/components/collection/quick-add-stepper";
@@ -20,6 +20,7 @@ import { useCards } from "@/hooks/use-cards";
 import { canAddRune, useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   catalogCardToDeckBuilderCard,
@@ -365,13 +366,13 @@ function QuickAddInner({
   };
 
   // Keep the highlighted row in view as the keyboard moves it.
-  useEffect(() => {
+  useScopeEffect(`${clampedIndex} ${targetIndex} ${expandedCardId ?? ""}`, () => {
     const nodes = listRef.current?.querySelectorAll('[data-selected="true"]');
     const node = nodes ? [...nodes].at(-1) : undefined;
     if (node instanceof HTMLElement) {
       node.scrollIntoView({ block: "nearest" });
     }
-  }, [clampedIndex, targetIndex, expandedCardId]);
+  });
 
   // Preview the card the keyboard is on.
   const previewPrinting = (expanded ?? selected)?.defaultPrinting;

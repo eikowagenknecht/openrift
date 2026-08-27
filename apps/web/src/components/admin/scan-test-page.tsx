@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { LockedCard, ScannerReadout, ScannerSettings } from "@/hooks/use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
+import { useHydrated } from "@/hooks/use-hydrated";
 import type { ScanServing } from "@/hooks/use-scan-serving";
 import { useLatestScanBankRun, useRebuildScanBank, useScanServing } from "@/hooks/use-scan-serving";
 import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
@@ -374,14 +375,12 @@ export function ScanTestPage() {
   // auto-switch below must never fight an explicit choice.
   const [modeChosen, setModeChosen] = useState(false);
   // A live feed needs a secure context. Over a plain LAN dev server there is no
-  // camera API at all, and saying so beats an unexplained failure. Resolved in
-  // an effect because the route is server-rendered: reading navigator during
-  // render would make the server and an https client render different markup,
-  // which is a hydration mismatch. Null means "not known yet".
-  const [cameraAvailable, setCameraAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    setCameraAvailable(navigator.mediaDevices?.getUserMedia !== undefined);
-  }, []);
+  // camera API at all, and saying so beats an unexplained failure. Held back
+  // until hydration because the route is server-rendered: reading navigator
+  // during the SSR pass would make the server and an https client render
+  // different markup. Null means "not known yet".
+  const hydrated = useHydrated();
+  const cameraAvailable = hydrated ? navigator.mediaDevices?.getUserMedia !== undefined : null;
 
   const serving = useScanServing();
   const assets = serving.assets;
@@ -442,13 +441,9 @@ export function ScanTestPage() {
   // live scanning would crawl, flip the default mode over instead of only
   // asking the user to. The measurement lands during engine init, before the
   // camera can start, and an explicit mode choice is never overridden.
-  useEffect(() => {
-    if (deviceTooSlow && !modeChosen) {
-      setSettings((previous) =>
-        previous.mode === "single" ? { ...previous, mode: "capture" } : previous,
-      );
-    }
-  }, [deviceTooSlow, modeChosen]);
+  if (deviceTooSlow && !modeChosen && settings.mode === "single") {
+    setSettings((previous) => ({ ...previous, mode: "capture" }));
+  }
 
   function handleSettingsChange(next: ScannerSettings): void {
     if (next.mode !== settings.mode) {

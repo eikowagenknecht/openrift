@@ -3,7 +3,7 @@ import { PlusSquareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import { listKindIcon } from "@/components/list/create-list-dialog";
+import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,7 +142,7 @@ function RequestBody({
   const chosen = options.find((option) => option.listId === selectedId);
   // The kind a new wishlist would be created as, shown as its glyph on the
   // "New wishlist" option so the picker stays consistent with the rows above.
-  const NewKindIcon = listKindIcon(requestListKind());
+  const NewKindIcon = LIST_KIND_ICON[requestListKind()];
   // New lists are always private at first, and an existing list the viewer
   // picked might not be shared with this group yet — both need the explicit
   // share confirmation before the request can match.
@@ -264,7 +264,7 @@ function RequestBody({
       <RadioGroup value={selectedId} onValueChange={(value) => setSelectedId(String(value))}>
         {options.map((option) => {
           const inputId = `request-wishlist-${option.listId}`;
-          const KindIcon = listKindIcon(option.listKind);
+          const KindIcon = LIST_KIND_ICON[option.listKind];
           return (
             <label
               key={option.listId}

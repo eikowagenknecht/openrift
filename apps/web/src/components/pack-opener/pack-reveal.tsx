@@ -32,11 +32,13 @@ export function PackReveal({
   // mid-flip leaves already-revealed cards face-up (the pack is committed
   // either way) but re-hides any still-unrevealed cards would feel wrong —
   // so we only expand, never retract.
-  useEffect(() => {
+  const [syncedAutoReveal, setSyncedAutoReveal] = useState(autoReveal);
+  if (syncedAutoReveal !== autoReveal) {
+    setSyncedAutoReveal(autoReveal);
     if (autoReveal) {
       setRevealed((current) => current.map(() => true));
     }
-  }, [autoReveal]);
+  }
 
   function flip(index: number) {
     setRevealed((current) => current.map((value, i) => (i === index ? true : value)));

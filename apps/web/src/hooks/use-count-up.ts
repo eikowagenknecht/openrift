@@ -10,9 +10,14 @@ export function useCountUp(target: number, durationMs = 1200): number {
   const [value, setValue] = useState(0);
   const rafRef = useRef<number>(0);
 
+  const [ramping, setRamping] = useState(target);
+  if (ramping !== target) {
+    setRamping(target);
+    setValue(0);
+  }
+
   useEffect(() => {
     if (target === 0) {
-      setValue(0);
       return;
     }
 

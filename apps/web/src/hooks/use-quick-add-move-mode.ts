@@ -1,6 +1,6 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { useCopies, useMoveCopies } from "@/hooks/use-copies";
@@ -122,9 +122,15 @@ export function useQuickAddMoveMode({
   const { from: moveFrom, to: moveTo } = direction;
 
   // A new printing row, direction, or target starts back at the default source.
-  useEffect(() => {
+  const [sourceArmedFor, setSourceArmedFor] = useState({ selectionKey, moveFrom, moveTo });
+  if (
+    sourceArmedFor.selectionKey !== selectionKey ||
+    sourceArmedFor.moveFrom !== moveFrom ||
+    sourceArmedFor.moveTo !== moveTo
+  ) {
+    setSourceArmedFor({ selectionKey, moveFrom, moveTo });
     setSourceIndex(0);
-  }, [selectionKey, moveFrom, moveTo]);
+  }
 
   const movableByPrinting = inMoveMode
     ? groupMovableCopies(allCopies, {

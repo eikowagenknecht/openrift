@@ -12,7 +12,7 @@ import {
   SquarePlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -59,6 +59,7 @@ import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
 import { useCopyListMemberships, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useWishEntries } from "@/hooks/use-wish-entries";
@@ -130,9 +131,7 @@ export function CollectionGrid({
   // Per-session state (see library-toggle-store): it survives collection
   // switches so browsing the library isn't interrupted, but a fresh page load
   // always starts in the collection-only view; the toggle never persists.
-  const [selectMode, setSelectMode] = useState(false);
   const [showLibrary, setShowLibrary] = useLibraryToggle("collection");
-  const mode = selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
   const {
@@ -225,14 +224,18 @@ export function CollectionGrid({
   // ── Selection state (select mode) ───────────────────────────────────
   const {
     selected,
+    selectMode,
+    setSelectMode,
     toggleSelect,
     toggleStack,
     toggleSelectAll,
     clearSelection,
+    resetSelection,
     getLastSelectedItemId,
     setLastSelectedItemId,
     addToSelection,
   } = useCardSelection();
+  const mode = selectMode ? "select" : "browse";
 
   // "copies" view expands individual copies. When the library is shown the
   // toolbar hides the "copies" option, but if the user had it selected from
@@ -312,6 +315,14 @@ export function CollectionGrid({
   // paints first, and one-shot per collection so the library toggle and the
   // first adds stick afterwards instead of the view flipping back.
   const [autoLibraryApplied, setAutoLibraryApplied] = useState(false);
+  // Switching collections re-arms the one-shot, so an empty target opens in
+  // library mode again. The "All cards" aggregate has no id, hence a separate
+  // tracker rather than comparing against the applied-for value.
+  const [autoLibraryScope, setAutoLibraryScope] = useState(collectionId);
+  if (autoLibraryScope !== collectionId) {
+    setAutoLibraryScope(collectionId);
+    setAutoLibraryApplied(false);
+  }
   if (!autoLibraryApplied && copiesReady && addTarget) {
     setAutoLibraryApplied(true);
     if (stacks.length === 0) {
@@ -376,19 +387,15 @@ export function CollectionGrid({
   // The library toggle deliberately does NOT reset: someone adding cards to
   // several collections in a row would otherwise have to turn it back on
   // after every switch.
-  useEffect(() => {
-    setSelectMode(false);
-    // Re-arm the auto-library one-shot so an empty target collection opens in
-    // library mode again after a switch.
-    setAutoLibraryApplied(false);
+  useScopeEffect(collectionId, () => {
+    resetSelection();
     useSiblingOverrideStore.getState().clearScope("collection");
-    clearSelection();
     useAddModeStore.getState().reset();
     // A dialog left open would otherwise still be pointing at the collection
     // the viewer just navigated away from. Leaving the grid entirely is handled
     // on the way out instead — see useCloseCollectionOverlaysOnUnmount.
     useCollectionOverlayStore.getState().reset();
-  }, [collectionId, clearSelection]);
+  });
 
   useCloseCollectionOverlaysOnUnmount();
 

@@ -11,7 +11,6 @@ import {
   ServerIcon,
   TagIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
@@ -21,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFlushPrintingEvents, useLatestFlushRun } from "@/hooks/use-flush-printing-events";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
 import { useAdminStatus } from "@/hooks/use-status";
@@ -72,13 +72,11 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export function StatusPage() {
   const { data, refetch, isFetching, dataUpdatedAt } = useAdminStatus();
-  const [lastUpdated, setLastUpdated] = useState("");
-
-  useEffect(() => {
-    if (dataUpdatedAt > 0) {
-      setLastUpdated(formatDayTimeLocal(new Date(dataUpdatedAt)));
-    }
-  }, [dataUpdatedAt]);
+  // The stamp is on the viewer's clock, so it stays blank until hydration —
+  // formatting it during the SSR pass would mismatch every non-UTC visitor.
+  const hydrated = useHydrated();
+  const lastUpdated =
+    hydrated && dataUpdatedAt > 0 ? formatDayTimeLocal(new Date(dataUpdatedAt)) : "";
 
   const topBar = (
     <AdminPageTopBar

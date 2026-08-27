@@ -8,6 +8,7 @@ import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { useScopeEffect, useScopeLayoutEffect } from "@/hooks/use-scope-effect";
 import { buildGroups } from "@/lib/card-groups";
 import type { CardGroup } from "@/lib/card-groups";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
@@ -383,16 +384,16 @@ export function CardGrid({
   // per-cell `isFlashing` subscription in each grid cell sees only its own
   // value flip — broadcasting flashCardId as a CardRowContent prop forced
   // every row + cell to re-render whenever the flash started or cleared.
-  useEffect(() => {
-    if (!selectedItemId) {
+  useScopeEffect(selectedItemId, (itemId) => {
+    if (!itemId) {
       useGridFocusStore.getState().setFlashCardId(null);
       return;
     }
-    scrollToCard(selectedItemId);
-    useGridFocusStore.getState().setFlashCardId(selectedItemId);
+    scrollToCard(itemId);
+    useGridFocusStore.getState().setFlashCardId(itemId);
     const timer = setTimeout(() => useGridFocusStore.getState().setFlashCardId(null), 800);
     return () => clearTimeout(timer);
-  }, [selectedItemId]);
+  });
 
   // Track the first visible card so we can anchor scroll when columns change.
   const topVisibleCardRef = useRef<string | null>(null);
@@ -426,18 +427,17 @@ export function CardGrid({
   // effect so corrected positions land before paint instead of flashing one
   // mis-stacked frame.
   const rowKindSignature = virtualRows.map((row) => (row.kind === "header" ? "h" : "c")).join("");
-  useLayoutEffect(() => {
-    virtualizerRef.current.measure();
-  }, [rowKindSignature, columns, containerWidth, addStripHeight]);
+  useScopeLayoutEffect(`${rowKindSignature} ${columns} ${containerWidth} ${addStripHeight}`, () =>
+    virtualizerRef.current.measure(),
+  );
 
   // Re-scroll when columns change: anchor to selected card or first visible card.
-  useEffect(() => {
+  useScopeEffect(`${columns} ${selectedItemId ?? ""}`, () => {
     const anchor = selectedItemId ?? topVisibleCardRef.current;
-    if (!anchor) {
-      return;
+    if (anchor) {
+      scrollToCard(anchor);
     }
-    scrollToCard(anchor);
-  }, [columns, selectedItemId]);
+  });
 
   // Reads only from mirror refs, so the React Compiler memoizes this to a
   // stable reference — HeaderRow's onScrollToGroup prop stays equal across

@@ -5,11 +5,20 @@ import { isTempCopyId } from "@/lib/temp-copy-id";
 interface GridSelectionState {
   /** Selected copy IDs. */
   selected: Set<string>;
+  /** Whether the grid is in multi-select mode rather than browse mode. */
+  selectMode: boolean;
   toggleSelect: (copyId: string) => void;
   toggleStack: (copyIds: string[]) => void;
   toggleSelectAll: (allCopyIds: string[]) => void;
   addToSelection: (ids: string[]) => void;
   clearSelection: () => void;
+  setSelectMode: (on: boolean) => void;
+  /**
+   * Drops the selection and leaves select mode. For a scope change (another
+   * collection, another list): a copy selected in the previous scope isn't in
+   * the new grid, so the float bar would act on rows nobody can see.
+   */
+  resetSelection: () => void;
 }
 
 /**
@@ -28,6 +37,7 @@ interface GridSelectionState {
  */
 export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
   selected: new Set(),
+  selectMode: false,
   toggleSelect: (copyId) => {
     if (isTempCopyId(copyId)) {
       return;
@@ -83,4 +93,6 @@ export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
     });
   },
   clearSelection: () => set({ selected: new Set() }),
+  setSelectMode: (on) => set({ selectMode: on }),
+  resetSelection: () => set({ selected: new Set(), selectMode: false }),
 }));

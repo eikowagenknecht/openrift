@@ -18,7 +18,14 @@ export function usePrintingHover(clearDelayMs = 80) {
     }
   };
 
-  useEffect(() => cancelClear, []);
+  useEffect(
+    () => () => {
+      if (clearTimerRef.current !== null) {
+        clearTimeout(clearTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const onEnter = (id: string) => {
     cancelClear();

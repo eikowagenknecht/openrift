@@ -1,6 +1,6 @@
 import type { DeckExportResponse } from "@openrift/shared";
 import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +20,6 @@ import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
-interface FormatState {
-  data?: DeckExportResponse;
-  loading?: boolean;
-  error?: boolean;
-}
 
 const FORMAT_DESCRIPTIONS: Record<ExportFormat, React.ReactNode> = {
   piltover: (
@@ -111,54 +106,75 @@ export function DeckExportDialog({
   const liveCards = useDeckCards(deckId);
   const { copied, copy, reset: resetCopied } = useCopyToClipboard();
   const [tab, setTab] = useState<ExportFormat>("text");
-  const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
+  const [formats, setFormats] = useState<Partial<Record<ExportFormat, DeckExportResponse>>>({});
 
-  useEffect(() => {
+  // Closing discards everything the dialog built up. The local drafts reset
+  // during render; the two mutations are external and reset in the effect.
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (seededOpen !== open) {
+    setSeededOpen(open);
     if (!open) {
-      exportDeck.reset();
-      encodeDeck.reset();
       setTab("text");
       setFormats({});
-      resetCopied();
     }
-  }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
-
+  }
+  const discardMutations = useEffectEvent(() => {
+    exportDeck.reset();
+    encodeDeck.reset();
+    resetCopied();
+  });
   useEffect(() => {
-    if (!open) {
+    if (open) {
       return;
     }
-    const current = formats[tab];
-    if (current?.data || current?.loading) {
+    discardMutations();
+  }, [open]);
+
+  // Whichever mutation this deck exports through. In-flight and failed states
+  // are read off it rather than mirrored into `formats`, which only caches the
+  // code each format came back with.
+  const exportMutation = isLocal ? encodeDeck : exportDeck;
+
+  // The deck itself is read as it stands when a format is first opened, not
+  // reactively: an edit landing behind the dialog must not silently refetch the
+  // text the user is in the middle of copying.
+  const fetchFormat = useEffectEvent((format: ExportFormat) => {
+    if (
+      formats[format] ||
+      (exportMutation.isPending && exportMutation.variables?.format === format)
+    ) {
       return;
     }
-    setFormats((prev) => ({ ...prev, [tab]: { loading: true } }));
     const onSuccess = (data: DeckExportResponse) => {
-      setFormats((prev) => ({ ...prev, [tab]: { data } }));
-    };
-    const onError = () => {
-      setFormats((prev) => ({ ...prev, [tab]: { error: true } }));
+      setFormats((prev) => ({ ...prev, [format]: data }));
     };
     if (isLocal) {
       // Use the passed-in cards when available (the list menu, where the draft
       // collection isn't hydrated); fall back to the live editor draft.
       encodeDeck.mutate(
-        { format: tab, cards: toEncodeDeckCards(cardsProp ?? liveCards) },
-        { onSuccess, onError },
+        { format, cards: toEncodeDeckCards(cardsProp ?? liveCards) },
+        { onSuccess },
       );
     } else {
-      exportDeck.mutate({ deckId, format: tab }, { onSuccess, onError });
+      exportDeck.mutate({ deckId, format }, { onSuccess });
     }
-  }, [open, tab]); // oxlint-disable-line react-hooks/exhaustive-deps -- formats read via closure, not reactively
+  });
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    fetchFormat(tab);
+  }, [open, tab]);
 
   const handleTabChange = (newTab: ExportFormat) => {
     setTab(newTab);
     resetCopied();
   };
 
-  const currentFormat = formats[tab] ?? {};
-  const currentData = currentFormat.data;
-  const currentLoading = currentFormat.loading ?? false;
-  const currentError = currentFormat.error ?? false;
+  const currentData = formats[tab];
+  const isCurrentTab = exportMutation.variables?.format === tab;
+  const currentLoading = exportMutation.isPending && isCurrentTab;
+  const currentError = exportMutation.isError && isCurrentTab;
 
   const handleCopy = () => {
     if (!currentData?.code) {

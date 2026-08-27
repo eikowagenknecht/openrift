@@ -41,13 +41,16 @@ function FanCard({
   onCollect: () => void;
 }) {
   const { containerRef, innerRef } = useCardTilt({ mode: "pointer", enabled: true });
-  const [loaded, setLoaded] = useState(false);
+  // Which src has finished, rather than a bare flag: a new src has not loaded
+  // yet, however far the previous one got.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const loaded = loadedSrc === src;
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Handle cached images where onLoad may not fire
   useEffect(() => {
     if (imgRef.current?.complete) {
-      setLoaded(true);
+      setLoadedSrc(src);
     }
   }, [src]);
 
@@ -135,7 +138,7 @@ function FanCard({
                     "absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
                     loaded ? "opacity-100" : "opacity-0",
                   )}
-                  onLoad={() => setLoaded(true)}
+                  onLoad={() => setLoadedSrc(src)}
                 />
               </div>
               <FoilOverlay active={hovered || Boolean(hinting)} shimmer dim />

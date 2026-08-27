@@ -204,18 +204,27 @@ vi.mock("@/hooks/use-card-filters", () => ({
 }));
 
 const clearSelection = vi.fn();
+const resetSelection = vi.fn();
 const toggleSelectAll = vi.fn();
-vi.mock("@/hooks/use-card-selection", () => ({
-  useCardSelection: () => ({
-    selected: new Set<string>(),
-    toggleSelect: vi.fn(),
-    toggleSelectAll,
-    clearSelection,
-    getLastSelectedItemId: () => null,
-    setLastSelectedItemId: vi.fn(),
-    addToSelection: vi.fn(),
-  }),
-}));
+// Select mode is delegated to the real store, which now owns it, so entering
+// and leaving select mode behaves as it does in the app.
+vi.mock("@/hooks/use-card-selection", async () => {
+  const { useGridSelectionStore: store } = await import("@/stores/grid-selection-store");
+  return {
+    useCardSelection: () => ({
+      selected: new Set<string>(),
+      selectMode: store((s) => s.selectMode),
+      setSelectMode: store((s) => s.setSelectMode),
+      toggleSelect: vi.fn(),
+      toggleSelectAll,
+      clearSelection,
+      resetSelection,
+      getLastSelectedItemId: () => null,
+      setLastSelectedItemId: vi.fn(),
+      addToSelection: vi.fn(),
+    }),
+  };
+});
 
 vi.mock("@/hooks/use-copies", () => ({
   useCopyListMemberships: () => ({ data: undefined, isLoading: false }),
@@ -317,6 +326,7 @@ const { TopBarSlotContext } = await import("@/routes/_app/_authenticated/collect
 const { FilterSearchProvider } = await import("@/lib/search-schemas");
 const { useCardRowActionsStore } = await import("@/stores/card-row-actions-store");
 const { useGridFocusStore } = await import("@/stores/grid-focus-store");
+const { useGridSelectionStore } = await import("@/stores/grid-selection-store");
 const { useListEntriesStore } = await import("@/stores/list-entries-store");
 const { useSelectionStore } = await import("@/stores/selection-store");
 const { useSiblingOverrideStore } = await import("@/stores/sibling-override-store");
@@ -324,6 +334,7 @@ const { useSiblingOverrideStore } = await import("@/stores/sibling-override-stor
 const resetters = [
   createStoreResetter(useCardRowActionsStore),
   createStoreResetter(useGridFocusStore),
+  createStoreResetter(useGridSelectionStore),
   createStoreResetter(useListEntriesStore),
   createStoreResetter(useSelectionStore),
   createStoreResetter(useSiblingOverrideStore),

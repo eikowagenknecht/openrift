@@ -104,11 +104,6 @@ export function useActiveChapter(chapterIds: string[]): string | null {
         (divider): divider is { id: string; element: HTMLElement } => divider.element !== null,
       );
 
-    if (dividers.length === 0) {
-      setActiveId(null);
-      return;
-    }
-
     function update() {
       const line = window.innerHeight * READING_LINE;
       let reached: string | null = null;
@@ -120,13 +115,19 @@ export function useActiveChapter(chapterIds: string[]): string | null {
       setActiveId(reached);
     }
 
+    // Measure first: with no dividers on the page nothing is reached, which
+    // clears the rail, and there is then nothing to observe.
+    update();
+    if (dividers.length === 0) {
+      return;
+    }
+
     const observer = new IntersectionObserver(update, {
       rootMargin: `0px 0px -${Math.round((1 - READING_LINE) * 100)}% 0px`,
     });
     for (const divider of dividers) {
       observer.observe(divider.element);
     }
-    update();
     return () => observer.disconnect();
   }, [chapterKey]);
 

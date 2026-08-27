@@ -103,16 +103,19 @@ interface ScanSessionState {
   /** Put an already-confirmed copy back (rollback of a failed remove). */
   recordConfirmed: (printing: Printing, copyId: string) => void;
   /**
+   * What the last restore brought back, for the resume banner. Held here
+   * rather than returned so the page reads it during render instead of
+   * mirroring it into component state. Null once dismissed or reset.
+   */
+  resumed: RestoredScanSession | null;
+  /**
    * Rebuild the tray rows from the persisted session, looking each printing up
    * in the catalog. Readings whose printing left the catalog are dropped. Rows
-   * scanned before the restore ran stay the newest.
-   *
-   * @returns What was restored (for the resume banner), or null when there was
-   *   nothing to restore.
+   * scanned before the restore ran stay the newest. Publishes {@link resumed}.
    */
-  restore: (
-    lookupPrinting: (printingId: string) => Printing | undefined,
-  ) => RestoredScanSession | null;
+  restore: (lookupPrinting: (printingId: string) => Printing | undefined) => void;
+  /** Clears the resume banner, leaving the restored rows in place. */
+  dismissResumed: () => void;
   reset: () => void;
 }
 
@@ -329,10 +332,12 @@ export const useScanSessionStore = create<ScanSessionState>()(
           return { rows: next };
         }),
 
+      resumed: null,
+
       restore: (lookupPrinting) => {
         const payload = get().restored;
         if (!payload) {
-          return null;
+          return;
         }
         let cards = 0;
         set((state) => {
@@ -379,10 +384,13 @@ export const useScanSessionStore = create<ScanSessionState>()(
             restored: null,
           };
         });
-        return cards === 0 ? null : { cards, lastScanAt: payload.lastScanAt };
+        set({ resumed: cards === 0 ? null : { cards, lastScanAt: payload.lastScanAt } });
       },
 
-      reset: () => set({ rows: new Map(), scans: 0, lastScanAt: null, restored: null }),
+      dismissResumed: () => set({ resumed: null }),
+
+      reset: () =>
+        set({ rows: new Map(), scans: 0, lastScanAt: null, restored: null, resumed: null }),
     }),
     {
       name: "openrift-scan-session",

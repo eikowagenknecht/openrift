@@ -33,9 +33,11 @@ export function PrintingHoverPreview({
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const [loadedUrl, setLoadedUrl] = useState(fullUrl);
+  if (fullUrl !== loadedUrl) {
+    setLoadedUrl(fullUrl);
     setFullLoaded(false);
-  }, [fullUrl]);
+  }
 
   useEffect(() => {
     const previewWidth = landscape ? 560 : 400;

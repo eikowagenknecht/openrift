@@ -18,7 +18,7 @@ import {
 } from "@tanstack/react-table";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { RefObject } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   Table,
@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useScopeLayoutEffect } from "@/hooks/use-scope-effect";
 import { stringifySort } from "@/lib/admin-cards-search";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
@@ -119,13 +120,13 @@ const OVERSCAN = 20;
 export function useVirtualizedTableRows(rowCount: number) {
   const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
+  // A changed row count moves the anchor, so the margin is measured again.
+  useScopeLayoutEffect(rowCount, () => {
     const el = tableAnchorRef.current;
-    if (!el) {
-      return;
+    if (el) {
+      setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
     }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [rowCount]);
+  });
 
   const { virtualItems, totalSize } = useWindowVirtualizerFresh({
     count: rowCount,

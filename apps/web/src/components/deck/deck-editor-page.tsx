@@ -114,11 +114,16 @@ import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useSession, useUserId } from "@/lib/auth-session";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
-import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import {
+  hydrateDeckDraft,
+  useDeckDraftHydrated,
+  useDeckSaveStatus,
+} from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -184,7 +189,7 @@ function DeckEditorContent({
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
-  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  const hydrated = useDeckDraftHydrated(queryClient, scope, deckId);
   const deckCards = useDeckCards(deckId);
   const saveStatus = useDeckSaveStatus(queryClient, scope, deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
@@ -319,14 +324,13 @@ function DeckEditorContent({
   // when a fresh load arrives. The collection's save handler is auto-wired —
   // any user edit after this debounces a PUT back to the server.
   useEffect(() => {
-    if (data && hydratedId !== deckId) {
+    if (data && !hydrated) {
       const builderCards = data.cards
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
       hydrateDeckDraft(queryClient, scope, deckId, builderCards);
-      setHydratedId(deckId);
     }
-  }, [data, deckId, hydratedId, queryClient, scope, cardsById]);
+  }, [data, deckId, hydrated, queryClient, scope, cardsById]);
 
   // On unmount, reset UI scalars (active zone, runes catalog) so the next
   // deck load starts clean. The draft collection itself is intentionally
@@ -371,9 +375,9 @@ function DeckEditorContent({
   // Switching between overview and zone mode swaps the items array under the
   // detail pane (deck items vs catalog items), so clear the selection at the
   // boundary to avoid an orphaned selectedIndex.
-  useEffect(() => {
+  useScopeEffect(activeZone, () => {
     useSelectionStore.getState().closeDetail();
-  }, [activeZone]);
+  });
 
   // Formats without a sideboard hide the zone once it's empty. If the user is
   // inside the sideboard browser when its last card leaves (or the format is
@@ -586,7 +590,7 @@ function DeckEditorContent({
   const inZoneView = activeZone !== null;
   const requiredCounts = requiredZoneProgress(deckCards, data.deck.format);
 
-  if (hydratedId !== deckId) {
+  if (!hydrated) {
     return null;
   }
 

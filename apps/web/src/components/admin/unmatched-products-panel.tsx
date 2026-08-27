@@ -54,6 +54,10 @@ const CONFIG_BY_MARKETPLACE: Record<Marketplace, SourceMappingConfig> = {
 const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000;
 const COLUMN_COUNT = 7;
 
+function isStaleRecord(recordedAt: Date): boolean {
+  return Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
+}
+
 interface UnmatchedRow {
   marketplace: Marketplace;
   product: StagedProduct;
@@ -310,7 +314,7 @@ function UnmatchedProductRow({
 
   const config = CONFIG_BY_MARKETPLACE[marketplace];
   const recordedAt = new Date(product.recordedAt);
-  const isStale = Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
+  const isStale = isStaleRecord(recordedAt);
   const priceCents = product.marketCents ?? product.lowCents;
   const priceDisplay =
     priceCents && priceCents > 0 ? formatCents(priceCents, product.currency) : "";

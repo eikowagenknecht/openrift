@@ -1,5 +1,5 @@
 import type { CollectionResponse } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -73,11 +73,13 @@ export function ScanAddAllDialog({
   // BaseUI's dialog only fires onOpenChange for user-initiated changes, and
   // the scan page keeps this mounted for the whole session, so a stale pick
   // would otherwise outlive the target the user switched to in between.
-  useEffect(() => {
+  const [seededOpen, setSeededOpen] = useState(open);
+  if (seededOpen !== open) {
+    setSeededOpen(open);
     if (open) {
       setCollectionId(null);
     }
-  }, [open]);
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>

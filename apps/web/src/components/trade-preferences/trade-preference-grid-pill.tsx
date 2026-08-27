@@ -4,7 +4,7 @@ import { resolveEffectiveTradePreference } from "@openrift/shared";
 import { CountPillButton } from "@/components/ui/count-pill";
 import { cn } from "@/lib/utils";
 
-import { iconForTradeType } from "./trade-preference-icon";
+import { TRADE_TYPE_ICON } from "./trade-preference-icon";
 import {
   PRICE_PREF_ABBR,
   PRICE_PREF_SHORT_LABEL,
@@ -42,7 +42,7 @@ export function TradePreferenceGridPill({
   );
   const body = renderBody(effective);
   const tooltip = renderTooltip(effective);
-  const Icon = iconForTradeType(effective.tradeType);
+  const Icon = TRADE_TYPE_ICON[effective.tradeType ?? "none"];
 
   return (
     <CountPillButton

@@ -7,7 +7,7 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PrintingRowContent } from "@/components/cards/printing-row";
@@ -34,6 +34,7 @@ import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useQuickAddMoveMode } from "@/hooks/use-quick-add-move-mode";
 import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
 import { cn } from "@/lib/utils";
@@ -191,13 +192,15 @@ function PaletteInner({
   const markPreviewFailed = () => setFailedImageId(rawPreviewImageId);
 
   // Clamp selection when results change
-  useEffect(() => {
+  const [clampedFor, setClampedFor] = useState(results.length);
+  if (clampedFor !== results.length) {
+    setClampedFor(results.length);
     setSelectedIndex((prev) => Math.min(prev, Math.max(0, results.length - 1)));
     setExpandedCardId(null);
-  }, [results.length]);
+  }
 
   // Scroll selected item into view (keyboard navigation only)
-  useEffect(() => {
+  useScopeEffect(`${selectedIndex} ${expandedCardId ?? ""} ${expandedIndex}`, () => {
     if (!scrollOnChange.current) {
       return;
     }
@@ -214,7 +217,7 @@ function PaletteInner({
     if (target) {
       target.scrollIntoView({ block: "nearest" });
     }
-  }, [selectedIndex, expandedCardId, expandedIndex]);
+  });
 
   const handleAdd = async (printing: Printing) => {
     // The success toast is fired once per API batch by the shared hook, so a

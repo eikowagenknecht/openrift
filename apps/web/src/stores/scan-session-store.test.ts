@@ -559,11 +559,11 @@ describe("useScanSessionStore", () => {
           },
         });
 
-        const result = useScanSessionStore
+        useScanSessionStore
           .getState()
           .restore(lookupFrom([stubPrinting({ id: "p1" }), stubPrinting({ id: "p2" })]));
 
-        expect(result).toEqual({ cards: 5, lastScanAt: 42 });
+        expect(useScanSessionStore.getState().resumed).toEqual({ cards: 5, lastScanAt: 42 });
         const state = useScanSessionStore.getState();
         expect([...state.rows.keys()]).toEqual(["p1", "p2"]);
         expect(state.rows.get("p1")?.copyIds).toEqual(["copy-1", "copy-2"]);
@@ -586,11 +586,9 @@ describe("useScanSessionStore", () => {
           },
         });
 
-        const result = useScanSessionStore
-          .getState()
-          .restore(lookupFrom([stubPrinting({ id: "p1" })]));
+        useScanSessionStore.getState().restore(lookupFrom([stubPrinting({ id: "p1" })]));
 
-        expect(result).toEqual({ cards: 2, lastScanAt: null });
+        expect(useScanSessionStore.getState().resumed).toEqual({ cards: 2, lastScanAt: null });
         expect([...useScanSessionStore.getState().rows.keys()]).toEqual(["p1"]);
       });
 
@@ -618,11 +616,12 @@ describe("useScanSessionStore", () => {
         expect(state.lastScanAt).not.toBe(42);
       });
 
-      it("returns null when nothing was staged", () => {
-        expect(useScanSessionStore.getState().restore(() => undefined)).toBeNull();
+      it("announces nothing when nothing was staged", () => {
+        useScanSessionStore.getState().restore(() => undefined);
+        expect(useScanSessionStore.getState().resumed).toBeNull();
       });
 
-      it("returns null and clears the stage when no printing resolves", () => {
+      it("announces nothing and clears the stage when no printing resolves", () => {
         useScanSessionStore.setState({
           restored: {
             rows: [{ printingId: "p-gone", copyIds: ["copy-1"], identifiedCount: 0 }],
@@ -630,8 +629,24 @@ describe("useScanSessionStore", () => {
             lastScanAt: 42,
           },
         });
-        expect(useScanSessionStore.getState().restore(() => undefined)).toBeNull();
+        useScanSessionStore.getState().restore(() => undefined);
+        expect(useScanSessionStore.getState().resumed).toBeNull();
         expect(useScanSessionStore.getState().restored).toBeNull();
+      });
+
+      it("clears the banner without touching the restored rows", () => {
+        useScanSessionStore.setState({
+          restored: {
+            rows: [{ printingId: "p1", copyIds: ["copy-1"], identifiedCount: 0 }],
+            scans: 1,
+            lastScanAt: 42,
+          },
+        });
+        useScanSessionStore.getState().restore(lookupFrom([stubPrinting({ id: "p1" })]));
+        useScanSessionStore.getState().dismissResumed();
+
+        expect(useScanSessionStore.getState().resumed).toBeNull();
+        expect([...useScanSessionStore.getState().rows.keys()]).toEqual(["p1"]);
       });
     });
   });

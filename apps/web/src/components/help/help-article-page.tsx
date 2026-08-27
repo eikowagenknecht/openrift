@@ -1,14 +1,23 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
+import type { ComponentType } from "react";
 import { Suspense, lazy } from "react";
 
 import { Heading } from "@/components/heading";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import type { HelpArticle } from "./articles";
+import { helpArticles } from "./articles";
+
+// One lazy component per article for the app's lifetime. Calling lazy() during
+// render would hand Suspense a new component on every pass, re-mounting the
+// article and re-running its import.
+const ARTICLE_CONTENT: Record<string, ComponentType> = Object.fromEntries(
+  [...helpArticles].map(([slug, entry]) => [slug, lazy(entry.component)]),
+);
 
 export function HelpArticlePage({ article }: { article: HelpArticle }) {
-  const ArticleContent = lazy(article.component);
+  const ArticleContent = ARTICLE_CONTENT[article.slug];
 
   return (
     <div className={cn("mx-auto w-full max-w-2xl flex-1", PAGE_PADDING)}>

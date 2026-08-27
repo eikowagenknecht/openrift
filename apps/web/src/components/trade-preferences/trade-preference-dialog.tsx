@@ -1,5 +1,5 @@
 import type { Currency, TradePreference } from "@openrift/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,12 +63,19 @@ export function TradePreferenceDialog({
 
   // Re-sync when a different entry's override flows in (the dialog is
   // mounted once and reused for whichever entry the user right-clicked).
-  useEffect(() => {
+  const [seed, setSeed] = useState({ open, override, currency, defaultCurrency });
+  if (
+    seed.open !== open ||
+    seed.override !== override ||
+    seed.currency !== currency ||
+    seed.defaultCurrency !== defaultCurrency
+  ) {
+    setSeed({ open, override, currency, defaultCurrency });
     if (open) {
       setDraft(override);
       setDraftCurrency(currency ?? defaultCurrency);
     }
-  }, [open, override, currency, defaultCurrency]);
+  }
 
   const absoluteNeedsAmount = draft.pricePref === "absolute" && draft.priceAbsoluteCents === null;
   // Currency is a list-level setting — users change it from Edit list, not

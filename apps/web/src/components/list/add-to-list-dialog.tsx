@@ -1,5 +1,5 @@
 import { FolderIcon, HandshakeIcon, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -71,11 +71,13 @@ export function AddToListDialog({
   // "all" each time the dialog opens for a fresh target.
   const canChooseQuantity = singleCard && count > 1;
   const [quantity, setQuantity] = useState(count);
-  useEffect(() => {
+  const [seed, setSeed] = useState({ open, count });
+  if (seed.open !== open || seed.count !== count) {
+    setSeed({ open, count });
     if (open) {
       setQuantity(count);
     }
-  }, [open, count]);
+  }
   const effectiveQuantity = canChooseQuantity ? quantity : count;
   const exceedsLimit = effectiveQuantity > MAX_BULK_ADD;
 

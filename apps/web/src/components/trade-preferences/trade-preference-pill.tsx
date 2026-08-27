@@ -4,7 +4,7 @@ import { resolveEffectiveTradePreference } from "@openrift/shared";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { iconForTradeType } from "./trade-preference-icon";
+import { TRADE_TYPE_ICON } from "./trade-preference-icon";
 import {
   PRICE_PREF_ABBR,
   PRICE_PREF_SHORT_LABEL,
@@ -82,7 +82,7 @@ export function TradePreferencePill(props: Props) {
   // (only trade-type set, or nothing set at all). Keeps the actions cell
   // narrow while still telling the user the price reference at a glance.
   const pillBody = renderPillBody(effective);
-  const Icon = iconForTradeType(effective.tradeType);
+  const Icon = TRADE_TYPE_ICON[effective.tradeType ?? "none"];
 
   const button = (
     // oxlint-disable-next-line react/forbid-elements -- bespoke three-state bordered pref pill (empty/inherited/overridden); no variant ladder fits

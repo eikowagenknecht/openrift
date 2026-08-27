@@ -1,11 +1,11 @@
 import { createFileRoute, Outlet, useLocation, useMatches } from "@tanstack/react-router";
-import { useEffect } from "react";
 
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { AppBackground } from "@/components/layout/app-background";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
+import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { cn, CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -31,9 +31,9 @@ function AppLayout() {
   // surface's detail pane (e.g. /lists/<id>). Close it on every pathname
   // change so the detail belongs to the current page.
   const pathname = useLocation({ select: (loc) => loc.pathname });
-  useEffect(() => {
+  useScopeEffect(pathname, () => {
     useSelectionStore.getState().closeDetail();
-  }, [pathname]);
+  });
 
   return (
     <>
