@@ -18,7 +18,6 @@ function requestLead(senderHtml: string, card: string, kind: "wants" | "offers")
     : `${senderHtml} is offering you ${cardHtml}.`;
 }
 
-/** The "— OpenRift" suffix is appended by the caller. */
 function requestSubject(sender: string, cardName: string, kind: "wants" | "offers"): string {
   return kind === "wants"
     ? `${sender} wants to trade for ${cardName}`
@@ -50,7 +49,7 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
 
   const lead = requestLead(`<strong>${escapeHtml(initiator)}</strong>`, card, input.kind);
-  const subject = `${requestSubject(initiator, input.cardName, input.kind)} — OpenRift`;
+  const subject = requestSubject(initiator, input.cardName, input.kind);
 
   const contactLine = input.initiatorContact
     ? `<p style="margin:0 0 20px;">Reach ${escapeHtml(initiator)}: ${escapeHtml(input.initiatorContact)}</p>`
@@ -141,7 +140,7 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
       <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
     `;
     return {
-      subject: `${requestSubject(sender, request.cardName, request.kind)} — OpenRift`,
+      subject: requestSubject(sender, request.cardName, request.kind),
       html: renderEmailLayout({
         heading: "New trade request",
         bodyHtml,
@@ -196,7 +195,7 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
     // With a wants part ahead, "cards" is already established: "…and offers you 1".
     parts.push(wantsCount > 0 ? `offers you ${offersCount}` : `offers you ${offersCount} cards`);
   }
-  const subject = `${sender} ${joinWithAnd(parts)} — OpenRift`;
+  const subject = `${sender} ${joinWithAnd(parts)}`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
@@ -273,7 +272,6 @@ function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): strin
   }
 }
 
-/** The "— OpenRift" suffix is appended by the caller. */
 function singleUpdateSubject(actor: string, event: TradeStatusUpdate["event"]): string {
   switch (event) {
     case "reserved": {
@@ -318,7 +316,7 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
       <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
     `;
     return {
-      subject: `${singleUpdateSubject(actor, group.updates[0].event)} — OpenRift`,
+      subject: singleUpdateSubject(actor, group.updates[0].event),
       html: renderEmailLayout({
         heading: "Trade updates",
         bodyHtml,
@@ -371,7 +369,7 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
       .filter(({ count }) => count > 0)
       .map(({ verb, count }) => `${verb} ${count}`),
   );
-  const subject = `${actor} ${countPhrase} of your trades — OpenRift`;
+  const subject = `${actor} ${countPhrase} of your trades`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
@@ -417,7 +415,7 @@ export function buildTradeMatchDigestEmail(input: TradeMatchDigestEmailInput): {
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
 
   const countLabel = totalMatches === 1 ? "1 new match" : `${totalMatches} new matches`;
-  const subject = `${countLabel} in your trading groups — OpenRift`;
+  const subject = `${countLabel} in your trading groups`;
 
   // Matches group by counterparty ("Garen has …"), not card by card — the
   // person is the call to action, the cards are the detail. The group is the

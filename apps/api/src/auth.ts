@@ -33,14 +33,14 @@ export function createAuth(deps: {
       emailOTP({
         async sendVerificationOTP({ email, otp, type }) {
           const subjects: Record<string, string> = {
-            "sign-in": "Your sign-in code — OpenRift",
-            "email-verification": "Verify your email — OpenRift",
-            "forget-password": "Reset your password — OpenRift",
-            "change-email": "Confirm your email change — OpenRift",
+            "sign-in": "Your sign-in code",
+            "email-verification": "Verify your email",
+            "forget-password": "Reset your password",
+            "change-email": "Confirm your email change",
           };
           await sendEmail({
             to: email,
-            subject: subjects[type] ?? "Your verification code — OpenRift",
+            subject: subjects[type] ?? "Your verification code",
             html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
               <h2 style="margin: 0 0 16px;">Your verification code</h2>

@@ -17,7 +17,7 @@ const BASE: CardSubmissionAlertEmailInput = {
 describe("buildCardSubmissionAlertEmail", () => {
   it("names the card in the subject and the submitter in the body", () => {
     const { subject, html } = buildCardSubmissionAlertEmail(BASE);
-    expect(subject).toBe("New card submission: Azir, Emperor of the Sands — OpenRift");
+    expect(subject).toBe("New card submission: Azir, Emperor of the Sands");
     expect(html).toContain("Garen");
     expect(html).toContain("Azir, Emperor of the Sands");
     expect(html).toContain(BASE.submitterEmail);

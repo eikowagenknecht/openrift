@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-27
+
+### Other
+
+- fix(App): **Cleaner email subject lines** — notification and sign-in emails no longer repeat "OpenRift" at the end of every subject, since the sender already says it.
+
 ## 2026-08-26
 
 ### Highlights

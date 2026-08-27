@@ -19,7 +19,7 @@ const REQUEST_BASE = {
 describe("buildTradeRequestEmail", () => {
   it("phrases a receiver-initiated request as 'wants'", () => {
     const { subject, html } = buildTradeRequestEmail({ ...REQUEST_BASE, kind: "wants" });
-    expect(subject).toBe("Garen wants to trade for Azir, Emperor of the Sands — OpenRift");
+    expect(subject).toBe("Garen wants to trade for Azir, Emperor of the Sands");
     expect(html).toContain("wants to trade for");
     expect(html).toContain("Garen");
     expect(html).toContain("expire 7 days");
@@ -31,7 +31,7 @@ describe("buildTradeRequestEmail", () => {
 
   it("phrases a giver-initiated offer as 'offers'", () => {
     const { subject, html } = buildTradeRequestEmail({ ...REQUEST_BASE, kind: "offers" });
-    expect(subject).toBe("Garen offers you Azir, Emperor of the Sands — OpenRift");
+    expect(subject).toBe("Garen offers you Azir, Emperor of the Sands");
     expect(html).toContain("offering you");
   });
 
@@ -84,7 +84,7 @@ describe("buildCoalescedTradeRequestsEmail", () => {
 
   it("counts each direction in the subject and groups the body by direction", () => {
     const { subject, html } = buildCoalescedTradeRequestsEmail(BASE);
-    expect(subject).toBe("Garen wants 1 of your cards and offers you 1 — OpenRift");
+    expect(subject).toBe("Garen wants 1 of your cards and offers you 1");
     expect(html).toContain("New trade requests");
     expect(html).toContain("Garen</strong> sent you 2 trade requests");
     expect(html).not.toContain("more trade requests");
@@ -114,7 +114,7 @@ describe("buildCoalescedTradeRequestsEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen offers you 2 cards — OpenRift");
+    expect(subject).toBe("Garen offers you 2 cards");
     expect(html).toContain(">Offers you</p>");
     expect(html).not.toContain(">Wants from you</p>");
   });
@@ -161,7 +161,7 @@ describe("buildCoalescedTradeRequestsEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen wants to trade for C — OpenRift");
+    expect(subject).toBe("Garen wants to trade for C");
     expect(html).toContain("New trade request");
     expect(html).toContain("Garen</strong> wants to trade for your <strong>C</strong>.");
     // No direction header over a single card.
@@ -172,7 +172,7 @@ describe("buildCoalescedTradeRequestsEmail", () => {
 
   it("falls back to a generic sender label when the name is null", () => {
     const { subject } = buildCoalescedTradeRequestsEmail({ ...BASE, senderName: null });
-    expect(subject).toBe("A group member wants 1 of your cards and offers you 1 — OpenRift");
+    expect(subject).toBe("A group member wants 1 of your cards and offers you 1");
   });
 
   it("escapes HTML in user-controlled fields", () => {
@@ -205,7 +205,7 @@ describe("buildTradeStatusUpdateEmail", () => {
 
   it("counts each verdict in the subject and groups the body by outcome", () => {
     const { subject, html } = buildTradeStatusUpdateEmail(BASE);
-    expect(subject).toBe("Garen accepted 1, declined 1, and cancelled 1 of your trades — OpenRift");
+    expect(subject).toBe("Garen accepted 1, declined 1, and cancelled 1 of your trades");
     // Single shared group: rides on the button, not a standalone header.
     expect(html).toContain("View the trades in Playgroup");
     expect(html).not.toContain("In Playgroup");
@@ -247,7 +247,7 @@ describe("buildTradeStatusUpdateEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen accepted 2 of your trades — OpenRift");
+    expect(subject).toBe("Garen accepted 2 of your trades");
     expect(html).toContain(">Accepted</p>");
     expect(html).not.toContain(">Declined</p>");
     expect(html).not.toContain(">Cancelled</p>");
@@ -286,7 +286,7 @@ describe("buildTradeStatusUpdateEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen accepted your trade request — OpenRift");
+    expect(subject).toBe("Garen accepted your trade request");
     expect(html).toContain("Garen</strong> accepted your request for <strong>C</strong>.");
     // No verdict header over a single bullet.
     expect(html).not.toContain(">Accepted</p>");
@@ -304,15 +304,13 @@ describe("buildTradeStatusUpdateEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen cancelled a trade — OpenRift");
+    expect(subject).toBe("Garen cancelled a trade");
     expect(html).toContain("Garen</strong> cancelled the trade for <strong>C</strong>.");
   });
 
   it("falls back to a generic actor label when the name is null", () => {
     const { subject } = buildTradeStatusUpdateEmail({ ...BASE, actorName: null });
-    expect(subject).toBe(
-      "A group member accepted 1, declined 1, and cancelled 1 of your trades — OpenRift",
-    );
+    expect(subject).toBe("A group member accepted 1, declined 1, and cancelled 1 of your trades");
   });
 
   it("escapes HTML in user-controlled fields", () => {
@@ -342,7 +340,7 @@ describe("buildTradeMatchDigestEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("3 new matches in your trading groups — OpenRift");
+    expect(subject).toBe("3 new matches in your trading groups");
     // One "X has" header per counterparty, cards listed beneath it.
     expect(html).toContain(">Garen has</p>");
     expect(html).toContain(">Lux has</p>");
@@ -389,7 +387,7 @@ describe("buildTradeMatchDigestEmail", () => {
         { groupName: "G", tradesUrl: "t", matches: [{ cardName: "C", counterpartyLabel: "X" }] },
       ],
     });
-    expect(subject).toBe("1 new match in your trading groups — OpenRift");
+    expect(subject).toBe("1 new match in your trading groups");
     expect(html).toContain("X</strong> now has <strong>C</strong> from your wishlist.");
     expect(html).not.toContain(">X has</p>");
     expect(html).toContain("View the trades in G");

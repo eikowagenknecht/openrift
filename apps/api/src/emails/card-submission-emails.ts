@@ -50,7 +50,7 @@ export function buildCardSubmissionAlertEmail(input: CardSubmissionAlertEmailInp
 } {
   const submitter = input.submitterName ?? input.submitterEmail;
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
-  const subject = `New card submission: ${input.cardName} — OpenRift`;
+  const subject = `New card submission: ${input.cardName}`;
 
   const printingsHtml =
     input.printings.length > 0
