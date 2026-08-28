@@ -3,12 +3,16 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, Share2Icon, SparklesIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { IconChip } from "@/components/ui/icon-chip";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupShareableLists } from "@/hooks/use-friend-groups";
+import { frontImageId } from "@/lib/card-meta";
+import { distinctPrintingIds } from "@/lib/friend-group-activity";
 import type { TradeHubCard } from "@/lib/trade-hub";
 import {
   expiringSoonCount,
@@ -44,7 +48,7 @@ function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
     acts.push(`${toReceive} to receive`);
   }
 
-  const parts = [`Your move · ${acts.join(", ")}`];
+  const parts = [acts.join(", ")];
   const soon = expiringSoonCount(card.needsYou);
   if (soon > 0) {
     parts.push(`${soon} ${soon === 1 ? "expires" : "expire"} soon`);
@@ -53,23 +57,16 @@ function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
 }
 
 /**
- * The card's muted line: everything true about this person that isn't asking
- * anything of you. Plain text rather than badges — colored chips read as things
- * to act on, and the whole point of the line is that none of these are.
- * Suggestions are deliberately not in here: they are the one fact that is an
- * opportunity, so they get their own green line on the card.
+ * The card's muted line: what is out with this person and not yours to move.
+ * Plain text rather than badges — colored chips read as things to act on, and
+ * the whole point of the line is that this one is not. Suggestions are
+ * deliberately not in here: they are the one fact that is an opportunity, so
+ * they get their own green line on the card.
  * @param card The person's card.
- * @returns The line, or null when there's nothing to say.
+ * @returns The line, or null when nothing is waiting on them.
  */
 function factsLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
-  const parts: string[] = [];
-  if (card.open.length > 0) {
-    parts.push(`${card.open.length} waiting on them`);
-  }
-  if (card.listCount > 0) {
-    parts.push(`shares ${card.listCount} ${card.listCount === 1 ? "list" : "lists"}`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return card.open.length > 0 ? `${card.open.length} waiting on them` : null;
 }
 
 /** @returns The card's muted footer line, or null when there's nothing behind it. */
@@ -81,14 +78,17 @@ function footerLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
   if (card.elsewhereCount > 0) {
     parts.push(`+${card.elsewhereCount} in other groups`);
   }
+  if (card.listCount > 0) {
+    parts.push(`shares ${card.listCount} ${card.listCount === 1 ? "list" : "lists"}`);
+  }
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 /**
- * One member's card on the hub: who they are, and in three lines what standing
- * between the two of you. The whole card is the link to their trade sheet,
- * where every one of those things is acted on — so the card only has to be
- * legible, never operated, and nothing inside it competes for the click.
+ * One member's card on the hub: who they are, and what stands between the two
+ * of you. The whole card is the link to their trade sheet, where every one of
+ * those things is acted on — so the card only has to be legible, never
+ * operated, and nothing inside it competes for the click.
  *
  * Only what waits on the viewer is gold; the rest is muted text, because a card
  * where four counts all shout has no way left to say "this one".
@@ -107,11 +107,16 @@ export function TradeHubMemberCard({
   slug: string;
 }) {
   const { member } = card;
+  const { printingsById } = useCards();
   const quiet = isQuietTradeHubCard(card);
   const action = actionLine(card);
   const suggestions = suggestionsLine(card);
   const facts = factsLine(card);
   const footer = footerLine(card);
+  const waitingArt = distinctPrintingIds(card.needsYou).map((printingId) => ({
+    key: printingId,
+    imageId: frontImageId(printingsById[printingId]),
+  }));
 
   return (
     <CardLink
@@ -140,6 +145,11 @@ export function TradeHubMemberCard({
       {action === null ? null : (
         <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{action}</p>
       )}
+      {/* The art of what waits on you, so the card says which cards they are
+          before you open the sheet. One thumb per distinct printing. */}
+      {waitingArt.length > 0 ? (
+        <CardArtThumbStack items={waitingArt} max={5} thumbClassName="w-8" />
+      ) : null}
       {/* The one fact that is an opportunity rather than a record, so it sits
           apart from the muted line — green like the incoming arrow, one step
           below the gold of what already waits. */}

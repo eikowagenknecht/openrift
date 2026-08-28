@@ -4,7 +4,9 @@
 
 ### Other
 
+- feat(Trades): **Card art on the group trades page** — each member card now previews the cards waiting on you, and the shared-list count moved down to the smaller footer line.
 - feat(App): **Features page speaks to newcomers** — the tour now leads with the free, no-ads, open-source pitch and one-minute collection import, and gives marketplace prices a full section.
+- fix(Groups): **Trade counts on group cards** — possible trades now sit as a green chip beside the other badges, and the trades page drops the "Your move" label that repeated what its counts already said.
 
 ## 2026-08-27
 

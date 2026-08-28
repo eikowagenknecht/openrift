@@ -283,8 +283,9 @@ export function GroupsIndexPage() {
               // group that needs you stands out from across the grid.
               const needsViewer = (actions?.count ?? 0) > 0 || row.pendingRequestCount > 0;
               // Undefined until this group's matcher answers, which is why the
-              // segment is dropped rather than shown as zero.
+              // badge is dropped rather than shown as zero.
               const suggestions = suggestionsBySlug.get(row.slug);
+              const hasSuggestions = suggestions !== undefined && suggestions > 0;
               return (
                 <CardLink
                   key={row.id}
@@ -305,7 +306,7 @@ export function GroupsIndexPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Heading className="min-w-0 truncate">{row.name}</Heading>
                       <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
-                      {respondCount > 0 || settleCount > 0 ? (
+                      {respondCount > 0 || settleCount > 0 || hasSuggestions ? (
                         // A decision the viewer owes someone else outranks their
                         // own housekeeping, so the request badge keeps the
                         // filled primary and the swap one steps down to the tint.
@@ -318,6 +319,11 @@ export function GroupsIndexPage() {
                           {settleCount > 0 ? (
                             <Badge variant="subtle" className="whitespace-nowrap">
                               {settleCount} swap{settleCount === 1 ? "" : "s"} to confirm
+                            </Badge>
+                          ) : null}
+                          {hasSuggestions ? (
+                            <Badge variant="success" className="whitespace-nowrap">
+                              {suggestions} possible {suggestions === 1 ? "trade" : "trades"}
                             </Badge>
                           ) : null}
                         </div>
@@ -338,14 +344,6 @@ export function GroupsIndexPage() {
                       {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
                       <span className="mx-1.5 opacity-60">·</span>
                       {row.sharedListCount} shared {row.sharedListCount === 1 ? "list" : "lists"}
-                      {suggestions !== undefined && suggestions > 0 ? (
-                        <>
-                          <span className="mx-1.5 opacity-60">·</span>
-                          <span className="text-foreground font-medium">
-                            {suggestions} possible {suggestions === 1 ? "trade" : "trades"}
-                          </span>
-                        </>
-                      ) : null}
                     </p>
                   </div>
                 </CardLink>

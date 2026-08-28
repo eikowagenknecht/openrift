@@ -967,7 +967,7 @@ export function PricesVignette() {
 const GROUP_MEMBERS = [
   {
     name: "Alice",
-    action: "Your move · 2 to answer, 1 to hand over, 3 to receive",
+    action: "2 to answer, 1 to hand over, 3 to receive",
     suggestions: "3 possible trades",
     facts: "2 waiting on them · shares 3 lists",
     footer: "4 trades done · +2 in other groups",
