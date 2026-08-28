@@ -9,6 +9,8 @@ import { MiniCardArt } from "./vignette-parts";
 
 const SPREAD_CARD_WIDTH = 100;
 
+const TRUST_POINTS = ["Fast", "Free", "No ads", "Open source"];
+
 const SPREAD = [
   { left: 0, top: 32, rotate: -9 },
   { left: 70, top: 16, rotate: -2 },
@@ -98,6 +100,27 @@ export function FeaturesHero({
             <SectionRule />
             <p className="text-muted-foreground max-w-prose">
               Your collection, your decks, and your game nights, in one app.
+            </p>
+            <ul className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {TRUST_POINTS.map((point, index) => (
+                <li key={point} className="flex items-center gap-x-3">
+                  {index > 0 && (
+                    <span aria-hidden="true" className="bg-border-accent size-1 rotate-45" />
+                  )}
+                  <span className="font-heading text-sm font-medium">{point}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground max-w-prose">
+              Coming from another app?{" "}
+              <a
+                href="#import"
+                onClick={smoothAnchorClick}
+                className="text-primary focus-visible:ring-ring font-medium hover:underline focus-visible:ring-2 focus-visible:outline-none"
+              >
+                Importing your collection takes a minute
+              </a>
+              .
             </p>
           </div>
           <CardFlourish urls={thumbnailUrls} />

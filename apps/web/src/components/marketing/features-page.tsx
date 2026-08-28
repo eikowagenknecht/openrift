@@ -183,6 +183,15 @@ export function FeaturesPage() {
           vignette: <CatalogVignette thumbnails={taggedThumbnails} cardCount={data?.cardCount} />,
         },
         {
+          id: "import",
+          title: "Import from anywhere, export anytime",
+          description:
+            "Moving in from another tool, or just want to try things out? You can start your OpenRift collection by pasting a plain text list or uploading a CSV from Piltover Archive, RiftCore, or RiftMana. Nothing to convert, nothing to retype. If you ever want to leave, you can export your collection back to those formats (and more).",
+          action: sectionAction("Import now", "/collections/import"),
+          vignette: <ImportVignette />,
+          flip: true,
+        },
+        {
           id: "scan",
           title: "Scan cards with your phone",
           description:
@@ -190,7 +199,6 @@ export function FeaturesPage() {
           action: sectionAction("Open the scanner", "/scan"),
           vignette: <ScanVignette cards={thumbnailCards.slice(8, 12)} />,
           emphasis: true,
-          flip: true,
         },
         {
           id: "collections",
@@ -199,14 +207,6 @@ export function FeaturesPage() {
             "Create as many as you like: binders, storage drawers, shoe boxes, deck boxes. View them separately, or all together. Never lose track of where you put that card again.",
           action: sectionAction("Open collections", "/collections"),
           vignette: <CollectionsVignette thumbnailUrls={thumbnailUrls.slice(4, 7)} />,
-        },
-        {
-          id: "import",
-          title: "Import from anywhere, export anytime",
-          description:
-            "Moving in from another tool, or just want to try things out? You can start your OpenRift collection by pasting a plain text list or uploading a CSV from Piltover Archive, RiftCore, or RiftMana. Nothing to convert, nothing to retype. If you ever want to leave, you can export your collection back to those formats (and more).",
-          action: sectionAction("Import now", "/collections/import"),
-          vignette: <ImportVignette />,
           flip: true,
         },
         {
@@ -217,16 +217,17 @@ export function FeaturesPage() {
           action: sectionAction("Open your lists", "/collections"),
           vignette: <ListsVignette />,
         },
-      ],
-      cards: [
         {
           id: "prices",
           title: "Three marketplaces, side by side",
           description:
-            "Daily prices from TCGplayer, Cardmarket, and CardTrader on every printing, with price history.",
+            "Daily prices from TCGplayer, Cardmarket, and CardTrader on every printing, with history charts showing where a card has been heading. Your collection's total value is tracked over time too, for any marketplace and any set of your collections.",
           action: sectionAction("Open the catalog", "/cards"),
           vignette: <PricesVignette />,
+          flip: true,
         },
+      ],
+      cards: [
         {
           id: "promos",
           title: "Every promo stamp, every source",
@@ -247,7 +248,6 @@ export function FeaturesPage() {
             "Legality checked against the official rules as you build, or switched off entirely. Energy curves, matchup plans, and deck codes that other tools can read.",
           action: sectionAction("Build a deck", "/decks"),
           vignette: <DecksVignette />,
-          flip: true,
         },
       ],
       cards: [
@@ -287,6 +287,7 @@ export function FeaturesPage() {
             "Swiss pairings for 1v1, pods for three or four players, and fixed teams for 2v2. Deck submission, judges, and deck checks are optional per tournament. Players report their own results from a link, and spectators can follow the standings.",
           action: sectionAction("Open tournaments", "/tournaments"),
           vignette: <TournamentsVignette />,
+          flip: true,
         },
       ],
       cards: [
@@ -317,7 +318,6 @@ export function FeaturesPage() {
             "Private groups match your wishlist against everyone's spares and show you which trades are possible. Each member page tracks whose move it is, what you have already traded, and which lists they share with you.",
           action: sectionAction("Open your groups", "/groups"),
           vignette: <GroupsVignette />,
-          flip: true,
         },
       ],
       cards: [
@@ -367,6 +367,7 @@ export function FeaturesPage() {
             "Queue up cards and show them two ways: a full-screen view for window capture, or a transparent overlay you paste into OBS as a browser source. Viewers can look up cards in chat with !card, and tier lists rank a set on a board you can share as a link or an image.",
           action: sectionAction("Open the creator tools", "/creators"),
           vignette: <StageVignette thumbnailUrls={thumbnailUrls.slice(23, 24)} />,
+          flip: true,
         },
       ],
       cards: [

@@ -63,9 +63,9 @@ export const FEATURE_CHAPTERS: FeatureChapter[] = [
     icon: LibraryIcon,
     features: [
       { hash: "catalog", label: "Catalog", icon: LayoutGridIcon },
+      { hash: "import", label: "Import", icon: ArrowDownUpIcon },
       { hash: "scan", label: "Scanner", icon: ScanLineIcon },
       { hash: "collections", label: "Collections", icon: LibraryIcon },
-      { hash: "import", label: "Import", icon: ArrowDownUpIcon },
       { hash: "lists", label: "Lists", icon: ListChecksIcon },
       { hash: "prices", label: "Prices", icon: TrendingUpIcon },
       { hash: "promos", label: "Promos", icon: TicketIcon },

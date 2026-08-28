@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-28
+
+### Other
+
+- feat(App): **Features page speaks to newcomers** — the tour now leads with the free, no-ads, open-source pitch and one-minute collection import, and gives marketplace prices a full section.
+
 ## 2026-08-27
 
 ### Highlights
