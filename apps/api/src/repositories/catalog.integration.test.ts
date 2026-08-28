@@ -260,6 +260,47 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     }
   });
 
+  it("landingLegendThumbnails only samples Legend cards", async () => {
+    const ids = await repo.landingLegendThumbnails(500);
+    if (ids.length === 0) {
+      return;
+    }
+    const legendRows = await db
+      .selectFrom("printingImages")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("cards", "cards.id", "printings.cardId")
+      .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      .select(["ci.id as imageId"])
+      .where("printingImages.face", "=", "front")
+      .where("printingImages.isActive", "=", true)
+      .where("ci.rehostedUrl", "is not", null)
+      .where("cards.type", "=", "legend")
+      .where("printings.language", "=", "EN")
+      .execute();
+    const legendImageIds = new Set(legendRows.map((r) => r.imageId));
+    for (const id of ids) {
+      expect(legendImageIds.has(id)).toBe(true);
+    }
+  });
+
+  it("landingLegendThumbnails returns one printing per legend", async () => {
+    const ids = await repo.landingLegendThumbnails(500);
+    if (ids.length === 0) {
+      return;
+    }
+    const cardRows = await db
+      .selectFrom("printingImages")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      .select(["ci.id as imageId", "printings.cardId as cardId"])
+      .where("ci.id", "in", ids)
+      .execute();
+    const cardIds = cardRows.map((r) => r.cardId);
+
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(cardIds).size).toBe(cardIds.length);
+  });
+
   it("printingsByCardId orders English printings before other languages", async () => {
     // Find a card that has both an EN printing and at least one non-EN printing
     // (e.g. a localized SC version) so the sort key is exercised. SSR meta tags

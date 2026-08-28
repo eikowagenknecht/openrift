@@ -41,6 +41,12 @@ export const landingSummaryResponseSchema = z
           },
         ],
       }),
+    // Legend art for the tier-list vignette, which ranks legends and so cannot
+    // draw from the general sample. Its own field, like `thumbnails`, so a
+    // bundle served an edge-cached body from before it keeps working.
+    legendThumbnailIds: z.array(z.string()).openapi({
+      example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
+    }),
     // Real distribution channels for the promos vignette, so the miniature's
     // "Promo" chips sit on printings that were actually handed out that way.
     promoSections: z

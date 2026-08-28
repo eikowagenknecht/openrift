@@ -404,6 +404,11 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-stage-push: stage-push 8s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
   --animate-stage-idle: stage-idle 8s ease-in-out infinite;
   --animate-stage-live: stage-live 8s ease-in-out infinite;
+  /* Tier list: a card flies out of the pool into the top row, then the copy it
+     left behind dims. On the 9s vignette cycle so the ranked count and the pool
+     pill, both Swaps, land on the same beat. */
+  --animate-tier-land: tier-land 9s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
+  --animate-tier-pool-dim: tier-pool-dim 9s ease-out infinite;
   --animate-collect-fly-a: collect-fly-a 12s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
   --animate-collect-fly-b: collect-fly-b 12s cubic-bezier(0.2, 0.9, 0.25, 1) infinite;
   --animate-collect-drop-a: collect-drop-a 12s ease-out infinite;
@@ -1139,6 +1144,39 @@ html.hide-scrollbar::-webkit-scrollbar {
     97%,
     100% {
       opacity: 0;
+    }
+  }
+
+  /* The tile arriving in the S row. It starts down and to the right, roughly
+     over the pool strip it came from, so the flight reads as the drag. */
+  @keyframes tier-land {
+    0%,
+    14% {
+      opacity: 0;
+      translate: 18px 118px;
+      rotate: -8deg;
+      scale: 0.92;
+    }
+    42%,
+    100% {
+      opacity: 1;
+      translate: 0 0;
+      rotate: 0deg;
+      scale: 1;
+    }
+  }
+
+  /* Ranked cards stay in the pool, so the copy left behind dims rather than
+     disappearing. Ends at the dimmed state: that is what the pool looks like
+     for the rest of the loop, and what reduced motion is left holding. */
+  @keyframes tier-pool-dim {
+    0%,
+    42% {
+      opacity: 1;
+    }
+    52%,
+    100% {
+      opacity: 0.4;
     }
   }
 

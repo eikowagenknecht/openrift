@@ -21,6 +21,7 @@ import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 import { BoxVignette } from "./box-vignette";
 import { ChapterDivider } from "./chapter-divider";
+import { ChatVignette } from "./chat-vignette";
 import { cornerClip } from "./clip-frame";
 import { DesignerVignette } from "./designer-vignette";
 import { FeatureCard } from "./feature-card";
@@ -53,6 +54,7 @@ import { ScanVignette } from "./scan-vignette";
 import { ShareVignette } from "./share-vignette";
 import { StageVignette } from "./stage-vignette";
 import { TestVignette } from "./test-vignette";
+import { TierListVignette } from "./tier-list-vignette";
 import { TrackerVignette } from "./tracker-vignette";
 import { VariantsVignette } from "./variants-vignette";
 
@@ -141,6 +143,7 @@ export function FeaturesPage() {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const thumbnailUrls = (data?.thumbnailIds ?? []).map((id) => imageUrl(id, "400w"));
+  const legendUrls = (data?.legendThumbnailIds ?? []).map((id) => imageUrl(id, "400w"));
   const taggedThumbnails = (data?.thumbnails ?? []).map((thumb) => ({
     url: imageUrl(thumb.imageId, "400w"),
     rarity: thumb.rarity,
@@ -364,13 +367,38 @@ export function FeaturesPage() {
           id: "stage",
           title: "Put cards on stream",
           description:
-            "Queue up cards and show them two ways: a full-screen view for window capture, or a transparent overlay you paste into OBS as a browser source. Viewers can look up cards in chat with !card, and tier lists rank a set on a board you can share as a link or an image.",
-          action: sectionAction("Open the creator tools", "/creators"),
+            "Queue up cards and show them two ways: a full-screen view for window capture, or a transparent overlay you paste into OBS as a browser source. Both run off the same queue, and the show is driven from the keyboard, so you can step through a reveal without looking away from the camera.",
+          action: sectionAction("Open the Stage", "/stage"),
           vignette: <StageVignette thumbnailUrls={thumbnailUrls.slice(23, 24)} />,
           flip: true,
         },
+        {
+          id: "tier-lists",
+          title: "Rank a set on a board",
+          description:
+            "Drag cards out of the catalog onto a board and stack them into rows you name yourself, adding and reordering tiers as the argument develops. Share the finished board as a link, download it as an image for a thumbnail, or open it on the Stage and fill it in live while chat weighs in.",
+          action: sectionAction("Open the tier list maker", "/tier-lists"),
+          vignette: <TierListVignette legendUrls={legendUrls} />,
+        },
       ],
       cards: [
+        {
+          id: "chat-lookups",
+          title: "Card lookups in chat",
+          description:
+            "Paste one line into Nightbot, StreamElements, or Fossabot and viewers can look up any card without leaving chat. The reply carries the stats and a link, and a name that matches nothing comes back as a search instead of an error.",
+          action: (
+            <Link
+              to="/help/$slug"
+              params={{ slug: "chat-commands" }}
+              className={FEATURE_ACTION_CLASS}
+            >
+              Set up the command
+              <ActionArrow />
+            </Link>
+          ),
+          vignette: <ChatVignette />,
+        },
         {
           id: "designer",
           title: "Design your own cards",

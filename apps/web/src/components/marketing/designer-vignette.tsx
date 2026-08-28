@@ -50,9 +50,12 @@ function DomainSwatches() {
 
 /**
  * The live preview at miniature scale: the placeholder card's own layering
- * (domain fill, a bottom scrim, the white energy and might glyphs, the title
- * band at 55%), reproduced rather than imported because the real preview
- * drags in the designer store and the full card renderer.
+ * (domain fill, a bottom scrim, the energy circle top left, the might tag top
+ * right, the title band at 55%), reproduced rather than imported because the
+ * real preview drags in the designer store and the full card renderer.
+ *
+ * Type is enlarged relative to the real card, which sizes everything in `cqw`
+ * against the card's own width; at 96px that ramp is illegible.
  */
 function MiniCardPreview() {
   return (
@@ -69,16 +72,21 @@ function MiniCardPreview() {
       >
         {CARD_ENERGY}
       </span>
+      {/* CardPlaceholderImage's might badge: top right, the bottom-left corner
+          clipped off, the shield on a white half and the number on a black one.
+          The rotated square this used to draw is the energy glyph a *gear*
+          card gets in place of the circle, not a might glyph at all. */}
       <span
         role="img"
         aria-label={`Might ${CARD_MIGHT}`}
-        className="absolute top-[20%] left-[6%] flex size-4 items-center justify-center"
+        className="font-numeric text-2xs absolute top-[5%] right-[7%] flex h-4 items-stretch overflow-hidden font-semibold"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 13% 100%)" }}
       >
-        <span
-          aria-hidden="true"
-          className="absolute inset-[3px] rotate-45 bg-white/70 ring-1 ring-black/70"
-        />
-        <span className="font-numeric text-2xs relative font-semibold text-black">
+        <span className="flex items-center justify-center bg-white/70 pr-px pl-1">
+          {/* brightness-0 is how GlyphIcon flattens a white glyph to black. */}
+          <img src="/images/might.svg" alt="" className="size-2.5 brightness-0" />
+        </span>
+        <span className="flex items-center justify-center bg-black/70 px-1 text-white">
           {CARD_MIGHT}
         </span>
       </span>

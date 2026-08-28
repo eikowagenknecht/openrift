@@ -1,4 +1,4 @@
-import { CreatorSection } from "@/components/creators/creator-section";
+import { Heading } from "@/components/heading";
 import { CopyField } from "@/components/ui/copy-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -38,20 +38,30 @@ function ChatBotSetups() {
   );
 }
 
-/**
- * How a creator wires the plain-text lookup into their chat bot.
- *
- * @returns The chat command section.
- */
-export function CreatorChatSection() {
+export default function ChatCommandsArticle() {
   return (
-    <CreatorSection id="chat-command" title="Card lookups in chat">
-      <p>Add one command to your chat bot and viewers can look up any Riftbound card.</p>
-      <p>
-        If nothing matches, the bot links to a card search for what they typed, so even a typo lands
-        somewhere useful.
+    <div className="space-y-8">
+      <p className="text-muted-foreground">
+        Add one command to your chat bot and viewers can look up any Riftbound card without leaving
+        chat. They type <InlineCode>!card Jinx</InlineCode> and the bot answers with the card and a
+        link to its page. If nothing matches, the reply links to a card search for what they typed,
+        so even a typo lands somewhere useful.
       </p>
-      <ChatBotSetups />
-    </CreatorSection>
+
+      <section>
+        <Heading className="mb-2">Pick your bot</Heading>
+        <p className="text-muted-foreground">
+          Each line below is pasted verbatim, either into your own chat as a moderator or into the
+          bot&apos;s dashboard. Nothing to install and no account needed.
+        </p>
+        <div className="mt-4">
+          <ChatBotSetups />
+        </div>
+      </section>
+    </div>
   );
+}
+
+function InlineCode({ children }: { children: string }) {
+  return <code className="bg-muted rounded px-1 py-0.5 font-mono text-sm">{children}</code>;
 }

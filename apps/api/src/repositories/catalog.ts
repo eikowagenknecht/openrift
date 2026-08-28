@@ -29,6 +29,10 @@ export const PRICE_BAND_CENTS = { min: 50, max: 2000 };
 // branches spend a whole line on their breadcrumb alone.
 const PROMO_MAX_CHANNEL_DEPTH = 2;
 
+// Rotation step for the legend sample, matching the `current_date` the rest of
+// the landing samples shuffle on.
+const DAY_MS = 86_400_000;
+
 /** One sampled printing inside a {@link LandingPromoSection}. */
 interface LandingPromoPrinting {
   imageId: string;
@@ -637,6 +641,49 @@ export function catalogRepo(db: Kysely<Database>) {
           priceCents: r.priceCents,
         })),
       };
+    },
+
+    /**
+     * A per-UTC-day sample of Legend art for the tier-list vignette, which
+     * ranks legends and so cannot use the general thumbnail sample.
+     *
+     * One printing per card: a legend with several printings would otherwise
+     * fill the miniature's board with the same face more than once.
+     *
+     * @returns Image ids, at most `sampleSize` of them.
+     */
+    async landingLegendThumbnails(sampleSize: number): Promise<string[]> {
+      const rows = await db
+        .selectFrom("printingImages")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .innerJoin("printings", "printings.id", "printingImages.printingId")
+        .innerJoin("cards", "cards.id", "printings.cardId")
+        .select([imageId("ci").as("imageId"), "cards.id as cardId"])
+        .where("printingImages.face", "=", "front")
+        .where("printingImages.isActive", "=", true)
+        .where(sql`${imageId("ci")}`, "is not", null)
+        .where("cards.type", "=", WellKnown.cardType.LEGEND)
+        // EN only, for the same reason the general sample is EN only: mixed
+        // language faces read as noise in a miniature.
+        .where("printings.language", "=", WellKnown.language.EN)
+        // DISTINCT ON has to be ordered by its own key first, so this picks the
+        // day's printing within each card but leaves the cards in id order.
+        .distinctOn("cards.id")
+        .orderBy("cards.id")
+        .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
+        .$narrowType<{ imageId: NotNull }>()
+        .execute();
+      // Which legends the sample lands on is therefore a JS step: rotate the
+      // id-ordered list by the day so the board is stable within a day and
+      // works through the whole pool across a set, without a second query to
+      // re-shuffle what DISTINCT ON already ordered.
+      if (rows.length === 0) {
+        return [];
+      }
+      const offset = Math.floor(Date.now() / DAY_MS) % rows.length;
+      return [...rows.slice(offset), ...rows.slice(0, offset)]
+        .slice(0, sampleSize)
+        .map((row) => row.imageId);
     },
 
     /**

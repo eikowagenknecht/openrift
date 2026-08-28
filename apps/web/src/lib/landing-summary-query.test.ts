@@ -32,6 +32,7 @@ const SUMMARY: LandingSummaryResponse = {
       priceCents: 420,
     },
   ],
+  legendThumbnailIds: ["019d02f1-d14f-769f-9295-9852db692dbf"],
   promoSections: [
     {
       path: ["Nexus Night", "Spiritforged"],

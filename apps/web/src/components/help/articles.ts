@@ -6,6 +6,9 @@ import {
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  ListOrderedIcon,
+  MessageSquareIcon,
+  MonitorPlayIcon,
   PrinterIcon,
   PuzzleIcon,
   ScaleIcon,
@@ -148,6 +151,39 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Add the OpenRift bot to your Discord server to look up cards, unfurl deck codes, and quote rules right from chat.",
       icon: BotIcon,
       component: () => import("./articles/discord-bot"),
+    },
+  ],
+  [
+    "stage",
+    {
+      slug: "stage",
+      title: "Stage & OBS Overlay",
+      description:
+        "Put cards in front of an audience: a full-screen show for window capture, or a transparent browser source you paste into OBS.",
+      icon: MonitorPlayIcon,
+      component: () => import("./articles/stage"),
+    },
+  ],
+  [
+    "tier-lists",
+    {
+      slug: "tier-lists",
+      title: "Tier Lists",
+      description:
+        "Rank cards on a drag-and-drop board, then share it as a link, download it as an image, or rank live on stream.",
+      icon: ListOrderedIcon,
+      component: () => import("./articles/tier-lists"),
+    },
+  ],
+  [
+    "chat-commands",
+    {
+      slug: "chat-commands",
+      title: "Card Lookups in Chat",
+      description:
+        "Add one command to Nightbot, StreamElements, or Fossabot so viewers can look up any card from your stream chat.",
+      icon: MessageSquareIcon,
+      component: () => import("./articles/chat-commands"),
     },
   ],
   [

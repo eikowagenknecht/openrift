@@ -39,6 +39,7 @@ const mockCatalogRepo = {
       thumbnails: [] as ReturnType<typeof thumbnail>[],
     }),
   ),
+  landingLegendThumbnails: vi.fn(() => Promise.resolve([] as string[])),
   landingPromoSections: vi.fn(() => Promise.resolve([] as ReturnType<typeof promoSection>[])),
 };
 
@@ -63,6 +64,8 @@ describe("GET /api/v1/landing-summary", () => {
         thumbnail("def-002", "common", ["order", "calm"]),
       ],
     });
+    mockCatalogRepo.landingLegendThumbnails.mockReset();
+    mockCatalogRepo.landingLegendThumbnails.mockResolvedValue(["leg-001", "leg-002"]);
     mockCatalogRepo.landingPromoSections.mockReset();
     mockCatalogRepo.landingPromoSections.mockResolvedValue([promoSection()]);
   });
@@ -80,6 +83,7 @@ describe("GET /api/v1/landing-summary", () => {
         thumbnail("abc-001", "epic", ["fury"]),
         thumbnail("def-002", "common", ["order", "calm"]),
       ],
+      legendThumbnailIds: ["leg-001", "leg-002"],
       promoSections: [promoSection()],
     });
   });
@@ -92,6 +96,11 @@ describe("GET /api/v1/landing-summary", () => {
   it("asks for one promo section of two printings", async () => {
     await app.request("/api/v1/landing-summary");
     expect(mockCatalogRepo.landingPromoSections).toHaveBeenCalledWith(1, 2);
+  });
+
+  it("asks for the ten legends the tier-list vignette's board and pool hold", async () => {
+    await app.request("/api/v1/landing-summary");
+    expect(mockCatalogRepo.landingLegendThumbnails).toHaveBeenCalledWith(10);
   });
 
   it("returns an empty thumbnailIds array when the catalog has none", async () => {

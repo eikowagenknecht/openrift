@@ -1,5 +1,5 @@
 /**
- * The chat-bot setup commands handed out on /creators.
+ * The chat-bot setup commands handed out in the chat-commands help article.
  *
  * Each string is pasted verbatim into a creator's own chat (or their bot's
  * dashboard) and creates a `!card` command that calls the plain-text lookup
