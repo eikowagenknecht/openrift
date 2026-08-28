@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-29
+
+### Highlights
+
+- fix(Account): **Signing in works again** — an update had broken password, Google, and Discord sign-in (codes by email still worked), all three are back.
+
 ## 2026-08-28
 
 ### Other

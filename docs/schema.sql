@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict o0rXlZNf6or8U9tSkZrGraMpuqVUKfRycyzcubUyUbrl7FQR5SmGWZrwyed7mQz
+\restrict LssKGbWBwS0X62PuSqMpwLqEi7owYQeK0KZR4FgiXDsHAkPbpK6N4CQHVvbV5gr
 
--- Dumped from database version 18.3
--- Dumped by pg_dump version 18.3
+-- Dumped from database version 18.6
+-- Dumped by pg_dump version 18.6
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -658,7 +658,8 @@ CREATE TABLE public.accounts (
     id_token text,
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    issuer text NOT NULL
 );
 
 
@@ -5328,6 +5329,13 @@ CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products 
 
 
 --
+-- Name: uq_accounts_issuer_account; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_accounts_issuer_account ON public.accounts USING btree (issuer, account_id);
+
+
+--
 -- Name: uq_accounts_provider_account; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7674,5 +7682,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict o0rXlZNf6or8U9tSkZrGraMpuqVUKfRycyzcubUyUbrl7FQR5SmGWZrwyed7mQz
+\unrestrict LssKGbWBwS0X62PuSqMpwLqEi7owYQeK0KZR4FgiXDsHAkPbpK6N4CQHVvbV5gr
 
