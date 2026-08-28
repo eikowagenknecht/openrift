@@ -65,7 +65,9 @@ When the `api` container starts:
 
 That condition is only evaluated by `docker compose up`. When the **daemon** starts containers on its own (a host reboot, `systemctl restart docker`, or a `restart: unless-stopped` policy firing after a crash) it follows the restart policy and ignores dependency order. The SSR server then comes up next to a still-migrating API and throws connect errors on its first requests, which is what happened after a host reboot.
 
-So the `web` and `bot` images also carry an in-container gate, `scripts/wait-for-api.sh`, wired as their `ENTRYPOINT`. It polls `${API_INTERNAL_URL}/api/health` and only then `exec`s the real command, which keeps the app as PID 1 so `stop_grace_period` and graceful shutdown still work. It runs on every container start, so it covers the daemon-driven cases compose cannot.
+So the `web` and `bot` images also carry an in-container gate, `scripts/wait-for-api.sh`, wired as their `ENTRYPOINT`. It polls `${API_INTERNAL_URL}/api/health` and only then `exec`s the real command, so the app inherits the entrypoint's process and no supervisor sits between it and its signals. It runs on every container start, so it covers the daemon-driven cases compose cannot.
+
+Both services also set `init: true`, which puts tini at PID 1. The probe wraps each `wget` in busybox `timeout`, and busybox's applet is the inverse of the coreutils one: it double-forks a watchdog and then `exec`s the command itself, so the watchdog is orphaned onto PID 1. The last probe's watchdog outlives the `exec`, and bun does not reap adopted orphans, which left one `[timeout] <defunct>` per container start. tini reaps it and forwards `SIGTERM` to the app, so `stop_grace_period` and graceful shutdown are unaffected.
 
 The gate **fails open**: after `API_WAIT_TIMEOUT` it starts anyway rather than parking the site in maintenance indefinitely. A permanently unhealthy API is a separate incident, and while the SSR server is not listening nginx already serves `maintenance.html` (the `@maintenance` fallback in `nginx/web.conf`).
 

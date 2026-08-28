@@ -59,6 +59,10 @@ services:
   # TanStack Start SSR server (internal only — not exposed to host).
   web:
     image: ghcr.io/openriftapp/openrift-web:${IMAGE_TAG:-latest}
+    # The wait-for-api entrypoint probes with busybox `timeout`, which orphans a
+    # watchdog onto PID 1 before exec'ing the real command, and bun never reaps
+    # it. tini reaps it and still forwards SIGTERM, so stop_grace_period holds.
+    init: true
     # Healthy, not just started: an SSR server talking to a still-migrating API
     # throws connect errors. Only applies to `docker compose up`; the daemon
     # ignores depends_on when it starts containers itself, so the image also
@@ -101,6 +105,8 @@ services:
   # the service is skipped entirely (preview stays bot-less by default).
   bot:
     image: ghcr.io/openriftapp/openrift-bot:${IMAGE_TAG:-latest}
+    # Same wait-for-api entrypoint, same orphaned watchdog — see the note on web.
+    init: true
     profiles:
       - bot
     depends_on:
