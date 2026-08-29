@@ -61,8 +61,8 @@ export function useCopies(collectionId?: string): {
 } {
   const copiesCollection = useCopiesCollection();
 
-  const { data, isReady } = useLiveQuery(
-    (q) => {
+  const { data, isReady } = useLiveQuery({
+    query: (q) => {
       if (!copiesCollection) {
         return null;
       }
@@ -71,8 +71,7 @@ export function useCopies(collectionId?: string): {
         ? base
         : base.where(({ copy }) => eq(copy.collectionId, collectionId));
     },
-    [collectionId, copiesCollection],
-  );
+  });
 
   return { data: data ?? [], isReady };
 }

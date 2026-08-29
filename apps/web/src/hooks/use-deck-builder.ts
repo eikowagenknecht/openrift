@@ -712,10 +712,9 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
 
 export function useDeckCards(deckId: string): DeckBuilderCard[] {
   const collection = useDeckDraftCollection(deckId);
-  const { data } = useLiveQuery(
-    (q) => (collection ? q.from({ card: collection }) : null),
-    [deckId, collection],
-  );
+  const { data } = useLiveQuery({
+    query: (q) => (collection ? q.from({ card: collection }) : null),
+  });
   return data ?? EMPTY_CARDS;
 }
 

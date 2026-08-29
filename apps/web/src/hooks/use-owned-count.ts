@@ -99,10 +99,9 @@ export function useOwnedCount(enabled: boolean): {
   // (the copies endpoint requires auth) — and during sign-out, the collection
   // becomes null an instant before the consumer rerenders with `enabled=false`,
   // which the null check below handles silently.
-  const { data: copies } = useLiveQuery(
-    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
-    [enabled, copiesCollection],
-  );
+  const { data: copies } = useLiveQuery({
+    query: (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };
@@ -129,13 +128,12 @@ export function useOwnedCountFor(
 ): { data: { count: number; totalCount: number } | undefined } {
   const copiesCollection = useCopiesCollection();
 
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       enabled && copiesCollection
         ? q.from({ copy: copiesCollection }).where(({ copy }) => eq(copy.printingId, printingId))
         : null,
-    [printingId, enabled, copiesCollection],
-  );
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };
@@ -174,19 +172,14 @@ export function useOwnedCountsForPrintings(
 } {
   const copiesCollection = useCopiesCollection();
 
-  // Identity-stable key so the live query doesn't tear down on unrelated
-  // parent renders that happen to recreate the array.
-  const idsKey = printingIds.join(",");
-
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       enabled && copiesCollection && printingIds.length > 0
         ? q
             .from({ copy: copiesCollection })
             .where(({ copy }) => inArray(copy.printingId, [...printingIds]))
         : null,
-    [idsKey, enabled, copiesCollection],
-  );
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };
@@ -210,17 +203,14 @@ export function useCopyRowsForPrintings(
   collectionId?: string,
 ): { data: CopyResponse[] | undefined } {
   const copiesCollection = useCopiesCollection();
-  const idsKey = printingIds.join(",");
-
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       enabled && copiesCollection && printingIds.length > 0
         ? q
             .from({ copy: copiesCollection })
             .where(({ copy }) => inArray(copy.printingId, [...printingIds]))
         : null,
-    [idsKey, enabled, copiesCollection],
-  );
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };
@@ -338,10 +328,9 @@ export function useDeckBuildingCounts(
     enabled: enabled && Boolean(userId),
   });
 
-  const { data: copies } = useLiveQuery(
-    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
-    [enabled, copiesCollection],
-  );
+  const { data: copies } = useLiveQuery({
+    query: (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+  });
 
   if (!enabled || !copies || !collections) {
     return { data: undefined };
@@ -390,13 +379,12 @@ export function useOwnedCollections(
     enabled: enabled && Boolean(userId),
   });
 
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       enabled && copiesCollection
         ? q.from({ copy: copiesCollection }).where(({ copy }) => eq(copy.printingId, printingId))
         : null,
-    [printingId, enabled, copiesCollection],
-  );
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };
@@ -482,11 +470,9 @@ export function useOwnedCollectionsByVariants(
   // Filter in JS — expressing "printingId in [array]" as a symbolic .where()
   // clause would need per-id or() composition, and the set typically has a
   // few entries. Perf is dominated by mutation propagation, not the filter.
-  const variantKey = variants.map((variant) => variant.id).join(",");
-  const { data: copies } = useLiveQuery(
-    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
-    [variantKey, enabled, copiesCollection],
-  );
+  const { data: copies } = useLiveQuery({
+    query: (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+  });
 
   if (!enabled || !copies) {
     return { data: undefined };

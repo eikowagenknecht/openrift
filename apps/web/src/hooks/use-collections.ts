@@ -43,13 +43,12 @@ export function useCollections() {
   //
   // copiesCollection is null mid-sign-out (this hook itself unmounts an
   // instant later); same-shape fallback applies.
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       globalThis.window === undefined || !copiesCollection
         ? null
         : q.from({ copy: copiesCollection }),
-    [copiesCollection],
-  );
+  });
 
   if (!copies) {
     return serverQuery;

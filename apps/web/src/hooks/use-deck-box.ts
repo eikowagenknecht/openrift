@@ -39,10 +39,9 @@ export function useDeckBox(
     ...collectionsQueryOptions(userId ?? ""),
     enabled,
   });
-  const { data: copies } = useLiveQuery(
-    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
-    [enabled, copiesCollection],
-  );
+  const { data: copies } = useLiveQuery({
+    query: (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+  });
 
   // Another deck may live in the same box. Its cards belong there too, so the
   // sweep has to know what they are before calling anything surplus.

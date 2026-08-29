@@ -98,13 +98,12 @@ function useGroupCollectionCoverFans(): Map<string, { key: string; imageId: stri
   const { printingsById } = useCards();
   // The same SSR/sign-out guard as useCollections: a null query on the server
   // (no server snapshot) and mid-sign-out (collection evicted).
-  const { data: copies } = useLiveQuery(
-    (q) =>
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
       globalThis.window === undefined || !copiesCollection
         ? null
         : q.from({ copy: copiesCollection }),
-    [copiesCollection],
-  );
+  });
   const covers = deriveCollectionCovers(copies ?? [], TILE_COVER_COUNT);
   return new Map(
     [...covers].map(([collectionId, printingIds]) => [
