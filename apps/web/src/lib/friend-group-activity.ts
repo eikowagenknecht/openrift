@@ -1,4 +1,25 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared";
+import { TRADE_VOLUME_WINDOW_DAYS } from "@openrift/shared/contracts/friend-groups";
+
+/**
+ * The groups index's trade-volume line. A rate rather than a timestamp: a
+ * freshness date calls one swap yesterday and forty this month equally active,
+ * and only one of those is a group worth opening.
+ *
+ * The lifetime count is only consulted to tell a group that has gone quiet from
+ * one that never got going, which are different invitations.
+ * @param recent Cards traded inside the window.
+ * @param lifetime Cards traded ever.
+ * @returns The line.
+ */
+export function tradeVolumeLabel(recent: number, lifetime: number): string {
+  if (recent > 0) {
+    return `${recent} ${recent === 1 ? "card" : "cards"} traded in the last ${TRADE_VOLUME_WINDOW_DAYS} days`;
+  }
+  return lifetime > 0
+    ? `No trades in the last ${TRADE_VOLUME_WINDOW_DAYS} days`
+    : "No trades here yet";
+}
 
 /** The trade-completed member of the activity union. */
 type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-completed" }>;

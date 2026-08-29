@@ -150,7 +150,10 @@ export function LandingPage() {
       </div>
       {/* The fan uses thumbnails 0-4; the scanner vignette takes the next
           four so no card appears twice on screen. */}
-      <FeatureShowcase scanCards={thumbnailCards.slice(5, 9)} />
+      <FeatureShowcase
+        scanCards={thumbnailCards.slice(5, 9)}
+        thumbnailUrls={thumbnailUrls.slice(9, 17)}
+      />
       <LandingClosing />
     </HeroBackground>
   );

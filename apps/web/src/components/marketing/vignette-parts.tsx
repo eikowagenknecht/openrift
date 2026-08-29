@@ -66,6 +66,40 @@ export function MiniCardArt({ url, className }: { url: string; className?: strin
   );
 }
 
+/**
+ * The overlapping art strip with a "+N" pill, mirroring `CardArtThumbStack`.
+ * The app uses it wherever one row stands for many cards: the group cards, the
+ * overview's trades band, the trade-hub member cards.
+ * @returns The strip element.
+ */
+export function ArtStrip({
+  urls,
+  extra,
+  className,
+}: {
+  urls: string[];
+  /** Cards beyond the ones shown, as the trailing pill. */
+  extra?: number;
+  className?: string;
+}) {
+  return (
+    <span className={cn("flex shrink-0 items-center", className)}>
+      {urls.map((url, index) => (
+        <MiniCardArt
+          key={url}
+          url={url}
+          className={cn("ring-card w-7 ring-2", index > 0 && "-ml-2.5")}
+        />
+      ))}
+      {extra !== undefined && extra > 0 ? (
+        <span className="bg-muted text-muted-foreground ml-2 rounded-full px-1.5 text-xs font-medium tabular-nums">
+          +{extra}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** The white circular energy glyph from DeckCardRow. */
 export function EnergyGlyph({ energy }: { energy: number }) {
   return (

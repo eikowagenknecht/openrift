@@ -42,7 +42,14 @@ import { getFilterIconPath } from "@/lib/icons";
 import { percentChange } from "@/lib/price-trend";
 import { cn } from "@/lib/utils";
 
-import { MiniCardArt, StripGlyph, Swap, Vignette, VignetteHeading } from "./vignette-parts";
+import {
+  ArtStrip,
+  MiniCardArt,
+  StripGlyph,
+  Swap,
+  Vignette,
+  VignetteHeading,
+} from "./vignette-parts";
 
 export { DiscordVignette } from "./discord-vignette";
 export { DecksVignette } from "./decks-vignette";
@@ -964,49 +971,96 @@ export function PricesVignette() {
   );
 }
 
-const GROUP_MEMBERS = [
+const GROUP_CARDS = [
   {
-    name: "Alice",
-    action: "2 to answer, 1 to hand over, 3 to receive",
-    suggestions: "3 possible trades",
-    facts: "2 waiting on them · shares 3 lists",
-    footer: "4 trades done · +2 in other groups",
+    name: "Thursday store crew",
+    members: ["Alice", "Mira", "Nour", "Ravi"],
+    extraMembers: 4,
+    waiting: "2 trade requests",
+    canGet: 9,
+    canGetExtra: 5,
+    theydWant: 5,
+    theydWantExtra: 3,
+    volume: "12 cards traded in the last 30 days",
+    active: true,
   },
   {
-    name: "Mira",
-    action: null,
-    suggestions: "1 possible trade in another group",
-    facts: "shares 2 lists",
-    footer: "1 trade done",
+    name: "Bothfeld Rift Club",
+    members: ["Sina", "Jonas"],
+    extraMembers: 1,
+    waiting: null,
+    canGet: 3,
+    canGetExtra: 1,
+    theydWant: null,
+    theydWantExtra: 0,
+    volume: "No trades in the last 30 days",
+    active: false,
   },
 ] as const;
 
-export function GroupsVignette() {
+/**
+ * The groups index: one card per group, leading with the cards you could
+ * actually move there and how busy the group has been. Mirrors
+ * `groups-index-page.tsx`, which is where this section's action link lands.
+ * @returns The groups vignette.
+ */
+export function GroupsVignette({ thumbnailUrls }: { thumbnailUrls: string[] }) {
   return (
     <Vignette>
-      <VignetteHeading>Thursday store crew</VignetteHeading>
+      <VignetteHeading>Your groups</VignetteHeading>
       <div className="flex flex-col gap-3">
-        {GROUP_MEMBERS.map((member) => (
-          <Card key={member.name} className="gap-1.5 p-4">
-            <div className="flex items-center gap-2.5">
-              <UserAvatar name={member.name} size="sm" />
-              <span className="min-w-0 flex-1 truncate font-medium">{member.name}</span>
-              <ChevronRightIcon
-                className="text-muted-foreground/40 size-4 shrink-0"
-                aria-hidden="true"
-              />
+        {GROUP_CARDS.map((group, index) => (
+          <Card key={group.name} className="gap-2.5 p-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
+              <span className="flex shrink-0 items-center -space-x-1">
+                {group.members.map((member) => (
+                  <UserAvatar
+                    key={member}
+                    name={member}
+                    size="sm"
+                    className="bg-card ring-card ring-2"
+                  />
+                ))}
+                <span className="text-muted-foreground pl-3 text-xs tabular-nums">
+                  +{group.extraMembers}
+                </span>
+              </span>
             </div>
-            {member.action && (
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                {member.action}
-              </p>
+            {group.waiting && <Badge className="self-start">{group.waiting}</Badge>}
+            <div className="flex min-w-0 items-center gap-2.5">
+              <ArtStrip
+                urls={thumbnailUrls.slice(index * 3, index * 3 + 3)}
+                extra={group.canGetExtra}
+              />
+              <span className="text-muted-foreground min-w-0 truncate text-sm">
+                <span className="font-medium text-green-700 dark:text-green-500">
+                  {group.canGet}
+                </span>{" "}
+                you could get
+              </span>
+            </div>
+            {group.theydWant !== null && (
+              <div className="flex min-w-0 items-center gap-2.5">
+                <ArtStrip urls={thumbnailUrls.slice(6, 8)} extra={group.theydWantExtra} />
+                <span className="text-muted-foreground min-w-0 truncate text-sm">
+                  <span className="font-medium text-green-700 dark:text-green-500">
+                    {group.theydWant}
+                  </span>{" "}
+                  they&apos;d want
+                </span>
+              </div>
             )}
-            <p className="flex items-center gap-1 text-sm font-medium text-green-700 dark:text-green-500">
-              <SparklesIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              {member.suggestions}
+            <p className="text-muted-foreground flex items-center gap-1.5 pt-0.5 text-sm">
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-1.5 rounded-full",
+                  group.active ? "bg-green-600 dark:bg-green-500" : "bg-muted-foreground/50",
+                )}
+              />
+              {group.volume}
             </p>
-            <p className="text-muted-foreground text-sm">{member.facts}</p>
-            <p className="text-muted-foreground text-xs">{member.footer}</p>
           </Card>
         ))}
       </div>

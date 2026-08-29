@@ -1,40 +1,20 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { formatDayTimeLocal, needsViewerAction } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import {
-  ChevronRightIcon,
-  FolderIcon,
-  HeartIcon,
-  TrophyIcon,
-  UsersIcon,
-  ZapIcon,
-} from "lucide-react";
+import { ChevronRightIcon, FolderIcon, HeartIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
-import { ActionBand } from "@/components/ui/action-band";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CardList } from "@/components/ui/card-list";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
-import { UserAvatar } from "@/components/user-avatar";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
-import { useGroupTrades, useUserTrades } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
-import { useFriendGroupMatches, useGroupBoxWants } from "@/hooks/use-friend-groups";
+import { useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
-import {
-  countTradeSuggestions,
-  groupTradesByCounterparty,
-  tradeSection,
-  tradesHubSummary,
-  withoutLiveTradeMatches,
-} from "@/lib/trade-derivation";
-import { needsYouCounts } from "@/lib/trade-hub";
 import { capitalize, cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
@@ -43,13 +23,14 @@ import { GroupSetupNudges } from "./group-setup-nudges";
 import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { PendingRequestsBand } from "./pending-requests-band";
+import { TradesHubBand } from "./trades-hub-band";
 
 /**
  * The group overview / dashboard: pending join requests (admins only) as the
- * page's first band, the trades hub (who is waiting on the viewer, and a chip
- * per person), a row of tiles linking to the shared / members / events pages,
- * then the recent activity feed beside a rail with the newest shares and the
- * tournament nudge.
+ * page's first band, the trades band (what is going on between the viewer and
+ * the group, as rows of card art), a row of tiles linking to the shared /
+ * members / events pages, then the recent activity feed beside a rail with the
+ * newest shares and the tournament nudge.
  *
  * The requests band leads because the groups index and the avatar badge both
  * advertise "N requests to review" and land here; without it the only trace on
@@ -63,116 +44,13 @@ export function OverviewContent({ slug, data }: { slug: string; data: FriendGrou
         <PendingRequestsBand slug={slug} requests={data.pendingRequests} />
       ) : null}
       <GroupSetupNudges slug={slug} data={data} />
-      <TradesHub slug={slug} data={data} />
+      <TradesHubBand slug={slug} data={data} />
       <ActionTiles slug={slug} data={data} />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <FriendGroupActivityFeed slug={slug} />
         <OverviewRail slug={slug} data={data} />
       </div>
     </div>
-  );
-}
-
-/**
- * The page's primary module: everything trade-related in one full-width band.
- * The header row counts the people waiting on the viewer (see
- * {@link tradesHubSummary}), and one chip per person sits below it, each
- * leading to that person's trade sheet — the surface where their whole pile is
- * actually worked through. A trade count would be the wrong unit: three members
- * can hold dozens of rows between them, and there is nothing the viewer does to
- * "59 trades".
- * @returns The trades hub band.
- */
-function TradesHub({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
-  const { data: matches } = useFriendGroupMatches(slug);
-  const { data: tradesData } = useGroupTrades(data.group.id);
-  const { data: allTradesData } = useUserTrades();
-
-  const trades = tradesData?.items ?? [];
-  const active = trades.filter((trade) => tradeSection(trade) === "active");
-  // Count what the Trades page renders: per-copy match rows collapsed into
-  // suggestion tiles, minus suggestions already covered by a live trade in any
-  // group (falling back to this group's own trades until the all-groups list
-  // loads).
-  const liveTrades = allTradesData?.items ?? trades;
-  const matchCount = countTradeSuggestions(
-    withoutLiveTradeMatches(matches.othersHaveYourWants, liveTrades),
-    withoutLiveTradeMatches(matches.othersWantYourHaves, liveTrades),
-  );
-
-  // Every viewer-side action counts as waiting: requests to answer, cards to
-  // hand over, cards to receive. Grouping them by counterparty turns the pile
-  // into the conversations it really is, biggest first.
-  const needsYou = trades.filter((trade) => needsViewerAction(trade));
-  const waiting = groupTradesByCounterparty(needsYou);
-  const { toAnswer, toHandOver, toReceive } = needsYouCounts(needsYou);
-
-  const needsAction = waiting.length > 0;
-  const { headline, sub } = tradesHubSummary(
-    waiting.length,
-    toAnswer,
-    toHandOver,
-    toReceive,
-    matchCount,
-    active.length,
-  );
-
-  // The band is plain chrome, not one giant anchor: the person chips and the CTA
-  // are each their own link, and nesting those inside a band-wide anchor would
-  // be invalid HTML.
-  return (
-    <ActionBand
-      icon={ZapIcon}
-      accent={needsAction}
-      label="Trades"
-      value={headline}
-      sub={sub}
-      action={
-        <Button
-          variant={needsAction ? "default" : "ghost"}
-          render={<Link to="/groups/$slug/trades" params={{ slug }} />}
-        >
-          View trades
-          <ChevronRightIcon />
-        </Button>
-      }
-    >
-      {waiting.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
-          {/* Everything here is a live trade, and a live trade always has both
-              parties, so the sheet link always has someone to point at. */}
-          {waiting.map(({ counterparty, trades: theirs }) =>
-            counterparty.userId === null ? null : (
-              <li key={counterparty.userId} className="min-w-0">
-                {/* Badge's warning tone carries the band's gold palette; the
-                  height and left padding open up for the avatar, which is
-                  taller than a plain text chip. */}
-                <Badge
-                  variant="warning"
-                  className="h-auto max-w-52 gap-1.5 py-1 pl-1 text-sm hover:bg-amber-500/20 dark:hover:bg-amber-500/30"
-                  render={
-                    <Link
-                      to="/trades/$userId"
-                      params={{ userId: counterparty.userId }}
-                      search={{ from: slug }}
-                    />
-                  }
-                >
-                  <UserAvatar
-                    image={counterparty.image}
-                    name={counterparty.name}
-                    gravatarHash={counterparty.gravatarHash}
-                    size="sm"
-                  />
-                  <span className="truncate font-medium">{counterparty.name ?? "A member"}</span>
-                  <span className="tabular-nums opacity-80">· {theirs.length}</span>
-                </Badge>
-              </li>
-            ),
-          )}
-        </ul>
-      ) : null}
-    </ActionBand>
   );
 }
 

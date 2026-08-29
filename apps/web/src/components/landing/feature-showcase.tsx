@@ -19,9 +19,12 @@ import { DeckVignette, GroupsVignette, ListsVignette } from "./landing-vignettes
  */
 export function FeatureShowcase({
   scanCards,
+  thumbnailUrls,
 }: {
   /** The sampled printings the scanner vignette logs (landing-summary payload). */
   scanCards: LandingThumbnailCard[];
+  /** Sampled art for the group cards' trade strips. */
+  thumbnailUrls: string[];
 }) {
   const features = [
     {
@@ -46,7 +49,7 @@ export function FeatureShowcase({
         "Start a private group with your playgroup or store. OpenRift matches wishlists against tradelists and shows exactly who to talk to. The trade itself happens at the table.",
       cta: "Open groups",
       to: "/groups",
-      vignette: <GroupsVignette />,
+      vignette: <GroupsVignette thumbnailUrls={thumbnailUrls} />,
     },
     {
       title: "Decks, checked as you build",

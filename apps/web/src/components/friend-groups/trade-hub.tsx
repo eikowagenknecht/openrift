@@ -45,7 +45,9 @@ function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
     acts.push(`${toHandOver} to hand over`);
   }
   if (toReceive > 0) {
-    acts.push(`${toReceive} to receive`);
+    // "Confirm", not "receive": the same stage the overview band labels "To
+    // confirm", and the act is confirming a card that already changed hands.
+    acts.push(`${toReceive} to confirm`);
   }
 
   const parts = [acts.join(", ")];

@@ -306,9 +306,11 @@ describe("OverviewContent trades hub", () => {
     );
   });
 
-  it("reads calm when nothing needs the viewer", () => {
+  it("shrinks to a headline when nothing needs the viewer", () => {
     renderOverview("member");
-    expect(screen.getByText("no open trades right now")).toBeInTheDocument();
+    expect(screen.getByText("No matches in this group yet")).toBeInTheDocument();
+    expect(screen.queryByText("You could get")).not.toBeInTheDocument();
+    expect(screen.queryByText("To hand over")).not.toBeInTheDocument();
   });
 });
 

@@ -4,11 +4,15 @@
 
 ### Highlights
 
+- feat(Groups): **See the cards, not the counts** — the trades band on a group page now shows the actual cards behind each thing waiting on you and each possible trade, split into what you could get and what the group would want.
+- feat(Groups): **Group cards worth scanning** — each group on the index leads with the cards you could pick up there and how much has been traded lately, instead of member and list counts.
 - fix(Account): **Signing in works again** — an update had broken password, Google, and Discord sign-in (codes by email still worked), all three are back.
 
 ### Other
 
 - feat(Groups): **Formatted group descriptions** — a group's description now takes Markdown, so bold text, lists, and links work, and a link that hides its destination shows where it leads.
+- feat(Collection): **Traded cards remember where they came from** — a copy you receive through a trade arrives with a private note naming who you got it from and when, which you can reword or clear.
+- feat(App): **The features tour walks through a trade** — five steps from the first match to the card landing in your collection, so it is clear what actually happens between two people.
 
 ## 2026-08-28
 

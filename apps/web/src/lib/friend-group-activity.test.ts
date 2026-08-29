@@ -6,6 +6,7 @@ import {
   aggregateActivityEvents,
   distinctPrintingIds,
   groupActivityRowsByDay,
+  tradeVolumeLabel,
 } from "./friend-group-activity";
 
 type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-completed" }>;
@@ -191,5 +192,17 @@ describe("distinctPrintingIds", () => {
 
   it("returns an empty list for no card-bearing events", () => {
     expect(distinctPrintingIds([])).toEqual([]);
+  });
+});
+
+describe("tradeVolumeLabel", () => {
+  it("leads with the volume inside the window", () => {
+    expect(tradeVolumeLabel(12, 40)).toBe("12 cards traded in the last 30 days");
+    expect(tradeVolumeLabel(1, 1)).toBe("1 card traded in the last 30 days");
+  });
+
+  it("separates a group gone quiet from one that never got going", () => {
+    expect(tradeVolumeLabel(0, 40)).toBe("No trades in the last 30 days");
+    expect(tradeVolumeLabel(0, 0)).toBe("No trades here yet");
   });
 });

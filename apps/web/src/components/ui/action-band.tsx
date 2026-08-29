@@ -39,6 +39,7 @@ function ActionBand({
   accent = false,
   label,
   value,
+  valueClassName,
   sub,
   action,
   className,
@@ -53,6 +54,12 @@ function ActionBand({
   accent?: boolean;
   label: string;
   value: ReactNode;
+  /**
+   * Extra classes on the value span, for a band whose headline is a sentence
+   * rather than a numeral (`"font-sans text-base font-medium"`). Mirrors
+   * StatTile's prop of the same name.
+   */
+  valueClassName?: string;
   /** Supporting text after the value; truncates on narrow viewports. */
   sub?: ReactNode;
   /** Trailing header-row slot (a CTA span, a count). Pinned right. */
@@ -85,7 +92,14 @@ function ActionBand({
               <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
                 {label}
               </span>
-              <span className="font-heading text-3xl font-semibold tabular-nums">{value}</span>
+              <span
+                className={cn(
+                  "font-heading min-w-0 text-3xl font-semibold tabular-nums",
+                  valueClassName,
+                )}
+              >
+                {value}
+              </span>
               {sub ? (
                 <span className="text-muted-foreground min-w-0 text-xs max-sm:order-last max-sm:basis-full max-sm:pl-13 sm:truncate">
                   {sub}

@@ -1,6 +1,8 @@
 import type { ContactMethod, FriendGroupInviteDirection, FriendGroupRole } from "@openrift/shared";
+import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared";
+import { TRADE_VOLUME_WINDOW_DAYS } from "@openrift/shared/contracts/friend-groups";
 import { sql } from "kysely";
-import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
+import type { ExpressionBuilder, Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 import type {
   Database,
@@ -52,10 +54,38 @@ export interface GroupSummary extends Group {
   pendingRequestCount: number;
   sharedListCount: number;
   memberPreviews: MemberPreviewRow[];
+  /** Cards traded in the group over the last {@link TRADE_VOLUME_WINDOW_DAYS}. */
+  recentTradedCardCount: number;
+  /** Cards traded in the group ever. */
+  tradedCardCount: number;
 }
 
 /** How many member profiles the index tiles show before the "+N" overflow. */
 const MEMBER_PREVIEW_LIMIT = 5;
+
+/**
+ * When a swap actually happened: its first settle, per ADR-019. `least` ignores
+ * nulls in Postgres, so a half-settled row dates from the half that landed, and
+ * a row with neither settle is null and falls out of any window.
+ */
+const SETTLED_AT = sql<Date | null>`least(t.giver_sync_applied_at, t.receiver_sync_applied_at)`;
+
+/**
+ * Cards traded in a group, as a correlated sub-select against `g.id`. Shares
+ * the traded-row rule with `countCompletedCardsInGroup` (the group hero's
+ * lifetime stat), so the index card and the group page cannot disagree about
+ * what counts: a swap counts from the first settle, and the status test is what
+ * drops the rows `cancelForDepartingMember` bulk-cancels with their sync
+ * columns intact.
+ */
+function tradedCardsInGroup(eb: ExpressionBuilder<Database & { g: FriendGroupsTable }, "g">) {
+  return eb
+    .selectFrom("cardTrades as t")
+    .select((inner) => inner.cast<number>(inner.fn.sum(inner.ref("t.quantity")), "integer").as("n"))
+    .whereRef("t.groupId", "=", "g.id")
+    .where("t.status", "in", [...TRADED_CARD_TRADE_STATUSES])
+    .where(SETTLED_AT, "is not", null);
+}
 
 async function memberPreviewsByGroup(
   db: Kysely<Database>,
@@ -260,6 +290,14 @@ export function friendGroupsRepo(db: Kysely<Database>) {
             .else(0)
             .end()
             .as("pendingRequestCount"),
+          tradedCardsInGroup(eb)
+            .where(
+              SETTLED_AT,
+              ">=",
+              sql<Date>`now() - make_interval(days => ${TRADE_VOLUME_WINDOW_DAYS})`,
+            )
+            .as("recentTradedCardCount"),
+          tradedCardsInGroup(eb).as("tradedCardCount"),
         ])
         .where("m.userId", "=", userId)
         .orderBy("g.name", "asc")
@@ -270,13 +308,16 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         rows.map((row) => row.id),
       );
 
-      // Sub-selects come back typed as `number | null`.
+      // Sub-selects come back typed as `number | null`; the two sums are also
+      // null for a group whose rows all fall outside the filter.
       return rows.map((row) => ({
         ...row,
         memberCount: Number(row.memberCount ?? 0),
         pendingRequestCount: Number(row.pendingRequestCount ?? 0),
         sharedListCount: Number(row.sharedListCount ?? 0),
         memberPreviews: previews.get(row.id) ?? [],
+        recentTradedCardCount: Number(row.recentTradedCardCount ?? 0),
+        tradedCardCount: Number(row.tradedCardCount ?? 0),
       }));
     },
 

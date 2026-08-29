@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchSuggestionFields } from "./trade-derivation";
 import {
   buildTradeHubCards,
+  buildTradeShelf,
   expiringSoonCount,
   isQuietTradeHubCard,
   needsYouCounts,
@@ -420,5 +421,173 @@ describe("suggestionsLine", () => {
   it("stands on its own when every suggestion is in another group", () => {
     expect(suggestionsLine(withCounts(0, 1))).toBe("1 possible trade in another group");
     expect(suggestionsLine(withCounts(0, 4))).toBe("4 possible trades in other groups");
+  });
+});
+
+describe("buildTradeShelf", () => {
+  const empty = { needsYou: [], incoming: [], outgoing: [] };
+
+  /** @returns The shelf's rows as `key: detail`, which is what the band prints. */
+  function details(shelf: ReturnType<typeof buildTradeShelf>): string[] {
+    return shelf.rows.map((row) => `${row.key}: ${row.detail}`);
+  }
+
+  it("draws no row for a stage with nothing in it", () => {
+    expect(
+      details(
+        buildTradeShelf({
+          ...empty,
+          needsYou: [stubTrade({ actionNeeded: "settle", role: "giver" })],
+        }),
+      ),
+    ).toEqual(["hand-over: 1 card for Robin"]);
+  });
+
+  it("shrinks to a headline alone when the group is quiet", () => {
+    expect(buildTradeShelf(empty)).toEqual({
+      rows: [],
+      waitingPeople: 0,
+      headline: "No matches in this group yet",
+    });
+  });
+
+  it("keeps the opportunity rows when nothing waits on the viewer", () => {
+    const shelf = buildTradeShelf({ ...empty, incoming: [stubMatch()] });
+    expect(shelf.headline).toBe("Nothing waiting on you");
+    expect(details(shelf)).toEqual(["could-get: 1 card from 1 member"]);
+  });
+
+  it("splits the three obligation stages so no trade is counted twice", () => {
+    const shelf = buildTradeShelf({
+      ...empty,
+      needsYou: [
+        stubTrade({ id: "a", actionNeeded: "accept-or-decline", printingId: "printing-1" }),
+        stubTrade({
+          id: "b",
+          actionNeeded: "settle",
+          role: "giver",
+          printingId: "printing-2",
+        }),
+        stubTrade({
+          id: "c",
+          actionNeeded: "settle",
+          role: "receiver",
+          printingId: "printing-3",
+        }),
+      ],
+    });
+    expect(details(shelf)).toEqual([
+      "answer: 1 request from Robin",
+      "hand-over: 1 card for Robin",
+      "confirm: 1 card from Robin",
+    ]);
+    expect(shelf.rows.flatMap((row) => row.printingIds)).toEqual([
+      "printing-1",
+      "printing-2",
+      "printing-3",
+    ]);
+  });
+
+  it("names one person, joins two, and counts past that", () => {
+    const withNames = (names: string[]) =>
+      buildTradeShelf({
+        ...empty,
+        needsYou: names.map((name, index) =>
+          stubTrade({
+            id: `t-${index}`,
+            actionNeeded: "settle",
+            role: "giver",
+            counterparty: {
+              userId: `user-${index}`,
+              name,
+              image: null,
+              gravatarHash: "hash",
+              contactMethods: [],
+            },
+          }),
+        ),
+      });
+    expect(details(withNames(["Robin"]))).toEqual(["hand-over: 1 card for Robin"]);
+    expect(details(withNames(["Robin", "Alex"]))).toEqual([
+      "hand-over: 2 cards for Alex and Robin",
+    ]);
+    expect(details(withNames(["Robin", "Alex", "Mo"]))).toEqual([
+      "hand-over: 3 cards for 3 members",
+    ]);
+  });
+
+  it("counts people, not trades, in the headline", () => {
+    const shelf = buildTradeShelf({
+      ...empty,
+      needsYou: [
+        stubTrade({ id: "a", actionNeeded: "settle", role: "giver" }),
+        stubTrade({ id: "b", actionNeeded: "settle", role: "giver" }),
+      ],
+    });
+    expect(shelf).toMatchObject({ waitingPeople: 1, headline: "1 person is waiting on you" });
+  });
+
+  it("appends the expiry tail to the requests row only", () => {
+    const soon = new Date("2026-08-02T10:00:00.000Z").toISOString();
+    const shelf = buildTradeShelf({
+      ...empty,
+      needsYou: [
+        stubTrade({ id: "a", actionNeeded: "accept-or-decline", expiresAt: soon }),
+        stubTrade({ id: "b", actionNeeded: "settle", role: "giver" }),
+      ],
+      now: new Date("2026-08-01T10:00:00.000Z"),
+    });
+    expect(details(shelf)).toEqual([
+      "answer: 1 request from Robin, 1 expires soon",
+      "hand-over: 1 card for Robin",
+    ]);
+  });
+
+  it("counts distinct suggestions but shows distinct printings", () => {
+    // Two members offering the same printing: two suggestions, one thumb.
+    const shelf = buildTradeShelf({
+      ...empty,
+      incoming: [
+        stubMatch({ counterpartyUserId: "user-2" }),
+        stubMatch({ counterpartyUserId: "user-3" }),
+      ],
+    });
+    expect(details(shelf)).toEqual(["could-get: 2 cards from 2 members"]);
+    expect(shelf.rows[0]?.printingIds).toEqual(["printing-1"]);
+  });
+
+  it("keeps the two suggestion directions apart", () => {
+    const shelf = buildTradeShelf({
+      ...empty,
+      incoming: [stubMatch({ printingId: "printing-1" })],
+      outgoing: [stubMatch({ printingId: "printing-2", buyEntryId: "entry-2" })],
+    });
+    expect(details(shelf)).toEqual([
+      "could-get: 1 card from 1 member",
+      "would-want: 1 card, wanted by 1 member",
+    ]);
+  });
+
+  it("falls back to a generic name for a counterparty with none", () => {
+    expect(
+      details(
+        buildTradeShelf({
+          ...empty,
+          needsYou: [
+            stubTrade({
+              actionNeeded: "settle",
+              role: "receiver",
+              counterparty: {
+                userId: "user-2",
+                name: null,
+                image: null,
+                gravatarHash: "hash",
+                contactMethods: [],
+              },
+            }),
+          ],
+        }),
+      ),
+    ).toEqual(["confirm: 1 card from a member"]);
   });
 });

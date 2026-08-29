@@ -177,79 +177,60 @@ export interface GroupMatchPanels<TMatch> {
   outgoing: readonly TMatch[];
 }
 
-/**
- * The suggestion count each group amounts to, for a surface showing several
- * groups at once (the groups index). Each group is counted on its own terms, so
- * a card two groups can both reach counts in both: the number sits on a card
- * that leads into one group, whose own Trades band states the same figure.
- * @param groups Each group's match rows.
- * @param trades The viewer's trades across all groups, so a suggestion a live
- *   trade has already taken over stops counting (see {@link withoutLiveTradeMatches}).
- * @returns The suggestion count per group slug.
- */
-export function countTradeSuggestionsBySlug<TMatch extends MatchSuggestionFields>(
-  groups: readonly GroupMatchPanels<TMatch>[],
-  trades: readonly CardTradeResponse[],
-): Map<string, number> {
-  return new Map(
-    groups.map((group) => [
-      group.slug,
-      countTradeSuggestions(
-        withoutLiveTradeMatches(group.incoming, trades),
-        withoutLiveTradeMatches(group.outgoing, trades),
-      ),
-    ]),
-  );
+/** One direction's suggestions for a group card: how many, and the art to show. */
+export interface GroupSuggestionStrip {
+  count: number;
+  /** Distinct printings behind the count, for the card's art strip. */
+  printingIds: string[];
+}
+
+/** What a group's card on the index shows about possible trades, per direction. */
+export interface GroupSuggestionStrips {
+  incoming: GroupSuggestionStrip;
+  outgoing: GroupSuggestionStrip;
+}
+
+/** @returns One direction's count and art. */
+function suggestionStrip<TMatch extends MatchSuggestionFields>(
+  matches: readonly TMatch[],
+  direction: MatchDirection,
+): GroupSuggestionStrip {
+  return {
+    count:
+      direction === "incoming"
+        ? tradeSuggestionKeys(matches, []).size
+        : tradeSuggestionKeys([], matches).size,
+    printingIds: [...new Set(matches.map((match) => match.printingId))],
+  };
 }
 
 /**
- * The trades hub band's headline and sub-line. The headline counts the *people*
- * waiting on the viewer, not the trades: a pile of 59 open rows is usually a
- * handful of conversations, and everything behind the band (the person chips,
- * the trade sheet) is per-person, so a raw trade count names a unit nobody can
- * act on. The trade counts follow in the sub-line, where they read as detail.
+ * What each group's card shows about possible trades, for a surface listing
+ * several groups at once (the groups index). Split by direction so a card can
+ * say what the viewer could get apart from what the group would want, the same
+ * split each group's own Trades band leads with.
  *
- * With nobody waiting there is no conversation to lead with, so the band falls
- * back to the possible trades the matcher found.
- * @param peopleCount Distinct counterparties waiting on the viewer.
- * @param toAnswer Requests awaiting the viewer's accept-or-decline.
- * @param toHandOver Agreed swaps whose cards the viewer still has to hand over.
- * @param toReceive Agreed swaps whose cards the viewer still has to receive.
- * @param matchCount Distinct match suggestions (see {@link countTradeSuggestions}).
- * @param activeCount Trades in progress (accepted or awaiting the other side).
- * @returns The headline number and the sub-line that qualifies it.
+ * Each group is counted on its own terms, so a card two groups can both reach
+ * counts in both: the figure sits on a card that leads into one group, whose
+ * band states the same number.
+ * @param groups Each group's match rows.
+ * @param trades The viewer's trades across all groups, so a suggestion a live
+ *   trade has already taken over stops counting (see {@link withoutLiveTradeMatches}).
+ * @returns The strips per group slug.
  */
-export function tradesHubSummary(
-  peopleCount: number,
-  toAnswer: number,
-  toHandOver: number,
-  toReceive: number,
-  matchCount: number,
-  activeCount: number,
-): { headline: number; sub: string } {
-  if (peopleCount > 0) {
-    const tails = [
-      toAnswer > 0 ? `${toAnswer} to answer` : null,
-      toHandOver > 0 ? `${toHandOver} to hand over` : null,
-      toReceive > 0 ? `${toReceive} to receive` : null,
-      matchCount > 0 ? `${matchCount} ${matchCount === 1 ? "suggestion" : "suggestions"}` : null,
-    ].filter((tail) => tail !== null);
-    return {
-      headline: peopleCount,
-      sub: [`${peopleCount === 1 ? "person is" : "people are"} waiting on you`, ...tails].join(
-        " · ",
-      ),
-    };
-  }
-  return {
-    headline: matchCount,
-    sub:
-      matchCount > 0
-        ? `possible ${matchCount === 1 ? "trade" : "trades"} · none waiting on you`
-        : activeCount > 0
-          ? "no new matches right now"
-          : "no open trades right now",
-  };
+export function groupSuggestionStripsBySlug<TMatch extends MatchSuggestionFields>(
+  groups: readonly GroupMatchPanels<TMatch>[],
+  trades: readonly CardTradeResponse[],
+): Map<string, GroupSuggestionStrips> {
+  return new Map(
+    groups.map((group) => [
+      group.slug,
+      {
+        incoming: suggestionStrip(withoutLiveTradeMatches(group.incoming, trades), "incoming"),
+        outgoing: suggestionStrip(withoutLiveTradeMatches(group.outgoing, trades), "outgoing"),
+      },
+    ]),
+  );
 }
 
 /**

@@ -1,7 +1,8 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { cardTradeState, isTradedCardTrade, needsViewerAction } from "@openrift/shared";
 
-import type { MatchSuggestionFields } from "./trade-derivation";
+import { distinctPrintingIds } from "./friend-group-activity";
+import type { MatchDirection, MatchSuggestionFields } from "./trade-derivation";
 import { tradeSuggestionKeys, withoutLiveTradeMatches } from "./trade-derivation";
 
 /**
@@ -337,4 +338,190 @@ export function buildTradeHubCards<
     (a, b) =>
       cardRank(a) - cardRank(b) || memberSortName(a.member).localeCompare(memberSortName(b.member)),
   );
+}
+
+/** The rows the overview band's shelf can hold, in display order. */
+export type TradeShelfRowKey = "answer" | "hand-over" | "confirm" | "could-get" | "would-want";
+
+/** One row of the overview band: a label, the cards behind it, and who they involve. */
+export interface TradeShelfRow {
+  key: TradeShelfRowKey;
+  label: string;
+  /** Gold rows wait on the viewer, green rows are opportunities. */
+  tone: "gold" | "green";
+  /** The distinct printings the row's art strip shows, longest-waiting first. */
+  printingIds: string[];
+  /** The row's own sentence: how many of what, and with whom. */
+  detail: string;
+}
+
+/** Everything the overview band renders. */
+export interface TradeShelf {
+  /** Only rows with something in them. A row at zero is absent, never a "0". */
+  rows: TradeShelfRow[];
+  /** People with a live trade waiting on the viewer. */
+  waitingPeople: number;
+  headline: string;
+}
+
+/** @returns The people as prose: one name, two names, or a count past that. */
+function memberPhrase(names: readonly string[]): string {
+  if (names.length === 1) {
+    return names[0] ?? "a member";
+  }
+  if (names.length === 2) {
+    return `${names[0]} and ${names[1]}`;
+  }
+  return `${names.length} members`;
+}
+
+/** @returns The distinct counterparty names behind these trades, alphabetically. */
+function counterpartyNames(trades: readonly CardTradeResponse[]): string[] {
+  const names = new Set<string>();
+  for (const trade of trades) {
+    names.add(trade.counterparty.name ?? "a member");
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+function cardNoun(count: number): string {
+  return count === 1 ? "card" : "cards";
+}
+
+function memberNoun(count: number): string {
+  return count === 1 ? "member" : "members";
+}
+
+/** @returns The obligation row's sentence, minus any expiry tail. */
+function obligationDetail(
+  key: Extract<TradeShelfRowKey, "answer" | "hand-over" | "confirm">,
+  count: number,
+  who: string,
+): string {
+  if (key === "answer") {
+    return `${count} ${count === 1 ? "request" : "requests"} from ${who}`;
+  }
+  if (key === "hand-over") {
+    return `${count} ${cardNoun(count)} for ${who}`;
+  }
+  return `${count} ${cardNoun(count)} from ${who}`;
+}
+
+/**
+ * Builds one obligation row, or nothing when no trade sits in that stage. The
+ * three stages are mutually exclusive, so a trade lands in exactly one row and
+ * the strips never show it twice.
+ * @returns The row, or null.
+ */
+function obligationRow(
+  key: Extract<TradeShelfRowKey, "answer" | "hand-over" | "confirm">,
+  label: string,
+  trades: readonly CardTradeResponse[],
+  tail: string,
+): TradeShelfRow | null {
+  if (trades.length === 0) {
+    return null;
+  }
+  const detail = obligationDetail(key, trades.length, memberPhrase(counterpartyNames(trades)));
+  return {
+    key,
+    label,
+    tone: "gold",
+    printingIds: distinctPrintingIds(trades),
+    detail: tail === "" ? detail : `${detail}, ${tail}`,
+  };
+}
+
+/**
+ * Builds one suggestion row, or nothing when that direction has no matches.
+ *
+ * The count in the sentence is the distinct-suggestion count the Trades page
+ * renders; the strip's own "+N" is its art overflow. The two differ whenever
+ * several members offer the same printing, which is why the number lives in the
+ * sentence with its noun instead of being read off the strip.
+ * @returns The row, or null.
+ */
+function suggestionRow(
+  key: Extract<TradeShelfRowKey, "could-get" | "would-want">,
+  label: string,
+  matches: readonly MatchSuggestionFields[],
+  direction: MatchDirection,
+): TradeShelfRow | null {
+  const count =
+    direction === "incoming"
+      ? tradeSuggestionKeys(matches, []).size
+      : tradeSuggestionKeys([], matches).size;
+  if (count === 0) {
+    return null;
+  }
+  const members = new Set(matches.map((match) => match.counterpartyUserId)).size;
+  const detail =
+    key === "could-get"
+      ? `${count} ${cardNoun(count)} from ${members} ${memberNoun(members)}`
+      : `${count} ${cardNoun(count)}, wanted by ${members} ${memberNoun(members)}`;
+  return { key, label, tone: "green", printingIds: distinctPrintingIds(matches), detail };
+}
+
+/**
+ * The group overview's trades band, as the rows it should draw.
+ *
+ * A row exists only when it has something in it, so a quiet group shrinks to a
+ * headline rather than printing a grid of zeros, and every count is stated with
+ * the noun it counts instead of sitting beside a name.
+ *
+ * Requests lead, because they are the only rows that run out on their own.
+ * @returns The shelf.
+ */
+export function buildTradeShelf({
+  needsYou,
+  incoming,
+  outgoing,
+  now,
+}: {
+  /** This group's trades waiting on the viewer (`needsViewerAction`). */
+  needsYou: readonly CardTradeResponse[];
+  /** Incoming matches, already past `withoutLiveTradeMatches`. */
+  incoming: readonly MatchSuggestionFields[];
+  /** Outgoing matches, already past `withoutLiveTradeMatches`. */
+  outgoing: readonly MatchSuggestionFields[];
+  now?: Date;
+}): TradeShelf {
+  const sorted = sortNeedsYou(needsYou);
+  const soon = expiringSoonCount(sorted, now);
+  const expiry = soon === 0 ? "" : `${soon} ${soon === 1 ? "expires" : "expire"} soon`;
+
+  const rows = [
+    obligationRow(
+      "answer",
+      "To answer",
+      sorted.filter((trade) => trade.actionNeeded === "accept-or-decline"),
+      expiry,
+    ),
+    obligationRow(
+      "hand-over",
+      "To hand over",
+      sorted.filter((trade) => trade.actionNeeded === "settle" && trade.role === "giver"),
+      "",
+    ),
+    obligationRow(
+      "confirm",
+      "To confirm",
+      sorted.filter((trade) => trade.actionNeeded === "settle" && trade.role === "receiver"),
+      "",
+    ),
+    suggestionRow("could-get", "You could get", incoming, "incoming"),
+    suggestionRow("would-want", "They would want", outgoing, "outgoing"),
+  ].filter((row) => row !== null);
+
+  const waitingPeople = counterpartyNames(sorted).length;
+  return {
+    rows,
+    waitingPeople,
+    headline:
+      waitingPeople > 0
+        ? `${waitingPeople} ${waitingPeople === 1 ? "person is" : "people are"} waiting on you`
+        : rows.length > 0
+          ? "Nothing waiting on you"
+          : "No matches in this group yet",
+  };
 }

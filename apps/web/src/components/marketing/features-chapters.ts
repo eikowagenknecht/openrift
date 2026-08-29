@@ -108,6 +108,7 @@ export const FEATURE_CHAPTERS: FeatureChapter[] = [
     icon: UsersIcon,
     features: [
       { hash: "groups", label: "Groups", icon: UsersIcon },
+      { hash: "trade-match", label: "How a trade works", icon: ArrowDownUpIcon },
       { hash: "loans", label: "Loans", icon: HandHeartIcon },
       { hash: "share", label: "Share", icon: Share2Icon },
       { hash: "discord", label: "Discord", icon: MessageSquareIcon },

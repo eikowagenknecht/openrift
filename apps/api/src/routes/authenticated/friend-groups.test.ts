@@ -188,6 +188,8 @@ describe("friend-groups route", () => {
                   userImage: null,
                 },
               ],
+              recentTradedCardCount: 4,
+              tradedCardCount: 19,
             },
           ]),
         ),

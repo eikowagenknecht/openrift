@@ -56,6 +56,14 @@ import { StageVignette } from "./stage-vignette";
 import { TestVignette } from "./test-vignette";
 import { TierListVignette } from "./tier-list-vignette";
 import { TrackerVignette } from "./tracker-vignette";
+import {
+  TradeArrivedVignette,
+  TradeMatchVignette,
+  TradeRequestVignette,
+  TradeReservedVignette,
+  TradeSettleVignette,
+  tradedCard,
+} from "./trade-flow-vignettes";
 import { VariantsVignette } from "./variants-vignette";
 
 const CTA_CUT = 12;
@@ -69,6 +77,10 @@ interface FullSectionDef {
   emphasis?: boolean;
   /** Alternates left/right across ALL full sections, so set per section. */
   flip?: boolean;
+  /** Small label above the title, for a section that is one step of a sequence. */
+  eyebrow?: string;
+  /** Tightens a run of sections that tell one story. See FeatureSection. */
+  compact?: boolean;
 }
 
 interface CardSectionDef {
@@ -150,6 +162,11 @@ export function FeaturesPage() {
     domains: thumb.domains,
   }));
   const thumbnailCards = landingThumbnailCards(data?.thumbnails);
+  // One sampled card carried through every stage of the trade chapter, so the
+  // art and the name always belong together and the five sections read as a
+  // single swap; the strips behind it fill the group's band.
+  const tradedFlowCard = tradedCard(thumbnailCards.slice(15));
+  const tradeStripUrls = thumbnailUrls.slice(16, 22);
 
   // Same idle-time /cards warm-up the landing page does: fetch the lazy chunk
   // and run its loader while the visitor reads, so the catalog links land on a
@@ -318,9 +335,62 @@ export function FeaturesPage() {
           id: "groups",
           title: "Trade inside your playgroup",
           description:
-            "Private groups match your wishlist against everyone's spares and show you which trades are possible. Each member page tracks whose move it is, what you have already traded, and which lists they share with you.",
+            "Private groups match your wishlist against everyone's spares. Each group leads with the cards you could pick up there and the ones your spares would cover, so you can see at a glance which of your playgroups is worth opening today.",
           action: sectionAction("Open your groups", "/groups"),
-          vignette: <GroupsVignette />,
+          vignette: <GroupsVignette thumbnailUrls={tradeStripUrls} />,
+        },
+        {
+          id: "trade-match",
+          eyebrow: "Step 1 of 5",
+          compact: true,
+          title: "It starts with a match",
+          description:
+            "Your wishlist meets everyone's tradelists, across the lists people have shared with the group. The group's band leads with the cards you could pick up, so you see the opportunity before you go looking for it.",
+          action: sectionAction("Open your groups", "/groups"),
+          vignette: <TradeMatchVignette thumbnailUrls={tradeStripUrls} />,
+          flip: true,
+        },
+        {
+          id: "trade-request",
+          eyebrow: "Step 2 of 5",
+          compact: true,
+          title: "Ask for the one you want",
+          description:
+            "Every suggestion says whose copy it is, what condition it is in, and which of your lists asked for it. One press sends the request, and they have a week to answer before it lapses on its own.",
+          action: sectionAction("Open your trades", "/trades"),
+          vignette: <TradeRequestVignette card={tradedFlowCard} />,
+        },
+        {
+          id: "trade-reserved",
+          eyebrow: "Step 3 of 5",
+          compact: true,
+          title: "They accept, the copy is held",
+          description:
+            "An accepted trade reserves that exact copy. It stops counting for their decks and drops out of everyone else's suggestions, so two people are never promised the same card.",
+          action: sectionAction("Open your trades", "/trades"),
+          vignette: <TradeReservedVignette card={tradedFlowCard} />,
+          flip: true,
+        },
+        {
+          id: "trade-settle",
+          eyebrow: "Step 4 of 5",
+          compact: true,
+          title: "Swap at the table, confirm in the app",
+          description:
+            "You meet up and trade the cards. Then each of you confirms your own half: theirs takes the copy out of their collection, yours puts it into whichever collection you pick. Neither side can log the swap on the other's behalf.",
+          action: sectionAction("Open your trades", "/trades"),
+          vignette: <TradeSettleVignette />,
+        },
+        {
+          id: "trade-arrived",
+          eyebrow: "Step 5 of 5",
+          compact: true,
+          title: "It lands in your collection",
+          description:
+            "The copy is yours, gone from theirs, and off your wishlist. Your decks can use it straight away, and the group's traded count moves. Nothing else in OpenRift spans two people and two collections.",
+          action: sectionAction("Open your collections", "/collections"),
+          vignette: <TradeArrivedVignette card={tradedFlowCard} />,
+          flip: true,
         },
       ],
       cards: [

@@ -44,6 +44,8 @@ export function FeatureSection({
   vignette,
   flip,
   emphasis,
+  eyebrow,
+  compact,
 }: {
   id: string;
   title: string;
@@ -54,6 +56,14 @@ export function FeatureSection({
   flip?: boolean;
   /** Widens the vignette column for the one or two showpiece sections. */
   emphasis?: boolean;
+  /** Small label above the title, for a section that is one step of a sequence. */
+  eyebrow?: string;
+  /**
+   * Drops the viewport-height floor and tightens the padding. For a run of
+   * sections telling one story: at full height each step floats in its own
+   * screen of empty space and the run reads as unrelated features.
+   */
+  compact?: boolean;
 }) {
   return (
     // content-visibility keeps the looping vignette animations from rendering
@@ -63,11 +73,17 @@ export function FeatureSection({
     <section
       id={id}
       className={cn(
-        "grid scroll-mt-12 items-center gap-8 py-10 [contain-intrinsic-size:auto_640px] [content-visibility:auto] max-xl:scroll-mt-28 sm:py-14 lg:min-h-[60svh] lg:gap-16",
+        "grid scroll-mt-12 items-center gap-8 [contain-intrinsic-size:auto_640px] [content-visibility:auto] max-xl:scroll-mt-28 lg:gap-16",
+        compact ? "py-6 sm:py-8" : "py-10 sm:py-14 lg:min-h-[60svh]",
         emphasis ? (flip ? "lg:grid-cols-[3fr_2fr]" : "lg:grid-cols-[2fr_3fr]") : "lg:grid-cols-2",
       )}
     >
       <Reveal className={cn("flex flex-col items-start gap-4", flip && "lg:order-2")}>
+        {eyebrow ? (
+          <span className="text-muted-foreground font-heading text-xs font-semibold tracking-widest uppercase">
+            {eyebrow}
+          </span>
+        ) : null}
         <Heading level={1} as="h2" className={FEATURE_HEADING_CLASS}>
           {title}
         </Heading>

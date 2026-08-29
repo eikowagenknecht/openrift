@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, formatDay } from "@openrift/shared";
 import type {
   CardTradeCopyOptionsResponse,
   CardTradeResponse,
@@ -683,6 +683,22 @@ function assertGiverUnsettled(trade: LiveCardTrade): void {
   }
 }
 
+/**
+ * Where a traded-in copy came from, seeded into the receiver's private note.
+ *
+ * Deliberately the free-text note rather than a column: it is the owner's own
+ * field, so they can reword it, add a price they paid alongside, or clear it
+ * entirely. The app never reads it back, which is what keeps that safe.
+ * @returns The note, or null when the giver's name is not available.
+ */
+async function tradeProvenanceNote(trxRepos: Repos, trade: LiveCardTrade): Promise<string | null> {
+  const giver = await trxRepos.users.findById(trade.giverUserId);
+  const name = giver?.name ?? trade.giverName;
+  return name === null || name === undefined || name === ""
+    ? null
+    : `Traded from ${name} on ${formatDay(new Date())}`;
+}
+
 async function applyReceiverSync(
   trxRepos: Repos,
   trade: LiveCardTrade,
@@ -702,11 +718,13 @@ async function applyReceiverSync(
     collectionId = targetCollectionId;
   }
 
+  const notesPrivate = await tradeProvenanceNote(trxRepos, trade);
   // Copies have no owner column — ownership derives from the collection; the
   // event below still records receiverUserId as the actor.
   const copyValues = Array.from({ length: trade.quantity }, () => ({
     printingId: trade.printingId,
     collectionId,
+    notesPrivate,
   }));
   const copyRows = await trxRepos.copies.insertBatch(copyValues);
 

@@ -158,6 +158,12 @@ export const friendGroupResponseSchema = z
   })
   .openapi("FriendGroupResponse");
 
+/**
+ * The window the groups index's trade-volume line covers. Shared so the number
+ * the query filters on and the number the copy names cannot drift apart.
+ */
+export const TRADE_VOLUME_WINDOW_DAYS = 30;
+
 /** A member teaser for avatar stacks — profile basics without the email. */
 export const friendGroupMemberPreviewSchema = z
   .object({
@@ -176,6 +182,18 @@ export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
     /** First few members (owner and admins first) for the tile avatar stack. */
     memberPreviews: z.array(friendGroupMemberPreviewSchema),
     sharedListCount: z.number().int().nonnegative(),
+    /**
+     * Cards traded in the group over {@link TRADE_VOLUME_WINDOW_DAYS}, for the
+     * index card's volume line. A rate rather than a timestamp: one swap
+     * yesterday and forty this month are both "active" on a freshness line, and
+     * only one of them is a group worth opening.
+     */
+    recentTradedCardCount: z.number().int().nonnegative(),
+    /**
+     * Cards traded in the group ever, which only separates "quiet lately" from
+     * "never got going" when the recent count is zero.
+     */
+    tradedCardCount: z.number().int().nonnegative(),
   })
   .openapi("FriendGroupSummaryResponse");
 

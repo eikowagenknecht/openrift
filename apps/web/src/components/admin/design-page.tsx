@@ -1258,7 +1258,7 @@ function TilesSection() {
       </DemoRow>
       <DemoRow
         label="ActionBand"
-        hint="Header row (IconChip, label, headline value, sub, trailing action) with free-form rows below. accent marks the band waiting on the viewer; a band given render is the click target and hovers like StatTile, a static one carries inline actions in its rows."
+        hint="Header row (IconChip, label, headline value, sub, trailing action) with free-form rows below. accent marks the band waiting on the viewer; a band given render is the click target and hovers like StatTile, a static one carries inline actions in its rows. valueClassName takes the headline off the display numeral when it is a sentence rather than a count."
       >
         <div className="flex w-full max-w-2xl flex-col gap-3">
           <ActionBand
@@ -1270,6 +1270,20 @@ function TilesSection() {
             sub="trades need your action"
             action={
               <span className={cn(buttonVariants(), "group-hover/action-band:bg-primary/90")}>
+                View trades
+                <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
+              </span>
+            }
+          />
+          <ActionBand
+            render={<Link to="/admin/design" hash="tiles" />}
+            icon={ZapIcon}
+            tone="green"
+            label="Trades"
+            value="Nothing waiting on you"
+            valueClassName="font-sans truncate text-base font-medium"
+            action={
+              <span className={cn(buttonVariants({ variant: "ghost" }))}>
                 View trades
                 <ChevronRightIcon className="size-4 transition-transform group-hover/action-band:translate-x-0.5" />
               </span>

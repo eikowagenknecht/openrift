@@ -194,6 +194,8 @@ export const friendGroupsRouter = {
         pendingRequestCount: row.pendingRequestCount,
         sharedListCount: row.sharedListCount,
         memberPreviews: row.memberPreviews.map((preview) => toMemberPreview(preview)),
+        recentTradedCardCount: row.recentTradedCardCount,
+        tradedCardCount: row.tradedCardCount,
       })),
       outgoingRequests: requests.map((row) => ({
         id: row.id,

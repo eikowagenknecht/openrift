@@ -6,7 +6,7 @@ import {
   bucketMemberTrades,
   collapseTradeAnnotations,
   countTradeSuggestions,
-  countTradeSuggestionsBySlug,
+  groupSuggestionStripsBySlug,
   describeCounterpartySource,
   describeViewerSource,
   groupTradeAnnotationsByPrinting,
@@ -18,7 +18,6 @@ import {
   sumTradeValues,
   tradeGroupKey,
   tradeSection,
-  tradesHubSummary,
   tradeStatusLabel,
   withoutLiveTradeMatches,
 } from "./trade-derivation";
@@ -429,9 +428,9 @@ function stubCounterparty(
   return { userId, name, image: null, gravatarHash: `${userId}-hash`, contactMethods: [] };
 }
 
-describe("countTradeSuggestionsBySlug", () => {
-  it("counts each group on its own, keyed by slug", () => {
-    const counts = countTradeSuggestionsBySlug(
+describe("groupSuggestionStripsBySlug", () => {
+  it("splits each group's suggestions by direction, keyed by slug", () => {
+    const strips = groupSuggestionStripsBySlug(
       [
         { slug: "tuesday-crew", incoming: [stubSuggestion(), stubSuggestion()], outgoing: [] },
         {
@@ -442,25 +441,51 @@ describe("countTradeSuggestionsBySlug", () => {
       ],
       [],
     );
-    expect(counts.get("tuesday-crew")).toBe(1);
-    expect(counts.get("store-league")).toBe(1);
+    expect(strips.get("tuesday-crew")).toEqual({
+      incoming: { count: 1, printingIds: ["printing-1"] },
+      outgoing: { count: 0, printingIds: [] },
+    });
+    expect(strips.get("store-league")).toEqual({
+      incoming: { count: 0, printingIds: [] },
+      outgoing: { count: 1, printingIds: ["printing-2"] },
+    });
   });
 
   it("counts a suggestion two groups both reach in both of them", () => {
     const row = stubSuggestion();
-    const counts = countTradeSuggestionsBySlug(
+    const strips = groupSuggestionStripsBySlug(
       [
         { slug: "tuesday-crew", incoming: [row], outgoing: [] },
         { slug: "store-league", incoming: [row], outgoing: [] },
       ],
       [],
     );
-    expect(counts.get("tuesday-crew")).toBe(1);
-    expect(counts.get("store-league")).toBe(1);
+    expect(strips.get("tuesday-crew")?.incoming.count).toBe(1);
+    expect(strips.get("store-league")?.incoming.count).toBe(1);
+  });
+
+  it("keeps one thumb per printing when several members offer the same card", () => {
+    const strips = groupSuggestionStripsBySlug(
+      [
+        {
+          slug: "tuesday-crew",
+          incoming: [
+            stubSuggestion({ counterpartyUserId: "user-2" }),
+            stubSuggestion({ counterpartyUserId: "user-3" }),
+          ],
+          outgoing: [],
+        },
+      ],
+      [],
+    );
+    expect(strips.get("tuesday-crew")?.incoming).toEqual({
+      count: 2,
+      printingIds: ["printing-1"],
+    });
   });
 
   it("drops suggestions a live trade has taken over", () => {
-    const counts = countTradeSuggestionsBySlug(
+    const strips = groupSuggestionStripsBySlug(
       [{ slug: "tuesday-crew", incoming: [stubSuggestion()], outgoing: [] }],
       [
         stubTrade({
@@ -470,11 +495,11 @@ describe("countTradeSuggestionsBySlug", () => {
         }),
       ],
     );
-    expect(counts.get("tuesday-crew")).toBe(0);
+    expect(strips.get("tuesday-crew")?.incoming).toEqual({ count: 0, printingIds: [] });
   });
 
   it("returns no entry for a group with no panels yet", () => {
-    expect(countTradeSuggestionsBySlug([], []).get("tuesday-crew")).toBeUndefined();
+    expect(groupSuggestionStripsBySlug([], []).get("tuesday-crew")).toBeUndefined();
   });
 });
 
@@ -588,44 +613,6 @@ describe("sumTradeValues", () => {
       hasGet: false,
       hasGive: false,
     });
-  });
-});
-
-describe("tradesHubSummary", () => {
-  it("leads with the number of people waiting, not the number of trades", () => {
-    expect(tradesHubSummary(3, 48, 8, 3, 7, 20)).toEqual({
-      headline: 3,
-      sub: "people are waiting on you · 48 to answer · 8 to hand over · 3 to receive · 7 suggestions",
-    });
-  });
-
-  it("uses singular copy for one person and one suggestion", () => {
-    expect(tradesHubSummary(1, 0, 2, 0, 1, 0)).toEqual({
-      headline: 1,
-      sub: "person is waiting on you · 2 to hand over · 1 suggestion",
-    });
-  });
-
-  it("omits the zero tails", () => {
-    expect(tradesHubSummary(2, 5, 0, 0, 0, 0).sub).toBe("people are waiting on you · 5 to answer");
-    expect(tradesHubSummary(2, 0, 0, 1, 0, 0).sub).toBe("people are waiting on you · 1 to receive");
-    expect(tradesHubSummary(2, 0, 0, 0, 0, 0).sub).toBe("people are waiting on you");
-  });
-
-  it("falls back to the match count when nobody is waiting on the viewer", () => {
-    expect(tradesHubSummary(0, 0, 0, 0, 1, 0)).toEqual({
-      headline: 1,
-      sub: "possible trade · none waiting on you",
-    });
-    expect(tradesHubSummary(0, 0, 0, 0, 4, 2)).toEqual({
-      headline: 4,
-      sub: "possible trades · none waiting on you",
-    });
-  });
-
-  it("distinguishes no-matches from no-trades-at-all when both counts are zero", () => {
-    expect(tradesHubSummary(0, 0, 0, 0, 0, 2).sub).toBe("no new matches right now");
-    expect(tradesHubSummary(0, 0, 0, 0, 0, 0).sub).toBe("no open trades right now");
   });
 });
 
