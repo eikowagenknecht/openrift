@@ -37,7 +37,7 @@ describe("matchDeckEntries", () => {
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
       expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("The Boss");
+      expect(results[0].resolvedCard?.cardName).toBe("Sett, The Boss");
     });
 
     it("prefers exact name match over tag+name", () => {
@@ -67,7 +67,7 @@ describe("matchDeckEntries", () => {
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
       expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("The Boss");
+      expect(results[0].resolvedCard?.cardName).toBe("Sett, The Boss");
     });
 
     it("does not attempt tag+name split for names without commas", () => {

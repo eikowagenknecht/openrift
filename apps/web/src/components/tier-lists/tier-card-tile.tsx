@@ -1,4 +1,4 @@
-import { getOrientation } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared";
 import type { Card, Printing } from "@openrift/shared";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -80,7 +80,7 @@ export function TierCardTile({ view, width, className }: TierCardTileProps) {
       <CardArtThumb
         imageId={frontImageId(view.printing)}
         variant="400w"
-        alt={view.card.name}
+        alt={legendDisplayName(view.card)}
         rarity={view.printing?.rarity}
         domains={view.card.domains}
         landscape={getOrientation(view.card.types) === "landscape"}

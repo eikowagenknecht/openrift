@@ -1,5 +1,5 @@
 import type { PromosListResponse } from "@openrift/shared";
-import { RENAMED_LANGUAGES } from "@openrift/shared";
+import { legendDisplayName, RENAMED_LANGUAGES } from "@openrift/shared";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
@@ -68,7 +68,7 @@ export const Route = createFileRoute("/_app/promos_/$language")({
       if (!card) {
         continue;
       }
-      items.push({ name: card.name, url: `/cards/${card.slug}` });
+      items.push({ name: legendDisplayName(card), url: `/cards/${card.slug}` });
     }
 
     return {

@@ -2175,6 +2175,37 @@ describe("sortCards", () => {
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
+  it("files a Legend under its champion, not its stored epithet", () => {
+    const azir = makePrinting({
+      id: "SET1-004:epic:normal:",
+      shortCode: "SET1-004",
+      rarity: "epic",
+      cardId: "SET1-004",
+      card: {
+        name: "Emperor of the Sands",
+        type: "legend",
+        types: ["legend"],
+        superTypes: [],
+        domains: [],
+        energy: null,
+        might: 0,
+        power: 0,
+        keywords: [],
+        tags: ["Azir"],
+        mightBonus: null,
+        errata: null,
+      },
+    });
+    const result = sortCards([...printings, azir], "name");
+    // Between Alpha and Bravo as "Azir, …", not after Charlie as "Emperor …".
+    expect(result.map((p) => p.card.name)).toEqual([
+      "Alpha",
+      "Emperor of the Sands",
+      "Bravo",
+      "Charlie",
+    ]);
+  });
+
   it("sorts by id (card number within one set)", () => {
     const result = sortCards(printings, "id", { sets: SETS });
     expect(result.map((p) => p.shortCode)).toEqual(["SET1-001", "SET1-002", "SET1-003"]);

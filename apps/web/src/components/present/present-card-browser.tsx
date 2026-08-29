@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { MinusIcon, PlusIcon } from "lucide-react";
 
 import { CardCell } from "@/components/cards/card-cell";
@@ -58,7 +59,7 @@ function QueueCardStrip({ printing }: { printing: Printing }) {
       left={
         queued > 0 && (
           <StripIconButton
-            aria-label={`Remove ${printing.card.name} from the queue`}
+            aria-label={`Remove ${legendDisplayName(printing.card)} from the queue`}
             onClick={() => removePrinting(printing.id)}
           >
             <MinusIcon className="size-3" />
@@ -75,7 +76,7 @@ function QueueCardStrip({ printing }: { printing: Printing }) {
       }
       right={
         <StripIconButton
-          aria-label={`Add ${printing.card.name} to the queue`}
+          aria-label={`Add ${legendDisplayName(printing.card)} to the queue`}
           disabled={isFull}
           onClick={() => add(printing.id)}
         >

@@ -1,3 +1,5 @@
+import { legendDisplayName } from "@openrift/shared";
+
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { CardGroup } from "@/components/cards/card-grid-types";
 
@@ -16,7 +18,8 @@ import type { CardGroup } from "@/components/cards/card-grid-types";
 export function groupItemsByCard(items: CardViewerItem[], dir: "asc" | "desc"): CardGroup[] {
   const buckets = new Map<string, { name: string; items: CardViewerItem[] }>();
   for (const item of items) {
-    const { slug, name } = item.printing.card;
+    const { slug } = item.printing.card;
+    const name = legendDisplayName(item.printing.card);
     const existing = buckets.get(slug);
     if (existing) {
       existing.items.push(item);

@@ -1,3 +1,4 @@
+import { legendDisplayName } from "@openrift/shared";
 import type { APIEmbed, APIEmbedField } from "discord.js";
 
 import {
@@ -104,7 +105,7 @@ export function buildCardDetailsEmbed(input: CardDetailsInput): APIEmbed {
     ...(bans ? [bans] : []),
   ];
   return {
-    title: card.name,
+    title: legendDisplayName(card),
     url: `${siteUrl}/cards/${card.slug}`,
     description: describeCard(card, snapshot.labels),
     color: EMBED_COLOR,

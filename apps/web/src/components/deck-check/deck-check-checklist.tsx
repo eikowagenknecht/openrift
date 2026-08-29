@@ -90,7 +90,7 @@ export function CardChecklist({
     const printing = printingId ? printingById.get(printingId) : undefined;
     return printing
       ? {
-          name: printing.card.name,
+          name: legendDisplayName(printing.card),
           shortCode: printing.shortCode,
           setIndex: setIndexes.get(printing.setId) ?? UNKNOWN_SET_INDEX,
           domains: printing.card.domains,

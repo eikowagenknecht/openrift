@@ -1,9 +1,11 @@
 import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
 import {
+  cardTypesColumn,
   keysetCursorPredicate,
   notPinnedToLoan,
   notReservedByTrade,
@@ -590,13 +592,15 @@ export function copiesRepo(db: Kysely<Database>) {
     }> {
       const rows = await selectCopyWithCard(db)
         .select((eb) => [
-          "c.name as cardName",
+          "c.name as name",
+          cardTypesColumn(),
+          "c.tags as tags",
           "imgf.id as imageFileId",
           "imgf.rehostedUrl as rehostedUrl",
           eb.cast<number>(eb.fn.countAll(), "integer").as("quantity"),
         ])
         .where("cp.collectionId", "=", collectionId)
-        .groupBy(["cp.printingId", "c.name", "imgf.id", "imgf.rehostedUrl"])
+        .groupBy(["cp.printingId", "c.name", "mca.types", "c.tags", "imgf.id", "imgf.rehostedUrl"])
         .orderBy((eb) => eb.fn.countAll(), "desc")
         .orderBy("c.name")
         .limit(cap)
@@ -613,7 +617,7 @@ export function copiesRepo(db: Kysely<Database>) {
         // with no rehosted image gets a name-only tile, matching imageId() in
         // query-helpers. So null out the id unless the image was rehosted.
         cards: rows.map((row) => ({
-          cardName: row.cardName,
+          cardName: legendDisplayName(row),
           quantity: row.quantity,
           imageId: row.rehostedUrl ? row.imageFileId : null,
         })),

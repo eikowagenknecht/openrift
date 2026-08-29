@@ -1,12 +1,12 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
 import {
-  SIDEBOARD_MAXIMUM,
-  WellKnown,
   formatHasSideboard,
   getOrientation,
-  legendDisplayName,
   setIndexById,
+  SIDEBOARD_MAXIMUM,
+  WellKnown,
+  legendDisplayName,
 } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";

@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { WellKnown, formatHasSideboard, imageUrl, legendDisplayName } from "@openrift/shared";
+import { formatHasSideboard, imageUrl, WellKnown, legendDisplayName } from "@openrift/shared";
 import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -71,11 +71,15 @@ function PanelIdentityHeader({
           {legendImage ? (
             <img
               src={imageUrl(legendImage.imageId, "120w")}
-              alt={legendDisplayName({
-                name: legend?.cardName ?? "Legend",
-                types: legend?.cardTypes ?? [],
-                tags: legend?.tags ?? [],
-              })}
+              alt={
+                legend
+                  ? legendDisplayName({
+                      name: legend.cardName,
+                      types: legend.cardTypes,
+                      tags: legend.tags,
+                    })
+                  : "Legend"
+              }
               style={{ borderRadius: CARD_BORDER_RADIUS }}
               className="aspect-card absolute top-1/2 left-0 h-11 -translate-y-1/2 -rotate-7 object-cover shadow-sm"
               draggable={false}

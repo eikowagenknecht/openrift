@@ -8,7 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { copyLimitFor, legendDisplayName, WellKnown } from "@openrift/shared";
+import { copyLimitFor, WellKnown, legendDisplayName } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";

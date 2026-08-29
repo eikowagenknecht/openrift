@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { snapshotHeadline } from "@openrift/shared";
+import { legendDisplayName, snapshotHeadline } from "@openrift/shared";
 import { useState } from "react";
 
 import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";
@@ -96,7 +96,7 @@ function PrintingList({
                 <>
                   <OwnedCollectionsPopover
                     printingId={p.id}
-                    cardName={p.card.name}
+                    cardName={legendDisplayName(p.card)}
                     shortCode={p.shortCode}
                   />
                   <PrintingPrices printing={p} />

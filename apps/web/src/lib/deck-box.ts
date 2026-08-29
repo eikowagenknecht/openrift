@@ -7,7 +7,7 @@ import type {
   Rarity,
   VariantLabelPrinting,
 } from "@openrift/shared";
-import { WellKnown, isCountedZone } from "@openrift/shared";
+import { WellKnown, compareCardDisplayName, isCountedZone } from "@openrift/shared";
 
 import { frontImageId } from "@/lib/card-meta";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -652,7 +652,7 @@ export function computeDeckBoxPlan({
     inBoxTotal,
     slots,
     missingCount,
-    extras: extras.toSorted((a, b) => a.card.name.localeCompare(b.card.name)),
+    extras: extras.toSorted((a, b) => compareCardDisplayName(a.card, b.card)),
     extraCount,
     siblingPrintingsByCardId: new Map(
       [...siblingsByCard].map(([cardId, seen]) => [cardId, [...seen.values()]]),

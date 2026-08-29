@@ -347,13 +347,14 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
     // selected tile shows its card name, like any lone drag.
     count = selectionCount;
     const plural = selectionNoun === "copy" ? "copies" : `${selectionNoun}s`;
-    label = selectionCount === 1 ? drag.printing.card.name : `${selectionCount} ${plural}`;
+    label =
+      selectionCount === 1 ? legendDisplayName(drag.printing.card) : `${selectionCount} ${plural}`;
   } else {
     // Lone stack/copy drag: the modifier may trim a stack down, and a single
     // card shows its name. Counted through the same helper the drop uses, so
     // the badge can't promise a number the drop won't deliver.
     count = resolveDropCopyIds(drag, modifier).length;
-    label = count === 1 ? drag.printing.card.name : `${count} copies`;
+    label = count === 1 ? legendDisplayName(drag.printing.card) : `${count} copies`;
   }
   // The ghost fans the first few itself; the drag can carry more, which is what
   // the count says.

@@ -131,6 +131,7 @@ export {
   formatPrintingLabel,
   cardSearchAltNames,
   centsToDollars,
+  compareCardDisplayName,
   deckIdentityLabels,
   deduplicateByCard,
   getOrientation,
@@ -142,6 +143,8 @@ export {
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
 } from "./utils.js";
+
+export type { CardNameParts } from "./utils.js";
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";
 

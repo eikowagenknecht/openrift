@@ -1,9 +1,9 @@
 import type { DeckZone, VariantLabelEnumLabels, VariantLabelPrinting } from "@openrift/shared";
 import {
-  WellKnown,
   formatPrintingVariantLabelParts,
   getOrientation,
   legendDisplayName,
+  WellKnown,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRightIcon, BoxIcon, HandHeartIcon, PackageSearchIcon } from "lucide-react";
@@ -317,7 +317,7 @@ export function DeckBoxTab({
                         checked
                         className={SURPLUS_TICK_CLASS}
                         disabled={moveCopies.isPending}
-                        aria-label={`Move ${entry.card.name} out of the box`}
+                        aria-label={`Move ${legendDisplayName(entry.card)} out of the box`}
                         onClick={rowControlClick()}
                         onCheckedChange={() => takeOut([copy.copyId])}
                       />
@@ -460,7 +460,7 @@ function SlotRow({
           <Checkbox
             checked
             disabled={disabled}
-            aria-label={`Take ${card.name} back out of the box`}
+            aria-label={`Take ${legendDisplayName(card)} back out of the box`}
             onClick={rowControlClick()}
             onCheckedChange={onTakeOut}
           />
@@ -492,7 +492,7 @@ function SlotRow({
           <Checkbox
             checked={false}
             disabled={disabled}
-            aria-label={`Put ${card.name} in the box`}
+            aria-label={`Put ${legendDisplayName(card)} in the box`}
             onClick={rowControlClick()}
             onCheckedChange={onTick}
           />
@@ -629,12 +629,12 @@ function SourcePicker({
     mode === "keep"
       ? {
           trigger: "Swap",
-          action: `Keep a different copy of ${card.name}`,
+          action: `Keep a different copy of ${legendDisplayName(card)}`,
           prompt: "Keep this copy instead",
         }
       : {
           trigger: source,
-          action: `Take a different copy of ${card.name}`,
+          action: `Take a different copy of ${legendDisplayName(card)}`,
           prompt: "Take this copy instead",
         };
   // Shelves in the order their best copy ranks, so the list still reads as the
@@ -752,7 +752,7 @@ function BoxRow({
       {leading}
       <BoxCardThumb card={card} copy={copy} labels={labels} />
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
-        {legendDisplayName({ name: card.name, types: card.types, tags: card.tags })}
+        {legendDisplayName(card)}
       </span>
       {copy && <CopyDetails copy={copy} labels={labels} siblings={siblings} />}
       {trailing}

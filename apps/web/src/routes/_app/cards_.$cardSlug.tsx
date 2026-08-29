@@ -1,6 +1,7 @@
 import type { CardDetailResponse, PricesResponse } from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
+  legendDisplayName,
   MARKETPLACE_CURRENCY,
   marketplaceLabel,
   priceLookupFromMap,
@@ -92,13 +93,16 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Canonical always points at the query-less card URL so search engines
     // consolidate rankings for all variants onto one page.
     const cardPath = `/cards/${data.card.slug}`;
+    // The same label the page's own h1 renders, so the tab, the unfurl and the
+    // heading agree on what a Legend is called.
+    const cardName = legendDisplayName(data.card);
     // "Price & Data" only when there are real offers backing it — a priceless
     // card advertising prices would earn clicks it can't serve.
     const titleSuffix =
       loaded.marketplaceOffers.length > 0 ? "Riftbound Card Price & Data" : "Riftbound Card";
     const head = seoHead({
       siteUrl,
-      title: `${data.card.name} - ${titleSuffix}`,
+      title: `${cardName} - ${titleSuffix}`,
       description,
       path: cardPath,
       ogImage: imageUrl,
@@ -116,15 +120,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       scripts: [
         productJsonLd({
           siteUrl,
-          name: data.card.name,
-          description: `${data.card.name} is a ${data.card.types.join(" ")} card from Riftbound.`,
+          name: cardName,
+          description: `${cardName} is a ${data.card.types.join(" ")} card from Riftbound.`,
           image: imageUrl,
           url: cardPath,
           marketplaceOffers: loaded.marketplaceOffers,
         }),
         breadcrumbJsonLd(siteUrl, [
           { name: "Cards", path: "/cards" },
-          { name: data.card.name, path: cardPath },
+          { name: cardName, path: cardPath },
         ]),
       ].filter((script) => script !== null),
     };

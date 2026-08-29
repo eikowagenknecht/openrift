@@ -52,6 +52,7 @@ import { collapseFamilies } from "@/lib/deck-family";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
   availableDomainsFrom,
+  deckListEnrichment,
   enrichItem,
   filterAvailabilityFrom,
   filterCountsFrom,
@@ -182,11 +183,7 @@ function useEnrichedItems(items: DeckListItemResponse[]): DeckListItemWithNames[
     const championCard = item.championCardId
       ? getPreferredPrinting(item.championCardId)?.card
       : undefined;
-    return enrichItem(item, {
-      legendName: legendCard?.name ?? null,
-      championName: championCard?.name ?? null,
-      legendDomains: legendCard?.domains ?? null,
-    });
+    return enrichItem(item, deckListEnrichment(legendCard, championCard));
   });
 }
 

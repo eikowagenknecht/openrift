@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { DeckListItemWithNames } from "./deck-list-utils";
 import {
   availableDomainsFrom,
+  deckListEnrichment,
   enrichItem,
   filterAvailabilityFrom,
   filterCountsFrom,
@@ -547,6 +548,33 @@ describe("groupDecks", () => {
     ];
     const groups = groupDecks(items, "legend");
     expect(groups.at(-1)?.label).toBe("(No legend)");
+  });
+});
+
+describe("deckListEnrichment", () => {
+  const azir = {
+    name: "Emperor of the Sands",
+    types: ["legend"],
+    tags: ["Azir"],
+    domains: ["fury" as Domain],
+  };
+
+  it("names a Legend by its champion", () => {
+    expect(deckListEnrichment(azir, undefined).legendName).toBe("Azir, Emperor of the Sands");
+  });
+
+  it("groups and searches decks under the champion name", () => {
+    const item = enrichItem(makeItem(), deckListEnrichment(azir, undefined));
+    expect(groupDecks([item], "legend")[0].label).toBe("Azir, Emperor of the Sands");
+    expect(filterDecks([item], { ...NO_FILTERS, search: "azir" })).toHaveLength(1);
+  });
+
+  it("leaves both names unset when neither zone is filled", () => {
+    expect(deckListEnrichment(undefined, undefined)).toEqual({
+      legendName: null,
+      championName: null,
+      legendDomains: null,
+    });
   });
 });
 

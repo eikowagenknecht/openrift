@@ -21,7 +21,7 @@ import {
   PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
 } from "./types/index.js";
-import { cardSearchAltNames } from "./utils.js";
+import { cardSearchAltNames, legendDisplayName } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
 interface ParsedSearchTerm {
@@ -1584,7 +1584,13 @@ export function sortCards(
   const dir: 1 | -1 = options.sortDir === "desc" ? -1 : 1;
   const byId = idComparator(options.sets);
   if (sortBy === "name") {
-    return printings.toSorted((a, b) => dir * a.card.name.localeCompare(b.card.name) || byId(a, b));
+    // Keyed on the display name so a Legend files under its champion, matching
+    // the label the grid prints. Decorated first because composing the label
+    // inside the comparator would rebuild it O(n log n) times.
+    return printings
+      .map((printing) => ({ printing, name: legendDisplayName(printing.card) }))
+      .sort((a, b) => dir * a.name.localeCompare(b.name) || byId(a.printing, b.printing))
+      .map((entry) => entry.printing);
   }
   if (sortBy === "id") {
     if (!options.sets) {

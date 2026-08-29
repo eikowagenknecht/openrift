@@ -1,3 +1,5 @@
+import { legendDisplayName } from "@openrift/shared";
+
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 export interface DeckLastChange {
@@ -24,7 +26,14 @@ function totalsByCard(cards: readonly DeckBuilderCard[]): Map<string, CardTotal>
     if (existing) {
       existing.quantity += card.quantity;
     } else {
-      totals.set(card.cardId, { cardName: card.cardName, quantity: card.quantity });
+      totals.set(card.cardId, {
+        cardName: legendDisplayName({
+          name: card.cardName,
+          types: card.cardTypes,
+          tags: card.tags,
+        }),
+        quantity: card.quantity,
+      });
     }
   }
   return totals;

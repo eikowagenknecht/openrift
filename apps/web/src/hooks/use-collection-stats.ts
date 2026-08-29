@@ -14,6 +14,7 @@ import {
   getPlaysetSize,
   imageUrl,
   isStandardPrinting,
+  legendDisplayName,
 } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
@@ -418,7 +419,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     .map(({ stack, price }) => {
       const firstImageId = stack.printing.images[0]?.imageId;
       return {
-        name: stack.printing.card.name,
+        name: legendDisplayName(stack.printing.card),
         printingId: stack.printingId,
         price,
         setSlug: stack.printing.setSlug,

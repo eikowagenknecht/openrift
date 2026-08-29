@@ -33,7 +33,7 @@ function QueueThumb({ printing }: { printing: Printing }) {
       domains={printing.card.domains}
       fallback={
         <span className="bg-muted text-2xs text-muted-foreground absolute inset-0 flex items-center justify-center p-0.5 text-center leading-tight">
-          {printing.card.name.slice(0, 8)}
+          {legendDisplayName(printing.card).slice(0, 8)}
         </span>
       }
     />
@@ -127,7 +127,7 @@ function QueueRow({
         {...attributes}
         {...listeners}
         type="button"
-        aria-label={`Reorder ${printing.card.name}`}
+        aria-label={`Reorder ${legendDisplayName(printing.card)}`}
         className={cn(
           "text-muted-foreground hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-md outline-hidden",
           "cursor-grab active:cursor-grabbing",
@@ -161,7 +161,7 @@ function QueueRow({
         size="icon-sm"
         onClick={() => onMove(index, -1)}
         disabled={index === 0}
-        aria-label={`Move ${printing.card.name} earlier`}
+        aria-label={`Move ${legendDisplayName(printing.card)} earlier`}
       >
         <ChevronUpIcon className="size-4" />
       </Button>
@@ -170,13 +170,13 @@ function QueueRow({
         size="icon-sm"
         onClick={() => onMove(index, 1)}
         disabled={isLast}
-        aria-label={`Move ${printing.card.name} later`}
+        aria-label={`Move ${legendDisplayName(printing.card)} later`}
       >
         <ChevronDownIcon className="size-4" />
       </Button>
       <ChipRemoveButton
         onClick={() => onRemove(index)}
-        aria-label={`Remove ${printing.card.name} from the queue`}
+        aria-label={`Remove ${legendDisplayName(printing.card)} from the queue`}
       />
     </li>
   );

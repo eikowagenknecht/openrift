@@ -1,5 +1,5 @@
 import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { legendDisplayName, WellKnown } from "@openrift/shared";
 
 /** One side's card list, reduced to the fields the diff cares about. */
 export interface DeckDiffCard {
@@ -73,7 +73,7 @@ export function deckDiffCardsFrom(
     }
     result.push({
       cardId: card.cardId,
-      cardName: catalogCard.name,
+      cardName: legendDisplayName(catalogCard),
       zone: card.zone,
       quantity: card.quantity,
     });

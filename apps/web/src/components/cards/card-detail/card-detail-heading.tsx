@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 
 import { Heading } from "@/components/heading";
 import { getTypeIconPaths } from "@/lib/icons";
@@ -18,6 +19,7 @@ export function CardDetailHeading({
   titleClassName?: string;
 }) {
   const { card } = printing;
+  const displayName = legendDisplayName(card);
   const typeIconPaths = getTypeIconPaths(card.types, card.superTypes);
   const typeText = card.types.join(" ");
   return (
@@ -26,10 +28,12 @@ export function CardDetailHeading({
         {printing.printedName && printing.printedName !== card.name ? (
           <>
             {printing.printedName}
-            <span className="text-muted-foreground ml-1.5 text-sm font-normal">({card.name})</span>
+            <span className="text-muted-foreground ml-1.5 text-sm font-normal">
+              ({displayName})
+            </span>
           </>
         ) : (
-          card.name
+          displayName
         )}
         <span className="text-muted-foreground ml-2 text-sm font-normal">{setNumber}</span>
       </Heading>

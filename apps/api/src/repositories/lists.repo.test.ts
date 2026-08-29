@@ -164,7 +164,9 @@ describe("listsRepo", () => {
         listId: "lst-1",
         cardId: "card-1",
         quantity: 1,
-        cardName: "Fire Dragon",
+        name: "Fire Dragon",
+        types: ["unit"],
+        tags: [],
       },
     ];
     const db = createMockDb(enriched);

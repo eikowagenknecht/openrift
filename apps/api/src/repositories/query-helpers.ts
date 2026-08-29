@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { Finish, Rarity } from "@openrift/shared/types";
+import { ERROR_CODES, legendDisplayName } from "@openrift/shared";
+import type { CardType, Finish, Rarity } from "@openrift/shared/types";
 import type {
   Expression,
   ExpressionBuilder,
@@ -272,12 +272,26 @@ export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
   >;
 }
 
+/**
+ * A card's type slugs for a **left**-joined `mvCardAggregates as mca`, empty
+ * when the view has not been refreshed since the card was added. The join has
+ * to be a left join: `mv_card_aggregates` is refreshed on demand, and an inner
+ * join would drop a fresh card's copies out of a share image or a trade match
+ * entirely rather than just naming it without its Legend prefix.
+ *
+ * @returns The aliased `types` column, never null.
+ */
+export function cardTypesColumn() {
+  return sql<CardType[]>`coalesce(mca.types, '{}')`.as("types");
+}
+
 export function selectCopyWithCard(db: Kysely<Database>) {
   return joinFrontImage(
     db
       .selectFrom("copies as cp")
       .innerJoin("printings as p", "p.id", "cp.printingId")
-      .innerJoin("cards as c", "c.id", "p.cardId"),
+      .innerJoin("cards as c", "c.id", "p.cardId")
+      .leftJoin("mvCardAggregates as mca", "mca.cardId", "c.id"),
   );
 }
 
@@ -299,11 +313,16 @@ export async function printingDetailsByIds(
     return new Map();
   }
   const rows = await joinFrontImage(
-    db.selectFrom("printings as p").innerJoin("cards as card", "card.id", "p.cardId"),
+    db
+      .selectFrom("printings as p")
+      .innerJoin("cards as card", "card.id", "p.cardId")
+      .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id"),
   )
     .select([
       "p.id",
-      "card.name as cardName",
+      "card.name as name",
+      cardTypesColumn(),
+      "card.tags as tags",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -317,7 +336,7 @@ export async function printingDetailsByIds(
     rows.map((row) => [
       row.id,
       {
-        cardName: row.cardName,
+        cardName: legendDisplayName(row),
         setId: row.setId,
         rarity: row.rarity,
         finish: row.finish,

@@ -17,6 +17,20 @@
 
 Row-to-response mapping is called a **presenter**, and it lives in `lib/<domain>-presenters.ts` — one module per domain (`collection`, `copy`, `deck`, `list`, `printing`, `product`, `deck-check`, `tournament`). Do not name these `mappers` or `*-response`, and do not park one in a service because that's where its first caller happened to be. Presenters are pure and get a sibling `*-presenters.test.ts`; the one exception is a presenter that needs a repo read to compose a detail response (`buildEntryDetail`), which stays in the domain's presenter module rather than moving to `services/`.
 
+## Displaying card names
+
+A Riftbound Legend is stored under its epithet (`Emperor of the Sands`) with the champion in a tag (`Azir`), but players call it `Azir, Emperor of the Sands`. **`legendDisplayName` in `packages/shared/src/utils.ts` is the only place that composes that label.** It takes `{ name, types, tags }`; a deck row spells those fields `cardName` / `cardTypes` / `tags`, so reshape at the call site rather than adding a second entry point. `compareCardDisplayName` is the sort comparator over the same rule.
+
+Three rules follow from that:
+
+- **Every user-facing name goes through it.** Grids, tables, detail pages, aria-labels, toasts, the tab title and og tags, deck and collection share images, the Discord embeds, the chat lookup line, PDFs, and the deck, list and Cardmarket exports. A surface that renders `card.name` directly is a bug, and it is how `/decks` grouped by legend under `Emperor of the Sands` while every tile beside it said `Azir`.
+- **Sorting uses the display name too.** Sorting on the stored name filed Azir under E while the label read A. `sortCards` precomputes the labels rather than composing inside the comparator.
+- **Admin is the exception.** Admin surfaces edit the canonical `cards.name`, so they show it raw: the card tables, the card and printing editors, ingest and candidate review, and the marketplace mapping pickers.
+
+A Legend is named for a bare epithet, so a comma inside one qualifies the print run rather than separating two halves of a name: four cards have faces reading `Dark Child, Starter`. `legendDisplayName` cuts there, giving `Annie, Dark Child`, because nobody says that half aloud. **`cards.name` keeps the qualifier** — it is printed on the card, so the catalogue has to match it, and that is also why `n:starter` still finds these. A champion **unit** is the opposite case (`Garen, Crownguard` is the whole name) and is untouched, because the rule only applies to Legends.
+
+Where a name is denormalized out of SQL, select `types` and `tags` beside it and compose in TypeScript. Do not write the rule into a query or a generated column, which would make it two definitions that can drift.
+
 ## Matching card names
 
 There are exactly two ways to compare card names, and picking the wrong one is how the same query used to return different cards on different surfaces.

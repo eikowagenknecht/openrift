@@ -298,7 +298,7 @@ describe("matchEntries — Legend colloquial names", () => {
     const results = matchEntries(entries, [legend]);
     expect(results[0].status).toBe("needs-review");
     expect(results[0].resolvedPrinting?.id).toBe("ogn-100");
-    expect(results[0].suggestedName).toBe("Emperor of the Sands");
+    expect(results[0].suggestedName).toBe("Azir, Emperor of the Sands");
   });
 
   it("still resolves the bare name without the 'Azir, ' prefix", () => {

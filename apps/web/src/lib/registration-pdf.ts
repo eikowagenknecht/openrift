@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
+import { legendDisplayName, SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
 import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -48,8 +48,11 @@ interface RegistrationCard {
 function cardsForZone(cards: DeckBuilderCard[], zone: DeckZone): RegistrationCard[] {
   return cards
     .filter((card) => card.zone === zone)
-    .toSorted((first, second) => first.cardName.localeCompare(second.cardName))
-    .map((card) => ({ name: card.cardName, quantity: card.quantity }));
+    .map((card) => ({
+      name: legendDisplayName({ name: card.cardName, types: card.cardTypes, tags: card.tags }),
+      quantity: card.quantity,
+    }))
+    .toSorted((first, second) => first.name.localeCompare(second.name));
 }
 
 // ── Left margin (rotated player info) ─────────────────────────────────────

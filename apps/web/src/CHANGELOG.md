@@ -6,6 +6,7 @@
 
 - feat(Groups): **See the cards, not the counts** — the trades band on a group page now shows the actual cards behind each thing waiting on you and each possible trade, split into what you could get and what the group would want.
 - feat(Groups): **Group cards worth scanning** — each group on the index leads with the cards you could pick up there and how much has been traded lately, instead of member and list counts.
+- fix(Cards): **Legends go by their champion everywhere** — a Legend now reads "Azir, Emperor of the Sands" on every surface (deck grouping, tab titles, exports, share images, the Discord bot), sorts under the champion, and drops the ", Starter" tail nobody says.
 - fix(Account): **Signing in works again** — an update had broken password, Google, and Discord sign-in (codes by email still worked), all three are back.
 
 ### Other

@@ -1,4 +1,4 @@
-import { tierRowColor } from "@openrift/shared";
+import { legendDisplayName, tierRowColor } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
@@ -511,7 +511,12 @@ export async function buildTierListImageRows(
       // A card deleted from the catalogue since the list was saved simply drops
       // out of the image rather than rendering as a blank tile.
       return meta
-        ? [{ cardName: meta.name, imageId: imageIdByCardId.get(entry.cardId) ?? null }]
+        ? [
+            {
+              cardName: legendDisplayName(meta),
+              imageId: imageIdByCardId.get(entry.cardId) ?? null,
+            },
+          ]
         : [];
     }),
   }));

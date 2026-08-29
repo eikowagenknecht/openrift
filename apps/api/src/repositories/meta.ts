@@ -1,4 +1,4 @@
-import { WellKnown, getOrientation } from "@openrift/shared";
+import { WellKnown, getOrientation, legendDisplayName } from "@openrift/shared";
 import type {
   CardType,
   DeckFormatConfig,
@@ -38,6 +38,8 @@ export interface MetaDeckSummaryRow {
   deckFormat: string;
   legendCardId: string | null;
   legendName: string | null;
+  legendTypes: string[] | null;
+  legendTags: string[] | null;
   championCardId: string | null;
   championName: string | null;
   playerName: string;
@@ -252,7 +254,8 @@ export function metaRepo(db: Kysely<Database>) {
           eb
             .selectFrom("deckCards as dc")
             .innerJoin("cards as c", "c.id", "dc.cardId")
-            .select(["dc.cardId", "c.name"])
+            .leftJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
+            .select(["dc.cardId", "c.name", "mca.types", "c.tags"])
             .whereRef("dc.deckId", "=", "md.deckId")
             .where("dc.zone", "=", WellKnown.deckZone.LEGEND)
             .orderBy("c.name")
@@ -283,6 +286,8 @@ export function metaRepo(db: Kysely<Database>) {
         "d.format as deckFormat",
         "legend.cardId as legendCardId",
         "legend.name as legendName",
+        "legend.types as legendTypes",
+        "legend.tags as legendTags",
         "champion.cardId as championCardId",
         "champion.name as championName",
         "md.playerName",
@@ -453,6 +458,7 @@ export function metaRepo(db: Kysely<Database>) {
           "dc.cardId",
           "c.name",
           "c.slug",
+          "c.tags",
           eb.cast<number>(eb.fn.count("dc.deckId").distinct(), "integer").as("deckCount"),
           // The junction table rather than `mv_card_aggregates`: the view is
           // refreshed on demand, and a card the archive already references
@@ -463,13 +469,14 @@ export function metaRepo(db: Kysely<Database>) {
             .whereRef("cct.cardId", "=", "dc.cardId")
             .as("types"),
         ])
-        .groupBy(["dc.cardId", "c.name", "c.slug"])
+        .groupBy(["dc.cardId", "c.name", "c.slug", "c.tags"])
         .orderBy("deckCount", "desc")
         .orderBy("c.name", "asc")
         .execute()
         .then((rows) =>
-          rows.map(({ types, ...row }) => ({
+          rows.map(({ types, tags, ...row }) => ({
             ...row,
+            name: legendDisplayName({ name: row.name, types: types ?? [], tags }),
             landscape: getOrientation(types ?? []) === "landscape",
           })),
         );

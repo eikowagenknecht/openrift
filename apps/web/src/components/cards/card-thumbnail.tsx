@@ -441,7 +441,9 @@ function CardImageContent({
 function displayCard(printing: Printing) {
   return {
     ...printing.card,
-    name: printing.printedName ?? printing.card.name,
+    // The thumbnail's one label: a printing's localized name when it has one,
+    // otherwise the Legend form ("Azir, Emperor of the Sands").
+    name: printing.printedName ?? legendDisplayName(printing.card),
     rulesText: printing.printedRulesText,
     effectText: printing.printedEffectText,
     flavorText: printing.flavorText,
@@ -577,14 +579,6 @@ export const CardThumbnail = memo(function CardThumbnail({
   imageOverlay,
 }: CardThumbnailProps) {
   const card = displayCard(printing);
-  // Legends read as "Azir, Emperor of the Sands" — the champion tag is prepended
-  // for display only (read printing.card.types/tags directly so `card` stays
-  // memoizable, mirroring the orientation note below).
-  const displayName = legendDisplayName({
-    name: card.name,
-    types: printing.card.types,
-    tags: printing.card.tags,
-  });
   const frontImage = printing.images[0] ?? null;
   // Read `printing.card.type` directly (not `card.type`): reading the derived
   // `card` object here would couple its construction to this call and prevent
@@ -807,7 +801,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             thumbnailUrl={thumbnailUrl}
             srcSet={srcSet}
             sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride}
-            alt={displayName}
+            alt={card.name}
             priority={Boolean(priority)}
             rotated={rotated}
             rarity={printing.rarity}
@@ -859,7 +853,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div className="relative z-10 mt-2.5">
       <CardMetaLabel
         shortCode={printing.shortCode}
-        name={displayName}
+        name={card.name}
         rarity={printing.rarity}
         rarityTitle={rarityTitle}
         finish={printing.finish}

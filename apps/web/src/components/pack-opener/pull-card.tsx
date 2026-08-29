@@ -1,5 +1,5 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+import { getOrientation, imageUrl, WellKnown, legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 

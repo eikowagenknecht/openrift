@@ -15,6 +15,8 @@
  * same in a Twitch chat and in a Discord embed.
  */
 
+import { legendDisplayName } from "@openrift/shared";
+
 /** Character budget for a response line. See the module comment. */
 const CHAT_LINE_LIMIT = 400;
 
@@ -40,6 +42,7 @@ export interface ChatCard {
   name: string;
   superTypes: readonly string[];
   types: readonly string[];
+  tags: readonly string[];
   domains: readonly string[];
   energy: number | null;
   might: number | null;
@@ -101,7 +104,7 @@ function describeChatCard(card: ChatCard, labels: ChatEnumLabels): string {
  */
 export function chatCardLine(card: ChatCard, labels: ChatEnumLabels, siteUrl?: string): string {
   const tail = siteUrl ? `${SEPARATOR}${siteUrl}/cards/${card.slug}` : "";
-  const name = truncate(oneLine(card.name), NAME_LIMIT);
+  const name = truncate(oneLine(legendDisplayName(card)), NAME_LIMIT);
   const room = CHAT_LINE_LIMIT - name.length - tail.length - SEPARATOR.length;
   const description = truncate(describeChatCard(card, labels), room);
   return description ? `${name}${SEPARATOR}${description}${tail}` : `${name}${tail}`;

@@ -19,6 +19,7 @@ export interface EncodeDeckRow {
   zone: DeckZone;
   quantity: number;
   preferredPrintingId: string | null;
+  /** The card's display name, which is written verbatim into the exported text. */
   cardName: string;
   cardType: CardType;
   superTypes: SuperType[];

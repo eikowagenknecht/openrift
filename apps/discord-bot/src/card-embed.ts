@@ -1,5 +1,11 @@
 import type { Marketplace, MarketplaceInfoResponse } from "@openrift/shared";
-import { findStandardArtFallback, imageUrl, MARKETPLACE_LINKS, WellKnown } from "@openrift/shared";
+import {
+  findStandardArtFallback,
+  imageUrl,
+  legendDisplayName,
+  MARKETPLACE_LINKS,
+  WellKnown,
+} from "@openrift/shared";
 import type { APIEmbed, APIEmbedField } from "discord.js";
 
 import { formatCardText } from "./card-text.js";
@@ -394,7 +400,7 @@ export function buildCardEmbed(input: CardEmbedInput): APIEmbed {
 
   const lines = [...cardWarnings(card), ...(fallbackNote ? [fallbackNote] : [])];
   return {
-    title: card.name,
+    title: legendDisplayName(card),
     url: `${siteUrl}/cards/${card.slug}`,
     ...(lines.length > 0 ? { description: lines.join("\n") } : {}),
     color: EMBED_COLOR,

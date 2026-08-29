@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CardType, Printing } from "./types/index";
 import {
   boundsOf,
+  compareCardDisplayName,
   compareWithLanguagePreference,
   deckIdentityLabels,
   deduplicateByCard,
@@ -87,8 +88,45 @@ describe("legendDisplayName", () => {
     ).toBe("Kindred, Twin Souls");
   });
 
+  it("leaves a name that already leads with the champion alone", () => {
+    expect(legendDisplayName({ name: "Sett, Kingpin", types: ["legend"], tags: ["Sett"] })).toBe(
+      "Sett, Kingpin",
+    );
+  });
+
+  it("drops a print-run qualifier after the epithet", () => {
+    expect(
+      legendDisplayName({ name: "Dark Child, Starter", types: ["legend"], tags: ["Annie"] }),
+    ).toBe("Annie, Dark Child");
+  });
+
+  it("keeps a comma in a non-Legend name, where it separates champion and epithet", () => {
+    expect(legendDisplayName({ name: "Garen, Crownguard", types: ["unit"], tags: ["Garen"] })).toBe(
+      "Garen, Crownguard",
+    );
+  });
+
   it("returns the bare name for non-Legend cards even when tagged", () => {
     expect(legendDisplayName({ name: "Recall", types: ["spell"], tags: ["Azir"] })).toBe("Recall");
+  });
+});
+
+describe("compareCardDisplayName", () => {
+  const azir = { name: "Emperor of the Sands", types: ["legend" as CardType], tags: ["Azir"] };
+  const bolt = { name: "Bolt", types: ["spell" as CardType], tags: [] };
+
+  it("files a Legend under its champion, not its epithet", () => {
+    expect(compareCardDisplayName(azir, bolt)).toBeLessThan(0);
+    expect(compareCardDisplayName(bolt, azir)).toBeGreaterThan(0);
+  });
+
+  it("sorts a list the way the labels read", () => {
+    const zed = { name: "Master of Shadows", types: ["legend" as CardType], tags: ["Zed"] };
+    expect([zed, azir, bolt].toSorted(compareCardDisplayName).map((card) => card.name)).toEqual([
+      "Emperor of the Sands",
+      "Bolt",
+      "Master of Shadows",
+    ]);
   });
 });
 
@@ -148,7 +186,7 @@ describe("deckIdentityLabels", () => {
     });
   });
 
-  it("splits on the tag, not the first comma", () => {
+  it("splits the champion on the tag, not the first comma, and drops the Legend's qualifier", () => {
     expect(
       deckIdentityLabels(
         { name: "Dark Child, Starter", types: ["legend"], tags: ["Annie"] },
@@ -156,7 +194,7 @@ describe("deckIdentityLabels", () => {
       ),
     ).toEqual({
       character: "Annie",
-      legend: "Dark Child, Starter",
+      legend: "Dark Child",
       champion: "Child of Fire",
     });
   });

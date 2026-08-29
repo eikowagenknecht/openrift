@@ -92,13 +92,7 @@ export function DeckMiniIdentity({
     ? getPreferredPrinting(identity.championCardId)
     : undefined;
   const domains = legend?.card.domains ?? [];
-  const legendName = legend
-    ? legendDisplayName({
-        name: legend.card.name,
-        types: legend.card.types,
-        tags: legend.card.tags,
-      })
-    : "Legend";
+  const legendName = legend ? legendDisplayName(legend.card) : "Legend";
 
   return (
     <span className={cn("flex min-w-0 items-center gap-2.5 overflow-hidden p-2", className)}>

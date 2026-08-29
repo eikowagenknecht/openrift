@@ -1,5 +1,11 @@
 import type { CopyResponse } from "@openrift/shared";
-import { formatDay, isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
+import {
+  formatDay,
+  isAlwaysFoilRarity,
+  legendDisplayName,
+  straightenApostrophes,
+  WellKnown,
+} from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { conditionShortCode, piltoverConditionCode } from "@/lib/condition-codes";
@@ -125,7 +131,7 @@ export function generateExportCSV(
       const { copy } = group;
       const row = [
         printing.shortCode,
-        straightenApostrophes(printing.card.name),
+        straightenApostrophes(legendDisplayName(printing.card)),
         printing.rarity,
         printing.card.types.join(" / "),
         printing.card.domains.join(" / "),
@@ -242,7 +248,7 @@ export function generatePiltoverArchiveCSV(
     for (const [conditionCode, quantity] of byCondition) {
       const row = [
         variantNumber,
-        straightenApostrophes(printing.card.name),
+        straightenApostrophes(legendDisplayName(printing.card)),
         titleCaseSlug(printing.setSlug),
         setPrefix,
         titleCaseSlug(printing.rarity),
@@ -346,7 +352,7 @@ export function generateRiftManaCSV(
     let row = rows.get(key);
     if (!row) {
       row = {
-        cardName: straightenApostrophes(printing.card.name),
+        cardName: straightenApostrophes(legendDisplayName(printing.card)),
         cardId,
         set: titleCaseSlug(printing.setSlug),
         color: printing.card.domains.join(" / "),
@@ -459,7 +465,7 @@ export function generateRiftCoreCSV(stacks: StackedEntry[]): string {
     if (!row) {
       row = {
         cardId,
-        cardName: straightenApostrophes(printing.card.name),
+        cardName: straightenApostrophes(legendDisplayName(printing.card)),
         set: titleCaseSlug(printing.setSlug),
         cardNumber: printing.shortCode.split("-")[1] ?? "",
         type: printing.card.types.join(" / "),

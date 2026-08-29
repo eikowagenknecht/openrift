@@ -255,7 +255,9 @@ function userRow(overrides: Record<string, unknown> = {}): Record<string, unknow
 function printingRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "prt-1",
-    cardName: "Annie, Fiery",
+    name: "Annie, Fiery",
+    types: ["unit"],
+    tags: [],
     setId: "set-1",
     rarity: "common",
     finish: "normal",
@@ -598,9 +600,9 @@ describe("friendGroupMatchesRepo — sorting and counterparty scoping", () => {
       ],
       printings: [
         [
-          printingRow({ id: "prt-beta", cardName: "Beta" }),
-          printingRow({ id: "prt-alpha-a", cardName: "Alpha" }),
-          printingRow({ id: "prt-alpha-b", cardName: "Alpha" }),
+          printingRow({ id: "prt-beta", name: "Beta" }),
+          printingRow({ id: "prt-alpha-a", name: "Alpha" }),
+          printingRow({ id: "prt-alpha-b", name: "Alpha" }),
         ],
       ],
     };
@@ -733,8 +735,8 @@ describe("friendGroupMatchesRepo — recentIncomingMatchesForFeed", () => {
       copyRow({ id: "cp-b", printingId: "prt-b", cardId: "crd-b" }),
     ];
     queues.printings[0] = [
-      printingRow({ id: "prt-a", cardName: "Alpha" }),
-      printingRow({ id: "prt-b", cardName: "Beta" }),
+      printingRow({ id: "prt-a", name: "Alpha" }),
+      printingRow({ id: "prt-b", name: "Beta" }),
     ];
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.recentIncomingMatchesForFeed({
@@ -763,9 +765,9 @@ describe("friendGroupMatchesRepo — recentIncomingMatchesForFeed", () => {
       copyRow({ id: "cp-3", printingId: "prt-3", cardId: "crd-3" }),
     ];
     queues.printings[0] = [
-      printingRow({ id: "prt-1", cardName: "One" }),
-      printingRow({ id: "prt-2", cardName: "Two" }),
-      printingRow({ id: "prt-3", cardName: "Three" }),
+      printingRow({ id: "prt-1", name: "One" }),
+      printingRow({ id: "prt-2", name: "Two" }),
+      printingRow({ id: "prt-3", name: "Three" }),
     ];
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.recentIncomingMatchesForFeed({
@@ -800,7 +802,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       listEntries: [[supplyEntry({ id: "e-t", copyId: "cp-1" })], []],
       copies: [[copyRow({ id: "cp-1", printingId: "prt-1", cardId: "crd-1" })]],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
-      printings: [[printingRow({ id: "prt-1", cardName: "Annie, Fiery" })]],
+      printings: [[printingRow({ id: "prt-1", name: "Annie, Fiery" })]],
     };
     const providers = providersWith({ catalog: [makeCatalogPrinting("prt-1", "crd-1")] });
     const repo = friendGroupMatchesRepo(makeDb(queues), providers);
@@ -843,7 +845,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
         ],
       ],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
-      printings: [[printingRow({ id: "prt-1", cardName: "Annie, Fiery" })]],
+      printings: [[printingRow({ id: "prt-1", name: "Annie, Fiery" })]],
     };
     const providers = providersWith({
       catalog: [makeCatalogPrinting("prt-1", "crd-1")],
@@ -912,9 +914,9 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
       printings: [
         [
-          printingRow({ id: "prt-1", cardName: "Annie, Fiery" }),
-          printingRow({ id: "prt-2", cardName: "Braum, Steadfast" }),
-          printingRow({ id: "prt-3", cardName: "Caitlyn, Precise" }),
+          printingRow({ id: "prt-1", name: "Annie, Fiery" }),
+          printingRow({ id: "prt-2", name: "Braum, Steadfast" }),
+          printingRow({ id: "prt-3", name: "Caitlyn, Precise" }),
         ],
       ],
     };
@@ -974,10 +976,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       ],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
       printings: [
-        [
-          printingRow({ id: "prt-1", cardName: "Annie" }),
-          printingRow({ id: "prt-2", cardName: "Lux" }),
-        ],
+        [printingRow({ id: "prt-1", name: "Annie" }), printingRow({ id: "prt-2", name: "Lux" })],
       ],
     };
     const providers = providersWith({
@@ -1031,8 +1030,8 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
       printings: [
         [
-          printingRow({ id: "prt-1", cardName: "Annie, Fiery" }),
-          printingRow({ id: "prt-2", cardName: "Annie, Fiery" }),
+          printingRow({ id: "prt-1", name: "Annie, Fiery" }),
+          printingRow({ id: "prt-2", name: "Annie, Fiery" }),
         ],
       ],
     };
@@ -1070,7 +1069,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       listEntries: [[supplyEntry({ id: "e-s1", copyId: "cp-1" })], []],
       copies: [[copyRow({ id: "cp-1", printingId: "prt-1", cardId: "crd-1" })]],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
-      printings: [[printingRow({ id: "prt-1", cardName: "Annie, Fiery" })]],
+      printings: [[printingRow({ id: "prt-1", name: "Annie, Fiery" })]],
     };
     const providers = providersWith({
       catalog: [
@@ -1125,10 +1124,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       ],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
       printings: [
-        [
-          printingRow({ id: "prt-1", cardName: "Annie" }),
-          printingRow({ id: "prt-2", cardName: "Lux" }),
-        ],
+        [printingRow({ id: "prt-1", name: "Annie" }), printingRow({ id: "prt-2", name: "Lux" })],
       ],
     };
     const providers = providersWith({
@@ -1171,7 +1167,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
         ],
       ],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
-      printings: [[printingRow({ id: "prt-1", cardName: "Annie" })]],
+      printings: [[printingRow({ id: "prt-1", name: "Annie" })]],
     };
     const providers = providersWith({
       catalog: [makeCatalogPrinting("prt-1", "crd-1")],
@@ -1222,7 +1218,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
       ],
       copies: [[copyRow({ id: "cp-s1", printingId: "prt-1", cardId: "crd-1" })]],
       users: [[userRow({ id: "seller", name: "Alice", email: "a@x.com" })]],
-      printings: [[printingRow({ id: "prt-1", cardName: "Annie" })]],
+      printings: [[printingRow({ id: "prt-1", name: "Annie" })]],
     };
     const providers = providersWith({ catalog: [makeCatalogPrinting("prt-1", "crd-1")] });
     const repo = friendGroupMatchesRepo(makeDb(queues), providers);

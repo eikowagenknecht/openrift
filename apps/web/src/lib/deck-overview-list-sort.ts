@@ -1,4 +1,4 @@
-import { UNKNOWN_SET_INDEX } from "@openrift/shared";
+import { legendDisplayName, UNKNOWN_SET_INDEX } from "@openrift/shared";
 
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import type { CatalogPosition } from "@/lib/catalog-position";
@@ -67,7 +67,10 @@ export function sortDeckOverviewList(
   }
 
   const dir = sortDir === "desc" ? -1 : 1;
-  const byName = (a: DeckBuilderCard, b: DeckBuilderCard) => a.cardName.localeCompare(b.cardName);
+  const byName = (a: DeckBuilderCard, b: DeckBuilderCard) =>
+    legendDisplayName({ name: a.cardName, types: a.cardTypes, tags: a.tags }).localeCompare(
+      legendDisplayName({ name: b.cardName, types: b.cardTypes, tags: b.tags }),
+    );
 
   if (sortBy === "name") {
     return cards.toSorted((a, b) => dir * byName(a, b));

@@ -1,11 +1,5 @@
 import type { Card, DeckListItemResponse, Printing } from "@openrift/shared";
-import {
-  ZONE_LABELS,
-  WellKnown,
-  getOrientation,
-  imageUrl,
-  legendDisplayName,
-} from "@openrift/shared";
+import { ZONE_LABELS, WellKnown, getOrientation, imageUrl } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -112,9 +106,6 @@ function SideCell({
     return <span className={cn("flex min-h-8 items-center px-2", className)}>—</span>;
   }
   const { card, printing } = catalog;
-  const displayName = card
-    ? legendDisplayName({ name: row.cardName, types: card.types, tags: card.tags })
-    : row.cardName;
   return (
     <span className={cn("flex min-w-0 items-center gap-1.5 rounded px-2 py-1 sm:gap-2", className)}>
       <CardMiniRow
@@ -132,7 +123,7 @@ function SideCell({
 
       <span className="w-6 shrink-0 text-right tabular-nums">{count}×</span>
 
-      <span className="min-w-0 flex-1 truncate">{displayName}</span>
+      <span className="min-w-0 flex-1 truncate">{row.cardName}</span>
 
       <PowerPips
         power={card?.power ?? null}

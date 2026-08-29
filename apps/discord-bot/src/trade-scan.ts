@@ -1,4 +1,4 @@
-import { foldForSearch, squashForSearch } from "@openrift/shared";
+import { foldForSearch, legendDisplayName, squashForSearch } from "@openrift/shared";
 
 import type { CatalogCard, CatalogPrinting } from "./catalog-cache.js";
 import type { TradelistHolders } from "./group-tradelists.js";
@@ -188,7 +188,7 @@ export function tradeLine(
   const offers = holders.holders.map(
     (holder) => `${holder.userName ?? "Unknown user"} ${holder.quantity}×`,
   );
-  return `**[${card.name}](${siteUrl}/cards/${card.slug})** · ${offers.join(" · ")}`;
+  return `**[${legendDisplayName(card)}](${siteUrl}/cards/${card.slug})** · ${offers.join(" · ")}`;
 }
 
 /**

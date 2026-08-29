@@ -1,4 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 
 import { CopyTextButton } from "@/components/share/copy-text-button";
 import {
@@ -68,10 +69,10 @@ export function TradeCardmarketExportDialog({
     formatCardmarketWants(
       trades
         .filter((trade) => trade.role === role)
-        .map((trade) => ({
-          name: cardsById[trade.cardId]?.name ?? "",
-          quantity: trade.quantity,
-        }))
+        .map((trade) => {
+          const card = cardsById[trade.cardId];
+          return { name: card ? legendDisplayName(card) : "", quantity: trade.quantity };
+        })
         // A trade for a card missing from the catalog (shouldn't happen) would
         // otherwise emit an empty line that breaks the Cardmarket import.
         .filter((want) => want.name.length > 0),

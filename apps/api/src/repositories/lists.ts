@@ -2,6 +2,7 @@ import {
   evaluateListRules,
   expandList,
   hydrateListRules,
+  legendDisplayName,
   ownedCopyPrintingScope,
   ruleFiltersOnPrice,
 } from "@openrift/shared";
@@ -26,6 +27,7 @@ import { DeleteResult, sql } from "kysely";
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
 import type { PrintingDetail } from "./query-helpers.js";
 import {
+  cardTypesColumn,
   findByShareToken,
   imageId,
   joinFrontImage,
@@ -1205,10 +1207,11 @@ async function cardDetailsByIds(
   }
   const rows = await db
     .selectFrom("cards as card")
-    .select(["card.id", "card.name as cardName"])
+    .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id")
+    .select(["card.id", "card.name as name", cardTypesColumn(), "card.tags as tags"])
     .where("card.id", "in", ids)
     .execute();
-  return new Map(rows.map((row) => [row.id, { cardName: row.cardName }]));
+  return new Map(rows.map((row) => [row.id, { cardName: legendDisplayName(row) }]));
 }
 
 async function copyDetailsByIds(
@@ -1225,7 +1228,9 @@ async function copyDetailsByIds(
       "cp.id",
       "cp.printingId",
       "cp.collectionId",
-      "c.name as cardName",
+      "c.name as name",
+      cardTypesColumn(),
+      "c.tags as tags",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1243,7 +1248,7 @@ async function copyDetailsByIds(
       {
         printingId: row.printingId,
         collectionId: row.collectionId,
-        cardName: row.cardName,
+        cardName: legendDisplayName(row),
         setId: row.setId,
         rarity: row.rarity,
         finish: row.finish,
@@ -1264,6 +1269,7 @@ async function cardEntryQuery(
   let q = db
     .selectFrom("listEntries as le")
     .innerJoin("cards as card", "card.id", "le.cardId")
+    .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id")
     .where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {
     q = q.where("le.userId", "=", scope.userId);
@@ -1277,7 +1283,9 @@ async function cardEntryQuery(
       "le.pricePref",
       "le.priceAbsoluteCents",
       "le.tradeType",
-      "card.name as cardName",
+      "card.name as name",
+      cardTypesColumn(),
+      "card.tags as tags",
     ])
     .execute();
   return rows.map((row) => ({
@@ -1288,7 +1296,7 @@ async function cardEntryQuery(
     ruleQuantity: 0,
     source: "manual",
     cardId: row.cardId as string,
-    cardName: row.cardName,
+    cardName: legendDisplayName(row),
     tradeOverride: tradeOverrideFromRow(row),
   }));
 }
@@ -1301,7 +1309,8 @@ async function printingEntryQuery(
     db
       .selectFrom("listEntries as le")
       .innerJoin("printings as p", "p.id", "le.printingId")
-      .innerJoin("cards as card", "card.id", "p.cardId"),
+      .innerJoin("cards as card", "card.id", "p.cardId")
+      .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id"),
   ).where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {
     q = q.where("le.userId", "=", scope.userId);
@@ -1315,7 +1324,9 @@ async function printingEntryQuery(
       "le.pricePref",
       "le.priceAbsoluteCents",
       "le.tradeType",
-      "card.name as cardName",
+      "card.name as name",
+      cardTypesColumn(),
+      "card.tags as tags",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1332,7 +1343,7 @@ async function printingEntryQuery(
     ruleQuantity: 0,
     source: "manual",
     printingId: row.printingId as string,
-    cardName: row.cardName,
+    cardName: legendDisplayName(row),
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
@@ -1352,7 +1363,8 @@ async function copyEntryQuery(
       .selectFrom("listEntries as le")
       .innerJoin("copies as cp", "cp.id", "le.copyId")
       .innerJoin("printings as p", "p.id", "cp.printingId")
-      .innerJoin("cards as card", "card.id", "p.cardId"),
+      .innerJoin("cards as card", "card.id", "p.cardId")
+      .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id"),
   )
     // Deliberately a join rather than the `notReservedByTrade` /
     // `notPinnedToLoan` predicates in query-helpers: this query *reports* both
@@ -1375,7 +1387,9 @@ async function copyEntryQuery(
       "le.pricePref",
       "le.priceAbsoluteCents",
       "le.tradeType",
-      "card.name as cardName",
+      "card.name as name",
+      cardTypesColumn(),
+      "card.tags as tags",
       "p.setId",
       "p.rarity",
       "p.finish",
@@ -1398,7 +1412,7 @@ async function copyEntryQuery(
     copyId: row.copyId as string,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    cardName: row.cardName,
+    cardName: legendDisplayName(row),
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,

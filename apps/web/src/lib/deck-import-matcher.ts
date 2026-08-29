@@ -12,6 +12,7 @@ import {
   buildCardIndex,
   cardSearchAltNames,
   inferZone,
+  legendDisplayName,
   resolveCard,
   WellKnown,
 } from "@openrift/shared";
@@ -129,7 +130,7 @@ class CardIndex {
 function cardFromPrinting(printing: Printing): ResolvedCard {
   return {
     cardId: printing.cardId,
-    cardName: printing.card.name,
+    cardName: legendDisplayName(printing.card),
     cardType: printing.card.type,
     cardTypes: printing.card.types,
     superTypes: printing.card.superTypes,

@@ -1,3 +1,5 @@
+import { legendDisplayName } from "@openrift/shared";
+
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
 import type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
@@ -182,7 +184,7 @@ export async function buildDeckImageCardsFromRefs(
       throw new Error(`Missing enrichment for deck card ${row.cardId}`);
     }
     result.push({
-      cardName: meta.name,
+      cardName: legendDisplayName(meta),
       quantity: row.quantity,
       imageId: printingMetas[index]?.imageId ?? null,
       energy: meta.energy,

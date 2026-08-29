@@ -13,6 +13,7 @@ import type {
 import {
   WellKnown,
   isBaseBanFormat,
+  legendDisplayName,
   requiredZoneProgress,
   validateDeck,
   ERROR_CODES,
@@ -555,7 +556,14 @@ export const decksRouter = {
 
     // Shared resolve-then-encode path, also used by the public `encode`
     // endpoint for logged-out local decks.
-    return encodeDeck(canonicalPrintings, cardRows, input.format ?? "piltover");
+    return encodeDeck(
+      canonicalPrintings,
+      cardRows.map((row) => ({
+        ...row,
+        cardName: legendDisplayName({ name: row.cardName, types: row.cardTypes, tags: row.tags }),
+      })),
+      input.format ?? "piltover",
+    );
   }),
 
   setPinned: os.setPinned.handler(async ({ input, context }) => {

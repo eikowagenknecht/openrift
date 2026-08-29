@@ -1,4 +1,5 @@
 import type { Card, DeckListItemResponse, DeckZone, Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
@@ -85,7 +86,7 @@ export function ownDeckDiffCards(
     }
     theirs.push({
       cardId: card.cardId,
-      cardName: catalogCard.name,
+      cardName: legendDisplayName(catalogCard),
       zone: card.zone,
       quantity: card.quantity,
     });

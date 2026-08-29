@@ -5,7 +5,7 @@ import type {
   PriceLookup,
   Printing,
 } from "@openrift/shared";
-import { getPlaysetSize, imageUrl } from "@openrift/shared";
+import { getPlaysetSize, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -122,7 +122,7 @@ function computeForCards(
     let cheapestPrinting: Printing | undefined;
     let cardName = slug;
     for (const printing of cardPrintings) {
-      cardName = printing.card.name;
+      cardName = legendDisplayName(printing.card);
       const price = prices.get(printing.id, marketplace);
       if (price !== undefined && (cheapest === undefined || price < cheapest)) {
         cheapest = price;
@@ -170,7 +170,7 @@ function computeForPrintings(
     } else {
       const firstImageId = printing.images[0]?.imageId;
       missingItems.push({
-        label: printing.card.name,
+        label: legendDisplayName(printing.card),
         price,
         thumbnail: firstImageId ? imageUrl(firstImageId, "240w") : undefined,
       });
@@ -193,7 +193,7 @@ function computeForCopies(
   for (const printing of scopedPrintings) {
     if (!allCardSlugs.has(printing.card.slug)) {
       allCardSlugs.set(printing.card.slug, {
-        name: printing.card.name,
+        name: legendDisplayName(printing.card),
         types: printing.card.types,
         keywords: printing.card.keywords,
       });

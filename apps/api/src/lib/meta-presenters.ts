@@ -7,6 +7,7 @@ import type {
   MetaEventSummary,
   MetaStatsResponse,
 } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
 
 import type { MetaDeckSubmissionRow } from "../repositories/meta-submissions.js";
@@ -120,7 +121,14 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
     name: row.deckName,
     format: row.deckFormat,
     legendCardId: row.legendCardId,
-    legendName: row.legendName,
+    legendName:
+      row.legendName === null
+        ? null
+        : legendDisplayName({
+            name: row.legendName,
+            types: row.legendTypes ?? [],
+            tags: row.legendTags ?? [],
+          }),
     legendImageId: row.legendCardId === null ? null : (images.get(row.legendCardId) ?? null),
     championCardId: row.championCardId,
     championName: row.championName,

@@ -1,5 +1,5 @@
 import type { CardDetailResponse, CatalogPrintingResponse, Printing } from "@openrift/shared";
-import { imageUrl, preferredPrinting } from "@openrift/shared";
+import { imageUrl, legendDisplayName, preferredPrinting } from "@openrift/shared";
 
 import { formatPrice, formatPriceEur } from "@/lib/format";
 
@@ -111,7 +111,7 @@ export function buildCardMetaDescription(
       : null;
   const typeLabel = card.types.map((slug) => labels?.cardTypes?.[slug] ?? slug).join(" ");
   const typeLine = domainLabels ? `${domainLabels} ${typeLabel}` : typeLabel;
-  parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
+  parts.push(`${legendDisplayName(card)} is a ${typeLine} card from Riftbound.`);
 
   const priceLine = offers ? buildCardPriceLine(offers) : null;
   if (priceLine) {

@@ -400,8 +400,15 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
       { cardId: "card-2", zone: "main", quantity: 3, preferredPrintingId: null },
     ]);
     mockCatalogRepo.cardsByIds.mockResolvedValue([
-      { id: "card-1", name: "Scorn of the Moon", energy: null, domains: ["order"] },
-      { id: "card-2", name: "Gust", energy: 1, domains: ["fury"] },
+      {
+        id: "card-1",
+        name: "Scorn of the Moon",
+        types: ["spell"],
+        tags: [],
+        energy: null,
+        domains: ["order"],
+      },
+      { id: "card-2", name: "Gust", types: ["spell"], tags: [], energy: 1, domains: ["fury"] },
     ]);
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([
       { cardId: "card-1", imageId: "img-1" },

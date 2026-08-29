@@ -1,4 +1,5 @@
 import type { SetDetailResponse } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
       if (!card) {
         continue;
       }
-      items.push({ name: card.name, url: `/cards/${card.slug}` });
+      items.push({ name: legendDisplayName(card), url: `/cards/${card.slug}` });
     }
 
     return {

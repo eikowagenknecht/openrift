@@ -1,5 +1,5 @@
 import type { Card, Printing } from "@openrift/shared";
-import { preferredPrinting } from "@openrift/shared";
+import { compareCardDisplayName, preferredPrinting } from "@openrift/shared";
 
 import { useCards } from "@/hooks/use-cards";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
@@ -86,5 +86,5 @@ export function useDeckTokens(cards: DeckBuilderCard[]): DeckTokenEntry[] {
     }
   }
 
-  return entries.toSorted((a, b) => a.card.name.localeCompare(b.card.name));
+  return entries.toSorted((a, b) => compareCardDisplayName(a.card, b.card));
 }

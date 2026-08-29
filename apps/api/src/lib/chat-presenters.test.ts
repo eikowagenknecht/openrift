@@ -18,6 +18,7 @@ function makeCard(overrides: Partial<ChatCard> = {}): ChatCard {
     superTypes: ["legend", "champion"],
     types: ["unit"],
     domains: ["fury", "mind"],
+    tags: [],
     energy: 3,
     might: 4,
     power: 2,

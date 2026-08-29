@@ -3,6 +3,7 @@ import {
   buildCardIndex,
   cardSearchAltNames,
   findCard,
+  legendDisplayName,
   parsePiltoverDeckCode,
   searchCards,
 } from "@openrift/shared";
@@ -259,7 +260,7 @@ function detailsButton(card: CatalogCard, printingId: string | undefined, multip
   return new ButtonBuilder()
     .setStyle(ButtonStyle.Secondary)
     .setCustomId(detailsCustomId(card.id, printingId))
-    .setLabel(detailsLabel(card.name, multiple));
+    .setLabel(detailsLabel(legendDisplayName(card), multiple));
 }
 
 /**
@@ -314,7 +315,10 @@ async function handleAutocomplete(ctx: BotContext, interaction: AutocompleteInte
 
   const cards = index ? searchCards(index, focused.value, 25) : [];
   await interaction.respond(
-    cards.map((card) => ({ name: card.name.slice(0, 100), value: card.slug.slice(0, 100) })),
+    cards.map((card) => ({
+      name: legendDisplayName(card).slice(0, 100),
+      value: card.slug.slice(0, 100),
+    })),
   );
 }
 
@@ -565,7 +569,7 @@ async function handleTradeScan(ctx: BotContext, message: Message) {
   if (ctx.env.tradeScanMode !== "reply") {
     console.log(
       `[trade-scan log-only] #${message.channelId}: matched ${cards
-        .map((card) => card.name)
+        .map((card) => legendDisplayName(card))
         .join(", ")} — would reply:\n${reply}`,
     );
     return;

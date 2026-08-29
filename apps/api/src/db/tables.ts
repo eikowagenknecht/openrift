@@ -2409,7 +2409,7 @@ interface MvDailyPrintingPricesView {
   headlineCents: number;
 }
 
-interface MvCardAggregatesView {
+export interface MvCardAggregatesView {
   cardId: string;
   domains: string[];
   superTypes: string[];

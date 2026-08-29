@@ -1,5 +1,10 @@
 import type { CardResolution, CardSearchIndex, Printing, SearchableCard } from "@openrift/shared";
-import { buildCardIndex, cardSearchAltNames, resolveCard } from "@openrift/shared";
+import {
+  buildCardIndex,
+  cardSearchAltNames,
+  legendDisplayName,
+  resolveCard,
+} from "@openrift/shared";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 
@@ -70,7 +75,7 @@ class PrintingIndex {
           // Covers the colloquial "Azir, Emperor of the Sands" spelling for a
           // card the catalogue stores as "Emperor of the Sands" tagged "Azir".
           altNames: cardSearchAltNames(printing.card),
-          cardName: printing.card.name,
+          cardName: legendDisplayName(printing.card),
           printings: [],
         };
         byCard.set(printing.cardId, row);

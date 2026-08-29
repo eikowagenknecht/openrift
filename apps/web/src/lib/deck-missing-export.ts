@@ -15,7 +15,7 @@ import type { CardmarketWant } from "@/lib/list-export";
 export function missingCardsToWants(cards: readonly CardOwnership[]): CardmarketWant[] {
   return cards
     .filter((card) => card.shortfall > 0)
-    .map((card) => ({ name: card.cardName, quantity: card.shortfall }));
+    .map((card) => ({ name: card.displayName, quantity: card.shortfall }));
 }
 
 /**

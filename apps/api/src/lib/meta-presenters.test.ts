@@ -50,6 +50,8 @@ function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRo
     deckFormat: "constructed",
     legendCardId: "legend-1",
     legendName: "Jinx",
+    legendTypes: ["legend"],
+    legendTags: [],
     championCardId: "champion-1",
     championName: "Vi",
     playerName: "Nova",

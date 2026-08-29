@@ -1,4 +1,5 @@
 import type { CatalogResponse } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileTextIcon, Loader2Icon, PrinterIcon } from "lucide-react";
 import { Suspense, useRef, useState } from "react";
@@ -457,7 +458,7 @@ function ProxyPrintPanel({
               }}
             >
               <CardPlaceholderImage
-                name={renderingCard.card.name}
+                name={legendDisplayName(renderingCard.card)}
                 domain={renderingCard.card.domains}
                 energy={renderingCard.card.energy}
                 might={renderingCard.card.might}

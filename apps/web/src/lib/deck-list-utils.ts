@@ -1,6 +1,7 @@
-import type { DeckListItemResponse, Domain } from "@openrift/shared";
+import type { Card, DeckListItemResponse, Domain } from "@openrift/shared";
 import {
   foldForSearch,
+  legendDisplayName,
   matchesDomains,
   noneExcluded,
   squashForSearch,
@@ -55,6 +56,25 @@ export function enrichItem(
   enrichment: DeckListEnrichment,
 ): DeckListItemWithNames {
   return { ...item, ...enrichment };
+}
+
+/**
+ * The names and domains a deck row carries beyond its API shape, resolved from
+ * the catalog. The legend goes through `legendDisplayName` here rather than at
+ * each reader, so the group header, the search haystack and the tile all name a
+ * Legend by its champion.
+ *
+ * @returns The enrichment for {@link enrichItem}.
+ */
+export function deckListEnrichment(
+  legendCard: Pick<Card, "name" | "types" | "tags" | "domains"> | undefined,
+  championCard: Pick<Card, "name"> | undefined,
+): DeckListEnrichment {
+  return {
+    legendName: legendCard ? legendDisplayName(legendCard) : null,
+    championName: championCard?.name ?? null,
+    legendDomains: legendCard?.domains ?? null,
+  };
 }
 
 function deckMatchesSearch(item: DeckListItemWithNames, query: string): boolean {

@@ -1,3 +1,4 @@
+import { legendDisplayName } from "@openrift/shared";
 import type { MetaListStatus } from "@openrift/shared/types";
 import type { Insertable, Kysely, Selectable, SqlBool, Updateable } from "kysely";
 import { sql } from "kysely";
@@ -8,6 +9,7 @@ import type {
   Database,
   MetaEventsTable,
 } from "../db/index.js";
+import { cardTypesColumn } from "./query-helpers.js";
 
 export type CandidateMetaEventRow = Selectable<CandidateMetaEventsTable>;
 
@@ -507,16 +509,18 @@ export function metaCandidatesRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
+    /** @returns Card id to display name, so an accepted deck is titled the way players read it. */
     async cardNamesByIds(cardIds: string[]): Promise<Map<string, string>> {
       if (cardIds.length === 0) {
         return new Map();
       }
       const rows = await db
         .selectFrom("cards")
-        .select(["id", "name"])
-        .where("id", "in", cardIds)
+        .leftJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
+        .select(["cards.id", "cards.name", cardTypesColumn(), "cards.tags"])
+        .where("cards.id", "in", cardIds)
         .execute();
-      return new Map(rows.map((row) => [row.id, row.name]));
+      return new Map(rows.map((row) => [row.id, legendDisplayName(row)]));
     },
   };
 }

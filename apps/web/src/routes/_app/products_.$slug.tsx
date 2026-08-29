@@ -1,3 +1,4 @@
+import { legendDisplayName } from "@openrift/shared";
 import type { ProductDetailResponse } from "@openrift/shared/contracts/products";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/_app/products_/$slug")({
       seenCardIds.add(printing.cardId);
       const card = data.cards[printing.cardId];
       if (card) {
-        items.push({ name: card.name, url: `/cards/${card.slug}` });
+        items.push({ name: legendDisplayName(card), url: `/cards/${card.slug}` });
       }
     }
 

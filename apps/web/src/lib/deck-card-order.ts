@@ -1,5 +1,5 @@
 import type { CardType, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { legendDisplayName, WellKnown } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -40,7 +40,9 @@ export function compareGroupedCards(a: DeckBuilderCard, b: DeckBuilderCard): num
   if (powerDiff !== 0) {
     return powerDiff;
   }
-  return a.cardName.localeCompare(b.cardName);
+  return legendDisplayName({ name: a.cardName, types: a.cardTypes, tags: a.tags }).localeCompare(
+    legendDisplayName({ name: b.cardName, types: b.cardTypes, tags: b.tags }),
+  );
 }
 
 /**

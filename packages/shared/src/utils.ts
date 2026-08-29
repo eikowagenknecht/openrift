@@ -14,6 +14,13 @@ export function slugifyName(name: string): string {
     .replaceAll(/^-|-$/gu, "");
 }
 
+/** The fields {@link legendDisplayName} reads, as the catalog spells them. */
+export interface CardNameParts {
+  name: string;
+  types: readonly CardType[];
+  tags: readonly string[];
+}
+
 /**
  * Build the display name for a card, prepending a Legend's champion tag.
  *
@@ -26,11 +33,48 @@ export function slugifyName(name: string): string {
  *
  * @returns `"{tag}, {name}"` for tagged Legends, otherwise the card's `name`.
  */
-export function legendDisplayName(card: Pick<Card, "name" | "types" | "tags">): string {
-  if (card.types.includes(WellKnown.cardType.LEGEND) && card.tags.length > 0) {
-    return `${card.tags[0]}, ${card.name}`;
+export function legendDisplayName(card: CardNameParts): string {
+  if (!card.types.includes(WellKnown.cardType.LEGEND) || card.tags.length === 0) {
+    return card.name;
   }
-  return card.name;
+  const tag = card.tags[0];
+  // A stored name that already leads with the champion ("Sett, Kingpin") is
+  // left alone, so composing twice can't produce "Sett, Sett, Kingpin".
+  if (card.name.startsWith(`${tag}, `)) {
+    return card.name;
+  }
+  return `${tag}, ${legendEpithet(card.name)}`;
+}
+
+/**
+ * The part of a Legend's printed name players actually say.
+ *
+ * A Legend is named for a bare epithet ("Emperor of the Sands"), so a comma in
+ * one is not separating two halves of a name the way it does on a champion unit
+ * ("Garen, Crownguard"). It qualifies the print run, as on the four cards whose
+ * faces read "Dark Child, Starter". Nobody says that half aloud, and keeping it
+ * would make the champion form three segments instead of two.
+ *
+ * This trims the label only. `cards.name` stores what is printed on the card
+ * and must keep doing so, which is also why `n:starter` still finds these.
+ *
+ * @returns The name up to its first comma.
+ */
+function legendEpithet(name: string): string {
+  const comma = name.indexOf(", ");
+  return comma === -1 ? name : name.slice(0, comma);
+}
+
+/**
+ * Compares two cards by the name the user actually reads, so a sorted list
+ * files a Legend under its champion ("Azir, Emperor of the Sands" under A) and
+ * agrees with the label beside it. Sorting on the stored `name` was what put
+ * Azir under E.
+ *
+ * @returns A `localeCompare` result over the two display names.
+ */
+export function compareCardDisplayName(left: CardNameParts, right: CardNameParts): number {
+  return legendDisplayName(left).localeCompare(legendDisplayName(right));
 }
 
 /**
@@ -100,7 +144,11 @@ export function deckIdentityLabels(
   if (prefix === undefined || champion === undefined || !champion.name.startsWith(prefix)) {
     return { legend: legendLabel, champion: champion?.name };
   }
-  return { character, legend: legend?.name, champion: champion.name.slice(prefix.length) };
+  return {
+    character,
+    legend: legend === undefined ? undefined : legendEpithet(legend.name),
+    champion: champion.name.slice(prefix.length),
+  };
 }
 
 /**
