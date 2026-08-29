@@ -115,6 +115,10 @@ export function CatalogVignette({
         ? RARITIES.find((entry) => entry.slug === filter.slug)
         : DOMAINS.find((entry) => entry.slug === filter.slug);
   const shown = thumbnails.filter((thumb) => matches(thumb, filter)).slice(0, 8);
+  // The sample comes from a client query, so SSR has nothing to judge a facet
+  // by. Greying every chip there and un-greying them on arrival is a hydration
+  // mismatch on the `disabled` attribute.
+  const hasSample = thumbnails.length > 0;
   const filtered = active && cardCount ? Math.round(cardCount * active.share) : undefined;
   const count =
     cardCount === undefined
@@ -155,16 +159,21 @@ export function CatalogVignette({
             setFilter(slug === undefined ? null : { axis: "domain", slug });
           }}
         >
-          {DOMAINS.map((entry) => (
-            <ToggleGroupItem
-              key={entry.slug}
-              value={entry.slug}
-              aria-label={entry.label}
-              disabled={!thumbnails.some((thumb) => thumb.domains.includes(entry.slug))}
-            >
-              <CardIcon src={getFilterIconPath("domains", entry.slug) ?? ""} className="size-4" />
-            </ToggleGroupItem>
-          ))}
+          {DOMAINS.map((entry) => {
+            const icon = getFilterIconPath("domains", entry.slug);
+            return (
+              <ToggleGroupItem
+                key={entry.slug}
+                value={entry.slug}
+                aria-label={entry.label}
+                disabled={
+                  hasSample && !thumbnails.some((thumb) => thumb.domains.includes(entry.slug))
+                }
+              >
+                {icon && <CardIcon src={icon} className="size-4" />}
+              </ToggleGroupItem>
+            );
+          })}
         </ToggleGroup>
         <ToggleGroup
           multiple
@@ -178,16 +187,19 @@ export function CatalogVignette({
             setFilter(slug === undefined ? null : { axis: "rarity", slug });
           }}
         >
-          {RARITIES.map((entry) => (
-            <ToggleGroupItem
-              key={entry.slug}
-              value={entry.slug}
-              aria-label={entry.label}
-              disabled={!thumbnails.some((thumb) => thumb.rarity === entry.slug)}
-            >
-              <CardIcon src={getFilterIconPath("rarities", entry.slug) ?? ""} className="size-4" />
-            </ToggleGroupItem>
-          ))}
+          {RARITIES.map((entry) => {
+            const icon = getFilterIconPath("rarities", entry.slug);
+            return (
+              <ToggleGroupItem
+                key={entry.slug}
+                value={entry.slug}
+                aria-label={entry.label}
+                disabled={hasSample && !thumbnails.some((thumb) => thumb.rarity === entry.slug)}
+              >
+                {icon && <CardIcon src={icon} className="size-4" />}
+              </ToggleGroupItem>
+            );
+          })}
         </ToggleGroup>
         {filter !== null && (
           <Button
