@@ -10,7 +10,7 @@
 
 ### Other
 
-- feat(Decks): **The box keeps your plain copies** — a deck now travels on the plain printing rather than the foil, a settled row lets you swap for another copy in the box, and Move out sends the surplus straight to your inbox with an undo.
+- feat(Decks): **The box keeps your plain copies** — a deck now travels on the plain printing rather than the foil, a settled row lets you swap for another copy in the box, and a card the box holds that the deck doesn't want carries a red tick that clears it out to your inbox.
 - feat(Collection): **One click to move a card** — picking a collection in the move dialog now does the move, and reopening it no longer arrives with the last collection still selected.
 - feat(Groups): **Formatted group descriptions** — a group's description now takes Markdown, so bold text, lists, and links work, and a link that hides its destination shows where it leads.
 - feat(Collection): **Traded cards remember where they came from** — a copy you receive through a trade arrives with a private note naming who you got it from and when, which you can reword or clear.

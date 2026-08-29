@@ -49,6 +49,13 @@ const BOX_ZONE_ORDER: readonly DeckZone[] = [
 ];
 
 /**
+ * The tick on a copy the deck doesn't call for. Red rather than the settled
+ * rows' primary, so the same gesture reads as "this one shouldn't be here".
+ */
+const SURPLUS_TICK_CLASS =
+  "data-checked:border-destructive data-checked:bg-destructive data-checked:text-white dark:data-checked:bg-destructive";
+
+/**
  * The lookup tables every box row renders with. Resolved once for the tab and
  * threaded down: both hooks behind them rebuild their maps on every call, so a
  * row reading them itself would hand each row a fresh object.
@@ -90,7 +97,8 @@ interface DeckBoxTabProps {
  * The deck's box, as one list in the deck's own order: every copy the deck
  * calls for is a row you tick off as it goes in, whether it is in the box
  * already, waiting on a shelf, out on loan, or not owned at all. Copies in the
- * box that no deck there calls for trail the list, offering to move out.
+ * box that no deck there calls for trail the list already ticked, in red,
+ * because they are in the box but not by anyone's choice.
  *
  * Moving a copy is the only state there is — the plan reads the live copies
  * feed, so the list updates itself.
@@ -136,57 +144,23 @@ export function DeckBoxTab({
   }
 
   const slotsByCardKey = Map.groupBy(plan.slots, (slot) => slot.cardKey);
-  const pullable = plan.slots.filter((slot) => slot.state === "available");
 
   /**
-   * Moves copies into the box. A batch says so with an undoable toast; a single
-   * tick stays quiet, because the row's tick going green is the feedback and
-   * unticking it is the undo — twenty toasts for twenty ticks is noise.
+   * Puts one copy in the box, remembering the shelf it left so unticking the
+   * row can put it back. No toast: the tick going green is the feedback, and
+   * unticking it is the undo.
    */
-  const move = (slots: readonly DeckBoxSlot[], announce = true) => {
-    const moved = slots.flatMap((slot) => (slot.copy ? [slot.copy] : []));
-    const copyIds = moved.map((copy) => copy.copyId);
-    const origins = new Map([
-      ...originById,
-      ...moved.map((copy): [string, string] => [copy.copyId, copy.collectionId]),
-    ]);
-    setOriginById(origins);
-    moveCopies.mutate(
-      { copyIds, toCollectionId: homeCollectionId },
-      {
-        onSuccess: () => {
-          if (!announce) {
-            return;
-          }
-          toast.success(
-            `Moved ${copyIds.length} ${copyIds.length === 1 ? "card" : "cards"} into ${homeCollectionName}`,
-            {
-              action: {
-                label: "Undo",
-                onClick: () => {
-                  // Every copy goes back where it was, not all of them into
-                  // whichever collection happened to be moved from last.
-                  const byOrigin = Map.groupBy(copyIds, (copyId) => origins.get(copyId) ?? "");
-                  for (const [collectionId, ids] of byOrigin) {
-                    if (collectionId !== "") {
-                      moveCopies.mutate({ copyIds: ids, toCollectionId: collectionId });
-                    }
-                  }
-                },
-              },
-            },
-          );
-        },
-      },
-    );
+  const putIn = (copy: DeckBoxCopy) => {
+    setOriginById(new Map([...originById, [copy.copyId, copy.collectionId]]));
+    moveCopies.mutate({ copyIds: [copy.copyId], toCollectionId: homeCollectionId });
   };
 
   /**
    * Takes copies back out of the box: onto the shelf each came from while the
-   * tab still remembers it, and into the inbox otherwise. A sweep names where
-   * the cards went and offers an undo, because the row it clears is the only
-   * other thing that would have said so. Unticking a single row stays quiet:
-   * the tick clearing is the feedback, and ticking it again is the undo.
+   * tab still remembers it, and into the inbox otherwise. Clearing a surplus
+   * row names where the card went and offers an undo, because that row leaves
+   * the list and takes its own tick with it. Unticking a settled row stays
+   * quiet: the tick clearing is the feedback, and ticking it again is the undo.
    */
   const takeOut = (copyIds: readonly string[], announce = true) => {
     if (inboxId === undefined) {
@@ -237,7 +211,7 @@ export function DeckBoxTab({
         labels={labels}
         siblings={siblings}
         disabled={moveCopies.isPending}
-        onTick={() => move([slot], false)}
+        onTick={() => slot.copy && putIn(slot.copy)}
         onTakeOut={() => slot.copy && takeOut([slot.copy.copyId], false)}
         onSwap={swap}
         onHoverCard={onHoverCard}
@@ -266,34 +240,28 @@ export function DeckBoxTab({
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground max-w-prose">
         Tick cards off as you put them in the box. Each tick moves that copy into this deck&apos;s
-        collection.
+        collection. A red tick marks a card the deck doesn&apos;t want, and clearing it sends that
+        copy to your inbox.
       </p>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <BoxIcon className="text-muted-foreground size-4" />
-          <span className="font-medium">
-            <span className="tabular-nums">
-              {plan.inBoxTotal} / {plan.neededTotal}
-            </span>{" "}
-            in{" "}
-            <Link
-              to="/collections/$collectionId"
-              params={{ collectionId: homeCollectionId }}
-              className="underline-offset-2 hover:underline"
-            >
-              {homeCollectionName}
-            </Link>
-          </span>
-          {complete && (
-            <Badge variant="muted" className="text-green-600 dark:text-green-500">
-              Ready to play
-            </Badge>
-          )}
-        </div>
-        {pullable.length > 0 && (
-          <Button size="sm" disabled={moveCopies.isPending} onClick={() => move(pullable)}>
-            Move everything into the box
-          </Button>
+      <div className="flex items-center gap-2">
+        <BoxIcon className="text-muted-foreground size-4" />
+        <span className="font-medium">
+          <span className="tabular-nums">
+            {plan.inBoxTotal} / {plan.neededTotal}
+          </span>{" "}
+          in{" "}
+          <Link
+            to="/collections/$collectionId"
+            params={{ collectionId: homeCollectionId }}
+            className="underline-offset-2 hover:underline"
+          >
+            {homeCollectionName}
+          </Link>
+        </span>
+        {complete && (
+          <Badge variant="muted" className="text-green-600 dark:text-green-500">
+            Ready to play
+          </Badge>
         )}
       </div>
 
@@ -319,17 +287,9 @@ export function DeckBoxTab({
               <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
                 Not in this deck
               </span>
-              <Button
-                size="xs"
-                variant="ghost"
-                className="ml-auto text-xs"
-                disabled={moveCopies.isPending}
-                onClick={() =>
-                  takeOut(plan.extras.flatMap((entry) => entry.copies.map((c) => c.copyId)))
-                }
-              >
-                Move out {plan.extraCount}
-              </Button>
+              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                {plan.extraCount}
+              </span>
             </div>
             <div className="flex flex-col gap-0.5">
               {plan.extras.flatMap((entry) =>
@@ -352,17 +312,15 @@ export function DeckBoxTab({
                             })
                         : undefined
                     }
-                    leading={<span className="size-4 shrink-0" />}
-                    trailing={
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="shrink-0 text-xs"
+                    leading={
+                      <Checkbox
+                        checked
+                        className={SURPLUS_TICK_CLASS}
                         disabled={moveCopies.isPending}
-                        onClick={rowControlClick(() => takeOut([copy.copyId]))}
-                      >
-                        Move out
-                      </Button>
+                        aria-label={`Move ${entry.card.name} out of the box`}
+                        onClick={rowControlClick()}
+                        onCheckedChange={() => takeOut([copy.copyId])}
+                      />
                     }
                   />
                 )),

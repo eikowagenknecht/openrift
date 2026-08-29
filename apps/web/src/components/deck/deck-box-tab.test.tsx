@@ -89,11 +89,11 @@ describe("DeckBoxTab", () => {
     });
   });
 
-  it("sweeps a surplus copy into the inbox without opening the card", () => {
+  it("sweeps a surplus copy into the inbox when its tick is cleared", () => {
     const onCardClick = vi.fn();
     renderTab(onCardClick);
 
-    fireEvent.click(screen.getByRole("button", { name: "Move out" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Move Jinx out of the box" }));
 
     expect(mutate).toHaveBeenCalledWith({ copyIds: ["copy-1"], toCollectionId: "inbox" });
     expect(onCardClick).not.toHaveBeenCalled();
