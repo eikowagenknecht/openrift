@@ -13,6 +13,7 @@
 - feat(Groups): **Formatted group descriptions** — a group's description now takes Markdown, so bold text, lists, and links work, and a link that hides its destination shows where it leads.
 - feat(Collection): **Traded cards remember where they came from** — a copy you receive through a trade arrives with a private note naming who you got it from and when, which you can reword or clear.
 - feat(App): **The features tour walks through a trade** — five steps from the first match to the card landing in your collection, so it is clear what actually happens between two people.
+- fix(Decks): **Tapping a stacked card shows it first** — on touch, tapping a card in a stacked deck zone unfolds it, and only a second tap on the unfolded card opens the details.
 - fix(App): **Greyed-out filters on the features tour** — the catalog preview showed every domain and rarity chip disabled until its card sample loaded, and now leaves them alone until it knows.
 
 ## 2026-08-28

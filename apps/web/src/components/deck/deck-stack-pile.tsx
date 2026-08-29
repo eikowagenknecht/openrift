@@ -14,6 +14,7 @@ import {
   stackStripGeometry,
 } from "@/components/deck/deck-overview-geometry";
 import { ZoneThumb } from "@/components/deck/deck-zone-thumbs";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -189,12 +190,15 @@ function StackStrip({
 }
 
 /**
- * One stacks-mode pile. Owns the hover state with deterministic hit-testing:
- * the hovered index is computed from the pointer's Y position against the
+ * One stacks-mode pile. Owns the expansion state with deterministic hit-testing:
+ * the expanded index is computed from the pointer's Y position against the
  * pile's own layout model (rest windows, the expanded card, the 1px gaps)
  * instead of CSS :hover. The browser only re-evaluates :hover on pointer
  * events, so while the pile animates under a slow-moving cursor, CSS hover
  * misses rows — the model can't, in either scan direction.
+ *
+ * Touch has no hover, so a tap takes its place: the first tap on a strip
+ * unfolds it, and only a tap on the already-unfolded card opens the detail.
  * @returns The pile column.
  */
 export function StackPile({
@@ -223,6 +227,7 @@ export function StackPile({
   onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const coarsePointer = useCoarsePointer();
   // The selected card holds its expansion; the pile needs it for the layout
   // model, the strips' own subscription only draws the ring.
   const selectedCardId = useSelectionStore((state) =>
@@ -244,6 +249,11 @@ export function StackPile({
   // The model mirrors the strips' geometry exactly (see stackStripGeometry):
   // rest windows per variant, full height when expanded, 1px gaps between rows.
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    // A tap synthesizes a mousemove before the click, which would unfold the
+    // strip under the finger and let that same tap read as already unfolded.
+    if (coarsePointer) {
+      return;
+    }
     const rect = event.currentTarget.getBoundingClientRect();
     const width = rect.width;
     const pointerY = event.clientY - rect.top;
@@ -263,6 +273,14 @@ export function StackPile({
       top += height + STACK_GAP_PX;
     }
     setHoverIndex(found);
+  };
+
+  const activateStrip = (index: number, target: CardOpenTarget) => {
+    if (coarsePointer && !isExpanded(index)) {
+      setHoverIndex(index);
+      return;
+    }
+    onCardClick?.(target);
   };
 
   return (
@@ -301,7 +319,7 @@ export function StackPile({
             zone={zone}
             thumbnail={thumbnail}
             readOnly={readOnly}
-            onCardClick={onCardClick}
+            onCardClick={onCardClick ? (target) => activateStrip(index, target) : undefined}
           />
         ),
       )}
