@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { Heading } from "@/components/heading";
+import { MarkdownText } from "@/components/markdown-text";
 import { SignedOutAuthButtons } from "@/components/signed-out-cta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,8 +109,12 @@ export function GroupsJoinPage({ code = "" }: GroupsJoinPageProps) {
             </CardDescription>
           </CardHeader>
           {preview.data.description ? (
-            <CardContent className="text-muted-foreground text-sm">
-              {preview.data.description}
+            <CardContent>
+              <MarkdownText
+                text={preview.data.description}
+                links="labeled"
+                className="text-muted-foreground text-sm"
+              />
             </CardContent>
           ) : null}
         </Card>

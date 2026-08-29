@@ -41,6 +41,7 @@ import {
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { deriveGroupSlug, groupSlugError } from "@/lib/group-slug";
+import { markdownTeaser } from "@/lib/markdown-teaser";
 import { countTradeSuggestionsBySlug } from "@/lib/trade-derivation";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
@@ -139,6 +140,9 @@ function CreateGroupDialog({
                 maxLength={500}
                 rows={3}
               />
+              <span className="text-muted-foreground text-xs">
+                Markdown works here: bold, links, and lists.
+              </span>
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="flex flex-col gap-0.5">
@@ -286,6 +290,7 @@ export function GroupsIndexPage() {
               // badge is dropped rather than shown as zero.
               const suggestions = suggestionsBySlug.get(row.slug);
               const hasSuggestions = suggestions !== undefined && suggestions > 0;
+              const teaser = markdownTeaser(row.description);
               return (
                 <CardLink
                   key={row.id}
@@ -335,10 +340,8 @@ export function GroupsIndexPage() {
                         {row.pendingRequestCount === 1 ? "" : "s"} to review
                       </span>
                     ) : null}
-                    {row.description ? (
-                      <p className="text-muted-foreground line-clamp-2 text-sm">
-                        {row.description}
-                      </p>
+                    {teaser ? (
+                      <p className="text-muted-foreground line-clamp-2 text-sm">{teaser}</p>
                     ) : null}
                     <p className="text-muted-foreground mt-auto pt-1 text-sm tabular-nums">
                       {row.memberCount} {row.memberCount === 1 ? "member" : "members"}

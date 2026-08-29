@@ -152,7 +152,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
         {event.notes !== null && event.notes !== "" && (
           <div className="mt-4">
             {/* Admin-curated copy, so any http(s) host in it is linkable. */}
-            <MarkdownText text={event.notes} trusted />
+            <MarkdownText text={event.notes} links="any" />
           </div>
         )}
 

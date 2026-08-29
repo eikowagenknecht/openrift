@@ -68,6 +68,22 @@ describe("GroupsJoinPage", () => {
     expect(screen.getByRole("button", { name: "Request to join" })).toBeInTheDocument();
   });
 
+  it("renders the description as markdown, linking off the allowlist", () => {
+    previewState = {
+      data: preview({ description: "**Tuesday** nights at [the shop](https://example.com)." }),
+      isError: false,
+      isLoading: false,
+    };
+    render(<GroupsJoinPage code="abc123" />);
+
+    expect(screen.getByText("Tuesday").tagName).toBe("STRONG");
+    expect(screen.getByRole("link", { name: "the shop" })).toHaveAttribute(
+      "href",
+      "https://example.com",
+    );
+    expect(screen.getByText("(example.com)")).toBeInTheDocument();
+  });
+
   it("reports a dead link when the URL carries no code", () => {
     render(<GroupsJoinPage />);
 

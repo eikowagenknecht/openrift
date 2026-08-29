@@ -6,6 +6,10 @@
 
 - fix(Account): **Signing in works again** — an update had broken password, Google, and Discord sign-in (codes by email still worked), all three are back.
 
+### Other
+
+- feat(Groups): **Formatted group descriptions** — a group's description now takes Markdown, so bold text, lists, and links work, and a link that hides its destination shows where it leads.
+
 ## 2026-08-28
 
 ### Other

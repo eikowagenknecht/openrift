@@ -261,6 +261,9 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             maxLength={500}
             rows={3}
           />
+          <span className="text-muted-foreground text-xs">
+            Markdown works here: bold, links, and lists.
+          </span>
         </div>
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={update.isPending}>

@@ -72,21 +72,68 @@ describe("MarkdownText", () => {
     expect(screen.getByText(/hello/u)).toBeInTheDocument();
   });
 
-  describe("when trusted", () => {
+  describe("when links are unrestricted", () => {
     it("renders links to hosts outside the allowlist", () => {
-      render(<MarkdownText text="See [the wiki](https://example.com) for details." trusted />);
+      render(<MarkdownText text="See [the wiki](https://example.com) for details." links="any" />);
       const link = screen.getByRole("link", { name: "the wiki" });
       expect(link).toHaveAttribute("href", "https://example.com");
       expect(link).toHaveAttribute("target", "_blank");
       expect(link.getAttribute("rel") ?? "").toContain("noreferrer");
     });
 
+    it("still drops javascript: URLs", () => {
+      render(<MarkdownText text="Click [me](javascript:alert(1)) now." links="any" />);
+      expect(screen.queryByRole("link")).toBeNull();
+      expect(screen.getByText("me")).toBeInTheDocument();
+    });
+
     it("still strips raw HTML", () => {
       const { container } = render(
-        <MarkdownText text='<img src="x" onerror="alert(1)" />hello' trusted />,
+        <MarkdownText text='<img src="x" onerror="alert(1)" />hello' links="any" />,
       );
       expect(container.querySelector("img")).toBeNull();
       expect(screen.getByText(/hello/u)).toBeInTheDocument();
+    });
+  });
+
+  describe("when links are labeled", () => {
+    it("names the destination host after a link that hides it", () => {
+      render(<MarkdownText text="Meet at [the shop](https://example.com)." links="labeled" />);
+      expect(screen.getByRole("link", { name: "the shop" })).toHaveAttribute(
+        "href",
+        "https://example.com",
+      );
+      expect(screen.getByText("(example.com)")).toBeInTheDocument();
+    });
+
+    it("stays quiet when the link text already names the host", () => {
+      render(
+        <MarkdownText
+          text="Meet at [example.com/shop](https://example.com/shop)."
+          links="labeled"
+        />,
+      );
+      expect(screen.queryByText(/\(example\.com\)/u)).toBeNull();
+    });
+
+    it("ignores a www. prefix on either side", () => {
+      render(
+        <MarkdownText text="Read [www.example.com](https://example.com) now." links="labeled" />,
+      );
+      expect(screen.queryByText(/\(example\.com\)/u)).toBeNull();
+    });
+
+    it("names the host when the text only looks like a subdomain of it", () => {
+      render(
+        <MarkdownText text="Go to [evil.example.com](https://evil.example)." links="labeled" />,
+      );
+      expect(screen.getByText("(evil.example)")).toBeInTheDocument();
+    });
+
+    it("leaves relative links unlabeled", () => {
+      render(<MarkdownText text="See [the rules](/rules) here." links="labeled" />);
+      expect(screen.getByRole("link", { name: "the rules" })).toHaveAttribute("href", "/rules");
+      expect(screen.queryByText(/\(/u)).toBeNull();
     });
   });
 

@@ -5,7 +5,7 @@ import { Fragment } from "react";
 
 import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { Eyebrow, Heading } from "@/components/heading";
-import { PageDescription } from "@/components/layout/page-top-bar";
+import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useCards } from "@/hooks/use-cards";
@@ -118,7 +118,11 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
               {data.group.name}
             </Heading>
             {data.group.description ? (
-              <PageDescription>{data.group.description}</PageDescription>
+              <MarkdownText
+                text={data.group.description}
+                links="labeled"
+                className="text-muted-foreground"
+              />
             ) : null}
             <p className="text-muted-foreground text-sm">
               {meta.map((stat, index) => (

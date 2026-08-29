@@ -1,4 +1,6 @@
 import { isAllowedLinkUrl } from "@openrift/shared";
+import type { ReactNode } from "react";
+import { isValidElement } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import rehypeExternalLinks from "rehype-external-links";
@@ -35,6 +37,70 @@ function isAllowedLinkHref(href: string | undefined): boolean {
   return href !== undefined && isAllowedLinkUrl(href);
 }
 
+/**
+ * The bare hostname an http(s) link points at, `www.` stripped.
+ * @returns The hostname, or null for a relative, malformed, or non-web href.
+ */
+function linkHost(href: string | undefined): string | null {
+  if (href === undefined) {
+    return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase();
+  return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+}
+
+/** Characters that can continue a hostname, so a match mid-domain isn't one. */
+const HOSTNAME_CHAR = /[a-z0-9.-]/u;
+
+/**
+ * Whether `text` already names `host` as a whole domain. A written `www.` is
+ * dropped first, since it is the same site. The boundary check is what stops
+ * `evil.example.com` from passing itself off as a mention of `evil.example`.
+ * @returns True when the host appears in the text.
+ */
+function namesHost(text: string, host: string): boolean {
+  const haystack = text.toLowerCase().replaceAll("www.", "");
+  for (let from = 0; ;) {
+    const at = haystack.indexOf(host, from);
+    if (at === -1) {
+      return false;
+    }
+    const before = haystack[at - 1] ?? "";
+    const after = haystack[at + host.length] ?? "";
+    if (!HOSTNAME_CHAR.test(before) && !HOSTNAME_CHAR.test(after)) {
+      return true;
+    }
+    from = at + host.length;
+  }
+}
+
+/**
+ * The visible text of a rendered markdown node, so a link's own label can be
+ * checked for the host it points at.
+ * @returns The concatenated text.
+ */
+function nodeText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map((child: ReactNode) => nodeText(child)).join("");
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return nodeText(node.props.children);
+  }
+  return "";
+}
+
 /** Renders a resolved `[[Card Name]]` reference. */
 export type RenderCardLink = (name: string, children: React.ReactNode) => React.ReactElement;
 
@@ -45,10 +111,16 @@ export type RenderCardLink = (name: string, children: React.ReactNode) => React.
  * and raw HTML are stripped; headings only render when `headings` is set
  * (primer-style surfaces).
  *
- * Treats `text` as untrusted by default: link hrefs outside the shared host
- * allowlist (`link-hosts.ts`, also used by deck links) are dropped — the link
- * text stays visible but is no longer clickable. Pass `trusted` for
- * admin-curated content where any http(s) host should be linkable.
+ * The `links` mode decides how far a link may point:
+ * - `"allowlist"` (default) holds hrefs to the shared host allowlist
+ *   (`link-hosts.ts`, also used by deck links). One outside it is dropped, so
+ *   the text stays visible but is no longer clickable. For anything a
+ *   stranger can reach, where an open URL field would be a spam vector.
+ * - `"labeled"` accepts any web host but appends the destination host after
+ *   the link, unless the link's own text already names it. For user-written
+ *   text whose reach is bounded by membership rather than by the allowlist,
+ *   where the risk left is a label that lies about where it goes.
+ * - `"any"` accepts any web host bare. Admin-curated content only.
  *
  * With `renderCardLink`, `[[Card Name]]` spans become card references
  * rendered through the callback (deck descriptions); without it they stay
@@ -58,25 +130,26 @@ export type RenderCardLink = (name: string, children: React.ReactNode) => React.
 export function MarkdownText({
   text,
   className,
-  trusted = false,
+  links = "allowlist",
   headings = false,
   renderCardLink,
 }: {
   text: string;
   className?: string;
-  /** When true, skips the host allowlist. Only use for admin-curated content. */
-  trusted?: boolean;
+  /** How far a link may point, and whether its destination is shown. */
+  links?: "allowlist" | "labeled" | "any";
   /** Allow h1-h3, styled as compact section headings. */
   headings?: boolean;
   /** Turns `[[Card Name]]` spans into card references. */
   renderCardLink?: RenderCardLink;
 }) {
+  const allowlisted = links === "allowlist";
   const components: Components | undefined =
-    renderCardLink || !trusted
+    renderCardLink || links !== "any"
       ? {
           // react-markdown takes a components map, so the renderer has to be
-          // built here to close over trusted/renderCardLink; the compiler
-          // memoizes it against both.
+          // built here to close over the link mode and renderCardLink; the
+          // compiler memoizes it against both.
           // oxlint-disable-next-line react/no-unstable-nested-components -- see above
           a: ({ href, children, ...rest }) => {
             if (renderCardLink && href?.startsWith(CARD_HREF_PREFIX)) {
@@ -85,13 +158,23 @@ export function MarkdownText({
                 children,
               );
             }
-            if (!trusted && !isAllowedLinkHref(href)) {
+            if (allowlisted && !isAllowedLinkHref(href)) {
               return <span>{children}</span>;
             }
-            return (
+            const anchor = (
               <a href={href} {...rest}>
                 {children}
               </a>
+            );
+            const host = links === "labeled" ? linkHost(href) : null;
+            if (host === null || namesHost(nodeText(children), host)) {
+              return anchor;
+            }
+            return (
+              <>
+                {anchor}
+                <span className="text-muted-foreground"> ({host})</span>
+              </>
             );
           },
         }
