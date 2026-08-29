@@ -74,7 +74,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
    */
   async function copyOf(
     sourceId: string,
-    input: { mode: "variant" | "checkpoint"; name?: string },
+    input: { name?: string },
     owner = userId,
   ): Promise<Selectable<DecksTable>> {
     const copy = await decks.createVariantCopy(sourceId, owner, input);
@@ -129,7 +129,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(source.familyId).toBeNull();
       expect(source.isPrimary).toBe(false);
 
-      const copy = await copyOf(source.id, { mode: "variant" });
+      const copy = await copyOf(source.id, {});
       expect(copy.familyId).toBeTypeOf("string");
 
       const reloadedSource = await reload(source.id);
@@ -141,8 +141,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("reuses the existing family for later copies", async () => {
       const source = await makeDeck("DV Family Reuse");
-      const first = await copyOf(source.id, { mode: "variant" });
-      const second = await copyOf(source.id, { mode: "variant" });
+      const first = await copyOf(source.id, {});
+      const second = await copyOf(source.id, {});
 
       expect(second.familyId).toBe(first.familyId);
       const reloadedSource = await reload(source.id);
@@ -157,9 +157,9 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("returns undefined for a missing deck and for another user's deck", async () => {
       const foreign = await makeDeck("DV Not Yours", { owner: otherUserId });
-      const missing = await decks.createVariantCopy(MISSING_DECK_ID, userId, { mode: "variant" });
+      const missing = await decks.createVariantCopy(MISSING_DECK_ID, userId, {});
       expect(missing).toBeUndefined();
-      const notMine = await decks.createVariantCopy(foreign.id, userId, { mode: "variant" });
+      const notMine = await decks.createVariantCopy(foreign.id, userId, {});
       expect(notMine).toBeUndefined();
 
       // The foreign deck stayed standalone.
@@ -171,7 +171,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   describe("lineage", () => {
     it("points a variant at the deck it was copied from", async () => {
       const source = await makeDeck("DV Variant Pointer");
-      const copy = await copyOf(source.id, { mode: "variant" });
+      const copy = await copyOf(source.id, {});
 
       expect(copy.predecessorDeckId).toBe(source.id);
       // The live deck's own chain is untouched by a sibling variant.
@@ -179,31 +179,15 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(reloadedSource.predecessorDeckId).toBeNull();
     });
 
-    it("branches a variant off a checkpoint without touching the live deck", async () => {
+    it("branches a variant off another variant without touching the source", async () => {
       const source = await makeDeck("DV Branch Source");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
-      const branch = await copyOf(checkpoint.id, { mode: "variant" });
+      const variant = await copyOf(source.id, {});
+      const branch = await copyOf(variant.id, {});
 
-      expect(branch.predecessorDeckId).toBe(checkpoint.id);
-      expect(branch.familyId).toBe(checkpoint.familyId);
+      expect(branch.predecessorDeckId).toBe(variant.id);
+      expect(branch.familyId).toBe(variant.familyId);
       const reloadedSource = await reload(source.id);
-      expect(reloadedSource.predecessorDeckId).toBe(checkpoint.id);
-    });
-
-    it("slots each checkpoint behind the live deck, oldest last in the chain", async () => {
-      const source = await makeDeck("DV Checkpoint Chain");
-      const first = await copyOf(source.id, { mode: "checkpoint" });
-      // The first checkpoint inherits the (empty) chain and becomes the source's
-      // predecessor. The live deck keeps its id throughout.
-      expect(first.predecessorDeckId).toBeNull();
-      const afterFirst = await reload(source.id);
-      expect(afterFirst.predecessorDeckId).toBe(first.id);
-
-      const second = await copyOf(source.id, { mode: "checkpoint" });
-      expect(second.predecessorDeckId).toBe(first.id);
-      const afterSecond = await reload(source.id);
-      expect(afterSecond.predecessorDeckId).toBe(second.id);
-      expect(second.familyId).toBe(first.familyId);
+      expect(reloadedSource.predecessorDeckId).toBeNull();
     });
   });
 
@@ -220,7 +204,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         { cardId: CARD_CALM_UNIT.id, zone: "sideboard", quantity: 2, preferredPrintingId: null },
       ]);
 
-      const copy = await copyOf(source.id, { mode: "checkpoint" });
+      const copy = await copyOf(source.id, {});
       const copied = await decks.cardsForDeck(copy.id, userId);
       expect(copied).toHaveLength(2);
       const fury = copied.find((card) => card.cardId === CARD_FURY_UNIT.id);
@@ -264,7 +248,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         ],
       });
 
-      const copy = await copyOf(source.id, { mode: "checkpoint" });
+      const copy = await copyOf(source.id, {});
       const copiedPlan = await plans.getForDeck(copy.id);
       expect(copiedPlan.plan?.generalStrategy).toBe("Grind the mid game");
       expect(copiedPlan.plan?.mulliganSplit).toBe(true);
@@ -292,7 +276,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("leaves the copy without a plan when the source has none", async () => {
       const source = await makeDeck("DV No Plan");
-      const copy = await copyOf(source.id, { mode: "variant" });
+      const copy = await copyOf(source.id, {});
       const copiedPlan = await plans.getForDeck(copy.id);
       expect(copiedPlan.plan).toBeUndefined();
       expect(copiedPlan.matchups).toEqual([]);
@@ -316,7 +300,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       });
       await decks.setShareToken(source.id, userId, "dvsharetok01", true);
 
-      const copy = await copyOf(source.id, { mode: "variant" });
+      const copy = await copyOf(source.id, {});
       expect(copy.description).toBe("Budget build");
       expect(copy.format).toBe("freeform");
       expect(copy.oddsConfig?.selection).toEqual(["removal"]);
@@ -324,7 +308,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(copy.coverCardId).toBe(CARD_FURY_UNIT.id);
       expect(copy.coverPrintingId).toBe(PRINTING_1.id);
       expect(copy.coverPosition).toBe(40);
-      expect(copy.collectionId).toBe(collectionId);
       expect(copy.links).toEqual([
         { url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", title: "Guide" },
       ]);
@@ -337,6 +320,19 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(copy.archivedAt).toBeNull();
     });
 
+    it("leaves the copy out of the source's deck box", async () => {
+      const source = await makeDeck("DV Box Source");
+      await decks.update(source.id, userId, { collectionId });
+
+      const variant = await copyOf(source.id, {});
+
+      // An inherited box would reserve its copies a second time, hiding the
+      // surplus from the source's Box tab.
+      expect(variant.collectionId).toBeNull();
+      const reloadedSource = await reload(source.id);
+      expect(reloadedSource.collectionId).toBe(collectionId);
+    });
+
     it("copies the format config", async () => {
       const source = await makeDeck("DV Format Config");
       await decks.update(source.id, userId, {
@@ -344,24 +340,22 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         formatConfig: { tagSlugs: ["bilgewater", "neutral"] },
       });
 
-      const copy = await copyOf(source.id, { mode: "checkpoint" });
+      const copy = await copyOf(source.id, {});
       expect(copy.formatConfig).toEqual({ tagSlugs: ["bilgewater", "neutral"] });
     });
   });
 
   describe("naming and wanted state", () => {
-    it("suffixes the source name per mode when no name is given", async () => {
+    it("suffixes the source name when no name is given", async () => {
       const source = await makeDeck("DV Named");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
-      const variant = await copyOf(source.id, { mode: "variant" });
+      const variant = await copyOf(source.id, {});
 
-      expect(checkpoint.name).toBe("DV Named (checkpoint)");
       expect(variant.name).toBe("DV Named (variant)");
     });
 
     it("uses an explicit name verbatim", async () => {
       const source = await makeDeck("DV Explicit Name");
-      const copy = await copyOf(source.id, { mode: "checkpoint", name: "Store event list" });
+      const copy = await copyOf(source.id, { name: "Store event list" });
       expect(copy.name).toBe("Store event list");
     });
   });
@@ -369,7 +363,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   describe("promoteToPrimary", () => {
     it("moves the primary flag to the target and demotes the old primary", async () => {
       const source = await makeDeck("DV Promote Source");
-      const copy = await copyOf(source.id, { mode: "variant" });
+      const copy = await copyOf(source.id, {});
       const promoted = await decks.promoteToPrimary(copy.id, userId);
 
       expect(promoted).not.toBe("not-found");
@@ -383,7 +377,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("keeps exactly one primary when the target already is the primary", async () => {
       const source = await makeDeck("DV Promote Primary");
-      await copyOf(source.id, { mode: "variant" });
+      await copyOf(source.id, {});
       const promoted = await decks.promoteToPrimary(source.id, userId);
 
       expect(typeof promoted === "object" && promoted.isPrimary).toBe(true);
@@ -406,7 +400,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("reports not-found for a missing deck and for another user's deck", async () => {
       const foreign = await makeDeck("DV Promote Foreign", { owner: otherUserId });
-      await copyOf(foreign.id, { mode: "variant" }, otherUserId);
+      await copyOf(foreign.id, {}, otherUserId);
 
       const missing = await decks.promoteToPrimary(MISSING_DECK_ID, userId);
       expect(missing).toBe("not-found");
@@ -423,8 +417,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       // Two variants of one source: siblings, so neither already descends from
       // the other and the repointing is not a loop.
       const source = await makeDeck("DV Parent Source");
-      const first = await copyOf(source.id, { mode: "variant" });
-      const second = await copyOf(source.id, { mode: "variant" });
+      const first = await copyOf(source.id, {});
+      const second = await copyOf(source.id, {});
 
       const updated = await decks.setPredecessor(second.id, userId, first.id);
       expect(typeof updated === "object" && updated.predecessorDeckId).toBe(first.id);
@@ -432,9 +426,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("clears the pointer with null", async () => {
       const source = await makeDeck("DV Parent Clear");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
-      const before = await reload(source.id);
-      expect(before.predecessorDeckId).toBe(checkpoint.id);
+      const older = await copyOf(source.id, {});
+      await decks.setPredecessor(source.id, userId, older.id);
 
       const updated = await decks.setPredecessor(source.id, userId, null);
       expect(typeof updated === "object" && updated.predecessorDeckId).toBeNull();
@@ -442,14 +435,14 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("rejects a deck pointed at itself", async () => {
       const source = await makeDeck("DV Parent Self");
-      await copyOf(source.id, { mode: "variant" });
+      await copyOf(source.id, {});
       expect(await decks.setPredecessor(source.id, userId, source.id)).toBe("invalid");
     });
 
     it("rejects a pointer that would close a loop", async () => {
       const source = await makeDeck("DV Parent Loop");
-      const child = await copyOf(source.id, { mode: "variant" });
-      const grandchild = await copyOf(child.id, { mode: "variant" });
+      const child = await copyOf(source.id, {});
+      const grandchild = await copyOf(child.id, {});
 
       expect(await decks.setPredecessor(source.id, userId, grandchild.id)).toBe("invalid");
       // The direct child is the same loop, one step shorter.
@@ -461,9 +454,9 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("rejects a predecessor from another family", async () => {
       const source = await makeDeck("DV Parent Outsider Source");
-      await copyOf(source.id, { mode: "variant" });
+      await copyOf(source.id, {});
       const stranger = await makeDeck("DV Parent Outsider Stranger");
-      await copyOf(stranger.id, { mode: "variant" });
+      await copyOf(stranger.id, {});
 
       expect(await decks.setPredecessor(source.id, userId, stranger.id)).toBe("invalid");
     });
@@ -476,13 +469,13 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("reports not-found for a missing deck and for another user's deck", async () => {
       const foreign = await makeDeck("DV Parent Foreign", { owner: otherUserId });
-      const foreignSibling = await copyOf(foreign.id, { mode: "variant" }, otherUserId);
+      const foreignSibling = await copyOf(foreign.id, {}, otherUserId);
 
       expect(await decks.setPredecessor(MISSING_DECK_ID, userId, null)).toBe("not-found");
       expect(await decks.setPredecessor(foreign.id, userId, foreignSibling.id)).toBe("not-found");
       // A predecessor the caller does not own is a miss, not a silent write.
       const source = await makeDeck("DV Parent Foreign Target");
-      await copyOf(source.id, { mode: "variant" });
+      await copyOf(source.id, {});
       expect(await decks.setPredecessor(source.id, userId, foreignSibling.id)).toBe("not-found");
     });
   });
@@ -505,7 +498,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("joins the other deck's family and leaves its primary in place", async () => {
       const source = await makeDeck("DV Link Join Source");
-      const sibling = await copyOf(source.id, { mode: "variant" });
+      const sibling = await copyOf(source.id, {});
       const standalone = await makeDeck("DV Link Join Standalone");
 
       const linked = await linkOf(standalone.id, { otherDeckId: sibling.id });
@@ -517,7 +510,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("pulls a standalone deck into this deck's family", async () => {
       const source = await makeDeck("DV Link Absorb Source");
-      const sibling = await copyOf(source.id, { mode: "variant" });
+      const sibling = await copyOf(source.id, {});
       const standalone = await makeDeck("DV Link Absorb Standalone");
 
       const linked = await linkOf(source.id, { otherDeckId: standalone.id });
@@ -530,9 +523,9 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("merges two families, moving every member and keeping one primary", async () => {
       const leftSource = await makeDeck("DV Merge Left");
-      const leftSibling = await copyOf(leftSource.id, { mode: "variant" });
+      const leftSibling = await copyOf(leftSource.id, {});
       const rightSource = await makeDeck("DV Merge Right");
-      const rightSibling = await copyOf(rightSource.id, { mode: "variant" });
+      const rightSibling = await copyOf(rightSource.id, {});
 
       const linked = await linkOf(leftSource.id, { otherDeckId: rightSource.id });
       expect(linked.familyId).toBe(leftSibling.familyId);
@@ -565,14 +558,15 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("ignores the previous-version flag when this deck already has one", async () => {
       const source = await makeDeck("DV Link Previous Kept");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
+      const older = await copyOf(source.id, {});
+      await decks.setPredecessor(source.id, userId, older.id);
       const other = await makeDeck("DV Link Previous Ignored");
 
       const linked = await linkOf(source.id, {
         otherDeckId: other.id,
         markAsPreviousVersion: true,
       });
-      expect(linked.predecessorDeckId).toBe(checkpoint.id);
+      expect(linked.predecessorDeckId).toBe(older.id);
     });
 
     it("reports invalid for a deck linked to itself", async () => {
@@ -583,7 +577,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("reports invalid for two decks that already share a family", async () => {
       const source = await makeDeck("DV Link Same Family");
-      const sibling = await copyOf(source.id, { mode: "variant" });
+      const sibling = await copyOf(source.id, {});
       const result = await decks.linkAsVariant(source.id, userId, { otherDeckId: sibling.id });
       expect(result).toBe("invalid");
     });
@@ -613,11 +607,12 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   describe("unlinkVariant", () => {
     it("closes the predecessor chain over the departing deck", async () => {
-      // Two checkpoints stack up as live -> newer -> older.
+      // Three versions in one chain: live -> newer -> older.
       const live = await makeDeck("DV Unlink Chain");
-      const older = await copyOf(live.id, { mode: "checkpoint" });
-      const newer = await copyOf(live.id, { mode: "checkpoint" });
-      expect(newer.predecessorDeckId).toBe(older.id);
+      const older = await copyOf(live.id, {});
+      const newer = await copyOf(live.id, {});
+      await decks.setPredecessor(newer.id, userId, older.id);
+      await decks.setPredecessor(live.id, userId, newer.id);
 
       const departed = await unlinkOf(newer.id);
       expect(departed.familyId).toBeNull();
@@ -631,8 +626,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("promotes the most recently updated survivor when the primary leaves", async () => {
       const source = await makeDeck("DV Unlink Primary");
-      const older = await copyOf(source.id, { mode: "variant" });
-      const newer = await copyOf(source.id, { mode: "variant" });
+      const older = await copyOf(source.id, {});
+      const newer = await copyOf(source.id, {});
       // Pin the recency order explicitly: the update trigger stamps now().
       await decks.update(older.id, userId, { name: "DV Unlink Primary (older)" });
       await decks.update(newer.id, userId, { name: "DV Unlink Primary (newer)" });
@@ -652,11 +647,10 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("turns the last survivor back into a standalone deck", async () => {
       const source = await makeDeck("DV Unlink To One");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
-      const beforeUnlink = await reload(source.id);
-      expect(beforeUnlink.predecessorDeckId).toBe(checkpoint.id);
+      const older = await copyOf(source.id, {});
+      await decks.setPredecessor(source.id, userId, older.id);
 
-      await unlinkOf(checkpoint.id);
+      await unlinkOf(older.id);
 
       const survivor = await reload(source.id);
       expect(survivor.familyId).toBeNull();
@@ -672,7 +666,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("reports not-found for a missing deck and for another user's deck", async () => {
       const foreign = await makeDeck("DV Unlink Foreign", { owner: otherUserId });
-      await copyOf(foreign.id, { mode: "variant" }, otherUserId);
+      await copyOf(foreign.id, {}, otherUserId);
 
       const missing = await decks.unlinkVariant(MISSING_DECK_ID, userId);
       expect(missing).toBe("not-found");
@@ -688,8 +682,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
   describe("deleteByIdForUser family repair", () => {
     it("promotes the most recently updated survivor when the primary is deleted", async () => {
       const source = await makeDeck("DV Delete Primary");
-      const older = await copyOf(source.id, { mode: "variant" });
-      const newer = await copyOf(source.id, { mode: "variant" });
+      const older = await copyOf(source.id, {});
+      const newer = await copyOf(source.id, {});
       // Pin the recency order explicitly: the update trigger stamps now().
       await decks.update(older.id, userId, { name: "DV Delete Primary (older)" });
       await decks.update(newer.id, userId, { name: "DV Delete Primary (newer)" });
@@ -708,8 +702,8 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("leaves the primary alone when a non-primary member is deleted", async () => {
       const source = await makeDeck("DV Delete Sibling");
-      const first = await copyOf(source.id, { mode: "variant" });
-      const second = await copyOf(source.id, { mode: "variant" });
+      const first = await copyOf(source.id, {});
+      const second = await copyOf(source.id, {});
 
       await decks.deleteByIdForUser(second.id, userId);
 
@@ -722,11 +716,10 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("turns the last survivor back into a standalone deck", async () => {
       const source = await makeDeck("DV Delete To One");
-      const checkpoint = await copyOf(source.id, { mode: "checkpoint" });
-      const beforeDelete = await reload(source.id);
-      expect(beforeDelete.predecessorDeckId).toBe(checkpoint.id);
+      const older = await copyOf(source.id, {});
+      await decks.setPredecessor(source.id, userId, older.id);
 
-      await decks.deleteByIdForUser(checkpoint.id, userId);
+      await decks.deleteByIdForUser(older.id, userId);
 
       const survivor = await reload(source.id);
       expect(survivor.familyId).toBeNull();

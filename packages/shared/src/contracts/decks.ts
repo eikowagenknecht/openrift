@@ -311,13 +311,11 @@ export const deckExportResponseSchema = z
 const TAG = "Decks";
 
 /**
- * POST /decks/{id}/variants body (ADR-042). `checkpoint` copies the current
- * state away as a frozen-by-convention predecessor (the live deck keeps its
- * id); `variant` creates an editable sibling descending from this deck.
+ * POST /decks/{id}/variants body (ADR-042): copy this deck into an editable
+ * sibling descending from it.
  */
 export const createDeckVariantSchema = z.object({
-  mode: z.enum(["variant", "checkpoint"]),
-  /** Name for the new row; defaults to the source name plus a mode suffix. */
+  /** Name for the new row; defaults to the source name plus "(variant)". */
   name: deckFieldRules.name.optional(),
 });
 

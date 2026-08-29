@@ -424,16 +424,14 @@ export function decksRepo(db: Kysely<Database>) {
 
     /**
      * Copies a deck into its variant family, creating the family on first use
-     * (the source becomes primary). Unlike `cloneDeck` this also copies the
-     * odds config, cover, home collection, and the full deck plan.
-     * `checkpoint` inserts the copy behind the live deck in the predecessor
-     * chain (the live deck keeps its id); `variant` makes the copy an editable
-     * sibling descending from the source.
+     * (the source becomes primary). The copy is an editable sibling descending
+     * from the source. Unlike `cloneDeck` this also copies the odds config,
+     * cover, and the full deck plan.
      */
     createVariantCopy(
       id: string,
       userId: string,
-      input: { mode: "variant" | "checkpoint"; name?: string },
+      input: { name?: string },
     ): Promise<Selectable<DecksTable> | undefined> {
       return db.transaction().execute(async (trx) => {
         const source = await trx
@@ -457,12 +455,11 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        const isCheckpoint = input.mode === "checkpoint";
         const copy = await trx
           .insertInto("decks")
           .values({
             userId,
-            name: input.name ?? `${source.name} (${isCheckpoint ? "checkpoint" : "variant"})`,
+            name: input.name ?? `${source.name} (variant)`,
             description: source.description,
             links: source.links,
             format: source.format,
@@ -471,24 +468,16 @@ export function decksRepo(db: Kysely<Database>) {
             coverCardId: source.coverCardId,
             coverPrintingId: source.coverPrintingId,
             coverPosition: source.coverPosition,
-            collectionId: source.collectionId,
+            // No home collection: a variant is a deck of its own, and every
+            // deck stored in a box reserves that box's copies against the
+            // others there. Inheriting the source's box would have the copy
+            // hold cards nobody decided to store with it.
             isPublic: false,
             familyId,
-            // Checkpoint: the copy takes the live deck's place in the chain
-            // (inheriting its predecessor). Variant: the copy descends from
-            // the source directly.
-            predecessorDeckId: isCheckpoint ? source.predecessorDeckId : source.id,
+            predecessorDeckId: source.id,
           })
           .returningAll()
           .executeTakeFirstOrThrow();
-
-        if (isCheckpoint) {
-          await trx
-            .updateTable("decks")
-            .set({ predecessorDeckId: copy.id })
-            .where("id", "=", id)
-            .execute();
-        }
 
         const sourceCards = await trx
           .selectFrom("deckCards")

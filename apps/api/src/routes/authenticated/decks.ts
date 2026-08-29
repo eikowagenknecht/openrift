@@ -479,13 +479,11 @@ export const decksRouter = {
     return toDeck(newDeck);
   }),
 
-  // Copy a deck into its variant family: a checkpoint slots the copy behind
-  // the live deck as its predecessor, a variant becomes an editable sibling.
-  // Creates the family (and marks the source primary) on first use.
+  // Copy a deck into its variant family as an editable sibling. Creates the
+  // family (and marks the source primary) on first use.
   createVariant: os.createVariant.handler(async ({ input, context }) => {
     const { decks } = context.repos;
     const newDeck = await decks.createVariantCopy(input.id, context.userId, {
-      mode: input.mode,
       name: input.name,
     });
     assertFound(newDeck, "Not found");

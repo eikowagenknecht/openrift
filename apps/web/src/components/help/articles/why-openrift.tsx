@@ -737,7 +737,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general: "Keep a revision history of a deck and roll back to earlier versions.",
       openrift:
-        "Save a named checkpoint before a rebuild, branch a variant off any earlier version, and compare any two side by side. Versions are checkpoints you take, not an automatic edit log.",
+        "Save a named variant before a rebuild, branch a new one off any earlier version, and compare any two side by side. Versions are the ones you make yourself, not an automatic edit log.",
     },
   },
   {

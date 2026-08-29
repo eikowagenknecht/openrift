@@ -47,9 +47,9 @@ const MAX_LABEL_CHARS = 26;
 /**
  * The rail's one naming rule: show the member's name minus what it shares with
  * the family. A name of the form `<base> (<rest>)` collapses to `<rest>`;
- * anything else shows as-is. The default checkpoint name ends in a bare ISO
- * day, which is already the app's date form, so it needs no reformatting.
- * Labels are capped at {@link MAX_LABEL_CHARS}.
+ * anything else shows as-is. A parenthesized ISO day is already the app's date
+ * form, so it needs no reformatting. Labels are capped at
+ * {@link MAX_LABEL_CHARS}.
  *
  * @returns The label to draw at the node.
  */

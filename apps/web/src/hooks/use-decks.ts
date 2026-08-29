@@ -465,32 +465,19 @@ export function useSetDeckArchived() {
   });
 }
 
-/**
- * How a variant copy relates to its source (ADR-042). The API still supports
- * `checkpoint` (the copy takes the source's place in the chain), but the web app
- * only ever creates plain variants.
- */
-type DeckVariantMode = "variant" | "checkpoint";
-
 const createDeckVariantFn = createServerFn({ method: "POST" })
-  .validator((input: { deckId: string; mode: DeckVariantMode; name?: string }) => input)
+  .validator((input: { deckId: string; name?: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<DeckResponse> =>
     apiOrpcClient(decksContract, context.cookie).createVariant({
       id: data.deckId,
-      mode: data.mode,
       ...(data.name ? { name: data.name } : {}),
     }),
   );
 
 export function useCreateDeckVariant() {
   const userId = useRequiredUserId();
-  // The decks.all key prefix-matches every deck detail too, which matters for
-  // checkpoints: the live deck's predecessor pointer changes alongside the copy.
-  return useMutationWithInvalidation<
-    DeckResponse,
-    { deckId: string; mode: DeckVariantMode; name?: string }
-  >({
+  return useMutationWithInvalidation<DeckResponse, { deckId: string; name?: string }>({
     mutationFn: (input) => createDeckVariantFn({ data: input }),
     invalidates: [queryKeys.decks.all(userId)],
   });

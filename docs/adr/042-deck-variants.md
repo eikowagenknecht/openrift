@@ -5,6 +5,11 @@ date: 2026-08-14
 
 # ADR-042: Deck Variants and Checkpoints
 
+> **Amended 2026-08-29.** Two changes to the copy operation:
+>
+> - **Checkpoints are gone.** The web app only ever created plain variants, and a second copy mode that rewrites the source's predecessor pointer earned nothing over `PUT /decks/{id}/predecessor`. `POST /decks/{id}/variants` no longer takes a `mode`: a copy is always an editable sibling descending from its source, named `<source> (variant)` by default. Branch-from-history still works, because every member of a family is a variant you can copy.
+> - **A copy no longer inherits the source's home collection.** A variant is a deck of its own, and every deck stored in a box reserves that box's copies against the others there (see the box plan in `apps/web/src/lib/deck-box.ts`). An inherited box had each variant of a family hold the same physical cards, so a box's surplus disappeared from the Box tab. A variant that belongs in a box is assigned one by hand, like any other deck.
+
 ## Context and Problem Statement
 
 A deck is one live list: every edit autosaves into `decks` + `deck_cards`, so there is no record of what the list looked like before a rebuild, and no way to keep a budget build next to the full build except Duplicate, which produces an unlinked copy that drifts silently. Players iterate constantly (post-rotation rebuilds, tournament lists, budget versions) and asked for two things: named checkpoints ("the list I played at the store event") and parallel variants, each optionally marked as a draft, with a "show changes" view between them. Automatic edit history was considered and explicitly rejected as uninteresting. How do we model versions without a second storage path or a second editor?

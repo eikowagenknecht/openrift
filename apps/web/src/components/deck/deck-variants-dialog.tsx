@@ -55,7 +55,7 @@ import { DeckVariantCreateForm } from "./deck-variant-create-dialog";
 
 interface DeckVariantsDialogProps {
   deckId: string;
-  /** The open deck's name, for the names a new variant or checkpoint defaults to. */
+  /** The open deck's name, for the name a new variant defaults to. */
   deckName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;

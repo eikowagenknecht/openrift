@@ -392,7 +392,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
   describe("Deck variants", () => {
     const fakeId = "00000000-0000-4000-a000-000000000000";
     let liveDeckId: string;
-    let checkpointId: string;
+    let firstVariantId: string;
     let variantId: string;
 
     it("creates a standalone deck with the variant fields at their defaults", async () => {
@@ -408,31 +408,29 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       liveDeckId = json.id;
     });
 
-    it("checkpoints the deck: 201, copy behind the live deck, family created", async () => {
-      const res = await app.fetch(
-        req("POST", `/decks/${liveDeckId}/variants`, { mode: "checkpoint" }),
-      );
+    it("copies the deck: 201, named after the source, family created", async () => {
+      const res = await app.fetch(req("POST", `/decks/${liveDeckId}/variants`, {}));
       expect(res.status).toBe(201);
       const json = await readJson(res);
       expect(json.id).not.toBe(liveDeckId);
-      expect(json.name).toBe("Versioned (checkpoint)");
+      expect(json.name).toBe("Versioned (variant)");
       expect(json.familyId).toBeTypeOf("string");
-      expect(json.predecessorDeckId).toBeNull();
+      expect(json.predecessorDeckId).toBe(liveDeckId);
       expect(json.isPrimary).toBe(false);
       expect(json.isPublic).toBe(false);
-      checkpointId = json.id;
+      firstVariantId = json.id;
 
-      // The live deck keeps its id, joins the same family as primary, and now
-      // points at the checkpoint.
+      // The source keeps its id, fronts the new family, and keeps its own
+      // (empty) chain.
       const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
       expect(live.deck.familyId).toBe(json.familyId);
       expect(live.deck.isPrimary).toBe(true);
-      expect(live.deck.predecessorDeckId).toBe(checkpointId);
+      expect(live.deck.predecessorDeckId).toBeNull();
     });
 
     it("creates a sibling variant with an explicit name", async () => {
       const res = await app.fetch(
-        req("POST", `/decks/${liveDeckId}/variants`, { mode: "variant", name: "Budget build" }),
+        req("POST", `/decks/${liveDeckId}/variants`, { name: "Budget build" }),
       );
       expect(res.status).toBe(201);
       const json = await readJson(res);
@@ -445,13 +443,13 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(json.familyId).toBe(live.deck.familyId);
     });
 
-    it("rejects a variant request without a mode", async () => {
-      const res = await app.fetch(req("POST", `/decks/${liveDeckId}/variants`, {}));
+    it("rejects a variant request with an empty name", async () => {
+      const res = await app.fetch(req("POST", `/decks/${liveDeckId}/variants`, { name: "" }));
       expect(res.status).toBe(400);
     });
 
     it("404s POST /decks/:id/variants for a non-existent deck", async () => {
-      const res = await app.fetch(req("POST", `/decks/${fakeId}/variants`, { mode: "variant" }));
+      const res = await app.fetch(req("POST", `/decks/${fakeId}/variants`, {}));
       expect(res.status).toBe(404);
     });
 
@@ -464,8 +462,8 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
       const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
       expect(live.deck.isPrimary).toBe(false);
-      const checkpoint = await readJson(await app.fetch(req("GET", `/decks/${checkpointId}`)));
-      expect(checkpoint.deck.isPrimary).toBe(false);
+      const sibling = await readJson(await app.fetch(req("GET", `/decks/${firstVariantId}`)));
+      expect(sibling.deck.isPrimary).toBe(false);
     });
 
     it("400s promote for a deck that has no variants", async () => {
@@ -541,11 +539,9 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
         const theirs = await readJson(
           await otherUser.app.fetch(req("POST", "/decks", { name: "Theirs", format: "freeform" })),
         );
-        await otherUser.app.fetch(req("POST", `/decks/${theirs.id}/variants`, { mode: "variant" }));
+        await otherUser.app.fetch(req("POST", `/decks/${theirs.id}/variants`, {}));
 
-        const variantRes = await app.fetch(
-          req("POST", `/decks/${theirs.id}/variants`, { mode: "variant" }),
-        );
+        const variantRes = await app.fetch(req("POST", `/decks/${theirs.id}/variants`, {}));
         expect(variantRes.status).toBe(404);
         const promoteRes = await app.fetch(req("POST", `/decks/${theirs.id}/promote`));
         expect(promoteRes.status).toBe(404);

@@ -110,7 +110,7 @@ export function DeckVariantCreateForm({
       return;
     }
     createVariant.mutate(
-      { deckId: sourceId, mode: "variant", name: trimmed },
+      { deckId: sourceId, name: trimmed },
       {
         onSuccess: (created) => {
           onCreated();

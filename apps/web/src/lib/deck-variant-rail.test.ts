@@ -18,7 +18,7 @@ describe("railLabel", () => {
     expect(railLabel("Yasuo Tempo (variant)", "Yasuo Tempo")).toBe("variant");
   });
 
-  it("leaves a default dated checkpoint name as the plain day", () => {
+  it("leaves a dated name as the plain day", () => {
     expect(railLabel("Yasuo Tempo (2026-07-28)", "Yasuo Tempo")).toBe("2026-07-28");
   });
 
