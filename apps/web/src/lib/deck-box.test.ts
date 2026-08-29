@@ -463,6 +463,117 @@ describe("computeDeckBoxPlan", () => {
   });
 });
 
+describe("computeDeckBoxPlan finish", () => {
+  it("builds the deck from the plain copies and sweeps the foil", () => {
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const first = stubCopy({ printingId: plain.id, collectionId: BOX });
+    const second = stubCopy({ printingId: plain.id, collectionId: BOX });
+    const shiny = stubCopy({ printingId: foil.id, collectionId: BOX });
+    const plan = computeDeckBoxPlan(
+      inputFor({ quantity: 2, printings: [plain, foil], copies: [shiny, first, second] }),
+    );
+    expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([first.id, second.id]);
+    expect(plan.extras[0]?.copies.map((copy) => copy.copyId)).toEqual([shiny.id]);
+  });
+
+  it("prefers the plain copy over a foil in better condition", () => {
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const worn = stubCopy({ printingId: plain.id, collectionId: BINDER, condition: "played" });
+    const mint = stubCopy({ printingId: foil.id, collectionId: BINDER, condition: "mint" });
+    const plan = computeDeckBoxPlan(inputFor({ printings: [plain, foil], copies: [mint, worn] }));
+    expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
+  });
+
+  it("passes a foil over for a metal one only once no plainer copy is left", () => {
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const metal = stubPrinting({ cardId: "card-1", finish: "metal" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [foil, metal],
+        copies: [
+          stubCopy({ printingId: metal.id, collectionId: BINDER }),
+          stubCopy({ printingId: foil.id, collectionId: BINDER }),
+        ],
+      }),
+    );
+    expect(plan.slots[0]?.copy?.printingId).toBe(foil.id);
+    expect(plan.slots[0]?.alternatives[0]?.copy.printingId).toBe(metal.id);
+  });
+
+  // The deck's own printing pick outranks the finish rule: asking for the foil
+  // printing by name is a decision, not an accident.
+  it("still honours the deck's pinned printing when it is the premium one", () => {
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const shiny = stubCopy({ printingId: foil.id, collectionId: BINDER });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [plain, foil],
+        preferredPrintingId: foil.id,
+        copies: [stubCopy({ printingId: plain.id, collectionId: BINDER }), shiny],
+      }),
+    );
+    expect(plan.slots[0]?.copy?.copyId).toBe(shiny.id);
+  });
+});
+
+describe("computeDeckBoxPlan settled slots", () => {
+  it("offers the box's spare copies as a swap for a settled row", () => {
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const kept = stubCopy({ printingId: plain.id, collectionId: BOX });
+    const shiny = stubCopy({ printingId: foil.id, collectionId: BOX });
+    const plan = computeDeckBoxPlan(inputFor({ printings: [plain, foil], copies: [kept, shiny] }));
+    expect(plan.slots[0]?.state).toBe("in-box");
+    expect(plan.slots[0]?.copy?.copyId).toBe(kept.id);
+    expect(plan.slots[0]?.alternatives.map((entry) => entry.copy.copyId)).toEqual([shiny.id]);
+  });
+
+  it("offers a settled row nothing when the box holds no copy to spare", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [printing],
+        copies: [stubCopy({ printingId: printing.id, collectionId: BOX })],
+      }),
+    );
+    expect(plan.slots[0]?.alternatives).toEqual([]);
+  });
+
+  it("keeps another deck's copy in a shared box out of the swap list", () => {
+    const printing = stubPrinting({ cardId: "card-1" });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [printing],
+        copies: [
+          stubCopy({ printingId: printing.id, collectionId: BOX }),
+          stubCopy({ printingId: printing.id, collectionId: BOX }),
+        ],
+        otherDeckNeeds: new Map([["card-1", 1]]),
+      }),
+    );
+    expect(plan.slots[0]?.alternatives).toEqual([]);
+  });
+
+  it("hands the deck a hand-picked copy and sweeps the one it displaces", () => {
+    const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
+    const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
+    const kept = stubCopy({ printingId: plain.id, collectionId: BOX });
+    const shiny = stubCopy({ printingId: foil.id, collectionId: BOX });
+    const plan = computeDeckBoxPlan(
+      inputFor({
+        printings: [plain, foil],
+        copies: [kept, shiny],
+        pinnedCopyIds: new Set([shiny.id]),
+      }),
+    );
+    expect(plan.slots[0]?.copy?.copyId).toBe(shiny.id);
+    expect(plan.extras[0]?.copies.map((copy) => copy.copyId)).toEqual([kept.id]);
+  });
+});
+
 describe("computeDeckBoxPlan extras", () => {
   it("reports a card in the box that the deck doesn't run", () => {
     const deckPrinting = stubPrinting({ cardId: "card-1" });

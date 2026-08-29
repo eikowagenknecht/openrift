@@ -29,7 +29,9 @@ interface MoveDialogProps {
 
 /**
  * Picks the collection a set of owned copies moves into, and how many of them
- * move when they all belong to one card.
+ * move when they all belong to one card. Picking a collection is the move
+ * itself, unless there is a count to set first: a confirm button that asks
+ * nothing is a click spent on nothing.
  * @returns The move dialog.
  */
 export function MoveDialog({
@@ -44,7 +46,9 @@ export function MoveDialog({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState("");
 
-  // Re-arm to "all copies" each time the dialog opens for a fresh target.
+  // Re-arm each time the dialog opens for a fresh target: all copies, and no
+  // collection picked. Carrying the last pick over left an unrelated row lit up
+  // and one Enter away from moving the cards somewhere nobody chose.
   const canChooseQuantity = singleCard && count > 1;
   const [quantity, setQuantity] = useState(count);
   const [seed, setSeed] = useState({ open, count });
@@ -52,9 +56,23 @@ export function MoveDialog({
     setSeed({ open, count });
     if (open) {
       setQuantity(count);
+      setSelectedId(null);
+      setHighlightedId("");
     }
   }
   const effectiveQuantity = canChooseQuantity ? quantity : count;
+
+  /** Picking a row commits the move, or arms the confirm when a count is due. */
+  const pick = (collectionId: string) => {
+    if (isPending) {
+      return;
+    }
+    if (canChooseQuantity) {
+      setSelectedId(collectionId);
+      return;
+    }
+    onMove(collectionId, count);
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -88,7 +106,7 @@ export function MoveDialog({
                     key={col.id}
                     value={col.id}
                     keywords={[col.name]}
-                    onSelect={() => setSelectedId(col.id)}
+                    onSelect={() => pick(col.id)}
                     className={cn(
                       "px-3 py-2",
                       selectedId === col.id &&
@@ -110,9 +128,11 @@ export function MoveDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!selectedId || isPending}>
-              {isPending ? "Moving…" : "Move"}
-            </Button>
+            {canChooseQuantity && (
+              <Button type="submit" disabled={!selectedId || isPending}>
+                {isPending ? "Moving…" : "Move"}
+              </Button>
+            )}
           </div>
         </DialogForm>
       </AlertDialogContent>

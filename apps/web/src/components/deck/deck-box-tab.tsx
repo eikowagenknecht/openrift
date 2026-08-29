@@ -11,7 +11,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CardMiniRow } from "@/components/cards/card-mini-row";
-import { MoveDialog } from "@/components/collection/move-dialog";
 import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,10 +115,11 @@ export function DeckBoxTab({
   // card back out returns it to its shelf. Once that memory is gone (a reload,
   // another session) the move dialog asks where it should go instead.
   const [originById, setOriginById] = useState<ReadonlyMap<string, string>>(new Map());
-  const [movingOut, setMovingOut] = useState<string[] | null>(null);
   const plan = useDeckBox(deckId, cards, homeCollectionId, pinnedCopyIds);
   const moveCopies = useMoveCopies();
   const { data: collections } = useCollections();
+  // Every account has one, and it is where a card with nowhere else to be goes.
+  const inboxId = collections.find((collection) => collection.isInbox)?.id;
   const { labels: enumLabels } = useEnumOrders();
   const domainColors = useDomainColors();
   const labels: BoxRowLabels = {
@@ -181,14 +181,40 @@ export function DeckBoxTab({
     );
   };
 
-  /** Takes one copy back out of the box, to where it came from if that's known. */
-  const takeOut = (copyId: string) => {
-    const origin = originById.get(copyId);
-    if (origin === undefined) {
-      setMovingOut([copyId]);
+  /**
+   * Takes copies back out of the box: onto the shelf each came from while the
+   * tab still remembers it, and into the inbox otherwise. A sweep names where
+   * the cards went and offers an undo, because the row it clears is the only
+   * other thing that would have said so. Unticking a single row stays quiet:
+   * the tick clearing is the feedback, and ticking it again is the undo.
+   */
+  const takeOut = (copyIds: readonly string[], announce = true) => {
+    if (inboxId === undefined) {
       return;
     }
-    moveCopies.mutate({ copyIds: [copyId], toCollectionId: origin });
+    const byTarget = [...Map.groupBy(copyIds, (copyId) => originById.get(copyId) ?? inboxId)];
+    for (const [toCollectionId, ids] of byTarget) {
+      moveCopies.mutate({ copyIds: ids, toCollectionId });
+    }
+    if (!announce) {
+      return;
+    }
+    const single = byTarget.length === 1 ? byTarget[0]?.[0] : undefined;
+    const target = collections.find((collection) => collection.id === single);
+    const noun = copyIds.length === 1 ? "card" : "cards";
+    toast.success(
+      target
+        ? `Moved ${copyIds.length} ${noun} into ${target.name}`
+        : `Moved ${copyIds.length} ${noun} out of the box`,
+      {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            moveCopies.mutate({ copyIds: [...copyIds], toCollectionId: homeCollectionId });
+          },
+        },
+      },
+    );
   };
 
   const swap = (fromCopyId: string, toCopyId: string) => {
@@ -212,7 +238,7 @@ export function DeckBoxTab({
         siblings={siblings}
         disabled={moveCopies.isPending}
         onTick={() => move([slot], false)}
-        onTakeOut={() => slot.copy && takeOut(slot.copy.copyId)}
+        onTakeOut={() => slot.copy && takeOut([slot.copy.copyId], false)}
         onSwap={swap}
         onHoverCard={onHoverCard}
         onOpen={
@@ -299,7 +325,7 @@ export function DeckBoxTab({
                 className="ml-auto text-xs"
                 disabled={moveCopies.isPending}
                 onClick={() =>
-                  setMovingOut(plan.extras.flatMap((entry) => entry.copies.map((c) => c.copyId)))
+                  takeOut(plan.extras.flatMap((entry) => entry.copies.map((c) => c.copyId)))
                 }
               >
                 Move out {plan.extraCount}
@@ -333,7 +359,7 @@ export function DeckBoxTab({
                         size="xs"
                         className="shrink-0 text-xs"
                         disabled={moveCopies.isPending}
-                        onClick={() => setMovingOut([copy.copyId])}
+                        onClick={rowControlClick(() => takeOut([copy.copyId]))}
                       >
                         Move out
                       </Button>
@@ -358,22 +384,6 @@ export function DeckBoxTab({
           You don&apos;t own {plan.missingCount} {plan.missingCount === 1 ? "card" : "cards"}
         </Button>
       )}
-
-      <MoveDialog
-        open={movingOut !== null}
-        onOpenChange={(open) => setMovingOut(open ? movingOut : null)}
-        // Moving into the box is what the rest of the tab does; this dialog is
-        // only ever about getting copies out of it.
-        collections={collections.filter((collection) => collection.id !== homeCollectionId)}
-        count={movingOut?.length ?? 0}
-        onMove={(toCollectionId) => {
-          if (movingOut) {
-            moveCopies.mutate({ copyIds: movingOut, toCollectionId });
-          }
-          setMovingOut(null);
-        }}
-        isPending={moveCopies.isPending}
-      />
     </div>
   );
 }
@@ -495,6 +505,16 @@ function SlotRow({
             aria-label={`Take ${card.name} back out of the box`}
             onClick={rowControlClick()}
             onCheckedChange={onTakeOut}
+          />
+        }
+        trailing={
+          <SourcePicker
+            card={card}
+            slot={slot}
+            labels={labels}
+            siblings={siblings}
+            mode="keep"
+            onSwap={(copyId) => slot.copy && onSwap(slot.copy.copyId, copyId)}
           />
         }
       />
@@ -629,17 +649,36 @@ function SourcePicker({
   slot,
   labels,
   siblings,
+  mode = "take",
   onSwap,
 }: {
   card: DeckBoxCard;
   slot: DeckBoxSlot;
   labels: BoxRowLabels;
   siblings: readonly VariantLabelPrinting[];
+  /**
+   * What picking one does. `take` pulls a copy off a shelf, so the trigger
+   * names the shelf to visit. `keep` reshuffles copies the box already holds,
+   * where every shelf name is the box itself and the count is the whole story.
+   */
+  mode?: "take" | "keep";
   onSwap: (copyId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState("");
   const source = slot.copy?.collectionName ?? "";
+  const wording =
+    mode === "keep"
+      ? {
+          trigger: "Swap",
+          action: `Keep a different copy of ${card.name}`,
+          prompt: "Keep this copy instead",
+        }
+      : {
+          trigger: source,
+          action: `Take a different copy of ${card.name}`,
+          prompt: "Take this copy instead",
+        };
   // Shelves in the order their best copy ranks, so the list still reads as the
   // order a pull run would visit them in.
   const byCollection = Map.groupBy(
@@ -647,7 +686,9 @@ function SourcePicker({
     (alternative) => alternative.copy.collectionName,
   );
   if (slot.alternatives.length === 0) {
-    return (
+    // A settled row with nothing to swap to says nothing; a pull row still owes
+    // the shelf it would visit.
+    return mode === "keep" ? null : (
       <span className="text-muted-foreground max-w-1/2 min-w-0 shrink truncate text-xs">
         {source}
       </span>
@@ -667,10 +708,10 @@ function SourcePicker({
             variant="ghost"
             size="xs"
             className="max-w-1/2 min-w-0 shrink text-xs"
-            aria-label={`Take a different copy of ${card.name}`}
+            aria-label={wording.action}
             onClick={rowControlClick()}
           >
-            <span className="min-w-0 truncate">{source}</span>
+            <span className="min-w-0 truncate">{wording.trigger}</span>
             <span className="text-muted-foreground">+{slot.alternatives.length}</span>
           </Button>
         }
@@ -682,9 +723,7 @@ function SourcePicker({
           onHighlightChange={setHighlightedId}
           // Plain sentence case, not the small-caps the group labels use: two
           // small-caps lines stacked read as two shelf names, not a title.
-          header={
-            <p className="text-muted-foreground px-2.5 pt-2 text-xs">Take this copy instead</p>
-          }
+          header={<p className="text-muted-foreground px-2.5 pt-2 text-xs">{wording.prompt}</p>}
         >
           {[...byCollection].map(([collectionName, alternatives]) => (
             <PickerGroup key={collectionName} label={collectionName}>

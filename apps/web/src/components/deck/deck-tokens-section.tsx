@@ -20,6 +20,7 @@ import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { HoverHandler } from "@/lib/card-row-interactions";
+import { rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -99,15 +100,7 @@ function TokenThumb({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
+      {...rowActivateProps(onSelect)}
       onMouseEnter={() => onHoverCard?.(entry.printing.cardId, entry.printing.id)}
       onMouseLeave={() => onHoverCard?.(null)}
       title={tokenTitle(entry)}
@@ -165,15 +158,7 @@ function TokenRow({
 }) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
+      {...rowActivateProps(onSelect)}
       onMouseEnter={() => onHoverCard?.(entry.printing.cardId, entry.printing.id)}
       onMouseLeave={() => onHoverCard?.(null)}
       title={tokenTitle(entry)}

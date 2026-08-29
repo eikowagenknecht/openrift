@@ -7,7 +7,7 @@ import type {
   Rarity,
   VariantLabelPrinting,
 } from "@openrift/shared";
-import { isCountedZone } from "@openrift/shared";
+import { WellKnown, isCountedZone } from "@openrift/shared";
 
 import { frontImageId } from "@/lib/card-meta";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -167,11 +167,23 @@ export interface DeckBoxInput {
 }
 
 /**
+ * Finishes plainest first. A premium copy is the one worth keeping out of a
+ * deck that travels, so it is picked only once nothing plainer is left.
+ */
+const FINISH_ORDER: readonly string[] = [
+  WellKnown.finish.NORMAL,
+  WellKnown.finish.FOIL,
+  WellKnown.finish.METAL,
+  WellKnown.finish.METAL_DELUXE,
+];
+
+/**
  * Ranks the copies of one card, best pick first. The deck's pinned printing
  * wins, then the viewer's language order, then anything not graded, then the
- * most worn copy — a deck should be built from the beaters, not from the copy
- * someone slabbed. An unrecorded condition sits mid-scale rather than last, so
- * a copy explicitly marked mint is still passed over for a plain one.
+ * plainest finish, then the most worn copy — a deck should be built from the
+ * beaters, not from the foil or the copy someone slabbed. An unrecorded
+ * condition sits mid-scale rather than last, so a copy explicitly marked mint
+ * is still passed over for a plain one.
  * @returns A sort comparator over candidate copies of the same card.
  */
 function candidateComparator(
@@ -193,6 +205,11 @@ function candidateComparator(
     const index = language === undefined ? -1 : languageOrder.indexOf(language);
     return index === -1 ? languageOrder.length : index;
   };
+  const finishScore = (printingId: string): number => {
+    const finish = printingById.get(printingId)?.finish;
+    const index = finish === undefined ? -1 : FINISH_ORDER.indexOf(finish);
+    return index === -1 ? FINISH_ORDER.length : index;
+  };
 
   return (a, b) => {
     const pinned =
@@ -208,6 +225,10 @@ function candidateComparator(
     if (graded !== 0) {
       return graded;
     }
+    const finish = finishScore(a.printingId) - finishScore(b.printingId);
+    if (finish !== 0) {
+      return finish;
+    }
     // Descending: the higher the index, the more worn the copy.
     const condition = conditionScore(b.condition) - conditionScore(a.condition);
     if (condition !== 0) {
@@ -215,6 +236,28 @@ function candidateComparator(
     }
     return a.id.localeCompare(b.id);
   };
+}
+
+/**
+ * The order the box takes a card's copies in: hand-picked first, then the
+ * ranking. A pick is held per card rather than per slot, because a card's slots
+ * are interchangeable. It says "this copy comes along", not "this row takes
+ * it".
+ * @returns The copies in the order the box would claim them.
+ */
+function boxOrder(
+  copies: readonly CopyResponse[],
+  comparator: (a: CopyResponse, b: CopyResponse) => number,
+  pinnedCopyIds?: ReadonlySet<string>,
+): CopyResponse[] {
+  const ranked = copies.toSorted(comparator);
+  if (pinnedCopyIds === undefined || pinnedCopyIds.size === 0) {
+    return ranked;
+  }
+  return [
+    ...ranked.filter((copy) => pinnedCopyIds.has(copy.id)),
+    ...ranked.filter((copy) => !pinnedCopyIds.has(copy.id)),
+  ];
 }
 
 /**
@@ -450,13 +493,31 @@ export function computeDeckBoxPlan({
     // Rank the box's copies the same way a pull does, so the ones that stay are
     // the ones this deck would have chosen and any surplus the sweep offers is
     // the nicest copy, not an arbitrary one.
-    const boxCopies = (inBoxByCard.get(cardId) ?? []).toSorted(comparator);
-    const fills: SlotFill[] = boxCopies
-      .slice(0, Math.min(boxCopies.length, needed))
-      .flatMap((copy) => {
-        const boxCopy = asBoxCopy(copy);
-        return boxCopy ? [{ state: "in-box" as const, copy: boxCopy, alternatives: [] }] : [];
-      });
+    const boxCopies = boxOrder(inBoxByCard.get(cardId) ?? [], comparator, pinnedCopyIds);
+    const heldCount = Math.min(boxCopies.length, needed);
+    const settled = boxCopies.slice(0, heldCount).toSorted(comparator);
+    // Copies the box holds past what every deck stored there needs. Swapping a
+    // settled row for one of these only changes which copy travels with the
+    // deck, so it asks for no move, and the one it drops becomes the sweep's
+    // offer instead.
+    const spare = groupAlternatives(
+      boxCopies.slice(heldCount + (otherDeckNeeds?.get(cardId) ?? 0)),
+      asBoxCopy,
+    );
+    const fills: SlotFill[] = settled.flatMap((copy) => {
+      const boxCopy = asBoxCopy(copy);
+      if (!boxCopy) {
+        return [];
+      }
+      const key = alternativeKey(copy);
+      return [
+        {
+          state: "in-box" as const,
+          copy: boxCopy,
+          alternatives: spare.filter((candidate) => candidate.key !== key),
+        },
+      ];
+    });
     const inBox = fills.length;
     neededTotal += needed;
     inBoxTotal += inBox;
@@ -471,11 +532,7 @@ export function computeDeckBoxPlan({
     // Hand-picked copies come along whatever the ranking says; the best of the
     // rest fill what is left. The result is listed in ranking order all the
     // same, so the rows read the way every other list of copies here does.
-    const isPinned = (copy: CopyResponse) => pinnedCopyIds?.has(copy.id) === true;
-    const chosen = [
-      ...ranked.filter((copy) => isPinned(copy)),
-      ...ranked.filter((copy) => !isPinned(copy)),
-    ]
+    const chosen = boxOrder(ranked, comparator, pinnedCopyIds)
       .slice(0, shortfall)
       .toSorted(comparator);
     const taken = new Set(chosen.map((copy) => copy.id));
@@ -562,13 +619,15 @@ export function computeDeckBoxPlan({
     if (boxCopies.length <= allowance) {
       continue;
     }
-    const ranked = boxCopies.toSorted(
+    const ranked = boxOrder(
+      boxCopies,
       candidateComparator(
         pinnedByCard.get(cardId) ?? null,
         printingById,
         languageOrder,
         conditionOrder,
       ),
+      pinnedCopyIds,
     );
     const surplus = ranked.slice(allowance).flatMap((copy) => {
       const printing = printingById.get(copy.printingId) ?? printingsById[copy.printingId];

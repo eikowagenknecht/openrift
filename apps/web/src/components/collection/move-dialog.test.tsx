@@ -45,6 +45,25 @@ function renderDialog(props: { count: number; singleCard?: boolean }) {
   );
 }
 
+function renderReopenable() {
+  const dialog = (open: boolean) => (
+    <MoveDialog
+      open={open}
+      onOpenChange={() => {}}
+      collections={[stubCollection(), stubCollection({ id: "col-2", name: "Shoebox" })]}
+      count={2}
+      singleCard
+      onMove={onMove}
+      isPending={false}
+    />
+  );
+  const view = render(dialog(true));
+  return () => {
+    view.rerender(dialog(false));
+    view.rerender(dialog(true));
+  };
+}
+
 // The dialog renders into a portal on document.body, so query the document
 // rather than the render container.
 function pickFirstCollection() {
@@ -106,7 +125,6 @@ describe("MoveDialog quantity stepper", () => {
     expect(screen.queryByRole("button", { name: "One more" })).not.toBeInTheDocument();
 
     pickFirstCollection();
-    submit();
 
     expect(onMove).toHaveBeenCalledWith("col-1", 3);
   });
@@ -126,5 +144,31 @@ describe("MoveDialog quantity stepper", () => {
     submit();
 
     expect(onMove).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("MoveDialog collection choice", () => {
+  beforeEach(() => {
+    onMove.mockClear();
+  });
+
+  it("moves on the pick itself, with no confirm to press", () => {
+    renderDialog({ count: 1 });
+
+    expect(screen.queryByRole("button", { name: "Move" })).not.toBeInTheDocument();
+
+    pickFirstCollection();
+
+    expect(onMove).toHaveBeenCalledWith("col-1", 1);
+  });
+
+  it("forgets the last collection when it is reopened for a fresh target", () => {
+    const reopen = renderReopenable();
+    pickFirstCollection();
+    reopen();
+
+    expect(screen.getByRole("button", { name: "Move" })).toBeDisabled();
+    submit();
+    expect(onMove).not.toHaveBeenCalled();
   });
 });

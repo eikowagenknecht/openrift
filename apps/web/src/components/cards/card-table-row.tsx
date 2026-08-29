@@ -9,6 +9,7 @@ import { FinishIcon } from "@/components/cards/finish-icon";
 import { PrintingChannelCell } from "@/components/cards/printing-channel-cell";
 import { PrintingNotesCell } from "@/components/cards/printing-notes-cell";
 import { Pressable } from "@/components/ui/pressable";
+import { rowActivateProps } from "@/lib/card-row-interactions";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -408,16 +409,9 @@ export function CardTableRow({
 
   return (
     <div
+      {...rowActivateProps(handleClick)}
       role="row"
-      tabIndex={0}
       data-printing-id={printing.id}
-      onClick={handleClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleClick();
-        }
-      }}
       className={cn(
         "grid cursor-pointer items-center gap-3 text-sm transition-colors outline-none",
         isSelected ? "bg-accent/50" : "hover:bg-muted/40",

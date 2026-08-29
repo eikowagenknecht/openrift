@@ -10,12 +10,15 @@
 
 ### Other
 
+- feat(Decks): **The box keeps your plain copies** — a deck now travels on the plain printing rather than the foil, a settled row lets you swap for another copy in the box, and Move out sends the surplus straight to your inbox with an undo.
+- feat(Collection): **One click to move a card** — picking a collection in the move dialog now does the move, and reopening it no longer arrives with the last collection still selected.
 - feat(Groups): **Formatted group descriptions** — a group's description now takes Markdown, so bold text, lists, and links work, and a link that hides its destination shows where it leads.
 - feat(Collection): **Traded cards remember where they came from** — a copy you receive through a trade arrives with a private note naming who you got it from and when, which you can reword or clear.
 - feat(App): **The features tour walks through a trade** — five steps from the first match to the card landing in your collection, so it is clear what actually happens between two people.
 - fix(Decks): **Variants no longer share a deck box** — a new variant used to inherit the deck box of the version it came from, so every variant held the same cards and the box's spare copies vanished from "Not in this deck". A variant now starts with no box, and you assign one where you want it.
 - fix(Decks): **Tapping a stacked card shows it first** — on touch, tapping a card in a stacked deck zone unfolds it, and only a second tap on the unfolded card opens the details.
 - fix(App): **Greyed-out filters on the features tour** — the catalog preview showed every domain and rarity chip disabled until its card sample loaded, and now leaves them alone until it knows.
+- fix(Decks): **Move out no longer opens the card** — in a deck's box, the Move out button on a surplus copy popped the card details open behind it.
 
 ## 2026-08-28
 
