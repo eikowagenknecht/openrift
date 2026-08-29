@@ -103,7 +103,7 @@ export const FEATURE_CHAPTERS: FeatureChapter[] = [
     id: "community",
     number: "04",
     title: "Community",
-    tagline: "Trade with your playgroup and keep track of what you lend.",
+    tagline: "Trade with your playgroup, track what you lend, and take it all into Discord.",
     glowColor: getDomainColor("calm"),
     icon: UsersIcon,
     features: [

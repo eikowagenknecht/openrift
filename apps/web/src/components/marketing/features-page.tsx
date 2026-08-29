@@ -335,7 +335,7 @@ export function FeaturesPage() {
           id: "groups",
           title: "Trade inside your playgroup",
           description:
-            "Private groups match your wishlist against everyone's spares. Each group leads with the cards you could pick up there and the ones your spares would cover, so you can see at a glance which of your playgroups is worth opening today.",
+            "Start a private group for your store crew or your kitchen table. Each group's card sums up what's waiting inside: trades you could make, requests waiting on your answer, and swaps left to confirm. A group can also hold shared collections: a bulk box of spares anyone can take from, or the one collection you and a partner keep together.",
           action: sectionAction("Open your groups", "/groups"),
           vignette: <GroupsVignette thumbnailUrls={tradeStripUrls} />,
         },
@@ -398,7 +398,7 @@ export function FeaturesPage() {
           id: "loans",
           title: "Know where your cards are",
           description:
-            "Lend cards to a friend and mark them returned when they come back. A lent copy stays in your collection, flagged as on loan, and stops counting for deck building and trades until it's back.",
+            "Lend cards to a friend and OpenRift remembers who has them. A lent copy stays in your collection but stops counting for decks and trades until you mark it returned.",
           action: sectionAction("Open your loans", "/loans"),
           vignette: <LoansVignette />,
         },
@@ -406,7 +406,7 @@ export function FeaturesPage() {
           id: "share",
           title: "Share anything with one link",
           description:
-            "Paste a deck link into a chat and it turns into a preview with the cards, the format, and who built it. Decks, collections, lists, and tier lists all work this way. Download the image for a post or a vertical story, up to 4K, free.",
+            "Paste a deck link into chat and it unfurls into a preview with the cards, the format, and who built it. The same works for collections, lists, and tier lists. Or download it as an image sized for a post or a vertical story, up to 4K.",
           action: sectionAction("Open your decks", "/decks"),
           vignette: <ShareVignette />,
         },
@@ -414,7 +414,7 @@ export function FeaturesPage() {
           id: "discord",
           title: "A bot for your Discord server",
           description:
-            "Type [[card name]] and the bot replies with the art, prices from all three marketplaces, and a link. Link the server to your group and it also shows who there has the card on their tradelist. Slash commands unfurl deck codes and find rulings.",
+            "Type [[card name]] and the bot replies with the art, a link, and prices from TCGplayer, Cardmarket, and CardTrader. Link the server to your group and it also says who has the card on their tradelist. Slash commands unfurl deck codes and look up rulings.",
           action: (
             <a
               href={SOCIAL_LINKS.discordBotInvite}
@@ -440,7 +440,6 @@ export function FeaturesPage() {
             "Queue up cards and show them two ways: a full-screen view for window capture, or a transparent overlay you paste into OBS as a browser source. Both run off the same queue, and the show is driven from the keyboard, so you can step through a reveal without looking away from the camera.",
           action: sectionAction("Open the Stage", "/stage"),
           vignette: <StageVignette thumbnailUrls={thumbnailUrls.slice(23, 24)} />,
-          flip: true,
         },
         {
           id: "tier-lists",
@@ -449,6 +448,7 @@ export function FeaturesPage() {
             "Drag cards out of the catalog onto a board and stack them into rows you name yourself, adding and reordering tiers as the argument develops. Share the finished board as a link, download it as an image for a thumbnail, or open it on the Stage and fill it in live while chat weighs in.",
           action: sectionAction("Open the tier list maker", "/tier-lists"),
           vignette: <TierListVignette legendUrls={legendUrls} />,
+          flip: true,
         },
       ],
       cards: [
