@@ -59,11 +59,10 @@ const MIN_AREA_FRACTION = 0.45;
 /**
  * Largest share of the guide rect before the user is told to move back.
  *
- * Anchored on `guideQuadFor` in `apps/web/src/hooks/use-card-scanner.ts`: the
- * guide is 0.7 of the frame height, so a card 1/0.7 = 1.43 times the guide's
- * edge length (2.0 times its area) already runs off the frame and loses the
- * border the detector fits a quad to. 1.6 area (1.26 edge lengths) is the
- * warning shot before the card is clipped.
+ * Anchored on `centeredGuideQuad`: the guide is 0.7 of the frame height, so a
+ * card 1/0.7 = 1.43 times the guide's edge length (2.0 times its area) already
+ * runs off the frame and loses the border the detector fits a quad to. 1.6 area
+ * (1.26 edge lengths) is the warning shot before the card is clipped.
  */
 const MAX_AREA_FRACTION = 1.6;
 

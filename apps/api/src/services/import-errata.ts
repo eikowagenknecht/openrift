@@ -1,28 +1,11 @@
+import type {
+  ErrataEntryRef,
+  UploadErrataResponse,
+} from "@openrift/shared/contracts/admin/card-mutations";
+
 import type { Transact } from "../deps.js";
 import { deriveKeywords } from "../repositories/keywords.js";
 import type { UploadErrataEntry } from "../routes/admin/cards/schemas.js";
-
-interface EntryRef {
-  cardSlug: string;
-  cardName: string;
-}
-
-interface EntryDiff extends EntryRef {
-  // Errata fields are all string | null (see ErrataFields), so diffs are too.
-  fields: { field: string; from: string | null; to: string | null }[];
-}
-
-interface ImportErrataResult {
-  dryRun: boolean;
-  newCount: number;
-  updatedCount: number;
-  unchangedCount: number;
-  matchesPrintedCount: number;
-  errors: string[];
-  newEntries: EntryRef[];
-  updatedEntries: EntryDiff[];
-  skippedMatchesPrinted: EntryRef[];
-}
 
 interface ErrataFields {
   correctedRulesText: string | null;
@@ -84,10 +67,10 @@ function matchesAllPrinted(
 export async function importErrata(
   transact: Transact,
   input: { entries: UploadErrataEntry[]; dryRun: boolean },
-): Promise<ImportErrataResult> {
+): Promise<UploadErrataResponse> {
   const { entries, dryRun } = input;
 
-  const result: ImportErrataResult = {
+  const result: UploadErrataResponse = {
     dryRun,
     newCount: 0,
     updatedCount: 0,
@@ -140,7 +123,7 @@ export async function importErrata(
         continue;
       }
 
-      const ref: EntryRef = { cardSlug: card.slug, cardName: card.name };
+      const ref: ErrataEntryRef = { cardSlug: card.slug, cardName: card.name };
       const printings = printingsByCardId.get(card.id) ?? [];
 
       if (matchesAllPrinted(entry, printings)) {

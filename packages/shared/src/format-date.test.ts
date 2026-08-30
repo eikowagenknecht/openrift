@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   dateLeafParts,
+  formatCompactUtcStamp,
   formatDay,
   formatDayLocal,
   formatDayTime,
@@ -118,6 +119,25 @@ describe("formatDayTimeLocal", () => {
 
   it("returns an empty string for unparseable input", () => {
     expect(formatDayTimeLocal("nope")).toBe("");
+  });
+});
+
+describe("formatCompactUtcStamp", () => {
+  it("zero-pads a single-digit month, day, hour, and minute", () => {
+    expect(formatCompactUtcStamp(new Date("2026-01-05T09:07:00.000Z"))).toBe("20260105-0907");
+  });
+
+  it("accepts a string input", () => {
+    expect(formatCompactUtcStamp("2026-08-15T14:30:00.000Z")).toBe("20260815-1430");
+  });
+
+  it("takes the UTC calendar day even when it differs from the local one", () => {
+    // 23:30 UTC is already tomorrow for a reader east of UTC.
+    expect(formatCompactUtcStamp(new Date("2026-08-15T23:30:00.000Z"))).toBe("20260815-2330");
+  });
+
+  it("returns an empty string for unparseable input", () => {
+    expect(formatCompactUtcStamp("nope")).toBe("");
   });
 });
 

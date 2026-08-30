@@ -4,7 +4,6 @@ import type { Fetch } from "../io.js";
 import {
   buildDiscordPayloads,
   extractWatermark,
-  parseChangelogSections,
   postChangelogToDiscord,
 } from "./changelog-discord.js";
 
@@ -40,90 +39,12 @@ function makeOkFetcher() {
   return vi.fn<Fetch>(async () => new Response("", { status: 200 }));
 }
 
-describe("parseChangelogSections", () => {
-  it("returns all sections sorted oldest first", () => {
-    const sections = parseChangelogSections(SAMPLE_CHANGELOG);
-
-    expect(sections.map((s) => s.date)).toEqual(["2026-04-07", "2026-04-08"]);
-    expect(sections[0].entries).toHaveLength(2);
-    expect(sections[1].entries).toHaveLength(3);
-  });
-
-  it("returns empty array for empty markdown", () => {
-    expect(parseChangelogSections("")).toEqual([]);
-  });
-
-  it("ignores lines that do not match the entry pattern", () => {
-    const markdown = `## 2026-04-08
-
-- feat: Valid entry
-Some random text
-- not a valid prefix: something
-- fix: Another valid entry
-`;
-    const sections = parseChangelogSections(markdown);
-
-    expect(sections).toEqual([
-      {
-        date: "2026-04-08",
-        entries: [
-          { type: "feat", section: "other", message: "Valid entry" },
-          { type: "fix", section: "other", message: "Another valid entry" },
-        ],
-      },
-    ]);
-  });
-
-  it("tags entries by their Highlights/Other sub-section and tolerates (Area)", () => {
-    const markdown = `## 2026-06-16
-
-### Highlights
-
-- feat(Trades): **Want button** — request a card from a tradelist
-- fix: **Plain fix** — something fixed
-
-### Other
-
-- feat(Decks): **Sort by energy** — orders each zone by energy
-`;
-    const sections = parseChangelogSections(markdown);
-
-    expect(sections[0].entries).toEqual([
-      {
-        type: "feat",
-        section: "highlight",
-        message: "**Want button** — request a card from a tradelist",
-      },
-      { type: "fix", section: "highlight", message: "**Plain fix** — something fixed" },
-      {
-        type: "feat",
-        section: "other",
-        message: "**Sort by energy** — orders each zone by energy",
-      },
-    ]);
-  });
-
-  it("drops sections with no feat/fix entries", () => {
-    const markdown = `## 2026-04-08
-
-just notes, no real entries
-
-## 2026-04-09
-
-- feat: real entry
-`;
-    const sections = parseChangelogSections(markdown);
-
-    expect(sections.map((s) => s.date)).toEqual(["2026-04-09"]);
-  });
-});
-
 describe("buildDiscordPayloads", () => {
   it("builds a single payload with feats before fixes when entries fit", () => {
     const payloads = buildDiscordPayloads("2026-04-08", [
-      { type: "fix", section: "other", message: "Fixed a bug" },
-      { type: "feat", section: "other", message: "Added a feature" },
-      { type: "feat", section: "other", message: "Another feature" },
+      { date: "2026-04-08", type: "fix", section: "other", message: "Fixed a bug" },
+      { date: "2026-04-08", type: "feat", section: "other", message: "Added a feature" },
+      { date: "2026-04-08", type: "feat", section: "other", message: "Another feature" },
     ]);
 
     expect(payloads).toEqual([
@@ -141,9 +62,21 @@ describe("buildDiscordPayloads", () => {
 
   it("labels Highlights and Other blocks when highlights are present", () => {
     const payloads = buildDiscordPayloads("2026-06-16", [
-      { type: "feat", section: "highlight", message: "**Big thing** — matters" },
-      { type: "feat", section: "other", message: "**Small thing** — minor" },
-      { type: "fix", section: "other", message: "**A fix** — fixed" },
+      {
+        date: "2026-06-16",
+        type: "feat",
+        section: "highlight",
+        title: "Big thing",
+        message: "matters",
+      },
+      {
+        date: "2026-06-16",
+        type: "feat",
+        section: "other",
+        title: "Small thing",
+        message: "minor",
+      },
+      { date: "2026-06-16", type: "fix", section: "other", title: "A fix", message: "fixed" },
     ]);
 
     expect(payloads[0].embeds[0].description).toBe(
@@ -155,6 +88,7 @@ describe("buildDiscordPayloads", () => {
     // Regression: 2026-04-18 in real changelog had ~4449 chars and Discord
     // returned 400 because embed[0].description exceeded 4096.
     const longEntry = {
+      date: "2026-04-18",
       type: "feat" as const,
       section: "other" as const,
       message: "x".repeat(500),

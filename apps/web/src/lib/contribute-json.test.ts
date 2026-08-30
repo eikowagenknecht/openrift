@@ -8,7 +8,6 @@ import {
   buildImagePatchState,
   buildSubmissionPayload,
   emptyFormState,
-  formatDateStamp,
   nameToSlug,
   validateContribution,
 } from "./contribute-json";
@@ -69,18 +68,6 @@ describe("nameToSlug", () => {
 
   it("trims leading and trailing dashes", () => {
     expect(nameToSlug("---  hello  ---")).toBe("hello");
-  });
-});
-
-describe("formatDateStamp", () => {
-  it("formats a date as YYYYMMDD-HHmm in UTC", () => {
-    const date = new Date(Date.UTC(2026, 4, 1, 12, 34));
-    expect(formatDateStamp(date)).toBe("20260501-1234");
-  });
-
-  it("zero-pads single-digit components", () => {
-    const date = new Date(Date.UTC(2026, 0, 5, 3, 7));
-    expect(formatDateStamp(date)).toBe("20260105-0307");
   });
 });
 

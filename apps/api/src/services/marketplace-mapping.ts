@@ -1,4 +1,5 @@
 import type {
+  MappingGroupHeader,
   Marketplace,
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   MarketplaceGroupKind,
@@ -37,16 +38,7 @@ interface PrintingRow {
   productFinish: string | null;
 }
 
-interface CardGroup {
-  cardId: string;
-  cardSlug: string;
-  cardName: string;
-  superTypes: string[];
-  domains: string[];
-  energy: number | null;
-  might: number | null;
-  setId: string;
-  setName: string;
+interface CardGroup extends MappingGroupHeader {
   printings: PrintingRow[];
 }
 

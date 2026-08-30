@@ -39,6 +39,8 @@ export const uploadErrataEntrySchema = z
 export type UploadErrataEntry = z.infer<typeof uploadErrataEntrySchema>;
 
 const entryRefSchema = z.object({ cardSlug: z.string(), cardName: z.string() });
+export type ErrataEntryRef = z.infer<typeof entryRefSchema>;
+
 const entryDiffSchema = z.object({
   cardSlug: z.string(),
   cardName: z.string(),
@@ -46,6 +48,20 @@ const entryDiffSchema = z.object({
     z.object({ field: z.string(), from: z.string().nullable(), to: z.string().nullable() }),
   ),
 });
+export type ErrataEntryDiff = z.infer<typeof entryDiffSchema>;
+
+export const uploadErrataResponseSchema = z.object({
+  dryRun: z.boolean(),
+  newCount: z.number(),
+  updatedCount: z.number(),
+  unchangedCount: z.number(),
+  matchesPrintedCount: z.number(),
+  errors: z.array(z.string()),
+  newEntries: z.array(entryRefSchema),
+  updatedEntries: z.array(entryDiffSchema),
+  skippedMatchesPrinted: z.array(entryRefSchema),
+});
+export type UploadErrataResponse = z.infer<typeof uploadErrataResponseSchema>;
 
 // Mirrors `patchCandidatePrintingSchema` (apps/api cards/schemas); the
 // differentiator fields admins can correct on a candidate printing.
@@ -561,19 +577,7 @@ export const adminCardMutationsContract = {
         entries: z.array(uploadErrataEntrySchema).min(1),
       }),
     )
-    .output(
-      z.object({
-        dryRun: z.boolean(),
-        newCount: z.number(),
-        updatedCount: z.number(),
-        unchangedCount: z.number(),
-        matchesPrintedCount: z.number(),
-        errors: z.array(z.string()),
-        newEntries: z.array(entryRefSchema),
-        updatedEntries: z.array(entryDiffSchema),
-        skippedMatchesPrinted: z.array(entryRefSchema),
-      }),
-    ),
+    .output(uploadErrataResponseSchema),
   acceptNewCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/new/{name}/accept`, tags: [TAG], successStatus: 204 })
     .input(z.object({ name: z.string(), cardFields: cardFieldsSchema })),

@@ -4,7 +4,6 @@ import {
   buildCardEmbed,
   cardTextFields,
   cardWarnings,
-  describeCard,
   fallbackArtDifferences,
   formatCents,
 } from "./card-embed.js";
@@ -36,27 +35,6 @@ describe("formatCents", () => {
 
   it("formats EUR cents", () => {
     expect(formatCents(380, "EUR")).toBe("€3.80");
-  });
-});
-
-describe("describeCard", () => {
-  it("renders display labels for the catalog's type and domain slugs", () => {
-    expect(describeCard(makeCard(), LABELS)).toBe("Champion Unit · Chaos · Energy 5 · Might 5");
-  });
-
-  it("omits null stats and empty domains", () => {
-    const card = makeCard({ superTypes: [], domains: [], might: null, energy: null, power: null });
-    expect(describeCard(card, LABELS)).toBe("Unit");
-  });
-
-  it("includes power when present", () => {
-    expect(describeCard(makeCard({ power: 2 }), LABELS)).toContain("Power 2");
-  });
-
-  it("joins multiple domains with their labels", () => {
-    expect(describeCard(makeCard({ domains: ["chaos", "fury"] }), LABELS)).toContain(
-      "Chaos / Fury",
-    );
   });
 });
 

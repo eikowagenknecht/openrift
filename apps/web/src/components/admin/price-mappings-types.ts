@@ -1,4 +1,8 @@
-import type { MappingPrintingResponse, StagedProductResponse } from "@openrift/shared";
+import type {
+  MappingGroupHeader,
+  MappingPrintingResponse,
+  StagedProductResponse,
+} from "@openrift/shared";
 
 export type {
   AssignableCardResponse as AssignableCard,
@@ -21,16 +25,7 @@ export interface SourceMappingConfig {
   productUrl: (id: number, language?: string | null) => string;
 }
 
-export interface MappingGroup {
-  cardId: string;
-  cardSlug: string;
-  cardName: string;
-  superTypes: string[];
-  domains: string[];
-  energy: number | null;
-  might: number | null;
-  setId: string;
-  setName: string;
+export interface MappingGroup extends MappingGroupHeader {
   printings: MappingPrintingResponse[];
   stagedProducts: StagedProductResponse[];
   assignedProducts: StagedProductResponse[];

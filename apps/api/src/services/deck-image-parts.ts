@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { DEFAULT_DOMAIN_COLORS, DOMAIN_COLOR_FALLBACK, WellKnown } from "@openrift/shared";
 
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";
@@ -290,23 +290,6 @@ export function deckSection(label: string, tiles: Child[], marginTop = 0): Eleme
 }
 
 /**
- * Domain colors for the deck-image background glow. Mirrors
- * `DEFAULT_DOMAIN_COLORS` in apps/web/src/lib/domain.ts; kept as a local
- * constant rather than a repo lookup because the renderer has no existing path
- * to the domain enum's DB-backed colors and this is a flat, rarely-changing
- * palette.
- */
-const DOMAIN_GLOW_COLORS: Record<string, string> = {
-  fury: "#CB212D",
-  calm: "#16AA71",
-  mind: "#227799",
-  body: "#E2710C",
-  chaos: "#6B4891",
-  order: "#CDA902",
-  colorless: "#737373",
-};
-
-/**
  * Ambient background glow built from the legend's domain colors, mirroring
  * the web app's deck hero (`deckGlowStyle` in
  * apps/web/src/components/deck/deck-hero.tsx): one radial per domain,
@@ -317,8 +300,8 @@ export function legendGlowBackground(domains: readonly string[]): string | undef
   if (domains.length === 0) {
     return undefined;
   }
-  const first = DOMAIN_GLOW_COLORS[domains[0] ?? ""] ?? DOMAIN_GLOW_COLORS.colorless;
-  const second = domains.length > 1 ? (DOMAIN_GLOW_COLORS[domains[1] ?? ""] ?? first) : first;
+  const first = DEFAULT_DOMAIN_COLORS[domains[0] ?? ""] ?? DOMAIN_COLOR_FALLBACK;
+  const second = domains.length > 1 ? (DEFAULT_DOMAIN_COLORS[domains[1] ?? ""] ?? first) : first;
   return `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`;
 }
 

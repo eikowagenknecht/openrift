@@ -1,11 +1,7 @@
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it } from "vitest";
 
-import {
-  buildUserSubmissionCard,
-  formatSubmissionDateStamp,
-  inferSubmissionKind,
-} from "./ingest-user-submission.js";
+import { buildUserSubmissionCard, inferSubmissionKind } from "./ingest-user-submission.js";
 
 const USER_ID = "11111111-2222-3333-4444-555555555555";
 const STAMP = "20260702-0900";
@@ -39,17 +35,6 @@ function submission(overrides: Partial<CardSubmissionInput> = {}): CardSubmissio
     ...overrides,
   };
 }
-
-describe("formatSubmissionDateStamp", () => {
-  it("formats a UTC instant as YYYYMMDD-HHmm", () => {
-    expect(formatSubmissionDateStamp(new Date("2026-07-02T09:00:00.000Z"))).toBe(STAMP);
-  });
-
-  it("uses UTC, not the local timezone", () => {
-    // A late-UTC instant must not roll to the next local day.
-    expect(formatSubmissionDateStamp(new Date("2026-07-02T23:59:00.000Z"))).toBe("20260702-2359");
-  });
-});
 
 describe("buildUserSubmissionCard", () => {
   it("mints the card external_id as <slug>--<dateStamp>--<userId>", () => {

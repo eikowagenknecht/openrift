@@ -7,6 +7,7 @@ export * from "./types/index.js";
 export type { RelativeTimeOptions } from "./format-date.js";
 export {
   dateLeafParts,
+  formatCompactUtcStamp,
   formatDay,
   formatDayLocal,
   formatDayTime,
@@ -142,6 +143,7 @@ export {
   slugifyName,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
+  trimToNull,
 } from "./utils.js";
 
 export type { CardNameParts } from "./utils.js";
@@ -234,11 +236,32 @@ export {
 export type { CopyMetadata } from "./copy-metadata.js";
 export {
   copyHasMetadata,
+  copyMetadataWeight,
   definedCopyMetadataFields,
   normalizeCopyMetadataPatch,
 } from "./copy-metadata.js";
 
 export { hostSlugFromUrl } from "./host-slug.js";
+
+export type { ChangelogEntry, ChangelogGroup } from "./changelog.js";
+export { parseChangelog } from "./changelog.js";
+
+export type { CardStatFields, CardStatLabels } from "./card-stat-line.js";
+export { describeCardStats } from "./card-stat-line.js";
+
+export { DOMAIN_COLOR_FALLBACK, DEFAULT_DOMAIN_COLORS } from "./domain-colors.js";
+
+export type { MergeableListEntry } from "./list-entries.js";
+export { mergeListEntriesByTarget } from "./list-entries.js";
+
+export { joinCatalogPrintings } from "./catalog-join.js";
+
+export type {
+  DeckCardSummaryInput,
+  DeckSummaryOrders,
+  DeckCardStats,
+} from "./deck-list-summary.js";
+export { isValidInDeckList, summarizeDeckCards } from "./deck-list-summary.js";
 
 export type {
   GeneratePairingOptions,

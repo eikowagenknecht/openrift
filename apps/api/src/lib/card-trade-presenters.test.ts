@@ -5,8 +5,6 @@ import type { MatchRow } from "../repositories/friend-group-matches.js";
 import type { CardTradeDtoRow, TradeCopyRow } from "./card-trade-presenters.js";
 import {
   cardTradeChoiceMatters,
-  copyHasRecordedDetails,
-  copyPinWeight,
   selectSplitPins,
   sortCopiesForPinning,
   toCardTradeCopyOption,
@@ -34,30 +32,6 @@ function copy(overrides: Partial<TradeCopyRow> = {}): TradeCopyRow {
     ...overrides,
   };
 }
-
-describe("copyPinWeight", () => {
-  it("weighs a plain copy at zero", () => {
-    expect(copyPinWeight(copy())).toBe(0);
-  });
-
-  it("weighs a recorded condition below a grade", () => {
-    expect(copyPinWeight(copy({ condition: "near-mint" }))).toBe(1);
-    expect(copyPinWeight(copy({ grader: "psa", grade: 10 }))).toBe(2);
-  });
-
-  it("adds each recorded detail", () => {
-    const loaded = copy({
-      condition: "played",
-      grader: "psa",
-      grade: 9,
-      notesPublic: "signed at worlds",
-      notesPrivate: "bought from Ekko",
-      isAltered: true,
-      links: [{ url: "https://example.com/front.jpg" }],
-    });
-    expect(copyPinWeight(loaded)).toBe(11);
-  });
-});
 
 describe("selectSplitPins", () => {
   it("takes the plainest pins when nothing is being disposed", () => {
@@ -152,28 +126,6 @@ describe("sortCopiesForPinning", () => {
 
   it("returns an empty array unchanged", () => {
     expect(sortCopiesForPinning([])).toEqual([]);
-  });
-});
-
-describe("copyHasRecordedDetails", () => {
-  it("is false for a plain unrecorded copy", () => {
-    expect(copyHasRecordedDetails(copy())).toBe(false);
-  });
-
-  it("is true for each kind of recorded detail", () => {
-    expect(copyHasRecordedDetails(copy({ condition: "near-mint" }))).toBe(true);
-    expect(copyHasRecordedDetails(copy({ grader: "psa", grade: 10 }))).toBe(true);
-    expect(copyHasRecordedDetails(copy({ isAltered: true }))).toBe(true);
-    expect(copyHasRecordedDetails(copy({ notesPublic: "creased corner" }))).toBe(true);
-    expect(copyHasRecordedDetails(copy({ notesPrivate: "keep this one" }))).toBe(true);
-    expect(copyHasRecordedDetails(copy({ links: [{ url: "https://example.com/a.jpg" }] }))).toBe(
-      true,
-    );
-  });
-
-  it("needs both grader and grade, matching the web helper", () => {
-    expect(copyHasRecordedDetails(copy({ grader: "psa" }))).toBe(false);
-    expect(copyHasRecordedDetails(copy({ grade: 10 }))).toBe(false);
   });
 });
 

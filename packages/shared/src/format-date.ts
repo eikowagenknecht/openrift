@@ -135,6 +135,25 @@ export function formatDayTimeLocal(input: Date | string): string {
 }
 
 /**
+ * A compact UTC stamp for namespacing generated ids, as `20260815-1430`. UTC
+ * keeps the suffix consistent regardless of the caller's timezone.
+ *
+ * @returns The `YYYYMMDD-HHmm` stamp, or `""` when the input is unparseable.
+ */
+export function formatCompactUtcStamp(input: Date | string): string {
+  const date = toDate(input);
+  if (date === null) {
+    return "";
+  }
+  const yyyy = date.getUTCFullYear().toString();
+  const mm = pad(date.getUTCMonth() + 1);
+  const dd = pad(date.getUTCDate());
+  const hh = pad(date.getUTCHours());
+  const mi = pad(date.getUTCMinutes());
+  return `${yyyy}${mm}${dd}-${hh}${mi}`;
+}
+
+/**
  * The two lines of a calendar-leaf tile, in the VIEWER's timezone (the tile
  * marks "which day is this for me"). Same SSR caveat as
  * {@link formatDayTimeLocal}.

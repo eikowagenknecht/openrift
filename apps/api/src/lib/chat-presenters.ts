@@ -11,11 +11,11 @@
  *   own text, so the body leaves headroom. The card URL is the whole point of
  *   the line and is never trimmed; the name and stat line share what's left.
  *
- * The stat line mirrors the Discord bot's `describeCard`, so a card reads the
- * same in a Twitch chat and in a Discord embed.
+ * The stat line uses the shared `describeCardStats`, so a card reads the same
+ * in a Twitch chat and in a Discord embed.
  */
 
-import { legendDisplayName } from "@openrift/shared";
+import { describeCardStats, legendDisplayName } from "@openrift/shared";
 
 /** Character budget for a response line. See the module comment. */
 const CHAT_LINE_LIMIT = 400;
@@ -65,38 +65,6 @@ function oneLine(text: string): string {
 }
 
 /**
- * The card's type, domains and stats, in the Discord bot's `describeCard`
- * order and separators.
- */
-function describeChatCard(card: ChatCard, labels: ChatEnumLabels): string {
-  const typeLine = [
-    ...card.superTypes.map((slug) => labels.superTypes[slug]),
-    ...card.types.map((slug) => labels.cardTypes[slug]),
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const parts = typeLine ? [typeLine] : [];
-  if (card.domains.length > 0) {
-    parts.push(
-      card.domains
-        .map((slug) => labels.domains[slug])
-        .filter(Boolean)
-        .join(" / "),
-    );
-  }
-  if (card.energy !== null) {
-    parts.push(`Energy ${card.energy}`);
-  }
-  if (card.might !== null) {
-    parts.push(`Might ${card.might}`);
-  }
-  if (card.power !== null) {
-    parts.push(`Power ${card.power}`);
-  }
-  return parts.filter(Boolean).join(" · ");
-}
-
-/**
  * The line for a found card. `siteUrl` is the deployment's own origin (preview
  * and production each render their own), so it is absent only when the API has
  * no configured origin — in which case the line still carries the card, just
@@ -106,7 +74,7 @@ export function chatCardLine(card: ChatCard, labels: ChatEnumLabels, siteUrl?: s
   const tail = siteUrl ? `${SEPARATOR}${siteUrl}/cards/${card.slug}` : "";
   const name = truncate(oneLine(legendDisplayName(card)), NAME_LIMIT);
   const room = CHAT_LINE_LIMIT - name.length - tail.length - SEPARATOR.length;
-  const description = truncate(describeChatCard(card, labels), room);
+  const description = truncate(describeCardStats(card, labels), room);
   return description ? `${name}${SEPARATOR}${description}${tail}` : `${name}${tail}`;
 }
 

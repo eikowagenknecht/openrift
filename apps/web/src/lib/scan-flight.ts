@@ -1,4 +1,4 @@
-import { CARD_ASPECT } from "@openrift/shared/scan";
+import { centeredGuideQuad } from "@openrift/shared/scan";
 
 import { clamp } from "@/lib/math";
 
@@ -67,9 +67,8 @@ function normalizeRect(rect: FlightRect): FlightRect {
  * The centred card-shaped guide rect inside a displayed video box, in that
  * box's own coordinates.
  *
- * Mirrors `guideQuadFor` in `use-card-scanner.ts`: the outline is 70% of the
- * box height, or 90% of its width when that portrait card would overflow
- * sideways (which is what happens on the desktop 16:9 preview).
+ * Delegates to {@link centeredGuideQuad} so the flight animation targets the
+ * exact guide the scanner draws.
  *
  * @returns The guide rect, or a zero rect when the box has no area.
  */
@@ -80,17 +79,12 @@ export function guideRectIn(box: { width: number; height: number }): FlightRect 
     return { x: 0, y: 0, width: 0, height: 0 };
   }
 
-  let cardHeight = 0.7 * height;
-  let cardWidth = cardHeight * CARD_ASPECT;
-  if (cardWidth > 0.9 * width) {
-    cardWidth = 0.9 * width;
-    cardHeight = cardWidth / CARD_ASPECT;
-  }
+  const [topLeft, topRight, bottomRight] = centeredGuideQuad(width, height);
   return {
-    x: (width - cardWidth) / 2,
-    y: (height - cardHeight) / 2,
-    width: cardWidth,
-    height: cardHeight,
+    x: topLeft.x,
+    y: topLeft.y,
+    width: topRight.x - topLeft.x,
+    height: bottomRight.y - topRight.y,
   };
 }
 

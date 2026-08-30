@@ -1,3 +1,5 @@
+import { mergeListEntriesByTarget } from "@openrift/shared";
+
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
 import type { ListEntryRow } from "../repositories/lists.js";
@@ -107,25 +109,6 @@ function unitForKind(kind: string): { one: string; many: string } {
   return { one: "card", many: "cards" };
 }
 
-/**
- * Collapses copy-kind rows (one per physical copy) into one row per printing,
- * summing quantities — a trade binder shows one tile "3× Cleave" not three.
- */
-function mergeCopyRows(entries: readonly ListEntryRow[]): ListEntryRow[] {
-  const byPrinting = new Map<string, ListEntryRow>();
-  for (const entry of entries) {
-    // Key by target id, not entry id — rule-only entries have a null entry
-    // id, which would collapse them all onto one bucket.
-    const key = entry.kind === "card" ? entry.cardId : entry.printingId;
-    const existing = byPrinting.get(key);
-    byPrinting.set(
-      key,
-      existing ? { ...existing, quantity: existing.quantity + entry.quantity } : entry,
-    );
-  }
-  return [...byPrinting.values()];
-}
-
 /** Everything needed to render a single list's share image. */
 export interface ListImageData {
   ownerName: string;
@@ -152,7 +135,7 @@ export async function renderListImage(
 ): Promise<Buffer> {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
   // same printing so the grid shows one tile per printing with the total count.
-  const display = data.kind === "copy" ? mergeCopyRows(data.entries) : data.entries;
+  const display = data.kind === "copy" ? mergeListEntriesByTarget(data.entries) : data.entries;
   const cards = await buildCards(topByQuantity(display), data.canonicalPrintings);
   return renderShareImage(
     io,

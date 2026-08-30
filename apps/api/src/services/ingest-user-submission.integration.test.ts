@@ -1,14 +1,11 @@
+import { formatCompactUtcStamp } from "@openrift/shared";
 import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
 import { createTestContext } from "../test/integration-context.js";
-import {
-  buildUserSubmissionCard,
-  formatSubmissionDateStamp,
-  ingestUserSubmission,
-} from "./ingest-user-submission.js";
+import { buildUserSubmissionCard, ingestUserSubmission } from "./ingest-user-submission.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: ingestUserSubmission service (ADR-036).
@@ -45,7 +42,7 @@ async function submit(
   input: CardSubmissionInput,
   now: Date,
 ) {
-  const card = buildUserSubmissionCard(input, USER_ID, formatSubmissionDateStamp(now));
+  const card = buildUserSubmissionCard(input, USER_ID, formatCompactUtcStamp(now));
   return ingestUserSubmission(transact, {
     userId: USER_ID,
     submissionNote: input.submissionNote ?? null,

@@ -383,6 +383,19 @@ export function emptyToNull(value: string | null | undefined): string | null {
 }
 
 /**
+ * Trims a string and converts it to `null` if it is null, undefined, or empty after trimming.
+ *
+ * @returns The trimmed string if non-empty, otherwise `null`.
+ */
+export function trimToNull(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
  * Returns the min and max of a number array, snapped to whole numbers (floor min, ceil max). Defaults to 0 when empty.
  *
  * @returns An object with `min` and `max` bounds.

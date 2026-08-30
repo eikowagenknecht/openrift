@@ -3,6 +3,7 @@ import type {
   TierListResponse,
   TierListShareResponse,
 } from "@openrift/shared";
+import { trimToNull } from "@openrift/shared";
 import { DEFAULT_TIER_LABELS, tierListsContract } from "@openrift/shared/contracts/tier-lists";
 import { implement } from "@orpc/server";
 
@@ -24,14 +25,7 @@ function defaultTiers(): TierListRow[] {
  * leaves the column alone, an empty string clears it to null.
  */
 function normalizeText(value: string | null | undefined): string | null | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (value === null) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
+  return value === undefined ? undefined : trimToNull(value);
 }
 
 const os = implement(tierListsContract).$context<ApiContext>().use(requireAuthedUser);

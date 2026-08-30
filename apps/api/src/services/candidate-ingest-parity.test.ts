@@ -1,15 +1,12 @@
 /* oxlint-disable no-restricted-imports -- api has no @/ alias */
+import { formatCompactUtcStamp } from "@openrift/shared";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
 import type { IngestCard } from "../routes/admin/cards/schemas.js";
 import { ingestCandidates } from "./ingest-candidates.js";
-import {
-  buildUserSubmissionCard,
-  formatSubmissionDateStamp,
-  ingestUserSubmission,
-} from "./ingest-user-submission.js";
+import { buildUserSubmissionCard, ingestUserSubmission } from "./ingest-user-submission.js";
 
 // ---------------------------------------------------------------------------
 // One card, both ingest entry points, one answer.
@@ -125,7 +122,7 @@ async function linkedPrintingIds(
  * @returns The linked printing id from each path, plus the built ingest card.
  */
 async function bothPaths(input: CardSubmissionInput, catalog: Catalog = {}) {
-  const card: IngestCard = buildUserSubmissionCard(input, USER_ID, formatSubmissionDateStamp(NOW));
+  const card: IngestCard = buildUserSubmissionCard(input, USER_ID, formatCompactUtcStamp(NOW));
 
   const [submissionIds, batchIds] = await Promise.all([
     linkedPrintingIds(catalog, (transact) =>
@@ -180,7 +177,7 @@ describe("candidate ingest link parity", () => {
   });
 
   it("applies a manual link override from both entry points", async () => {
-    const built = buildUserSubmissionCard(submission(), USER_ID, formatSubmissionDateStamp(NOW));
+    const built = buildUserSubmissionCard(submission(), USER_ID, formatCompactUtcStamp(NOW));
     const { submission: fromSubmission, batch } = await bothPaths(submission(), {
       printings: [],
       // The '' wildcard provider (pre-scoping legacy rows) applies to both

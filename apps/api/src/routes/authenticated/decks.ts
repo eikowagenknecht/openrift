@@ -13,9 +13,10 @@ import type {
 import {
   WellKnown,
   isBaseBanFormat,
+  isValidInDeckList,
   legendDisplayName,
   requiredZoneProgress,
-  validateDeck,
+  summarizeDeckCards,
   ERROR_CODES,
 } from "@openrift/shared";
 import { decksContract } from "@openrift/shared/contracts/decks";
@@ -175,21 +176,18 @@ export const decksRouter = {
 
     const cardTypeOrder = enumRows.cardTypes.map((row) => row.slug);
     const domainOrder = enumRows.domains.map((row) => row.slug);
-    const excludedTypes = new Set<string>([
-      WellKnown.cardType.LEGEND,
-      WellKnown.cardType.RUNE,
-      WellKnown.cardType.BATTLEFIELD,
-    ]);
-    const countedZones = new Set<string>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
-
     const items: DeckListItemResponse[] = deckRows.map((row) => {
       const cards = cardsByDeckId.get(row.id) ?? [];
-      const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
-      const champion = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
-
-      const totalCards = cards
-        .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
-        .reduce((sum, card) => sum + card.quantity, 0);
+      const stats = summarizeDeckCards(
+        cards.map((card) => ({
+          cardId: card.cardId,
+          zone: card.zone,
+          quantity: card.quantity,
+          cardTypes: card.cardTypes as CardType[],
+          domains: card.domains as Domain[],
+        })),
+        { cardTypes: cardTypeOrder, domains: domainOrder },
+      );
 
       // Completion across the format's required zones — the "48/56" the deck
       // page's format badge carries. Excludes the sideboard, unlike totalCards.
@@ -224,77 +222,30 @@ export const decksRouter = {
         missingCount += Math.max(0, needed - have);
       }
 
-      // Fan out over the full type set like the domain distribution below, so a
-      // multi-type card is counted under each of its (non-excluded) types.
-      const typeCountMap = new Map<CardType, number>();
-      for (const card of cards) {
-        if (!countedZones.has(card.zone)) {
-          continue;
-        }
-        for (const cardType of card.cardTypes as CardType[]) {
-          if (excludedTypes.has(cardType)) {
-            continue;
-          }
-          typeCountMap.set(cardType, (typeCountMap.get(cardType) ?? 0) + card.quantity);
-        }
-      }
-      const typeCounts = cardTypeOrder
-        .filter((type) => typeCountMap.has(type as CardType))
-        .map((type) => ({
-          cardType: type as CardType,
-          count: typeCountMap.get(type as CardType) ?? 0,
-        }));
-
-      const domainCountMap = new Map<Domain, number>();
-      for (const card of cards) {
-        if (!countedZones.has(card.zone)) {
-          continue;
-        }
-        for (const domain of card.domains as Domain[]) {
-          domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);
-        }
-      }
-      const domainDistribution = domainOrder
-        .filter((domain) => domainCountMap.has(domain as Domain))
-        .map((domain) => ({
-          domain: domain as Domain,
-          count: domainCountMap.get(domain as Domain) ?? 0,
-        }));
-
-      // The list endpoint cares only about pass/fail, not the detailed
-      // violations, so we deliberately don't load per-card custom tag
-      // assignments here — the tag-membership rule would mis-report when the
-      // list query skipped the join. Custom-Region decks therefore show as
-      // valid in the list and surface real violations on the deck page.
-      const isValid =
-        row.format === WellKnown.deckFormat.CONSTRUCTED
-          ? validateDeck({
-              format: WellKnown.deckFormat.CONSTRUCTED,
-              cards: cards.map((card) => ({
-                cardId: card.cardId,
-                zone: card.zone as DeckZone,
-                quantity: card.quantity,
-                cardName: card.cardName,
-                cardType: card.cardType as CardType,
-                cardTypes: card.cardTypes as CardType[],
-                superTypes: card.superTypes as SuperType[],
-                domains: card.domains as Domain[],
-                tags: card.tags,
-                customTagSlugs: [],
-                keywords: card.keywords,
-                maxCopiesOverride: card.maxCopiesOverride,
-                banned: bannedCardIds.has(card.cardId),
-              })),
-            }).length === 0
-          : true;
+      const isValid = isValidInDeckList(
+        row.format,
+        cards.map((card) => ({
+          cardId: card.cardId,
+          zone: card.zone as DeckZone,
+          quantity: card.quantity,
+          cardName: card.cardName,
+          cardType: card.cardType as CardType,
+          cardTypes: card.cardTypes as CardType[],
+          superTypes: card.superTypes as SuperType[],
+          domains: card.domains as Domain[],
+          tags: card.tags,
+          // The list query skips the per-card custom tag join, which is why
+          // `isValidInDeckList` judges Constructed only.
+          customTagSlugs: [],
+          keywords: card.keywords,
+          maxCopiesOverride: card.maxCopiesOverride,
+          banned: bannedCardIds.has(card.cardId),
+        })),
+      );
 
       return {
         deck: toDeckSummary(row),
-        legendCardId: legend?.cardId ?? null,
-        championCardId: champion?.cardId ?? null,
-        totalCards,
-        typeCounts,
-        domainDistribution,
+        ...stats,
         isValid,
         requiredProgress,
         requiredTotal,

@@ -1,23 +1,9 @@
-import type { Domain } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { DEFAULT_DOMAIN_COLORS, DOMAIN_COLOR_FALLBACK, WellKnown } from "@openrift/shared";
 
 import { contrastGlyphTint } from "./color";
 
-const FALLBACK_COLOR = "#737373";
-
-/** Fallback domain colors matching the initial database seed. */
-export const DEFAULT_DOMAIN_COLORS: Record<string, string> = {
-  fury: "#CB212D",
-  calm: "#16AA71",
-  mind: "#227799",
-  body: "#E2710C",
-  chaos: "#6B4891",
-  order: "#CDA902",
-  colorless: "#737373",
-} satisfies Record<Domain, string>;
-
 function resolve(colors: Record<string, string>, domain: string): string {
-  return colors[domain] ?? DEFAULT_DOMAIN_COLORS[domain] ?? FALLBACK_COLOR;
+  return colors[domain] ?? DEFAULT_DOMAIN_COLORS[domain] ?? DOMAIN_COLOR_FALLBACK;
 }
 
 export function getDomainGradientStyle(

@@ -436,12 +436,6 @@ export const metaCandidateDetailSchema = z
  * per-field review). `slug` is absent because it is minted once at accept and
  * renaming it breaks every published link; attribution is absent because it is
  * no longer a column.
- *
- * The API holds the same list on the write side
- * (`META_EVENT_ACCEPT_FIELDS` in `services/meta-candidate-accept.ts`) and
- * asserts at compile time that the two are identical — `apps/api` cannot export
- * into `packages/shared`, so the wire list lives here and the parity check
- * lives there.
  */
 export const META_EVENT_ACCEPT_FIELDS = [
   "name",

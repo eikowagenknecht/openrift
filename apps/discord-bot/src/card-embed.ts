@@ -130,35 +130,6 @@ export function formatCents(cents: number, currency: "USD" | "EUR"): string {
 }
 
 /**
- * The compact stat line under the card name: super types + types, domains,
- * and whichever of energy/might/power the card has. The catalog stores enum
- * slugs; display labels come from the init endpoint's enum rows (bare lookups
- * — a missing label means a data bug and should surface, not be masked).
- *
- * @returns The description string for the embed.
- */
-export function describeCard(card: CatalogCard, labels: EnumLabels): string {
-  const typeLine = [
-    ...card.superTypes.map((slug) => labels.superTypes[slug]),
-    ...card.types.map((slug) => labels.cardTypes[slug]),
-  ].join(" ");
-  const parts = [typeLine];
-  if (card.domains.length > 0) {
-    parts.push(card.domains.map((slug) => labels.domains[slug]).join(" / "));
-  }
-  if (card.energy !== null) {
-    parts.push(`Energy ${card.energy}`);
-  }
-  if (card.might !== null) {
-    parts.push(`Might ${card.might}`);
-  }
-  if (card.power !== null) {
-    parts.push(`Power ${card.power}`);
-  }
-  return parts.join(" · ");
-}
-
-/**
  * Builds the marketplace link for one price field: the product page (with the
  * affiliate tag where the marketplace has one) when a product mapping exists,
  * otherwise a marketplace search for the card name.

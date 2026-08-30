@@ -18,7 +18,7 @@
  *     real candidate event under this provider, carrying the fields the person
  *     typed. It is a proposal in the queue like any other, not a placeholder.
  */
-import { ERROR_CODES, WellKnown } from "@openrift/shared";
+import { ERROR_CODES, formatCompactUtcStamp, WellKnown } from "@openrift/shared";
 // One definition of the reserved provider string, on the wire side: the
 // database keys `(provider, external_id)` on it, and a second copy is exactly
 // the pair that drifts.
@@ -30,7 +30,6 @@ import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { isValidIsoDate } from "../lib/iso-date.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
-import { formatSubmissionDateStamp } from "./ingest-user-submission.js";
 
 /**
  * How many submissions one person may have awaiting review at once.
@@ -177,7 +176,7 @@ export function validateMetaSubmission(args: MetaSubmissionArgs): string[] {
  * person from colliding.
  */
 export function buildMetaSubmissionExternalId(userId: string, now: Date): string {
-  return `${formatSubmissionDateStamp(now)}--${userId}--${crypto.randomUUID().slice(0, 8)}`;
+  return `${formatCompactUtcStamp(now)}--${userId}--${crypto.randomUUID().slice(0, 8)}`;
 }
 
 /**

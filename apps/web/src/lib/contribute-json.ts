@@ -8,7 +8,7 @@
  * only so the client can surface field errors before submitting.
  */
 import type { Card, Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { formatCompactUtcStamp, trimToNull, WellKnown } from "@openrift/shared";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
 import type { ZodIssue } from "zod";
@@ -162,21 +162,6 @@ export function nameToSlug(name: string): string {
 }
 
 /**
- * UTC date stamp used to namespace generated external IDs: `YYYYMMDD-HHmm`.
- * UTC keeps the suffix consistent regardless of the contributor's timezone.
- * @param date Date to format.
- * @returns A `YYYYMMDD-HHmm` string in UTC.
- */
-export function formatDateStamp(date: Date): string {
-  const yyyy = date.getUTCFullYear().toString();
-  const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const dd = date.getUTCDate().toString().padStart(2, "0");
-  const hh = date.getUTCHours().toString().padStart(2, "0");
-  const mi = date.getUTCMinutes().toString().padStart(2, "0");
-  return `${yyyy}${mm}${dd}-${hh}${mi}`;
-}
-
-/**
  * Validates the form state by building the contribution JSON and running it
  * through the shared `contributionFileSchema`. The slug isn't part of that
  * schema, so it gets a separate check up front; if it fails, we skip the schema
@@ -195,7 +180,7 @@ export function validateContribution(state: ContributeFormState): ValidationResu
     });
   }
 
-  const json = buildContributionJson(state, formatDateStamp(new Date()));
+  const json = buildContributionJson(state, formatCompactUtcStamp(new Date()));
   const result = contributionFileSchema.safeParse(json);
   if (!result.success) {
     for (const issue of result.error.issues) {
@@ -238,14 +223,6 @@ interface ContributionJson {
   printings: SnakePrintingJson[];
 }
 
-function trimOrNull(value: string | null): string | null {
-  if (value === null) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
-}
-
 function setIfPresent(
   object: Record<string, unknown>,
   key: string,
@@ -284,10 +261,10 @@ function buildPrintingJson(
     external_id: externalId,
     printed_name: printedName,
   };
-  setIfPresent(out, "set_id", trimOrNull(printing.setId), isNonEmptyString);
-  setIfPresent(out, "set_name", trimOrNull(printing.setName), isNonEmptyString);
-  setIfPresent(out, "rarity", trimOrNull(printing.rarity), isNonEmptyString);
-  setIfPresent(out, "art_variant", trimOrNull(printing.artVariant), isNonEmptyString);
+  setIfPresent(out, "set_id", trimToNull(printing.setId), isNonEmptyString);
+  setIfPresent(out, "set_name", trimToNull(printing.setName), isNonEmptyString);
+  setIfPresent(out, "rarity", trimToNull(printing.rarity), isNonEmptyString);
+  setIfPresent(out, "art_variant", trimToNull(printing.artVariant), isNonEmptyString);
   if (printing.isSigned) {
     out.is_signed = true;
   }
@@ -298,20 +275,20 @@ function buildPrintingJson(
     printing.distributionChannelSlugs,
     isNonEmptyArray,
   );
-  setIfPresent(out, "finish", trimOrNull(printing.finish), isNonEmptyString);
-  setIfPresent(out, "size", trimOrNull(printing.size), isNonEmptyString);
-  setIfPresent(out, "artist", trimOrNull(printing.artist), isNonEmptyString);
-  setIfPresent(out, "public_code", trimOrNull(printing.publicCode), isNonEmptyString);
-  setIfPresent(out, "printed_rules_text", trimOrNull(printing.printedRulesText), isNonEmptyString);
+  setIfPresent(out, "finish", trimToNull(printing.finish), isNonEmptyString);
+  setIfPresent(out, "size", trimToNull(printing.size), isNonEmptyString);
+  setIfPresent(out, "artist", trimToNull(printing.artist), isNonEmptyString);
+  setIfPresent(out, "public_code", trimToNull(printing.publicCode), isNonEmptyString);
+  setIfPresent(out, "printed_rules_text", trimToNull(printing.printedRulesText), isNonEmptyString);
   setIfPresent(
     out,
     "printed_effect_text",
-    trimOrNull(printing.printedEffectText),
+    trimToNull(printing.printedEffectText),
     isNonEmptyString,
   );
-  setIfPresent(out, "image_url", trimOrNull(printing.imageUrl), isNonEmptyString);
-  setIfPresent(out, "flavor_text", trimOrNull(printing.flavorText), isNonEmptyString);
-  setIfPresent(out, "language", trimOrNull(printing.language), isNonEmptyString);
+  setIfPresent(out, "image_url", trimToNull(printing.imageUrl), isNonEmptyString);
+  setIfPresent(out, "flavor_text", trimToNull(printing.flavorText), isNonEmptyString);
+  setIfPresent(out, "language", trimToNull(printing.language), isNonEmptyString);
   setIfPresent(out, "printed_year", printing.printedYear, isNonNull);
   return out;
 }
@@ -322,7 +299,7 @@ function buildPrintingJson(
  * `external_id`s, so the ones built here exist purely to satisfy the schema's
  * pattern and are dropped by {@link buildSubmissionPayload}.
  * @param state Current form state.
- * @param dateStamp UTC date stamp from {@link formatDateStamp}.
+ * @param dateStamp UTC date stamp from `formatCompactUtcStamp`.
  * @returns The contribution JSON object.
  */
 export function buildContributionJson(
@@ -333,9 +310,9 @@ export function buildContributionJson(
   const card = buildCardJson(state.card, cardExternalId);
   const cardName = state.card.name.trim();
   const printings = state.printings.map((printing, index) => {
-    const finish = trimOrNull(printing.finish) ?? WellKnown.finish.NORMAL;
-    const language = (trimOrNull(printing.language) ?? "EN").toLowerCase();
-    const shortCode = trimOrNull(printing.publicCode)?.split("/", 1)[0];
+    const finish = trimToNull(printing.finish) ?? WellKnown.finish.NORMAL;
+    const language = (trimToNull(printing.language) ?? "EN").toLowerCase();
+    const shortCode = trimToNull(printing.publicCode)?.split("/", 1)[0];
     const disambiguator = shortCode || index.toString();
     const printingExternalId = `community:${state.slug}:${disambiguator}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId, cardName);

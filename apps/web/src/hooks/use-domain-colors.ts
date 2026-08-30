@@ -1,7 +1,7 @@
+import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
-import { DEFAULT_DOMAIN_COLORS } from "@/lib/domain";
 
 /**
  * Returns a slug-to-hex-color map for all domains, derived from the /init endpoint.

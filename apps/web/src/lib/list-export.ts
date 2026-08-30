@@ -7,6 +7,7 @@ import type {
   TradePreference,
 } from "@openrift/shared";
 import {
+  mergeListEntriesByTarget,
   resolveEffectiveTradePreference,
   sortCards,
   straightenApostrophes,
@@ -107,29 +108,6 @@ export function formatCardListAsDeckText(entries: readonly ListEntryDetailRespon
     lines.push(`${entry.quantity} ${straightenApostrophes(entry.cardName)}`);
   }
   return lines.join("\n");
-}
-
-/**
- * Collapses copy-kind entries (one per physical copy) into one entry per
- * printing, summing quantities, so a trade binder reads "3x Cleave" instead of
- * three "1x Cleave" lines.
- * @returns One entry per distinct printing.
- */
-function mergeCopiesByPrinting(
-  entries: readonly ListEntryDetailResponse[],
-): ListEntryDetailResponse[] {
-  const byPrinting = new Map<string, ListEntryDetailResponse>();
-  for (const entry of entries) {
-    // Key by target identity, not entry id — rule-only entries (ADR-034) have
-    // a null entry id.
-    const key = entry.kind === "card" ? entry.cardId : entry.printingId;
-    const existing = byPrinting.get(key);
-    byPrinting.set(
-      key,
-      existing ? { ...existing, quantity: existing.quantity + entry.quantity } : entry,
-    );
-  }
-  return [...byPrinting.values()];
 }
 
 /**
@@ -260,7 +238,7 @@ export function formatListShareText(
 ): string {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
   // same printing into a single "nx Card" line.
-  const display = kind === "copy" ? mergeCopiesByPrinting(entries) : entries;
+  const display = kind === "copy" ? mergeListEntriesByTarget(entries) : entries;
   const count = display.length;
   const noun = count === 1 ? KIND_NOUN[kind].one : KIND_NOUN[kind].many;
   const header = `${listName} (${count} ${noun})`;

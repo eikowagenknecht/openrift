@@ -19,6 +19,7 @@ import {
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
   toCents,
+  trimToNull,
   unique,
 } from "./utils";
 
@@ -573,6 +574,28 @@ describe("emptyToNull", () => {
   it("returns the string for whitespace-only input", () => {
     // Whitespace is truthy, so it passes through
     expect(emptyToNull("  ")).toBe("  ");
+  });
+});
+
+describe("trimToNull", () => {
+  it("returns null for whitespace-only input", () => {
+    expect(trimToNull("   ")).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(trimToNull("")).toBeNull();
+  });
+
+  it("returns null for null input", () => {
+    expect(trimToNull(null)).toBeNull();
+  });
+
+  it("returns null for undefined input", () => {
+    expect(trimToNull(undefined)).toBeNull();
+  });
+
+  it("trims surrounding whitespace but preserves inner spacing", () => {
+    expect(trimToNull("  hello world  ")).toBe("hello world");
   });
 });
 

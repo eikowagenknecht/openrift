@@ -15,6 +15,10 @@
  * that source already produced.
  */
 import { ERROR_CODES, WellKnown } from "@openrift/shared";
+import type {
+  MetaDeckAcceptField,
+  MetaEventAcceptField,
+} from "@openrift/shared/contracts/admin/meta";
 import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
 
 import type { Repos } from "../deps.js";
@@ -30,34 +34,6 @@ import type {
 import type { MetaDeckCardInput, MetaDeckPatch, MetaDeckSourceKey } from "../repositories/meta.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createArchivedDeck, updateArchivedDeck } from "./create-archived-deck.js";
-
-/**
- * The live event columns one source's value can be taken into. The contract in
- * `packages/shared` declares the same vocabulary (it cannot import this), and
- * the route asserts the two types equal in both directions. `slug` is absent
- * because it is minted once at accept and renaming breaks every published
- * link.
- */
-export const META_EVENT_ACCEPT_FIELDS = [
-  "name",
-  "eventDate",
-  "format",
-  "playerCount",
-  "organizer",
-  "notes",
-] as const;
-
-export type MetaEventAcceptField = (typeof META_EVENT_ACCEPT_FIELDS)[number];
-
-/** The card list is deliberately absent: it moves whole, via {@link acceptMetaDeckList}. */
-export const META_DECK_ACCEPT_FIELDS = [
-  "playerName",
-  "finishTier",
-  "record",
-  "listStatus",
-] as const;
-
-export type MetaDeckAcceptField = (typeof META_DECK_ACCEPT_FIELDS)[number];
 
 /** `meta_event_sources.label` CHECK bound. */
 const MAX_CITATION_LABEL_LENGTH = 60;

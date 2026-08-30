@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseChangelog } from "./changelog";
+import { parseChangelog } from "./changelog.js";
 
 describe("parseChangelog", () => {
   it("splits highlights and other sub-sections per date", () => {

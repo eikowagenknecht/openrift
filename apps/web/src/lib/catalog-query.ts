@@ -1,5 +1,5 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
-import { isReleasedIn, todayUtc } from "@openrift/shared";
+import { joinCatalogPrintings } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
@@ -344,48 +344,22 @@ export function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
 }
 
 function enrichCatalogInner(catalog: CatalogResponse): UseCardsResult {
-  const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
+  // `canonicalRank` rides through from the API on each row: the server-computed
+  // sort key from the `printings_ordered` view. Consumers that need
+  // user-language-aware order layer on top via `sortByLanguageAndCanonicalRank`.
+  const allPrintings = joinCatalogPrintings(catalog);
 
-  // Cards are already in the right shape — identity lives in the map key.
-  const cardsById: Record<string, Card> = catalog.cards;
-
-  // Join printings with their card and the parent set slug. The printing id
-  // is restored on the object so consumers that iterate `allPrintings` (a
-  // flat array without surrounding keys) still have an identifier.
-  //
-  // `canonicalRank` rides through from the API — each row carries the
-  // server-computed sort key from the `printings_ordered` view. Consumers
-  // that need user-language-aware order layer on top via
-  // `sortByLanguageAndCanonicalRank`.
-  // A set reaches each language on its own date, so `setReleased` is resolved
-  // per printing language. One "today" for the whole join, so two printings of
-  // the same set can't straddle a midnight that passes mid-enrich.
-  const today = todayUtc();
-  const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
-  for (const [id, value] of Object.entries(catalog.printings)) {
-    const set = setsById.get(value.setId);
-    const card = cardsById[value.cardId];
-    if (set && card) {
-      const printing: Printing = {
-        ...value,
-        id,
-        setSlug: set.slug,
-        setReleased: isReleasedIn(set.releases, value.language, today),
-        card,
-      };
-      allPrintings.push(printing);
-      printingsById[id] = printing;
-    }
+  for (const printing of allPrintings) {
+    printingsById[printing.id] = printing;
   }
-
-  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
 
   return {
     allPrintings,
-    cardsById,
+    // Cards are already in the right shape — identity lives in the map key.
+    cardsById: catalog.cards,
     printingsById,
-    printingsByCardId,
+    printingsByCardId: Map.groupBy(allPrintings, (p) => p.cardId),
     sets: catalog.sets,
   };
 }

@@ -1,13 +1,9 @@
+import type { ChangelogEntry } from "@openrift/shared";
+import { parseChangelog } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Fetch } from "../io.js";
 import type { jobRunsRepo } from "../repositories/job-runs.js";
-
-interface ChangelogEntry {
-  type: "feat" | "fix";
-  section: "highlight" | "other";
-  message: string;
-}
 
 interface ChangelogSection {
   date: string;
@@ -25,44 +21,14 @@ const DEFAULT_POST_DELAY_MS = 3000;
 // counting differences between JS UTF-16 length and Discord's own count.
 const MAX_DESCRIPTION_CHARS = 4000;
 
-export function parseChangelogSections(markdown: string): ChangelogSection[] {
-  const sections: ChangelogSection[] = [];
-  const blocks = markdown.split(/^## /mu).slice(1);
-
-  for (const block of blocks) {
-    const lines = block.trim().split("\n");
-    const date = lines[0].trim();
-    const entries: ChangelogEntry[] = [];
-    let current: "highlight" | "other" = "other";
-    for (const line of lines.slice(1)) {
-      const heading = line
-        .match(/^### (?<name>.+)$/u)
-        ?.groups?.name.trim()
-        .toLowerCase();
-      if (heading) {
-        current = heading === "highlights" ? "highlight" : "other";
-        continue;
-      }
-      const match = line.match(/^- (?<type>feat|fix)(?:\([^)]+\))?: (?<message>.+)$/u);
-      const groups = match?.groups;
-      if (groups) {
-        entries.push({
-          type: groups.type as "feat" | "fix",
-          section: current,
-          message: groups.message,
-        });
-      }
-    }
-    if (entries.length > 0) {
-      sections.push({ date, entries });
-    }
-  }
-
-  return sections.toSorted((a, b) => a.date.localeCompare(b.date));
+function toChangelogSections(markdown: string): ChangelogSection[] {
+  return parseChangelog(markdown)
+    .map((group) => ({ date: group.date, entries: [...group.highlights, ...group.other] }))
+    .toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
-function formatEntryMessage(message: string): string {
-  return message.replace(/^(?<title>\*\*.+?\*\*) — /u, "$<title>: ");
+function formatEntryMessage(entry: ChangelogEntry): string {
+  return entry.title ? `**${entry.title}**: ${entry.message}` : entry.message;
 }
 
 function formatSectionLines(entries: ChangelogEntry[]): string[] {
@@ -70,10 +36,10 @@ function formatSectionLines(entries: ChangelogEntry[]): string[] {
   const fixes = entries.filter((entry) => entry.type === "fix");
   const lines: string[] = [];
   for (const entry of feats) {
-    lines.push(`🆕 ${formatEntryMessage(entry.message)}`);
+    lines.push(`🆕 ${formatEntryMessage(entry)}`);
   }
   for (const entry of fixes) {
-    lines.push(`🔧 ${formatEntryMessage(entry.message)}`);
+    lines.push(`🔧 ${formatEntryMessage(entry)}`);
   }
   return lines;
 }
@@ -179,7 +145,7 @@ export async function postChangelogToDiscord(
     return { posted: 0, lastPostedDate: fromDate };
   }
 
-  const allSections = parseChangelogSections(markdown);
+  const allSections = toChangelogSections(markdown);
   const pending = fromDate ? allSections.filter((section) => section.date > fromDate) : allSections;
 
   if (pending.length === 0) {

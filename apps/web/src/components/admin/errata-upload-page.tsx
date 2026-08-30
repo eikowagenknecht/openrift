@@ -1,3 +1,4 @@
+import type { UploadErrataResponse } from "@openrift/shared/contracts/admin/card-mutations";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -16,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { BulkErrataEntry, BulkErrataUploadResponse } from "@/hooks/use-card-errata";
+import type { BulkErrataEntry } from "@/hooks/use-card-errata";
 import { useUploadErrata } from "@/hooks/use-card-errata";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ export function ErrataUploadPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [entries, setEntries] = useState<BulkErrataEntry[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<BulkErrataUploadResponse | null>(null);
+  const [preview, setPreview] = useState<UploadErrataResponse | null>(null);
 
   const upload = useUploadErrata();
 
@@ -266,7 +267,7 @@ function FormatHelp() {
   );
 }
 
-function PreviewSummary({ data }: { data: BulkErrataUploadResponse }) {
+function PreviewSummary({ data }: { data: UploadErrataResponse }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-sm">

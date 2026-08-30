@@ -1,6 +1,7 @@
 import type {
   Marketplace,
   AssignableCardResponse,
+  MappingGroupHeader,
   MarketplaceAssignmentResponse,
   MarketplaceGroupKind,
   StagedProductResponse,
@@ -63,16 +64,7 @@ function deriveCardsForMarketplace(
 }
 
 interface MappingOverviewResult {
-  groups: {
-    cardId: string;
-    cardSlug: string;
-    cardName: string;
-    superTypes: string[];
-    domains: string[];
-    energy: number | null;
-    might: number | null;
-    setId: string;
-    setName: string;
+  groups: (MappingGroupHeader & {
     printings: {
       printingId: string;
       setId: string;
@@ -90,7 +82,7 @@ interface MappingOverviewResult {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
     assignments: MarketplaceAssignmentResponse[];
-  }[];
+  })[];
   unmatchedProducts: StagedProductResponse[];
   allCards: AssignableCardResponse[];
 }

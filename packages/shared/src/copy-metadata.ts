@@ -29,6 +29,38 @@ export function copyHasMetadata(copy: CopyMetadata & { notesPrivate?: string | n
 }
 
 /**
+ * How much metadata a copy carries (ADR-038). Callers that need to pick the
+ * "plainest" copy from a stack (a default trade pin, a default move) use this
+ * so a graded, noted, or altered copy stays put unless nothing plainer is
+ * available. `notesPrivate` is checked when present, matching
+ * {@link copyHasMetadata}.
+ *
+ * @returns The weight; lower means plainer.
+ */
+export function copyMetadataWeight(copy: CopyMetadata & { notesPrivate?: string | null }): number {
+  let weight = 0;
+  if (copy.condition !== null) {
+    weight += 1;
+  }
+  if (copy.grader !== null || copy.grade !== null) {
+    weight += 2;
+  }
+  if (copy.notesPublic !== null) {
+    weight += 2;
+  }
+  if ((copy.notesPrivate ?? null) !== null) {
+    weight += 2;
+  }
+  if (copy.isAltered) {
+    weight += 2;
+  }
+  if (copy.links.length > 0) {
+    weight += 2;
+  }
+  return weight;
+}
+
+/**
  * Normalizes the cross-field state of a copy-metadata patch (ADR-038) so a
  * patch only has to be internally consistent: setting a condition clears
  * grading, setting grading clears the condition, and clearing either half of

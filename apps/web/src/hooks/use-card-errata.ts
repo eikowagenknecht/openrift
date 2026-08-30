@@ -1,4 +1,5 @@
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
+import type { UploadErrataResponse } from "@openrift/shared/contracts/admin/card-mutations";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -94,31 +95,10 @@ interface BulkErrataUploadBody {
   entries: BulkErrataEntry[];
 }
 
-interface EntryRef {
-  cardSlug: string;
-  cardName: string;
-}
-
-interface EntryDiff extends EntryRef {
-  fields: { field: string; from: string | null; to: string | null }[];
-}
-
-export interface BulkErrataUploadResponse {
-  dryRun: boolean;
-  newCount: number;
-  updatedCount: number;
-  unchangedCount: number;
-  matchesPrintedCount: number;
-  errors: string[];
-  newEntries: EntryRef[];
-  updatedEntries: EntryDiff[];
-  skippedMatchesPrinted: EntryRef[];
-}
-
 const uploadErrataFn = createServerFn({ method: "POST" })
   .validator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<BulkErrataUploadResponse> =>
+  .handler(({ context, data }): Promise<UploadErrataResponse> =>
     apiOrpcClient(adminCardMutationsContract, context.cookie).uploadErrata(data),
   );
 

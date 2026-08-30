@@ -1,6 +1,6 @@
+import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared";
 import type { ReactNode } from "react";
 
-import { DEFAULT_DOMAIN_COLORS } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 import { Vignette, VignetteHeading } from "./vignette-parts";

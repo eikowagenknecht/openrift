@@ -1,4 +1,5 @@
-import { formatRelativeDay } from "@openrift/shared";
+import type { ChangelogEntry } from "@openrift/shared";
+import { formatRelativeDay, parseChangelog } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
@@ -13,8 +14,6 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { ChangelogEntry } from "@/lib/changelog";
-import { parseChangelog } from "@/lib/changelog";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const changelogGroups = parseChangelog(changelogMd);

@@ -1,9 +1,8 @@
-import { legendDisplayName } from "@openrift/shared";
+import { describeCardStats, legendDisplayName } from "@openrift/shared";
 import type { APIEmbed, APIEmbedField } from "discord.js";
 
 import {
   cardTextFields,
-  describeCard,
   EMBED_COLOR,
   FIELD_LIMIT,
   printingFooter,
@@ -107,7 +106,7 @@ export function buildCardDetailsEmbed(input: CardDetailsInput): APIEmbed {
   return {
     title: legendDisplayName(card),
     url: `${siteUrl}/cards/${card.slug}`,
-    description: describeCard(card, snapshot.labels),
+    description: describeCardStats(card, snapshot.labels),
     color: EMBED_COLOR,
     ...(fields.length > 0 ? { fields } : {}),
     ...(printing ? { footer: { text: printingFooter(printing, snapshot) } } : {}),

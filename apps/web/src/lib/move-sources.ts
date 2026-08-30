@@ -1,4 +1,5 @@
 import type { CopyResponse } from "@openrift/shared";
+import { copyMetadataWeight } from "@openrift/shared";
 
 import { isTempCopyId } from "@/lib/temp-copy-id";
 
@@ -47,29 +48,7 @@ export function groupMovableCopies(
  * @returns The weight; lower means plainer.
  */
 function metadataWeight(copy: CopyResponse): number {
-  let weight = 0;
-  if (copy.condition !== null) {
-    weight += 1;
-  }
-  if (copy.grader !== null || copy.grade !== null) {
-    weight += 2;
-  }
-  if (copy.notesPublic !== null) {
-    weight += 2;
-  }
-  if (copy.notesPrivate !== null) {
-    weight += 2;
-  }
-  if (copy.isAltered) {
-    weight += 2;
-  }
-  if (copy.links.length > 0) {
-    weight += 2;
-  }
-  if (copy.onLoan) {
-    weight += 100;
-  }
-  return weight;
+  return copyMetadataWeight(copy) + (copy.onLoan ? 100 : 0);
 }
 
 /**

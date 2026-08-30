@@ -47,19 +47,6 @@ const USER_SUBMISSION_DAILY_LIMIT = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * UTC date stamp (`YYYYMMDD-HHmm`) baked into per-submission external_ids so a
- * user's two submissions of the same card never collide on the natural key.
- */
-export function formatSubmissionDateStamp(date: Date): string {
-  const yyyy = date.getUTCFullYear().toString();
-  const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const dd = date.getUTCDate().toString().padStart(2, "0");
-  const hh = date.getUTCHours().toString().padStart(2, "0");
-  const mi = date.getUTCMinutes().toString().padStart(2, "0");
-  return `${yyyy}${mm}${dd}-${hh}${mi}`;
-}
-
-/**
  * Map a validated user-submission payload to the candidate `IngestCard` shape,
  * generating the server-side external_ids. The card key is
  * `<slug>--<dateStamp>--<userId>`; printing keys extend it with a per-printing

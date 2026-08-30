@@ -113,12 +113,6 @@ const SETTLE_TRUST_MS = 500;
 const AIM_STREAK_GAP_MS = 3000;
 
 /**
- * The guide rect in frame coordinates: a centered portrait card outline.
- * Defined in the engine so the offline bench anchors on the same rect.
- */
-const guideQuadFor = centeredGuideQuad;
-
-/**
  * A card the placement detector watched land that nothing could identify, kept
  * with the picture of the moment it settled so the user can say what it was.
  */
@@ -608,7 +602,7 @@ export function useCardScanner(
     // only ever compares one frame against the previous one.
     const signal = detector.observe(
       toGray({ data: pixels.data, width, height }),
-      guideQuadFor(width, height),
+      centeredGuideQuad(width, height),
     );
     const tally = placementTallyRef.current;
     // A card that came to rest and was never identified is counted here rather
@@ -725,7 +719,7 @@ export function useCardScanner(
     syncOverlaySize(canvas, video);
     overlayTargetRef.current = {
       quad: candidate?.quad ?? null,
-      guide: settingsRef.current.mode === "pan" ? null : guideQuadFor(frameWidth, frameHeight),
+      guide: settingsRef.current.mode === "pan" ? null : centeredGuideQuad(frameWidth, frameHeight),
       frameWidth,
       frameHeight,
       turns,
@@ -1255,7 +1249,7 @@ export function useCardScanner(
     const areaFraction =
       outcome.candidate === null
         ? 0
-        : areaFractionOfGuide(outcome.candidate.quad, guideQuadFor(frame.width, frame.height));
+        : areaFractionOfGuide(outcome.candidate.quad, centeredGuideQuad(frame.width, frame.height));
     updateOverlayTarget(
       outcome.candidate,
       grade,

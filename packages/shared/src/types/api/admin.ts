@@ -279,6 +279,26 @@ export type MarketplaceAssignmentResponse = z.infer<
 
 export type UnifiedMappingGroupResponse = z.infer<typeof unifiedMappingGroupResponseSchema>;
 
+/**
+ * The per-card fields shared by every mapping "group" shape (unified,
+ * per-marketplace overview, and the client's suggestion-computation view).
+ * Only the header is common: each shape carries its own `printings` and
+ * marketplace product lists, so those stay separate rather than being forced
+ * into one type.
+ */
+export type MappingGroupHeader = Pick<
+  UnifiedMappingGroupResponse,
+  | "cardId"
+  | "cardSlug"
+  | "cardName"
+  | "superTypes"
+  | "domains"
+  | "energy"
+  | "might"
+  | "setId"
+  | "setName"
+>;
+
 /** Inferred from {@link unifiedMappingsResponseSchema}'s `allCards` entries. */
 export type AssignableCardResponse = z.infer<
   typeof unifiedMappingsResponseSchema

@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, formatCompactUtcStamp } from "@openrift/shared";
 import { cardSubmissionsContract } from "@openrift/shared/contracts/card-submissions";
 import { implement } from "@orpc/server";
 import type { Hono } from "hono";
@@ -9,10 +9,7 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
 import { keysetPage } from "../../repositories/query-helpers.js";
-import {
-  buildUserSubmissionCard,
-  formatSubmissionDateStamp,
-} from "../../services/ingest-user-submission.js";
+import { buildUserSubmissionCard } from "../../services/ingest-user-submission.js";
 import type { Variables } from "../../types.js";
 
 /** A card submission is small text + image URLs, never a binary upload. */
@@ -32,7 +29,7 @@ const os = implement(cardSubmissionsContract).$context<ApiContext>().use(require
 export const cardSubmissionsRouter = {
   submit: os.submit.handler(async ({ input, context, errors }): Promise<{ ok: true }> => {
     const now = new Date();
-    const dateStamp = formatSubmissionDateStamp(now);
+    const dateStamp = formatCompactUtcStamp(now);
     const card = buildUserSubmissionCard(input, context.userId, dateStamp);
 
     const result = await context.services.ingestUserSubmission(context.transact, {

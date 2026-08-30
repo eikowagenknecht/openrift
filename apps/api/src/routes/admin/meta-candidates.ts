@@ -17,40 +17,10 @@ import {
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { CandidateMetaDeckRow } from "../../repositories/meta-candidates.js";
-import type {
-  MetaDeckAcceptField,
-  MetaEventAcceptField,
-} from "../../services/meta-candidate-accept.js";
 import { MAX_EVENT_MATCH_DAY_DELTA } from "../../services/meta-match-suggestions.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
-
-/**
- * The accept-field vocabulary is declared twice — as `META_EVENT_ACCEPT_FIELDS`
- * in `services/meta-candidate-accept.ts` and again on the wire — because
- * `packages/shared` cannot import from `apps/api`. This lookup (and its deck
- * twin) holds the pair identical at build time: a column the write side gains
- * leaves a key missing, which `Record<MetaEventAcceptField, …>` rejects; a
- * field the wire gains has no key here, and the handler's lookup on
- * `input.field` rejects that.
- */
-const EVENT_ACCEPT_COLUMN: Record<MetaEventAcceptField, MetaEventAcceptField> = {
-  name: "name",
-  eventDate: "eventDate",
-  format: "format",
-  playerCount: "playerCount",
-  organizer: "organizer",
-  notes: "notes",
-};
-
-/** Same double-declaration contract as EVENT_ACCEPT_COLUMN. */
-const DECK_ACCEPT_COLUMN: Record<MetaDeckAcceptField, MetaDeckAcceptField> = {
-  playerName: "playerName",
-  finishTier: "finishTier",
-  record: "record",
-  listStatus: "listStatus",
-};
 
 /**
  * Unresolved rows are dropped, and rows that landed on the same card and zone
@@ -522,20 +492,18 @@ export const adminMetaCandidatesRouter = {
 
   // The reviewing admin is passed along because a deck accept settles any
   // submission ledger row behind it, and that row records who resolved it.
-  // The field name goes through the lookup above, which is what keeps the
-  // wire's vocabulary and the write side's from drifting apart.
 
   acceptMetaEventField: os.acceptMetaEventField.handler(({ input, context }) =>
     context.services.acceptMetaEventField(context.repos, {
       candidateEventId: input.id,
-      field: EVENT_ACCEPT_COLUMN[input.field],
+      field: input.field,
     }),
   ),
 
   acceptMetaDeckField: os.acceptMetaDeckField.handler(({ input, context }) =>
     context.services.acceptMetaDeckField(
       context.repos,
-      { candidateDeckId: input.id, field: DECK_ACCEPT_COLUMN[input.field] },
+      { candidateDeckId: input.id, field: input.field },
       { resolvedByUserId: context.userId },
     ),
   ),

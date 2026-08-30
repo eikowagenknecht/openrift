@@ -1,3 +1,7 @@
+import {
+  META_DECK_ACCEPT_FIELDS,
+  META_EVENT_ACCEPT_FIELDS,
+} from "@openrift/shared/contracts/admin/meta";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
@@ -7,8 +11,6 @@ import type {
   CandidateMetaEventRow,
 } from "../repositories/meta-candidates.js";
 import {
-  META_DECK_ACCEPT_FIELDS,
-  META_EVENT_ACCEPT_FIELDS,
   acceptCandidateEvent,
   acceptMetaDeckField,
   acceptMetaDeckList,

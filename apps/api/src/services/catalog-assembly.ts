@@ -4,7 +4,7 @@ import type {
   CatalogResponsePrintingValue,
   Printing,
 } from "@openrift/shared";
-import { isReleasedIn, todayUtc } from "@openrift/shared";
+import { joinCatalogPrintings } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import {
@@ -182,36 +182,6 @@ export function filterCatalogResponseByLanguages(
 }
 
 /**
- * Joins a {@link CatalogResponse} into the flat `Printing[]` shape that the
- * shared `filterCards` evaluator expects (mirrors the web `enrichCatalog`
- * join).
- */
-function catalogResponseToPrintings(catalog: CatalogResponse): Printing[] {
-  const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
-  const cardsById = catalog.cards;
-  // One "today" for the whole join, so two printings of the same set can't
-  // land on opposite sides of a midnight that passes mid-assembly.
-  const today = todayUtc();
-  const printings: Printing[] = [];
-  for (const [id, value] of Object.entries(catalog.printings)) {
-    const set = setsById.get(value.setId);
-    const card = cardsById[value.cardId];
-    if (set && card) {
-      printings.push({
-        ...value,
-        id,
-        setSlug: set.slug,
-        // A set is out in each language on its own date, and a printing knows
-        // which language it is.
-        setReleased: isReleasedIn(set.releases, value.language, today),
-        card,
-      });
-    }
-  }
-  return printings;
-}
-
-/**
  * The bundle a dynamic list rule needs to evaluate server-side: the flat
  * `Printing[]` plus the card→custom-tag-slug map. The map is required for
  * any rule filtering on `customTagSlugs` — `filterCards` reads tags only from
@@ -227,7 +197,7 @@ export interface RuleCatalog {
 export async function assembleRuleCatalog(repos: Repos): Promise<RuleCatalog> {
   const response = await assembleCatalogResponse(repos);
   return {
-    printings: catalogResponseToPrintings(response),
+    printings: joinCatalogPrintings(response),
     customTagAssignments: response.customTagAssignments,
   };
 }
